@@ -46,7 +46,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F0-T007 Configurar RabbitMQ
 - [x] F0-T008 Configurar migrations
 - [x] F0-T009 Configurar observabilidade base
-- [ ] F0-T010 Configurar CI (BLOCKED: workflow falha antes dos steps por runner do GitHub indisponível)
+- [ ] F0-T010 Configurar CI (BLOCKED: conta atingiu 2.000/2.000 minutos do GitHub Actions; reset em 01/10/2026)
 - [x] F0-T011 Criar estrutura Frontend e dashboard inicial
 
 ## Fase 1 — Identity
