@@ -37,13 +37,13 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Migrations configuradas
 - [x] Observabilidade base (Serilog, Health Checks, OpenTelemetry)
 - [x] Frontend estrutura (React + TypeScript + Vite + PrimeReact)
-- [ ] Primeiro projeto compilando
+- [x] Primeiro projeto compilando
 - [ ] Primeiros testes
-- [ ] Primeiro módulo implementado
+- [x] Primeiro módulo implementado (dashboard web inicial)
 
 ## Próxima fase
 
-Fundação técnica, executada em Tasks pequenas.
+Fundação técnica concluída para o frontend inicial; próxima etapa: conectar o dashboard às APIs e iniciar o módulo de Identity.
 
 ## Regra
 
