@@ -39,7 +39,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 
 - [x] F0-T001 Criar solução .NET
 - [x] F0-T002 Criar estrutura de projetos
-- [ ] F0-T003 Criar solução de testes
+- [x] F0-T003 Criar solução de testes
 - [ ] F0-T004 Configurar Docker Compose
 - [ ] F0-T005 Configurar PostgreSQL
 - [ ] F0-T006 Configurar Redis

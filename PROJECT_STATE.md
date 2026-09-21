@@ -29,6 +29,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Divisão em Tasks/SubTasks definida
 - [x] Solution criada
 - [x] Estrutura de projetos definida
+- [x] Solução de testes criada
 - [ ] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [ ] Primeiro módulo implementado
