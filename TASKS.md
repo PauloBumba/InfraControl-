@@ -41,7 +41,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F0-T002 Criar estrutura de projetos
 - [x] F0-T003 Criar solução de testes
 - [x] F0-T004 Configurar Docker Compose
-- [ ] F0-T005 Configurar PostgreSQL
+- [x] F0-T005 Configurar PostgreSQL
 - [ ] F0-T006 Configurar Redis
 - [ ] F0-T007 Configurar RabbitMQ
 - [ ] F0-T008 Configurar migrations
