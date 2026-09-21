@@ -33,6 +33,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Docker Compose configurado
 - [x] PostgreSQL configurado
 - [x] Redis configurado
+- [x] RabbitMQ configurado (MassTransit)
 - [ ] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [ ] Primeiro módulo implementado

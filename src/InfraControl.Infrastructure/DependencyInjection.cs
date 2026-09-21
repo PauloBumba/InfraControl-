@@ -2,6 +2,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Infrastructure.Common.Caching;
 using InfraControl.Infrastructure.Common.Messaging;
 using InfraControl.Infrastructure.Common.Persistence;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,10 @@ public static class DependencyInjection
         var redisConnectionString = configuration.GetConnectionString("Redis")
             ?? "localhost:6379";
 
+        var rabbitMqHost = configuration.GetConnectionString("RabbitMQ") ?? "localhost";
+        var rabbitMqUser = configuration["RabbitMQ:User"] ?? "infracontrol";
+        var rabbitMqPassword = configuration["RabbitMQ:Password"] ?? "infracontrol_dev_2026";
+
         // PostgreSQL
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
@@ -36,6 +41,23 @@ public static class DependencyInjection
             ConnectionMultiplexer.Connect(redisConnectionString));
 
         services.AddScoped<ICacheService, RedisCacheService>();
+
+        // RabbitMQ via MassTransit
+        services.AddMassTransit(x =>
+        {
+            x.UsingRabbitMq((context, cfg) =>
+            {
+                cfg.Host(rabbitMqHost, "/", h =>
+                {
+                    h.Username(rabbitMqUser);
+                    h.Password(rabbitMqPassword);
+                });
+
+                cfg.ConfigureEndpoints(context);
+            });
+        });
+
+        services.AddScoped<IEventBus, MassTransitEventBus>();
 
         // Outbox
         services.AddScoped<IOutboxRepository, OutboxRepository>();
