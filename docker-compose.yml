@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: infracontrol-postgres
+    environment:
+      POSTGRES_DB: infracontrol
+      POSTGRES_USER: infracontrol
+      POSTGRES_PASSWORD: infracontrol_dev_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U infracontrol -d infracontrol"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infracontrol
+
+  redis:
+    image: redis:7-alpine
+    container_name: infracontrol-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infracontrol
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: infracontrol-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: infracontrol
+      RABBITMQ_DEFAULT_PASS: infracontrol_dev_2026
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infracontrol
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  infracontrol:
+    driver: bridge
