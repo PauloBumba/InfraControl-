@@ -1,7 +1,7 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.Common.Entities;
 
-namespace InfraControl.Domain.Identity;
+namespace InfraControl.Domain.Entities;
 
 public sealed class UserRoleAssignment : Entity
 {

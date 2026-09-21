@@ -1,4 +1,4 @@
-using InfraControl.Domain.Outbox;
+using InfraControl.Domain.Entities;
 
 namespace InfraControl.Application.Common.Interfaces;
 

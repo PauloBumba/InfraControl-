@@ -18,6 +18,21 @@ tests/
 └── Security/
 ```
 
+## Domain
+
+O domínio segue o padrão do Sentinel, com responsabilidades organizadas diretamente por tipo:
+
+```text
+InfraControl.Domain/
+├── Entities/
+├── Enums/
+├── Events/
+├── ValueObjects/
+└── Common/              # building blocks compartilhados
+```
+
+Entidades, enums e eventos de negócio não devem ser colocados em `Common`.
+
 ## Application
 
 Organizada por Vertical Slice:

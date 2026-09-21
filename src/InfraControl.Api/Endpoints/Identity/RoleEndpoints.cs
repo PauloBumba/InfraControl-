@@ -1,7 +1,7 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using InfraControl.Application.Identity.Roles.Commands;
-using InfraControl.Domain.Identity;
+using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

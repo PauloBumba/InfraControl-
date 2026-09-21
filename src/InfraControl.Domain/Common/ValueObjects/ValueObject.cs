@@ -1,4 +1,4 @@
-namespace InfraControl.Domain.Common.ValueObjects;
+namespace InfraControl.Domain.ValueObjects;
 
 public abstract class ValueObject
 {

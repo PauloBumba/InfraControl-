@@ -1,8 +1,8 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using FluentAssertions;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Application.Identity.Roles.Ports;
-using InfraControl.Domain.Identity;
+using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InfraControl.UnitTests.Identity;

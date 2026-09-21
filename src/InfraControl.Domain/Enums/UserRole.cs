@@ -1,4 +1,4 @@
-namespace InfraControl.Domain.Common.Enums;
+namespace InfraControl.Domain.Enums;
 
 public enum UserRole
 {

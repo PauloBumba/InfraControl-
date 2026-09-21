@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace InfraControl.Domain.Common.ValueObjects;
+namespace InfraControl.Domain.ValueObjects;
 
 public class IpAddress : ValueObject
 {

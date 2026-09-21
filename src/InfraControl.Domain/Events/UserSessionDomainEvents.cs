@@ -1,6 +1,6 @@
 using InfraControl.Domain.Common.Events;
 
-namespace InfraControl.Domain.Identity.Events;
+namespace InfraControl.Domain.Events;
 
 public sealed class UserSessionStartedDomainEvent : DomainEvent
 {

@@ -1,4 +1,4 @@
-using InfraControl.Domain.Identity;
+using InfraControl.Domain.Entities;
 
 namespace InfraControl.Application.Identity;
 

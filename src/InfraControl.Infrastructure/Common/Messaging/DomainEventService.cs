@@ -1,7 +1,7 @@
 using System.Text.Json;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Common.Events;
-using InfraControl.Domain.Outbox;
+using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Common.Persistence;
 using MediatR;
 

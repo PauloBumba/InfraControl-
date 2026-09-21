@@ -53,6 +53,17 @@ src/
 └── Contracts/
 ```
 
+O projeto segue a organização de domínio usada no Sentinel: entidades, enums, eventos e value objects ficam diretamente sob `InfraControl.Domain`. `Common` é reservado aos building blocks compartilhados, como `Entity`, `AggregateRoot`, eventos base e value objects base; não deve receber entidades de negócio.
+
+```text
+InfraControl.Domain/
+├── Entities/
+├── Enums/
+├── Events/
+├── ValueObjects/
+└── Common/             # building blocks compartilhados
+```
+
 ## Frontend
 
 ```text

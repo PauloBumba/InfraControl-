@@ -1,7 +1,7 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using FluentAssertions;
-using InfraControl.Domain.Identity;
-using InfraControl.Domain.Identity.Events;
+using InfraControl.Domain.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.UnitTests.Identity;
 

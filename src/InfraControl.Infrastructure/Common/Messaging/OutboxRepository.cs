@@ -1,5 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
-using InfraControl.Domain.Outbox;
+using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 

@@ -2,13 +2,13 @@ using System.Reflection;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
-using InfraControl.Domain.Outbox;
+using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using DomainIdentity = InfraControl.Domain.Identity;
+using DomainIdentity = InfraControl.Domain.Entities;
 
 namespace InfraControl.Infrastructure.Common.Persistence;
 

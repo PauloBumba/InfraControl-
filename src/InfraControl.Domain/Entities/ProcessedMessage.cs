@@ -1,6 +1,6 @@
 using InfraControl.Domain.Common.Entities;
 
-namespace InfraControl.Domain.Outbox;
+namespace InfraControl.Domain.Entities;
 
 public class ProcessedMessage : Entity
 {

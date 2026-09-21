@@ -25,7 +25,7 @@ namespace InfraControl.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("InfraControl.Domain.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -78,7 +78,7 @@ namespace InfraControl.Infrastructure.Migrations
                     b.ToTable("outbox_messages", (string)null);
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Outbox.ProcessedMessage", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.ProcessedMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

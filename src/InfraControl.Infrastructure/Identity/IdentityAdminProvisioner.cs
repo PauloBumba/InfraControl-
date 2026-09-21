@@ -1,6 +1,6 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using InfraControl.Application.Identity;
-using InfraControl.Domain.Identity;
+using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Common.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

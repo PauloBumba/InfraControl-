@@ -1,7 +1,7 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.Common.Events;
 
-namespace InfraControl.Domain.Identity.Events;
+namespace InfraControl.Domain.Events;
 
 public sealed class UserCreatedDomainEvent : DomainEvent
 {

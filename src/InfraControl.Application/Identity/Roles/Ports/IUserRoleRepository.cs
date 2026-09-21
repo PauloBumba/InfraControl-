@@ -1,5 +1,5 @@
-using InfraControl.Domain.Common.Enums;
-using InfraControl.Domain.Identity;
+using InfraControl.Domain.Enums;
+using InfraControl.Domain.Entities;
 
 namespace InfraControl.Application.Identity.Roles.Ports;
 

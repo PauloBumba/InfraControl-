@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace InfraControl.Domain.Common.ValueObjects;
+namespace InfraControl.Domain.ValueObjects;
 
 public partial class MacAddress : ValueObject
 {

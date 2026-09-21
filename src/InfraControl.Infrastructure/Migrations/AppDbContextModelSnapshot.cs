@@ -22,7 +22,7 @@ namespace InfraControl.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("InfraControl.Domain.Identity.User", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -55,7 +55,7 @@ namespace InfraControl.Infrastructure.Migrations
                     b.ToTable("DomainUsers", (string)null);
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Identity.UserRoleAssignment", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.UserRoleAssignment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -83,7 +83,7 @@ namespace InfraControl.Infrastructure.Migrations
                     b.ToTable("DomainUserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Identity.UserSession", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.UserSession", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -125,7 +125,7 @@ namespace InfraControl.Infrastructure.Migrations
                     b.ToTable("UserSessions", (string)null);
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Outbox.OutboxMessage", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -184,7 +184,7 @@ namespace InfraControl.Infrastructure.Migrations
                     b.ToTable("outbox_messages", (string)null);
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Outbox.ProcessedMessage", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.ProcessedMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -415,9 +415,9 @@ namespace InfraControl.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Identity.UserRoleAssignment", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.UserRoleAssignment", b =>
                 {
-                    b.HasOne("InfraControl.Domain.Identity.User", null)
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
                         .WithMany("_roleAssignments")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -475,7 +475,7 @@ namespace InfraControl.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("InfraControl.Domain.Identity.User", b =>
+            modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Navigation("_roleAssignments");
                 });

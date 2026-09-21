@@ -1,5 +1,5 @@
-using InfraControl.Domain.Common.Enums;
-using InfraControl.Domain.Identity;
+using InfraControl.Domain.Enums;
+using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Identity;

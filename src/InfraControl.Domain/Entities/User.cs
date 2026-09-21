@@ -1,8 +1,8 @@
-using InfraControl.Domain.Common.Enums;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.Common.Entities;
-using InfraControl.Domain.Identity.Events;
+using InfraControl.Domain.Events;
 
-namespace InfraControl.Domain.Identity;
+namespace InfraControl.Domain.Entities;
 
 public sealed class User : AggregateRoot
 {
