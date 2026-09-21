@@ -32,6 +32,12 @@ BootstrapAdmin__Password=<secret>
 
 O processo é idempotente: se já existir qualquer administrador ou se o email configurado já estiver cadastrado, nenhuma duplicação é criada. A senha é entregue ao `UserManager` para hash e nunca é escrita em logs. A criação do usuário técnico, role `Admin` e agregado de domínio ocorre em transação única.
 
+### F1-T003 — Roles e RBAC
+
+O gerenciamento de roles é implementado como caso de uso em `Application`, com o repositório `IUserRoleRepository` como porta. O adaptador de `Infrastructure` sincroniza o agregado `Domain.Identity.User` com as roles do ASP.NET Core Identity dentro de uma transação.
+
+As policies HTTP são `AdminOnly`, `UserAccess` e `ViewerAccess`. A atribuição e remoção ficam protegidas por `AdminOnly`; a remoção do último administrador ativo é rejeitada. Um usuário deve manter pelo menos uma role. Permissões granulares e auditoria das alterações permanecem nas Tasks seguintes.
+
 ## Modelo
 
 ```text

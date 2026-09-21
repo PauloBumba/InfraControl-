@@ -53,7 +53,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 
 - [x] F1-T001 ASP.NET Core Identity (DDD, agregados, eventos, roles, sessões e migration)
 - [x] F1-T002 Bootstrap Admin (opt-in, idempotente, transacional e com segredo externo)
-- [ ] F1-T003 Roles
+- [x] F1-T003 Roles (RBAC, policies, sincronização Identity e proteção do último Admin)
 - [ ] F1-T004 Permissions
 - [ ] F1-T005 Invitation
 - [ ] F1-T006 Accept Invitation

@@ -18,6 +18,14 @@ public sealed class UserRoleAssignedDomainEvent : DomainEvent
     public override string EventType => nameof(UserRoleAssignedDomainEvent);
 }
 
+public sealed class UserRoleRemovedDomainEvent : DomainEvent
+{
+    public UserRoleRemovedDomainEvent(Guid userId, UserRole role) { UserId = userId; Role = role; }
+    public Guid UserId { get; }
+    public UserRole Role { get; }
+    public override string EventType => nameof(UserRoleRemovedDomainEvent);
+}
+
 public sealed class UserDisabledDomainEvent : DomainEvent
 {
     public UserDisabledDomainEvent(Guid userId) { UserId = userId; }
