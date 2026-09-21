@@ -1,8 +1,10 @@
 using InfraControl.Application.Identity;
+using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Infrastructure;
 using InfraControl.Infrastructure.Identity;
 using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -31,6 +33,21 @@ builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
 
 // ── Controllers ──────────────────────────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+    })
+    .AddCookie(IdentityConstants.ApplicationScheme, options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+    });
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
+    .AddPolicy("UserAccess", policy => policy.RequireRole("Admin", "User"))
+    .AddPolicy("ViewerAccess", policy => policy.RequireRole("Admin", "User", "Viewer"));
 
 // ── OpenAPI ──────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
@@ -83,6 +100,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Health Checks
 app.MapHealthChecks("/health", new HealthCheckOptions

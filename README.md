@@ -21,7 +21,7 @@ A solução não pretende começar com microservices. O sistema inicia como um *
 | Outbox | Estruturado | Repositório e eventos de domínio |
 | Observabilidade | Base implementada | Serilog, health checks e OpenTelemetry |
 | Frontend | Dashboard inicial implementado | React, TypeScript, Vite e PrimeReact |
-| ASP.NET Core Identity | F1-T001 concluída | Agregados DDD, eventos, roles, sessões e migration |
+| ASP.NET Core Identity | F1-T001–F1-T003 concluídas | Agregados DDD, bootstrap, RBAC, policies, sessões e migration |
 | CI | Workflow criado, validação bloqueada | `.github/workflows/ci.yml` |
 
 O estado detalhado e as pendências rastreáveis estão em [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`TASKS.md`](TASKS.md).
@@ -214,7 +214,6 @@ Esse bloqueio está documentado em [`docs/11-CLEANUP-RETENTION-TESTES-CICD.md`](
 
 As próximas etapas da fundação de identidade são:
 
-- Roles;
 - Permissions;
 - Convites;
 - Aceite e rejeição de convites;
@@ -224,6 +223,8 @@ As próximas etapas da fundação de identidade são:
 O domínio de Identity já contém os agregados `User` e `UserSession`, as roles `Admin`, `User` e `Viewer` e eventos para criação, alteração de role e ciclo de sessão. O ASP.NET Core Identity permanece como adaptador técnico para credenciais e persistência de autenticação.
 
 O Bootstrap Admin está implementado como caso de uso em `Application`, com persistência delegada por uma porta ao `Infrastructure`. Ele é opt-in e pode ser ativado com `BootstrapAdmin__Enabled=true`; email, nome e senha devem vir de variáveis de ambiente ou secret manager. A operação é idempotente e não registra a senha.
+
+O RBAC inicial segue Vertical Slice/CQRS: comandos e handlers ficam em `Application`, o domínio mantém as invariantes do usuário, e `Infrastructure` sincroniza as roles com o ASP.NET Core Identity. As policies HTTP são `AdminOnly`, `UserAccess` e `ViewerAccess`; permissões granulares e auditoria continuam planejadas.
 
 O roadmap completo está em [`TASKS.md`](TASKS.md). Cada Task deve ser executada isoladamente, com escopo, teste, evidência e atualização de estado.
 

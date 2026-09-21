@@ -43,6 +43,18 @@ public sealed class User : AggregateRoot
         }
     }
 
+    public void RemoveRole(UserRole role)
+    {
+        var assignment = _roleAssignments.SingleOrDefault(current => current.Role == role);
+        if (assignment is null) return;
+        if (_roleAssignments.Count == 1)
+            throw new InvalidOperationException("A user must retain at least one role.");
+
+        _roleAssignments.Remove(assignment);
+        Touch();
+        RaiseDomainEvent(new UserRoleRemovedDomainEvent(Id, role));
+    }
+
     public void Disable()
     {
         if (!IsActive) return;
