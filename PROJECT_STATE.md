@@ -45,6 +45,13 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] RBAC de roles implementado como Vertical Slice/CQRS com policies e sincronização Identity
 - [x] Infrastructure reorganizada conforme Sentinel (`Auth`, `Caching`, `Persistence`, `Repositories` e `Services`)
 - [x] Permissions implementadas no domínio com matriz por role, claims e policies granulares
+- [x] Capacidades transversais do Sentinel documentadas
+- [x] Behaviors MediatR base implementados (correlation, logging, performance e validation)
+- [x] Idempotência opt-in implementada com aquisição atômica no Redis
+- [x] Outbox Dispatcher implementado no projeto Workers
+- [x] Health checks operacionais separados em live, ready e startup
+- [ ] Auditoria persistida pós-commit (próximo slice; não marcar como concluída por logs)
+- [ ] Inbox, resiliência por provider e retenção (planejados)
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 ## Próxima fase
@@ -56,6 +63,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - `dotnet build InfraControl.slnx --configuration Release`: aprovado, com 1 warning existente.
 - `dotnet test InfraControl.slnx --configuration Release`: 12 testes aprovados, 0 falhas.
 - Após Permissions: 16 testes aprovados, 0 falhas.
+- Após capacidades transversais: 19 testes aprovados, 0 falhas.
 - `npm run build` em `frontend/InfraControl.Web`: aprovado.
 - `git diff --check`: aprovado.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.

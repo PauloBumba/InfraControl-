@@ -17,4 +17,7 @@ public class MassTransitEventBus : IEventBus
     {
         await _publishEndpoint.Publish(message, cancellationToken);
     }
+
+    public Task PublishAsync(object message, Type messageType, CancellationToken cancellationToken = default)
+        => _publishEndpoint.Publish(message, messageType, cancellationToken);
 }

@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Domain.Common;
@@ -8,6 +9,7 @@ using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Repositories;
 using MassTransit;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -67,7 +69,18 @@ public static class DependencyInjection
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(redisConnectionString));
 
-        services.AddScoped<ICacheService, RedisCacheService>();
+        services.AddScoped<RedisCacheService>();
+        services.AddScoped<ICacheService>(provider =>
+            provider.GetRequiredService<RedisCacheService>());
+        services.AddScoped<IIdempotencyStore>(provider =>
+            provider.GetRequiredService<RedisCacheService>());
+
+        // Pipeline transversal: cada behavior é opt-in quando requer um contrato específico.
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
 
         // RabbitMQ via MassTransit
         services.AddMassTransit(x =>

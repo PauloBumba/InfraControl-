@@ -137,6 +137,16 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = check => check.Tags.Contains("core")
 });
 
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
+
+app.MapHealthChecks("/health/startup", new HealthCheckOptions
+{
+    Predicate = _ => true
+});
+
 app.MapControllers();
 
 app.Run();

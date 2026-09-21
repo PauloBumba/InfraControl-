@@ -4,7 +4,7 @@ using StackExchange.Redis;
 
 namespace InfraControl.Infrastructure.Caching;
 
-public class RedisCacheService : ICacheService
+public class RedisCacheService : ICacheService, IIdempotencyStore
 {
     private readonly IConnectionMultiplexer _redis;
     private readonly IDatabase _database;
@@ -46,5 +46,10 @@ public class RedisCacheService : ICacheService
     public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
     {
         return await _database.KeyExistsAsync(key);
+    }
+
+    public async Task<bool> TryAcquireAsync(string key, TimeSpan expiry, CancellationToken cancellationToken = default)
+    {
+        return await _database.StringSetAsync(key, "1", expiry, When.NotExists);
     }
 }
