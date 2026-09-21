@@ -8,6 +8,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using DomainIdentity = InfraControl.Domain.Identity;
 
 namespace InfraControl.Infrastructure.Common.Persistence;
 
@@ -23,6 +24,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
+    public DbSet<DomainIdentity.User> Users => Set<DomainIdentity.User>();
+    public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

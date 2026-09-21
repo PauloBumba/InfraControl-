@@ -6,12 +6,16 @@ ASP.NET Core Identity.
 
 ### F1-T001 — Fundação implementada
 
-- `InfraControlUser` usa `Guid` como chave e possui estado ativo;
-- `AppDbContext` herda de `IdentityDbContext` e mantém Outbox e auditoria existentes;
+- `InfraControl.Domain.Identity.User` é o agregado de negócio e possui estado ativo, email e roles;
+- `UserRole` define `Admin`, `User` e `Viewer`, com atribuição controlada pelo agregado;
+- `UserSession` é o agregado responsável por expiração, refresh token hash e revogação de sessão;
+- eventos de domínio cobrem criação, ativação, desativação, role e ciclo de sessão;
+- `InfraControlUser` é somente o adaptador técnico de credenciais do ASP.NET Identity;
+- `AppDbContext` herda de `IdentityDbContext` e mantém Outbox, auditoria e agregados de domínio;
 - `UserManager` e roles store são registrados no módulo de Infrastructure;
 - senha exige no mínimo 12 caracteres, número, maiúscula, minúscula e caractere não alfanumérico;
 - migration `AddIdentityFoundation` cria as tabelas padrão do Identity no PostgreSQL;
-- endpoints, JWT, bootstrap admin, convites, permissões e controle de sessão permanecem nas Tasks seguintes.
+- endpoints, JWT, bootstrap admin, convites e permissões permanecem nas Tasks seguintes; a sessão de domínio já está modelada.
 
 ## Modelo
 
