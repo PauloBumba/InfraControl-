@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common.Enums;
 using InfraControl.Domain.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

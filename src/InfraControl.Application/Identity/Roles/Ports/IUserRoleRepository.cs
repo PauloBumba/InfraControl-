@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common.Enums;
 using InfraControl.Domain.Identity;
 
 namespace InfraControl.Application.Identity.Roles.Ports;

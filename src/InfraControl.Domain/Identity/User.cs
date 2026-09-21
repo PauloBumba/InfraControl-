@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common.Enums;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Identity.Events;
 

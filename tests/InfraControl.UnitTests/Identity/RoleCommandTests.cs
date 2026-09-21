@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common.Enums;
 using FluentAssertions;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Application.Identity.Roles.Ports;

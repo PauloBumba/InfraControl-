@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common.Enums;
 using System.ComponentModel.DataAnnotations;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Domain.Identity;

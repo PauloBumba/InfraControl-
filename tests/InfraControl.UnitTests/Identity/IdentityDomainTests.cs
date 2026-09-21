@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common.Enums;
 using FluentAssertions;
 using InfraControl.Domain.Identity;
 using InfraControl.Domain.Identity.Events;
