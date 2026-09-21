@@ -54,7 +54,6 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>();
 
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
-        services.AddScoped<IUserRoleRepository, IdentityRoleRepository>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());

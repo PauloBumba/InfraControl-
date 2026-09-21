@@ -31,29 +31,6 @@ public sealed class IdentityDomainTests
     }
 
     [Fact]
-    public void User_RemoveRole_ShouldRejectRemovingTheOnlyRole()
-    {
-        var user = User.Create("viewer@example.com", "Viewer", UserRole.Viewer);
-
-        var action = () => user.RemoveRole(UserRole.Viewer);
-
-        action.Should().Throw<InvalidOperationException>();
-    }
-
-    [Fact]
-    public void User_RemoveRole_ShouldRaiseRoleRemovedEvent()
-    {
-        var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
-        user.AssignRole(UserRole.User);
-        user.ClearDomainEvents();
-
-        user.RemoveRole(UserRole.User);
-
-        user.Roles.Should().ContainSingle().Which.Should().Be(UserRole.Admin);
-        user.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<UserRoleRemovedDomainEvent>();
-    }
-
-    [Fact]
     public void UserSession_Revoke_ShouldMakeSessionInactiveAndRaiseEvent()
     {
         var session = UserSession.Start(Guid.NewGuid(), "refresh-token-hash", TimeSpan.FromHours(1));

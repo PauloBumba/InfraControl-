@@ -47,7 +47,7 @@ public sealed class IdentityAdminProvisioner(
             var roleAssignmentResult = await userManager.AddToRoleAsync(identityUser, adminRole);
             EnsureSucceeded(roleAssignmentResult, "admin role assignment");
 
-            dbContext.DomainUsers.Add(user);
+            dbContext.Users.Add(user);
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }

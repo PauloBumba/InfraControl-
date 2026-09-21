@@ -24,8 +24,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
-    public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
-    public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();
+    public DbSet<DomainIdentity.User> Users => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

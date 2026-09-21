@@ -2,8 +2,6 @@ using InfraControl.Application.Identity;
 using InfraControl.Infrastructure;
 using InfraControl.Infrastructure.Identity;
 using MediatR;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -24,20 +22,8 @@ builder.Host.UseSerilog();
 
 // ── Infrastructure ───────────────────────────────────────────────────────
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
-    })
-    .AddCookie(IdentityConstants.ApplicationScheme, options =>
-    {
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-    });
 builder.Services.AddMediatR(configuration =>
     configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
-builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
 builder.Services.AddSingleton(builder.Configuration
     .GetSection(BootstrapAdminOptions.SectionName)
     .Get<BootstrapAdminOptions>() ?? new BootstrapAdminOptions());
@@ -45,10 +31,6 @@ builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
 
 // ── Controllers ──────────────────────────────────────────────────────────
 builder.Services.AddControllers();
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
-    .AddPolicy("UserAccess", policy => policy.RequireRole("Admin", "User"))
-    .AddPolicy("ViewerAccess", policy => policy.RequireRole("Admin", "User", "Viewer"));
 
 // ── OpenAPI ──────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
@@ -101,8 +83,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
 
 // Health Checks
 app.MapHealthChecks("/health", new HealthCheckOptions
