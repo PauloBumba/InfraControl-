@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/InfraControl.Domain/InfraControl.Domain.csproj" />
+    <Project Path="src/InfraControl.Application/InfraControl.Application.csproj" />
+    <Project Path="src/InfraControl.Infrastructure/InfraControl.Infrastructure.csproj" />
+    <Project Path="src/InfraControl.Contracts/InfraControl.Contracts.csproj" />
+    <Project Path="src/InfraControl.Api/InfraControl.Api.csproj" />
+    <Project Path="src/InfraControl.Workers/InfraControl.Workers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/InfraControl.UnitTests/InfraControl.UnitTests.csproj" />
+    <Project Path="tests/InfraControl.IntegrationTests/InfraControl.IntegrationTests.csproj" />
+    <Project Path="tests/InfraControl.ArchitectureTests/InfraControl.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>
