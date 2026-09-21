@@ -225,6 +225,8 @@ As próximas etapas da fundação de identidade são:
 
 O domínio de Identity já contém os agregados `User` e `UserSession`, as roles `Admin`, `User` e `Viewer` e eventos para criação, alteração de role e ciclo de sessão. O ASP.NET Core Identity permanece como adaptador técnico para credenciais e persistência de autenticação.
 
+O Bootstrap Admin está implementado como caso de uso em `Application`, com persistência delegada por uma porta ao `Infrastructure`. Ele é opt-in e pode ser ativado com `BootstrapAdmin__Enabled=true`; email, nome e senha devem vir de variáveis de ambiente ou secret manager. A operação é idempotente e não registra a senha.
+
 O roadmap completo está em [`TASKS.md`](TASKS.md). Cada Task deve ser executada isoladamente, com escopo, teste, evidência e atualização de estado.
 
 ## Processo de desenvolvimento

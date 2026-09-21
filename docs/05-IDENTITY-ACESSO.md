@@ -17,6 +17,21 @@ ASP.NET Core Identity.
 - migration `AddIdentityFoundation` cria as tabelas padrão do Identity no PostgreSQL;
 - endpoints, JWT, bootstrap admin, convites e permissões permanecem nas Tasks seguintes; a sessão de domínio já está modelada.
 
+### F1-T002 — Bootstrap Admin
+
+O bootstrap é um caso de uso da camada `Application` e usa uma porta (`IAdminIdentityProvisioner`) para solicitar a persistência ao adaptador de `Infrastructure`. Ele é desativado por padrão e só executa quando `BootstrapAdmin:Enabled=true`.
+
+Os valores devem ser fornecidos por configuração segura, preferencialmente variáveis de ambiente:
+
+```text
+BootstrapAdmin__Enabled=true
+BootstrapAdmin__Email=admin@example.com
+BootstrapAdmin__DisplayName=InfraControl Admin
+BootstrapAdmin__Password=<secret>
+```
+
+O processo é idempotente: se já existir qualquer administrador ou se o email configurado já estiver cadastrado, nenhuma duplicação é criada. A senha é entregue ao `UserManager` para hash e nunca é escrita em logs. A criação do usuário técnico, role `Admin` e agregado de domínio ocorre em transação única.
+
 ## Modelo
 
 ```text

@@ -41,6 +41,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [ ] Primeiros testes
 - [x] Primeiro módulo implementado (dashboard web inicial)
 - [x] Fundação ASP.NET Core Identity implementada com domínio, eventos, roles e sessões
+- [x] Bootstrap Admin implementado como caso de uso em Application com adaptador em Infrastructure
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 ## Próxima fase
