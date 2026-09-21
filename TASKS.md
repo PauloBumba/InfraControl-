@@ -55,7 +55,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F1-T002 Bootstrap Admin (opt-in, idempotente, transacional e com segredo externo)
 - [x] F1-T003 Roles (Vertical Slice/CQRS, policies, sincronização Identity e proteção do último Admin)
 - [x] F1-T003A Alinhar Infrastructure ao Sentinel (Auth, Caching, Persistence, Repositories e Services)
-- [ ] F1-T004 Permissions
+- [x] F1-T004 Permissions (catálogo no domínio, matriz por role, claims e policies granulares)
 - [ ] F1-T005 Invitation
 - [ ] F1-T006 Accept Invitation
 - [ ] F1-T007 Reject Invitation

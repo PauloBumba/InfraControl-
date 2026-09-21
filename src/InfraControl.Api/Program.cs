@@ -1,5 +1,6 @@
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
+using InfraControl.Domain.Authorization;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
 using MediatR;
@@ -44,10 +45,16 @@ builder.Services.AddAuthentication(options =>
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
     });
-builder.Services.AddAuthorizationBuilder()
+var authorizationBuilder = builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
     .AddPolicy("UserAccess", policy => policy.RequireRole("Admin", "User"))
     .AddPolicy("ViewerAccess", policy => policy.RequireRole("Admin", "User", "Viewer"));
+
+foreach (var permission in Enum.GetValues<Permission>())
+{
+    authorizationBuilder.AddPolicy(permission.ToString(), policy =>
+        policy.RequireClaim(PermissionClaim.Type, permission.ToString()));
+}
 
 // ── OpenAPI ──────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();

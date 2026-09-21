@@ -44,16 +44,18 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Bootstrap Admin implementado como caso de uso em Application com adaptador em Infrastructure
 - [x] RBAC de roles implementado como Vertical Slice/CQRS com policies e sincronização Identity
 - [x] Infrastructure reorganizada conforme Sentinel (`Auth`, `Caching`, `Persistence`, `Repositories` e `Services`)
+- [x] Permissions implementadas no domínio com matriz por role, claims e policies granulares
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 ## Próxima fase
 
-Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin e a reorganização da Infrastructure conforme o Sentinel foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
+Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
 ### Evidências da última validação
 
 - `dotnet build InfraControl.slnx --configuration Release`: aprovado, com 1 warning existente.
 - `dotnet test InfraControl.slnx --configuration Release`: 12 testes aprovados, 0 falhas.
+- Após Permissions: 16 testes aprovados, 0 falhas.
 - `npm run build` em `frontend/InfraControl.Web`: aprovado.
 - `git diff --check`: aprovado.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.

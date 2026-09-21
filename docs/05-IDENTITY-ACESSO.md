@@ -38,6 +38,12 @@ O gerenciamento de roles segue Vertical Slice/CQRS. Os comandos `AssignUserRoleC
 
 As policies HTTP são `AdminOnly`, `UserAccess` e `ViewerAccess`. O controller HTTP apenas converte a requisição em comando e envia pelo MediatR. A alteração é autorizada por `AdminOnly`, o último administrador ativo não pode perder a role `Admin` e um usuário não pode ficar sem role. Permissões granulares e auditoria permanecem em Tasks próprias.
 
+### F1-T004 — Permissions
+
+O catálogo de permissões fica em `Domain/Authorization/Permission.cs`, sem dependência de ASP.NET Core. A matriz padrão é definida em `RolePermissions`: `Viewer` recebe permissões de leitura; `User` herda as permissões de leitura e recebe permissões de gestão operacional; `Admin` recebe o catálogo completo. A união de múltiplas roles não produz duplicatas.
+
+O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. O API registra uma policy para cada valor de `Permission`, mantendo as policies legadas de role para compatibilidade. A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
+
 ## Modelo
 
 ```text
