@@ -38,7 +38,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 ## Fase 0 — Fundação
 
 - [x] F0-T001 Criar solução .NET
-- [ ] F0-T002 Criar estrutura de projetos
+- [x] F0-T002 Criar estrutura de projetos
 - [ ] F0-T003 Criar solução de testes
 - [ ] F0-T004 Configurar Docker Compose
 - [ ] F0-T005 Configurar PostgreSQL
