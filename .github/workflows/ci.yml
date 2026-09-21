@@ -22,6 +22,12 @@ jobs:
   backend:
     name: Backend · restore, build and test
     runs-on: ubuntu-latest
+    env:
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=infracontrol;Username=infracontrol;Password=infracontrol_ci
+      ConnectionStrings__Redis: localhost:6379
+      ConnectionStrings__RabbitMQ: localhost
+      RabbitMQ__User: infracontrol
+      RabbitMQ__Password: infracontrol_ci
     services:
       postgres:
         image: postgres:16-alpine

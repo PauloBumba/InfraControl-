@@ -15,7 +15,7 @@ ASP.NET Core Identity.
 - `UserManager` e roles store são registrados no módulo de Infrastructure;
 - senha exige no mínimo 12 caracteres, número, maiúscula, minúscula e caractere não alfanumérico;
 - migration `AddIdentityFoundation` cria as tabelas padrão do Identity no PostgreSQL;
-- endpoints, JWT, bootstrap admin, convites e permissões permanecem nas Tasks seguintes; a sessão de domínio já está modelada.
+- endpoints, JWT, convites e permissões permanecem nas Tasks seguintes; o Bootstrap Admin e a sessão de domínio já estão modelados.
 
 ### F1-T002 — Bootstrap Admin
 

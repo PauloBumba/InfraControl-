@@ -2,8 +2,8 @@
 
 ## Estado
 
-**Fase:** Fundação documental e planejamento  
-**Status:** Em preparação para execução incremental  
+**Fase:** Fundação técnica e execução incremental
+**Status:** Em execução incremental
 **Última atualização:** 2026-09-21
 
 ## Regra operacional
@@ -38,7 +38,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Observabilidade base (Serilog, Health Checks, OpenTelemetry)
 - [x] Frontend estrutura (React + TypeScript + Vite + PrimeReact)
 - [x] Primeiro projeto compilando
-- [ ] Primeiros testes
+- [x] Primeiros testes
 - [x] Primeiro módulo implementado (dashboard web inicial)
 - [x] Fundação ASP.NET Core Identity implementada com domínio, eventos, roles e sessões
 - [x] Bootstrap Admin implementado como caso de uso em Application com adaptador em Infrastructure
@@ -46,7 +46,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 
 ## Próxima fase
 
-Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity foi implementada e validada localmente; o uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
+Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity e o Bootstrap Admin foram implementados e validados localmente; o uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
 ## Regra
 

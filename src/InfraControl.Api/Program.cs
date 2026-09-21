@@ -1,6 +1,7 @@
 using InfraControl.Application.Identity;
 using InfraControl.Infrastructure;
 using InfraControl.Infrastructure.Identity;
+using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -21,6 +22,8 @@ builder.Host.UseSerilog();
 
 // ── Infrastructure ───────────────────────────────────────────────────────
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddMediatR(configuration =>
+    configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
 builder.Services.AddSingleton(builder.Configuration
     .GetSection(BootstrapAdminOptions.SectionName)
     .Get<BootstrapAdminOptions>() ?? new BootstrapAdminOptions());

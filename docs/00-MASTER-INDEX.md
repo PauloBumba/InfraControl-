@@ -23,6 +23,7 @@
 19. [Prompt inicial](19-PROMPT-INICIAL-VIBE-CODING.md)
 20. [Anti-Vibe Coding](20-METODOLOGIA-ANTI-VIBE-CODING.md)
 21. [Execução incremental](21-EXECUCAO-DIVIDIR-PARA-CONQUISTAR.md)
+22. [Auditoria de documentação e código](AUDIT-2026-09-21.md)
 
 ## ADRs
 

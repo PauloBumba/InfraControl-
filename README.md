@@ -69,7 +69,6 @@ O frontend utiliza organização por camadas e componentes reutilizáveis. A pá
 - ASP.NET Core Identity [1];
 - Entity Framework Core [2];
 - PostgreSQL;
-- ASP.NET Core Identity;
 - Redis;
 - RabbitMQ com MassTransit;
 - MediatR;
@@ -215,7 +214,6 @@ Esse bloqueio está documentado em [`docs/11-CLEANUP-RETENTION-TESTES-CICD.md`](
 
 As próximas etapas da fundação de identidade são:
 
-- Bootstrap do primeiro administrador;
 - Roles;
 - Permissions;
 - Convites;
