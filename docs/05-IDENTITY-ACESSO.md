@@ -4,6 +4,15 @@
 
 ASP.NET Core Identity.
 
+### F1-T001 — Fundação implementada
+
+- `InfraControlUser` usa `Guid` como chave e possui estado ativo;
+- `AppDbContext` herda de `IdentityDbContext` e mantém Outbox e auditoria existentes;
+- `UserManager` e roles store são registrados no módulo de Infrastructure;
+- senha exige no mínimo 12 caracteres, número, maiúscula, minúscula e caractere não alfanumérico;
+- migration `AddIdentityFoundation` cria as tabelas padrão do Identity no PostgreSQL;
+- endpoints, JWT, bootstrap admin, convites, permissões e controle de sessão permanecem nas Tasks seguintes.
+
 ## Modelo
 
 ```text

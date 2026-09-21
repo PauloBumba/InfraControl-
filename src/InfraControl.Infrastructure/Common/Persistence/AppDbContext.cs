@@ -3,12 +3,15 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Outbox;
+using InfraControl.Infrastructure.Identity;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace InfraControl.Infrastructure.Common.Persistence;
 
-public class AppDbContext : DbContext, IUnitOfWork
+public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Guid>, Guid>, IUnitOfWork
 {
     private readonly IMediator? _mediator;
 
