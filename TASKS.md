@@ -47,6 +47,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F0-T008 Configurar migrations
 - [x] F0-T009 Configurar observabilidade base
 - [ ] F0-T010 Configurar CI
+- [x] F0-T011 Criar estrutura Frontend
 
 ## Fase 1 — Identity
 
