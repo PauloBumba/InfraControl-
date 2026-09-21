@@ -1,7 +1,9 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Common.Caching;
 using InfraControl.Infrastructure.Common.Messaging;
 using InfraControl.Infrastructure.Common.Persistence;
+using InfraControl.Infrastructure.Common.Time;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +27,11 @@ public static class DependencyInjection
         var rabbitMqHost = configuration.GetConnectionString("RabbitMQ") ?? "localhost";
         var rabbitMqUser = configuration["RabbitMQ:User"] ?? "infracontrol";
         var rabbitMqPassword = configuration["RabbitMQ:Password"] ?? "infracontrol_dev_2026";
+
+        // TimeProvider — São Paulo timezone
+        var saoPauloProvider = new SaoPauloTimeProvider();
+        AppTimeProvider.Current = saoPauloProvider;
+        services.AddSingleton<TimeProvider>(saoPauloProvider);
 
         // PostgreSQL
         services.AddDbContext<AppDbContext>(options =>

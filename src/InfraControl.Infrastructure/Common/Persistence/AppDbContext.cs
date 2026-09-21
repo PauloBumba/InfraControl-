@@ -1,5 +1,7 @@
 using System.Reflection;
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Domain.Common;
+using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Outbox;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -27,11 +29,31 @@ public class AppDbContext : DbContext, IUnitOfWork
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        ApplyAuditFields();
+
         if (_mediator != null)
         {
             await _mediator.DispatchDomainEventsAsync(this);
         }
 
         return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void ApplyAuditFields()
+    {
+        var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+
+        foreach (var entry in ChangeTracker.Entries<Entity>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreateDateTime = now;
+                entry.Entity.UpdateDateTime = now;
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                entry.Entity.UpdateDateTime = now;
+            }
+        }
     }
 }
