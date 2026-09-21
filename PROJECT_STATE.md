@@ -40,11 +40,11 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [x] Primeiro módulo implementado (dashboard web inicial)
-- [ ] CI configurado e validado remotamente (workflow criado; aguardando execução no GitHub)
+- [ ] CI configurado e validado remotamente (workflow criado; execução bloqueada por runner do GitHub indisponível)
 
 ## Próxima fase
 
-Workflow de CI criado para backend e frontend; próxima etapa: executar a pipeline no GitHub e corrigir eventuais falhas antes de marcar a F0-T010 como concluída.
+Workflow de CI criado para backend e frontend; a execução remota foi tentada duas vezes e bloqueada antes dos steps por ausência de runner do GitHub. A F0-T010 aguarda disponibilidade do executor para validação final.
 
 ## Regra
 
