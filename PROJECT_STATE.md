@@ -35,6 +35,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Redis configurado
 - [x] RabbitMQ configurado (MassTransit)
 - [x] Migrations configuradas
+- [x] Observabilidade base (Serilog, Health Checks, OpenTelemetry)
 - [ ] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [ ] Primeiro módulo implementado

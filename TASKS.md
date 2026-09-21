@@ -45,7 +45,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F0-T006 Configurar Redis
 - [x] F0-T007 Configurar RabbitMQ
 - [x] F0-T008 Configurar migrations
-- [ ] F0-T009 Configurar observabilidade base
+- [x] F0-T009 Configurar observabilidade base
 - [ ] F0-T010 Configurar CI
 
 ## Fase 1 — Identity
