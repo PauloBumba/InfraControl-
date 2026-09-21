@@ -40,10 +40,11 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [x] Primeiro módulo implementado (dashboard web inicial)
+- [ ] CI configurado e validado remotamente (workflow criado; aguardando execução no GitHub)
 
 ## Próxima fase
 
-Fundação técnica concluída para o frontend inicial; próxima etapa: conectar o dashboard às APIs e iniciar o módulo de Identity.
+Workflow de CI criado para backend e frontend; próxima etapa: executar a pipeline no GitHub e corrigir eventuais falhas antes de marcar a F0-T010 como concluída.
 
 ## Regra
 

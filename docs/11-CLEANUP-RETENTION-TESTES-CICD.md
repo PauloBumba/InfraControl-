@@ -56,3 +56,9 @@ PR
 ```
 
 Falhas críticas bloqueiam o processo.
+
+## Implementação inicial da F0-T010
+
+O workflow `.github/workflows/ci.yml` executa em pull requests para `main`, pushes em `main` e manualmente. A primeira versão cobre restore, build e testes da solução .NET, com PostgreSQL, Redis e RabbitMQ como serviços do job; também executa `npm ci` e o build do frontend React.
+
+A validação de lint/format, Docker e ambientes de staging/produção permanece separada desta Task porque ainda não existem configuração de lint/format do frontend, imagens Docker versionadas ou ambientes de implantação definidos no repositório. A F0-T010 só deve ser marcada como concluída após uma execução remota bem-sucedida no GitHub Actions.
