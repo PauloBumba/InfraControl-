@@ -32,6 +32,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Solução de testes criada
 - [x] Docker Compose configurado
 - [x] PostgreSQL configurado
+- [x] Redis configurado
 - [ ] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [ ] Primeiro módulo implementado
