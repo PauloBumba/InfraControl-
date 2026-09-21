@@ -21,7 +21,7 @@ A solução não pretende começar com microservices. O sistema inicia como um *
 | Outbox | Estruturado | Repositório e eventos de domínio |
 | Observabilidade | Base implementada | Serilog, health checks e OpenTelemetry |
 | Frontend | Dashboard inicial implementado | React, TypeScript, Vite e PrimeReact |
-| ASP.NET Core Identity | F1-T001 concluída | Usuário, roles store e migration inicial |
+| ASP.NET Core Identity | F1-T001 concluída | Agregados DDD, eventos, roles, sessões e migration |
 | CI | Workflow criado, validação bloqueada | `.github/workflows/ci.yml` |
 
 O estado detalhado e as pendências rastreáveis estão em [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`TASKS.md`](TASKS.md).
@@ -222,6 +222,8 @@ As próximas etapas da fundação de identidade são:
 - Aceite e rejeição de convites;
 - Alteração e recuperação de senha;
 - Auditoria.
+
+O domínio de Identity já contém os agregados `User` e `UserSession`, as roles `Admin`, `User` e `Viewer` e eventos para criação, alteração de role e ciclo de sessão. O ASP.NET Core Identity permanece como adaptador técnico para credenciais e persistência de autenticação.
 
 O roadmap completo está em [`TASKS.md`](TASKS.md). Cada Task deve ser executada isoladamente, com escopo, teste, evidência e atualização de estado.
 
