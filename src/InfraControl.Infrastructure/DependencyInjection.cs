@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Identity;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Common.Caching;
 using InfraControl.Infrastructure.Common.Messaging;
@@ -51,6 +52,8 @@ public static class DependencyInjection
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>();
+
+        services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());

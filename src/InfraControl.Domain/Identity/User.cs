@@ -27,6 +27,12 @@ public sealed class User : AggregateRoot
     public static User Create(string email, string displayName, UserRole initialRole = UserRole.Viewer)
         => new(Guid.NewGuid(), email, displayName, initialRole);
 
+    public static User Create(Guid id, string email, string displayName, UserRole initialRole = UserRole.Viewer)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("A user id is required.", nameof(id));
+        return new(id, email, displayName, initialRole);
+    }
+
     public void AssignRole(UserRole role)
     {
         if (_roleAssignments.All(assignment => assignment.Role != role))

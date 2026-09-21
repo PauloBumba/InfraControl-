@@ -1,4 +1,6 @@
+using InfraControl.Application.Identity;
 using InfraControl.Infrastructure;
+using InfraControl.Infrastructure.Identity;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -19,6 +21,10 @@ builder.Host.UseSerilog();
 
 // ── Infrastructure ───────────────────────────────────────────────────────
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(builder.Configuration
+    .GetSection(BootstrapAdminOptions.SectionName)
+    .Get<BootstrapAdminOptions>() ?? new BootstrapAdminOptions());
+builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
 
 // ── Controllers ──────────────────────────────────────────────────────────
 builder.Services.AddControllers();
@@ -58,6 +64,14 @@ builder.Services.AddOpenTelemetry()
 
 // ── Build ────────────────────────────────────────────────────────────────
 var app = builder.Build();
+
+// Bootstrap Admin é opt-in e lê a senha apenas da configuração/ambiente seguro.
+if (builder.Configuration.GetValue<bool>($"{BootstrapAdminOptions.SectionName}:Enabled"))
+{
+    using var bootstrapScope = app.Services.CreateScope();
+    var bootstrapper = bootstrapScope.ServiceProvider.GetRequiredService<IAdminBootstrapper>();
+    await bootstrapper.RunAsync();
+}
 
 // ── Pipeline ─────────────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
