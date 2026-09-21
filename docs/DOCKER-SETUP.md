@@ -8,6 +8,7 @@
 | Redis | 6379 | - | - |
 | RabbitMQ | 5672 | infracontrol | infracontrol_dev_2026 |
 | RabbitMQ Management | 15672 | infracontrol | infracontrol_dev_2026 |
+| Adminer | 8080 | - | - |
 
 ## Comandos
 
@@ -43,6 +44,7 @@ docker compose down -v
 
 ## URLs de Acesso
 
+- **Adminer:** http://localhost:8080
 - **RabbitMQ Management:** http://localhost:15672
 - **PostgreSQL:** localhost:5432
 
