@@ -4,7 +4,9 @@ using InfraControl.Infrastructure.Common.Caching;
 using InfraControl.Infrastructure.Common.Messaging;
 using InfraControl.Infrastructure.Common.Persistence;
 using InfraControl.Infrastructure.Common.Time;
+using InfraControl.Infrastructure.Identity;
 using MassTransit;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +38,19 @@ public static class DependencyInjection
         // PostgreSQL
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        // Identity foundation. Authentication schemes and endpoints are separate Tasks.
+        services.AddIdentityCore<InfraControlUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 12;
+                options.Password.RequireDigit = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<AppDbContext>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());

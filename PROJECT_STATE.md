@@ -40,11 +40,12 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Primeiro projeto compilando
 - [ ] Primeiros testes
 - [x] Primeiro módulo implementado (dashboard web inicial)
+- [x] Fundação ASP.NET Core Identity implementada
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 ## Próxima fase
 
-Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. O uso será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
+Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity foi implementada e validada localmente; o uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
 ## Regra
 

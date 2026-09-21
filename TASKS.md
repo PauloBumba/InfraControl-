@@ -51,7 +51,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 
 ## Fase 1 — Identity
 
-- [ ] F1-T001 ASP.NET Core Identity
+- [x] F1-T001 ASP.NET Core Identity (fundação, usuário, roles store e migration)
 - [ ] F1-T002 Bootstrap Admin
 - [ ] F1-T003 Roles
 - [ ] F1-T004 Permissions
