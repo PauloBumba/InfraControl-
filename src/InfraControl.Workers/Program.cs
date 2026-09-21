@@ -1,4 +1,4 @@
-using InfraControl.Infrastructure;
+using InfraControl.Infrastructure.Services;
 using InfraControl.Workers;
 using MediatR;
 

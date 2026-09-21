@@ -33,6 +33,23 @@ InfraControl.Domain/
 
 Entidades, enums e eventos de negócio não devem ser colocados em `Common`.
 
+## Infrastructure
+
+A infraestrutura segue a organização do Sentinel:
+
+```text
+InfraControl.Infrastructure/
+├── Auth/
+├── Caching/
+├── Persistence/
+│   ├── Configurations/
+│   └── Migrations/
+├── Repositories/
+└── Services/
+```
+
+Não criar uma pasta `Common` para esconder adapters de infraestrutura; cada integração deve ficar na categoria técnica correspondente.
+
 ## Application
 
 Organizada por Vertical Slice:

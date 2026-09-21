@@ -1,7 +1,7 @@
 using FluentAssertions;
 using InfraControl.Application.Identity;
-using InfraControl.Infrastructure.Common.Persistence;
-using InfraControl.Infrastructure.Identity;
+using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

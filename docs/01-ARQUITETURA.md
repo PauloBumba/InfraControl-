@@ -64,6 +64,21 @@ InfraControl.Domain/
 └── Common/             # building blocks compartilhados
 ```
 
+Na Infrastructure, a organização segue a convenção do Sentinel e não agrupa adaptadores em `Common`:
+
+```text
+InfraControl.Infrastructure/
+├── Auth/
+├── Caching/
+├── Persistence/
+│   ├── Configurations/
+│   └── Migrations/
+├── Repositories/
+└── Services/
+```
+
+`Persistence` concentra DbContext, factories, configurações e migrations; `Repositories` contém adapters de persistência; `Auth` contém a integração técnica de Identity; e `Services` contém mensageria, eventos e serviços transversais.
+
 ## Frontend
 
 ```text

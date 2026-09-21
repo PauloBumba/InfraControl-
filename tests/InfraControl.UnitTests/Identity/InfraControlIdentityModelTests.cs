@@ -1,6 +1,6 @@
 using FluentAssertions;
-using InfraControl.Infrastructure.Common.Persistence;
-using InfraControl.Infrastructure.Identity;
+using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Auth;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 

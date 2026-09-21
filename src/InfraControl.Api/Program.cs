@@ -1,7 +1,7 @@
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
-using InfraControl.Infrastructure;
-using InfraControl.Infrastructure.Identity;
+using InfraControl.Infrastructure.Services;
+using InfraControl.Infrastructure.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
