@@ -10,6 +10,8 @@ const ClientsPage = lazy(() => import("@/pages/ClientsPage").then(m => ({ defaul
 const InsightsPage = lazy(() => import("@/pages/InsightsPage").then(m => ({ default: m.InsightsPage })));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage").then(m => ({ default: m.AlertsPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
+const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 function PageLoader() {
@@ -36,6 +38,8 @@ export function AppRouter() {
         <Route path="/insights" element={<InsightsPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/health" element={<HealthPage />} />
+        <Route path="/logs" element={<LogsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
