@@ -710,6 +710,97 @@ ul, ol { list-style: none; }
   to { opacity: 1; }
 }
 
+/* === DEVICE CARD === */
+.device-card {
+  background: var(--surface-card);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  transition: var(--transition-all);
+}
+.device-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.device-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.device-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.device-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--border-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.device-card-icon.gateway { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
+.device-card-icon.switch { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.device-card-icon.ap { background: rgba(34, 197, 94, 0.1); color: var(--status-green); }
+.device-card-info { flex: 1; min-width: 0; }
+.device-card-info h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.device-card-info p {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.device-card-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-3);
+}
+.device-detail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.device-detail i { font-size: 12px; }
+.device-card-stats {
+  display: flex;
+  gap: var(--space-4);
+}
+.device-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+.device-stat i { font-size: 12px; color: var(--text-muted); }
+
+/* === DEVICES PAGE === */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-4);
+}
+
 /* === RECENT EVENTS === */
 .recent-events { padding: 0; }
 .events-list { display: flex; flex-direction: column; }
