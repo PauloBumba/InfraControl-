@@ -3,6 +3,8 @@ using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Domain.Authorization;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
+using InfraControl.Api.Services;
+using InfraControl.BuildingBlocks.Application;
 using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
@@ -34,6 +36,8 @@ builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
 
 // ── Controllers ──────────────────────────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;

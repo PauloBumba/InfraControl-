@@ -80,6 +80,7 @@ public static class DependencyInjection
             provider.GetRequiredService<RedisCacheService>());
         services.AddScoped<IIdempotencyStore>(provider =>
             provider.GetRequiredService<RedisCacheService>());
+        services.AddScoped<IRateLimiter, RedisRateLimiter>();
 
         // Pipeline transversal: cada behavior é opt-in quando requer um contrato específico.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
@@ -89,6 +90,11 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ObservabilityBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(RateLimitingBehavior<,>));
 
         // RabbitMQ via MassTransit
         services.AddMassTransit(x =>

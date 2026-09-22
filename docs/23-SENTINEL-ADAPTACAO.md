@@ -34,6 +34,11 @@ A primeira entrega implementa o núcleo transversal que não depende de módulos
 - `IInboxStore` com unicidade por evento e consumidor;
 - `IResilienceExecutor` com retry exponencial, timeout e circuit breaker por nome de provider;
 - `CacheInvalidationBehavior` opt-in após execução bem-sucedida;
+- `AuthorizationBehavior` para requests que implementam `IAuthorizedRequest`;
+- `CachingBehavior` para queries que implementam `ICacheableQuery`;
+- `ObservabilityBehavior` com `ActivitySource` e duração da operação;
+- `TransactionBehavior` para persistência de comandos via `IUnitOfWork`;
+- `RateLimitingBehavior` distribuído via Redis para login, reset, webhooks e ingestão;
 - `IFeatureFlagProvider` com defaults de configuração e override temporário no Redis;
 - `IProviderRegistry<TProvider>` para Discovery e Monitoring sem acoplar o core a um fornecedor;
 - `/health/live`, `/health/ready` e `/health/startup` na API;
@@ -70,3 +75,5 @@ Nesta entrega, os comportamentos implementados são os que possuem contratos est
 ## Regra arquitetural
 
 Os behaviors podem depender de portas em `Application`; implementações de Redis, PostgreSQL, MassTransit e hosted services ficam em `Infrastructure` ou `Workers`. O domínio não conhece MediatR pipeline, Redis, RabbitMQ, ASP.NET Core ou tipos de infraestrutura.
+
+O Sentinel também possui behaviors específicos para MCP, Grafana e webhooks de CI/CD. Eles não foram copiados porque pertencem às integrações do Sentinel; no InfraControl, os limites equivalentes usam a categoria genérica de `IRateLimitRequest` e providers próprios.

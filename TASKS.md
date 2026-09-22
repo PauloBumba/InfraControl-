@@ -49,7 +49,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [ ] F0-T010 Configurar CI (BLOCKED: conta atingiu 2.000/2.000 minutos do GitHub Actions; reset em 01/10/2026)
 - [x] F0-T011 Criar estrutura Frontend e dashboard inicial
 - [x] F0-T012 Documentar capacidades extraídas do Sentinel e critérios de adoção
-- [x] F0-T013 Implementar behaviors base, idempotência, Outbox Dispatcher e health endpoints
+- [x] F0-T013 Implementar behaviors base, autorização, cache, transação, rate limiting, Outbox Dispatcher e health endpoints
 - [x] F0-T014 Auditoria persistida pós-handler/commit, sem payloads sensíveis
 - [x] F0-T015 Inbox e deduplicação de consumidores
 - [x] F0-T016 Resiliência por provider (retry, timeout e circuit breaker)
