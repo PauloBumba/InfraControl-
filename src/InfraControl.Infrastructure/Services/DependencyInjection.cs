@@ -114,6 +114,7 @@ public static class DependencyInjection
         services.AddScoped<IOutboxRepository, OutboxRepository>();
         services.AddScoped<IInboxStore, InboxStore>();
         services.AddScoped<IAuditWriter, AuditWriter>();
+        services.AddScoped<IAuditReader, AuditReader>();
         services.AddScoped<IDomainEventService, DomainEventService>();
 
         // Retention / cleanup

@@ -74,7 +74,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F1-T005 Invitation
 - [x] F1-T006 Accept Invitation
 - [x] F1-T007 Reject Invitation
-- [ ] F1-T010 Audit
+- [x] F1-T010 Audit
 
 ## Fase 2 — Inventário
 
