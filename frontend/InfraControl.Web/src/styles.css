@@ -1366,9 +1366,19 @@ ul, ol { list-style: none; }
 .event-source { display: block; font-size: var(--text-xs); color: var(--text-muted); }
 
 /* === RESPONSIVE === */
+@media (max-width: 1200px) {
+  .topology-controls { flex-wrap: wrap; }
+  .topo-filters { overflow-x: auto; }
+  .detail-panel { width: 400px; }
+}
 @media (max-width: 1024px) {
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
   .content-grid, .bottom-grid { grid-template-columns: 1fr; }
+  .devices-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .health-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .detail-panel { width: 360px; }
+  .topology-canvas { min-height: 300px; }
+  .topology-canvas svg { min-height: 300px; }
 }
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); width: var(--sidebar-width); }
@@ -1377,4 +1387,34 @@ ul, ol { list-style: none; }
   .mobile-menu { display: flex; }
   .metric-grid { grid-template-columns: 1fr; }
   .page-heading { flex-direction: column; }
+  .page-content { padding: var(--space-4); }
+  .topbar { padding: 0 var(--space-4); }
+  .side-panel-tabs { padding: var(--space-2) var(--space-4); }
+  .devices-grid { grid-template-columns: 1fr; }
+  .health-grid { grid-template-columns: 1fr; }
+  .gateway-stats { grid-template-columns: 1fr 1fr; }
+  .gateway-throughput { flex-direction: row; }
+  .detail-panel { width: 100vw; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .detail-metrics-grid { grid-template-columns: 1fr; }
+  .topo-filters { display: none; }
+  .topo-zoom { display: none; }
+  .topology-canvas { min-height: 250px; margin: var(--space-2); }
+  .topology-canvas svg { min-height: 250px; }
+  .port-detail-panel { width: 100%; }
+  .ports-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+  .settings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .page-heading h1 { font-size: var(--text-xl); }
+  .breadcrumbs span:first-child { display: none; }
+  .breadcrumbs i:first-of-type { display: none; }
+  .topbar-actions .icon-button:not(.notification-button) { display: none; }
+  .gateway-stats { grid-template-columns: 1fr; }
+  .gateway-throughput { flex-direction: column; gap: var(--space-3); }
+  .throughput-divider { width: 100%; height: 1px; }
+  .dots-map { flex-wrap: wrap; justify-content: center; }
+  .dot-connection { display: none; }
+  .detail-actions { flex-direction: column; }
+  .detail-actions .p-button { width: 100%; }
 }
