@@ -72,7 +72,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F1-T011 Auth API e dashboard de usuários (registro, login, refresh, logout, `me`, status e roles)
 - [x] F1-T012 Estrutura MVC modular da API alinhada ao Dashboard Sentinel
 - [x] F1-T005 Invitation
-- [ ] F1-T006 Accept Invitation
+- [x] F1-T006 Accept Invitation
 - [ ] F1-T007 Reject Invitation
 - [ ] F1-T010 Audit
 

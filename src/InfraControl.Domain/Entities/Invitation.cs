@@ -52,6 +52,26 @@ public sealed class Invitation : AggregateRoot
         Touch();
     }
 
+    public void Accept(string tokenHash, DateTime utcNow)
+    {
+        if (Status != InvitationStatus.Pending)
+            throw new InvalidOperationException($"Only pending invitations can be accepted (current: {Status}).");
+
+        if (ExpiresAt <= utcNow)
+        {
+            MarkExpired();
+            throw new InvalidOperationException("The invitation has expired.");
+        }
+
+        if (!MatchesHash(tokenHash))
+            throw new UnauthorizedAccessException("The invitation token is invalid.");
+
+        Status = InvitationStatus.Accepted;
+        DecidedAt = utcNow;
+        Touch();
+        RaiseDomainEvent(new InvitationAcceptedDomainEvent(Id, Email));
+    }
+
     public void Cancel()
     {
         if (Status != InvitationStatus.Pending)
@@ -60,6 +80,14 @@ public sealed class Invitation : AggregateRoot
         Status = InvitationStatus.Cancelled;
         DecidedAt = DateTime.UtcNow;
         Touch();
+    }
+
+    private bool MatchesHash(string tokenHash)
+    {
+        var expected = System.Text.Encoding.UTF8.GetBytes(TokenHash);
+        var actual = System.Text.Encoding.UTF8.GetBytes(tokenHash ?? string.Empty);
+        return expected.Length == actual.Length
+            && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(expected, actual);
     }
 
     private static string NormalizeEmail(string email)

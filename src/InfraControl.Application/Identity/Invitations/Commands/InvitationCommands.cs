@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
@@ -38,8 +37,8 @@ public sealed class CreateInvitationCommandHandler(
         if (existing is not null)
             throw new InvalidOperationException($"A pending invitation already exists for '{normalizedEmail}'.");
 
-        var token = GenerateToken();
-        var tokenHash = HashToken(token);
+        var token = InvitationToken.Generate();
+        var tokenHash = InvitationToken.Hash(token);
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 
         var invitation = Invitation.Create(
@@ -55,18 +54,6 @@ public sealed class CreateInvitationCommandHandler(
         logger.LogInformation("Invitation {InvitationId} created for {Email}.", invitation.Id, normalizedEmail);
 
         return new CreateInvitationResult(invitation.Id, token);
-    }
-
-    internal static string GenerateToken()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(32);
-        return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").TrimEnd('=');
-    }
-
-    internal static string HashToken(string token)
-    {
-        var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token));
-        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }
 

@@ -14,3 +14,16 @@ public sealed class InvitationCreatedDomainEvent : DomainEvent
     public string Email { get; }
     public override string EventType => nameof(InvitationCreatedDomainEvent);
 }
+
+public sealed class InvitationAcceptedDomainEvent : DomainEvent
+{
+    public InvitationAcceptedDomainEvent(Guid invitationId, string email)
+    {
+        InvitationId = invitationId;
+        Email = email;
+    }
+
+    public Guid InvitationId { get; }
+    public string Email { get; }
+    public override string EventType => nameof(InvitationAcceptedDomainEvent);
+}

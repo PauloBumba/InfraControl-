@@ -155,6 +155,111 @@ public sealed class InvitationTests
         await action.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Fact]
+    public void Accept_ShouldTransitionPendingToAccepted()
+    {
+        var invitation = Invitation.Create(
+            "user@example.com",
+            "hash-123",
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            [UserRole.User]);
+
+        invitation.Accept("hash-123", DateTime.UtcNow);
+
+        invitation.Status.Should().Be(InvitationStatus.Accepted);
+        invitation.DecidedAt.Should().NotBeNull();
+        invitation.DomainEvents.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Accept_ShouldRejectWrongToken()
+    {
+        var invitation = Invitation.Create(
+            "user@example.com",
+            "hash-123",
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            [UserRole.Viewer]);
+
+        var action = () => invitation.Accept("wrong-hash", DateTime.UtcNow);
+
+        action.Should().Throw<UnauthorizedAccessException>();
+        invitation.Status.Should().Be(InvitationStatus.Pending);
+    }
+
+    [Fact]
+    public void Accept_ShouldMarkExpiredWhenPastExpiry()
+    {
+        var invitation = Invitation.Create(
+            "user@example.com",
+            "hash-123",
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            [UserRole.Viewer]);
+        var afterExpiry = invitation.ExpiresAt.AddMinutes(1);
+
+        var action = () => invitation.Accept("hash-123", afterExpiry);
+
+        action.Should().Throw<InvalidOperationException>().WithMessage("*expired*");
+        invitation.Status.Should().Be(InvitationStatus.Expired);
+    }
+
+    [Fact]
+    public async Task AcceptHandler_ShouldAcceptAndEnforceSingleUse()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var createHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<CreateInvitationCommand, CreateInvitationResult>>();
+        var acceptHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>>();
+
+        var created = await createHandler.Handle(
+            new CreateInvitationCommand("accept@example.com", [UserRole.User], Guid.NewGuid()),
+            CancellationToken.None);
+
+        var accepted = await acceptHandler.Handle(
+            new AcceptInvitationCommand(created.InvitationId, created.Token),
+            CancellationToken.None);
+
+        accepted.Email.Should().Be("accept@example.com");
+        accepted.Roles.Should().ContainSingle().Which.Should().Be(UserRole.User);
+
+        var repository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
+        (await repository.GetAsync(created.InvitationId))!.Status
+            .Should().Be(InvitationStatus.Accepted);
+
+        var secondAccept = () => acceptHandler.Handle(
+            new AcceptInvitationCommand(created.InvitationId, created.Token),
+            CancellationToken.None);
+
+        await secondAccept.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task AcceptHandler_ShouldRejectUnknownInvitation()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var acceptHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>>();
+
+        var action = () => acceptHandler.Handle(
+            new AcceptInvitationCommand(Guid.NewGuid(), "any-token"),
+            CancellationToken.None);
+
+        await action.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
     private static ServiceProvider BuildProvider(SqliteConnection connection)
     {
         var services = new ServiceCollection();
