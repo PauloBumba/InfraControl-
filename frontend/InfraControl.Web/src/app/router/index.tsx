@@ -20,6 +20,7 @@ const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ defa
 const RemotePage = lazy(() => import("@/pages/RemotePage").then(m => ({ default: m.RemotePage })));
 const TasksPage = lazy(() => import("@/pages/TasksPage").then(m => ({ default: m.TasksPage })));
 const KnowledgePage = lazy(() => import("@/pages/KnowledgePage").then(m => ({ default: m.KnowledgePage })));
+const DeviceDetailPage = lazy(() => import("@/pages/DeviceDetailPage").then(m => ({ default: m.DeviceDetailPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -47,7 +48,9 @@ function AppContent() {
   const dispatch = useAppDispatch();
   const activeItemRedux = useAppSelector((s) => s.navigation.activeItem);
 
-  const activeLabel = routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
+  const activeLabel = location.pathname.startsWith("/devices/")
+    ? "Detalhes do Dispositivo"
+    : routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
 
   const handleNavigate = (label: string) => {
     const route = labelRouteMap[label] || "/";
@@ -64,6 +67,7 @@ function AppContent() {
           <Route path="/wifi" element={<WiFiPage />} />
           <Route path="/topology" element={<TopologyPage />} />
           <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/devices/:id" element={<DeviceDetailPage />} />
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/insights" element={<InsightsPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
