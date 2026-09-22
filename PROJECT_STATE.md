@@ -73,7 +73,19 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] F13-T005 Connectivity Dots (WAN/WWW/WLAN/LAN/VPN)
 - [x] F13-T006 Gateway Card (status, CPU, memória, throughput)
 - [x] F13-T007 Traffic Chart (SVG, animação, time range tabs)
+- [x] F13-T008 Top Clients + Recent Events (PrimeReact)
+- [x] F13-T009 Device Cards (Gateway/Switch/AP, SVG icons)
+- [x] F13-T010 Port Manager Visual (24 portas, PoE, tooltips)
+- [x] F13-T011 Topologia SVG Interativa (pan/zoom, filtros)
+- [x] F13-T012 Client List (DataTable, filtros, sorting)
+- [x] F13-T013 Device Detail Panel (5 tabs, slide-over)
+- [x] F13-T014 Alerts Page (severidades, filtros)
+- [x] F13-T015 Settings Page (4 tabs, forms)
+- [x] F13-T016 Health Checks Page (cards, status)
+- [x] F13-T017 Logs Page (DataTable, filtros)
+- [x] F13-T018 Responsividade UniFi (4 breakpoints)
 - [x] Redux Toolkit configurado (uiSlice, navigationSlice)
+- [x] PrimeReact integrado (DataTable, Tag, Dropdown, InputText, Button, TabView, ProgressBar, InputSwitch)
 
 ## Próxima fase
 

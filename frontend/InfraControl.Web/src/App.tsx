@@ -12,7 +12,6 @@ import { InsightsPage } from "@/pages/InsightsPage";
 import { AlertsPage } from "@/pages/AlertsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import "./styles.css";
 
 const routePageMap: Record<string, React.ComponentType> = {
   "/": DashboardPage,
