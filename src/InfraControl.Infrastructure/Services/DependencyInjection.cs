@@ -4,6 +4,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
+using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
@@ -118,6 +119,9 @@ public static class DependencyInjection
         // Retention / cleanup
         services.Configure<RetentionOptions>(configuration.GetSection("Retention"));
         services.AddScoped<ICleanupService, CleanupService>();
+
+        // Invitations
+        services.AddScoped<IInvitationRepository, InvitationRepository>();
 
         return services;
     }
