@@ -61,6 +61,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Recuperação e troca de senha com token single-use no Redis e revogação de sessões
 - [x] Dashboard backend de usuários com consulta, ativação/desativação e administração de roles
 - [x] API organizada em estrutura MVC modular alinhada ao Dashboard Sentinel, com Controllers, ViewModels, Services, HealthChecks, Middleware e Hubs
+- [x] Pipeline MediatR ampliado com Authorization, Caching, Observability, Transaction e RateLimiting distribuído por Redis
 - [x] Convites criados como agregado com token single-use (hash SHA256) e expiração
 - [x] Retenção e cleanup operacional com worker separado e deletes em lote
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
