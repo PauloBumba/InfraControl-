@@ -26,6 +26,7 @@
 22. [Auditoria de documentação e código](AUDIT-2026-09-21.md)
 23. [Adaptação de capacidades do Sentinel](23-SENTINEL-ADAPTACAO.md)
 24. [BuildingBlocks e Shared Kernel](24-BUILDING-BLOCKS.md)
+25. [Estrutura MVC da API](25-API-MVC-STRUCTURE.md)
 
 ## ADRs
 

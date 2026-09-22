@@ -1,22 +1,21 @@
 using InfraControl.Domain.Enums;
-using System.ComponentModel.DataAnnotations;
 using InfraControl.Application.Identity.Roles.Commands;
-using InfraControl.Domain.Entities;
+using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Admin;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace InfraControl.Api.Endpoints.Identity;
+namespace InfraControl.Api.Controllers.Admin;
 
-[ApiController]
 [Authorize(Policy = "AdminOnly")]
 [Route("api/identity/users")]
-public sealed class RoleEndpoints(ISender sender) : ControllerBase
+public sealed class RolesController(ISender sender) : BaseController
 {
     [HttpPut("{userId:guid}/roles")]
-    public async Task<IActionResult> Assign(Guid userId, [FromBody] RoleRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Assign(Guid userId, [FromBody] RoleViewModel model, CancellationToken cancellationToken)
     {
-        await sender.Send(new AssignUserRoleCommand(userId, request.Role), cancellationToken);
+        await sender.Send(new AssignUserRoleCommand(userId, model.Role), cancellationToken);
         return NoContent();
     }
 
@@ -27,5 +26,3 @@ public sealed class RoleEndpoints(ISender sender) : ControllerBase
         return NoContent();
     }
 }
-
-public sealed record RoleRequest([property: EnumDataType(typeof(UserRole))] UserRole Role);

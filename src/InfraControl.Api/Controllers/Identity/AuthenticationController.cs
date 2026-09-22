@@ -1,4 +1,6 @@
 using InfraControl.Application.Identity.Authentication;
+using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using System.Security.Claims;
@@ -7,25 +9,24 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
-namespace InfraControl.Api.Controllers;
+namespace InfraControl.Api.Controllers.Identity;
 
-[ApiController]
 [Route("api/v1/auth")]
-public sealed class AuthenticationController(IIdentityAuthenticationService authenticationService) : ControllerBase
+public sealed class AuthenticationController(IIdentityAuthenticationService authenticationService) : BaseController
 {
     [AllowAnonymous]
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterUserRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Register(RegisterViewModel model, CancellationToken cancellationToken)
     {
-        var result = await authenticationService.RegisterAsync(request, cancellationToken);
+        var result = await authenticationService.RegisterAsync(new RegisterUserRequest(model.Email, model.DisplayName, model.Password), cancellationToken);
         return result.Succeeded ? StatusCode(StatusCodes.Status201Created) : Conflict(result);
     }
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
     {
-        var result = await authenticationService.LoginAsync(request, cancellationToken);
+        var result = await authenticationService.LoginAsync(new LoginRequest(model.Email, model.Password), cancellationToken);
         if (result is null) return Unauthorized(new { error = "Invalid credentials." });
         await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.User));
         return Ok(result);
@@ -33,9 +34,9 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
 
     [AllowAnonymous]
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(RefreshSessionRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Refresh(RefreshSessionViewModel model, CancellationToken cancellationToken)
     {
-        var result = await authenticationService.RefreshAsync(request, cancellationToken);
+        var result = await authenticationService.RefreshAsync(new RefreshSessionRequest(model.RefreshToken), cancellationToken);
         if (result is null) return Unauthorized(new { error = "Invalid or expired session." });
         await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.User));
         return Ok(result);
@@ -43,41 +44,41 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
 
     [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout([FromBody] RefreshSessionRequest? request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout([FromBody] RefreshSessionViewModel? model, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
             return Unauthorized();
 
-        await authenticationService.LogoutAsync(userId, request?.RefreshToken, cancellationToken);
+        await authenticationService.LogoutAsync(userId, model?.RefreshToken, cancellationToken);
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
         return NoContent();
     }
 
     [AllowAnonymous]
     [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, CancellationToken cancellationToken)
     {
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var result = await authenticationService.RequestPasswordResetAsync(request with { BaseUrl = baseUrl }, cancellationToken);
+        var result = await authenticationService.RequestPasswordResetAsync(new ForgotPasswordRequest(model.Email, baseUrl), cancellationToken);
         return Ok(result);
     }
 
     [AllowAnonymous]
     [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model, CancellationToken cancellationToken)
     {
-        var result = await authenticationService.ResetPasswordAsync(request, cancellationToken);
+        var result = await authenticationService.ResetPasswordAsync(new ResetPasswordRequest(model.Email, model.Token, model.NewPassword), cancellationToken);
         return result.Succeeded ? NoContent() : BadRequest(result);
     }
 
     [Authorize]
     [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
             return Unauthorized();
 
-        var result = await authenticationService.ChangePasswordAsync(request with { UserId = userId }, cancellationToken);
+        var result = await authenticationService.ChangePasswordAsync(new ChangePasswordRequest(userId, model.CurrentPassword, model.NewPassword), cancellationToken);
         return result.Succeeded ? NoContent() : BadRequest(result);
     }
 

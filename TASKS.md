@@ -70,6 +70,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F1-T008 Password Change (endpoint autenticado, revogação de sessões e auditoria)
 - [x] F1-T009 Password Reset (token single-use Redis, expiração e resposta anti-enumeração)
 - [x] F1-T011 Auth API e dashboard de usuários (registro, login, refresh, logout, `me`, status e roles)
+- [x] F1-T012 Estrutura MVC modular da API alinhada ao Dashboard Sentinel
 - [ ] F1-T005 Invitation
 - [ ] F1-T006 Accept Invitation
 - [ ] F1-T007 Reject Invitation
