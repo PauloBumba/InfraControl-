@@ -17,6 +17,9 @@ const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ defa
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+const RemotePage = lazy(() => import("@/pages/RemotePage").then(m => ({ default: m.RemotePage })));
+const TasksPage = lazy(() => import("@/pages/TasksPage").then(m => ({ default: m.TasksPage })));
+const KnowledgePage = lazy(() => import("@/pages/KnowledgePage").then(m => ({ default: m.KnowledgePage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -67,6 +70,9 @@ function AppContent() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/health" element={<HealthPage />} />
           <Route path="/logs" element={<LogsPage />} />
+          <Route path="/remote" element={<RemotePage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
