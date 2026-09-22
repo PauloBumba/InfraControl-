@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-09-21
+**Última atualização:** 2026-09-22
 
 ## Regra operacional
 
@@ -61,7 +61,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Recuperação e troca de senha com token single-use no Redis e revogação de sessões
 - [x] Dashboard backend de usuários com consulta, ativação/desativação e administração de roles
 - [x] API organizada em estrutura MVC modular alinhada ao Dashboard Sentinel, com Controllers, ViewModels, Services, HealthChecks, Middleware e Hubs
-- [ ] Retenção e cleanup operacional (próximo slice)
+- [x] Retenção e cleanup operacional com worker separado e deletes em lote
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 ## Fase 13 — Frontend UI/UX (UniFi-Style)
@@ -101,6 +101,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - `npm run build` em `frontend/InfraControl.Web`: aprovado.
 - `git diff --check`: aprovado.
 - Após Identity API e dashboard: `dotnet build` aprovado e 23 testes aprovados, 0 falhas.
+- Após retenção e cleanup (F0-T017): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 21 unit + 5 arquitetura aprovados, 0 falhas.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.
 - Após Fase 13 (F13-T001 a F13-T007): `npm run build` frontend OK (311KB JS, 552KB CSS).
 

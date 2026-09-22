@@ -115,6 +115,10 @@ public static class DependencyInjection
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IDomainEventService, DomainEventService>();
 
+        // Retention / cleanup
+        services.Configure<RetentionOptions>(configuration.GetSection("Retention"));
+        services.AddScoped<ICleanupService, CleanupService>();
+
         return services;
     }
 }
