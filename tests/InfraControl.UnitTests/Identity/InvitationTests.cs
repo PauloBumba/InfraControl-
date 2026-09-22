@@ -260,6 +260,72 @@ public sealed class InvitationTests
         await action.Should().ThrowAsync<KeyNotFoundException>();
     }
 
+    [Fact]
+    public void Reject_ShouldTransitionPendingToRejected()
+    {
+        var invitation = Invitation.Create(
+            "user@example.com",
+            "hash-123",
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            [UserRole.Viewer]);
+
+        invitation.Reject("hash-123", DateTime.UtcNow);
+
+        invitation.Status.Should().Be(InvitationStatus.Rejected);
+        invitation.DecidedAt.Should().NotBeNull();
+        invitation.DomainEvents.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Reject_ShouldRejectWrongToken()
+    {
+        var invitation = Invitation.Create(
+            "user@example.com",
+            "hash-123",
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            [UserRole.Viewer]);
+
+        var action = () => invitation.Reject("wrong-hash", DateTime.UtcNow);
+
+        action.Should().Throw<UnauthorizedAccessException>();
+        invitation.Status.Should().Be(InvitationStatus.Pending);
+    }
+
+    [Fact]
+    public async Task RejectHandler_ShouldRejectAndBlockReuse()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var createHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<CreateInvitationCommand, CreateInvitationResult>>();
+        var rejectHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<RejectInvitationCommand>>();
+
+        var created = await createHandler.Handle(
+            new CreateInvitationCommand("reject@example.com", [UserRole.Viewer], Guid.NewGuid()),
+            CancellationToken.None);
+
+        await rejectHandler.Handle(
+            new RejectInvitationCommand(created.InvitationId, created.Token),
+            CancellationToken.None);
+
+        var repository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
+        (await repository.GetAsync(created.InvitationId))!.Status
+            .Should().Be(InvitationStatus.Rejected);
+
+        var reuse = () => rejectHandler.Handle(
+            new RejectInvitationCommand(created.InvitationId, created.Token),
+            CancellationToken.None);
+
+        await reuse.Should().ThrowAsync<InvalidOperationException>();
+    }
+
     private static ServiceProvider BuildProvider(SqliteConnection connection)
     {
         var services = new ServiceCollection();

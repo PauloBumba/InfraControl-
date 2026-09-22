@@ -72,6 +72,26 @@ public sealed class Invitation : AggregateRoot
         RaiseDomainEvent(new InvitationAcceptedDomainEvent(Id, Email));
     }
 
+    public void Reject(string tokenHash, DateTime utcNow)
+    {
+        if (Status != InvitationStatus.Pending)
+            throw new InvalidOperationException($"Only pending invitations can be rejected (current: {Status}).");
+
+        if (ExpiresAt <= utcNow)
+        {
+            MarkExpired();
+            throw new InvalidOperationException("The invitation has expired.");
+        }
+
+        if (!MatchesHash(tokenHash))
+            throw new UnauthorizedAccessException("The invitation token is invalid.");
+
+        Status = InvitationStatus.Rejected;
+        DecidedAt = utcNow;
+        Touch();
+        RaiseDomainEvent(new InvitationRejectedDomainEvent(Id, Email));
+    }
+
     public void Cancel()
     {
         if (Status != InvitationStatus.Pending)

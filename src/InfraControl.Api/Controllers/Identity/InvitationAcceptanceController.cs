@@ -36,4 +36,31 @@ public sealed class InvitationAcceptanceController(ISender sender) : BaseControl
             return BadRequest(new { error = exception.Message });
         }
     }
+
+    [AllowAnonymous]
+    [HttpPost("{invitationId:guid}/reject")]
+    public async Task<IActionResult> Reject(Guid invitationId, [FromBody] AcceptInvitationViewModel model, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await sender.Send(new RejectInvitationCommand(invitationId, model.Token), cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { error = "Invitation not found." });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Invalid invitation token." });
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { error = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { error = exception.Message });
+        }
+    }
 }

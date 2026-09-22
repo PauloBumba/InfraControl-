@@ -105,6 +105,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - Após retenção e cleanup (F0-T017): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 21 unit + 5 arquitetura aprovados, 0 falhas.
 - Após convites (F1-T005): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 29 unit + 5 arquitetura aprovados, 0 falhas.
 - Após aceite de convites (F1-T006): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 34 unit + 5 arquitetura aprovados, 0 falhas.
+- Após recusa de convites (F1-T007): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 37 unit + 5 arquitetura aprovados, 0 falhas.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.
 - Após Fase 13 (F13-T001 a F13-T007): `npm run build` frontend OK (311KB JS, 552KB CSS).
 
