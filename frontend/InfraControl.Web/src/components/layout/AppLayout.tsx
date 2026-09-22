@@ -34,159 +34,165 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
     dispatch(removeTab(tab));
   }, [dispatch]);
 
-  const sidebarClassName = `sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`;
-
   const allNavItems = [...navigation, ...secondaryNavigation];
-  const getNavIcon = (label: string) => allNavItems.find((item) => item.label === label)?.icon || "pi pi-circle";
+  const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
+
+  const sidebarClassName = `uni-sidebar ${sidebarCollapsed ? "" : "expanded"} ${mobileOpen ? "mobile-open" : ""}`;
 
   return (
-    <div className="app-shell">
+    <div className="uni-shell">
       <aside className={sidebarClassName}>
-        <div className="brand">
-          <div className="brand-mark">
-            <i className="pi pi-sitemap" />
+        <div className="uni-sidebar-top">
+          <div className="uni-logo" title="InfraControl">
+            <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+              <circle cx="16" cy="16" r="15" stroke="#58a6ff" strokeWidth="2"/>
+              <path d="M10 12 C10 10 12 8 16 8 C20 8 22 10 22 12 C22 14 20 16 16 16 L16 24" stroke="#58a6ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="16" cy="24" r="1.5" fill="#58a6ff"/>
+            </svg>
           </div>
-          <div className="brand-text">
-            <strong>InfraControl</strong>
-            <span>IT Operations Platform</span>
-          </div>
+
           <button
-            className="sidebar-toggle"
+            className="uni-sidebar-toggle"
             onClick={handleToggleSidebar}
-            aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={sidebarCollapsed ? "Expandir" : "Recolher"}
           >
             <i className={`pi ${sidebarCollapsed ? "pi-angle-right" : "pi-angle-left"}`} />
           </button>
         </div>
 
-        <div className="workspace-select">
-          <div className="workspace-avatar">IT</div>
-          <div className="workspace-info">
-            <span>Workspace</span>
-            <strong>Operações TI</strong>
-          </div>
-          <i className="pi pi-chevron-down" />
-        </div>
+        <nav className="uni-nav" aria-label="Navegação principal">
+          <ul className="uni-nav-list">
+            {navigation.map((item) => (
+              <li key={item.label}>
+                <button
+                  className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                  onClick={() => navigate(item.label)}
+                  title={item.label}
+                >
+                  <span className="uni-nav-indicator" />
+                  <i className={item.icon} />
+                  <span className="uni-nav-tooltip">{item.label}</span>
+                  {item.badge && <span className="uni-nav-badge">{item.badge}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
 
-        <nav className="main-nav" aria-label="Navegação principal">
-          <div className="nav-section">
-            <p className="nav-label">PLATAFORMA</p>
-            <ul className="nav-items">
-              {navigation.map((item) => (
-                <li key={item.label}>
-                  <button
-                    className={`nav-item ${activeItem === item.label ? "active" : ""}`}
-                    onClick={() => navigate(item.label)}
-                    title={sidebarCollapsed ? item.label : undefined}
-                  >
-                    <i className={item.icon} />
-                    {!sidebarCollapsed && <span>{item.label}</span>}
-                    {item.badge && !sidebarCollapsed && <b className="badge">{item.badge}</b>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="uni-nav-divider" />
 
-          <div className="nav-section">
-            <p className="nav-label">GESTÃO</p>
-            <ul className="nav-items">
-              {secondaryNavigation.map((item) => (
-                <li key={item.label}>
-                  <button
-                    className={`nav-item ${activeItem === item.label ? "active" : ""}`}
-                    onClick={() => navigate(item.label)}
-                    title={sidebarCollapsed ? item.label : undefined}
-                  >
-                    <i className={item.icon} />
-                    {!sidebarCollapsed && <span>{item.label}</span>}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul className="uni-nav-list">
+            {secondaryNavigation.map((item) => (
+              <li key={item.label}>
+                <button
+                  className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                  onClick={() => navigate(item.label)}
+                  title={item.label}
+                >
+                  <span className="uni-nav-indicator" />
+                  <i className={item.icon} />
+                  <span className="uni-nav-tooltip">{item.label}</span>
+                  {item.badge && <span className="uni-nav-badge">{item.badge}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="support-card">
+        <div className="uni-sidebar-bottom">
+          <button className="uni-nav-item" title="Ajuda">
+            <span className="uni-nav-indicator" />
             <i className="pi pi-question-circle" />
-            <div className="support-info">
-              <strong>Precisa de ajuda?</strong>
-              <span>Consulte a base de conhecimento</span>
-            </div>
-            <i className="pi pi-arrow-up-right" />
-          </div>
-          <div className="user-card">
-            <div className="user-avatar">PB</div>
-            <div className="user-info">
-              <strong>Paulo Bumba</strong>
-              <span>Administrador</span>
-            </div>
-            <i className="pi pi-ellipsis-v" />
-          </div>
+            <span className="uni-nav-tooltip">Ajuda</span>
+          </button>
         </div>
       </aside>
 
       {mobileOpen && (
         <button
-          className="sidebar-overlay"
+          className="uni-sidebar-overlay"
           onClick={() => dispatch(setMobileOpen(false))}
           aria-label="Fechar menu"
         />
       )}
 
-      <main className="main-content">
-        <header className="topbar">
+      <main className="uni-main">
+        <header className="uni-topbar">
           <button
-            className="mobile-menu"
+            className="uni-mobile-menu"
             onClick={() => dispatch(setMobileOpen(true))}
             aria-label="Abrir menu"
           >
             <i className="pi pi-bars" />
           </button>
-          <div className="breadcrumbs">
-            <span>InfraControl</span>
-            <i className="pi pi-angle-right" />
-            <strong>{activeItem}</strong>
+
+          <div className="uni-topbar-left">
+            <div className="uni-topbar-brand">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <circle cx="12" cy="12" r="11" stroke="#58a6ff" strokeWidth="1.5"/>
+                <path d="M8 9 C8 7.5 9.5 6 12 6 C14.5 6 16 7.5 16 9 C16 10.5 14.5 12 12 12 L12 18" stroke="#58a6ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="18" r="1" fill="#58a6ff"/>
+              </svg>
+              <span>InfraControl</span>
+            </div>
+            <div className="uni-topbar-divider" />
+            <span className="uni-topbar-section">{activeItem}</span>
           </div>
-          <div className="topbar-actions">
-            <button className="icon-button" aria-label="Pesquisar">
+
+          <div className="uni-topbar-center">
+            <div className="uni-search">
               <i className="pi pi-search" />
+              <input type="text" placeholder="Pesquisar dispositivos, clientes..." />
+            </div>
+          </div>
+
+          <div className="uni-topbar-right">
+            <button className="uni-topbar-icon" title="Adicionar">
+              <i className="pi pi-plus" />
             </button>
-            <button className="icon-button notification-button" aria-label="Notificações">
+            <button className="uni-topbar-icon" title="Atualizar">
+              <i className="pi pi-refresh" />
+            </button>
+            <button className="uni-topbar-icon has-badge" title="Notificações">
               <i className="pi pi-bell" />
-              <span className="notification-badge">3</span>
+              <span className="uni-notif-badge">3</span>
             </button>
-            <div className="topbar-avatar">PB</div>
+            <div className="uni-topbar-avatar" title="Paulo Bumba">
+              <span>PB</span>
+            </div>
           </div>
         </header>
 
         {recentTabs.length > 0 && (
-          <div className="side-panel-tabs">
-            {recentTabs.map((tab: string) => (
-              <button
-                key={tab}
-                className={`side-panel-tab ${activeItem === tab ? "active" : ""}`}
-                onClick={() => navigate(tab)}
-              >
-                <i className={getNavIcon(tab)} />
-                <span>{tab}</span>
+          <div className="uni-tabs-bar">
+            {recentTabs.map((tab: string) => {
+              const navItem = getNavItem(tab);
+              return (
                 <button
-                  className="tab-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeRecentTab(tab);
-                  }}
-                  aria-label={`Fechar ${tab}`}
+                  key={tab}
+                  className={`uni-tab ${activeItem === tab ? "active" : ""}`}
+                  onClick={() => navigate(tab)}
                 >
-                  <i className="pi pi-times" />
+                  <i className={navItem?.icon || "pi pi-circle"} />
+                  <span>{tab}</span>
+                  <button
+                    className="uni-tab-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeRecentTab(tab);
+                    }}
+                    aria-label={`Fechar ${tab}`}
+                  >
+                    <i className="pi pi-times" />
+                  </button>
                 </button>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {children}
+        <div className="uni-content">
+          {children}
+        </div>
       </main>
     </div>
   );

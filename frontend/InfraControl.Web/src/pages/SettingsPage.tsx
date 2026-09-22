@@ -1,155 +1,212 @@
 import { useState } from "react";
-import { InputText } from "primereact/inputtext";
-import { Dropdown } from "primereact/dropdown";
-import { Button } from "primereact/button";
-import { InputSwitch } from "primereact/inputswitch";
-import { TabView, TabPanel } from "primereact/tabview";
+
+const settingsTabs = [
+  { id: "general", label: "Geral", icon: "pi pi-cog" },
+  { id: "network", label: "Rede", icon: "pi pi-share-alt" },
+  { id: "wifi", label: "WiFi", icon: "pi pi-wifi" },
+  { id: "security", label: "Segurança", icon: "pi pi-shield" },
+  { id: "notifications", label: "Notificações", icon: "pi pi-bell" },
+  { id: "system", label: "Sistema", icon: "pi pi-cog" },
+];
 
 export function SettingsPage() {
-  const [siteName, setSiteName] = useState("InfraControl - Operações TI");
-  const [timezone, setTimezone] = useState("America/Luanda");
-  const [language, setLanguage] = useState("pt-BR");
-  const [darkMode, setDarkMode] = useState(true);
-  const [autoBackup, setAutoBackup] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [snmpEnabled, setSnmpEnabled] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
 
   return (
-    <div className="page-content">
-      <section className="page-heading">
-        <div>
-          <p className="eyebrow">CONFIGURAÇÕES</p>
-          <h1>Settings</h1>
-          <p className="heading-subtitle">Platform configuration</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700 }}>Configurações</h1>
+
+      <div className="uni-settings-grid">
+        <div className="uni-settings-nav">
+          {settingsTabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={`uni-settings-nav-item ${activeTab === tab.id ? "active" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <i className={tab.icon} />
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <Button label="Save Changes" icon="pi pi-save" />
-      </section>
 
-      <div className="panel">
-        <TabView>
-          <TabPanel header="General">
-            <div className="settings-form">
-              <div className="settings-section">
-                <h3>Site Information</h3>
-                <div className="settings-grid">
-                  <div className="settings-field">
-                    <label>Site Name</label>
-                    <InputText value={siteName} onChange={(e) => setSiteName(e.target.value)} />
-                  </div>
-                  <div className="settings-field">
-                    <label>Timezone</label>
-                    <Dropdown value={timezone} onChange={(e) => setTimezone(e.target.value)} options={[
-                      { label: "Africa/Luanda (WAT)", value: "America/Luanda" },
-                      { label: "UTC", value: "UTC" },
-                      { label: "America/New_York (EST)", value: "America/New_York" },
-                      { label: "Europe/London (GMT)", value: "Europe/London" },
-                    ]} />
-                  </div>
-                  <div className="settings-field">
-                    <label>Language</label>
-                    <Dropdown value={language} onChange={(e) => setLanguage(e.target.value)} options={[
-                      { label: "Português (BR)", value: "pt-BR" },
-                      { label: "English", value: "en-US" },
-                    ]} />
-                  </div>
+        <div className="uni-settings-panel">
+          {activeTab === "general" && (
+            <>
+              <div className="uni-settings-section">
+                <h3>Informações do Site</h3>
+                <div className="uni-settings-field">
+                  <label>Nome do Site</label>
+                  <input type="text" defaultValue="Operações TI" />
+                </div>
+                <div className="uni-settings-field">
+                  <label>Descrição</label>
+                  <input type="text" defaultValue="Infraestrutura corporativa principal" />
+                </div>
+                <div className="uni-settings-field">
+                  <label>Fuso Horário</label>
+                  <select defaultValue="America/Sao_Paulo">
+                    <option value="America/Sao_Paulo">América/São Paulo (GMT-3)</option>
+                    <option value="America/New_York">América/New York (GMT-5)</option>
+                  </select>
                 </div>
               </div>
-
-              <div className="settings-section">
-                <h3>Appearance</h3>
-                <div className="settings-toggle">
-                  <div className="settings-toggle-info">
-                    <strong>Dark Mode</strong>
-                    <span>Use dark theme for the interface</span>
+              <div className="uni-settings-section">
+                <h3>Preferências</h3>
+                <div className="uni-toggle-row">
+                  <div className="uni-toggle-info">
+                    <strong>Modo Escuro</strong>
+                    <span>Usar tema escuro na interface</span>
                   </div>
-                  <InputSwitch checked={darkMode} onChange={(e) => setDarkMode(e.value ?? true)} />
+                  <div className="uni-toggle-switch on" />
+                </div>
+                <div className="uni-toggle-row">
+                  <div className="uni-toggle-info">
+                    <strong>Atualização Automática</strong>
+                    <span>Atualizar dispositivos automaticamente</span>
+                  </div>
+                  <div className="uni-toggle-switch on" />
+                </div>
+                <div className="uni-toggle-row">
+                  <div className="uni-toggle-info">
+                    <strong>Telemetria</strong>
+                    <span>Enviar dados de uso para melhorias</span>
+                  </div>
+                  <div className="uni-toggle-switch" />
                 </div>
               </div>
-            </div>
-          </TabPanel>
+            </>
+          )}
 
-          <TabPanel header="Network">
-            <div className="settings-form">
-              <div className="settings-section">
-                <h3>DNS Settings</h3>
-                <div className="settings-grid">
-                  <div className="settings-field">
-                    <label>Primary DNS</label>
-                    <InputText defaultValue="8.8.8.8" />
-                  </div>
-                  <div className="settings-field">
-                    <label>Secondary DNS</label>
-                    <InputText defaultValue="8.8.4.4" />
-                  </div>
-                </div>
+          {activeTab === "network" && (
+            <div className="uni-settings-section">
+              <h3>Configurações de Rede</h3>
+              <div className="uni-settings-field">
+                <label>WAN IP</label>
+                <input type="text" defaultValue="192.168.1.1" />
               </div>
-
-              <div className="settings-section">
-                <h3>DHCP</h3>
-                <div className="settings-grid">
-                  <div className="settings-field">
-                    <label>DHCP Start</label>
-                    <InputText defaultValue="192.168.1.100" />
-                  </div>
-                  <div className="settings-field">
-                    <label>DHCP End</label>
-                    <InputText defaultValue="192.168.1.254" />
-                  </div>
-                  <div className="settings-field">
-                    <label>Lease Time</label>
-                    <InputText defaultValue="86400" />
-                  </div>
-                </div>
+              <div className="uni-settings-field">
+                <label>Máscara de Rede</label>
+                <input type="text" defaultValue="255.255.255.0" />
+              </div>
+              <div className="uni-settings-field">
+                <label>Gateway</label>
+                <input type="text" defaultValue="192.168.1.1" />
+              </div>
+              <div className="uni-settings-field">
+                <label>DNS Primário</label>
+                <input type="text" defaultValue="8.8.8.8" />
+              </div>
+              <div className="uni-settings-field">
+                <label>DNS Secundário</label>
+                <input type="text" defaultValue="8.8.4.4" />
               </div>
             </div>
-          </TabPanel>
+          )}
 
-          <TabPanel header="Notifications">
-            <div className="settings-form">
-              <div className="settings-section">
-                <h3>Alert Settings</h3>
-                <div className="settings-toggle">
-                  <div className="settings-toggle-info">
-                    <strong>Email Notifications</strong>
-                    <span>Receive alerts via email</span>
-                  </div>
-                  <InputSwitch checked={emailNotifications} onChange={(e) => setEmailNotifications(e.value ?? true)} />
+          {activeTab === "wifi" && (
+            <div className="uni-settings-section">
+              <h3>Redes WiFi</h3>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Corporativo</strong>
+                  <span>SSID: Corp-5G · Banda: 5 GHz · Canal: 36</span>
                 </div>
-                <div className="settings-toggle">
-                  <div className="settings-toggle-info">
-                    <strong>SNMP Traps</strong>
-                    <span>Enable SNMP trap receiver</span>
-                  </div>
-                  <InputSwitch checked={snmpEnabled} onChange={(e) => setSnmpEnabled(e.value ?? true)} />
+                <div className="uni-toggle-switch on" />
+              </div>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Convidados</strong>
+                  <span>SSID: Guest-WiFi · Banda: 2.4 GHz + 5 GHz</span>
                 </div>
+                <div className="uni-toggle-switch on" />
+              </div>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>IoT</strong>
+                  <span>SSID: IoT-Devices · Banda: 2.4 GHz</span>
+                </div>
+                <div className="uni-toggle-switch on" />
               </div>
             </div>
-          </TabPanel>
+          )}
 
-          <TabPanel header="System">
-            <div className="settings-form">
-              <div className="settings-section">
-                <h3>Backup</h3>
-                <div className="settings-toggle">
-                  <div className="settings-toggle-info">
-                    <strong>Automatic Backup</strong>
-                    <span>Daily backup at 03:00 AM</span>
-                  </div>
-                  <InputSwitch checked={autoBackup} onChange={(e) => setAutoBackup(e.value ?? true)} />
+          {activeTab === "security" && (
+            <div className="uni-settings-section">
+              <h3>Segurança</h3>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>IDS/IPS</strong>
+                  <span>Intrusion Detection/Prevention System</span>
                 </div>
-                <div style={{ marginTop: "var(--space-3)", display: "flex", gap: "var(--space-2)" }}>
-                  <Button label="Backup Now" icon="pi pi-download" severity="secondary" />
-                  <Button label="Restore Backup" icon="pi pi-upload" severity="secondary" />
-                </div>
+                <div className="uni-toggle-switch on" />
               </div>
-
-              <div className="settings-section">
-                <h3>Danger Zone</h3>
-                <Button label="Factory Reset" icon="pi pi-trash" severity="danger" />
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Firewall</strong>
+                  <span>Habilitar firewall no gateway</span>
+                </div>
+                <div className="uni-toggle-switch on" />
+              </div>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Deep Packet Inspection</strong>
+                  <span>Inspeção profunda de pacotes</span>
+                </div>
+                <div className="uni-toggle-switch on" />
               </div>
             </div>
-          </TabPanel>
-        </TabView>
+          )}
+
+          {activeTab === "notifications" && (
+            <div className="uni-settings-section">
+              <h3>Notificações</h3>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Email</strong>
+                  <span>Receber alertas por email</span>
+                </div>
+                <div className="uni-toggle-switch on" />
+              </div>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Push Mobile</strong>
+                  <span>Receber notificações push no app</span>
+                </div>
+                <div className="uni-toggle-switch on" />
+              </div>
+              <div className="uni-toggle-row">
+                <div className="uni-toggle-info">
+                  <strong>Slack</strong>
+                  <span>Enviar alertas para canal Slack</span>
+                </div>
+                <div className="uni-toggle-switch" />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "system" && (
+            <div className="uni-settings-section">
+              <h3>Sistema</h3>
+              <div className="uni-settings-field">
+                <label>Versão do Firmware</label>
+                <input type="text" defaultValue="4.1.13" disabled />
+              </div>
+              <div className="uni-settings-field">
+                <label>Último Backup</label>
+                <input type="text" defaultValue="14/09/2026 03:00" disabled />
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <button style={{ padding: "8px 16px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500 }}>
+                  <i className="pi pi-refresh" style={{ marginRight: 6 }} /> Verificar Atualizações
+                </button>
+                <button style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}>
+                  <i className="pi pi-download" style={{ marginRight: 6 }} /> Backup Agora
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

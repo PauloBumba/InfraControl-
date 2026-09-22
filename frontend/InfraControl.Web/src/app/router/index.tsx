@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { setActiveItem } from "@/app/store/slices/navigationSlice";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { navigation, secondaryNavigation } from "@/data/dashboardData";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const NetworkPage = lazy(() => import("@/pages/NetworkPage").then(m => ({ default: m.NetworkPage })));
@@ -17,41 +18,22 @@ const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default:
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
-const routeLabelMap: Record<string, string> = {
-  "/": "Visão geral",
-  "/network": "Rede",
-  "/wifi": "WiFi",
-  "/topology": "Topologia",
-  "/devices": "Dispositivos",
-  "/clients": "Clientes",
-  "/insights": "Insights",
-  "/alerts": "Alertas",
-  "/settings": "Configurações",
-  "/health": "Health Checks",
-  "/logs": "Logs",
-};
+const allNav = [...navigation, ...secondaryNavigation];
 
-const labelRouteMap: Record<string, string> = {
-  "Visão geral": "/",
-  "Inventário": "/network",
-  "Dispositivos": "/devices",
-  "Rede": "/network",
-  "Monitoramento": "/insights",
-  "Alertas": "/alerts",
-  "Incidentes": "/alerts",
-  "Tarefas": "/",
-  "Conhecimento": "/insights",
-  "Relatórios": "/insights",
-  "Configurações": "/settings",
-};
+const routeLabelMap: Record<string, string> = Object.fromEntries(
+  allNav.map(item => [item.route, item.label])
+);
+routeLabelMap["/"] = "Visão Geral";
+
+const labelRouteMap: Record<string, string> = Object.fromEntries(
+  allNav.map(item => [item.label, item.route])
+);
 
 function PageLoader() {
   return (
-    <div className="page-content" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
-      <div style={{ textAlign: "center" }}>
-        <i className="pi pi-spin pi-spinner" style={{ fontSize: "24px", color: "var(--accent)" }} />
-        <p style={{ color: "var(--text-muted)", marginTop: "var(--space-3)" }}>Carregando...</p>
-      </div>
+    <div className="uni-page-loader">
+      <i className="pi pi-spin pi-spinner" />
+      <span>Carregando...</span>
     </div>
   );
 }
@@ -62,7 +44,7 @@ function AppContent() {
   const dispatch = useAppDispatch();
   const activeItemRedux = useAppSelector((s) => s.navigation.activeItem);
 
-  const activeLabel = routeLabelMap[location.pathname] || activeItemRedux;
+  const activeLabel = routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
 
   const handleNavigate = (label: string) => {
     const route = labelRouteMap[label] || "/";

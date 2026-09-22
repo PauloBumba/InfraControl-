@@ -2,29 +2,31 @@
    INFRA CONTROL — Design Tokens (UniFi-Style)
    ============================================= */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
   /* === SIDEBAR === */
-  --sidebar-bg: #0a0e1a;
-  --sidebar-bg-secondary: #111827;
-  --sidebar-text: #9ca3af;
-  --sidebar-text-hover: #f8fafc;
-  --sidebar-text-active: #f8fafc;
-  --sidebar-border: #1e293b;
-  --sidebar-accent: #3b82f6;
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 64px;
+  --sidebar-bg: #0d1117;
+  --sidebar-bg-secondary: #161b22;
+  --sidebar-text: #8b949e;
+  --sidebar-text-hover: #f0f6fc;
+  --sidebar-text-active: #f0f6fc;
+  --sidebar-border: #21262d;
+  --sidebar-accent: #58a6ff;
+  --sidebar-width: 60px;
+  --sidebar-collapsed-width: 60px;
 
   /* === TOPBAR === */
-  --topbar-bg: #111827;
-  --topbar-bg-secondary: #1f2937;
-  --topbar-text: #f8fafc;
-  --topbar-text-muted: #9ca3af;
-  --topbar-border: #1e293b;
+  --topbar-bg: #0d1117;
+  --topbar-bg-secondary: #161b22;
+  --topbar-text: #f0f6fc;
+  --topbar-text-muted: #8b949e;
+  --topbar-border: #21262d;
 
   /* === CONTENT === */
-  --content-bg: #f8fafc;
+  --content-bg: #f6f8fa;
   --surface-card: #ffffff;
-  --surface-2: #f1f5f9;
+  --surface-2: #f6f8fa;
 
   /* === ACCENT / PRIMARY === */
   --accent: #3b82f6;
@@ -40,14 +42,17 @@
   --status-yellow-light: #fef3c7;
 
   /* === TEXT === */
-  --text: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --text-inverse: #f8fafc;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #f0f6fc;
 
   /* === BORDERS === */
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
+
+  /* === FONT === */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* === FONT SIZES === */
   --text-xs: 0.75rem;
@@ -78,9 +83,9 @@
 
   /* === BORDER RADIUS === */
   --border-radius-sm: 4px;
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
-  --border-radius-xl: 16px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 10px;
+  --border-radius-xl: 12px;
   --border-radius-full: 9999px;
 
   /* === SHADOWS === */
@@ -93,7 +98,7 @@
   --transition-fast: 150ms ease;
   --transition-normal: 200ms ease;
   --transition-slow: 300ms ease;
-  --transition-colors: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+  --transition-colors: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 
   /* === Z-INDEX === */
   --z-sidebar: 100;
