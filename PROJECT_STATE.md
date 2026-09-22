@@ -57,6 +57,9 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Feature flags com configuração e override temporário no Redis
 - [x] Registry extensível para providers de Discovery e Monitoring
 - [x] BuildingBlocks compartilhado criado e integrado ao Domain, Application e Infrastructure
+- [x] Identity backend com registro, login por cookie, refresh rotativo, logout e endpoint `me`
+- [x] Recuperação e troca de senha com token single-use no Redis e revogação de sessões
+- [x] Dashboard backend de usuários com consulta, ativação/desativação e administração de roles
 - [ ] Retenção e cleanup operacional (próximo slice)
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
@@ -73,6 +76,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - Após auditoria, Inbox, resiliência, cache, flags e providers: 23 testes aprovados, 0 falhas.
 - `npm run build` em `frontend/InfraControl.Web`: aprovado.
 - `git diff --check`: aprovado.
+- Após Identity API e dashboard: `dotnet build` aprovado e 23 testes aprovados, 0 falhas.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.
 
 ## Regra

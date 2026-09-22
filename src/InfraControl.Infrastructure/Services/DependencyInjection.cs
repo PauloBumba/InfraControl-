@@ -1,6 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Identity;
+using InfraControl.Application.Identity.Authentication;
+using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
@@ -56,6 +58,9 @@ public static class DependencyInjection
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>();
 
+        services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
+        services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
+        services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
         services.AddScoped<IUserRoleRepository, IdentityUserRoleRepository>();
 

@@ -12,6 +12,7 @@ public sealed class User : AggregateRoot
     public string DisplayName { get; private set; } = string.Empty;
     public bool IsActive { get; private set; }
     public IReadOnlyCollection<UserRole> Roles => _roleAssignments.Select(assignment => assignment.Role).ToArray();
+    public IReadOnlyCollection<UserRoleAssignment> RoleAssignments => _roleAssignments.AsReadOnly();
 
     private User() { }
 

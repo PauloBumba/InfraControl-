@@ -17,7 +17,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.IsActive).IsRequired();
         builder.Ignore(user => user.DomainEvents);
 
-        builder.HasMany<UserRoleAssignment>("_roleAssignments")
+        builder.HasMany(user => user.RoleAssignments)
             .WithOne()
             .HasForeignKey(assignment => assignment.UserId)
             .OnDelete(DeleteBehavior.Cascade);

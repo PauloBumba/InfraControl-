@@ -67,11 +67,12 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F1-T003 Roles (Vertical Slice/CQRS, policies, sincronização Identity e proteção do último Admin)
 - [x] F1-T003A Alinhar Infrastructure ao Sentinel (Auth, Caching, Persistence, Repositories e Services)
 - [x] F1-T004 Permissions (catálogo no domínio, matriz por role, claims e policies granulares)
+- [x] F1-T008 Password Change (endpoint autenticado, revogação de sessões e auditoria)
+- [x] F1-T009 Password Reset (token single-use Redis, expiração e resposta anti-enumeração)
+- [x] F1-T011 Auth API e dashboard de usuários (registro, login, refresh, logout, `me`, status e roles)
 - [ ] F1-T005 Invitation
 - [ ] F1-T006 Accept Invitation
 - [ ] F1-T007 Reject Invitation
-- [ ] F1-T008 Password Change
-- [ ] F1-T009 Password Reset
 - [ ] F1-T010 Audit
 
 ## Fase 2 — Inventário

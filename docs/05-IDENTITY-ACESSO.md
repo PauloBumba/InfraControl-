@@ -15,7 +15,7 @@ ASP.NET Core Identity.
 - `UserManager` e roles store são registrados no módulo de Infrastructure;
 - senha exige no mínimo 12 caracteres, número, maiúscula, minúscula e caractere não alfanumérico;
 - migration `AddIdentityFoundation` cria as tabelas padrão do Identity no PostgreSQL;
-- endpoints, JWT, convites e permissões permanecem nas Tasks seguintes; o Bootstrap Admin e a sessão de domínio já estão modelados.
+- endpoints, convites e login social permanecem evoluções futuras; os endpoints de autenticação, cookie de sessão e refresh já estão implementados.
 
 ### F1-T002 — Bootstrap Admin
 
@@ -43,6 +43,23 @@ As policies HTTP são `AdminOnly`, `UserAccess` e `ViewerAccess`. O controller H
 O catálogo de permissões fica em `Domain/Authorization/Permission.cs`, sem dependência de ASP.NET Core. A matriz padrão é definida em `RolePermissions`: `Viewer` recebe permissões de leitura; `User` herda as permissões de leitura e recebe permissões de gestão operacional; `Admin` recebe o catálogo completo. A união de múltiplas roles não produz duplicatas.
 
 O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. O API registra uma policy para cada valor de `Permission`, mantendo as policies legadas de role para compatibilidade. A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
+
+## API de autenticação e dashboard
+
+O backend expõe os fluxos de Identity inspirados no Sentinel:
+
+| Endpoint | Função | Acesso |
+|---|---|---|
+| `POST /api/v1/auth/register` | Cria usuário com role inicial `Viewer` | Anônimo |
+| `POST /api/v1/auth/login` | Valida credenciais, cria cookie e sessão refresh | Anônimo |
+| `POST /api/v1/auth/refresh` | Rotaciona refresh token e reemite cookie | Anônimo |
+| `POST /api/v1/auth/logout` | Revoga sessão e cookie | Autenticado |
+| `POST /api/v1/auth/forgot-password` | Gera reset sem revelar existência do email | Anônimo |
+| `POST /api/v1/auth/reset-password` | Redefine senha com token Redis single-use | Anônimo |
+| `POST /api/v1/auth/change-password` | Troca senha e revoga sessões | Autenticado |
+| `GET /api/v1/auth/me` | Retorna usuário, roles e permissões | Autenticado |
+
+A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints usam `IdentityUsersRead` e `IdentityUsersManage`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
 
 ## Modelo
 
@@ -90,7 +107,7 @@ Cookie HttpOnly/Secure/SameSite.
 
 ## API
 
-JWT.
+A autenticação HTTP atual usa cookie `HttpOnly`, `Secure` e `SameSite=Strict`, junto de refresh sessions persistidas com hash. JWT pode ser adicionado como outro adapter quando houver necessidade de clients não-browser; não é requisito para o dashboard web atual.
 
 ## Social login
 
