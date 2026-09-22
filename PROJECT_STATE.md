@@ -60,6 +60,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Identity backend com registro, login por cookie, refresh rotativo, logout e endpoint `me`
 - [x] Recuperação e troca de senha com token single-use no Redis e revogação de sessões
 - [x] Dashboard backend de usuários com consulta, ativação/desativação e administração de roles
+- [x] API organizada em estrutura MVC modular alinhada ao Dashboard Sentinel, com Controllers, ViewModels, Services, HealthChecks, Middleware e Hubs
 - [ ] Retenção e cleanup operacional (próximo slice)
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
