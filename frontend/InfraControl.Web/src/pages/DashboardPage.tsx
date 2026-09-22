@@ -2,6 +2,8 @@ import { ActivityPanel, AlertsPanel, MetricsGrid, SystemsPanel } from "@/compone
 import { ConnectivityDots } from "@/components/dashboard/ConnectivityDots";
 import { GatewayCard } from "@/components/dashboard/GatewayCard";
 import { TrafficChart } from "@/components/dashboard/TrafficChart";
+import { TopClients } from "@/components/dashboard/TopClients";
+import { RecentEvents } from "@/components/dashboard/RecentEvents";
 
 export function DashboardPage() {
   return <div className="page-content">
@@ -22,6 +24,10 @@ export function DashboardPage() {
         wan={{ up: 450, down: 920 }}
       />
       <SystemsPanel />
+    </section>
+    <section className="content-grid">
+      <TopClients />
+      <RecentEvents />
     </section>
     <section className="bottom-grid"><AlertsPanel /><ActivityPanel /></section>
   </div>;

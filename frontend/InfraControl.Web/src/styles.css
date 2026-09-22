@@ -710,6 +710,29 @@ ul, ol { list-style: none; }
   to { opacity: 1; }
 }
 
+/* === RECENT EVENTS === */
+.recent-events { padding: 0; }
+.events-list { display: flex; flex-direction: column; }
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.event-row:last-child { border-bottom: none; }
+.event-time {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 70px;
+}
+.event-content { flex: 1; }
+.event-message { display: block; font-size: var(--text-sm); font-weight: var(--font-medium); }
+.event-source { display: block; font-size: var(--text-xs); color: var(--text-muted); }
+
 /* === RESPONSIVE === */
 @media (max-width: 1024px) {
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
