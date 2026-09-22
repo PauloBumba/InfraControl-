@@ -37,20 +37,18 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
   const allNavItems = [...navigation, ...secondaryNavigation];
   const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
 
-  const sidebarClassName = `uni-sidebar ${sidebarCollapsed ? "" : "expanded"} ${mobileOpen ? "mobile-open" : ""}`;
+  const sidebarClassName = `uni-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`;
 
   return (
     <div className="uni-shell">
       <aside className={sidebarClassName}>
-        <div className="uni-sidebar-top">
-          <div className="uni-logo" title="InfraControl">
-            <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
-              <circle cx="16" cy="16" r="15" stroke="#58a6ff" strokeWidth="2"/>
-              <path d="M10 12 C10 10 12 8 16 8 C20 8 22 10 22 12 C22 14 20 16 16 16 L16 24" stroke="#58a6ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="16" cy="24" r="1.5" fill="#58a6ff"/>
-            </svg>
-          </div>
-
+        <div className="uni-sidebar-logo">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+            <circle cx="12" cy="12" r="11" stroke="#0088ff" strokeWidth="1.5"/>
+            <path d="M8 9 C8 7.5 9.5 6 12 6 C14.5 6 16 7.5 16 9 C16 10.5 14.5 12 12 12 L12 18" stroke="#0088ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="12" cy="18" r="1" fill="#0088ff"/>
+          </svg>
+          <span>InfraControl</span>
           <button
             className="uni-sidebar-toggle"
             onClick={handleToggleSidebar}
@@ -69,9 +67,8 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                   onClick={() => navigate(item.label)}
                   title={item.label}
                 >
-                  <span className="uni-nav-indicator" />
                   <i className={item.icon} />
-                  <span className="uni-nav-tooltip">{item.label}</span>
+                  <span>{item.label}</span>
                   {item.badge && <span className="uni-nav-badge">{item.badge}</span>}
                 </button>
               </li>
@@ -88,9 +85,8 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                   onClick={() => navigate(item.label)}
                   title={item.label}
                 >
-                  <span className="uni-nav-indicator" />
                   <i className={item.icon} />
-                  <span className="uni-nav-tooltip">{item.label}</span>
+                  <span>{item.label}</span>
                   {item.badge && <span className="uni-nav-badge">{item.badge}</span>}
                 </button>
               </li>
@@ -98,12 +94,14 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           </ul>
         </nav>
 
-        <div className="uni-sidebar-bottom">
-          <button className="uni-nav-item" title="Ajuda">
-            <span className="uni-nav-indicator" />
-            <i className="pi pi-question-circle" />
-            <span className="uni-nav-tooltip">Ajuda</span>
-          </button>
+        <div className="uni-sidebar-footer">
+          <div className="uni-user-card">
+            <div className="uni-user-avatar">PB</div>
+            <div className="uni-user-info">
+              <span className="uni-user-name">Paulo Bumba</span>
+              <span className="uni-user-role">Administrador</span>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -125,40 +123,26 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
             <i className="pi pi-bars" />
           </button>
 
-          <div className="uni-topbar-left">
-            <div className="uni-topbar-brand">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
-                <circle cx="12" cy="12" r="11" stroke="#58a6ff" strokeWidth="1.5"/>
-                <path d="M8 9 C8 7.5 9.5 6 12 6 C14.5 6 16 7.5 16 9 C16 10.5 14.5 12 12 12 L12 18" stroke="#58a6ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="12" cy="18" r="1" fill="#58a6ff"/>
-              </svg>
-              <span>InfraControl</span>
-            </div>
-            <div className="uni-topbar-divider" />
-            <span className="uni-topbar-section">{activeItem}</span>
-          </div>
-
-          <div className="uni-topbar-center">
-            <div className="uni-search">
-              <i className="pi pi-search" />
-              <input type="text" placeholder="Pesquisar dispositivos, clientes..." />
-            </div>
+          <div className="uni-topbar-breadcrumb">
+            InfraControl <i className="pi pi-angle-right" style={{ fontSize: 8 }} /> <span>{activeItem}</span>
           </div>
 
           <div className="uni-topbar-right">
+            <div className="uni-topbar-search">
+              <i className="pi pi-search" />
+              <input type="text" placeholder="Pesquisar..." />
+            </div>
             <button className="uni-topbar-icon" title="Adicionar">
               <i className="pi pi-plus" />
             </button>
             <button className="uni-topbar-icon" title="Atualizar">
               <i className="pi pi-refresh" />
             </button>
-            <button className="uni-topbar-icon has-badge" title="Notificações">
+            <button className="uni-topbar-icon" title="Notificações">
               <i className="pi pi-bell" />
               <span className="uni-notif-badge">3</span>
             </button>
-            <div className="uni-topbar-avatar" title="Paulo Bumba">
-              <span>PB</span>
-            </div>
+            <div className="uni-topbar-avatar" title="Paulo Bumba">PB</div>
           </div>
         </header>
 
@@ -176,10 +160,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                   <span>{tab}</span>
                   <button
                     className="uni-tab-close"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeRecentTab(tab);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); removeRecentTab(tab); }}
                     aria-label={`Fechar ${tab}`}
                   >
                     <i className="pi pi-times" />
