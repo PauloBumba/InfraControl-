@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using InfraControl.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -54,21 +55,43 @@ public sealed class PerformanceBehavior<TRequest, TResponse>(ILogger<Performance
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
+    private static readonly Meter Meter = new("InfraControl.Application");
+    private static readonly Histogram<double> RequestDuration = Meter.CreateHistogram<double>(
+        "infracontrol.request.duration",
+        unit: "ms",
+        description: "Tempo de execução dos requests MediatR.");
+
     public async Task<TResponse> Handle(
         TRequest request,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var response = await next();
-        stopwatch.Stop();
-
-        logger.LogInformation(
-            "Request {RequestName} completed in {ElapsedMilliseconds} ms.",
-            typeof(TRequest).Name,
-            stopwatch.ElapsedMilliseconds);
-
-        return response;
+        var requestName = typeof(TRequest).Name;
+        var outcome = "success";
+        try
+        {
+            return await next();
+        }
+        catch
+        {
+            outcome = "failure";
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            var elapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+            RequestDuration.Record(
+                elapsedMilliseconds,
+                new KeyValuePair<string, object?>("request", requestName),
+                new KeyValuePair<string, object?>("outcome", outcome));
+            logger.LogInformation(
+                "Request {RequestName} completed in {ElapsedMilliseconds} ms with outcome {Outcome}.",
+                requestName,
+                elapsedMilliseconds,
+                outcome);
+        }
     }
 }
 
