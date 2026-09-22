@@ -3,6 +3,7 @@
     <Project Path="src/InfraControl.Domain/InfraControl.Domain.csproj" />
     <Project Path="src/InfraControl.Application/InfraControl.Application.csproj" />
     <Project Path="src/InfraControl.Infrastructure/InfraControl.Infrastructure.csproj" />
+    <Project Path="src/InfraControl.BuildingBlocks/InfraControl.BuildingBlocks.csproj" />
     <Project Path="src/InfraControl.Contracts/InfraControl.Contracts.csproj" />
     <Project Path="src/InfraControl.Api/InfraControl.Api.csproj" />
     <Project Path="src/InfraControl.Workers/InfraControl.Workers.csproj" />

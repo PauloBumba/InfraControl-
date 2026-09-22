@@ -1,0 +1,17 @@
+namespace InfraControl.BuildingBlocks.Infrastructure;
+
+public interface ICacheService
+{
+    Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
+    Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default);
+    Task RemoveAsync(string key, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default);
+}
+
+public interface IDistributedLock
+{
+    Task<IAsyncDisposable?> AcquireAsync(
+        string key,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default);
+}

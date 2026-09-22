@@ -1,6 +1,6 @@
 namespace InfraControl.Application.Common.Interfaces;
 
-public interface ICacheService
+public interface ICacheService : InfraControl.BuildingBlocks.Infrastructure.ICacheService
 {
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
     Task SetAsync<T>(string key, T value, TimeSpan? expiry = null, CancellationToken cancellationToken = default);

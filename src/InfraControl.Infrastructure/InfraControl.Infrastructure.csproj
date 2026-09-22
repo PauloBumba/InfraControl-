@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\InfraControl.Application\InfraControl.Application.csproj" />
     <ProjectReference Include="..\InfraControl.Domain\InfraControl.Domain.csproj" />
+    <ProjectReference Include="..\InfraControl.BuildingBlocks\InfraControl.BuildingBlocks.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

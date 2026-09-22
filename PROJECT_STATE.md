@@ -56,6 +56,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Cache com invalidação opt-in após sucesso do handler
 - [x] Feature flags com configuração e override temporário no Redis
 - [x] Registry extensível para providers de Discovery e Monitoring
+- [x] BuildingBlocks compartilhado criado e integrado ao Domain, Application e Infrastructure
 - [ ] Retenção e cleanup operacional (próximo slice)
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
