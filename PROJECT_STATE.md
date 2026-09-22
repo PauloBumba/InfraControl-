@@ -63,6 +63,17 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [ ] Retenção e cleanup operacional (próximo slice)
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
+## Fase 13 — Frontend UI/UX (UniFi-Style)
+
+- [x] F13-T001 CSS Variables + Paleta UniFi
+- [x] F13-T002 Sidebar colapsável (240px/64px, toggle, tooltips, localStorage)
+- [x] F13-T003 Topbar escura + Side Panel Tabs
+- [x] F13-T004 Multi-página routing (9 rotas + 404, lazy loading)
+- [x] F13-T005 Connectivity Dots (WAN/WWW/WLAN/LAN/VPN)
+- [x] F13-T006 Gateway Card (status, CPU, memória, throughput)
+- [x] F13-T007 Traffic Chart (SVG, animação, time range tabs)
+- [x] Redux Toolkit configurado (uiSlice, navigationSlice)
+
 ## Próxima fase
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
@@ -78,6 +89,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - `git diff --check`: aprovado.
 - Após Identity API e dashboard: `dotnet build` aprovado e 23 testes aprovados, 0 falhas.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.
+- Após Fase 13 (F13-T001 a F13-T007): `npm run build` frontend OK (311KB JS, 552KB CSS).
 
 ## Regra
 
