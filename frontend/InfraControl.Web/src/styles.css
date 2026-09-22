@@ -471,6 +471,29 @@ ul, ol { list-style: none; }
 .uni-device-stat { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--uni-text-muted); }
 .uni-device-stat i { font-size: 10px; }
 
+/* ============ SWITCH PORT GRID ============ */
+.uni-switch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+.uni-switch-port {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  border: 1.5px solid #e5e7eb;
+  transition: all 0.12s;
+  cursor: pointer;
+  min-height: 56px;
+}
+.uni-switch-port:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
 /* ============ TOPOLOGY ============ */
 .uni-topology-container {
   background: var(--uni-surface);

@@ -125,3 +125,53 @@ export const deviceSummary = {
     offline: 1,
   },
 };
+
+// ============ RACK LAYOUT ============
+export const rackLayout: Record<string, {
+  label: string; location: string; totalUnits: number;
+  units: { u: number; deviceId: string; name: string; type: string; status: string; height: number }[];
+}> = {
+  "Rack-A": {
+    label: "Rack Principal", location: "Sala de Servidores", totalUnits: 6,
+    units: [
+      { u: 0, deviceId: "ups-1", name: "UPS-Rack-01", type: "ups", status: "online", height: 2 },
+      { u: 2, deviceId: "gw-1", name: "UDM-Pro", type: "gateway", status: "online", height: 1 },
+      { u: 3, deviceId: "sw-1", name: "Switch-Core-01", type: "switch", status: "online", height: 1 },
+      { u: 4, deviceId: "sw-3", name: "Switch-Rede", type: "switch", status: "offline", height: 1 },
+    ]
+  },
+  "Rack-B": {
+    label: "Rack Escritório", location: "Escritório", totalUnits: 3,
+    units: [
+      { u: 1, deviceId: "sw-2", name: "Switch-Office-01", type: "switch", status: "online", height: 1 },
+      { u: 2, deviceId: "nas-1", name: "NAS-Synology", type: "nas", status: "online", height: 1 },
+    ]
+  },
+  "Rack-C": {
+    label: "Rack Datacenter", location: "Datacenter", totalUnits: 11,
+    units: [
+      { u: 1, deviceId: "srv-1", name: "Server-DB-01", type: "server", status: "online", height: 2 },
+      { u: 5, deviceId: "srv-2", name: "Server-APP-01", type: "server", status: "online", height: 2 },
+      { u: 10, deviceId: "stg-1", name: "Storage-Backup", type: "storage", status: "online", height: 1 },
+    ]
+  },
+};
+
+// ============ STORAGE CONNECTIONS ============
+export const storageConnections = [
+  { from: "cam-1", to: "nas-1", label: "Gravação contínua", type: "recording", color: "#ec4899" },
+  { from: "cam-2", to: "nas-1", label: "Gravação contínua", type: "recording", color: "#ec4899" },
+  { from: "cam-3", to: "nas-1", label: "Gravação contínua", type: "recording", color: "#ec4899" },
+  { from: "srv-1", to: "nas-1", label: "Backup DB", type: "backup", color: "#3b82f6" },
+  { from: "srv-2", to: "stg-1", label: "Backup Apps", type: "backup", color: "#3b82f6" },
+  { from: "nas-1", to: "stg-1", label: "Replicação", type: "replication", color: "#22c55e" },
+];
+
+// ============ VLAN BADGES ============
+export const vlanBadges = [
+  { id: 10, name: "Administração", color: "#3b82f6", deviceIds: ["udm", "sw1", "sw2", "ap1", "ap2", "nas1", "ups1", "pr1", "pr2", "pr3", "cam1", "cam2", "cam3"] },
+  { id: 20, name: "Produção", color: "#22c55e", deviceIds: ["srv1", "srv2", "vm1", "vm2", "vm3", "stg1"] },
+  { id: 30, name: "Convidados", color: "#f59e0b", deviceIds: [] },
+  { id: 40, name: "IoT", color: "#8b5cf6", deviceIds: ["ap3"] },
+  { id: 50, name: "VoIP", color: "#ec4899", deviceIds: ["ph1", "ph2"] },
+];
