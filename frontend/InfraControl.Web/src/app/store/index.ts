@@ -1,7 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
+import { uiReducer } from "./slices/uiSlice";
+import { navigationReducer } from "./slices/navigationSlice";
 
 export const store = configureStore({
-  reducer: {},
+  reducer: {
+    ui: uiReducer,
+    navigation: navigationReducer,
+  },
 });
 
 export type RootState = ReturnType<typeof store.getState>;
