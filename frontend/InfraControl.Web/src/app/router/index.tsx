@@ -1,5 +1,8 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
+import { setActiveItem } from "@/app/store/slices/navigationSlice";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const NetworkPage = lazy(() => import("@/pages/NetworkPage").then(m => ({ default: m.NetworkPage })));
@@ -14,6 +17,34 @@ const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default:
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
+const routeLabelMap: Record<string, string> = {
+  "/": "Visão geral",
+  "/network": "Rede",
+  "/wifi": "WiFi",
+  "/topology": "Topologia",
+  "/devices": "Dispositivos",
+  "/clients": "Clientes",
+  "/insights": "Insights",
+  "/alerts": "Alertas",
+  "/settings": "Configurações",
+  "/health": "Health Checks",
+  "/logs": "Logs",
+};
+
+const labelRouteMap: Record<string, string> = {
+  "Visão geral": "/",
+  "Inventário": "/network",
+  "Dispositivos": "/devices",
+  "Rede": "/network",
+  "Monitoramento": "/insights",
+  "Alertas": "/alerts",
+  "Incidentes": "/alerts",
+  "Tarefas": "/",
+  "Conhecimento": "/insights",
+  "Relatórios": "/insights",
+  "Configurações": "/settings",
+};
+
 function PageLoader() {
   return (
     <div className="page-content" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
@@ -25,23 +56,42 @@ function PageLoader() {
   );
 }
 
-export function AppRouter() {
+function AppContent() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const activeItemRedux = useAppSelector((s) => s.navigation.activeItem);
+
+  const activeLabel = routeLabelMap[location.pathname] || activeItemRedux;
+
+  const handleNavigate = (label: string) => {
+    const route = labelRouteMap[label] || "/";
+    dispatch(setActiveItem(label));
+    navigate(route);
+  };
+
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/network" element={<NetworkPage />} />
-        <Route path="/wifi" element={<WiFiPage />} />
-        <Route path="/topology" element={<TopologyPage />} />
-        <Route path="/devices" element={<DevicesPage />} />
-        <Route path="/clients" element={<ClientsPage />} />
-        <Route path="/insights" element={<InsightsPage />} />
-        <Route path="/alerts" element={<AlertsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/health" element={<HealthPage />} />
-        <Route path="/logs" element={<LogsPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
+    <AppLayout activeItem={activeLabel} onNavigate={handleNavigate}>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/network" element={<NetworkPage />} />
+          <Route path="/wifi" element={<WiFiPage />} />
+          <Route path="/topology" element={<TopologyPage />} />
+          <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/insights" element={<InsightsPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/health" element={<HealthPage />} />
+          <Route path="/logs" element={<LogsPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </AppLayout>
   );
+}
+
+export function AppRouter() {
+  return <AppContent />;
 }
