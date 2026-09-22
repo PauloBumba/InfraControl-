@@ -28,8 +28,14 @@ A primeira entrega implementa o núcleo transversal que não depende de módulos
 
 - `CorrelationIdBehavior`, `LoggingBehavior`, `PerformanceBehavior` e `ValidationBehavior` no pipeline MediatR;
 - `IdempotencyBehavior` opt-in por request, usando aquisição atômica no Redis;
+- `AuditBehavior` e `AuditEntry`, persistindo somente metadados e nunca payloads sensíveis;
 - publicação tipada do Outbox por `IEventBus`;
 - `OutboxDispatcherWorker` com retry controlado e persistência do estado processado;
+- `IInboxStore` com unicidade por evento e consumidor;
+- `IResilienceExecutor` com retry exponencial, timeout e circuit breaker por nome de provider;
+- `CacheInvalidationBehavior` opt-in após execução bem-sucedida;
+- `IFeatureFlagProvider` com defaults de configuração e override temporário no Redis;
+- `IProviderRegistry<TProvider>` para Discovery e Monitoring sem acoplar o core a um fornecedor;
 - `/health/live`, `/health/ready` e `/health/startup` na API;
 - documentação e registro do roadmap incremental.
 
@@ -50,7 +56,7 @@ Correlation
 → Audit
 ```
 
-Nesta entrega, os comportamentos implementados são os que possuem contratos estáveis no código atual. Authorization permanece nas policies da API e Audit persistida aguarda a definição do agregado de auditoria. Não se deve registrar auditoria de negócio apenas em log de aplicação.
+Nesta entrega, os comportamentos implementados são os que possuem contratos estáveis no código atual. A auditoria registra metadados da requisição e a migration `AddAuditEntries` cria a tabela correspondente. Payloads de comandos, senhas e tokens não são persistidos. Providers concretos de Discovery e Monitoring continuam sendo implementados somente quando os agregados e portas de cada módulo estiverem prontos.
 
 ## Próximos slices
 

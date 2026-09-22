@@ -50,8 +50,13 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Idempotência opt-in implementada com aquisição atômica no Redis
 - [x] Outbox Dispatcher implementado no projeto Workers
 - [x] Health checks operacionais separados em live, ready e startup
-- [ ] Auditoria persistida pós-commit (próximo slice; não marcar como concluída por logs)
-- [ ] Inbox, resiliência por provider e retenção (planejados)
+- [x] Auditoria persistida no pipeline, com migration e redaction por metadados
+- [x] Inbox deduplicada por evento e consumidor
+- [x] Resiliência por provider com retry, timeout e circuit breaker
+- [x] Cache com invalidação opt-in após sucesso do handler
+- [x] Feature flags com configuração e override temporário no Redis
+- [x] Registry extensível para providers de Discovery e Monitoring
+- [ ] Retenção e cleanup operacional (próximo slice)
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 ## Próxima fase
@@ -64,6 +69,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - `dotnet test InfraControl.slnx --configuration Release`: 12 testes aprovados, 0 falhas.
 - Após Permissions: 16 testes aprovados, 0 falhas.
 - Após capacidades transversais: 19 testes aprovados, 0 falhas.
+- Após auditoria, Inbox, resiliência, cache, flags e providers: 23 testes aprovados, 0 falhas.
 - `npm run build` em `frontend/InfraControl.Web`: aprovado.
 - `git diff --check`: aprovado.
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.

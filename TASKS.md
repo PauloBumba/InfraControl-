@@ -50,10 +50,13 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F0-T011 Criar estrutura Frontend e dashboard inicial
 - [x] F0-T012 Documentar capacidades extraídas do Sentinel e critérios de adoção
 - [x] F0-T013 Implementar behaviors base, idempotência, Outbox Dispatcher e health endpoints
-- [ ] F0-T014 Auditoria persistida pós-commit
-- [ ] F0-T015 Inbox e deduplicação de consumidores
-- [ ] F0-T016 Resiliência por provider (retry, timeout, jitter e circuit breaker)
+- [x] F0-T014 Auditoria persistida pós-handler/commit, sem payloads sensíveis
+- [x] F0-T015 Inbox e deduplicação de consumidores
+- [x] F0-T016 Resiliência por provider (retry, timeout e circuit breaker)
 - [ ] F0-T017 Retenção e cleanup operacional
+- [x] F0-T018 Cache com invalidação opt-in no pipeline
+- [x] F0-T019 Feature flags com configuração e override temporário
+- [x] F0-T020 Registry de providers extensíveis para Discovery e Monitoring
 
 ## Fase 1 — Identity
 

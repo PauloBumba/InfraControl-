@@ -19,9 +19,10 @@ A solução não pretende começar com microservices. O sistema inicia como um *
 | Redis | Configurado | Docker Compose e camada de cache |
 | RabbitMQ | Configurado | MassTransit e infraestrutura de mensageria |
 | Outbox | Estruturado | Repositório e eventos de domínio |
-| Observabilidade | Base implementada | Serilog, health checks e OpenTelemetry |
+| Observabilidade | Base implementada | Serilog, health checks por estado e OpenTelemetry |
 | Frontend | Dashboard inicial implementado | React, TypeScript, Vite e PrimeReact |
 | ASP.NET Core Identity | F1-T001–F1-T004 concluídas | Agregados DDD, bootstrap, RBAC, permissões, policies, claims, sessões e migration |
+| Plataforma transversal | Implementada | Behaviors, auditoria, idempotência, Outbox/Inbox, resiliência, cache, feature flags e providers |
 | CI | Workflow criado, validação bloqueada | `.github/workflows/ci.yml` |
 
 O estado detalhado e as pendências rastreáveis estão em [`PROJECT_STATE.md`](PROJECT_STATE.md) e [`TASKS.md`](TASKS.md). As decisões de adoção de capacidades transversais do Sentinel estão em [`docs/23-SENTINEL-ADAPTACAO.md`](docs/23-SENTINEL-ADAPTACAO.md).
@@ -228,7 +229,7 @@ O Bootstrap Admin está implementado como caso de uso em `Application`, com pers
 
 O RBAC inicial segue Vertical Slice/CQRS: comandos e handlers ficam em `Application`, o domínio mantém as invariantes do usuário, e `Infrastructure` sincroniza as roles e claims de permissão com o ASP.NET Core Identity. As policies HTTP legadas são `AdminOnly`, `UserAccess` e `ViewerAccess`; as policies granulares usam os nomes de `Permission` (`DashboardView`, `InventoryRead`, `IdentityRolesManage` etc.). A matriz padrão está em `Domain/Authorization/RolePermissions`; auditoria continua planejada.
 
-O roadmap completo está em [`TASKS.md`](TASKS.md). Cada Task deve ser executada isoladamente, com escopo, teste, evidência e atualização de estado. A adaptação transversal do Sentinel segue o plano em [`docs/23-SENTINEL-ADAPTACAO.md`](docs/23-SENTINEL-ADAPTACAO.md); auditoria persistida, Inbox e resiliência por provider ainda não estão concluídas.
+O roadmap completo está em [`TASKS.md`](TASKS.md). Cada Task deve ser executada isoladamente, com escopo, teste, evidência e atualização de estado. A adaptação transversal do Sentinel segue o plano em [`docs/23-SENTINEL-ADAPTACAO.md`](docs/23-SENTINEL-ADAPTACAO.md); retenção e cleanup operacional continuam pendentes.
 
 ## Processo de desenvolvimento
 

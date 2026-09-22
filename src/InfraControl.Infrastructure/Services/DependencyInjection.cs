@@ -81,6 +81,8 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehavior<,>));
 
         // RabbitMQ via MassTransit
         services.AddMassTransit(x =>
@@ -98,9 +100,14 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IEventBus, MassTransitEventBus>();
+        services.AddScoped<IResilienceExecutor, ResilienceExecutor>();
+        services.AddScoped<IFeatureFlagProvider, FeatureFlagProvider>();
+        services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
 
         // Outbox
         services.AddScoped<IOutboxRepository, OutboxRepository>();
+        services.AddScoped<IInboxStore, InboxStore>();
+        services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IDomainEventService, DomainEventService>();
 
         return services;
