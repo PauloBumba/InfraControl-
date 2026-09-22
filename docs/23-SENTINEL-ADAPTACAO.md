@@ -41,6 +41,8 @@ A primeira entrega implementa o núcleo transversal que não depende de módulos
 - `RateLimitingBehavior` distribuído via Redis para login, reset, webhooks e ingestão;
 - `IFeatureFlagProvider` com defaults de configuração e override temporário no Redis;
 - `IProviderRegistry<TProvider>` para Discovery e Monitoring sem acoplar o core a um fornecedor;
+- `BaseCommand<TResponse>`, `BaseCommand` e `BaseQuery<TResponse>` para padronizar os slices CQRS;
+- `CacheKeyBuilder` para chaves determinísticas, estáveis e isoladas por usuário/roles;
 - `/health/live`, `/health/ready` e `/health/startup` na API;
 - documentação e registro do roadmap incremental.
 
@@ -77,3 +79,5 @@ Nesta entrega, os comportamentos implementados são os que possuem contratos est
 Os behaviors podem depender de portas em `Application`; implementações de Redis, PostgreSQL, MassTransit e hosted services ficam em `Infrastructure` ou `Workers`. O domínio não conhece MediatR pipeline, Redis, RabbitMQ, ASP.NET Core ou tipos de infraestrutura.
 
 O Sentinel também possui behaviors específicos para MCP, Grafana e webhooks de CI/CD. Eles não foram copiados porque pertencem às integrações do Sentinel; no InfraControl, os limites equivalentes usam a categoria genérica de `IRateLimitRequest` e providers próprios.
+
+As classes-base de CQRS foram adaptadas para os contratos atuais do InfraControl. O domínio já possuía `Entity`, `AggregateRoot` e `ValueObject` próprios, portanto esses tipos não foram duplicados nos BuildingBlocks.
