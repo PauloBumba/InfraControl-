@@ -33,13 +33,13 @@ public sealed class IdentityAuthenticationService(
         if (!createResult.Succeeded)
             return OperationResult.Failure(createResult.Errors.Select(error => error.Description).ToArray());
 
-        var domainUser = User.Create(identityUser.Id, email, request.DisplayName, UserRole.Viewer);
+        var domainUser = User.CreatePending(identityUser.Id, email, request.DisplayName, [UserRole.Viewer]);
         dbContext.DomainUsers.Add(domainUser);
         await EnsureRoleAsync(UserRole.Viewer.ToString(), cancellationToken);
         EnsureSucceeded(await userManager.AddToRoleAsync(identityUser, UserRole.Viewer.ToString()), "role assignment");
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        logger.LogInformation("User {UserId} registered.", identityUser.Id);
+        logger.LogInformation("User {UserId} registered pending activation.", identityUser.Id);
         return OperationResult.Success();
     }
 
@@ -88,7 +88,14 @@ public sealed class IdentityAuthenticationService(
     {
         var email = NormalizeEmail(request.Email);
         var identityUser = await userManager.FindByEmailAsync(email);
-        if (identityUser is not null)
+
+        // Guard: recuperação de senha só para contas ATIVAS. A resposta é
+        // idêntica para email desconhecido/inativo (anti-enumeração).
+        var domainUser = identityUser is null
+            ? null
+            : await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
+
+        if (identityUser is not null && domainUser is not null && domainUser.IsActive)
         {
             var token = GenerateToken();
             await cache.SetAsync($"identity:password-reset:{Hash(token)}", email, TimeSpan.FromMinutes(30), cancellationToken);
@@ -104,6 +111,12 @@ public sealed class IdentityAuthenticationService(
     {
         var identityUser = await userManager.FindByEmailAsync(NormalizeEmail(request.Email));
         if (identityUser is null)
+            return OperationResult.Failure("Invalid password reset request.");
+
+        // Guard: conta inativa/desabilitada não pode redefinir senha, mesmo
+        // com token válido emitido antes da desativação.
+        var domainUser = await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
+        if (domainUser is null || !domainUser.IsActive)
             return OperationResult.Failure("Invalid password reset request.");
 
         var tokenKey = $"identity:password-reset:{Hash(request.Token)}";

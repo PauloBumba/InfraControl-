@@ -334,6 +334,26 @@ public sealed class InvitationTests
             configuration.RegisterServicesFromAssembly(typeof(CreateInvitationCommand).Assembly));
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection));
         services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IInvitationAccountPort, NoOpInvitationAccountPort>();
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// Porta registrada apenas para os testes de ciclo de vida do convite,
+    /// que validam o agregado sem provisionar conta real.
+    /// </summary>
+    private sealed class NoOpInvitationAccountPort : IInvitationAccountPort
+    {
+        public Task<Guid> ProvisionInactiveAccountAsync(
+            string email,
+            IReadOnlyCollection<Domain.Enums.UserRole> roles,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(Guid.NewGuid());
+
+        public Task<Application.Identity.Authentication.OperationResult> SetPasswordAndActivateAsync(
+            string email,
+            string password,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(Application.Identity.Authentication.OperationResult.Success());
     }
 }

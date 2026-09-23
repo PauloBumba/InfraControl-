@@ -12,6 +12,7 @@ public sealed record AcceptInvitationResult(Guid InvitationId, string Email, IRe
 
 public sealed class AcceptInvitationCommandHandler(
     IInvitationRepository repository,
+    IInvitationAccountPort accountPort,
     ILogger<AcceptInvitationCommandHandler> logger) : IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>
 {
     public async Task<AcceptInvitationResult> Handle(AcceptInvitationCommand request, CancellationToken cancellationToken)
@@ -27,9 +28,17 @@ public sealed class AcceptInvitationCommandHandler(
 
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         invitation.Accept(InvitationToken.Hash(request.Token.Trim()), utcNow);
+
+        // O aceite provisiona a conta INATIVA; ela só fica ativa no passo
+        // de definição de senha (SetInvitationPasswordCommand).
+        var userId = await accountPort.ProvisionInactiveAccountAsync(
+            invitation.Email, invitation.Roles, cancellationToken);
+
         await repository.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Invitation {InvitationId} accepted for {Email}.", invitation.Id, invitation.Email);
+        logger.LogInformation(
+            "Invitation {InvitationId} accepted for {Email}; account {UserId} provisioned inactive.",
+            invitation.Id, invitation.Email, userId);
 
         return new AcceptInvitationResult(invitation.Id, invitation.Email, invitation.Roles);
     }

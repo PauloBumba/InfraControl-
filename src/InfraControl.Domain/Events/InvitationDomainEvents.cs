@@ -40,3 +40,16 @@ public sealed class InvitationRejectedDomainEvent : DomainEvent
     public string Email { get; }
     public override string EventType => nameof(InvitationRejectedDomainEvent);
 }
+
+public sealed class InvitationActivatedDomainEvent : DomainEvent
+{
+    public InvitationActivatedDomainEvent(Guid invitationId, string email)
+    {
+        InvitationId = invitationId;
+        Email = email;
+    }
+
+    public Guid InvitationId { get; }
+    public string Email { get; }
+    public override string EventType => nameof(InvitationActivatedDomainEvent);
+}

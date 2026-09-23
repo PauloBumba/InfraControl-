@@ -129,6 +129,7 @@ public static class DependencyInjection
 
         // Invitations
         services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
 
         return services;
     }

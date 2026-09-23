@@ -75,6 +75,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F1-T006 Accept Invitation
 - [x] F1-T007 Reject Invitation
 - [x] F1-T010 Audit
+- [x] F1-T013 Guard de ativação do usuário (registro inativo, aceite provisiona conta inativa, `set-password` ativa, login/reset exigem ativo)
 
 ## Fase 2 — Inventário
 

@@ -98,8 +98,26 @@ Status:
 - Rejected
 - Expired
 - Cancelled
+- Activated
 
 Token deve ser aleatório, temporário, single-use e armazenado somente como hash.
+
+### F1-T013 — Guard de ativação implementada
+
+Regra: login, login social (quando existir) e recuperação de senha só são permitidos para usuários **ativos**. O único passo que ativa uma conta criada por convite é a definição de senha.
+
+```text
+Auto-registro (POST /register) ─► conta INATIVA ─► (ativação manual do admin)
+Convite Pending ─► Accept ─► provisiona conta INATIVA ─► set-password ─► conta ATIVA (Activated)
+                  └► Reject ─► nenhuma conta criada
+```
+
+- `User.CreatePending` cria o agregado com `IsActive = false`; `User.Create` continua ativo (bootstrap do Admin).
+- `AcceptInvitationCommand` chama a porta `IInvitationAccountPort.ProvisionInactiveAccountAsync` e provisiona domain + Identity **sem senha**, inativamente.
+- `POST /api/v1/auth/invitations/{id}/set-password` (`SetInvitationPasswordCommand`) valida o token via `Invitation.EnsureActivatable`, define a senha, chama `User.Enable` e move o convite para `Activated` (single-use).
+- `RequestPasswordResetAsync` e `ResetPasswordAsync` verificam `IsActive`; a resposta anti-enumeração permanece idêntica para email desconhecido e inativo.
+- `LoginAsync` e `RefreshAsync` já exigiam `IsActive` (mantido).
+- Social login ainda não existe; quando implementar (Google/Microsoft), deve reutilizar a mesma regra de ativação/cadastro.
 
 ## Web
 

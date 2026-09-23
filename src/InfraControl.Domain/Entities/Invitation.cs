@@ -92,6 +92,36 @@ public sealed class Invitation : AggregateRoot
         RaiseDomainEvent(new InvitationRejectedDomainEvent(Id, Email));
     }
 
+    /// <summary>
+    /// Valida que a ativação (definição de senha) pode ocorrer: convite já aceito,
+    /// dentro da janela de expiração e com token correspondente. Não altera estado.
+    /// </summary>
+    public void EnsureActivatable(string tokenHash, DateTime utcNow)
+    {
+        if (Status != InvitationStatus.Accepted)
+            throw new InvalidOperationException($"Only accepted invitations can be activated (current: {Status}).");
+
+        if (ExpiresAt <= utcNow)
+            throw new InvalidOperationException("The invitation has expired.");
+
+        if (!MatchesHash(tokenHash))
+            throw new UnauthorizedAccessException("The invitation token is invalid.");
+    }
+
+    /// <summary>
+    /// Marca o convite como ativado (conta provisionada e senha definida).
+    /// Single-use: só aceita a transição Accepted → Activated.
+    /// </summary>
+    public void MarkActivated()
+    {
+        if (Status != InvitationStatus.Accepted)
+            throw new InvalidOperationException($"Only accepted invitations can be activated (current: {Status}).");
+
+        Status = InvitationStatus.Activated;
+        Touch();
+        RaiseDomainEvent(new InvitationActivatedDomainEvent(Id, Email));
+    }
+
     public void Cancel()
     {
         if (Status != InvitationStatus.Pending)

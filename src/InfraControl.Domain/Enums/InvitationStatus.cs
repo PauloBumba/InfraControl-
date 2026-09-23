@@ -7,4 +7,5 @@ public enum InvitationStatus
     Rejected = 3,
     Expired = 4,
     Cancelled = 5,
+    Activated = 6,
 }

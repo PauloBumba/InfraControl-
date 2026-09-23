@@ -38,6 +38,38 @@ public sealed class InvitationAcceptanceController(ISender sender) : BaseControl
     }
 
     [AllowAnonymous]
+    [HttpPost("{invitationId:guid}/set-password")]
+    public async Task<IActionResult> SetPassword(
+        Guid invitationId,
+        [FromBody] SetInvitationPasswordViewModel model,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new SetInvitationPasswordCommand(invitationId, model.Token, model.Password),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { error = "Invitation not found." });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Invalid invitation token." });
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { error = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { error = exception.Message });
+        }
+    }
+
+    [AllowAnonymous]
     [HttpPost("{invitationId:guid}/reject")]
     public async Task<IActionResult> Reject(Guid invitationId, [FromBody] AcceptInvitationViewModel model, CancellationToken cancellationToken)
     {
