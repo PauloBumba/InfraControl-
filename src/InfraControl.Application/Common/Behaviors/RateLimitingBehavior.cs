@@ -22,7 +22,7 @@ public sealed class RateLimitingBehavior<TRequest, TResponse>(
         if (!await limiter.TryAcquireAsync(key, rateLimited.Category, cancellationToken))
         {
             logger.LogWarning("Rate limit exceeded for {RequestName} with key {RateLimitKey}", typeof(TRequest).Name, key);
-            throw new InvalidOperationException("Rate limit exceeded.");
+            throw new InvalidOperationException("Limite de requisições excedido.");
         }
 
         return await next();

@@ -15,13 +15,13 @@ public sealed class RejectInvitationCommandHandler(
     public async Task Handle(RejectInvitationCommand request, CancellationToken cancellationToken)
     {
         if (request.InvitationId == Guid.Empty)
-            throw new ArgumentException("An invitation id is required.", nameof(request.InvitationId));
+            throw new ArgumentException("O id do convite é obrigatório.", nameof(request.InvitationId));
 
         if (string.IsNullOrWhiteSpace(request.Token))
-            throw new ArgumentException("A token is required.", nameof(request.Token));
+            throw new ArgumentException("O token é obrigatório.", nameof(request.Token));
 
         var invitation = await repository.GetAsync(request.InvitationId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Invitation '{request.InvitationId}' was not found.");
+            ?? throw new KeyNotFoundException($"Convite '{request.InvitationId}' não encontrado.");
 
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         invitation.Reject(InvitationToken.Hash(request.Token.Trim()), utcNow);

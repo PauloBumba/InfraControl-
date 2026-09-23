@@ -31,7 +31,7 @@ public sealed class User : AggregateRoot
 
     public static User Create(Guid id, string email, string displayName, UserRole initialRole = UserRole.Viewer)
     {
-        if (id == Guid.Empty) throw new ArgumentException("A user id is required.", nameof(id));
+        if (id == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(id));
         return new(id, email, displayName, initialRole, isActive: true);
     }
 
@@ -42,11 +42,11 @@ public sealed class User : AggregateRoot
     /// </summary>
     public static User CreatePending(Guid id, string email, string displayName, IEnumerable<UserRole> roles)
     {
-        if (id == Guid.Empty) throw new ArgumentException("A user id is required.", nameof(id));
+        if (id == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(id));
 
         var distinctRoles = (roles ?? []).Distinct().ToArray();
         if (distinctRoles.Length == 0)
-            throw new ArgumentException("At least one role is required.", nameof(roles));
+            throw new ArgumentException("Ao menos uma função é obrigatória.", nameof(roles));
 
         var user = new User(id, email, displayName, distinctRoles[0], isActive: false);
         foreach (var role in distinctRoles.Skip(1))
@@ -70,7 +70,7 @@ public sealed class User : AggregateRoot
         var assignment = _roleAssignments.SingleOrDefault(current => current.Role == role);
         if (assignment is null) return;
         if (_roleAssignments.Count == 1)
-            throw new InvalidOperationException("A user must retain at least one role.");
+            throw new InvalidOperationException("O usuário deve manter ao menos uma função.");
 
         _roleAssignments.Remove(assignment);
         Touch();
@@ -96,7 +96,7 @@ public sealed class User : AggregateRoot
     private static string NormalizeEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
-            throw new ArgumentException("A valid email is required.", nameof(email));
+            throw new ArgumentException("Um e-mail válido é obrigatório.", nameof(email));
 
         return email.Trim().ToLowerInvariant();
     }
@@ -104,7 +104,7 @@ public sealed class User : AggregateRoot
     private static string RequireDisplayName(string displayName)
     {
         if (string.IsNullOrWhiteSpace(displayName))
-            throw new ArgumentException("A display name is required.", nameof(displayName));
+            throw new ArgumentException("O nome de exibição é obrigatório.", nameof(displayName));
 
         return displayName.Trim();
     }

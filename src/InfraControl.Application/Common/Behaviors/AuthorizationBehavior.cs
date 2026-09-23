@@ -16,14 +16,14 @@ public sealed class AuthorizationBehavior<TRequest, TResponse>(ICurrentUserConte
             return next();
 
         if (!currentUser.IsAuthenticated)
-            throw new UnauthorizedAccessException("Authentication is required for this request.");
+            throw new UnauthorizedAccessException("Autenticação é necessária para esta requisição.");
 
         var granted = currentUser.Permissions.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var missing = authorizedRequest.RequiredPermissions
             .Where(permission => !granted.Contains(permission))
             .ToArray();
         if (missing.Length > 0)
-            throw new UnauthorizedAccessException($"Missing permissions: {string.Join(", ", missing)}");
+            throw new UnauthorizedAccessException($"Permissões ausentes: {string.Join(", ", missing)}");
 
         return next();
     }

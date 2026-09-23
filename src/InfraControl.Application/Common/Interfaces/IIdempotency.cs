@@ -17,10 +17,10 @@ public interface IValidatableRequest
 }
 
 public sealed class DuplicateRequestException(string key)
-    : InvalidOperationException($"The request with idempotency key '{key}' has already been accepted.");
+    : InvalidOperationException($"A requisição com chave de idempotência '{key}' já foi aceita.");
 
 public sealed class RequestValidationException(IReadOnlyCollection<string> errors)
-    : InvalidOperationException($"Request validation failed: {string.Join("; ", errors)}")
+    : InvalidOperationException($"Falha na validação da requisição: {string.Join("; ", errors)}")
 {
     public IReadOnlyCollection<string> Errors { get; } = errors;
 }

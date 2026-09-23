@@ -43,19 +43,19 @@ public sealed class IdentityUserRoleRepository(
         try
         {
             var identityUser = await userManager.FindByIdAsync(user.Id.ToString())
-                ?? throw new KeyNotFoundException($"Identity user '{user.Id}' was not found.");
+                ?? throw new KeyNotFoundException($"Usuário de identidade '{user.Id}' não encontrado.");
             var roleName = role.ToString();
 
             if (!await roleManager.RoleExistsAsync(roleName))
             {
                 var roleResult = await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
-                EnsureSucceeded(roleResult, "role");
+                EnsureSucceeded(roleResult, "criação de função");
             }
 
             var result = assign
                 ? await userManager.AddToRoleAsync(identityUser, roleName)
                 : await userManager.RemoveFromRoleAsync(identityUser, roleName);
-            EnsureSucceeded(result, "role synchronization");
+            EnsureSucceeded(result, "sincronização de função");
 
             await SynchronizePermissionClaimsAsync(identityUser, user.Roles, cancellationToken);
 
@@ -73,7 +73,7 @@ public sealed class IdentityUserRoleRepository(
     {
         if (result.Succeeded) return;
         var errors = string.Join("; ", result.Errors.Select(error => error.Code));
-        throw new InvalidOperationException($"Unable to complete {operation}: {errors}");
+        throw new InvalidOperationException($"Não foi possível concluir {operation}: {errors}");
     }
 
     private async Task SynchronizePermissionClaimsAsync(
@@ -85,13 +85,13 @@ public sealed class IdentityUserRoleRepository(
         var permissionClaims = currentClaims.Where(claim => claim.Type == PermissionClaim.Type).ToList();
 
         if (permissionClaims.Count > 0)
-            EnsureSucceeded(await userManager.RemoveClaimsAsync(identityUser, permissionClaims), "permission claim cleanup");
+            EnsureSucceeded(await userManager.RemoveClaimsAsync(identityUser, permissionClaims), "limpeza de claims de permissão");
 
         var claims = RolePermissions.ForRoles(roles)
             .Select(permission => new Claim(PermissionClaim.Type, permission.ToString()))
             .ToArray();
 
         if (claims.Length > 0)
-            EnsureSucceeded(await userManager.AddClaimsAsync(identityUser, claims), "permission claim synchronization");
+            EnsureSucceeded(await userManager.AddClaimsAsync(identityUser, claims), "sincronização de claims de permissão");
     }
 }

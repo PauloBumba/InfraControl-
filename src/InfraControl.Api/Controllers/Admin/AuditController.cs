@@ -21,17 +21,10 @@ public sealed class AuditController(ISender sender) : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var result = await sender.Send(
-                new SearchAuditEntriesQuery(action, outcome, from, to, page, pageSize),
-                cancellationToken);
+        var result = await sender.Send(
+            new SearchAuditEntriesQuery(action, outcome, from, to, page, pageSize),
+            cancellationToken);
 
-            return Ok(ApiResponse.Ok(result));
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail([exception.Message]));
-        }
+        return Ok(ApiResponse.Ok(result));
     }
 }

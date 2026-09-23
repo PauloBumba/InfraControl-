@@ -25,7 +25,7 @@ public sealed class IdentityAuthenticationService(
     {
         var email = NormalizeEmail(request.Email);
         if (await dbContext.DomainUsers.AnyAsync(user => user.Email == email, cancellationToken))
-            return OperationResult.Failure("A user with this email already exists.");
+            return OperationResult.Failure("Já existe um usuário com este e-mail.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         var identityUser = new InfraControlUser { Id = Guid.NewGuid(), UserName = email, Email = email, EmailConfirmed = true };
@@ -36,7 +36,7 @@ public sealed class IdentityAuthenticationService(
         var domainUser = User.CreatePending(identityUser.Id, email, request.DisplayName, [UserRole.Viewer]);
         dbContext.DomainUsers.Add(domainUser);
         await EnsureRoleAsync(UserRole.Viewer.ToString(), cancellationToken);
-        EnsureSucceeded(await userManager.AddToRoleAsync(identityUser, UserRole.Viewer.ToString()), "role assignment");
+        EnsureSucceeded(await userManager.AddToRoleAsync(identityUser, UserRole.Viewer.ToString()), "atribuição de função");
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("User {UserId} registered pending activation.", identityUser.Id);
@@ -104,25 +104,25 @@ public sealed class IdentityAuthenticationService(
             await emailSender.SendPasswordResetAsync(email, resetUrl, cancellationToken);
         }
 
-        return new PasswordResetRequestResult("If the email is registered, password reset instructions will be sent.");
+        return new PasswordResetRequestResult("Se o e-mail estiver cadastrado, as instruções de redefinição de senha serão enviadas.");
     }
 
     public async Task<OperationResult> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
     {
         var identityUser = await userManager.FindByEmailAsync(NormalizeEmail(request.Email));
         if (identityUser is null)
-            return OperationResult.Failure("Invalid password reset request.");
+            return OperationResult.Failure("Solicitação de redefinição de senha inválida.");
 
         // Guard: conta inativa/desabilitada não pode redefinir senha, mesmo
         // com token válido emitido antes da desativação.
         var domainUser = await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
         if (domainUser is null || !domainUser.IsActive)
-            return OperationResult.Failure("Invalid password reset request.");
+            return OperationResult.Failure("Solicitação de redefinição de senha inválida.");
 
         var tokenKey = $"identity:password-reset:{Hash(request.Token)}";
         var tokenEmail = await cache.GetAsync<string>(tokenKey, cancellationToken);
         if (!string.Equals(tokenEmail, identityUser.Email, StringComparison.OrdinalIgnoreCase))
-            return OperationResult.Failure("Invalid or expired password reset request.");
+            return OperationResult.Failure("Token de redefinição de senha inválido ou expirado.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         var removeResult = await userManager.RemovePasswordAsync(identityUser);
@@ -147,7 +147,7 @@ public sealed class IdentityAuthenticationService(
     {
         var identityUser = await userManager.FindByIdAsync(request.UserId.ToString());
         if (identityUser is null)
-            return OperationResult.Failure("User not found.");
+            return OperationResult.Failure("Usuário não encontrado.");
 
         var result = await userManager.ChangePasswordAsync(identityUser, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
@@ -176,18 +176,18 @@ public sealed class IdentityAuthenticationService(
     private async Task EnsureRoleAsync(string role, CancellationToken cancellationToken)
     {
         if (!await roleManager.RoleExistsAsync(role))
-            EnsureSucceeded(await roleManager.CreateAsync(new IdentityRole<Guid>(role)), "role creation");
+            EnsureSucceeded(await roleManager.CreateAsync(new IdentityRole<Guid>(role)), "criação de função");
     }
 
     private static AuthenticationResult ToResult(InfraControlUser identityUser, User domainUser, string refreshToken, DateTime expiresAt)
         => new(new AuthenticatedUser(identityUser.Id, identityUser.Email!, domainUser.DisplayName, domainUser.Roles.Select(role => role.ToString()).ToArray()), refreshToken, expiresAt);
 
-    private static string NormalizeEmail(string email) => string.IsNullOrWhiteSpace(email) ? throw new ArgumentException("Email is required.", nameof(email)) : email.Trim().ToLowerInvariant();
+    private static string NormalizeEmail(string email) => string.IsNullOrWhiteSpace(email) ? throw new ArgumentException("O e-mail é obrigatório.", nameof(email)) : email.Trim().ToLowerInvariant();
     private static string GenerateToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     private static void EnsureSucceeded(IdentityResult result, string operation)
     {
-        if (!result.Succeeded) throw new InvalidOperationException($"Identity {operation} failed: {string.Join(", ", result.Errors.Select(error => error.Description))}");
+        if (!result.Succeeded) throw new InvalidOperationException($"Não foi possível concluir {operation}: {string.Join(", ", result.Errors.Select(error => error.Description))}");
     }
 }
 

@@ -22,7 +22,7 @@ public sealed class AssignUserRoleCommandHandler(
     public async Task Handle(AssignUserRoleCommand request, CancellationToken cancellationToken)
     {
         var user = await repository.GetAsync(request.UserId, cancellationToken)
-            ?? throw new KeyNotFoundException($"User '{request.UserId}' was not found.");
+            ?? throw new KeyNotFoundException($"Usuário '{request.UserId}' não encontrado.");
 
         if (user.Roles.Contains(request.Role)) return;
 

@@ -1,3 +1,4 @@
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
@@ -29,16 +30,16 @@ public sealed class SetInvitationPasswordCommandHandler(
         CancellationToken cancellationToken)
     {
         if (request.InvitationId == Guid.Empty)
-            throw new ArgumentException("An invitation id is required.", nameof(request.InvitationId));
+            throw new ArgumentException("O id do convite é obrigatório.", nameof(request.InvitationId));
 
         if (string.IsNullOrWhiteSpace(request.Token))
-            throw new ArgumentException("A token is required.", nameof(request.Token));
+            throw new ArgumentException("O token é obrigatório.", nameof(request.Token));
 
         if (string.IsNullOrWhiteSpace(request.Password))
-            throw new ArgumentException("A password is required.", nameof(request.Password));
+            throw new ArgumentException("A senha é obrigatória.", nameof(request.Password));
 
         var invitation = await repository.GetAsync(request.InvitationId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Invitation '{request.InvitationId}' was not found.");
+            ?? throw new KeyNotFoundException($"Convite '{request.InvitationId}' não encontrado.");
 
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         invitation.EnsureActivatable(InvitationToken.Hash(request.Token.Trim()), utcNow);
@@ -47,7 +48,7 @@ public sealed class SetInvitationPasswordCommandHandler(
             invitation.Email, request.Password, cancellationToken);
 
         if (!activation.Succeeded)
-            throw new InvalidOperationException(string.Join("; ", activation.Errors));
+            throw new RequestValidationException(activation.Errors);
 
         invitation.MarkActivated();
         await repository.SaveChangesAsync(cancellationToken);

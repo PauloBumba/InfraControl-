@@ -33,7 +33,7 @@ public sealed class RoleCommandTests
         var action = () => handler.Handle(new RemoveUserRoleCommand(user.Id, UserRole.Admin), CancellationToken.None);
 
         await action.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("The last active administrator cannot lose the Admin role.");
+            .WithMessage("O último administrador ativo não pode perder a função Admin.");
         repository.Saved.Should().BeFalse();
     }
 

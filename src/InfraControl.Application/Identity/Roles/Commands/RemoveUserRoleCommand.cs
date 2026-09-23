@@ -22,14 +22,14 @@ public sealed class RemoveUserRoleCommandHandler(
     public async Task Handle(RemoveUserRoleCommand request, CancellationToken cancellationToken)
     {
         var user = await repository.GetAsync(request.UserId, cancellationToken)
-            ?? throw new KeyNotFoundException($"User '{request.UserId}' was not found.");
+            ?? throw new KeyNotFoundException($"Usuário '{request.UserId}' não encontrado.");
 
         if (!user.Roles.Contains(request.Role)) return;
 
         if (request.Role == UserRole.Admin && user.IsActive &&
             await repository.CountActiveAdminsAsync(cancellationToken) <= 1)
         {
-            throw new InvalidOperationException("The last active administrator cannot lose the Admin role.");
+            throw new InvalidOperationException("O último administrador ativo não pode perder a função Admin.");
         }
 
         user.RemoveRole(request.Role);

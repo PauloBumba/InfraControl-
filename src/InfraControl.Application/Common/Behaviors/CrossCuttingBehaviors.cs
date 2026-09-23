@@ -128,7 +128,7 @@ public sealed class IdempotencyBehavior<TRequest, TResponse>(IIdempotencyStore s
             return await next();
 
         if (string.IsNullOrWhiteSpace(idempotentRequest.IdempotencyKey))
-            throw new ArgumentException("An idempotency key is required.", nameof(idempotentRequest.IdempotencyKey));
+            throw new ArgumentException("A chave de idempotência é obrigatória.", nameof(idempotentRequest.IdempotencyKey));
 
         var duration = idempotentRequest.IdempotencyDuration ?? TimeSpan.FromMinutes(5);
         if (duration <= TimeSpan.Zero)

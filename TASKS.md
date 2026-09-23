@@ -59,6 +59,7 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [x] F0-T020 Registry de providers extensíveis para Discovery e Monitoring
 - [x] F0-T021 Criar BuildingBlocks Shared Kernel alinhado ao Sentinel
 - [x] F0-T022 Migrar slices CQRS para ICommand/IQuery/IAuthorizedRequest quando cada módulo for implementado
+- [x] F0-T023 Tratamento global de exceções → envelope ApiResponse com mensagens em pt-BR
 
 ## Fase 1 — Identity
 

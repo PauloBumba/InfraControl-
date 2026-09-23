@@ -28,20 +28,20 @@ public sealed class CreateInvitationCommandHandler(
     public async Task<CreateInvitationResult> Handle(CreateInvitationCommand request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
-            throw new ArgumentException("A valid email is required.", nameof(request.Email));
+            throw new ArgumentException("Um e-mail válido é obrigatório.", nameof(request.Email));
 
         if (request.Roles.Count == 0)
-            throw new ArgumentException("At least one role is required.", nameof(request.Roles));
+            throw new ArgumentException("Ao menos uma função é obrigatória.", nameof(request.Roles));
 
         if (request.CreatedBy == Guid.Empty)
-            throw new ArgumentException("An inviter id is required.", nameof(request.CreatedBy));
+            throw new ArgumentException("O id do convidante é obrigatório.", nameof(request.CreatedBy));
 
         var expiresInDays = Math.Clamp(request.ExpiresInDays, 1, 30);
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
         var existing = await repository.GetPendingByEmailAsync(normalizedEmail, cancellationToken);
         if (existing is not null)
-            throw new InvalidOperationException($"A pending invitation already exists for '{normalizedEmail}'.");
+            throw new InvalidOperationException($"Já existe um convite pendente para '{normalizedEmail}'.");
 
         var token = InvitationToken.Generate();
         var tokenHash = InvitationToken.Hash(token);
@@ -76,7 +76,7 @@ public sealed class CancelInvitationCommandHandler(
     public async Task Handle(CancelInvitationCommand request, CancellationToken cancellationToken)
     {
         var invitation = await repository.GetAsync(request.InvitationId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Invitation '{request.InvitationId}' was not found.");
+            ?? throw new KeyNotFoundException($"Convite '{request.InvitationId}' não encontrado.");
 
         invitation.Cancel();
         await repository.SaveChangesAsync(cancellationToken);

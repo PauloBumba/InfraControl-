@@ -20,9 +20,9 @@ public sealed class UserSession : AggregateRoot
     private UserSession(Guid id, Guid userId, string refreshTokenHash, DateTime expiresAt)
         : base(id)
     {
-        if (userId == Guid.Empty) throw new ArgumentException("A user id is required.", nameof(userId));
-        if (string.IsNullOrWhiteSpace(refreshTokenHash)) throw new ArgumentException("A refresh token hash is required.", nameof(refreshTokenHash));
-        if (expiresAt <= AppTimeProvider.Current.GetUtcNow().UtcDateTime) throw new ArgumentException("Session expiration must be in the future.", nameof(expiresAt));
+        if (userId == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(userId));
+        if (string.IsNullOrWhiteSpace(refreshTokenHash)) throw new ArgumentException("O hash do refresh token é obrigatório.", nameof(refreshTokenHash));
+        if (expiresAt <= AppTimeProvider.Current.GetUtcNow().UtcDateTime) throw new ArgumentException("A expiração da sessão deve estar no futuro.", nameof(expiresAt));
 
         UserId = userId;
         RefreshTokenHash = refreshTokenHash;
@@ -37,8 +37,8 @@ public sealed class UserSession : AggregateRoot
 
     public void Refresh(string refreshTokenHash, TimeSpan lifetime)
     {
-        if (!IsActive) throw new InvalidOperationException("The session is not active.");
-        if (string.IsNullOrWhiteSpace(refreshTokenHash)) throw new ArgumentException("A refresh token hash is required.", nameof(refreshTokenHash));
+        if (!IsActive) throw new InvalidOperationException("A sessão não está ativa.");
+        if (string.IsNullOrWhiteSpace(refreshTokenHash)) throw new ArgumentException("O hash do refresh token é obrigatório.", nameof(refreshTokenHash));
 
         RefreshTokenHash = refreshTokenHash;
         LastSeenAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;

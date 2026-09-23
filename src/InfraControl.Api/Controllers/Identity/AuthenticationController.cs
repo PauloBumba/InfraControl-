@@ -30,7 +30,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
     {
         var result = await authenticationService.LoginAsync(new LoginRequest(model.Email, model.Password), cancellationToken);
-        if (result is null) return Unauthorized(ApiResponse<object>.Fail(["Invalid credentials."]));
+        if (result is null) return Unauthorized(ApiResponse<object>.Fail(["Credenciais inválidas."]));
         await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.User));
         return Ok(ApiResponse.Ok(result));
     }
@@ -40,7 +40,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     public async Task<IActionResult> Refresh(RefreshSessionViewModel model, CancellationToken cancellationToken)
     {
         var result = await authenticationService.RefreshAsync(new RefreshSessionRequest(model.RefreshToken), cancellationToken);
-        if (result is null) return Unauthorized(ApiResponse<object>.Fail(["Invalid or expired session."]));
+        if (result is null) return Unauthorized(ApiResponse<object>.Fail(["Sessão inválida ou expirada."]));
         await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.User));
         return Ok(ApiResponse.Ok(result));
     }
@@ -50,7 +50,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     public async Task<IActionResult> Logout([FromBody] RefreshSessionViewModel? model, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
-            return Unauthorized(ApiResponse<object>.Fail(["An authenticated user id is required."]));
+            return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         await authenticationService.LogoutAsync(userId, model?.RefreshToken, cancellationToken);
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
@@ -79,7 +79,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
-            return Unauthorized(ApiResponse<object>.Fail(["An authenticated user id is required."]));
+            return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         var result = await authenticationService.ChangePasswordAsync(new ChangePasswordRequest(userId, model.CurrentPassword, model.NewPassword), cancellationToken);
         return result.Succeeded ? NoContent() : BadRequest(ApiResponse<object>.Fail(result.Errors));

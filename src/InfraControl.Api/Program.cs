@@ -1,5 +1,7 @@
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
+using InfraControl.Api.Middleware;
+using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Authorization;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
@@ -8,6 +10,7 @@ using InfraControl.BuildingBlocks.Application;
 using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -35,7 +38,23 @@ builder.Services.AddSingleton(builder.Configuration
 builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
 
 // ── Controllers ──────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+// F0-T023: todo corpo de erro — inclusive ModelState do binding — usa o
+// envelope ApiResponse do BuildingBlocks (nunca ProblemDetails nem { error }).
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .SelectMany(entry => entry.Value?.Errors ?? [])
+            .Select(error => error.ErrorMessage)
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .DefaultIfEmpty("Dados inválidos enviados na requisição.")
+            .ToArray();
+
+        return new BadRequestObjectResult(ApiResponse<object>.Fail(errors));
+    };
+});
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddAuthentication(options =>
@@ -105,6 +124,9 @@ if (builder.Configuration.GetValue<bool>($"{BootstrapAdminOptions.SectionName}:E
 }
 
 // ── Pipeline ─────────────────────────────────────────────────────────────
+// F0-T023: exceções não tratadas → envelope ApiResponse (deve ser o primeiro).
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

@@ -95,7 +95,7 @@ public sealed class AuthenticationActivationTests
         var sender = (FakeEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
         sender.Sent.Should().BeEmpty("an inactive account must not receive password recovery");
         result.Message.Should().Be(
-            "If the email is registered, password reset instructions will be sent.",
+            "Se o e-mail estiver cadastrado, as instruções de redefinição de senha serão enviadas.",
             "the response must not reveal whether the account is inactive");
     }
 
@@ -119,7 +119,7 @@ public sealed class AuthenticationActivationTests
         var sender = (FakeEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
         sender.Sent.Should().ContainSingle();
         result.Message.Should().Be(
-            "If the email is registered, password reset instructions will be sent.");
+            "Se o e-mail estiver cadastrado, as instruções de redefinição de senha serão enviadas.");
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class AuthenticationActivationTests
         var sender = (FakeEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
         sender.Sent.Should().BeEmpty();
         result.Message.Should().Be(
-            "If the email is registered, password reset instructions will be sent.");
+            "Se o e-mail estiver cadastrado, as instruções de redefinição de senha serão enviadas.");
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class AuthenticationActivationTests
 
         result.Succeeded.Should().BeFalse(
             "an account disabled after the request must not be able to reset the password");
-        result.Errors.Should().Contain("Invalid password reset request.");
+        result.Errors.Should().Contain("Solicitação de redefinição de senha inválida.");
     }
 
     [Fact]

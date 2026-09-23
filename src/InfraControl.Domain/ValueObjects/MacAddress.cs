@@ -14,12 +14,12 @@ public partial class MacAddress : ValueObject
     public static MacAddress Create(string macAddress)
     {
         if (string.IsNullOrWhiteSpace(macAddress))
-            throw new ArgumentException("MAC address cannot be empty.", nameof(macAddress));
+            throw new ArgumentException("O endereço MAC não pode ser vazio.", nameof(macAddress));
 
         var normalized = macAddress.Trim().ToUpperInvariant();
 
         if (!MacAddressRegex().IsMatch(normalized))
-            throw new ArgumentException($"Invalid MAC address format: {macAddress}", nameof(macAddress));
+            throw new ArgumentException($"Formato de endereço MAC inválido: {macAddress}", nameof(macAddress));
 
         return new MacAddress(normalized);
     }

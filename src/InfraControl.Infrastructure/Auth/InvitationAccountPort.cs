@@ -51,7 +51,7 @@ public sealed class InvitationAccountPort(
         var createResult = await userManager.CreateAsync(identityUser);
         if (!createResult.Succeeded)
             throw new InvalidOperationException(
-                $"Unable to provision invited account: {string.Join("; ", createResult.Errors.Select(error => error.Description))}");
+                $"Não foi possível provisionar a conta convidada: {string.Join("; ", createResult.Errors.Select(error => error.Description))}");
 
         var domainUser = User.CreatePending(identityUser.Id, normalizedEmail, normalizedEmail, roles);
         dbContext.DomainUsers.Add(domainUser);
@@ -62,7 +62,7 @@ public sealed class InvitationAccountPort(
             var assignmentResult = await userManager.AddToRoleAsync(identityUser, role.ToString());
             if (!assignmentResult.Succeeded)
                 throw new InvalidOperationException(
-                    $"Unable to assign role {role}: {string.Join("; ", assignmentResult.Errors.Select(error => error.Description))}");
+                    $"Não foi possível atribuir a função {role}: {string.Join("; ", assignmentResult.Errors.Select(error => error.Description))}");
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -81,7 +81,7 @@ public sealed class InvitationAccountPort(
             .FirstOrDefaultAsync(user => user.Email == normalizedEmail, cancellationToken);
 
         if (identityUser is null || domainUser is null)
-            return OperationResult.Failure("The invited account was not found.");
+            return OperationResult.Failure("A conta convidada não foi encontrada.");
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -110,13 +110,13 @@ public sealed class InvitationAccountPort(
     {
         var roleName = role.ToString();
         if (!await roleManager.RoleExistsAsync(roleName))
-            EnsureSucceeded(await roleManager.CreateAsync(new IdentityRole<Guid>(roleName)), "role creation");
+            EnsureSucceeded(await roleManager.CreateAsync(new IdentityRole<Guid>(roleName)), "criação de função");
     }
 
     private static void EnsureSucceeded(IdentityResult result, string operation)
     {
         if (!result.Succeeded)
             throw new InvalidOperationException(
-                $"Identity {operation} failed: {string.Join(", ", result.Errors.Select(error => error.Description))}");
+                $"Não foi possível concluir {operation}: {string.Join(", ", result.Errors.Select(error => error.Description))}");
     }
 }

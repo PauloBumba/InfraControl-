@@ -26,13 +26,13 @@ public sealed class Invitation : AggregateRoot
         TokenHash = RequireTokenHash(tokenHash);
         ExpiresAt = RequireFutureExpiry(expiresAt);
         CreatedBy = createdBy == Guid.Empty
-            ? throw new ArgumentException("An inviter id is required.", nameof(createdBy))
+            ? throw new ArgumentException("O id do convidante é obrigatório.", nameof(createdBy))
             : createdBy;
         Status = InvitationStatus.Pending;
 
         var distinctRoles = roles.Distinct().ToArray();
         if (distinctRoles.Length == 0)
-            throw new ArgumentException("At least one role is required.", nameof(roles));
+            throw new ArgumentException("Ao menos uma função é obrigatória.", nameof(roles));
 
         foreach (var role in distinctRoles)
             _roles.Add(new InvitationRole(Id, role));
@@ -55,16 +55,16 @@ public sealed class Invitation : AggregateRoot
     public void Accept(string tokenHash, DateTime utcNow)
     {
         if (Status != InvitationStatus.Pending)
-            throw new InvalidOperationException($"Only pending invitations can be accepted (current: {Status}).");
+            throw new InvalidOperationException($"Apenas convites pendentes podem ser aceitos (atual: {Status}).");
 
         if (ExpiresAt <= utcNow)
         {
             MarkExpired();
-            throw new InvalidOperationException("The invitation has expired.");
+            throw new InvalidOperationException("O convite expirou.");
         }
 
         if (!MatchesHash(tokenHash))
-            throw new UnauthorizedAccessException("The invitation token is invalid.");
+            throw new UnauthorizedAccessException("O token do convite é inválido.");
 
         Status = InvitationStatus.Accepted;
         DecidedAt = utcNow;
@@ -75,16 +75,16 @@ public sealed class Invitation : AggregateRoot
     public void Reject(string tokenHash, DateTime utcNow)
     {
         if (Status != InvitationStatus.Pending)
-            throw new InvalidOperationException($"Only pending invitations can be rejected (current: {Status}).");
+            throw new InvalidOperationException($"Apenas convites pendentes podem ser recusados (atual: {Status}).");
 
         if (ExpiresAt <= utcNow)
         {
             MarkExpired();
-            throw new InvalidOperationException("The invitation has expired.");
+            throw new InvalidOperationException("O convite expirou.");
         }
 
         if (!MatchesHash(tokenHash))
-            throw new UnauthorizedAccessException("The invitation token is invalid.");
+            throw new UnauthorizedAccessException("O token do convite é inválido.");
 
         Status = InvitationStatus.Rejected;
         DecidedAt = utcNow;
@@ -99,13 +99,13 @@ public sealed class Invitation : AggregateRoot
     public void EnsureActivatable(string tokenHash, DateTime utcNow)
     {
         if (Status != InvitationStatus.Accepted)
-            throw new InvalidOperationException($"Only accepted invitations can be activated (current: {Status}).");
+            throw new InvalidOperationException($"Apenas convites aceitos podem ser ativados (atual: {Status}).");
 
         if (ExpiresAt <= utcNow)
-            throw new InvalidOperationException("The invitation has expired.");
+            throw new InvalidOperationException("O convite expirou.");
 
         if (!MatchesHash(tokenHash))
-            throw new UnauthorizedAccessException("The invitation token is invalid.");
+            throw new UnauthorizedAccessException("O token do convite é inválido.");
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public sealed class Invitation : AggregateRoot
     public void MarkActivated()
     {
         if (Status != InvitationStatus.Accepted)
-            throw new InvalidOperationException($"Only accepted invitations can be activated (current: {Status}).");
+            throw new InvalidOperationException($"Apenas convites aceitos podem ser ativados (atual: {Status}).");
 
         Status = InvitationStatus.Activated;
         Touch();
@@ -125,7 +125,7 @@ public sealed class Invitation : AggregateRoot
     public void Cancel()
     {
         if (Status != InvitationStatus.Pending)
-            throw new InvalidOperationException($"Only pending invitations can be cancelled (current: {Status}).");
+            throw new InvalidOperationException($"Apenas convites pendentes podem ser cancelados (atual: {Status}).");
 
         Status = InvitationStatus.Cancelled;
         DecidedAt = DateTime.UtcNow;
@@ -143,7 +143,7 @@ public sealed class Invitation : AggregateRoot
     private static string NormalizeEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
-            throw new ArgumentException("A valid email is required.", nameof(email));
+            throw new ArgumentException("Um e-mail válido é obrigatório.", nameof(email));
 
         return email.Trim().ToLowerInvariant();
     }
@@ -151,7 +151,7 @@ public sealed class Invitation : AggregateRoot
     private static string RequireTokenHash(string tokenHash)
     {
         if (string.IsNullOrWhiteSpace(tokenHash))
-            throw new ArgumentException("A token hash is required.", nameof(tokenHash));
+            throw new ArgumentException("O hash do token é obrigatório.", nameof(tokenHash));
 
         return tokenHash;
     }
@@ -159,7 +159,7 @@ public sealed class Invitation : AggregateRoot
     private static DateTime RequireFutureExpiry(DateTime expiresAt)
     {
         if (expiresAt <= DateTime.UtcNow)
-            throw new ArgumentException("Expiry must be in the future.", nameof(expiresAt));
+            throw new ArgumentException("A expiração deve estar no futuro.", nameof(expiresAt));
 
         return expiresAt;
     }

@@ -56,33 +56,22 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
     }
 
     [Fact]
-    public void Controllers_Should_Return_ApiResponse_Envelope()
+    public void Exception_Handler_Should_Return_ApiResponse_Envelope()
     {
-        // Seleciona por reflexão os controllers concretos (exclui o BaseController,
-        // que é apenas base de transporte e não produz respostas).
-        var controllerNames = ApiAssembly.GetTypes()
-            .Where(type => type is { IsClass: true, IsAbstract: false })
-            .Where(type => typeof(Microsoft.AspNetCore.Mvc.ControllerBase).IsAssignableFrom(type))
-            .Select(type => type.Name)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        var handlerType = ApiAssembly.GetType("InfraControl.Api.Middleware.GlobalExceptionHandler");
+        handlerType.Should().NotBeNull(
+            "o tratador global de exceções deve existir na Api (é o ponto único de erro)");
 
-        controllerNames.Should().NotBeEmpty("deve haver controllers concretos no assembly da Api");
+        var result = Types
+            .InAssembly(ApiAssembly)
+            .That()
+            .HaveName("GlobalExceptionHandler")
+            .Should()
+            .HaveDependencyOn("InfraControl.BuildingBlocks.Application.Response")
+            .GetResult();
 
-        var offenders = controllerNames
-            .Where(name => !Types
-                .InAssembly(ApiAssembly)
-                .That()
-                .HaveName(name)
-                .Should()
-                .HaveDependencyOn("InfraControl.BuildingBlocks.Application.Response")
-                .GetResult()
-                .IsSuccessful)
-            .ToArray();
-
-        offenders.Should().BeEmpty(
-            "todo controller concreto deve responder com o envelope ApiResponse do BuildingBlocks; " +
-            $"fora do padrão: {string.Join(", ", offenders)}");
+        result.IsSuccessful.Should().BeTrue(
+            "o tratador global de exceções é o ponto único de erro e deve usar o envelope ApiResponse");
     }
 
     private static bool IsMediatRRequest(Type type)

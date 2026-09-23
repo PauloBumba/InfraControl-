@@ -61,7 +61,7 @@ public sealed class InvitationActivationTests
 
         var action = () => invitation.EnsureActivatable(Hash(token), afterExpiry);
 
-        action.Should().Throw<InvalidOperationException>().WithMessage("*expired*");
+        action.Should().Throw<InvalidOperationException>().WithMessage("*expirou*");
     }
 
     [Fact]

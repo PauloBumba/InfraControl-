@@ -201,7 +201,7 @@ public sealed class InvitationTests
 
         var action = () => invitation.Accept("hash-123", afterExpiry);
 
-        action.Should().Throw<InvalidOperationException>().WithMessage("*expired*");
+        action.Should().Throw<InvalidOperationException>().WithMessage("*expirou*");
         invitation.Status.Should().Be(InvitationStatus.Expired);
     }
 

@@ -50,7 +50,7 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
         var user = await GetUserAsync(userId, cancellationToken);
         if (user is null) return false;
         if (role == UserRole.Admin && user.IsActive && await dbContext.DomainUsers.CountAsync(item => item.IsActive && item.RoleAssignments.Any(assignment => assignment.Role == UserRole.Admin), cancellationToken) <= 1)
-            throw new InvalidOperationException("The last active administrator cannot lose the Admin role.");
+            throw new InvalidOperationException("O último administrador ativo não pode perder a função Admin.");
         user.RemoveRole(role);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;

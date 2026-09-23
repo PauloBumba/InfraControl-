@@ -14,10 +14,10 @@ public class IpAddress : ValueObject
     public static IpAddress Create(string ipAddress)
     {
         if (string.IsNullOrWhiteSpace(ipAddress))
-            throw new ArgumentException("IP address cannot be empty.", nameof(ipAddress));
+            throw new ArgumentException("O endereço IP não pode ser vazio.", nameof(ipAddress));
 
         if (!IPAddress.TryParse(ipAddress, out _))
-            throw new ArgumentException($"Invalid IP address format: {ipAddress}", nameof(ipAddress));
+            throw new ArgumentException($"Formato de endereço IP inválido: {ipAddress}", nameof(ipAddress));
 
         return new IpAddress(ipAddress);
     }
