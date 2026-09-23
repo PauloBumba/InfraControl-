@@ -15,5 +15,8 @@ public interface ILocationRepository : IRepository<Location>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Usado pelo DeleteLocation para bloquear exclusão com racks (F2-T002 → 409).</summary>
+    Task<bool> HasRacksAsync(Guid locationId, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

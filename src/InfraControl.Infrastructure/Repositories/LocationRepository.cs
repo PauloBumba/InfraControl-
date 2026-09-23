@@ -29,6 +29,9 @@ public sealed class LocationRepository(AppDbContext dbContext) : ILocationReposi
                 cancellationToken);
     }
 
+    public Task<bool> HasRacksAsync(Guid locationId, CancellationToken cancellationToken = default)
+        => dbContext.Racks.AnyAsync(rack => rack.LocationId == locationId, cancellationToken);
+
     public async Task<PagedResult<Location>> SearchAsync(
         string? term,
         int page,

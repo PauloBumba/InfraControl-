@@ -81,7 +81,8 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 ## Fase 2 — Inventário
 
 - [x] F2-T001 Location
-- [ ] F2-T002 Rack  <!-- dependência F2-T001: bloquear exclusão de Location que possua racks (409) -->
+- [x] F2-T002 Rack
+- [ ] F2-T003 Device  <!-- dependência F2-T002: bloquear exclusão de Rack que possua devices (409) -->
 - [ ] F2-T003 Device
 - [ ] F2-T004 NetworkInterface
 - [ ] F2-T005 MAC

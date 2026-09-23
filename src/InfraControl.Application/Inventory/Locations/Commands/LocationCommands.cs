@@ -85,11 +85,14 @@ public sealed class DeleteLocationCommandHandler(
         var location = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Local '{request.Id}' não encontrado.");
 
+        if (await repository.HasRacksAsync(location.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir o local: existem racks vinculados.");
+
         repository.Remove(location);
         await repository.SaveChangesAsync(cancellationToken);
 
-        // F2-T002: quando Rack existir com FK para Location, aqui passa a
-        // bloquear exclusão de local com racks (→ InvalidOperationException/409).
+        // F2-T002: exclusão bloqueada acima quando há racks; a FK Restrict no
+        // banco é o backstop. Devices (F2-T003) passam a bloquear exclusões de rack.
         logger.LogInformation("Location {LocationId} deleted ({Name}).", location.Id, location.Name);
     }
 }

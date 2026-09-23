@@ -277,6 +277,41 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("processed_messages", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Rack", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.ToTable("racks", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -581,6 +616,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany("RoleAssignments")
                         .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Rack", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
