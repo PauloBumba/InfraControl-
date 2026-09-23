@@ -39,7 +39,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Identity.Invitations.Commands.CancelInvitationCommand",
             "InfraControl.Application.Identity.Roles.Commands.AssignUserRoleCommand",
             "InfraControl.Application.Identity.Roles.Commands.RemoveUserRoleCommand",
-            "InfraControl.Application.Common.Audit.Queries.SearchAuditEntriesQuery"
+            "InfraControl.Application.Common.Audit.Queries.SearchAuditEntriesQuery",
+            "InfraControl.Application.Inventory.Locations.Commands.CreateLocationCommand",
+            "InfraControl.Application.Inventory.Locations.Commands.UpdateLocationCommand",
+            "InfraControl.Application.Inventory.Locations.Commands.DeleteLocationCommand",
+            "InfraControl.Application.Inventory.Locations.Queries.SearchLocationsQuery",
+            "InfraControl.Application.Inventory.Locations.Queries.GetLocationQuery"
         };
 
         foreach (var typeName in adminSlices)
