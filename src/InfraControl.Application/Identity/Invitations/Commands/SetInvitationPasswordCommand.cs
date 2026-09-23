@@ -1,22 +1,23 @@
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Identity.Invitations.Commands;
 
-public sealed record SetInvitationPasswordCommand(
-    Guid InvitationId,
-    string Token,
-    string Password) : IRequest<SetInvitationPasswordResult>;
-
-public sealed record SetInvitationPasswordResult(Guid InvitationId, string Email);
-
 /// <summary>
 /// Ativação do convite: valida o token (single-use), define a senha da conta
 /// provisionada no aceite e habilita o usuário. É o ÚNICO passo que torna a
 /// conta ativa no fluxo de convite.
 /// </summary>
+public sealed record SetInvitationPasswordCommand(
+    Guid InvitationId,
+    string Token,
+    string Password) : BaseCommand<SetInvitationPasswordResult>;
+
+public sealed record SetInvitationPasswordResult(Guid InvitationId, string Email);
+
 public sealed class SetInvitationPasswordCommandHandler(
     IInvitationRepository repository,
     IInvitationAccountPort accountPort,

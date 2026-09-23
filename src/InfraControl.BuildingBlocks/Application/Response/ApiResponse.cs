@@ -34,3 +34,14 @@ public sealed class ApiResponse<T> : IApiResponseMarker
         return new() { IsSuccess = false, Errors = validErrors };
     }
 }
+
+/// <summary>
+/// Atalhos estáticos sem argumento de tipo para montar envelopes nos controllers
+/// (C# não infere argumentos de tipo em membros estáticos de tipos genéricos).
+/// </summary>
+public static class ApiResponse
+{
+    public static ApiResponse<T> Ok<T>(T data) => ApiResponse<T>.Ok(data);
+    public static ApiResponse<object> Ok() => ApiResponse<object>.Ok();
+    public static ApiResponse<object> Fail(IEnumerable<string> errors) => ApiResponse<object>.Fail(errors);
+}

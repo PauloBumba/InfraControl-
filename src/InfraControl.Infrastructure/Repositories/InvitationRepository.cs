@@ -20,6 +20,12 @@ public sealed class InvitationRepository(AppDbContext dbContext) : IInvitationRe
             .SingleOrDefaultAsync(invitation => invitation.Id == invitationId, cancellationToken);
     }
 
+    public Task<Invitation?> GetByIdAsync(Guid invitationId, CancellationToken cancellationToken = default)
+        => GetAsync(invitationId, cancellationToken);
+
+    public void Remove(Invitation invitation)
+        => dbContext.Invitations.Remove(invitation);
+
     public Task<Invitation?> GetPendingByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();

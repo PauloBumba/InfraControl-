@@ -1,4 +1,6 @@
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -11,7 +13,11 @@ public sealed record CreateInvitationCommand(
     string Email,
     IReadOnlyCollection<UserRole> Roles,
     Guid CreatedBy,
-    int ExpiresInDays = 7) : IRequest<CreateInvitationResult>;
+    int ExpiresInDays = 7) : BaseCommand<CreateInvitationResult>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.IdentityUsersManage.ToString()];
+}
 
 public sealed record CreateInvitationResult(Guid InvitationId, string Token);
 
@@ -57,7 +63,11 @@ public sealed class CreateInvitationCommandHandler(
     }
 }
 
-public sealed record CancelInvitationCommand(Guid InvitationId) : IRequest;
+public sealed record CancelInvitationCommand(Guid InvitationId) : BaseCommand, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.IdentityUsersManage.ToString()];
+}
 
 public sealed class CancelInvitationCommandHandler(
     IInvitationRepository repository,

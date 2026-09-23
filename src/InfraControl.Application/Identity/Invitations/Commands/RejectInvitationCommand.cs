@@ -1,11 +1,12 @@
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Identity.Invitations.Commands;
 
-public sealed record RejectInvitationCommand(Guid InvitationId, string Token) : IRequest;
+public sealed record RejectInvitationCommand(Guid InvitationId, string Token) : BaseCommand;
 
 public sealed class RejectInvitationCommandHandler(
     IInvitationRepository repository,

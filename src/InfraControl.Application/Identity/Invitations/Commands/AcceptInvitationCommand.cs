@@ -1,4 +1,5 @@
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -6,7 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Identity.Invitations.Commands;
 
-public sealed record AcceptInvitationCommand(Guid InvitationId, string Token) : IRequest<AcceptInvitationResult>;
+public sealed record AcceptInvitationCommand(Guid InvitationId, string Token)
+    : BaseCommand<AcceptInvitationResult>;
 
 public sealed record AcceptInvitationResult(Guid InvitationId, string Email, IReadOnlyCollection<UserRole> Roles);
 

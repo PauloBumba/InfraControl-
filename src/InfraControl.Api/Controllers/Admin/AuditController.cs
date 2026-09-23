@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Audit.Queries;
 using InfraControl.Api.Controllers;
+using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,10 +21,17 @@ public sealed class AuditController(ISender sender) : BaseController
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(
-            new SearchAuditEntriesQuery(action, outcome, from, to, page, pageSize),
-            cancellationToken);
+        try
+        {
+            var result = await sender.Send(
+                new SearchAuditEntriesQuery(action, outcome, from, to, page, pageSize),
+                cancellationToken);
 
-        return Ok(result);
+            return Ok(ApiResponse.Ok(result));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail([exception.Message]));
+        }
     }
 }

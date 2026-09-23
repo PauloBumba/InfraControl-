@@ -7,6 +7,7 @@ namespace InfraControl.Application.Common.Behaviors;
 
 public sealed class CachingBehavior<TRequest, TResponse>(
     ICacheService cache,
+    ICurrentUserContext currentUser,
     ILogger<CachingBehavior<TRequest, TResponse>> logger)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
@@ -19,7 +20,9 @@ public sealed class CachingBehavior<TRequest, TResponse>(
         if (request is not IQuery<TResponse> || request is not ICacheableQuery cacheable)
             return await next();
 
-        var key = $"infracontrol:query:{cacheable.CacheKey}";
+        // Chave padronizada pelo BuildingBlocks: usuário + roles + hash dos
+        // parâmetros — evita colisão de cache entre usuários e filtros distintos.
+        var key = $"infracontrol:{CacheKeyBuilder.Build(cacheable.CacheKey, request, currentUser)}";
         var cached = await cache.GetAsync<TResponse>(key, cancellationToken);
         if (cached is not null)
         {

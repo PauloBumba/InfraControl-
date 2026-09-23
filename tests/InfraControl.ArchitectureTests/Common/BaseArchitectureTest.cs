@@ -9,4 +9,5 @@ public abstract class BaseArchitectureTest
     protected static Assembly ApplicationAssembly => typeof(InfraControl.Application.Common.Interfaces.IUnitOfWork).Assembly;
     protected static Assembly InfrastructureAssembly => typeof(InfraControl.Infrastructure.Persistence.AppDbContext).Assembly;
     protected static Assembly ContractsAssembly => typeof(InfraControl.Contracts.Common.Events.IEvent).Assembly;
+    protected static Assembly ApiAssembly => typeof(InfraControl.Api.Controllers.BaseController).Assembly;
 }

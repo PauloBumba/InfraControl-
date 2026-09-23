@@ -1,6 +1,7 @@
 using InfraControl.Application.Identity.Invitations.Commands;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Admin;
+using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +18,7 @@ public sealed class InvitationsController(ISender sender) : BaseController
         if (!Guid.TryParse(
                 User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
                 out var inviterId))
-            return Unauthorized();
+            return Unauthorized(ApiResponse<object>.Fail(["An authenticated inviter id is required."]));
 
         try
         {
@@ -25,15 +26,19 @@ public sealed class InvitationsController(ISender sender) : BaseController
                 new CreateInvitationCommand(model.Email, model.Roles, inviterId, model.ExpiresInDays),
                 cancellationToken);
 
-            return StatusCode(StatusCodes.Status201Created, result);
+            return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
         }
         catch (ArgumentException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail([exception.Message]));
         }
         catch (InvalidOperationException exception)
         {
-            return Conflict(new { error = exception.Message });
+            return Conflict(ApiResponse<object>.Fail([exception.Message]));
         }
     }
 
@@ -45,13 +50,17 @@ public sealed class InvitationsController(ISender sender) : BaseController
             await sender.Send(new CancelInvitationCommand(invitationId), cancellationToken);
             return NoContent();
         }
-        catch (KeyNotFoundException)
+        catch (KeyNotFoundException exception)
         {
-            return NotFound();
+            return NotFound(ApiResponse<object>.Fail([exception.Message]));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail([exception.Message]));
         }
         catch (InvalidOperationException exception)
         {
-            return Conflict(new { error = exception.Message });
+            return Conflict(ApiResponse<object>.Fail([exception.Message]));
         }
     }
 }

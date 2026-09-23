@@ -20,11 +20,12 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\InfraControl.Domain\InfraControl.Domain.csproj" />
-    <ProjectReference Include="..\..\src\InfraControl.Application\InfraControl.Application.csproj" />
-    <ProjectReference Include="..\..\src\InfraControl.Infrastructure\InfraControl.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\InfraControl.Contracts\InfraControl.Contracts.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\InfraControl.Domain\InfraControl.Domain.csproj" />
+      <ProjectReference Include="..\..\src\InfraControl.Application\InfraControl.Application.csproj" />
+      <ProjectReference Include="..\..\src\InfraControl.Infrastructure\InfraControl.Infrastructure.csproj" />
+      <ProjectReference Include="..\..\src\InfraControl.Contracts\InfraControl.Contracts.csproj" />
+      <ProjectReference Include="..\..\src\InfraControl.Api\InfraControl.Api.csproj" />
+    </ItemGroup>
 
 </Project>

@@ -45,6 +45,16 @@ public sealed class RoleCommandTests
         public Task<User?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
             => Task.FromResult<User?>(user.Id == userId ? user : null);
 
+        public Task<User?> GetByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+            => GetAsync(userId, cancellationToken);
+
+        public Task AddAsync(User entity, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public void Remove(User entity)
+        {
+        }
+
         public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(activeAdmins);
 

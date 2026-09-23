@@ -1,6 +1,7 @@
 using InfraControl.Application.Identity.Invitations.Commands;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Identity;
+using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,23 +18,23 @@ public sealed class InvitationAcceptanceController(ISender sender) : BaseControl
         try
         {
             var result = await sender.Send(new AcceptInvitationCommand(invitationId, model.Token), cancellationToken);
-            return Ok(result);
+            return Ok(ApiResponse.Ok(result));
         }
         catch (KeyNotFoundException)
         {
-            return NotFound(new { error = "Invitation not found." });
+            return NotFound(ApiResponse<object>.Fail(["Invitation not found."]));
         }
         catch (UnauthorizedAccessException)
         {
-            return Unauthorized(new { error = "Invalid invitation token." });
+            return Unauthorized(ApiResponse<object>.Fail(["Invalid invitation token."]));
         }
         catch (ArgumentException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
         }
         catch (InvalidOperationException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
         }
     }
 
@@ -49,23 +50,23 @@ public sealed class InvitationAcceptanceController(ISender sender) : BaseControl
             var result = await sender.Send(
                 new SetInvitationPasswordCommand(invitationId, model.Token, model.Password),
                 cancellationToken);
-            return Ok(result);
+            return Ok(ApiResponse.Ok(result));
         }
         catch (KeyNotFoundException)
         {
-            return NotFound(new { error = "Invitation not found." });
+            return NotFound(ApiResponse<object>.Fail(["Invitation not found."]));
         }
         catch (UnauthorizedAccessException)
         {
-            return Unauthorized(new { error = "Invalid invitation token." });
+            return Unauthorized(ApiResponse<object>.Fail(["Invalid invitation token."]));
         }
         catch (ArgumentException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
         }
         catch (InvalidOperationException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
         }
     }
 
@@ -80,19 +81,19 @@ public sealed class InvitationAcceptanceController(ISender sender) : BaseControl
         }
         catch (KeyNotFoundException)
         {
-            return NotFound(new { error = "Invitation not found." });
+            return NotFound(ApiResponse<object>.Fail(["Invitation not found."]));
         }
         catch (UnauthorizedAccessException)
         {
-            return Unauthorized(new { error = "Invalid invitation token." });
+            return Unauthorized(ApiResponse<object>.Fail(["Invalid invitation token."]));
         }
         catch (ArgumentException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
         }
         catch (InvalidOperationException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(ApiResponse<object>.Fail([exception.Message]));
         }
     }
 }

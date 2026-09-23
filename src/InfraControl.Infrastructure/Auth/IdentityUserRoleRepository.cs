@@ -22,6 +22,15 @@ public sealed class IdentityUserRoleRepository(
         return user;
     }
 
+    public Task<User?> GetByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        => GetAsync(userId, cancellationToken);
+
+    public async Task AddAsync(User user, CancellationToken cancellationToken = default)
+        => await dbContext.DomainUsers.AddAsync(user, cancellationToken);
+
+    public void Remove(User user)
+        => dbContext.DomainUsers.Remove(user);
+
     public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken = default)
         => dbContext.DomainUsers
             .Where(user => user.IsActive)

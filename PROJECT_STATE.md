@@ -111,6 +111,8 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - Após guard de ativação (F1-T013): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 72 unit + 5 arquitetura aprovados, 0 falhas (18 testes novos em UserActivationTests, InvitationActivationTests e AuthenticationActivationTests).
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.
 - Após Fase 13 (F13-T001 a F13-T007): `npm run build` frontend OK (311KB JS, 552KB CSS).
+- Após padronização BuildingBlocks (F0-T022): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 73 unit + 8 arquitetura aprovados, 0 falhas (3 testes novos em BuildingBlocksStandardizationTests + isolamento de cache por usuário em MissingBehaviorTests).
+- PENDÊNCIA (não relacionada ao F0-T022): `npm run build` frontend quebra com 12 erros de TypeScript pré-existentes em `DeviceDetailPage.tsx` (device tratado como objeto, métodos de array aplicados) e `DevicesPage.tsx` (imports não usados), introduzidos nos commits F13 de device pages posteriores à evidência da F13-T007. Correção de frontend pendente de autorização.
 
 ## Regra
 
