@@ -7,6 +7,7 @@ using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
@@ -136,6 +137,7 @@ public static class DependencyInjection
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IRackRepository, RackRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<INetworkInterfaceRepository, NetworkInterfaceRepository>();
 
         return services;
     }

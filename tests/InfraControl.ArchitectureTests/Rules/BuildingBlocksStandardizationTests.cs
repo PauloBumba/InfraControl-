@@ -55,7 +55,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.Devices.Commands.DeleteDeviceCommand",
             "InfraControl.Application.Inventory.Devices.Commands.UpdateDeviceProfileCommand",
             "InfraControl.Application.Inventory.Devices.Queries.SearchDevicesQuery",
-            "InfraControl.Application.Inventory.Devices.Queries.GetDeviceQuery"
+            "InfraControl.Application.Inventory.Devices.Queries.GetDeviceQuery",
+            "InfraControl.Application.Inventory.NetworkInterfaces.Commands.CreateNetworkInterfaceCommand",
+            "InfraControl.Application.Inventory.NetworkInterfaces.Commands.UpdateNetworkInterfaceCommand",
+            "InfraControl.Application.Inventory.NetworkInterfaces.Commands.DeleteNetworkInterfaceCommand",
+            "InfraControl.Application.Inventory.NetworkInterfaces.Queries.SearchNetworkInterfacesQuery",
+            "InfraControl.Application.Inventory.NetworkInterfaces.Queries.GetNetworkInterfaceQuery"
         };
 
         foreach (var typeName in adminSlices)

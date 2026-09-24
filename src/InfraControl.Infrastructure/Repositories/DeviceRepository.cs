@@ -33,6 +33,9 @@ public sealed class DeviceRepository(AppDbContext dbContext) : IDeviceRepository
     public Task<bool> HasByRackAsync(Guid rackId, CancellationToken cancellationToken = default)
         => dbContext.Devices.AnyAsync(device => device.RackId == rackId, cancellationToken);
 
+    public Task<bool> HasInterfacesAsync(Guid deviceId, CancellationToken cancellationToken = default)
+        => dbContext.NetworkInterfaces.AnyAsync(nic => nic.DeviceId == deviceId, cancellationToken);
+
     public async Task<PagedResult<Device>> SearchAsync(
         Guid? locationId,
         Guid? rackId,
