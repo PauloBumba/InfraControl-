@@ -3,6 +3,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Locations;
 using InfraControl.Application.Inventory.Locations.Commands;
 using InfraControl.Application.Inventory.Locations.Queries;
+using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
@@ -176,6 +177,23 @@ public sealed class LocationCommandTests : IDisposable
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Local '{unknownId}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Delete_LocationWithRacks_ShouldThrowConflictMessage()
+    {
+        // F2-T002: fecha a dependência anotada na F2-T001.
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateLocationCommand("Data Center A"), CancellationToken.None);
+        context.Racks.Add(Rack.Create(created.Id, "R01"));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteLocationCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o local: existem racks vinculados.");
     }
 
     // ── Queries ───────────────────────────────────────────────────────────

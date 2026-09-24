@@ -44,7 +44,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.Locations.Commands.UpdateLocationCommand",
             "InfraControl.Application.Inventory.Locations.Commands.DeleteLocationCommand",
             "InfraControl.Application.Inventory.Locations.Queries.SearchLocationsQuery",
-            "InfraControl.Application.Inventory.Locations.Queries.GetLocationQuery"
+            "InfraControl.Application.Inventory.Locations.Queries.GetLocationQuery",
+            "InfraControl.Application.Inventory.Racks.Commands.CreateRackCommand",
+            "InfraControl.Application.Inventory.Racks.Commands.UpdateRackCommand",
+            "InfraControl.Application.Inventory.Racks.Commands.DeleteRackCommand",
+            "InfraControl.Application.Inventory.Racks.Queries.SearchRacksQuery",
+            "InfraControl.Application.Inventory.Racks.Queries.GetRackQuery"
         };
 
         foreach (var typeName in adminSlices)

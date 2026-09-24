@@ -98,8 +98,8 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 ## Fase 2 — Inventário
 
 - [x] F2-T001 Location
-- [ ] F2-T002 Rack  <!-- dependência F2-T001: bloquear exclusão de Location que possua racks (409) -->
-- [ ] F2-T003 Device  <!-- tipos: Server, Workstation, Switch, Router, Firewall, AccessPoint, Printer, Camera, Phone, UPS, Other; campos ip/mac/serial/model/vendor/vlanId/locationId; seed fictício, sem IP/senha reais no git -->
+- [x] F2-T002 Rack
+- [ ] F2-T003 Device  <!-- dependência F2-T002: bloquear exclusão de Rack que possua devices (409); tipos: Server, Workstation, Switch, Router, Firewall, AccessPoint, Printer, Camera, Phone, UPS, Other; campos ip/mac/serial/model/vendor/vlanId/locationId; seed fictício, sem IP/senha reais no git -->
 - [ ] F2-T004 NetworkInterface
 - [ ] F2-T005 MAC
 - [ ] F2-T006 IP

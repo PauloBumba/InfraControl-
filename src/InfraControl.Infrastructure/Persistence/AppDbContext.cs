@@ -28,6 +28,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<InvitationRole> InvitationRoles => Set<InvitationRole>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<Rack> Racks => Set<Rack>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();
