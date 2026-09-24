@@ -6,6 +6,7 @@ using InfraControl.Application.Inventory.Racks;
 using InfraControl.Application.Inventory.Racks.Commands;
 using InfraControl.Application.Inventory.Racks.Queries;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
@@ -58,7 +59,10 @@ public sealed class RackCommandTests : IDisposable
         => new(new RackRepository(context), NullLogger<UpdateRackCommandHandler>.Instance);
 
     private static DeleteRackCommandHandler DeleteHandler(AppDbContext context)
-        => new(new RackRepository(context), NullLogger<DeleteRackCommandHandler>.Instance);
+        => new(
+            new RackRepository(context),
+            new DeviceRepository(context),
+            NullLogger<DeleteRackCommandHandler>.Instance);
 
     // ── Create ────────────────────────────────────────────────────────────
 
@@ -213,6 +217,25 @@ public sealed class RackCommandTests : IDisposable
             new DeleteRackCommand(created.Id), CancellationToken.None);
 
         context.Racks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Delete_RackWithDevices_ShouldThrowConflictPtBrMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var rack = Rack.Create(locationId, "R01");
+        context.Racks.Add(rack);
+        context.Devices.Add(Device.Create(
+            locationId, "sw-01", DeviceType.Switch, rackId: rack.Id));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteRackCommand(rack.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o rack: existem devices vinculados.");
+        context.Racks.Should().ContainSingle();
     }
 
     [Fact]

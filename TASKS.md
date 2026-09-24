@@ -99,7 +99,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 - [x] F2-T001 Location
 - [x] F2-T002 Rack
-- [ ] F2-T003 Device  <!-- dependência F2-T002: bloquear exclusão de Rack que possua devices (409); tipos: Server, Workstation, Switch, Router, Firewall, AccessPoint, Printer, Camera, Phone, UPS, Other; campos ip/mac/serial/model/vendor/vlanId/locationId; seed fictício, sem IP/senha reais no git -->
+- [x] F2-T003 Device  <!-- tipos Server/Workstation/Switch/Router/Firewall/AccessPoint/Printer/Camera/Phone/UPS/Other; campos ip/mac/serial/model/vendor/vlanId/locationId/rackId; nome único global case-insensitive; DeleteRack com devices → 409; FK Restrict location/rack; migração AddDevices + índice ux_devices_name; seed fictício docs/database/seed-fictitious-devices.sql (RFC 5737, sem dados reais); policies InventoryRead/InventoryManage; BaseCommand/IQuery/IAuthorizedRequest -->
 - [ ] F2-T004 NetworkInterface
 - [ ] F2-T005 MAC
 - [ ] F2-T006 IP

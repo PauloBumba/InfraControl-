@@ -1,3 +1,4 @@
+using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.BuildingBlocks.Application;
@@ -87,6 +88,7 @@ public sealed record DeleteRackCommand(Guid Id) : BaseCommand, IAuthorizedReques
 
 public sealed class DeleteRackCommandHandler(
     IRackRepository repository,
+    IDeviceRepository deviceRepository,
     ILogger<DeleteRackCommandHandler> logger) : IRequestHandler<DeleteRackCommand>
 {
     public async Task Handle(DeleteRackCommand request, CancellationToken cancellationToken)
@@ -94,8 +96,9 @@ public sealed class DeleteRackCommandHandler(
         var rack = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Rack '{request.Id}' não encontrado.");
 
-        // F2-T003: quando Device existir com FK para Rack, aqui passa a
-        // bloquear exclusão de rack com devices (→ InvalidOperationException/409).
+        if (await deviceRepository.HasByRackAsync(rack.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir o rack: existem devices vinculados.");
+
         repository.Remove(rack);
         await repository.SaveChangesAsync(cancellationToken);
 

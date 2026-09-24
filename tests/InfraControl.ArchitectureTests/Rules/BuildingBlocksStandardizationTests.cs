@@ -49,7 +49,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.Racks.Commands.UpdateRackCommand",
             "InfraControl.Application.Inventory.Racks.Commands.DeleteRackCommand",
             "InfraControl.Application.Inventory.Racks.Queries.SearchRacksQuery",
-            "InfraControl.Application.Inventory.Racks.Queries.GetRackQuery"
+            "InfraControl.Application.Inventory.Racks.Queries.GetRackQuery",
+            "InfraControl.Application.Inventory.Devices.Commands.CreateDeviceCommand",
+            "InfraControl.Application.Inventory.Devices.Commands.UpdateDeviceCommand",
+            "InfraControl.Application.Inventory.Devices.Commands.DeleteDeviceCommand",
+            "InfraControl.Application.Inventory.Devices.Queries.SearchDevicesQuery",
+            "InfraControl.Application.Inventory.Devices.Queries.GetDeviceQuery"
         };
 
         foreach (var typeName in adminSlices)

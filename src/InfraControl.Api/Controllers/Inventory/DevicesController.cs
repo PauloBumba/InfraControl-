@@ -1,0 +1,92 @@
+using InfraControl.Application.Inventory.Devices.Commands;
+using InfraControl.Application.Inventory.Devices.Queries;
+using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Inventory;
+using InfraControl.BuildingBlocks.Application.Response;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace InfraControl.Api.Controllers.Inventory;
+
+/// <summary>
+/// F2-T003: CRUD de Devices. Falhas (400/404/409/401/403) são embrulhadas
+/// pelo GlobalExceptionHandler — o controller só compõe sucesso no envelope.
+/// </summary>
+[Route("api/v1/inventory/devices")]
+public sealed class DevicesController(ISender sender) : BaseController
+{
+    [HttpGet]
+    [Authorize(Policy = "InventoryRead")]
+    public async Task<IActionResult> Search(
+        [FromQuery] Guid? locationId,
+        [FromQuery] Guid? rackId,
+        [FromQuery] string? type,
+        [FromQuery] string? term,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchDevicesQuery(locationId, rackId, type, term, page, pageSize), cancellationToken)));
+
+    [HttpGet("{id:guid}")]
+    [Authorize(Policy = "InventoryRead")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceQuery(id), cancellationToken)));
+
+    [HttpPost]
+    [Authorize(Policy = "InventoryManage")]
+    public async Task<IActionResult> Create(
+        [FromBody] CreateDeviceViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new CreateDeviceCommand(
+                model.LocationId,
+                model.Name,
+                model.Type,
+                model.RackId,
+                model.Ip,
+                model.Mac,
+                model.Serial,
+                model.Model,
+                model.Vendor,
+                model.VlanId,
+                model.Description),
+            cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = "InventoryManage")]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateDeviceViewModel model,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new UpdateDeviceCommand(
+                id,
+                model.Name,
+                model.Type,
+                model.RackId,
+                model.Ip,
+                model.Mac,
+                model.Serial,
+                model.Model,
+                model.Vendor,
+                model.VlanId,
+                model.Description),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "InventoryManage")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteDeviceCommand(id), cancellationToken);
+        return NoContent();
+    }
+}

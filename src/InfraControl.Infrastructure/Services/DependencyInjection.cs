@@ -5,6 +5,7 @@ using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Domain.Common;
@@ -134,6 +135,7 @@ public static class DependencyInjection
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IRackRepository, RackRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
 
         return services;
     }
