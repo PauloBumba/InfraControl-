@@ -19,7 +19,7 @@ public sealed class MonitoringController(ISender sender) : BaseController
 {
     /// <summary>Executa um check num device agora e grava o resultado (MON-006).</summary>
     [HttpPost("run-check/{id:guid}")]
-    [Authorize(Policy = "MonitoringRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> RunCheck(
         Guid id,
         [FromQuery] string check,
@@ -29,7 +29,7 @@ public sealed class MonitoringController(ISender sender) : BaseController
 
     /// <summary>Executa um check em todos os devices (estilo Zabbix "check now").</summary>
     [HttpPost("run-check")]
-    [Authorize(Policy = "MonitoringRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> RunAllChecks(
         [FromQuery] string check,
         CancellationToken cancellationToken)
@@ -38,13 +38,13 @@ public sealed class MonitoringController(ISender sender) : BaseController
 
     /// <summary>Checks monitoráveis de um device, vindos do perfil (F5-T001).</summary>
     [HttpGet("checks/{id:guid}")]
-    [Authorize(Policy = "MonitoringRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> GetChecks(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceChecksQuery(id), cancellationToken)));
 
     /// <summary>Histórico de polls do device, mais recente primeiro (F5-T002).</summary>
     [HttpGet("results/{id:guid}")]
-    [Authorize(Policy = "MonitoringRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> GetResults(
         Guid id,
         [FromQuery] int limit = 50,

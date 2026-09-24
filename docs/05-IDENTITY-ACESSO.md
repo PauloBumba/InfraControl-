@@ -36,13 +36,13 @@ O processo é idempotente: se já existir qualquer administrador ou se o email c
 
 O gerenciamento de roles segue Vertical Slice/CQRS. Os comandos `AssignUserRoleCommand` e `RemoveUserRoleCommand`, com seus handlers, ficam em `Application/Identity/Roles`; o domínio mantém as invariantes do agregado `User`; e `IUserRoleRepository` é a porta usada pelos handlers. O `IdentityUserRoleRepository` é o adaptador técnico em `Infrastructure`, responsável por sincronizar a role do domínio com o ASP.NET Core Identity em uma transação.
 
-As policies HTTP são `AdminOnly`, `UserAccess` e `ViewerAccess`. O controller HTTP apenas converte a requisição em comando e envia pelo MediatR. A alteração é autorizada por `AdminOnly`, o último administrador ativo não pode perder a role `Admin` e um usuário não pode ficar sem role. Permissões granulares e auditoria permanecem em Tasks próprias.
+A autorização nos controllers é por role direto (`[Authorize(Roles = "...")]`, mapeado da matriz `RolePermissions` — ADR-008). O controller HTTP apenas converte a requisição em comando e envia pelo MediatR. A alteração é autorizada por `Roles = "Admin"`, o último administrador ativo não pode perder a role `Admin` e um usuário não pode ficar sem role. Permissões granulares e auditoria permanecem em Tasks próprias.
 
 ### F1-T004 — Permissions
 
 O catálogo de permissões fica em `Domain/Authorization/Permission.cs`, sem dependência de ASP.NET Core. A matriz padrão é definida em `RolePermissions`: `Viewer` recebe permissões de leitura; `User` herda as permissões de leitura e recebe permissões de gestão operacional; `Admin` recebe o catálogo completo. A união de múltiplas roles não produz duplicatas.
 
-O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. O API registra uma policy para cada valor de `Permission`, mantendo as policies legadas de role para compatibilidade. A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
+O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. As claims alimentam o `AuthorizationBehavior` do pipeline MediatR (2ª camada nos handlers); os controllers não usam policies HTTP — autorizam por role direto (ADR-008). A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
 
 ## API de autenticação e dashboard
 
@@ -59,7 +59,7 @@ O backend expõe os fluxos de Identity inspirados no Sentinel:
 | `POST /api/v1/auth/change-password` | Troca senha e revoga sessões | Autenticado |
 | `GET /api/v1/auth/me` | Retorna usuário, roles e permissões | Autenticado |
 
-A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints usam `IdentityUsersRead` e `IdentityUsersManage`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
+A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
 
 ## Modelo
 

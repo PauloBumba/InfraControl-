@@ -18,7 +18,7 @@ namespace InfraControl.Api.Controllers.Inventory;
 public sealed class DevicesController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? locationId,
         [FromQuery] Guid? rackId,
@@ -31,12 +31,12 @@ public sealed class DevicesController(ISender sender) : BaseController
             new SearchDevicesQuery(locationId, rackId, type, term, page, pageSize), cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Create(
         [FromBody] CreateDeviceViewModel model,
         CancellationToken cancellationToken)
@@ -60,7 +60,7 @@ public sealed class DevicesController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateDeviceViewModel model,
@@ -84,7 +84,7 @@ public sealed class DevicesController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteDeviceCommand(id), cancellationToken);
@@ -93,7 +93,7 @@ public sealed class DevicesController(ISender sender) : BaseController
 
     /// <summary>F2-T008: override do perfil de checks ou reset para o default do tipo.</summary>
     [HttpPut("{id:guid}/profile")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> UpdateProfile(
         Guid id,
         [FromBody] UpdateDeviceProfileViewModel model,

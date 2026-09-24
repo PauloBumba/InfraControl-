@@ -1,10 +1,124 @@
-using FluentAssertions;
+using InfraControl.Application.Common.Behaviors;
+using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Monitoring.Checks;
+using InfraControl.Application.Monitoring.Checks.Ports;
+using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Authorization;
+using InfraControl.Domain.Enums;
+using InfraControl.Infrastructure.Monitoring;
+using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Repositories;
+using InfraControl.Infrastructure.Services;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Testcontainers.PostgreSql;
 
 namespace InfraControl.IntegrationTests.Common;
 
-public abstract class BaseIntegrationTest
+/// <summary>
+/// MON-009 (docs/21): base dos integration tests — PostgreSQL real via
+/// Testcontainers + pipeline MediatR do aplicativo (Authorization/Audit/
+/// Transaction behaviors) + repositórios Infrastructure reais. Sem rede:
+/// ICMP é falso; sem Redis/RabbitMQ (behaviors opt-in não registrados).
+/// </summary>
+public abstract class BaseIntegrationTest : IAsyncLifetime
 {
-    protected BaseIntegrationTest()
+    // Imagem já presente localmente — evita pull do Docker Hub (exige auth/rate limit).
+    private readonly PostgreSqlContainer _postgres =
+        new PostgreSqlBuilder("postgres:17-alpine").Build();
+
+    protected ServiceProvider Services { get; private set; } = null!;
+    protected TestCurrentUserContext CurrentUser { get; private set; } = null!;
+
+    public virtual async Task InitializeAsync()
     {
+        await _postgres.StartAsync();
+
+        CurrentUser = new TestCurrentUserContext();
+
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
+
+        // Banco real (PostgreSQL do container)
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(_postgres.GetConnectionString()));
+
+        // Pipeline MediatR do aplicativo — mesmo escopo do Program.cs
+        services.AddMediatR(configuration =>
+            configuration.RegisterServicesFromAssemblyContaining<RunCheckCommand>());
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
+
+        // Infraestrutura real (repositórios + auditoria)
+        services.AddScoped<IUnitOfWork>(provider =>
+            provider.GetRequiredService<AppDbContext>());
+        services.AddScoped<IAuditWriter, AuditWriter>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
+        services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
+
+        // Monitoring: registry real + PingMonitoringProvider com ICMP falso
+        services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
+        services.AddScoped<IIcmpClient, FakeIcmpClient>();
+        services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
+
+        // Usuário de teste (role → permissões via RolePermissions)
+        services.AddSingleton<ICurrentUserContext>(CurrentUser);
+
+        Services = services.BuildServiceProvider();
+
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+    }
+
+    public virtual async Task DisposeAsync()
+    {
+        if (Services is not null)
+            await Services.DisposeAsync();
+
+        await _postgres.DisposeAsync();
+    }
+
+    protected IServiceScope CreateScope() => Services.CreateScope();
+
+    /// <summary>Aplica o role do usuário como no login real (RolePermissions → claims).</summary>
+    protected void UseRole(UserRole role)
+    {
+        CurrentUser.Roles = [role.ToString()];
+        CurrentUser.Permissions = RolePermissions.ForRole(role)
+            .Select(permission => permission.ToString())
+            .ToArray();
+    }
+
+    protected void UseNoPermissions()
+    {
+        CurrentUser.Roles = [];
+        CurrentUser.Permissions = [];
+    }
+
+    protected static async Task<Domain.Entities.Device> SeedDeviceAsync(
+        AppDbContext dbContext, string? ip, string name = "sw-it")
+    {
+        var location = Domain.Entities.Location.Create("Sala Integracao");
+        dbContext.Locations.Add(location);
+        await dbContext.SaveChangesAsync();
+
+        var device = Domain.Entities.Device.Create(
+            location.Id, name, DeviceType.Switch, ip: ip);
+        dbContext.Devices.Add(device);
+        await dbContext.SaveChangesAsync();
+        return device;
     }
 }

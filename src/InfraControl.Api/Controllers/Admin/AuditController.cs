@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InfraControl.Api.Controllers.Admin;
 
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Roles = "Admin")]
 [Route("api/v1/admin/audit")]
 public sealed class AuditController(ISender sender) : BaseController
 {

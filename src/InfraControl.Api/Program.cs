@@ -2,7 +2,6 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Api.Middleware;
 using InfraControl.BuildingBlocks.Application.Response;
-using InfraControl.Domain.Authorization;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Api.Services;
@@ -68,16 +67,10 @@ builder.Services.AddAuthentication(options =>
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
     });
-var authorizationBuilder = builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
-    .AddPolicy("UserAccess", policy => policy.RequireRole("Admin", "User"))
-    .AddPolicy("ViewerAccess", policy => policy.RequireRole("Admin", "User", "Viewer"));
-
-foreach (var permission in Enum.GetValues<Permission>())
-{
-    authorizationBuilder.AddPolicy(permission.ToString(), policy =>
-        policy.RequireClaim(PermissionClaim.Type, permission.ToString()));
-}
+// Autorização nos controllers é por role direto — [Authorize(Roles = "...")]
+// mapeado da matriz RolePermissions (ADR-008). Claims de permissão continuam
+// no pipeline MediatR (AuthorizationBehavior), fora do HTTP.
+builder.Services.AddAuthorization();
 
 // ── OpenAPI ──────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();

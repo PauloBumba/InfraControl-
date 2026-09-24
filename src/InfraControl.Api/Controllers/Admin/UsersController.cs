@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace InfraControl.Api.Controllers.Admin;
 
 [Route("api/v1/admin/users")]
-[Authorize(Policy = "IdentityUsersRead")]
+[Authorize(Roles = "Admin,User")]
 public sealed class UsersController(IIdentityAdministrationService identityService) : BaseController
 {
     [HttpGet]
@@ -17,21 +17,21 @@ public sealed class UsersController(IIdentityAdministrationService identityServi
         => Ok(ApiResponse.Ok(await identityService.ListUsersAsync(cancellationToken)));
 
     [HttpPatch("{userId:guid}/status")]
-    [Authorize(Policy = "IdentityUsersManage")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SetStatus(Guid userId, SetUserStatusViewModel model, CancellationToken cancellationToken)
         => await identityService.SetActiveAsync(userId, model.Active, cancellationToken)
             ? NoContent()
             : NotFound(ApiResponse<object>.Fail(["Usuário não encontrado."]));
 
     [HttpPost("{userId:guid}/roles/{role}")]
-    [Authorize(Policy = "IdentityUsersManage")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AssignRole(Guid userId, UserRole role, CancellationToken cancellationToken)
         => await identityService.AssignRoleAsync(userId, role, cancellationToken)
             ? NoContent()
             : NotFound(ApiResponse<object>.Fail(["Usuário não encontrado."]));
 
     [HttpDelete("{userId:guid}/roles/{role}")]
-    [Authorize(Policy = "IdentityUsersManage")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RemoveRole(Guid userId, UserRole role, CancellationToken cancellationToken)
         // F0-T023: "último admin" (InvalidOperation → 409) embrulhado pelo
         // GlobalExceptionHandler; aqui só o resultado compõe a resposta.

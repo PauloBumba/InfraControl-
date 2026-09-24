@@ -17,7 +17,7 @@ namespace InfraControl.Api.Controllers.Inventory;
 public sealed class RacksController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? locationId,
         [FromQuery] string? term,
@@ -28,12 +28,12 @@ public sealed class RacksController(ISender sender) : BaseController
             new SearchRacksQuery(locationId, term, page, pageSize), cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetRackQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Create(
         [FromBody] CreateRackViewModel model,
         CancellationToken cancellationToken)
@@ -46,7 +46,7 @@ public sealed class RacksController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateRackViewModel model,
@@ -59,7 +59,7 @@ public sealed class RacksController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteRackCommand(id), cancellationToken);

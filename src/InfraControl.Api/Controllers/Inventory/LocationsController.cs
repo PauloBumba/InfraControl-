@@ -17,7 +17,7 @@ namespace InfraControl.Api.Controllers.Inventory;
 public sealed class LocationsController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] int page = 1,
@@ -27,12 +27,12 @@ public sealed class LocationsController(ISender sender) : BaseController
             new SearchLocationsQuery(term, page, pageSize), cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize(Roles = "Admin,User,Viewer")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetLocationQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Create(
         [FromBody] CreateLocationViewModel model,
         CancellationToken cancellationToken)
@@ -45,7 +45,7 @@ public sealed class LocationsController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateLocationViewModel model,
@@ -58,7 +58,7 @@ public sealed class LocationsController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Roles = "Admin,User")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteLocationCommand(id), cancellationToken);

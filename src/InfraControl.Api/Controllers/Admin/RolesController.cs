@@ -12,7 +12,7 @@ namespace InfraControl.Api.Controllers.Admin;
 /// F0-T023: erros (KeyNotFound/UnauthorizedAccess/InvalidOperation) são
 /// embrulhados pelo GlobalExceptionHandler — o controller só compõe sucesso.
 /// </summary>
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Roles = "Admin")]
 [Route("api/identity/users")]
 public sealed class RolesController(ISender sender) : BaseController
 {
