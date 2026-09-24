@@ -15,7 +15,7 @@ function MiniStat({ icon, label, value, color, sub }: { icon: string; label: str
   );
 }
 
-function Progress({ value, color = "#0088ff", height = 6 }: { value: number; color?: string; height?: number }) {
+function Progress({ value, color = "#3b82f6", height = 6 }: { value: number; color?: string; height?: number }) {
   return (
     <div style={{ width: "100%", height, background: "#f3f4f6", borderRadius: height, overflow: "hidden" }}>
       <div style={{ height: "100%", width: `${Math.min(value, 100)}%`, background: color, borderRadius: height, transition: "width 0.3s" }} />
@@ -123,7 +123,7 @@ export function DashboardPage() {
             <h2>Tráfego WAN — Última Hora</h2>
             <div style={{ display: "flex", gap: 4 }}>
               {["1H", "6H", "24H", "7D"].map((t, i) => (
-                <button key={t} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "#0088ff15" : "transparent", color: i === 0 ? "#0088ff" : "#9ca3af", border: "none", cursor: "pointer" }}>{t}</button>
+                <button key={t} style={{ padding: "3px 8px", borderRadius: 4, fontSize: 11, fontWeight: i === 0 ? 600 : 400, background: i === 0 ? "#3b82f615" : "transparent", color: i === 0 ? "#3b82f6" : "#9ca3af", border: "none", cursor: "pointer" }}>{t}</button>
               ))}
             </div>
           </div>

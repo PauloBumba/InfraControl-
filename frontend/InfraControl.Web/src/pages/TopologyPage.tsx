@@ -109,7 +109,7 @@ export function TopologyPage() {
 
       {/* Category Filters */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <CategoryCard label="Todos" count={summary.total} icon="pi pi-th-large" color="#0088ff" onClick={() => setFilter("all")} active={filter === "all"} />
+        <CategoryCard label="Todos" count={summary.total} icon="pi pi-th-large" color="#3b82f6" onClick={() => setFilter("all")} active={filter === "all"} />
         {summary.byType.map(t => (
           <CategoryCard key={t.type} label={t.label} count={t.count} icon={t.icon} color={t.color} onClick={() => setFilter(t.type)} active={filter === t.type} />
         ))}

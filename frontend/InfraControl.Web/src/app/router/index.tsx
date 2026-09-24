@@ -21,6 +21,13 @@ const RemotePage = lazy(() => import("@/pages/RemotePage").then(m => ({ default:
 const TasksPage = lazy(() => import("@/pages/TasksPage").then(m => ({ default: m.TasksPage })));
 const KnowledgePage = lazy(() => import("@/pages/KnowledgePage").then(m => ({ default: m.KnowledgePage })));
 const DeviceDetailPage = lazy(() => import("@/pages/DeviceDetailPage").then(m => ({ default: m.DeviceDetailPage })));
+const UsersPage = lazy(() => import("@/pages/UsersPage").then(m => ({ default: m.UsersPage })));
+const AuditPage = lazy(() => import("@/pages/AuditPage").then(m => ({ default: m.AuditPage })));
+const IncidentsPage = lazy(() => import("@/pages/IncidentsPage").then(m => ({ default: m.IncidentsPage })));
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
+const LocationsPage = lazy(() => import("@/pages/LocationsPage").then(m => ({ default: m.LocationsPage })));
+const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.SlaPage })));
+const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -77,6 +84,13 @@ function AppContent() {
           <Route path="/remote" element={<RemotePage />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/audit" element={<AuditPage />} />
+          <Route path="/incidents" element={<IncidentsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/locations" element={<LocationsPage />} />
+          <Route path="/sla" element={<SlaPage />} />
+          <Route path="/switches" element={<SwitchesPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

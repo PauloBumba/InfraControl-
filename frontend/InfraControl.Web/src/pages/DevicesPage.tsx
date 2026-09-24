@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { allDevices, switchPortMap, sectorMap, type DeviceType } from "@/data/deviceData";
+import { allDevices, switchPortMap, sectorMap } from "@/data/deviceData";
 
 const typeIcons: Record<string, string> = {
   gateway: "pi pi-th-large", switch: "pi pi-server", ap: "pi pi-wifi",
@@ -27,18 +27,10 @@ const portTypeColors: Record<string, string> = {
   client: "#94a3b8", empty: "#e5e7eb",
 };
 
-function ProgressBar({ value, color = "#0088ff" }: { value: number; color?: string }) {
-  return (
-    <div style={{ width: "100%", height: 5, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: `${Math.min(value, 100)}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
-    </div>
-  );
-}
-
 function TypeFilter({ types, active, onSelect }: { types: { key: string; label: string; count: number; color: string }[]; active: string; onSelect: (key: string) => void }) {
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <button onClick={() => onSelect("all")} style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${active === "all" ? "#0088ff" : "#e5e7eb"}`, background: active === "all" ? "#0088ff12" : "white", color: active === "all" ? "#0088ff" : "#6b7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>
+      <button onClick={() => onSelect("all")} style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${active === "all" ? "#3b82f6" : "#e5e7eb"}`, background: active === "all" ? "#3b82f612" : "white", color: active === "all" ? "#3b82f6" : "#6b7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>
         Todos ({allDevices.length})
       </button>
       {types.map(t => (
@@ -247,7 +239,7 @@ export function DevicesPage() {
             {offline > 0 && <span style={{ color: "#dc2626" }}>{offline} offline</span>}
           </div>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#0088ff", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
           <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
         </button>
       </div>
@@ -259,7 +251,7 @@ export function DevicesPage() {
           { key: "sector" as const, label: "Por Setor", icon: "pi pi-map" },
           { key: "switch" as const, label: "Por Switch", icon: "pi pi-server" },
         ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "none", borderBottom: tab === t.key ? "2px solid #0088ff" : "2px solid transparent", marginBottom: -2, background: "transparent", color: tab === t.key ? "#0088ff" : "#6b7280", fontSize: 12, fontWeight: tab === t.key ? 600 : 400, cursor: "pointer" }}>
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "none", borderBottom: tab === t.key ? "2px solid #3b82f6" : "2px solid transparent", marginBottom: -2, background: "transparent", color: tab === t.key ? "#3b82f6" : "#6b7280", fontSize: 12, fontWeight: tab === t.key ? 600 : 400, cursor: "pointer" }}>
             <i className={t.icon} style={{ fontSize: 12 }} /> {t.label}
           </button>
         ))}

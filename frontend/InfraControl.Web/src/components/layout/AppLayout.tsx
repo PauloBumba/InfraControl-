@@ -44,9 +44,9 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
       <aside className={sidebarClassName}>
         <div className="uni-sidebar-logo">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-            <circle cx="12" cy="12" r="11" stroke="#0088ff" strokeWidth="1.5"/>
-            <path d="M8 9 C8 7.5 9.5 6 12 6 C14.5 6 16 7.5 16 9 C16 10.5 14.5 12 12 12 L12 18" stroke="#0088ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12" cy="18" r="1" fill="#0088ff"/>
+            <circle cx="12" cy="12" r="11" stroke="#3b82f6" strokeWidth="1.5"/>
+            <path d="M8 9 C8 7.5 9.5 6 12 6 C14.5 6 16 7.5 16 9 C16 10.5 14.5 12 12 12 L12 18" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="12" cy="18" r="1" fill="#3b82f6"/>
           </svg>
           <span>InfraControl</span>
           <button

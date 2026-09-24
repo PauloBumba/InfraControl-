@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-09-22
+**Última atualização:** 2026-09-23
 
 ## Regra operacional
 
@@ -89,6 +89,26 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Redux Toolkit configurado (uiSlice, navigationSlice)
 - [x] PrimeReact integrado (DataTable, Tag, Dropdown, InputText, Button, TabView, ProgressBar, InputSwitch)
 
+## Fase 14 — Frontend: completar áreas da plataforma
+
+- [x] F14-T001 Users & Roles (página, rota /users, sidebar, 3 tabs: Usuários/Roles/Permissões)
+- [x] F14-T002 Audit (página, rota /audit, mock alinhado a AuditEntrySummary, filtros action/outcome)
+- [x] F14-T003 Incidents (página /incidents, severidades, status, SLA breach)
+- [x] F14-T004 Notifications (página /notifications, feed + preferências de canal)
+- [x] F14-T005 Locations & Racks (página /locations, 2 tabs, uso de U, potência, temperatura)
+- [x] F14-T006 SLA/SLO & Services (página /sla, serviços, uptime, error budget)
+- [x] F14-T007 Switches/Ports como áreas próprias (página /switches, cards + grid de portas + tabela)
+- [x] F14 polish UI: Health no sidebar, chunks vendor/redux no Vite, accent unificado (#3b82f6)
+
+## Alinhamento com o problema real (2026-09-23)
+
+Problema do blueprint: gestão heterogênea on-premises com visibilidade centralizada.
+Prioridade validada com o usuário: inventário por tipo → DeviceProfile (checks automáticos por tipo) → ping com alerta (estilo Zabbix) → SNMP impressora (toner/drum) → acesso remoto SSH (switch/servidor) e RDP (computador). Discovery/LLDP e notifications ficam depois do loop básico.
+Ordem e comentários: seção "Ordem alinhada com o problema real" em `TASKS.md`. Roadmap: `docs/13-ROADMAP-MVP.md`.
+Dados reais de rede (IPs, senhas, MACs) não são versionados no repositório.
+Novas Tasks: `F2-T008 DeviceProfile` (ADR antes) e `F11-T006 Credential Store`.
+Próxima Task planejada (quando autorizada): `F2-T003 Device` com seed fictício.
+
 ## Próxima fase
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
@@ -111,10 +131,11 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - Após guard de ativação (F1-T013): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 72 unit + 5 arquitetura aprovados, 0 falhas (18 testes novos em UserActivationTests, InvitationActivationTests e AuthenticationActivationTests).
 - Nenhuma referência aos namespaces antigos `Infrastructure.Common`, `Infrastructure.Identity` ou `Infrastructure.Migrations` foi encontrada no código.
 - Após Fase 13 (F13-T001 a F13-T007): `npm run build` frontend OK (311KB JS, 552KB CSS).
+- Após F14-T001 a F14-T007: `npm run build` frontend OK (133 módulos, index 357KB JS, 567KB CSS, 23 rotas). Erros TS pré-existentes em `DeviceDetailPage.tsx` e `DevicesPage.tsx` corrigidos durante F14-T001.
+- Após polish F14 (sidebar Health, vendor/redux chunks no Vite, accent unificado `#3b82f6`/`--uni-accent`): `npm run build` frontend OK (133 módulos; vendor 50KB + redux 23KB separados; index 284KB JS, 567KB CSS; zero `#0088ff` restantes no src).
 - Após padronização BuildingBlocks (F0-T022): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 73 unit + 8 arquitetura aprovados, 0 falhas (3 testes novos em BuildingBlocksStandardizationTests + isolamento de cache por usuário em MissingBehaviorTests).
 - Após tratamento global de exceções (F0-T023): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 82 unit + 8 arquitetura aprovados, 0 falhas (GlobalExceptionHandler mapeia RequestValidation/Argument→400, KeyNotFound→404, UnauthorizedAccess→401/403, Duplicate/InvalidOperation→409, demais→500 genérico; ModelState também no envelope via InvalidModelStateResponseFactory; ~60 mensagens traduzidas para pt-BR em Domain/Application/Infrastructure/controllers; try/catch de erro removidos dos controllers; regra de arquitetura agora valida o handler como ponto único de envelope).
 - Após F2-T001 Location: `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 104 unit + 8 arquitetura aprovados, 0 falhas (22 testes novos em LocationTests/LocationCommandTests; slice vertical completo: entidade Location, commands BaseCommand+IAuthorizedRequest com InventoryManage, queries IQuery sem cache com InventoryRead, repositório/porta, LocationConfiguration, LocationsController no envelope, migração AddLocations com índice único case-insensitive `LOWER(name)` via SQL bruto; 5 slices estendidos na regra de arquitetura).
-- PENDÊNCIA (não relacionada ao F0-T022): `npm run build` frontend quebra com 12 erros de TypeScript pré-existentes em `DeviceDetailPage.tsx` (device tratado como objeto, métodos de array aplicados) e `DevicesPage.tsx` (imports não usados), introduzidos nos commits F13 de device pages posteriores à evidência da F13-T007. Correção de frontend pendente de autorização.
 
 ## Regra
 

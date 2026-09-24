@@ -2,7 +2,7 @@ import { tasks } from "@/data/dashboardData";
 
 const columns = [
   { id: "todo", label: "A Fazer", color: "#6b7280" },
-  { id: "in_progress", label: "Em Progresso", color: "#0088ff" },
+  { id: "in_progress", label: "Em Progresso", color: "#3b82f6" },
   { id: "done", label: "Concluído", color: "#22c55e" },
 ];
 
@@ -17,7 +17,7 @@ export function TasksPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Tarefas</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{tasks.length} tarefas</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#0088ff", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
           <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
         </button>
       </div>

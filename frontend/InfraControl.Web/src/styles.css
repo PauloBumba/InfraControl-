@@ -6,8 +6,8 @@
   --uni-sidebar-w: 220px;
   --uni-sidebar-collapsed-w: 60px;
   --uni-topbar-h: 52px;
-  --uni-accent: #0088ff;
-  --uni-accent-hover: #0066cc;
+  --uni-accent: #3b82f6;
+  --uni-accent-hover: #2563eb;
   --uni-bg: #f0f2f5;
   --uni-surface: #ffffff;
   --uni-border: #e5e7eb;
@@ -436,7 +436,7 @@ ul, ol { list-style: none; }
   border-radius: 8px; border: 1px solid var(--uni-border);
   padding: 16px; cursor: pointer; transition: all 0.12s;
 }
-.uni-device-card:hover { border-color: var(--uni-accent); box-shadow: 0 1px 4px rgba(0,136,255,0.1); }
+.uni-device-card:hover { border-color: var(--uni-accent); box-shadow: 0 1px 4px rgba(59,130,246,0.1); }
 .uni-device-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .uni-device-icon {
   width: 40px; height: 40px; border-radius: 8px;

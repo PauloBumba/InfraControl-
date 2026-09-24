@@ -35,6 +35,23 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 [ ] Commit realizado
 ```
 
+## Ordem alinhada com o problema real (2026-09-23)
+
+Problema do blueprint: gestão heterogênea on-premises com visibilidade centralizada.
+Caso de uso do usuário: ver cada porta/switch/impressora/AP; toner e cilindro da impressora; AP on/off + internet; ping tipo Zabbix com alerta; acesso remoto a switch (SSH), servidor (SSH) e computador (RDP).
+
+Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
+
+1. `F2-T003` Device (tipos: Switch, Printer, AccessPoint, Camera, Server, Workstation, …)
+2. `F2-T008` DeviceProfile — perfil de checks/thresholds padrão por DeviceType (ADR antes)
+3. `F5-T003` Ping — up/down de todos (estilo Zabbix)
+4. `F5-T004` SNMP Printer — toner, drum/cilindro (Printer MIB) e alertas de nível
+5. `F5-T007` Worker de polling contínuo
+6. `F6-T001`/`F6-T002` Alert + regras (down, toner/drum baixo, recovery)
+7. `F3` Switch/Port/VLAN (liga “o que está em cada porta”)
+8. `F11` Remote Access — SSH (switch/servidor), RDP (computador), sem expor credenciais
+9. `F4` Discovery (LLDP/ARP/MAC) e `F9` Notifications só depois do loop acima verde
+
 ## Fase 0 — Fundação
 
 - [x] F0-T001 Criar solução .NET
@@ -82,20 +99,21 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 
 - [x] F2-T001 Location
 - [ ] F2-T002 Rack  <!-- dependência F2-T001: bloquear exclusão de Location que possua racks (409) -->
-- [ ] F2-T003 Device
+- [ ] F2-T003 Device  <!-- tipos: Server, Workstation, Switch, Router, Firewall, AccessPoint, Printer, Camera, Phone, UPS, Other; campos ip/mac/serial/model/vendor/vlanId/locationId; seed fictício, sem IP/senha reais no git -->
 - [ ] F2-T004 NetworkInterface
 - [ ] F2-T005 MAC
 - [ ] F2-T006 IP
 - [ ] F2-T007 Busca global
+- [ ] F2-T008 DeviceProfile  <!-- dependência F2-T003; ADR; ao criar Device aplica checks do tipo: Printer→ping+SNMP toner/drum; AP→ping+WAN; Switch/Server→ping(+SNMP); Camera→ping; override opcional por device -->
 
 ## Fase 3 — Network
 
-- [ ] F3-T001 Switch
-- [ ] F3-T002 SwitchPort
-- [ ] F3-T003 VLAN
-- [ ] F3-T004 SwitchPortVlan
+- [ ] F3-T001 Switch  <!-- extensão de Device tipo Switch -->
+- [ ] F3-T002 SwitchPort  <!-- portas físicas + link up/down + MAC aprendido depois (F4) -->
+- [ ] F3-T003 VLAN  <!-- ex.: Default, Radiologia, Telefonia, Impressoras, Cameras, Unifi -->
+- [ ] F3-T004 SwitchPortVlan  <!-- membros tagged/untagged -->
 - [ ] F3-T005 Connection
-- [ ] F3-T006 Topology
+- [ ] F3-T006 Topology  <!-- prioridade baixa para o problema atual -->
 
 ## Fase 4 — Discovery
 
@@ -112,19 +130,19 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 
 ## Fase 5 — Monitoring
 
-- [ ] F5-T001 MonitoringCheck
-- [ ] F5-T002 MonitoringResult
-- [ ] F5-T003 Ping
-- [ ] F5-T004 SNMP
+- [ ] F5-T001 MonitoringCheck  <!-- instância por device; nasce do DeviceProfile (F2-T008) -->
+- [ ] F5-T002 MonitoringResult  <!-- histórico de polls -->
+- [ ] F5-T003 Ping  <!-- prioridade: up/down de todos os devices (estilo Zabbix) -->
+- [ ] F5-T004 SNMP  <!-- prioridade: Printer MIB — toner e drum/cilindro %; depois sysUpTime/CPU -->
 - [ ] F5-T005 HTTP/HTTPS
-- [ ] F5-T006 TCP
-- [ ] F5-T007 Worker
-- [ ] F5-T008 Recovery
+- [ ] F5-T006 TCP  <!-- opcional: câmera porta 37777 -->
+- [ ] F5-T007 Worker  <!-- polling periódico; depende F5-T001/T002 -->
+- [ ] F5-T008 Recovery  <!-- volta a responder → fecha alerta -->
 
 ## Fase 6 — Alerts/Incidents
 
-- [ ] F6-T001 Alert
-- [ ] F6-T002 Alert Rules
+- [ ] F6-T001 Alert  <!-- prioridade: device down, toner < 20%, drum < 10% (thresholds do perfil) -->
+- [ ] F6-T002 Alert Rules  <!-- consecutive failures, dependência de upstream, anti alert-storm -->
 - [ ] F6-T003 Incident
 - [ ] F6-T004 Correlation
 - [ ] F6-T005 Root Cause
@@ -171,11 +189,12 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 
 ## Fase 11 — Remote Access
 
-- [ ] F11-T001 RemoteSession
-- [ ] F11-T002 SSH Provider
-- [ ] F11-T003 RDP Provider
-- [ ] F11-T004 Permissions
-- [ ] F11-T005 Audit
+- [ ] F11-T001 RemoteSession  <!-- sessão auditada; nunca expor credencial ao frontend -->
+- [ ] F11-T002 SSH Provider  <!-- switch e servidor (H3C/HP, Linux) -->
+- [ ] F11-T003 RDP Provider  <!-- computador Windows (Workstation) -->
+- [ ] F11-T004 Permissions  <!-- device.remote.read, device.ssh.connect, device.rdp.connect, credential.use/manage -->
+- [ ] F11-T005 Audit  <!-- integra com audit existente (F1-T010) -->
+- [ ] F11-T006 Credential Store  <!-- secrets fora do git; env/secret manager; rotation -->
 
 ## Fase 12 — Operação
 
@@ -184,3 +203,16 @@ Cada Task deve ser pequena, verificável e ter dependências explícitas.
 - [ ] F12-T003 Backup
 - [ ] F12-T004 Restore Test
 - [ ] F12-T005 Performance
+
+## Fase 14 — Frontend: completar áreas da plataforma
+
+Prototipação das páginas que faltam conforme `docs/14-UI-UX.md`, com mock data em `src/data/`, rota, item de sidebar e componentes PrimeReact. Backend alinha depois.
+
+- [x] F14-T001 Users & Roles (prioridade: backend F1 já existe)
+- [x] F14-T002 Audit
+- [x] F14-T003 Incidents
+- [x] F14-T004 Notifications
+- [x] F14-T005 Locations & Racks
+- [x] F14-T006 SLA/SLO & Services
+- [x] F14-T007 Switches/Ports como áreas próprias (hoje embutidas em Network/Devices)
+- [x] F14 polish UI (Health no sidebar, chunks vendor/redux no Vite, accent unificado)

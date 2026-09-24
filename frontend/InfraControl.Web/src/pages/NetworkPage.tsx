@@ -13,7 +13,7 @@ export function NetworkPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Rede</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>VLANs, DHCP, rotas e firewall</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#0088ff", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
           <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
         </button>
       </div>
@@ -80,7 +80,7 @@ export function NetworkPage() {
                   <td style={{ fontFamily: "monospace", fontSize: 11, color: "#6b7280" }}>{lease.mac}</td>
                   <td style={{ fontWeight: 500 }}>{lease.hostname}</td>
                   <td><span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280" }}>{lease.vlan}</span></td>
-                  <td style={{ fontSize: 12, color: lease.expires === "Reservado" ? "#0088ff" : "#6b7280" }}>{lease.expires}</td>
+                  <td style={{ fontSize: 12, color: lease.expires === "Reservado" ? "#3b82f6" : "#6b7280" }}>{lease.expires}</td>
                 </tr>
               ))}
             </tbody>
@@ -143,7 +143,7 @@ export function NetworkPage() {
                   <td style={{ fontFamily: "monospace", fontSize: 11 }}>{rule.destination}</td>
                   <td style={{ fontFamily: "monospace", fontSize: 11 }}>{rule.port}</td>
                   <td>
-                    <div style={{ width: 32, height: 18, borderRadius: 9, background: rule.enabled ? "#0088ff" : "#d1d5db", position: "relative", cursor: "pointer" }}>
+                    <div style={{ width: 32, height: 18, borderRadius: 9, background: rule.enabled ? "#3b82f6" : "#d1d5db", position: "relative", cursor: "pointer" }}>
                       <div style={{ position: "absolute", top: 2, left: rule.enabled ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
                     </div>
                   </td>

@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { allDevices } from "@/data/deviceData";
 import { printerDetails, cameraDetails, phoneDetails, serverDetails, vmDetails, switchPorts, nasDetails, upsDetails } from "@/data/deviceData";
 
-function ProgressBar({ value, color = "#0088ff" }: { value: number; color?: string }) {
+function ProgressBar({ value, color = "#3b82f6" }: { value: number; color?: string }) {
   return (
     <div style={{ width: "100%", height: 6, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" }}>
       <div style={{ height: "100%", width: `${value}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
@@ -304,12 +304,13 @@ function VmView({ deviceId }: { deviceId: string }) {
 
 // ============ SWITCH PORTS VIEW ============
 function SwitchView({ deviceId }: { deviceId: string }) {
-  const ports = switchPorts[deviceId];
-  if (!ports) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
+  const switchData = switchPorts[deviceId];
+  if (!switchData) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
+  const ports = switchData.ports;
 
   const active = ports.filter(p => p.status === "active").length;
   const poe = ports.filter(p => p.poe).length;
-  const poeWatts = ports.reduce((sum, p) => sum + p.poeWatts, 0);
+  const poeWatts = poe * 15.4;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -447,7 +448,7 @@ export function DeviceDetailPage() {
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
         <h2>Dispositivo não encontrado</h2>
-        <button onClick={() => navigate("/devices")} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#0088ff", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <button onClick={() => navigate("/devices")} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
           Voltar para Dispositivos
         </button>
       </div>

@@ -8,7 +8,7 @@ export function RemotePage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Acesso Remoto</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{remoteSessions.filter(s => s.status === "active").length} sessões ativas · {remoteDevices.length} dispositivos</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#0088ff", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
           <i className="pi pi-external-link" style={{ fontSize: 11 }} /> Nova Conexão
         </button>
       </div>

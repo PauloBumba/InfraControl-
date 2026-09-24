@@ -8,7 +8,7 @@ export function WiFiPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>WiFi</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{wifiNetworks.length} redes · {apData.length} access points</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#0088ff", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
           <i className="pi pi-plus" style={{ fontSize: 11 }} /> Criar Rede
         </button>
       </div>
@@ -24,7 +24,7 @@ export function WiFiPage() {
                   <div style={{ fontSize: 14, fontWeight: 600, fontFamily: "monospace" }}>{net.ssid}</div>
                   <div style={{ fontSize: 11, color: "#9ca3af" }}>{net.security}</div>
                 </div>
-                <div style={{ width: 32, height: 18, borderRadius: 9, background: "#0088ff", position: "relative" }}>
+                <div style={{ width: 32, height: 18, borderRadius: 9, background: "#3b82f6", position: "relative" }}>
                   <div style={{ position: "absolute", top: 2, left: 16, width: 14, height: 14, borderRadius: "50%", background: "white" }} />
                 </div>
               </div>
