@@ -121,9 +121,13 @@ public static class DependencyInjection
         services.AddScoped<IFeatureFlagProvider, FeatureFlagProvider>();
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
 
-        // Monitoring (F5-T003): ping ICMP sob demanda
+        // Monitoring (F5-T003/F5-T004): ping ICMP + SNMP de impressoras
         services.AddScoped<IIcmpClient, SystemNetIcmpClient>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
+        services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
+        services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
+        services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
 
         // Outbox
         services.AddScoped<IOutboxRepository, OutboxRepository>();

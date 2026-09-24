@@ -28,7 +28,8 @@ public sealed record DiscoveryProviderResult(
 public sealed record MonitoringProviderResult(
     bool Succeeded,
     TimeSpan Duration,
-    string? Error = null);
+    string? Error = null,
+    IReadOnlyDictionary<string, string>? Values = null);
 
 public interface IProviderRegistry<TProvider>
     where TProvider : IInfrastructureProvider

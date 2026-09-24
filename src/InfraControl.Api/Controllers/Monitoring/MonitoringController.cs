@@ -1,4 +1,5 @@
 using InfraControl.Application.Monitoring.Ping;
+using InfraControl.Application.Monitoring.PrinterSupplies;
 using InfraControl.Api.Controllers;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -25,4 +26,11 @@ public sealed class MonitoringController(ISender sender) : BaseController
     [Authorize(Policy = "MonitoringRead")]
     public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetPingStatusQuery(), cancellationToken)));
+
+    /// <summary>Toner e drum de uma impressora via SNMP (F5-T004).</summary>
+    [HttpGet("printers/{id:guid}/supplies")]
+    [Authorize(Policy = "MonitoringRead")]
+    public async Task<IActionResult> GetPrinterSupplies(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(
+            await sender.Send(new GetPrinterSuppliesQuery(id), cancellationToken)));
 }
