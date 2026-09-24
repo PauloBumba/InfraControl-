@@ -24,3 +24,8 @@ public sealed record UpdateDeviceViewModel(
     string? Vendor = null,
     Guid? VlanId = null,
     string? Description = null);
+
+/// <summary>F2-T008: envia lista de checks (enum CheckKind) ou useDefault=true.</summary>
+public sealed record UpdateDeviceProfileViewModel(
+    string[]? Checks = null,
+    bool UseDefault = false);

@@ -1,3 +1,5 @@
+using InfraControl.Domain.Enums;
+
 namespace InfraControl.Application.Inventory.Devices;
 
 /// <summary>
@@ -15,4 +17,6 @@ public sealed record DeviceDto(
     string? Model,
     string? Vendor,
     Guid? VlanId,
-    string? Description);
+    string? Description,
+    IReadOnlyList<string> MonitoringChecks,
+    bool ProfileIsCustom);

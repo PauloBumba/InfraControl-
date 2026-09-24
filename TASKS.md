@@ -104,7 +104,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [ ] F2-T005 MAC
 - [ ] F2-T006 IP
 - [ ] F2-T007 Busca global
-- [ ] F2-T008 DeviceProfile  <!-- dependência F2-T003; ADR; ao criar Device aplica checks do tipo: Printer→ping+SNMP toner/drum; AP→ping+WAN; Switch/Server→ping(+SNMP); Camera→ping; override opcional por device -->
+- [x] F2-T008 DeviceProfile  <!-- ADR-014 Accepted; DeviceProfileDefaults por tipo em código (Printer→Ping+SnmpToner+SnmpDrum, AP→Ping+HttpWan, Switch/Server/Router/Firewall/UPS→Ping+SnmpSystem, demais→Ping); materializado no Device.Create com ProfileIsCustom=false; ApplyCustomProfile/ResetProfileToDefault (vazio/duplicado → 409/400 pt-BR); Update preserva override na troca de tipo; UpdateDeviceProfileCommand (checks XOR useDefault); PUT /devices/{id}/profile; colunas profile_is_custom + monitoring_checks (CSV) + migração AddDeviceProfile; EF ValueConverter List<CheckKind>→string; tests DeviceProfileTests + DeviceProfileCommandTests; 6 slices na regra de arquitetura -->
 
 ## Fase 3 — Network
 

@@ -101,7 +101,9 @@ public sealed class CreateDeviceCommandHandler(
             device.Model,
             device.Vendor,
             device.VlanId,
-            device.Description);
+            device.Description,
+            device.MonitoringChecks.Select(check => check.ToString()).ToArray(),
+            device.ProfileIsCustom);
 }
 
 public sealed record UpdateDeviceCommand(
@@ -186,5 +188,49 @@ public sealed class DeleteDeviceCommandHandler(
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Device {DeviceId} deleted ({Name}).", device.Id, device.Name);
+    }
+}
+
+// F2-T008 / ADR-014: override do perfil de checks (materialização default
+// acontece no CreateDevice via DeviceProfileDefaults).
+public sealed record UpdateDeviceProfileCommand(
+    Guid Id,
+    IReadOnlyCollection<CheckKind>? Checks = null,
+    bool UseDefault = false) : BaseCommand, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.InventoryManage.ToString()];
+}
+
+public sealed class UpdateDeviceProfileCommandHandler(
+    IDeviceRepository repository,
+    ILogger<UpdateDeviceProfileCommandHandler> logger) : IRequestHandler<UpdateDeviceProfileCommand>
+{
+    public async Task Handle(UpdateDeviceProfileCommand request, CancellationToken cancellationToken)
+    {
+        if (request.UseDefault)
+        {
+            if (request.Checks is { Count: > 0 })
+                throw new ArgumentException(
+                    "Informe os checks ou useDefault, não ambos.", nameof(request));
+        }
+        else if (request.Checks is null or { Count: 0 })
+        {
+            throw new ArgumentException("Informe os checks ou useDefault.", nameof(request));
+        }
+
+        var device = await repository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Device '{request.Id}' não encontrado.");
+
+        if (request.UseDefault)
+            device.ResetProfileToDefault();
+        else
+            device.ApplyCustomProfile(request.Checks!);
+
+        await repository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Device {DeviceId} profile updated (custom={Custom}, checks={Checks}).",
+            device.Id, device.ProfileIsCustom, device.MonitoringChecks.Count);
     }
 }

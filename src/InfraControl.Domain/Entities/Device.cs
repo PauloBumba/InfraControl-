@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Profiles;
 
 namespace InfraControl.Domain.Entities;
 
@@ -9,6 +10,8 @@ namespace InfraControl.Domain.Entities;
 /// Equipamento heterogêneo do inventário (F2-T003) — Location 1:N Device,
 /// Rack 1:N Device. Nome único global (case-insensitive: pré-check no handler +
 /// índice LOWER(name) na migração). Mensagens de validação em pt-BR.
+/// DeviceProfile (F2-T008 / ADR-014): checks por tipo materializados no create,
+/// com override opcional (<see cref="ProfileIsCustom"/>).
 /// </summary>
 public sealed class Device : AggregateRoot
 {
@@ -19,6 +22,7 @@ public sealed class Device : AggregateRoot
     public const int ModelMaxLength = 100;
     public const int VendorMaxLength = 100;
     public const int DescriptionMaxLength = 500;
+    public const int MaxMonitoringChecks = 20;
 
     public Guid LocationId { get; private set; }
     public Guid? RackId { get; private set; }
@@ -31,6 +35,14 @@ public sealed class Device : AggregateRoot
     public string? Vendor { get; private set; }
     public Guid? VlanId { get; private set; }
     public string? Description { get; private set; }
+
+    /// <summary>Checks aplicados a este device (default do tipo ou override).</summary>
+    public IReadOnlyList<CheckKind> MonitoringChecks => _monitoringChecks.AsReadOnly();
+
+    /// <summary>True quando o operador sobrescreveu o default do tipo (ADR-014).</summary>
+    public bool ProfileIsCustom { get; private set; }
+
+    private List<CheckKind> _monitoringChecks = [];
 
     private Device() { }
 
@@ -53,6 +65,8 @@ public sealed class Device : AggregateRoot
         var device = new Device();
         device.LocationId = locationId;
         device.Update(name, type, rackId, ip, mac, serial, model, vendor, vlanId, description);
+        device._monitoringChecks = [.. DeviceProfileDefaults.For(type)];
+        device.ProfileIsCustom = false;
         return device;
     }
 
@@ -105,6 +119,38 @@ public sealed class Device : AggregateRoot
         Vendor = normalizedVendor;
         VlanId = vlanId;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        // ADR-014: tipo pode mudar, mas override explícito do operador é preservado.
+    }
+
+    /// <summary>Override dos checks (F2-T008). Exige ao menos um check sem duplicatas.</summary>
+    public void ApplyCustomProfile(IEnumerable<CheckKind> checks)
+    {
+        var list = checks.Distinct().ToList();
+        if (list.Count == 0)
+            throw new ArgumentException("Informe ao menos um check.", nameof(checks));
+
+        if (list.Count != checks.Count())
+            throw new ArgumentException("Checks duplicados não são permitidos.", nameof(checks));
+
+        if (list.Count > MaxMonitoringChecks)
+            throw new ArgumentException(
+                $"O device pode ter no máximo {MaxMonitoringChecks} checks.", nameof(checks));
+
+        _monitoringChecks = list;
+        ProfileIsCustom = true;
+    }
+
+    /// <summary>Volta aos defaults do <see cref="Type"/> atual (F2-T008).</summary>
+    public void ResetProfileToDefault()
+    {
+        _monitoringChecks = [.. DeviceProfileDefaults.For(Type)];
+        ProfileIsCustom = false;
+    }
+
+    internal void ReplaceMonitoringChecksForEf(IReadOnlyList<CheckKind> checks, bool isCustom)
+    {
+        _monitoringChecks = [.. checks];
+        ProfileIsCustom = isCustom;
     }
 
     private static string? NormalizeOptional(string? value, int maxLength, string label, string paramName)

@@ -1,6 +1,10 @@
+using System.Linq;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace InfraControl.Infrastructure.Persistence.Configurations;
 
@@ -59,6 +63,30 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(x => x.Description)
             .HasColumnName("description")
             .HasMaxLength(Device.DescriptionMaxLength);
+
+        // F2-T008 / ADR-014: checks do device como lista CSV ("Ping,SnmpToner").
+        builder.Property(x => x.ProfileIsCustom)
+            .HasColumnName("profile_is_custom")
+            .IsRequired();
+
+        var checksConverter = new ValueConverter<List<CheckKind>, string>(
+            v => string.Join(",", v.Select(check => check.ToString())),
+            v => string.IsNullOrWhiteSpace(v)
+                ? new List<CheckKind>()
+                : v.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => Enum.Parse<CheckKind>(s.Trim()))
+                    .ToList());
+
+        var checksComparer = new ValueComparer<List<CheckKind>>(
+            (a, b) => a != null && b != null && a.SequenceEqual(b),
+            v => v.Aggregate(0, (hash, check) => HashCode.Combine(hash, check.GetHashCode())),
+            v => v.ToList());
+
+        builder.Property("_monitoringChecks")
+            .HasColumnName("monitoring_checks")
+            .HasMaxLength(500)
+            .HasConversion(checksConverter)
+            .Metadata.SetValueComparer(checksComparer);
 
         // Backstop de integridade: local/rack com devices não pode ser excluído
         // (o bloqueio de UX fica nos handlers Delete → 409).

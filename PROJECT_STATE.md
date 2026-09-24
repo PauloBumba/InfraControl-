@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-09-23
+**Última atualização:** 2026-09-24
 
 ## Regra operacional
 
@@ -108,7 +108,8 @@ Ordem e comentários: seção "Ordem alinhada com o problema real" em `TASKS.md`
 Dados reais de rede (IPs, senhas, MACs) não são versionados no repositório.
 Novas Tasks: `F2-T008 DeviceProfile` (ADR antes) e `F11-T006 Credential Store`.
 F2-T003 Device concluído (2026-09-24) com seed fictício RFC 5737 em `docs/database/seed-fictitious-devices.sql`.
-Próxima Task planejada (quando autorizada): `F2-T008 DeviceProfile` (exige ADR antes).
+F2-T008 DeviceProfile concluído (2026-09-24) com ADR-014 Accepted; defaults por tipo materializados no create; override via `PUT /devices/{id}/profile`.
+Próxima Task planejada (quando autorizada): `F5-T003 Ping` (prioridade: up/down de todos os devices, estilo Zabbix).
 
 ## Próxima fase
 
@@ -139,6 +140,7 @@ Workflow de CI criado para backend e frontend; a execução remota foi bloqueada
 - Após F2-T001 Location: `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 104 unit + 8 arquitetura aprovados, 0 falhas (22 testes novos em LocationTests/LocationCommandTests; slice vertical completo: entidade Location, commands BaseCommand+IAuthorizedRequest com InventoryManage, queries IQuery sem cache com InventoryRead, repositório/porta, LocationConfiguration, LocationsController no envelope, migração AddLocations com índice único case-insensitive `LOWER(name)` via SQL bruto; 5 slices estendidos na regra de arquitetura).
 - Após merge F2-T002 + alinhamento docs + BootstrapAdmin env (2026-09-23): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 132 unit + 8 arquitetura aprovados, 0 falhas. `global.json` usa `rollForward: latestFeature` (SDK local 10.0.111). Superadmin: `BootstrapAdmin__*` no `.env.example` (opt-in, idempotente); permissões por role via `RolePermissions` (F1-T004). (28 testes novos em RackTests/RackCommandTests; slice vertical: entidade Rack, nome único case-insensitive por local, CreateRack valida LocationId → 404 e duplicata → 409, DeleteLocation bloqueado com racks → 409, SearchRacks com filtro por locationId, RackRepository/RackConfiguration FK Restrict, RacksController no envelope, migração AddRacks com índice único (location_id, LOWER(name))).
 - Após F2-T003 Device (2026-09-24): `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 160 unit + 8 arquitetura aprovados, 0 falhas (28 testes novos em DeviceTests/DeviceCommandTests + DeleteRack com devices → 409; slice vertical Device com BaseCommand/IQuery/IAuthorizedRequest, DeviceType (11 tipos), nome único global case-insensitive, validação IP/MAC em pt-BR, FK Restrict location/rack, DevicesController com policies InventoryRead/InventoryManage, migração AddDevices + índice ux_devices_name, seed fictício RFC 5737 em docs/database/seed-fictitious-devices.sql, 5 slices Device adicionados na regra de arquitetura BuildingBlocks).
+- Após F2-T008 DeviceProfile (2026-09-24): ADR-014 Accepted (`docs/adr/ADR-014-DEVICE-PROFILE.md`); `dotnet build --configuration Release` aprovado, 0 erros; `dotnet test --configuration Release`: 177 unit + 8 arquitetura aprovados, 0 falhas (17 testes novos em DeviceProfileTests/DeviceProfileCommandTests; `CheckKind` enum + `DeviceProfileDefaults` por tipo em código; materialização no `Device.Create` com `ProfileIsCustom=false`; `ApplyCustomProfile`/`ResetProfileToDefault` com mensagens pt-BR; `UpdateDeviceProfileCommand` (checks XOR useDefault → 400, unknown id → 404); `PUT /devices/{id}/profile` com parse de `string[]`→`CheckKind`; colunas `profile_is_custom` + `monitoring_checks` (CSV via ValueConverter/ValueComparer) + migração `AddDeviceProfile`; `UpdateDeviceProfileCommand` na lista de slices de arquitetura; devices pré-existentes ficam sem checks até backfill/override conforme ADR).
 
 ## Regra
 

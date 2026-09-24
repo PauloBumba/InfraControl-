@@ -6,6 +6,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CheckKind = InfraControl.Domain.Enums.CheckKind;
 
 namespace InfraControl.Api.Controllers.Inventory;
 
@@ -87,6 +88,33 @@ public sealed class DevicesController(ISender sender) : BaseController
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteDeviceCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>F2-T008: override do perfil de checks ou reset para o default do tipo.</summary>
+    [HttpPut("{id:guid}/profile")]
+    [Authorize(Policy = "InventoryManage")]
+    public async Task<IActionResult> UpdateProfile(
+        Guid id,
+        [FromBody] UpdateDeviceProfileViewModel model,
+        CancellationToken cancellationToken)
+    {
+        CheckKind[]? checks = null;
+        if (model.Checks is { Length: > 0 })
+        {
+            checks = new CheckKind[model.Checks.Length];
+            for (var i = 0; i < model.Checks.Length; i++)
+            {
+                if (!Enum.TryParse(model.Checks[i], ignoreCase: true, out CheckKind parsed))
+                    throw new ArgumentException(
+                        $"Tipo de check inválido: '{model.Checks[i]}'.", nameof(model));
+                checks[i] = parsed;
+            }
+        }
+
+        await sender.Send(
+            new UpdateDeviceProfileCommand(id, checks, model.UseDefault),
+            cancellationToken);
         return NoContent();
     }
 }

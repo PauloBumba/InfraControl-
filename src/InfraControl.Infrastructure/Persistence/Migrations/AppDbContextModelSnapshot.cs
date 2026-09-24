@@ -113,6 +113,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("name");
 
+                    b.Property<bool>("ProfileIsCustom")
+                        .HasColumnType("boolean")
+                        .HasColumnName("profile_is_custom");
+
                     b.Property<Guid?>("RackId")
                         .HasColumnType("uuid")
                         .HasColumnName("rack_id");
@@ -139,6 +143,12 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("VlanId")
                         .HasColumnType("uuid")
                         .HasColumnName("vlan_id");
+
+                    b.Property<string>("_monitoringChecks")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("monitoring_checks");
 
                     b.HasKey("Id");
 

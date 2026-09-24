@@ -53,6 +53,7 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.Devices.Commands.CreateDeviceCommand",
             "InfraControl.Application.Inventory.Devices.Commands.UpdateDeviceCommand",
             "InfraControl.Application.Inventory.Devices.Commands.DeleteDeviceCommand",
+            "InfraControl.Application.Inventory.Devices.Commands.UpdateDeviceProfileCommand",
             "InfraControl.Application.Inventory.Devices.Queries.SearchDevicesQuery",
             "InfraControl.Application.Inventory.Devices.Queries.GetDeviceQuery"
         };
