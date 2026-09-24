@@ -32,6 +32,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<NetworkInterface> NetworkInterfaces => Set<NetworkInterface>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
+    public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();

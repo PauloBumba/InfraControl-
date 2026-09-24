@@ -1,7 +1,9 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -32,7 +34,8 @@ public sealed record GetPrinterSuppliesQuery(Guid Id)
 
 public sealed class GetPrinterSuppliesQueryHandler(
     IDeviceRepository repository,
-    IProviderRegistry<IMonitoringProvider> providers)
+    IProviderRegistry<IMonitoringProvider> providers,
+    IMonitoringResultRepository resultRepository)
     : IRequestHandler<GetPrinterSuppliesQuery, PrinterSuppliesDto>
 {
     private static readonly string[] SupplyKeys =
@@ -64,6 +67,20 @@ public sealed class GetPrinterSuppliesQueryHandler(
             var provider = providers.Resolve(key);
             var result = await provider.CheckAsync(device.Ip, cancellationToken);
 
+            // F5-T002: cada tentativa (toner/drum) vira uma linha no histórico.
+            if (Enum.TryParse<CheckKind>(key, out var kind))
+            {
+                await resultRepository.AddAsync(
+                    MonitoringResult.Create(
+                        device.Id,
+                        kind,
+                        result.Succeeded,
+                        (long)result.Duration.TotalMilliseconds,
+                        result.Error,
+                        result.Values),
+                    cancellationToken);
+            }
+
             int? levelPercent = null;
             string? description = null;
             if (result.Succeeded)
@@ -92,6 +109,8 @@ public sealed class GetPrinterSuppliesQueryHandler(
                 description,
                 result.Succeeded ? null : result.Error ?? "Falha ao consultar o suprimento."));
         }
+
+        await resultRepository.SaveChangesAsync(cancellationToken);
 
         return new PrinterSuppliesDto(device.Id, device.Name, device.Ip, supplies);
     }

@@ -86,10 +86,16 @@ public sealed class PingQueriesTests : IDisposable
     }
 
     private static PingDeviceQueryHandler DeviceHandler(AppDbContext context, IMonitoringProvider provider)
-        => new(new DeviceRepository(context), new FakeRegistry(provider));
+        => new(
+            new DeviceRepository(context),
+            new FakeRegistry(provider),
+            new MonitoringResultRepository(context));
 
     private static GetPingStatusQueryHandler StatusHandler(AppDbContext context, IMonitoringProvider provider)
-        => new(new DeviceRepository(context), new FakeRegistry(provider));
+        => new(
+            new DeviceRepository(context),
+            new FakeRegistry(provider),
+            new MonitoringResultRepository(context));
 
     [Fact]
     public async Task PingDevice_WithUpDevice_ShouldReturnUpWithLatency()

@@ -1,6 +1,7 @@
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Ping;
 using InfraControl.Application.Monitoring.PrinterSupplies;
+using InfraControl.Application.Monitoring.Results;
 using InfraControl.Api.Controllers;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -40,4 +41,14 @@ public sealed class MonitoringController(ISender sender) : BaseController
     [Authorize(Policy = "MonitoringRead")]
     public async Task<IActionResult> GetChecks(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceChecksQuery(id), cancellationToken)));
+
+    /// <summary>Histórico de polls do device, mais recente primeiro (F5-T002).</summary>
+    [HttpGet("results/{id:guid}")]
+    [Authorize(Policy = "MonitoringRead")]
+    public async Task<IActionResult> GetResults(
+        Guid id,
+        [FromQuery] int limit = 50,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(
+            await sender.Send(new GetDeviceResultsQuery(id, limit), cancellationToken)));
 }

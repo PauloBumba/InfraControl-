@@ -103,7 +103,10 @@ public sealed class GetPrinterSuppliesQueryTests : IDisposable
     private static GetPrinterSuppliesQueryHandler Handler(
         AppDbContext context,
         IProviderRegistry<IMonitoringProvider> registry)
-        => new(new DeviceRepository(context), registry);
+        => new(
+            new DeviceRepository(context),
+            registry,
+            new MonitoringResultRepository(context));
 
     private static FakeRegistry DefaultRegistry(int toner = 42, int drum = 70) =>
         new(

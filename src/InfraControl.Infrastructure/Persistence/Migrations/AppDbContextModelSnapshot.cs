@@ -306,6 +306,54 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("monitoring_checks", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("kind");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("boolean")
+                        .HasColumnName("succeeded");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Values")
+                        .HasColumnType("text")
+                        .HasColumnName("values_json");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "CreateDateTime")
+                        .HasDatabaseName("IX_monitoring_results_device_id_CreateDateTime");
+
+                    b.ToTable("monitoring_results", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.NetworkInterface", b =>
                 {
                     b.Property<Guid>("Id")
@@ -793,6 +841,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringResult", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.Device", null)
                         .WithMany()
