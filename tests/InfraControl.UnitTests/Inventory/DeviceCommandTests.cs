@@ -254,6 +254,24 @@ public sealed class DeviceCommandTests : IDisposable
             .WithMessage($"Device '{unknownId}' não encontrado.");
     }
 
+    [Fact]
+    public async Task Delete_DeviceWithInterfaces_ShouldThrowConflictMessage()
+    {
+        // F2-T004: fecha a dependência anotada na F2-T003.
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(locationId, "sw-01", "Switch"), CancellationToken.None);
+        context.NetworkInterfaces.Add(NetworkInterface.Create(created.Id, "eth0"));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteDeviceCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o device: existem interfaces vinculadas.");
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────
 
     [Fact]

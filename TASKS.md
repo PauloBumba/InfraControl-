@@ -100,9 +100,9 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [x] F2-T001 Location
 - [x] F2-T002 Rack
 - [x] F2-T003 Device  <!-- tipos Server/Workstation/Switch/Router/Firewall/AccessPoint/Printer/Camera/Phone/UPS/Other; campos ip/mac/serial/model/vendor/vlanId/locationId/rackId; nome único global case-insensitive; DeleteRack com devices → 409; FK Restrict location/rack; migração AddDevices + índice ux_devices_name; seed fictício docs/database/seed-fictitious-devices.sql (RFC 5737, sem dados reais); policies InventoryRead/InventoryManage; BaseCommand/IQuery/IAuthorizedRequest -->
-- [ ] F2-T004 NetworkInterface
+- [x] F2-T004 NetworkInterface
 - [ ] F2-T005 MAC
-- [ ] F2-T006 IP
+- [ ] F2-T006 IP  <!-- dependência F2-T004: bloquear exclusão de Interface que possua IPs (409) -->
 - [ ] F2-T007 Busca global
 - [ ] F2-T008 DeviceProfile  <!-- dependência F2-T003; ADR; ao criar Device aplica checks do tipo: Printer→ping+SNMP toner/drum; AP→ping+WAN; Switch/Server→ping(+SNMP); Camera→ping; override opcional por device -->
 

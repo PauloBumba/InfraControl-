@@ -22,5 +22,8 @@ public interface IDeviceRepository : IRepository<Device>
     /// <summary>Usado pelo DeleteRack para bloquear exclusão com devices (F2-T003 → 409).</summary>
     Task<bool> HasByRackAsync(Guid rackId, CancellationToken cancellationToken = default);
 
+    /// <summary>Usado pelo DeleteDevice para bloquear exclusão com interfaces (F2-T004 → 409).</summary>
+    Task<bool> HasInterfacesAsync(Guid deviceId, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
