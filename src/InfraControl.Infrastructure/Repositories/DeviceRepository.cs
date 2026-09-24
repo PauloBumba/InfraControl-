@@ -36,6 +36,12 @@ public sealed class DeviceRepository(AppDbContext dbContext) : IDeviceRepository
     public Task<bool> HasInterfacesAsync(Guid deviceId, CancellationToken cancellationToken = default)
         => dbContext.NetworkInterfaces.AnyAsync(nic => nic.DeviceId == deviceId, cancellationToken);
 
+    public async Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default)
+        => await dbContext.Devices
+            .AsNoTracking()
+            .OrderBy(device => device.Name)
+            .ToListAsync(cancellationToken);
+
     public async Task<PagedResult<Device>> SearchAsync(
         Guid? locationId,
         Guid? rackId,

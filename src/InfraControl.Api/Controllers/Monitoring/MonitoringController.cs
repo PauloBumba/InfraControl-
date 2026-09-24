@@ -1,0 +1,28 @@
+using InfraControl.Application.Monitoring.Ping;
+using InfraControl.Api.Controllers;
+using InfraControl.BuildingBlocks.Application.Response;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace InfraControl.Api.Controllers.Monitoring;
+
+/// <summary>
+/// F5-T003: ping sob demanda (up/down estilo Zabbix). Falhas (400/404/401/403)
+/// são embrulhadas pelo GlobalExceptionHandler — o controller só compõe sucesso.
+/// </summary>
+[Route("api/v1/monitoring")]
+public sealed class MonitoringController(ISender sender) : BaseController
+{
+    /// <summary>Status de ping de um device específico.</summary>
+    [HttpGet("ping/{id:guid}")]
+    [Authorize(Policy = "MonitoringRead")]
+    public async Task<IActionResult> PingDevice(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(new PingDeviceQuery(id), cancellationToken)));
+
+    /// <summary>Up/down de todos os devices (com IP), ordenado por nome.</summary>
+    [HttpGet("ping")]
+    [Authorize(Policy = "MonitoringRead")]
+    public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(new GetPingStatusQuery(), cancellationToken)));
+}

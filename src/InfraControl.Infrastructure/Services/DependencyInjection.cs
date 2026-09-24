@@ -14,6 +14,7 @@ using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
+using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Repositories;
 using MassTransit;
 using MediatR;
@@ -119,6 +120,10 @@ public static class DependencyInjection
         services.AddScoped<IResilienceExecutor, ResilienceExecutor>();
         services.AddScoped<IFeatureFlagProvider, FeatureFlagProvider>();
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
+
+        // Monitoring (F5-T003): ping ICMP sob demanda
+        services.AddScoped<IIcmpClient, SystemNetIcmpClient>();
+        services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
 
         // Outbox
         services.AddScoped<IOutboxRepository, OutboxRepository>();

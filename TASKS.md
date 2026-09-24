@@ -132,7 +132,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 - [ ] F5-T001 MonitoringCheck  <!-- instância por device; nasce do DeviceProfile (F2-T008) -->
 - [ ] F5-T002 MonitoringResult  <!-- histórico de polls -->
-- [ ] F5-T003 Ping  <!-- prioridade: up/down de todos os devices (estilo Zabbix) -->
+- [x] F5-T003 Ping  <!-- up/down sob demanda estilo Zabbix; PingMonitoringProvider (chave "Ping", timeout 2s) com seam IIcmpClient/SystemNetIcmpClient; PingDeviceQuery + GetPingStatusQuery (MonitoringRead, IQuery+IAuthorizedRequest); device sem IP → Up=null "Device sem IP cadastrado."; GET /monitoring/ping/{id} + GET /monitoring/ping; GetAllOrderedByNameAsync; DI IIcmpClient+IMonitoringProvider; 15 testes (provider falso/ICMP falso + queries Sqlite); sem persistência (F5-T002) e sem worker (F5-T007) -->
 - [ ] F5-T004 SNMP  <!-- prioridade: Printer MIB — toner e drum/cilindro %; depois sysUpTime/CPU -->
 - [ ] F5-T005 HTTP/HTTPS
 - [ ] F5-T006 TCP  <!-- opcional: câmera porta 37777 -->
