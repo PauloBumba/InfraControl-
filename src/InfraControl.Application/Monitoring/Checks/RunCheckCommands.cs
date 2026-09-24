@@ -1,0 +1,153 @@
+using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Authorization;
+using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
+using MediatR;
+using Microsoft.Extensions.Logging;
+
+namespace InfraControl.Application.Monitoring.Checks;
+
+// MON-006/007 (docs/21): a execução de check vive no command — ADR-006
+// (CQRS) determina que queries apenas leem. Erros nascem aqui/domínio em
+// pt-BR (ArgumentException → 400, KeyNotFoundException → 404).
+
+/// <summary>Resultado da execução de um check (MON-007).</summary>
+public sealed record CheckRunResultDto(
+    Guid DeviceId,
+    string Name,
+    string? Ip,
+    string Check,
+    bool Executed,
+    bool Succeeded,
+    long? DurationMs,
+    string? Error,
+    IReadOnlyDictionary<string, string>? Values);
+
+/// <summary>Executa um check num device agora (MON-006).</summary>
+public sealed record RunCheckCommand(Guid DeviceId, string Check)
+    : BaseCommand<CheckRunResultDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.MonitoringRead.ToString()];
+}
+
+/// <summary>Executa um check em todos os devices (estilo Zabbix "check now").</summary>
+public sealed record RunAllChecksCommand(string Check)
+    : BaseCommand<IReadOnlyList<CheckRunResultDto>>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.MonitoringRead.ToString()];
+}
+
+public sealed class RunCheckCommandHandler(
+    IDeviceRepository deviceRepository,
+    IProviderRegistry<IMonitoringProvider> providers,
+    IMonitoringResultRepository resultRepository,
+    ILogger<RunCheckCommandHandler> logger)
+    : IRequestHandler<RunCheckCommand, CheckRunResultDto>
+{
+    public async Task<CheckRunResultDto> Handle(
+        RunCheckCommand request, CancellationToken cancellationToken)
+    {
+        var device = await deviceRepository.GetByIdAsync(request.DeviceId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Device '{request.DeviceId}' não encontrado.");
+
+        var kind = ParseCheck(request.Check);
+        return await ExecuteAsync(
+            device, kind, providers, resultRepository, logger, cancellationToken);
+    }
+
+    internal static CheckKind ParseCheck(string check)
+    {
+        if (string.IsNullOrWhiteSpace(check)
+            || !Enum.TryParse(check.Trim(), ignoreCase: true, out CheckKind kind))
+            throw new ArgumentException($"Check inválido: '{check}'.", nameof(check));
+
+        return kind;
+    }
+
+    internal static async Task<CheckRunResultDto> ExecuteAsync(
+        Domain.Entities.Device device,
+        CheckKind kind,
+        IProviderRegistry<IMonitoringProvider> providers,
+        IMonitoringResultRepository resultRepository,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var check = kind.ToString();
+
+        if (kind is CheckKind.SnmpToner or CheckKind.SnmpDrum
+            && device.Type != DeviceType.Printer)
+            throw new ArgumentException(
+                $"Check '{check}' só se aplica a devices do tipo Printer.",
+                nameof(check));
+
+        if (string.IsNullOrWhiteSpace(device.Ip))
+        {
+            // Sem IP não há tentativa — não grava histórico (F5-T002).
+            logger.LogWarning(
+                "Check {Check} pulado em {DeviceId} ({Name}): device sem IP.",
+                check, device.Id, device.Name);
+
+            return new CheckRunResultDto(
+                device.Id, device.Name, device.Ip, check,
+                Executed: false, Succeeded: false, DurationMs: null,
+                Error: "Device sem IP cadastrado.", Values: null);
+        }
+
+        IMonitoringProvider provider;
+        try
+        {
+            provider = providers.Resolve(check);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new ArgumentException($"Check não suportado: '{check}'.", nameof(check));
+        }
+
+        var result = await provider.CheckAsync(device.Ip, cancellationToken);
+        var error = result.Succeeded
+            ? null
+            : result.Error ?? $"Check {check} falhou.";
+        var durationMs = (long)result.Duration.TotalMilliseconds;
+
+        await resultRepository.AddAsync(
+            MonitoringResult.Create(
+                device.Id, kind, result.Succeeded, durationMs, error, result.Values),
+            cancellationToken);
+        await resultRepository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Check {Check} em {DeviceId} ({Name}, {Ip}): {Succeeded} em {DurationMs}ms.",
+            check, device.Id, device.Name, device.Ip, result.Succeeded, durationMs);
+
+        return new CheckRunResultDto(
+            device.Id, device.Name, device.Ip, check,
+            Executed: true, result.Succeeded, durationMs, error, result.Values);
+    }
+}
+
+public sealed class RunAllChecksCommandHandler(
+    IDeviceRepository deviceRepository,
+    IProviderRegistry<IMonitoringProvider> providers,
+    IMonitoringResultRepository resultRepository,
+    ILogger<RunAllChecksCommandHandler> logger)
+    : IRequestHandler<RunAllChecksCommand, IReadOnlyList<CheckRunResultDto>>
+{
+    public async Task<IReadOnlyList<CheckRunResultDto>> Handle(
+        RunAllChecksCommand request, CancellationToken cancellationToken)
+    {
+        var kind = RunCheckCommandHandler.ParseCheck(request.Check);
+        var devices = await deviceRepository.GetAllOrderedByNameAsync(cancellationToken);
+
+        var results = new List<CheckRunResultDto>(devices.Count);
+        foreach (var device in devices)
+            results.Add(await RunCheckCommandHandler.ExecuteAsync(
+                device, kind, providers, resultRepository, logger, cancellationToken));
+
+        return results;
+    }
+}

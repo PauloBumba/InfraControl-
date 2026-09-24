@@ -1,6 +1,4 @@
 using InfraControl.Application.Monitoring.Checks;
-using InfraControl.Application.Monitoring.Ping;
-using InfraControl.Application.Monitoring.PrinterSupplies;
 using InfraControl.Application.Monitoring.Results;
 using InfraControl.Api.Controllers;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -11,30 +9,32 @@ using Microsoft.AspNetCore.Mvc;
 namespace InfraControl.Api.Controllers.Monitoring;
 
 /// <summary>
-/// F5-T003: ping sob demanda (up/down estilo Zabbix). Falhas (400/404/401/403)
-/// são embrulhadas pelo GlobalExceptionHandler — o controller só compõe sucesso.
+/// Monitoramento: execução via RunCheckCommand (docs/21 MON-006/007 —
+/// ADR-006: queries apenas leem; leitura de perfil/histórico via GET
+/// checks/results). Falhas (400/404/401/403) são embrulhadas pelo
+/// GlobalExceptionHandler — o controller só compõe sucesso.
 /// </summary>
 [Route("api/v1/monitoring")]
 public sealed class MonitoringController(ISender sender) : BaseController
 {
-    /// <summary>Status de ping de um device específico.</summary>
-    [HttpGet("ping/{id:guid}")]
+    /// <summary>Executa um check num device agora e grava o resultado (MON-006).</summary>
+    [HttpPost("run-check/{id:guid}")]
     [Authorize(Policy = "MonitoringRead")]
-    public async Task<IActionResult> PingDevice(Guid id, CancellationToken cancellationToken)
-        => Ok(ApiResponse.Ok(await sender.Send(new PingDeviceQuery(id), cancellationToken)));
-
-    /// <summary>Up/down de todos os devices (com IP), ordenado por nome.</summary>
-    [HttpGet("ping")]
-    [Authorize(Policy = "MonitoringRead")]
-    public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
-        => Ok(ApiResponse.Ok(await sender.Send(new GetPingStatusQuery(), cancellationToken)));
-
-    /// <summary>Toner e drum de uma impressora via SNMP (F5-T004).</summary>
-    [HttpGet("printers/{id:guid}/supplies")]
-    [Authorize(Policy = "MonitoringRead")]
-    public async Task<IActionResult> GetPrinterSupplies(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> RunCheck(
+        Guid id,
+        [FromQuery] string check,
+        CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(
-            await sender.Send(new GetPrinterSuppliesQuery(id), cancellationToken)));
+            await sender.Send(new RunCheckCommand(id, check), cancellationToken)));
+
+    /// <summary>Executa um check em todos os devices (estilo Zabbix "check now").</summary>
+    [HttpPost("run-check")]
+    [Authorize(Policy = "MonitoringRead")]
+    public async Task<IActionResult> RunAllChecks(
+        [FromQuery] string check,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(
+            await sender.Send(new RunAllChecksCommand(check), cancellationToken)));
 
     /// <summary>Checks monitoráveis de um device, vindos do perfil (F5-T001).</summary>
     [HttpGet("checks/{id:guid}")]
