@@ -1,3 +1,4 @@
+using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Ping;
 using InfraControl.Application.Monitoring.PrinterSupplies;
 using InfraControl.Api.Controllers;
@@ -33,4 +34,10 @@ public sealed class MonitoringController(ISender sender) : BaseController
     public async Task<IActionResult> GetPrinterSupplies(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(
             await sender.Send(new GetPrinterSuppliesQuery(id), cancellationToken)));
+
+    /// <summary>Checks monitoráveis de um device, vindos do perfil (F5-T001).</summary>
+    [HttpGet("checks/{id:guid}")]
+    [Authorize(Policy = "MonitoringRead")]
+    public async Task<IActionResult> GetChecks(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceChecksQuery(id), cancellationToken)));
 }

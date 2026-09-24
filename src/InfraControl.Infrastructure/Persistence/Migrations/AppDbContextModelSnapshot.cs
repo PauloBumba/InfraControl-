@@ -270,6 +270,42 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("locations", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("IX_monitoring_checks_device_id_kind");
+
+                    b.ToTable("monitoring_checks", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.NetworkInterface", b =>
                 {
                     b.Property<Guid>("Id")
@@ -752,6 +788,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Invitation", null)
                         .WithMany("RoleAssignments")
                         .HasForeignKey("InvitationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

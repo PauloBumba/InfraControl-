@@ -1,6 +1,7 @@
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
+using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
@@ -35,6 +36,7 @@ public sealed class CreateDeviceCommandHandler(
     IDeviceRepository repository,
     ILocationRepository locationRepository,
     IRackRepository rackRepository,
+    IMonitoringCheckRepository checkRepository,
     ILogger<CreateDeviceCommandHandler> logger) : IRequestHandler<CreateDeviceCommand, DeviceDto>
 {
     public async Task<DeviceDto> Handle(CreateDeviceCommand request, CancellationToken cancellationToken)
@@ -71,6 +73,12 @@ public sealed class CreateDeviceCommandHandler(
             throw new InvalidOperationException($"Já existe um device com o nome '{device.Name}'.");
 
         await repository.AddAsync(device, cancellationToken);
+
+        // F5-T001: materializa as instâncias MonitoringCheck do perfil
+        // (ADR-014 §4) — mesmo SaveChanges do device.
+        await checkRepository.SynchronizeFromProfileAsync(
+            device.Id, device.MonitoringChecks, cancellationToken);
+
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -209,6 +217,7 @@ public sealed record UpdateDeviceProfileCommand(
 
 public sealed class UpdateDeviceProfileCommandHandler(
     IDeviceRepository repository,
+    IMonitoringCheckRepository checkRepository,
     ILogger<UpdateDeviceProfileCommandHandler> logger) : IRequestHandler<UpdateDeviceProfileCommand>
 {
     public async Task Handle(UpdateDeviceProfileCommand request, CancellationToken cancellationToken)
@@ -231,6 +240,11 @@ public sealed class UpdateDeviceProfileCommandHandler(
             device.ResetProfileToDefault();
         else
             device.ApplyCustomProfile(request.Checks!);
+
+        // F5-T001: espelha a lista nova nas linhas MonitoringCheck (preserva
+        // as existentes, adiciona as novas, remove as fora do perfil).
+        await checkRepository.SynchronizeFromProfileAsync(
+            device.Id, device.MonitoringChecks, cancellationToken);
 
         await repository.SaveChangesAsync(cancellationToken);
 

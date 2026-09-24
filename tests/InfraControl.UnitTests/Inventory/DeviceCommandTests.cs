@@ -67,6 +67,7 @@ public sealed class DeviceCommandTests : IDisposable
             new DeviceRepository(context),
             new LocationRepository(context),
             new RackRepository(context),
+            new MonitoringCheckRepository(context),
             NullLogger<CreateDeviceCommandHandler>.Instance);
 
     private static UpdateDeviceCommandHandler UpdateHandler(AppDbContext context)

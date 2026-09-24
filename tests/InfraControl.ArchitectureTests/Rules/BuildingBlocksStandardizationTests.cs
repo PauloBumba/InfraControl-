@@ -63,7 +63,8 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.NetworkInterfaces.Queries.GetNetworkInterfaceQuery",
             "InfraControl.Application.Monitoring.Ping.PingDeviceQuery",
             "InfraControl.Application.Monitoring.Ping.GetPingStatusQuery",
-            "InfraControl.Application.Monitoring.PrinterSupplies.GetPrinterSuppliesQuery"
+            "InfraControl.Application.Monitoring.PrinterSupplies.GetPrinterSuppliesQuery",
+            "InfraControl.Application.Monitoring.Checks.GetDeviceChecksQuery"
         };
 
         foreach (var typeName in adminSlices)

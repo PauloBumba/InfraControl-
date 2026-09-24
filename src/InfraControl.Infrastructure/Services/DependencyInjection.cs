@@ -9,6 +9,7 @@ using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
+using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
@@ -147,6 +148,7 @@ public static class DependencyInjection
         services.AddScoped<IRackRepository, RackRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<INetworkInterfaceRepository, NetworkInterfaceRepository>();
+        services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
 
         return services;
     }

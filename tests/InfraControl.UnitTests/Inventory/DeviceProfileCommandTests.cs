@@ -48,7 +48,10 @@ public sealed class DeviceProfileCommandTests : IDisposable
     }
 
     private static UpdateDeviceProfileCommandHandler Handler(AppDbContext context)
-        => new(new DeviceRepository(context), NullLogger<UpdateDeviceProfileCommandHandler>.Instance);
+        => new(
+            new DeviceRepository(context),
+            new MonitoringCheckRepository(context),
+            NullLogger<UpdateDeviceProfileCommandHandler>.Instance);
 
     [Fact]
     public async Task Update_WithChecks_ShouldApplyCustomProfile()
