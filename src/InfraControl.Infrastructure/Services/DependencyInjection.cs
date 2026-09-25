@@ -78,13 +78,20 @@ public static class DependencyInjection
         services.AddScoped<IConnectionFactory>(_ =>
             new ConnectionFactory(connectionString));
 
-        // Redis
-        services.AddSingleton<IConnectionMultiplexer>(_ =>
-            ConnectionMultiplexer.Connect(redisConnectionString));
+        // Redis — AbortOnConnectFail=false: a aplicação sobe mesmo com o Redis
+        // fora e degrada via HybridCacheService (ADR-010).
+        var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
+        redisOptions.AbortOnConnectFail = false;
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
 
+        // Cache híbrido (ADR-010): Redis primário + fallback em memória.
+        // IIdempotencyStore permanece só no Redis — operação crítica,
+        // fail-closed (docs/08: "política mais restritiva").
+        services.AddSingleton<MemoryFallbackStore>();
         services.AddScoped<RedisCacheService>();
-        services.AddScoped<ICacheService>(provider =>
+        services.AddScoped<IRedisCacheStore>(provider =>
             provider.GetRequiredService<RedisCacheService>());
+        services.AddScoped<ICacheService, HybridCacheService>();
         services.AddScoped<IIdempotencyStore>(provider =>
             provider.GetRequiredService<RedisCacheService>());
         services.AddScoped<IRateLimiter, RedisRateLimiter>();

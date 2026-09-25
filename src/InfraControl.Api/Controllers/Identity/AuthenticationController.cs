@@ -1,6 +1,8 @@
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Api.Controllers;
+using InfraControl.Api.RateLimiting;
 using InfraControl.Api.ViewModels.Identity;
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
@@ -26,6 +28,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     }
 
     [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.Login)]
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
     {
@@ -36,6 +39,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     }
 
     [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.Login)]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(RefreshSessionViewModel model, CancellationToken cancellationToken)
     {
@@ -58,6 +62,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     }
 
     [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.PasswordReset)]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, CancellationToken cancellationToken)
     {
@@ -67,6 +72,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     }
 
     [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.PasswordReset)]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model, CancellationToken cancellationToken)
     {

@@ -1,6 +1,7 @@
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Api.Middleware;
+using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
@@ -10,6 +11,7 @@ using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -72,6 +74,12 @@ builder.Services.AddAuthentication(options =>
 // no pipeline MediatR (AuthorizationBehavior), fora do HTTP.
 builder.Services.AddAuthorization();
 
+// ── Rate limiting HTTP (ADR-011 / docs/08) ───────────────────────────────
+// Camada HTTP do ASP.NET Core Rate Limiter com estado distribuído no Redis
+// (GlobalLimiter) e janela em memória como fallback. A camada MediatR
+// (RateLimitingBehavior) continua como segunda barreira.
+builder.Services.AddHttpRateLimiting(builder.Configuration);
+
 // ── OpenAPI ──────────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
 
@@ -128,6 +136,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 // Health Checks
 app.MapHealthChecks("/health", new HealthCheckOptions
