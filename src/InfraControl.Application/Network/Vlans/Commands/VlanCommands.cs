@@ -1,3 +1,4 @@
+using InfraControl.Application.Network.SwitchPortVlans.Ports;
 using InfraControl.Application.Network.Vlans.Ports;
 using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -88,6 +89,7 @@ public sealed record DeleteVlanCommand(Guid Id) : BaseCommand, IAuthorizedReques
 
 public sealed class DeleteVlanCommandHandler(
     IVlanRepository repository,
+    ISwitchPortVlanRepository switchPortVlanRepository,
     ILogger<DeleteVlanCommandHandler> logger) : IRequestHandler<DeleteVlanCommand>
 {
     public async Task Handle(DeleteVlanCommand request, CancellationToken cancellationToken)
@@ -95,11 +97,15 @@ public sealed class DeleteVlanCommandHandler(
         var vlan = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"VLAN '{request.Id}' não encontrada.");
 
+        // F3-T004: VLANs com portas vinculadas não podem ser excluídas.
+        if (await switchPortVlanRepository.HasPortLinksAsync(vlan.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir a VLAN: existem portas vinculadas.");
+
         repository.Remove(vlan);
         await repository.SaveChangesAsync(cancellationToken);
 
-        // Sem bloqueio de dependentes ainda: a N:N com portas (SwitchPortVlan)
-        // é F3-T004; devices.vlan_id (Guid?) existe sem FK até hoje.
+        // Sem outros dependentes: a N:N com portas é o vínculo (F3-T004);
+        // devices.vlan_id (Guid?) existe sem FK até hoje.
         logger.LogInformation("Vlan {VlanId} deleted ({Name}, {VlanNumber}).",
             vlan.Id, vlan.Name, vlan.VlanNumber);
     }

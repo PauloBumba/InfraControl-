@@ -31,6 +31,17 @@ public sealed class VlanRepository(AppDbContext dbContext) : IVlanRepository
             .FirstOrDefaultAsync(vlan => vlan.Name.ToLower() == normalized, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Vlan>> GetByIdsAsync(
+        IEnumerable<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToArray();
+        return await dbContext.Vlans
+            .AsNoTracking()
+            .Where(vlan => idList.Contains(vlan.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<PagedResult<Vlan>> SearchAsync(
         string? term,
         int page,

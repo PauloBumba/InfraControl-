@@ -11,6 +11,9 @@ public interface IVlanRepository : IRepository<Vlan>
     /// <summary>Busca por nome, sem distinção de maiúsculas.</summary>
     Task<Vlan?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
 
+    /// <summary>Carrega várias VLANs de uma vez (listas da junção F3-T004).</summary>
+    Task<IReadOnlyList<Vlan>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
+
     Task<PagedResult<Vlan>> SearchAsync(
         string? term,
         int page,

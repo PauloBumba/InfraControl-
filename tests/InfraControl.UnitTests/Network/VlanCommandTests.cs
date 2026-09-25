@@ -40,7 +40,10 @@ public sealed class VlanCommandTests : IDisposable
         => new(new VlanRepository(context), NullLogger<UpdateVlanCommandHandler>.Instance);
 
     private static DeleteVlanCommandHandler DeleteHandler(AppDbContext context)
-        => new(new VlanRepository(context), NullLogger<DeleteVlanCommandHandler>.Instance);
+        => new(
+            new VlanRepository(context),
+            new SwitchPortVlanRepository(context),
+            NullLogger<DeleteVlanCommandHandler>.Instance);
 
     private static SearchVlansQueryHandler SearchHandler(AppDbContext context)
         => new(new VlanRepository(context));

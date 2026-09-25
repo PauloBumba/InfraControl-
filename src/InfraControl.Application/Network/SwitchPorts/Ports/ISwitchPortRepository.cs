@@ -8,6 +8,9 @@ public interface ISwitchPortRepository : IRepository<SwitchPort>
     /// <summary>Busca porta por nome DENTRO de um switch, sem distinção de maiúsculas.</summary>
     Task<SwitchPort?> GetByNameAsync(Guid deviceId, string name, CancellationToken cancellationToken = default);
 
+    /// <summary>Carrega várias portas de uma vez (listas da junção F3-T004).</summary>
+    Task<IReadOnlyList<SwitchPort>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
+
     Task<PagedResult<SwitchPort>> SearchAsync(
         Guid deviceId,
         string? term,

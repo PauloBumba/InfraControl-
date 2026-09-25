@@ -29,6 +29,17 @@ public sealed class SwitchPortRepository(AppDbContext dbContext) : ISwitchPortRe
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SwitchPort>> GetByIdsAsync(
+        IEnumerable<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToArray();
+        return await dbContext.SwitchPorts
+            .AsNoTracking()
+            .Where(port => idList.Contains(port.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<PagedResult<SwitchPort>> SearchAsync(
         Guid deviceId,
         string? term,

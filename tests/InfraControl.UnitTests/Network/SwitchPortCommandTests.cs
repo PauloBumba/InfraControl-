@@ -75,7 +75,10 @@ public sealed class SwitchPortCommandTests : IDisposable
         => new(new SwitchPortRepository(context), NullLogger<UpdateSwitchPortCommandHandler>.Instance);
 
     private static DeleteSwitchPortCommandHandler DeleteHandler(AppDbContext context)
-        => new(new SwitchPortRepository(context), NullLogger<DeleteSwitchPortCommandHandler>.Instance);
+        => new(
+            new SwitchPortRepository(context),
+            new SwitchPortVlanRepository(context),
+            NullLogger<DeleteSwitchPortCommandHandler>.Instance);
 
     private static SearchSwitchPortsQueryHandler SearchHandler(AppDbContext context)
         => new(

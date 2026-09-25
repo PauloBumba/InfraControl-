@@ -573,6 +573,37 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("switch_ports", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPortVlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SwitchPortId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("switch_port_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vlan_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VlanId");
+
+                    b.HasIndex("SwitchPortId", "VlanId")
+                        .IsUnique();
+
+                    b.ToTable("switch_port_vlans", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -980,6 +1011,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Device", null)
                         .WithMany()
                         .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPortVlan", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.SwitchPort", null)
+                        .WithMany()
+                        .HasForeignKey("SwitchPortId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Vlan", null)
+                        .WithMany()
+                        .HasForeignKey("VlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -35,6 +35,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<IpAddress> IpAddresses => Set<IpAddress>();
     public DbSet<SwitchPort> SwitchPorts => Set<SwitchPort>();
     public DbSet<Vlan> Vlans => Set<Vlan>();
+    public DbSet<SwitchPortVlan> SwitchPortVlans => Set<SwitchPortVlan>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();

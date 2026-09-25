@@ -1,4 +1,5 @@
 using InfraControl.Application.Network.SwitchPorts.Ports;
+using InfraControl.Application.Network.SwitchPortVlans.Ports;
 using InfraControl.Application.Network.Switches.Queries;
 using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -87,12 +88,17 @@ public sealed record DeleteSwitchPortCommand(Guid Id) : BaseCommand, IAuthorized
 
 public sealed class DeleteSwitchPortCommandHandler(
     ISwitchPortRepository repository,
+    ISwitchPortVlanRepository switchPortVlanRepository,
     ILogger<DeleteSwitchPortCommandHandler> logger) : IRequestHandler<DeleteSwitchPortCommand>
 {
     public async Task Handle(DeleteSwitchPortCommand request, CancellationToken cancellationToken)
     {
         var port = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Porta '{request.Id}' não encontrado.");
+
+        // F3-T004: portas com VLANs vinculadas não podem ser excluídas.
+        if (await switchPortVlanRepository.HasVlanLinksAsync(port.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir a porta: existem VLANs vinculadas.");
 
         repository.Remove(port);
         await repository.SaveChangesAsync(cancellationToken);
