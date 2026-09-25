@@ -140,11 +140,15 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
 
-        // Remote access (F11-T002, ADR-013): SSH sem terminal interativo.
-        // Credencial provisória via config/env — F11-T006 troca por Credential Store.
+        // Remote access (F11-T002/T003, ADR-013): SSH sem terminal interativo
+        // + probe RDP TCP/X.224. Credencial SSH provisória via config/env —
+        // F11-T006 troca por Credential Store; RDP não usa credencial.
         services.Configure<RemoteSshOptions>(
             configuration.GetSection(RemoteSshOptions.SectionName));
+        services.Configure<RemoteRdpOptions>(
+            configuration.GetSection(RemoteRdpOptions.SectionName));
         services.AddScoped<IRemoteProvider, SshRemoteProvider>();
+        services.AddScoped<IRemoteProvider, RdpRemoteProvider>();
         services.AddScoped<IRemoteCredentialSource, ConfigurationRemoteCredentialSource>();
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 

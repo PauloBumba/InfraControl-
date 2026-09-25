@@ -10,8 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace InfraControl.IntegrationTests.RemoteAccess;
 
 /// <summary>
-/// F11-T002 / ADR-013: ciclo de vida OpenSsh → CloseSsh no pipeline MediatR
-/// real (autorização RemoteSshConnect + auditoria + transação). Provider SSH
+/// F11-T002/T003 / ADR-013: ciclo de vida OpenSsh → CloseRemote no pipeline
+/// MediatR real (autorização RemoteSshConnect + auditoria + transação). Provider SSH
 /// é falso — nenhum teste abre conexão de rede.
 /// </summary>
 public sealed class SshSessionIntegrationTests : BaseIntegrationTest
@@ -31,7 +31,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
         opened.Status.Should().Be("Active");
         opened.UserId.Should().Be(CurrentUser.UserId!.Value);
 
-        var closed = await mediator.Send(new CloseSshSessionCommand(device.Id, opened.Id));
+        var closed = await mediator.Send(new CloseRemoteSessionCommand(device.Id, opened.Id));
         closed.Status.Should().Be("Closed");
         closed.EndedAt.Should().NotBeNull();
 
@@ -57,7 +57,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task CloseSsh_WithoutRemoteSshConnect_ShouldThrowUnauthorizedPtBr()
+    public async Task CloseRemote_WithoutRemoteSshConnect_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -66,7 +66,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(
-            new CloseSshSessionCommand(device.Id, Guid.NewGuid()));
+            new CloseRemoteSessionCommand(device.Id, Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("*RemoteSshConnect*");

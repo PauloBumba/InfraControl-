@@ -67,7 +67,8 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Monitoring.Checks.RunAllChecksCommand",
             "InfraControl.Application.RemoteAccess.Sessions.GetDeviceSessionsQuery",
             "InfraControl.Application.RemoteAccess.Sessions.OpenSshSessionCommand",
-            "InfraControl.Application.RemoteAccess.Sessions.CloseSshSessionCommand"
+            "InfraControl.Application.RemoteAccess.Sessions.OpenRdpSessionCommand",
+            "InfraControl.Application.RemoteAccess.Sessions.CloseRemoteSessionCommand"
         };
 
         foreach (var typeName in adminSlices)

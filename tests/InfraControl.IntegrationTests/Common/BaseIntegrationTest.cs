@@ -76,13 +76,19 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IIcmpClient, FakeIcmpClient>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
 
-        // Remote access (F11-T002): provider SSH falso (sem rede) + credencial
-        // provisória de teste + registry real em memória
+        // Remote access (F11-T002/T003): providers SSH/RDP falsos (sem rede)
+        // + credencial provisória de teste + registry real em memória
         services.AddScoped<IRemoteProvider, FakeSshRemoteProvider>();
+        services.AddScoped<IRemoteProvider, FakeRdpRemoteProvider>();
         services.Configure<RemoteSshOptions>(options =>
         {
             options.Username = "it-ssh";
             options.Password = "S3nh@Teste!123";
+        });
+        services.Configure<RemoteRdpOptions>(options =>
+        {
+            options.Port = 3389;
+            options.TimeoutSeconds = 5;
         });
         services.AddScoped<IRemoteCredentialSource, ConfigurationRemoteCredentialSource>();
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();

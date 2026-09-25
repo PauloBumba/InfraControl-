@@ -60,10 +60,10 @@ Coletar traces, metrics e logs.
 
 ### F11-T001 — RemoteSession (fundação)
 
-- Fluxo parcial (F11-T002/T003 vão completar):
+- Fluxo (SSH F11-T002 e RDP F11-T003 entregues):
 
 ```text
-React → ASP.NET Core → (Provider SSH/RDP — F11-T002/T003) → RemoteSession
+React → ASP.NET Core → Provider SSH (F11-T002) / RDP (F11-T003) → RemoteSession
                                                     └→ GET histórico (F11-T001)
 ```
 
@@ -85,7 +85,9 @@ React → ASP.NET Core → (Provider SSH/RDP — F11-T002/T003) → RemoteSessio
 React → POST open → OpenSshSessionCommand → IRemoteCredentialSource
                                        → IRemoteProvider.ConnectAsync (SSH.NET)
                                        → RemoteSession (Active) + conexão registrada
-        DELETE close → CloseSshSessionCommand → session.Close() + dispose conexão
+        DELETE close → CloseRemoteSessionCommand (renomeado em F11-T003,
+                       era CloseSshSessionCommand — é protocolo-agnóstico)
+                       → session.Close() + dispose conexão
 ```
 
 - `IRemoteProvider`/`IRemoteCredentialSource`/`IRemoteConnectionRegistry`
@@ -102,3 +104,36 @@ React → POST open → OpenSshSessionCommand → IRemoteCredentialSource
 - Falha de conexão grava `RemoteSession` `Failed` com `FailureReason`
   (≤ 500, senha mascarada) e devolve 409 — tentativa fica auditável.
 - Nenhum teste abre rede: integration usa `FakeSshRemoteProvider`.
+
+### F11-T003 — RDP Provider (probe TCP/X.224)
+
+- Semântica decidida pelo usuário: **probe de transporte** — TCP até a
+  porta RDP + negociação X.224 (CR/CC + RDP Negotiation, MS-RDPBCGR) para
+  confirmar que o endpoint fala RDP. **Sem autenticação** (CredSSP/NLA fica
+  para task futura); o socket fica registrado na sessão até o Close.
+- Fluxo:
+
+```text
+React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
+                                      → IRemoteProvider.ConnectAsync (X.224 probe)
+                                      → RemoteSession (Active) + socket registrado
+        DELETE .../remote/sessions/{id} → CloseRemoteSessionCommand
+                                      → session.Close() + dispose socket
+```
+
+- `Permission.RemoteRdpConnect` (= `device.rdp.connect`): Admin herda;
+  User/Viewer não recebem até a matriz de F11-T004.
+- `OpenRdpSessionCommand` **não consulta** `IRemoteCredentialSource` (probe
+  não usa credencial); `CloseRemoteSessionCommand` substitui
+  `CloseSshSessionCommand` — era protocolo-agnóstico com um único DELETE;
+  exige `RemoteSshConnect` + `RemoteRdpConnect` (Admin-only hoje, matriz em
+  F11-T004).
+- `RdpRemoteProvider`: falha vira `RemoteConnectResult` pt-BR sem exceção
+  vazando (porta fechada/timeout/tempo esgotado, Neg Failure mapeado —
+  ex.: código 4 → "servidor exige autenticação híbrida (NLA)"), resposta
+  que não é TPKT → "Endpoint não respondeu como RDP". Config
+  `RemoteAccess:Rdp` (`Port`=3389, `TimeoutSeconds`) — sem segredos.
+- Falha do probe grava `RemoteSession` `Failed` com `FailureReason`
+  (≤ 500) e devolve 409 — tentativa fica auditável (igual a F11-T002).
+- Nenhum teste abre rede: unit usa `FakeRdpServer` (`TcpListener` em
+  loopback) e integration usa `FakeRdpRemoteProvider`.

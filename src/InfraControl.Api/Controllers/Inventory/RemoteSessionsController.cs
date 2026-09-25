@@ -39,13 +39,30 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
             ApiResponse.Ok(await sender.Send(
                 new OpenSshSessionCommand(deviceId), cancellationToken)));
 
-    /// <summary>Encerra a sessão SSH ativa e descarta a conexão (F11-T002).</summary>
+    /// <summary>
+    /// Abre uma sessão RDP no device via probe TCP/X.224 (F11-T003):
+    /// confirma que o endpoint fala RDP, sem autenticação.
+    /// </summary>
+    [HttpPost("rdp")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> OpenRdpSession(
+        Guid deviceId,
+        CancellationToken cancellationToken = default)
+        => StatusCode(
+            StatusCodes.Status201Created,
+            ApiResponse.Ok(await sender.Send(
+                new OpenRdpSessionCommand(deviceId), cancellationToken)));
+
+    /// <summary>
+    /// Encerra a sessão de acesso remoto (SSH/RDP) e descarta a conexão
+    /// (F11-T003: comando protocolo-agnóstico).
+    /// </summary>
     [HttpDelete("{sessionId:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CloseSshSession(
+    public async Task<IActionResult> CloseRemoteSession(
         Guid deviceId,
         Guid sessionId,
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new CloseSshSessionCommand(deviceId, sessionId), cancellationToken)));
+            new CloseRemoteSessionCommand(deviceId, sessionId), cancellationToken)));
 }

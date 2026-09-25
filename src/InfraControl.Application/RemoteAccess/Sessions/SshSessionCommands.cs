@@ -16,14 +16,6 @@ public sealed record OpenSshSessionCommand(Guid DeviceId)
         [Permission.RemoteSshConnect.ToString()];
 }
 
-/// <summary>Encerra a sessão SSH ativa do device e descarta a conexão (F11-T002).</summary>
-public sealed record CloseSshSessionCommand(Guid DeviceId, Guid SessionId)
-    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest
-{
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.RemoteSshConnect.ToString()];
-}
-
 public sealed class OpenSshSessionCommandHandler(
     IDeviceRepository deviceRepository,
     IRemoteSessionRepository sessionRepository,
@@ -56,7 +48,8 @@ public sealed class OpenSshSessionCommandHandler(
 
         if (!result.Succeeded || result.Connection is null)
         {
-            var reason = Truncate(result.Error ?? "Falha desconhecida ao conectar via SSH.");
+            var reason = RemoteSessionFlow.Truncate(
+                result.Error ?? "Falha desconhecida ao conectar via SSH.");
             session.Fail(reason);
             await sessionRepository.AddAsync(session, cancellationToken);
             await sessionRepository.SaveChangesAsync(cancellationToken);
@@ -67,45 +60,6 @@ public sealed class OpenSshSessionCommandHandler(
         connections.Register(session.Id, result.Connection);
         await sessionRepository.AddAsync(session, cancellationToken);
         await sessionRepository.SaveChangesAsync(cancellationToken);
-        return ToDto(session);
-    }
-
-    internal static string Truncate(string reason)
-    {
-        var trimmed = reason.Trim();
-        return trimmed.Length <= RemoteSession.FailureReasonMaxLength
-            ? trimmed
-            : trimmed[..RemoteSession.FailureReasonMaxLength];
-    }
-
-    internal static RemoteSessionDto ToDto(RemoteSession session) =>
-        new(
-            session.Id,
-            session.UserId,
-            session.Protocol.ToString(),
-            session.Status.ToString(),
-            session.FailureReason,
-            session.StartedAt,
-            session.EndedAt);
-}
-
-public sealed class CloseSshSessionCommandHandler(
-    IRemoteSessionRepository sessionRepository,
-    IRemoteConnectionRegistry connections)
-    : IRequestHandler<CloseSshSessionCommand, RemoteSessionDto>
-{
-    public async Task<RemoteSessionDto> Handle(
-        CloseSshSessionCommand request, CancellationToken cancellationToken)
-    {
-        var session = await sessionRepository.GetByIdAsync(request.SessionId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Sessão '{request.SessionId}' não encontrada.");
-
-        if (session.DeviceId != request.DeviceId)
-            throw new KeyNotFoundException($"Sessão '{request.SessionId}' não encontrada.");
-
-        session.Close();
-        connections.TryDisconnect(session.Id);
-        await sessionRepository.SaveChangesAsync(cancellationToken);
-        return OpenSshSessionCommandHandler.ToDto(session);
+        return RemoteSessionFlow.ToDto(session);
     }
 }

@@ -22,5 +22,8 @@ public enum Permission
     RemoteSessionsRead,
 
     /// <summary>Abrir/encerrar sessão SSH em devices (= device.ssh.connect, docs/10).</summary>
-    RemoteSshConnect
+    RemoteSshConnect,
+
+    /// <summary>Abrir/encerrar sessão RDP em devices (= device.rdp.connect, docs/10).</summary>
+    RemoteRdpConnect
 }

@@ -15,9 +15,10 @@ using Microsoft.EntityFrameworkCore;
 namespace InfraControl.UnitTests.RemoteAccess;
 
 /// <summary>
-/// F11-T002 (ADR-013, docs/10): OpenSshSessionCommand abre sessão SSH via
-/// provider (sem terminal interativo) e CloseSshSessionCommand encerra e
-/// descarta a conexão. Credenciais vêm de IRemoteCredentialSource (provisório
+/// F11-T002/T003 (ADR-013, docs/10): OpenSshSessionCommand abre sessão SSH via
+/// provider (sem terminal interativo) e CloseRemoteSessionCommand — renomeado
+/// em F11-T003 por ser protocolo-agnóstico — encerra e descarta a conexão.
+/// Credenciais vêm de IRemoteCredentialSource (provisório
 /// até F11-T006) e nunca aparecem em DTO ou mensagem persistida.
 /// </summary>
 public sealed class SshSessionCommandTests : IDisposable
@@ -71,7 +72,7 @@ public sealed class SshSessionCommandTests : IDisposable
             connections,
             new FakeCurrentUser(userId ?? Guid.NewGuid()));
 
-    private static CloseSshSessionCommandHandler CloseHandler(
+    private static CloseRemoteSessionCommandHandler CloseHandler(
         AppDbContext context, IRemoteConnectionRegistry connections)
         => new(new RemoteSessionRepository(context), connections);
 
@@ -273,7 +274,7 @@ public sealed class SshSessionCommandTests : IDisposable
         row.FailureReason!.Length.Should().Be(RemoteSession.FailureReasonMaxLength);
     }
 
-    // ── CloseSshSession ──────────────────────────────────────────────────
+    // ── CloseRemoteSession ───────────────────────────────────────────────
 
     [Fact]
     public async Task Close_ActiveSession_ShouldCloseAndDisposeConnection()
@@ -288,7 +289,7 @@ public sealed class SshSessionCommandTests : IDisposable
             .Handle(new OpenSshSessionCommand(device.Id), CancellationToken.None);
 
         var dto = await CloseHandler(context, connections)
-            .Handle(new CloseSshSessionCommand(device.Id, opened.Id), CancellationToken.None);
+            .Handle(new CloseRemoteSessionCommand(device.Id, opened.Id), CancellationToken.None);
 
         dto.Status.Should().Be("Closed");
         dto.EndedAt.Should().NotBeNull();
@@ -311,7 +312,7 @@ public sealed class SshSessionCommandTests : IDisposable
         var unknownId = Guid.NewGuid();
 
         var action = () => CloseHandler(context, new RemoteConnectionRegistry())
-            .Handle(new CloseSshSessionCommand(device.Id, unknownId), CancellationToken.None);
+            .Handle(new CloseRemoteSessionCommand(device.Id, unknownId), CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Sessão '{unknownId}' não encontrada.");
@@ -330,7 +331,7 @@ public sealed class SshSessionCommandTests : IDisposable
             .Handle(new OpenSshSessionCommand(deviceA.Id), CancellationToken.None);
 
         var action = () => CloseHandler(context, connections)
-            .Handle(new CloseSshSessionCommand(deviceB.Id, opened.Id), CancellationToken.None);
+            .Handle(new CloseRemoteSessionCommand(deviceB.Id, opened.Id), CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Sessão '{opened.Id}' não encontrada.");
@@ -353,10 +354,10 @@ public sealed class SshSessionCommandTests : IDisposable
             .Handle(new OpenSshSessionCommand(device.Id), CancellationToken.None);
 
         await CloseHandler(context, connections)
-            .Handle(new CloseSshSessionCommand(device.Id, opened.Id), CancellationToken.None);
+            .Handle(new CloseRemoteSessionCommand(device.Id, opened.Id), CancellationToken.None);
 
         var action = () => CloseHandler(context, connections)
-            .Handle(new CloseSshSessionCommand(device.Id, opened.Id), CancellationToken.None);
+            .Handle(new CloseRemoteSessionCommand(device.Id, opened.Id), CancellationToken.None);
 
         (await action.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("*já foi finalizada*");
@@ -368,11 +369,13 @@ public sealed class SshSessionCommandTests : IDisposable
     public void Commands_ShouldRequireRemoteSshConnectPermission()
     {
         var open = new OpenSshSessionCommand(Guid.NewGuid());
-        var close = new CloseSshSessionCommand(Guid.NewGuid(), Guid.NewGuid());
+        var close = new CloseRemoteSessionCommand(Guid.NewGuid(), Guid.NewGuid());
 
         open.RequiredPermissions.Should()
             .Equal(Permission.RemoteSshConnect.ToString());
-        close.RequiredPermissions.Should()
-            .Equal(Permission.RemoteSshConnect.ToString());
+        // close é protocolo-agnóstico: Admin tem ambas; matriz real em F11-T004
+        close.RequiredPermissions.Should().Equal(
+            Permission.RemoteSshConnect.ToString(),
+            Permission.RemoteRdpConnect.ToString());
     }
 }
