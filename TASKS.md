@@ -77,6 +77,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [x] F0-T021 Criar BuildingBlocks Shared Kernel alinhado ao Sentinel
 - [x] F0-T022 Migrar slices CQRS para ICommand/IQuery/IAuthorizedRequest quando cada módulo for implementado
 - [x] F0-T023 Tratamento global de exceções → envelope ApiResponse com mensagens em pt-BR
+- [x] F0-T024 Registro automático de repositórios por varredura de assembly <!-- estilo MediatR (RegisterServicesFromAssembly): RepositoryRegistrar varre Application p/ interfaces I*Repository e Infrastructure p/ classes *Repository, registra Scoped com TryAdd (registro manual prevalece como escape hatch) e fail-fast no startup se par ausente/ambíguo; substitui as 11 linhas AddScoped manuais do DependencyInjection; docs/24 -->
 
 ## Fase 1 — Identity
 

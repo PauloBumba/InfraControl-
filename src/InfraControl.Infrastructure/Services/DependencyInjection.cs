@@ -72,7 +72,6 @@ public static class DependencyInjection
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
-        services.AddScoped<IUserRoleRepository, IdentityUserRoleRepository>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
@@ -134,7 +133,6 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
 
         // Outbox
-        services.AddScoped<IOutboxRepository, OutboxRepository>();
         services.AddScoped<IInboxStore, InboxStore>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAuditReader, AuditReader>();
@@ -145,16 +143,15 @@ public static class DependencyInjection
         services.AddScoped<ICleanupService, CleanupService>();
 
         // Invitations
-        services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
-        services.AddScoped<ILocationRepository, LocationRepository>();
-        services.AddScoped<IRackRepository, RackRepository>();
-        services.AddScoped<IDeviceRepository, DeviceRepository>();
-        services.AddScoped<INetworkInterfaceRepository, NetworkInterfaceRepository>();
-        services.AddScoped<IMacAddressRepository, MacAddressRepository>();
-        services.AddScoped<IIpAddressRepository, IpAddressRepository>();
-        services.AddScoped<ISwitchPortRepository, SwitchPortRepository>();
-        services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
+
+        // F0-T024: registro automático de todos os pares I*Repository (Application)
+        // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no
+        // startup se o par faltar; TryAdd faz qualquer registro manual prevalecer
+        // (escape hatch para lifetime/fábrica especiais).
+        services.AddRepositoryRegistrations(
+            typeof(IDeviceRepository).Assembly,
+            typeof(DeviceRepository).Assembly);
 
         return services;
     }
