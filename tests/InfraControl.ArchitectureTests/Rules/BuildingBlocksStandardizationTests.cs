@@ -64,7 +64,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Monitoring.Ping.PingDeviceQuery",
             "InfraControl.Application.Monitoring.Ping.GetPingStatusQuery",
             "InfraControl.Application.Monitoring.PrinterSupplies.GetPrinterSuppliesQuery",
-            "InfraControl.Application.Monitoring.Checks.GetDeviceChecksQuery"
+            "InfraControl.Application.Monitoring.Checks.GetDeviceChecksQuery",
+            "InfraControl.Application.Inventory.MacAddresses.Commands.CreateMacAddressCommand",
+            "InfraControl.Application.Inventory.MacAddresses.Commands.UpdateMacAddressCommand",
+            "InfraControl.Application.Inventory.MacAddresses.Commands.DeleteMacAddressCommand",
+            "InfraControl.Application.Inventory.MacAddresses.Queries.SearchMacAddressesQuery",
+            "InfraControl.Application.Inventory.MacAddresses.Queries.GetMacAddressQuery"
         };
 
         foreach (var typeName in adminSlices)

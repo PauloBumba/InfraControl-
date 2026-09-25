@@ -270,6 +270,36 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("locations", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InterfaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("interface_id");
+
+                    b.Property<string>("Mac")
+                        .IsRequired()
+                        .HasMaxLength(17)
+                        .HasColumnType("character varying(17)")
+                        .HasColumnName("mac");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InterfaceId");
+
+                    b.ToTable("mac_addresses", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
                 {
                     b.Property<Guid>("Id")
@@ -789,6 +819,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany("RoleAssignments")
                         .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
+                        .WithMany()
+                        .HasForeignKey("InterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

@@ -94,11 +94,14 @@ public sealed class DeleteNetworkInterfaceCommandHandler(
         var nic = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Interface '{request.Id}' não encontrado.");
 
-        // F2-T006: quando IpAddress existir com FK para NetworkInterface, aqui
-        // passa a bloquear exclusão de interface com IPs (→ InvalidOperationException/409).
+        if (await repository.HasMacsAsync(nic.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir a interface: existem MACs vinculados.");
+
         repository.Remove(nic);
         await repository.SaveChangesAsync(cancellationToken);
 
+        // F2-T005: exclusão bloqueada acima quando há MACs; a FK Restrict no
+        // banco é o backstop. IPs (F2-T006) passam a bloquear junto com MACs.
         logger.LogInformation("NetworkInterface {InterfaceId} deleted ({Name}).", nic.Id, nic.Name);
     }
 }

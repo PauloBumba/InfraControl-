@@ -249,6 +249,24 @@ public sealed class NetworkInterfaceCommandTests : IDisposable
             .WithMessage($"Interface '{unknownId}' não encontrado.");
     }
 
+    [Fact]
+    public async Task Delete_InterfaceWithMacs_ShouldThrowConflictMessage()
+    {
+        // F2-T005: fecha a cadeia de bloqueio Device → Interface → MAC.
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateNetworkInterfaceCommand(deviceId, "eth0"), CancellationToken.None);
+        context.MacAddresses.Add(MacAddress.Create(created.Id, "aa:bb:cc:dd:ee:ff"));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteNetworkInterfaceCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir a interface: existem MACs vinculados.");
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────
 
     [Fact]
