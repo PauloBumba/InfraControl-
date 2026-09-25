@@ -6,12 +6,15 @@ using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Inventory.IpAddresses.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
+using InfraControl.Application.Network.SwitchPorts.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
@@ -72,7 +75,6 @@ public static class DependencyInjection
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
-        services.AddScoped<IUserRoleRepository, IdentityUserRoleRepository>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
@@ -153,7 +155,6 @@ public static class DependencyInjection
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Outbox
-        services.AddScoped<IOutboxRepository, OutboxRepository>();
         services.AddScoped<IInboxStore, InboxStore>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAuditReader, AuditReader>();
@@ -164,7 +165,6 @@ public static class DependencyInjection
         services.AddScoped<ICleanupService, CleanupService>();
 
         // Invitations
-        services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IRackRepository, RackRepository>();
@@ -173,6 +173,14 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
+
+        // F0-T024: registro automático de todos os pares I*Repository (Application)
+        // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no
+        // startup se o par faltar; TryAdd faz qualquer registro manual prevalecer
+        // (escape hatch para lifetime/fábrica especiais).
+        services.AddRepositoryRegistrations(
+            typeof(IDeviceRepository).Assembly,
+            typeof(DeviceRepository).Assembly);
 
         return services;
     }

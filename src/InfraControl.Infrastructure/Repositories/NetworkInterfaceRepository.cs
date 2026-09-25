@@ -29,6 +29,12 @@ public sealed class NetworkInterfaceRepository(AppDbContext dbContext) : INetwor
                 cancellationToken);
     }
 
+    public Task<bool> HasMacsAsync(Guid interfaceId, CancellationToken cancellationToken = default)
+        => dbContext.MacAddresses.AnyAsync(mac => mac.InterfaceId == interfaceId, cancellationToken);
+
+    public Task<bool> HasIpsAsync(Guid interfaceId, CancellationToken cancellationToken = default)
+        => dbContext.IpAddresses.AnyAsync(entity => entity.InterfaceId == interfaceId, cancellationToken);
+
     public async Task<PagedResult<NetworkInterface>> SearchAsync(
         Guid? deviceId,
         string? term,

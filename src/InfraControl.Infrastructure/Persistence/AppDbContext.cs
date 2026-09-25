@@ -32,6 +32,12 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Rack> Racks => Set<Rack>();
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<NetworkInterface> NetworkInterfaces => Set<NetworkInterface>();
+    public DbSet<MacAddress> MacAddresses => Set<MacAddress>();
+    public DbSet<IpAddress> IpAddresses => Set<IpAddress>();
+    public DbSet<SwitchPort> SwitchPorts => Set<SwitchPort>();
+    public DbSet<Vlan> Vlans => Set<Vlan>();
+    public DbSet<SwitchPortVlan> SwitchPortVlans => Set<SwitchPortVlan>();
+    public DbSet<DiscoveryRun> DiscoveryRuns => Set<DiscoveryRun>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
     public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
     public DbSet<Notification> Notifications => Set<Notification>();

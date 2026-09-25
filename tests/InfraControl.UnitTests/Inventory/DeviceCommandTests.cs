@@ -273,6 +273,25 @@ public sealed class DeviceCommandTests : IDisposable
             .WithMessage("Não é possível excluir o device: existem interfaces vinculadas.");
     }
 
+    [Fact]
+    public async Task Delete_SwitchWithPorts_ShouldThrowConflictMessage()
+    {
+        // F3-T002: fecha a cadeia Device → SwitchPort (portas vêm antes de
+        // interfaces no handler por serem específicas de switch).
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(locationId, "sw-01", "Switch"), CancellationToken.None);
+        context.SwitchPorts.Add(SwitchPort.Create(created.Id, "Gi1/0/1"));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteDeviceCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o device: existem portas vinculadas.");
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────
 
     [Fact]

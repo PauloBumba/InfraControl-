@@ -77,6 +77,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [x] F0-T021 Criar BuildingBlocks Shared Kernel alinhado ao Sentinel
 - [x] F0-T022 Migrar slices CQRS para ICommand/IQuery/IAuthorizedRequest quando cada módulo for implementado
 - [x] F0-T023 Tratamento global de exceções → envelope ApiResponse com mensagens em pt-BR
+- [x] F0-T024 Registro automático de repositórios por varredura de assembly <!-- estilo MediatR (RegisterServicesFromAssembly): RepositoryRegistrar varre Application p/ interfaces I*Repository e Infrastructure p/ classes *Repository, registra Scoped com TryAdd (registro manual prevalece como escape hatch) e fail-fast no startup se par ausente/ambíguo; substitui as 11 linhas AddScoped manuais do DependencyInjection; docs/24 -->
 
 ## Fase 1 — Identity
 
@@ -101,23 +102,23 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [x] F2-T002 Rack
 - [x] F2-T003 Device  <!-- tipos Server/Workstation/Switch/Router/Firewall/AccessPoint/Printer/Camera/Phone/UPS/Other; campos ip/mac/serial/model/vendor/vlanId/locationId/rackId; nome único global case-insensitive; DeleteRack com devices → 409; FK Restrict location/rack; migração AddDevices + índice ux_devices_name; seed fictício docs/database/seed-fictitious-devices.sql (RFC 5737, sem dados reais); policies InventoryRead/InventoryManage; BaseCommand/IQuery/IAuthorizedRequest -->
 - [x] F2-T004 NetworkInterface
-- [ ] F2-T005 MAC
-- [ ] F2-T006 IP  <!-- dependência F2-T004: bloquear exclusão de Interface que possua IPs (409) -->
-- [ ] F2-T007 Busca global
+- [x] F2-T005 MAC  <!-- entidade MacAddress ancorada em NetworkInterface (decisão do usuário); MAC único GLOBAL case-insensitive (pré-check 409 + índice LOWER(mac)); normalização aa:bb:cc:dd:ee:ff aceitando :, -, . ou 12 hex; DeleteNetworkInterface com MACs → 409 (fecha cadeia Device→Interface→MAC); migração AddMacAddresses; ValueObject órfão Domain/ValueObjects/MacAddress.cs permanece sem consumidores (fora de escopo) -->
+- [x] F2-T006 IP  <!-- entidade IpAddress ancorada em NetworkInterface (docs/03); IP único GLOBAL (usuário) com normalização canônica v4/v6 (pré-check 409 + índice UNIQUE LINQ na migração AddIpAddresses); DeleteNetworkInterface com IPs → 409 fecha dependência F2-T004; busca por interfaceId/deviceId(subquery)/termo; IpAddressesController em api/v1/inventory/ip-addresses; ValueObject órfão Domain/ValueObjects/IpAddress.cs permanece sem consumidores -->
+- [x] F2-T007 Busca global  <!-- decisão do usuário: 6 fontes (Location/Rack/Device/NetworkInterface/MacAddress/IpAddress), só backend; GET api/v1/inventory/search?term&limit com InventoryRead; GlobalSearchQuery (IQuery+IAuthorizedRequest) fan-out sobre os SearchAsync existentes — sem SQL/migração; termo vazio → 400 "O termo de busca é obrigatório."; limit vale por fonte (clamp 1..50) e TotalCount reflete o total real; ordem fixa location→rack→device→interface→mac→ip; Subtitle = IP do device; barra de busca no frontend vira task F14 futura -->
 - [x] F2-T008 DeviceProfile  <!-- ADR-014 Accepted; DeviceProfileDefaults por tipo em código (Printer→Ping+SnmpToner+SnmpDrum, AP→Ping+HttpWan, Switch/Server/Router/Firewall/UPS→Ping+SnmpSystem, demais→Ping); materializado no Device.Create com ProfileIsCustom=false; ApplyCustomProfile/ResetProfileToDefault (vazio/duplicado → 409/400 pt-BR); Update preserva override na troca de tipo; UpdateDeviceProfileCommand (checks XOR useDefault); PUT /devices/{id}/profile; colunas profile_is_custom + monitoring_checks (CSV) + migração AddDeviceProfile; EF ValueConverter List<CheckKind>→string; tests DeviceProfileTests + DeviceProfileCommandTests; 6 slices na regra de arquitetura -->
 
 ## Fase 3 — Network
 
-- [ ] F3-T001 Switch  <!-- extensão de Device tipo Switch -->
-- [ ] F3-T002 SwitchPort  <!-- portas físicas + link up/down + MAC aprendido depois (F4) -->
-- [ ] F3-T003 VLAN  <!-- ex.: Default, Radiologia, Telefonia, Impressoras, Cameras, Unifi -->
-- [ ] F3-T004 SwitchPortVlan  <!-- membros tagged/untagged -->
+- [x] F3-T001 Switch  <!-- extensão de Device tipo Switch; REUSO do fluxo F2-T003 sem entidade nova (docs/03: Switch(Device) 1:N SwitchPort); SearchSwitchesQuery delega ao SearchDevicesQueryHandler com type=Switch fixo (termo/local/rack passam direto); GetSwitchQuery guarda DeviceType.Switch → 404 "Switch '{id}' não encontrado."; DTO DeviceDto e mapper ToDto reaproveitados; GET api/v1/network/switches + /{id} (InventoryRead); namespace Network/Switches aberto para F3-T002 ports; sem migração -->
+- [x] F3-T002 SwitchPort  <!-- entidade SwitchPort (DeviceId FK p/ Device, Name único por switch case-insensitive, Description, LinkUp bool? null=ainda não observado p/ F4); slice Application.Network.SwitchPorts (Commands/Queries/Ports/DTO) com guard REUSADO do F3-T001 via GetSwitchQueryHandler (404 "Switch '{id}' não encontrado."); 409 criação "Já existe uma porta '{nome}' neste switch." + DeleteDevice 409 "Não é possível excluir o device: existem portas vinculadas." (portas ANTES das interfaces, HasPortsAsync); rotas GET/POST api/v1/network/switches/{switchId}/ports + GET/PUT/DELETE api/v1/network/switch-ports/{id}; migração 20260925161824_AddSwitchPorts com índice bruto ux_switch_ports_device_name (device_id, LOWER(name)); 26 testes novos (8 domínio + 17 comandos + 1 delete) → 339 unit + 8 arch -->
+- [x] F3-T003 VLAN  <!-- entidade Vlan (Name ≤120 único global CI, VlanNumber 1..4094 único global, Description ≤500); slice Network.Vlans (Create/Update/Delete/Search/Get); 409 "Já existe uma VLAN com o número '{n}'." e "com o nome '{nome}'."; ordenação da search por VlanNumber (ordem 802.1Q); rotas api/v1/network/vlans; migração 20260925175849_AddVlans + índice bruto ux_vlans_name; IVlanRepository registrado AUTOMATICAMENTE pelo F0-T024 (zero linhas de DI); N:N SwitchPortVlan = F3-T004; devices.vlan_id (Guid?) segue sem FK (fora de escopo) -->
+- [x] F3-T004 SwitchPortVlan  <!-- junção PURA decide o usuário (sem flag tagged/untagged nesta fase — modelar acesso/trunk fica p/ F4/F11); entidade SwitchPortVlan (SwitchPortId+VlanId, par único); slice Network.SwitchPortVlans: Assign (guards reusados F3-T002/F3-T003 → 404; 409 "A porta já está vinculada a esta VLAN.") e Unassign (404 do vínculo); queries VLANs da porta (ordem 802.1Q, reusa VlanDto) e portas da VLAN (ordem nome, reusa SwitchPortDto) com novos GetByIdsAsync em IVlanRepository/ISwitchPortRepository; DeleteSwitchPort/DeleteVlan ganharam checagem → 409 "existem VLANs/portas vinculadas."; rotas GET/POST switch-ports/{id}/vlans + DELETE .../vlans/{vlanId} + GET vlans/{id}/ports; migração 20260925193218_AddSwitchPortVlans (2 FKs Restrict + índice único do par, 100% LINQ); IVlanRepository auto-registrado pelo F0-T024 -->
 - [ ] F3-T005 Connection
 - [ ] F3-T006 Topology  <!-- prioridade baixa para o problema atual -->
 
 ## Fase 4 — Discovery
 
-- [ ] F4-T001 DiscoveryRun
+- [x] F4-T001 DiscoveryRun — entidade + enum (Running/Completed/Failed), migração AddDiscoveryRuns (FK Cascade device), API somente-leitura GET runs (filtro device) + GET runs/{id} (policy MonitoringRead); fluxo: gatilho manual por device, POST vem com providers T003/T004; 13 testes
 - [ ] F4-T002 DiscoveryResult
 - [ ] F4-T003 ICMP Provider
 - [ ] F4-T004 SNMP Provider

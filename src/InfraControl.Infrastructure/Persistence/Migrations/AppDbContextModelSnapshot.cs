@@ -161,6 +161,48 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("devices", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.DiscoveryRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error_message");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("discovery_runs", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -241,6 +283,39 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("invitation_roles", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.IpAddress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InterfaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("interface_id");
+
+                    b.Property<string>("Ip")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InterfaceId");
+
+                    b.HasIndex("Ip")
+                        .IsUnique();
+
+                    b.ToTable("ip_addresses", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Location", b =>
                 {
                     b.Property<Guid>("Id")
@@ -268,6 +343,36 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("locations", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InterfaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("interface_id");
+
+                    b.Property<string>("Mac")
+                        .IsRequired()
+                        .HasMaxLength(17)
+                        .HasColumnType("character varying(17)")
+                        .HasColumnName("mac");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InterfaceId");
+
+                    b.ToTable("mac_addresses", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
@@ -565,6 +670,76 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("racks", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<bool?>("LinkUp")
+                        .HasColumnType("boolean")
+                        .HasColumnName("link_up");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("switch_ports", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPortVlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SwitchPortId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("switch_port_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vlan_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VlanId");
+
+                    b.HasIndex("SwitchPortId", "VlanId")
+                        .IsUnique();
+
+                    b.ToTable("switch_port_vlans", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -666,6 +841,42 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "RevokedAt", "ExpiresAt");
 
                     b.ToTable("UserSessions", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Vlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VlanNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("vlan_number");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VlanNumber")
+                        .IsUnique();
+
+                    b.ToTable("vlans", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.RemoteAccess.RemoteSession", b =>
@@ -933,12 +1144,39 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.DiscoveryRun", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.InvitationRole", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.Invitation", null)
                         .WithMany("RoleAssignments")
                         .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.IpAddress", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
+                        .WithMany()
+                        .HasForeignKey("InterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
+                        .WithMany()
+                        .HasForeignKey("InterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -974,6 +1212,30 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Location", null)
                         .WithMany()
                         .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPortVlan", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.SwitchPort", null)
+                        .WithMany()
+                        .HasForeignKey("SwitchPortId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Vlan", null)
+                        .WithMany()
+                        .HasForeignKey("VlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

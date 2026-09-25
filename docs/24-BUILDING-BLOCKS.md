@@ -79,3 +79,43 @@ Não colocar no BuildingBlocks:
 - implementação concreta de autorização, cache ou lock.
 
 Quando um contrato tiver comportamento específico de um bounded context, ele deve permanecer em `Application` desse módulo. O BuildingBlocks deve receber somente abstrações realmente compartilhadas.
+
+## Global usings (Fase 1 — 2026-09-25)
+
+Para não poluir cada arquivo novo com os mesmos `using`, os namespaces de uso transversal são registrados nos `.csproj` via `<Using Include="..."/>` (mesmo padrão do `Xunit` que já existia nos projetos de teste):
+
+| Projeto | Namespaces registrados |
+| --- | --- |
+| `InfraControl.Application` | `MediatR`, `InfraControl.BuildingBlocks.Application`, `InfraControl.Application.Common.Interfaces`, `InfraControl.Domain.Authorization` |
+| `InfraControl.Api` | `MediatR`, `Microsoft.AspNetCore.Mvc`, `Microsoft.AspNetCore.Authorization`, `InfraControl.BuildingBlocks.Application.Response` |
+| `InfraControl.Infrastructure` | `Microsoft.EntityFrameworkCore` |
+| `InfraControl.UnitTests` | `FluentAssertions`, `Microsoft.EntityFrameworkCore`, `Microsoft.Data.Sqlite`, `InfraControl.Infrastructure.Persistence` |
+
+Regras:
+
+- `ImplicitUsings` continua `enable` em todos os projetos (System/LINQ/etc. vêm de graça).
+- `using` explícito repetido num `.cs` convive sem erro com o global — arquivos antigos não precisam ser reescritos (Fase 2, limpeza cosmética, é opcional e futura).
+- Ao registrar namespace novo em csproj: build + suíte completa (nenhum CS0104/CS0121 de ambiguidade).
+- Namespaces de módulo (ex.: `Inventory.Devices.Ports`) **não** entram nos global usings — ficam explícitos no arquivo para manter visível de onde cada dependência de domínio vem.
+
+## Registro automático de repositórios (F0-T024 — 2026-09-25)
+
+`RepositoryRegistrar.AddRepositoryRegistrations(interfaceAssembly, implementationAssembly)` (`InfraControl.Infrastructure.Services`) varre os assemblies e registra os pares automaticamente — no espírito do `RegisterServicesFromAssembly` do MediatR:
+
+- **Interface**: tipo `I*Repository` (não genérico) do assembly de contratos (`Application`).
+- **Implementação**: classe `*Repository` não abstrata do assembly de implementações (`Infrastructure`) que implemente a interface (casa por atribuição, não por nome — cobre casos como `IUserRoleRepository` → `IdentityUserRoleRepository`).
+- **Lifetime**: `Scoped` (igual ao registro manual anterior).
+- **Fail-fast**: 0 ou mais de 1 implementações → `InvalidOperationException` **no startup**, nunca em runtime na primeira requisição.
+- **Escape hatch**: interface com registro manual existente é pulada (`TryAdd`) — o manual prevalece (lifetime especial, fábrica).
+
+Chamada única no `DependencyInjection.AddInfrastructure` (as 11 linhas manuais `AddScoped<I*Repository, *Repository>()` foram removidas):
+
+```csharp
+services.AddRepositoryRegistrations(
+    typeof(IDeviceRepository).Assembly,
+    typeof(DeviceRepository).Assembly);
+```
+
+Consequência prática: **criou `IVlanRepository`/`VlanRepository` seguindo o padrão de nome → registra sozinho, sem linha nova.** Continuam manuais por não serem pares simples: `IUnitOfWork`, `IConnectionFactory`, `IIdempotencyStore`, `ICacheService`, `IMonitoringProvider` (3 implementações simultâneas), `IEventBus` e ports que não são repositório (ex.: `IInvitationAccountPort`).
+
+Coberto por 4 testes em `tests/InfraControl.UnitTests/Infrastructure/RepositoryRegistrationTests.cs` (registro completo Scoped, fail-fast com nome da interface ausente, prevalência do manual, resolução pelo provider).
