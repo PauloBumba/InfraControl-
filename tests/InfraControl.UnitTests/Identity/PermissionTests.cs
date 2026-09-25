@@ -20,6 +20,7 @@ public sealed class PermissionTests
         ]);
         permissions.Should().NotContain(Permission.InventoryManage);
         permissions.Should().NotContain(Permission.IdentityRolesManage);
+        permissions.Should().NotContain(Permission.RemoteSshConnect);
     }
 
     [Fact]
@@ -32,6 +33,7 @@ public sealed class PermissionTests
         permissions.Should().Contain(Permission.InventoryManage);
         permissions.Should().Contain(Permission.TasksManage);
         permissions.Should().NotContain(Permission.IdentityRolesManage);
+        permissions.Should().NotContain(Permission.RemoteSshConnect);
     }
 
     [Fact]

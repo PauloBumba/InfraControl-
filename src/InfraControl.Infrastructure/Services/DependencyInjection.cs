@@ -18,6 +18,7 @@ using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Monitoring;
+using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
 using MassTransit;
 using MediatR;
@@ -138,6 +139,14 @@ public static class DependencyInjection
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
+
+        // Remote access (F11-T002, ADR-013): SSH sem terminal interativo.
+        // Credencial provisória via config/env — F11-T006 troca por Credential Store.
+        services.Configure<RemoteSshOptions>(
+            configuration.GetSection(RemoteSshOptions.SectionName));
+        services.AddScoped<IRemoteProvider, SshRemoteProvider>();
+        services.AddScoped<IRemoteCredentialSource, ConfigurationRemoteCredentialSource>();
+        services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Outbox
         services.AddScoped<IOutboxRepository, OutboxRepository>();

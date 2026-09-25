@@ -76,3 +76,29 @@ React → ASP.NET Core → (Provider SSH/RDP — F11-T002/T003) → RemoteSessio
   (teste de reflexão).
 - Tabela `remote_sessions` (FK device cascade, índice
   `(device_id, started_at)`), migração `AddRemoteSessions`.
+
+### F11-T002 — SSH Provider
+
+- Fluxo completado:
+
+```text
+React → POST open → OpenSshSessionCommand → IRemoteCredentialSource
+                                       → IRemoteProvider.ConnectAsync (SSH.NET)
+                                       → RemoteSession (Active) + conexão registrada
+        DELETE close → CloseSshSessionCommand → session.Close() + dispose conexão
+```
+
+- `IRemoteProvider`/`IRemoteCredentialSource`/`IRemoteConnectionRegistry`
+  (Application/RemoteAccess/Sessions/Ports) — RDP entra em F11-T003 pelo
+  mesmo port.
+- Permissão `Permission.RemoteSshConnect` (= `device.ssh.connect`): Admin
+  herda; User/Viewer não recebem até a matriz de F11-T004.
+- `POST/DELETE /api/v1/inventory/devices/{id}/remote/sessions`
+  (`[Authorize(Roles="Admin")]`): sem terminal interativo — só conexão
+  autenticada registrada na sessão.
+- Credencial provisória via `RemoteAccess:Ssh` (config/env, **vazia no
+  git**); sem credencial, `InvalidOperationException` → 409 pt-BR sem
+  criar sessão. F11-T006 substitui por Credential Store.
+- Falha de conexão grava `RemoteSession` `Failed` com `FailureReason`
+  (≤ 500, senha mascarada) e devolve 409 — tentativa fica auditável.
+- Nenhum teste abre rede: integration usa `FakeSshRemoteProvider`.

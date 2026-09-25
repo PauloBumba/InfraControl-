@@ -19,5 +19,8 @@ public enum Permission
     TasksRead,
     TasksManage,
     AuditRead,
-    RemoteSessionsRead
+    RemoteSessionsRead,
+
+    /// <summary>Abrir/encerrar sessão SSH em devices (= device.ssh.connect, docs/10).</summary>
+    RemoteSshConnect
 }

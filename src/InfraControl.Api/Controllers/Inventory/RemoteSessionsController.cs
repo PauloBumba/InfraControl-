@@ -24,4 +24,28 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(
             await sender.Send(new GetDeviceSessionsQuery(deviceId, limit), cancellationToken)));
+
+    /// <summary>
+    /// Abre uma sessão SSH no device (F11-T002). Sem terminal interativo —
+    /// a conexão fica registrada até o encerramento.
+    /// </summary>
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> OpenSshSession(
+        Guid deviceId,
+        CancellationToken cancellationToken = default)
+        => StatusCode(
+            StatusCodes.Status201Created,
+            ApiResponse.Ok(await sender.Send(
+                new OpenSshSessionCommand(deviceId), cancellationToken)));
+
+    /// <summary>Encerra a sessão SSH ativa e descarta a conexão (F11-T002).</summary>
+    [HttpDelete("{sessionId:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CloseSshSession(
+        Guid deviceId,
+        Guid sessionId,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new CloseSshSessionCommand(deviceId, sessionId), cancellationToken)));
 }

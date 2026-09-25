@@ -11,6 +11,7 @@ using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
 using InfraControl.Infrastructure.Services;
 using MediatR;
@@ -74,6 +75,17 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
         services.AddScoped<IIcmpClient, FakeIcmpClient>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
+
+        // Remote access (F11-T002): provider SSH falso (sem rede) + credencial
+        // provisória de teste + registry real em memória
+        services.AddScoped<IRemoteProvider, FakeSshRemoteProvider>();
+        services.Configure<RemoteSshOptions>(options =>
+        {
+            options.Username = "it-ssh";
+            options.Password = "S3nh@Teste!123";
+        });
+        services.AddScoped<IRemoteCredentialSource, ConfigurationRemoteCredentialSource>();
+        services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Usuário de teste (role → permissões via RolePermissions)
         services.AddSingleton<ICurrentUserContext>(CurrentUser);
