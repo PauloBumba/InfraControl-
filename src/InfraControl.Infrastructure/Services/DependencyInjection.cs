@@ -12,6 +12,7 @@ using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
+using InfraControl.Application.Network.SwitchPorts.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
@@ -152,6 +153,7 @@ public static class DependencyInjection
         services.AddScoped<INetworkInterfaceRepository, NetworkInterfaceRepository>();
         services.AddScoped<IMacAddressRepository, MacAddressRepository>();
         services.AddScoped<IIpAddressRepository, IpAddressRepository>();
+        services.AddScoped<ISwitchPortRepository, SwitchPortRepository>();
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
 
         return services;

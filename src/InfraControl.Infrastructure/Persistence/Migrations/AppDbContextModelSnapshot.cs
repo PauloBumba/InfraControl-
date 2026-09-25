@@ -534,6 +534,45 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("racks", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<bool?>("LinkUp")
+                        .HasColumnType("boolean")
+                        .HasColumnName("link_up");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("switch_ports", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -896,6 +935,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Location", null)
                         .WithMany()
                         .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

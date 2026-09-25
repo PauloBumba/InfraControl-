@@ -109,7 +109,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 ## Fase 3 — Network
 
 - [x] F3-T001 Switch  <!-- extensão de Device tipo Switch; REUSO do fluxo F2-T003 sem entidade nova (docs/03: Switch(Device) 1:N SwitchPort); SearchSwitchesQuery delega ao SearchDevicesQueryHandler com type=Switch fixo (termo/local/rack passam direto); GetSwitchQuery guarda DeviceType.Switch → 404 "Switch '{id}' não encontrado."; DTO DeviceDto e mapper ToDto reaproveitados; GET api/v1/network/switches + /{id} (InventoryRead); namespace Network/Switches aberto para F3-T002 ports; sem migração -->
-- [ ] F3-T002 SwitchPort  <!-- portas físicas + link up/down + MAC aprendido depois (F4) -->
+- [x] F3-T002 SwitchPort  <!-- entidade SwitchPort (DeviceId FK p/ Device, Name único por switch case-insensitive, Description, LinkUp bool? null=ainda não observado p/ F4); slice Application.Network.SwitchPorts (Commands/Queries/Ports/DTO) com guard REUSADO do F3-T001 via GetSwitchQueryHandler (404 "Switch '{id}' não encontrado."); 409 criação "Já existe uma porta '{nome}' neste switch." + DeleteDevice 409 "Não é possível excluir o device: existem portas vinculadas." (portas ANTES das interfaces, HasPortsAsync); rotas GET/POST api/v1/network/switches/{switchId}/ports + GET/PUT/DELETE api/v1/network/switch-ports/{id}; migração 20260925161824_AddSwitchPorts com índice bruto ux_switch_ports_device_name (device_id, LOWER(name)); 26 testes novos (8 domínio + 17 comandos + 1 delete) → 339 unit + 8 arch -->
 - [ ] F3-T003 VLAN  <!-- ex.: Default, Radiologia, Telefonia, Impressoras, Cameras, Unifi -->
 - [ ] F3-T004 SwitchPortVlan  <!-- membros tagged/untagged -->
 - [ ] F3-T005 Connection

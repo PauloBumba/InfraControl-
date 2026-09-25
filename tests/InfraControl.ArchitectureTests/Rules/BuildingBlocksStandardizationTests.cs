@@ -77,7 +77,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.IpAddresses.Queries.GetIpAddressQuery",
             "InfraControl.Application.Inventory.GlobalSearch.Queries.GlobalSearchQuery",
             "InfraControl.Application.Network.Switches.Queries.SearchSwitchesQuery",
-            "InfraControl.Application.Network.Switches.Queries.GetSwitchQuery"
+            "InfraControl.Application.Network.Switches.Queries.GetSwitchQuery",
+            "InfraControl.Application.Network.SwitchPorts.Commands.CreateSwitchPortCommand",
+            "InfraControl.Application.Network.SwitchPorts.Commands.UpdateSwitchPortCommand",
+            "InfraControl.Application.Network.SwitchPorts.Commands.DeleteSwitchPortCommand",
+            "InfraControl.Application.Network.SwitchPorts.Queries.SearchSwitchPortsQuery",
+            "InfraControl.Application.Network.SwitchPorts.Queries.GetSwitchPortQuery"
         };
 
         foreach (var typeName in adminSlices)

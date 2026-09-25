@@ -192,14 +192,19 @@ public sealed class DeleteDeviceCommandHandler(
         var device = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Device '{request.Id}' não encontrado.");
 
+        // F3-T002: portas vêm antes (específicas de switch) — depois interfaces.
+        if (await repository.HasPortsAsync(device.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir o device: existem portas vinculadas.");
+
         if (await repository.HasInterfacesAsync(device.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o device: existem interfaces vinculadas.");
 
         repository.Remove(device);
         await repository.SaveChangesAsync(cancellationToken);
 
-        // F2-T004: exclusão bloqueada acima quando há interfaces; a FK Restrict no
-        // banco é o backstop. IPs (F2-T006) passam a bloquear exclusões de interface.
+        // F2-T004/F3-T002: exclusão bloqueada acima quando há portas ou
+        // interfaces; a FK Restrict no banco é o backstop. IPs (F2-T006)
+        // bloqueiam exclusões de interface.
         logger.LogInformation("Device {DeviceId} deleted ({Name}).", device.Id, device.Name);
     }
 }
