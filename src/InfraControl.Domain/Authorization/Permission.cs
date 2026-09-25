@@ -31,5 +31,8 @@ public enum Permission
     CredentialUse,
 
     /// <summary>Gerenciar credenciais de acesso remoto (= credential.manage, docs/10; consumo em F11-T006).</summary>
-    CredentialManage
+    CredentialManage,
+
+    /// <summary>Gerenciar políticas de retenção por tipo de dado (= operations.retain.manage, docs/11; consumo em F12-T002).</summary>
+    RetentionManage
 }

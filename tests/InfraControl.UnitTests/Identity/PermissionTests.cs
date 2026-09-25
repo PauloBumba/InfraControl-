@@ -25,6 +25,7 @@ public sealed class PermissionTests
         permissions.Should().NotContain(Permission.RemoteRdpConnect);
         permissions.Should().NotContain(Permission.CredentialUse);
         permissions.Should().NotContain(Permission.CredentialManage);
+        permissions.Should().NotContain(Permission.RetentionManage);
     }
 
     [Fact]
@@ -42,6 +43,7 @@ public sealed class PermissionTests
         permissions.Should().Contain(Permission.RemoteRdpConnect);
         permissions.Should().NotContain(Permission.CredentialUse);
         permissions.Should().NotContain(Permission.CredentialManage);
+        permissions.Should().NotContain(Permission.RetentionManage);
     }
 
     [Fact]

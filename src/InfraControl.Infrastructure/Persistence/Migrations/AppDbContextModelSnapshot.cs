@@ -670,6 +670,40 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("racks", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.RetentionPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_datetime");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("data_type");
+
+                    b.Property<int>("Days")
+                        .HasColumnType("integer")
+                        .HasColumnName("days");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_datetime");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DataType")
+                        .IsUnique()
+                        .HasDatabaseName("IX_retention_policies_data_type");
+
+                    b.ToTable("retention_policies", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
                 {
                     b.Property<Guid>("Id")

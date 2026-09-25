@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -13,14 +14,15 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
     public async Task<CleanupResult> CleanupAsync(DateTime utcNow, CancellationToken cancellationToken = default)
     {
         var batchSize = Math.Max(1, _options.BatchSize);
+        var days = await LoadRetentionDaysAsync(cancellationToken);
 
-        var outboxDeleted = await DeleteOutboxAsync(_options.OutboxCutoff(utcNow), batchSize, cancellationToken);
-        var processedDeleted = await DeleteProcessedAsync(_options.ProcessedCutoff(utcNow), batchSize, cancellationToken);
-        var auditDeleted = await DeleteAuditAsync(_options.AuditCutoff(utcNow), batchSize, cancellationToken);
-        var monitoringDeleted = await DeleteMonitoringAsync(_options.MonitoringCutoff(utcNow), batchSize, cancellationToken);
-        var notificationDeleted = await DeleteNotificationsAsync(_options.NotificationsCutoff(utcNow), batchSize, cancellationToken);
-        var remoteSessionDeleted = await DeleteRemoteSessionsAsync(_options.RemoteSessionsCutoff(utcNow), batchSize, cancellationToken);
-        var discoveryDeleted = await DeleteDiscoveryRunsAsync(_options.DiscoveryCutoff(utcNow), batchSize, cancellationToken);
+        var outboxDeleted = await DeleteOutboxAsync(Cutoff(days, RetentionDataType.OutboxMessages, _options.OutboxProcessedDays, utcNow), batchSize, cancellationToken);
+        var processedDeleted = await DeleteProcessedAsync(Cutoff(days, RetentionDataType.ProcessedMessages, _options.ProcessedMessagesDays, utcNow), batchSize, cancellationToken);
+        var auditDeleted = await DeleteAuditAsync(Cutoff(days, RetentionDataType.AuditEntries, _options.AuditEntriesDays, utcNow), batchSize, cancellationToken);
+        var monitoringDeleted = await DeleteMonitoringAsync(Cutoff(days, RetentionDataType.MonitoringResults, _options.MonitoringResultsDays, utcNow), batchSize, cancellationToken);
+        var notificationDeleted = await DeleteNotificationsAsync(Cutoff(days, RetentionDataType.Notifications, _options.NotificationsDays, utcNow), batchSize, cancellationToken);
+        var remoteSessionDeleted = await DeleteRemoteSessionsAsync(Cutoff(days, RetentionDataType.RemoteSessions, _options.RemoteSessionsDays, utcNow), batchSize, cancellationToken);
+        var discoveryDeleted = await DeleteDiscoveryRunsAsync(Cutoff(days, RetentionDataType.DiscoveryRuns, _options.DiscoveryRunsDays, utcNow), batchSize, cancellationToken);
 
         return new CleanupResult(
             outboxDeleted,
@@ -150,4 +152,17 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             .Where(m => ids.Contains(m.Id))
             .ExecuteDeleteAsync(cancellationToken);
     }
+
+    private async Task<IReadOnlyDictionary<RetentionDataType, int>> LoadRetentionDaysAsync(
+        CancellationToken cancellationToken)
+        => await _dbContext.RetentionPolicies
+            .AsNoTracking()
+            .ToDictionaryAsync(p => p.DataType, p => p.Days, cancellationToken);
+
+    private static DateTime Cutoff(
+        IReadOnlyDictionary<RetentionDataType, int> days,
+        RetentionDataType dataType,
+        int configDays,
+        DateTime utcNow)
+        => utcNow.AddDays(-(days.GetValueOrDefault(dataType, configDays)));
 }

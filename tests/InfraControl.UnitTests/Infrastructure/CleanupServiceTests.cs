@@ -148,6 +148,39 @@ public sealed class CleanupServiceTests
         (await context.Locations.CountAsync()).Should().Be(1);
     }
 
+    [Fact]
+    public async Task CleanupAsync_ShouldUsePolicyOverConfigDefault()
+    {
+        var utcNow = new DateTime(2026, 9, 22, 12, 0, 0, DateTimeKind.Utc);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.EnsureCreatedAsync();
+
+        // config diz 90 dias; a policy de 7 dias deve prevalecer
+        context.RetentionPolicies.Add(
+            RetentionPolicy.Create(RetentionDataType.AuditEntries, 7));
+        var expiredUnderPolicy = new AuditEntry("Create", "User", "Succeeded");
+        var recent = new AuditEntry("Create", "User", "Succeeded");
+        await context.AddRangeAsync(expiredUnderPolicy, recent);
+        await context.SaveChangesAsync();
+
+        context.Entry(expiredUnderPolicy).Property(nameof(AuditEntry.OccurredAt))
+            .CurrentValue = utcNow.AddDays(-30);
+        context.Entry(recent).Property(nameof(AuditEntry.OccurredAt))
+            .CurrentValue = utcNow.AddDays(-1);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var cleanup = scope.ServiceProvider.GetRequiredService<ICleanupService>();
+        var result = await cleanup.CleanupAsync(utcNow);
+
+        result.AuditDeleted.Should().Be(1);
+        (await context.AuditEntries.CountAsync()).Should().Be(1);
+    }
+
     private static async Task<Guid> SeedDeviceAsync(AppDbContext context)
     {
         var location = Location.Create("Data Center A");

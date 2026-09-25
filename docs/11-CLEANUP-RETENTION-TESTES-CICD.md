@@ -20,8 +20,30 @@ AuditEntries: 90 dias             -> implementado
 ```
 
 Config em `Retention:*` (appsettings); exclusão em batch de `BatchSize`
-(500) por tabela por execução. `RetentionPolicy` (config por tipo em
-runtime, docs/03) fica para F12-T002.
+(500) por tabela por execução.
+
+### RetentionPolicy (F12-T002, 2026-09-25)
+
+A tabela `retention_policies` (entidade `RetentionPolicy`, migração
+`AddRetentionPolicies`) sobrescreve esses defaults **em runtime**: uma
+linha por tipo (`data_type` único, `days` 1–3650). O `CleanupService`
+lê as políticas a cada execução e mescla sobre a config — ausente a
+linha, vale `Retention:*`.
+
+API (`[Authorize(Roles="Admin")]` + `RequiredPermissions =
+RetentionManage` — nova permissão `operations.retain.manage`,
+Admin-only):
+
+```text
+GET    /api/v1/operations/retention-policies          # 7 tipos, valor efetivo
+GET    /api/v1/operations/retention-policies/{type}   # um tipo
+PUT    /api/v1/operations/retention-policies/{type}   # upsert {days}
+DELETE /api/v1/operations/retention-policies/{type}   # reset p/ config (404 se não existe)
+```
+
+Resposta por tipo: `{ dataType, days, source }` com `source` =
+`"Policy"` (linha na tabela) ou `"Config"` (default). GET sem política
+nunca é 404 — todo tipo tem valor efetivo.
 
 Não apagar inventário atual automaticamente — coberto por teste
 (`..._KeepRecentActiveAndInventory`): devices/locations nunca entram no

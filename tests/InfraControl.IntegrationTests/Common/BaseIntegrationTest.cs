@@ -3,6 +3,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Monitoring.Checks;
+using InfraControl.Application.Operations.Retention.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
@@ -95,12 +96,15 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // + fallback global de teste
         services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
         services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
+        services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
         services.AddScoped<ConfigurationRemoteCredentialSource>();
         services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
         services.Configure<CredentialEncryptionOptions>(options =>
         {
             options.Key = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
         });
+        // F12-T002: defaults de retenção (sem seção — mesmas values do appsettings)
+        services.Configure<RetentionOptions>(_ => { });
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Usuário de teste (role → permissões via RolePermissions)

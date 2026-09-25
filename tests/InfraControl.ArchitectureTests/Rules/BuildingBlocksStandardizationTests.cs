@@ -100,8 +100,11 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Discovery.Runs.Queries.GetDiscoveryRunQuery",
             "InfraControl.Application.RemoteAccess.Credentials.GetDeviceCredentialQuery",
             "InfraControl.Application.RemoteAccess.Credentials.UpsertDeviceCredentialCommand",
-            "InfraControl.Application.RemoteAccess.Credentials.DeleteDeviceCredentialCommand"
-        };
+            "InfraControl.Application.RemoteAccess.Credentials.DeleteDeviceCredentialCommand",
+            "InfraControl.Application.Operations.Retention.GetRetentionPoliciesQuery",
+            "InfraControl.Application.Operations.Retention.UpsertRetentionPolicyCommand",
+            "InfraControl.Application.Operations.Retention.DeleteRetentionPolicyCommand"
+};
 
         foreach (var typeName in adminSlices)
         {
