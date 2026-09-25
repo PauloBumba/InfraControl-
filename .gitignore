@@ -231,6 +231,11 @@ health/
 # Backup & report files from converting an old project
 _UpgradeReport_Files/
 Backup*/
+# ...exceto a fonte do F12-T003 (regra acima é lixo de template do VS)
+!src/InfraControl.Workers/Backup/
+!tests/InfraControl.UnitTests/Workers/Backup/
+# saída em runtime do BackupWorker
+backups/
 UpgradeLog*.XML
 UpgradeLog*.htm
 ServiceFabricBackup/
