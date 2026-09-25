@@ -118,7 +118,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 4 — Discovery
 
-- [ ] F4-T001 DiscoveryRun
+- [x] F4-T001 DiscoveryRun — entidade + enum (Running/Completed/Failed), migração AddDiscoveryRuns (FK Cascade device), API somente-leitura GET runs (filtro device) + GET runs/{id} (policy MonitoringRead); fluxo: gatilho manual por device, POST vem com providers T003/T004; 13 testes
 - [ ] F4-T002 DiscoveryResult
 - [ ] F4-T003 ICMP Provider
 - [ ] F4-T004 SNMP Provider

@@ -91,7 +91,9 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Network.SwitchPortVlans.Commands.AssignVlanToSwitchPortCommand",
             "InfraControl.Application.Network.SwitchPortVlans.Commands.UnassignVlanFromSwitchPortCommand",
             "InfraControl.Application.Network.SwitchPortVlans.Queries.GetSwitchPortVlansQuery",
-            "InfraControl.Application.Network.SwitchPortVlans.Queries.GetVlanSwitchPortsQuery"
+            "InfraControl.Application.Network.SwitchPortVlans.Queries.GetVlanSwitchPortsQuery",
+            "InfraControl.Application.Discovery.Runs.Queries.SearchDiscoveryRunsQuery",
+            "InfraControl.Application.Discovery.Runs.Queries.GetDiscoveryRunQuery"
         };
 
         foreach (var typeName in adminSlices)
