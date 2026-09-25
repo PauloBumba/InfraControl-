@@ -26,4 +26,10 @@
     <PackageReference Include="StackExchange.Redis" Version="3.3.0" />
   </ItemGroup>
 
+  <!-- EF Core é a base de configs/repos/migrations (~45 arquivos) — global
+       usage para não repetir em cada arquivo (Fase 1 global usings). -->
+  <ItemGroup>
+    <Using Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
 </Project>

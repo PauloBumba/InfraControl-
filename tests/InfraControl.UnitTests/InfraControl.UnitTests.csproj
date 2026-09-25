@@ -19,6 +19,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <!-- Suíte inteira usa as mesmas 4 bases (assert/contexto Sqlite) —
+         registradas aqui para os testes nascerem sem boilerplate (Fase 1). -->
+    <Using Include="FluentAssertions" />
+    <Using Include="Microsoft.EntityFrameworkCore" />
+    <Using Include="Microsoft.Data.Sqlite" />
+    <Using Include="InfraControl.Infrastructure.Persistence" />
   </ItemGroup>
 
   <ItemGroup>

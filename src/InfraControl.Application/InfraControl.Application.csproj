@@ -16,4 +16,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.4" />
   </ItemGroup>
 
+  <!-- Pipeline transversal do CQRS — registrado no projeto para não poluir
+       cada arquivo de slice com os mesmos using (Fase 1 global usings). -->
+  <ItemGroup>
+    <Using Include="MediatR" />
+    <Using Include="InfraControl.BuildingBlocks.Application" />
+    <Using Include="InfraControl.Application.Common.Interfaces" />
+    <Using Include="InfraControl.Domain.Authorization" />
+  </ItemGroup>
+
 </Project>

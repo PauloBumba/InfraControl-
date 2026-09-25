@@ -31,4 +31,13 @@
     <ProjectReference Include="..\InfraControl.Contracts\InfraControl.Contracts.csproj" />
   </ItemGroup>
 
+  <!-- Pipe de controllers — Mesma casa do padrão <Using Include="Xunit"/> dos
+       testes: evita repetir os mesmos using em todo controller (Fase 1). -->
+  <ItemGroup>
+    <Using Include="MediatR" />
+    <Using Include="Microsoft.AspNetCore.Mvc" />
+    <Using Include="Microsoft.AspNetCore.Authorization" />
+    <Using Include="InfraControl.BuildingBlocks.Application.Response" />
+  </ItemGroup>
+
 </Project>
