@@ -200,7 +200,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 12 — Operação
 
-- [ ] F12-T001 Cleanup
+- [x] F12-T001 Cleanup  <!-- decisão do usuário: expandir limpeza fixa (sem RetentionPolicy — fica na T002) cobrindo as 4 tabelas de histórico existentes; RetentionOptions +MonitoringResultsDays 180, +NotificationsDays 90, +RemoteSessionsDays 90, +DiscoveryRunsDays 180 (só FinishedAt != null — runs ativos nunca são tocados) com cutoffs; CleanupService +4 deletes em batch; CleanupResult/worker log com 7 contagens; appsettings Retention: +4 chaves; regra docs/11 de inventário coberta por teste (_KeepRecentActiveAndInventory: devices/locations intactos); testes estendidos (defaults/cutoffs/fluxo) — 528 unit + 8 arch + 26 integration; docs/11 cobertura mapeada -->
 - [ ] F12-T002 Retention
 - [ ] F12-T003 Backup
 - [ ] F12-T004 Restore Test

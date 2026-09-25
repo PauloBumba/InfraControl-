@@ -2,20 +2,30 @@
 
 ## Cleanup
 
-Worker separado.
+Worker separado (`CleanupWorker`, intervalo `Cleanup:IntervalHours`,
+default 24h; desligável via `Cleanup:Enabled=false`).
 
-Exemplos de retenção:
+Exemplos de retenção e cobertura implementada (F12-T001, 2026-09-25):
 
 ```text
-Outbox processado: 7–30 dias
-ProcessedMessages: 30 dias
-NotificationDelivery: 90 dias
-Logs: 30–90 dias
-Métricas: 90–365 dias
-Histórico: 1–5 anos
+Outbox processado: 7–30 dias      -> 30 dias (implementado)
+ProcessedMessages: 30 dias        -> 30 dias (implementado)
+NotificationDelivery: 90 dias     -> Notifications: 90 dias (implementado)
+Logs: 30–90 dias                  -> pendente (tabela de logs não existe)
+Métricas: 90–365 dias             -> MonitoringResults: 180 dias (implementado)
+Histórico: 1–5 anos               -> RemoteSessions: 90 dias; DiscoveryRuns:
+                                      180 dias, só quando FinishedAt != null
+                                      (implementado; ativos nunca são tocados)
+AuditEntries: 90 dias             -> implementado
 ```
 
-Não apagar inventário atual automaticamente.
+Config em `Retention:*` (appsettings); exclusão em batch de `BatchSize`
+(500) por tabela por execução. `RetentionPolicy` (config por tipo em
+runtime, docs/03) fica para F12-T002.
+
+Não apagar inventário atual automaticamente — coberto por teste
+(`..._KeepRecentActiveAndInventory`): devices/locations nunca entram no
+cleanup.
 
 ## Testes
 

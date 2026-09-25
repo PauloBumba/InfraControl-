@@ -52,9 +52,15 @@ public sealed class CleanupWorker(
         var result = await cleanup.CleanupAsync(utcNow, cancellationToken);
 
         logger.LogInformation(
-            "Cleanup completed. Outbox={OutboxDeleted} Processed={ProcessedDeleted} Audit={AuditDeleted}.",
+            "Cleanup completed. Outbox={OutboxDeleted} Processed={ProcessedDeleted} Audit={AuditDeleted} " +
+            "Monitoring={MonitoringDeleted} Notifications={NotificationDeleted} " +
+            "RemoteSessions={RemoteSessionDeleted} Discovery={DiscoveryDeleted}.",
             result.OutboxDeleted,
             result.ProcessedDeleted,
-            result.AuditDeleted);
+            result.AuditDeleted,
+            result.MonitoringDeleted,
+            result.NotificationDeleted,
+            result.RemoteSessionDeleted,
+            result.DiscoveryDeleted);
     }
 }
