@@ -676,6 +676,42 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("UserSessions", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Vlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VlanNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("vlan_number");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VlanNumber")
+                        .IsUnique();
+
+                    b.ToTable("vlans", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Infrastructure.Auth.InfraControlUser", b =>
                 {
                     b.Property<Guid>("Id")

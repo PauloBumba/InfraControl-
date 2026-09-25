@@ -82,7 +82,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Network.SwitchPorts.Commands.UpdateSwitchPortCommand",
             "InfraControl.Application.Network.SwitchPorts.Commands.DeleteSwitchPortCommand",
             "InfraControl.Application.Network.SwitchPorts.Queries.SearchSwitchPortsQuery",
-            "InfraControl.Application.Network.SwitchPorts.Queries.GetSwitchPortQuery"
+            "InfraControl.Application.Network.SwitchPorts.Queries.GetSwitchPortQuery",
+            "InfraControl.Application.Network.Vlans.Commands.CreateVlanCommand",
+            "InfraControl.Application.Network.Vlans.Commands.UpdateVlanCommand",
+            "InfraControl.Application.Network.Vlans.Commands.DeleteVlanCommand",
+            "InfraControl.Application.Network.Vlans.Queries.SearchVlansQuery",
+            "InfraControl.Application.Network.Vlans.Queries.GetVlanQuery"
         };
 
         foreach (var typeName in adminSlices)
