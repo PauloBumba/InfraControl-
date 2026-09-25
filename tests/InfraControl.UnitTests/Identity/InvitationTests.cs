@@ -10,6 +10,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using InfraControl.Application.Common.Interfaces;
+using InfraControl.Infrastructure.Services;
 
 namespace InfraControl.UnitTests.Identity;
 
@@ -333,6 +335,7 @@ public sealed class InvitationTests
         services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssembly(typeof(CreateInvitationCommand).Assembly));
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection));
+        services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IInvitationAccountPort, NoOpInvitationAccountPort>();
         return services.BuildServiceProvider();

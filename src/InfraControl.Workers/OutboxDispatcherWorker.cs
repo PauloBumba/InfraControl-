@@ -1,6 +1,7 @@
 using System.Text.Json;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Entities;
+using InfraControl.Infrastructure.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -54,7 +55,7 @@ public sealed class OutboxDispatcherWorker(
             try
             {
                 var eventType = ResolveEventType(message);
-                var payload = JsonSerializer.Deserialize(message.Payload, eventType)
+                var payload = JsonSerializer.Deserialize(message.Payload, eventType, OutboxJson.Options)
                     ?? throw new InvalidOperationException($"Outbox payload for '{message.EventType}' is empty.");
 
                 await eventBus.PublishAsync(payload, eventType, cancellationToken);

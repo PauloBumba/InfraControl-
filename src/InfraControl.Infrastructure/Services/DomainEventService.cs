@@ -20,7 +20,7 @@ public class DomainEventService : IDomainEventService
 
     public async Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
-        var payload = JsonSerializer.Serialize(domainEvent, domainEvent.GetType());
+        var payload = JsonSerializer.Serialize(domainEvent, domainEvent.GetType(), OutboxJson.Options);
 
         var outboxMessage = new OutboxMessage(
             domainEvent.EventType,

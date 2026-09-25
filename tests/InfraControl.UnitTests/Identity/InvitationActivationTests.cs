@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using InfraControl.Application.Common.Interfaces;
+using InfraControl.Infrastructure.Services;
 
 namespace InfraControl.UnitTests.Identity;
 
@@ -332,6 +334,7 @@ public sealed class InvitationActivationTests
         services.AddIdentityCore<InfraControlUser>()
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>();
+        services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
         return services.BuildServiceProvider();

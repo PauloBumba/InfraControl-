@@ -9,6 +9,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using InfraControl.Infrastructure.Services;
 
 namespace InfraControl.UnitTests.Infrastructure;
 
@@ -96,6 +97,7 @@ public sealed class AuditQueryTests
         services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssembly(typeof(SearchAuditEntriesQuery).Assembly));
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection));
+        services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<IAuditReader, AuditReader>();
         return services.BuildServiceProvider();
     }

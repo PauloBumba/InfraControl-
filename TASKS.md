@@ -171,7 +171,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 9 — Notifications
 
-- [ ] F9-T001 Notification
+- [x] F9-T001 Notification  <!-- docs/07 ADR-012: entity Notification (EventId único p/ idempotência visual, EventType, Title≤200, Message≤1000, audit fields) + NotificationConfiguration (índice único event_id) + migração AddNotifications; fluxo completo docs/06: OutboxDispatchHandler<TEvent> (handler MediatR aberto — todo domain event do AppDbContext vira OutboxMessage na mesma transação, ADR-005) → OutboxDispatcherWorker (já existia) → RabbitMQ → NotificationEventConsumer (UserCreated/UserDisabled/UserRoleAssigned/UserRoleRemoved/InvitationAccepted; idempotência via IInboxStore EventId+Consumer "NotificationConsumer"; logs Information; consumidor registrado no MassTransit do Workers); payload outbox com enums string (OutboxJson); destinatários F9-T002, canais F9-T004+ -->
 - [ ] F9-T002 Recipient
 - [ ] F9-T003 Preferences
 - [ ] F9-T004 SignalR
