@@ -10,14 +10,16 @@ React
 → SSH / RDP / Agent
 ```
 
-Permissões:
+Permissões (matriz em F11-T004):
 
-- device.remote.read
-- device.ssh.connect
-- device.rdp.connect
-- device.remote.session
-- credential.use
-- credential.manage
+- device.remote.read (= `RemoteSessionsRead`; Admin/User/Viewer)
+- device.ssh.connect (= `RemoteSshConnect`; Admin/User)
+- device.rdp.connect (= `RemoteRdpConnect`; Admin/User)
+- credential.use (= `CredentialUse`; Admin-only, consumo em F11-T006)
+- credential.manage (= `CredentialManage`; Admin-only, consumo em F11-T006)
+
+`device.remote.session` (lista original) é redundante com
+ssh/rdp.connect e não entrou no catálogo.
 
 Nunca expor credenciais ao frontend.
 
@@ -70,8 +72,9 @@ React → ASP.NET Core → Provider SSH (F11-T002) / RDP (F11-T003) → RemoteSe
 - `RemoteSession` (Domain/RemoteAccess): `Open/Close/Fail` com invariantes
   em pt-BR; nunca contém credencial.
 - Permissão `Permission.RemoteSessionsRead` (= `device.remote.read`):
-  Admin herda; User/Viewer não recebem até a matriz de F11-T004.
-- `GET /api/v1/inventory/devices/{id}/remote/sessions` (`[Authorize(Roles="Admin")]`):
+  Admin/User/Viewer (matriz F11-T004).
+- `GET /api/v1/inventory/devices/{id}/remote/sessions`
+  (`[Authorize(Roles="Admin,User,Viewer")]`):
   ordem mais-recente-primeiro; `RemoteSessionDto` sem campos de credencial
   (teste de reflexão).
 - Tabela `remote_sessions` (FK device cascade, índice
@@ -94,9 +97,9 @@ React → POST open → OpenSshSessionCommand → IRemoteCredentialSource
   (Application/RemoteAccess/Sessions/Ports) — RDP entra em F11-T003 pelo
   mesmo port.
 - Permissão `Permission.RemoteSshConnect` (= `device.ssh.connect`): Admin
-  herda; User/Viewer não recebem até a matriz de F11-T004.
+  e User; Viewer não (matriz F11-T004).
 - `POST/DELETE /api/v1/inventory/devices/{id}/remote/sessions`
-  (`[Authorize(Roles="Admin")]`): sem terminal interativo — só conexão
+  (`[Authorize(Roles="Admin,User")]`): sem terminal interativo — só conexão
   autenticada registrada na sessão.
 - Credencial provisória via `RemoteAccess:Ssh` (config/env, **vazia no
   git**); sem credencial, `InvalidOperationException` → 409 pt-BR sem
@@ -121,12 +124,12 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
                                       → session.Close() + dispose socket
 ```
 
-- `Permission.RemoteRdpConnect` (= `device.rdp.connect`): Admin herda;
-  User/Viewer não recebem até a matriz de F11-T004.
+- `Permission.RemoteRdpConnect` (= `device.rdp.connect`): Admin e User;
+  Viewer não (matriz F11-T004).
 - `OpenRdpSessionCommand` **não consulta** `IRemoteCredentialSource` (probe
   não usa credencial); `CloseRemoteSessionCommand` substitui
   `CloseSshSessionCommand` — era protocolo-agnóstico com um único DELETE;
-  exige `RemoteSshConnect` + `RemoteRdpConnect` (Admin-only hoje, matriz em
+  exige `RemoteSshConnect` + `RemoteRdpConnect` (Admin/User — matriz
   F11-T004).
 - `RdpRemoteProvider`: falha vira `RemoteConnectResult` pt-BR sem exceção
   vazando (porta fechada/timeout/tempo esgotado, Neg Failure mapeado —
@@ -137,3 +140,24 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
   (≤ 500) e devolve 409 — tentativa fica auditável (igual a F11-T002).
 - Nenhum teste abre rede: unit usa `FakeRdpServer` (`TcpListener` em
   loopback) e integration usa `FakeRdpRemoteProvider`.
+
+### F11-T004 — Matriz de permissões remote (2026-09-25)
+
+- Decisão do usuário: **"Viewer lê, User lê+conecta"** —
+  - Viewer: `RemoteSessionsRead` (histórico de sessões);
+  - User: permissões do Viewer + `RemoteSshConnect` + `RemoteRdpConnect`;
+  - Admin: catálogo completo (herda por `Enum.GetValues`).
+- `CredentialUse`/`CredentialManage` entraram no enum `Permission`
+  (Admin-only, prontos para F11-T006 Credential Store) — **nenhum command
+  os exige hoje**; o consumo real começa quando existir credencial
+  armazenada.
+- `RemoteSessionsController` sincronizado com a matriz: GET
+  `Admin,User,Viewer`; POST / POST rdp / DELETE `Admin,User`.
+- `CloseRemoteSessionCommand` continua com RequiredPermissions AND
+  (`RemoteSshConnect` + `RemoteRdpConnect`) — com a matriz, User fecha
+  sessões dos dois protocolos; Viewer é negado.
+- Evidência: `PermissionTests` (matriz por role incluindo os 2 novos
+  Credential*), integration Viewer lê histórico (novo), User abre→fecha
+  SSH (novo), sem permissão → `UnauthorizedAccessException` pt-BR
+  (negative trocou `UseRole(Viewer)` por `UseNoPermissions()` — hoje
+  **toda role** tem `RemoteSessionsRead`).

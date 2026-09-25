@@ -41,6 +41,23 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task OpenAndClose_WithUserRole_ShouldCreateActiveThenClosedSession()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.73");
+        UseRole(UserRole.User);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var opened = await mediator.Send(new OpenSshSessionCommand(device.Id));
+        opened.Status.Should().Be("Active");
+
+        var closed = await mediator.Send(new CloseRemoteSessionCommand(device.Id, opened.Id));
+        closed.Status.Should().Be("Closed");
+    }
+
+    [Fact]
     public async Task OpenSsh_WithoutRemoteSshConnect_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();

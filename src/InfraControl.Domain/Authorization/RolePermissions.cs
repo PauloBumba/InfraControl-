@@ -10,7 +10,8 @@ public static class RolePermissions
         Permission.InventoryRead,
         Permission.MonitoringRead,
         Permission.IncidentsRead,
-        Permission.TasksRead
+        Permission.TasksRead,
+        Permission.RemoteSessionsRead
     };
 
     private static readonly IReadOnlySet<Permission> UserPermissions = new HashSet<Permission>(ViewerPermissions)
@@ -19,7 +20,9 @@ public static class RolePermissions
         Permission.InventoryManage,
         Permission.MonitoringManage,
         Permission.IncidentsManage,
-        Permission.TasksManage
+        Permission.TasksManage,
+        Permission.RemoteSshConnect,
+        Permission.RemoteRdpConnect
     };
 
     private static readonly IReadOnlySet<Permission> AdminPermissions =

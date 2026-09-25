@@ -36,13 +36,28 @@ public sealed class RemoteSessionIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task GetDeviceSessions_WithoutRemoteSessionsRead_ShouldThrowUnauthorizedPtBr()
+    public async Task GetDeviceSessions_WithViewerRole_ShouldListSessions()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.31");
         await SeedSessionsAsync(dbContext, device.Id, count: 1);
         UseRole(UserRole.Viewer);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var dto = await mediator.Send(new GetDeviceSessionsQuery(device.Id));
+
+        dto.Sessions.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task GetDeviceSessions_WithoutRemoteSessionsRead_ShouldThrowUnauthorizedPtBr()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.32");
+        await SeedSessionsAsync(dbContext, device.Id, count: 1);
+        UseNoPermissions();
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(new GetDeviceSessionsQuery(device.Id));

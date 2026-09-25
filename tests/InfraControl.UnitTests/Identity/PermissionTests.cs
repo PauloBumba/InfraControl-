@@ -16,12 +16,15 @@ public sealed class PermissionTests
             Permission.InventoryRead,
             Permission.MonitoringRead,
             Permission.IncidentsRead,
-            Permission.TasksRead
+            Permission.TasksRead,
+            Permission.RemoteSessionsRead
         ]);
         permissions.Should().NotContain(Permission.InventoryManage);
         permissions.Should().NotContain(Permission.IdentityRolesManage);
         permissions.Should().NotContain(Permission.RemoteSshConnect);
         permissions.Should().NotContain(Permission.RemoteRdpConnect);
+        permissions.Should().NotContain(Permission.CredentialUse);
+        permissions.Should().NotContain(Permission.CredentialManage);
     }
 
     [Fact]
@@ -34,8 +37,11 @@ public sealed class PermissionTests
         permissions.Should().Contain(Permission.InventoryManage);
         permissions.Should().Contain(Permission.TasksManage);
         permissions.Should().NotContain(Permission.IdentityRolesManage);
-        permissions.Should().NotContain(Permission.RemoteSshConnect);
-        permissions.Should().NotContain(Permission.RemoteRdpConnect);
+        permissions.Should().Contain(Permission.RemoteSessionsRead);
+        permissions.Should().Contain(Permission.RemoteSshConnect);
+        permissions.Should().Contain(Permission.RemoteRdpConnect);
+        permissions.Should().NotContain(Permission.CredentialUse);
+        permissions.Should().NotContain(Permission.CredentialManage);
     }
 
     [Fact]

@@ -25,5 +25,11 @@ public enum Permission
     RemoteSshConnect,
 
     /// <summary>Abrir/encerrar sessão RDP em devices (= device.rdp.connect, docs/10).</summary>
-    RemoteRdpConnect
+    RemoteRdpConnect,
+
+    /// <summary>Usar credencial armazenada para abrir sessão (= credential.use, docs/10).</summary>
+    CredentialUse,
+
+    /// <summary>Gerenciar credenciais de acesso remoto (= credential.manage, docs/10; consumo em F11-T006).</summary>
+    CredentialManage
 }
