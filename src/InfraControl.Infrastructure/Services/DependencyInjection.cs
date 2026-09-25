@@ -6,6 +6,7 @@ using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Inventory.IpAddresses.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
@@ -150,6 +151,7 @@ public static class DependencyInjection
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<INetworkInterfaceRepository, NetworkInterfaceRepository>();
         services.AddScoped<IMacAddressRepository, MacAddressRepository>();
+        services.AddScoped<IIpAddressRepository, IpAddressRepository>();
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
 
         return services;

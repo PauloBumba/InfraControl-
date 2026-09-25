@@ -267,6 +267,24 @@ public sealed class NetworkInterfaceCommandTests : IDisposable
             .WithMessage("Não é possível excluir a interface: existem MACs vinculados.");
     }
 
+    [Fact]
+    public async Task Delete_InterfaceWithIps_ShouldThrowConflictMessage()
+    {
+        // F2-T006: fecha a dependência anotada na F2-T004.
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateNetworkInterfaceCommand(deviceId, "eth0"), CancellationToken.None);
+        context.IpAddresses.Add(IpAddress.Create(created.Id, "192.0.2.10"));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteNetworkInterfaceCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir a interface: existem IPs vinculados.");
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────
 
     [Fact]

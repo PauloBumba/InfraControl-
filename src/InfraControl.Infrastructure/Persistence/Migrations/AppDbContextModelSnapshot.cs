@@ -241,6 +241,39 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("invitation_roles", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.IpAddress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InterfaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("interface_id");
+
+                    b.Property<string>("Ip")
+                        .IsRequired()
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InterfaceId");
+
+                    b.HasIndex("Ip")
+                        .IsUnique();
+
+                    b.ToTable("ip_addresses", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Location", b =>
                 {
                     b.Property<Guid>("Id")
@@ -819,6 +852,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany("RoleAssignments")
                         .HasForeignKey("InvitationId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.IpAddress", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
+                        .WithMany()
+                        .HasForeignKey("InterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

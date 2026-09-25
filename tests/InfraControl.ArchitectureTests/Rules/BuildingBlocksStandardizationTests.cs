@@ -69,7 +69,12 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.MacAddresses.Commands.UpdateMacAddressCommand",
             "InfraControl.Application.Inventory.MacAddresses.Commands.DeleteMacAddressCommand",
             "InfraControl.Application.Inventory.MacAddresses.Queries.SearchMacAddressesQuery",
-            "InfraControl.Application.Inventory.MacAddresses.Queries.GetMacAddressQuery"
+            "InfraControl.Application.Inventory.MacAddresses.Queries.GetMacAddressQuery",
+            "InfraControl.Application.Inventory.IpAddresses.Commands.CreateIpAddressCommand",
+            "InfraControl.Application.Inventory.IpAddresses.Commands.UpdateIpAddressCommand",
+            "InfraControl.Application.Inventory.IpAddresses.Commands.DeleteIpAddressCommand",
+            "InfraControl.Application.Inventory.IpAddresses.Queries.SearchIpAddressesQuery",
+            "InfraControl.Application.Inventory.IpAddresses.Queries.GetIpAddressQuery"
         };
 
         foreach (var typeName in adminSlices)
