@@ -18,5 +18,6 @@ public enum Permission
     IncidentsManage,
     TasksRead,
     TasksManage,
-    AuditRead
+    AuditRead,
+    RemoteSessionsRead
 }

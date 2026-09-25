@@ -5,6 +5,7 @@ using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
@@ -67,6 +68,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
+        services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
 
         // Monitoring: registry real + PingMonitoringProvider com ICMP falso
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));

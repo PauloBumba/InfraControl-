@@ -190,7 +190,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 11 — Remote Access
 
-- [ ] F11-T001 RemoteSession  <!-- sessão auditada; nunca expor credencial ao frontend -->
+- [x] F11-T001 RemoteSession  <!-- entity RemoteSession (Open/Close/Fail com invariantes pt-BR, FailureReason≤500) + Permission.RemoteSessionsRead (= docs/10 device.remote.read; Admin herda automaticamente, User/Viewer não — matriz de connect/use em F11-T004) + GetDeviceSessionsQuery (IQuery+IAuthorizedRequest, ordem StartedAt desc, limit 1–500, 404 pt-BR) + GET /api/v1/inventory/devices/{id}/remote/sessions ([Authorize(Roles="Admin")] conservador até F11-T004) + DTO RemoteSessionDto sem campos de credencial (teste de reflexão, docs/10) + tabela remote_sessions (FK device cascade, índices (device_id, started_at)) + migração AddRemoteSessions; abrir/conectar sessão real só com provider SSH/RDP em F11-T002/T003; AuditEntry explícito em F11-T005; 16 unit + 2 integration -->
 - [ ] F11-T002 SSH Provider  <!-- switch e servidor (H3C/HP, Linux) -->
 - [ ] F11-T003 RDP Provider  <!-- computador Windows (Workstation) -->
 - [ ] F11-T004 Permissions  <!-- device.remote.read, device.ssh.connect, device.rdp.connect, credential.use/manage -->

@@ -55,3 +55,24 @@ Coletar traces, metrics e logs.
 - menor privilégio
 - LGPD
 - proteção contra prompt injection
+
+## Implementação (2026-09-24)
+
+### F11-T001 — RemoteSession (fundação)
+
+- Fluxo parcial (F11-T002/T003 vão completar):
+
+```text
+React → ASP.NET Core → (Provider SSH/RDP — F11-T002/T003) → RemoteSession
+                                                    └→ GET histórico (F11-T001)
+```
+
+- `RemoteSession` (Domain/RemoteAccess): `Open/Close/Fail` com invariantes
+  em pt-BR; nunca contém credencial.
+- Permissão `Permission.RemoteSessionsRead` (= `device.remote.read`):
+  Admin herda; User/Viewer não recebem até a matriz de F11-T004.
+- `GET /api/v1/inventory/devices/{id}/remote/sessions` (`[Authorize(Roles="Admin")]`):
+  ordem mais-recente-primeiro; `RemoteSessionDto` sem campos de credencial
+  (teste de reflexão).
+- Tabela `remote_sessions` (FK device cascade, índice
+  `(device_id, started_at)`), migração `AddRemoteSessions`.

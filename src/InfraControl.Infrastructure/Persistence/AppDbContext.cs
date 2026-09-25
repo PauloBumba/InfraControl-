@@ -3,6 +3,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.RemoteAccess;
 using InfraControl.Infrastructure.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -34,6 +35,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
     public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<RemoteSession> RemoteSessions => Set<RemoteSession>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();
