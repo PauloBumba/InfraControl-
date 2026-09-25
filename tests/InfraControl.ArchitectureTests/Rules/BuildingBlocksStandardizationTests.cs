@@ -75,7 +75,9 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.IpAddresses.Commands.DeleteIpAddressCommand",
             "InfraControl.Application.Inventory.IpAddresses.Queries.SearchIpAddressesQuery",
             "InfraControl.Application.Inventory.IpAddresses.Queries.GetIpAddressQuery",
-            "InfraControl.Application.Inventory.GlobalSearch.Queries.GlobalSearchQuery"
+            "InfraControl.Application.Inventory.GlobalSearch.Queries.GlobalSearchQuery",
+            "InfraControl.Application.Network.Switches.Queries.SearchSwitchesQuery",
+            "InfraControl.Application.Network.Switches.Queries.GetSwitchQuery"
         };
 
         foreach (var typeName in adminSlices)
