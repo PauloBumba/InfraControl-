@@ -15,8 +15,10 @@ Permissões (matriz em F11-T004):
 - device.remote.read (= `RemoteSessionsRead`; Admin/User/Viewer)
 - device.ssh.connect (= `RemoteSshConnect`; Admin/User)
 - device.rdp.connect (= `RemoteRdpConnect`; Admin/User)
-- credential.use (= `CredentialUse`; Admin-only, consumo em F11-T006)
-- credential.manage (= `CredentialManage`; Admin-only, consumo em F11-T006)
+- credential.use (= `CredentialUse`; Admin-only; **ainda não consumida** —
+  fica para flows que exponham/ escolham credencial, ex.: RDP com NLA)
+- credential.manage (= `CredentialManage`; Admin-only; consumida pela
+  gestão de credencial em F11-T006)
 
 `device.remote.session` (lista original) é redundante com
 ssh/rdp.connect e não entrou no catálogo.
@@ -101,9 +103,10 @@ React → POST open → OpenSshSessionCommand → IRemoteCredentialSource
 - `POST/DELETE /api/v1/inventory/devices/{id}/remote/sessions`
   (`[Authorize(Roles="Admin,User")]`): sem terminal interativo — só conexão
   autenticada registrada na sessão.
-- Credencial provisória via `RemoteAccess:Ssh` (config/env, **vazia no
-  git**); sem credencial, `InvalidOperationException` → 409 pt-BR sem
-  criar sessão. F11-T006 substitui por Credential Store.
+- Credencial: **Credential Store por device** (F11-T006, cifrada) com
+  fallback global `RemoteAccess:Ssh` (config/env, **vazia no git**); sem
+  nada configurado, `InvalidOperationException` → 409 pt-BR sem criar
+  sessão.
 - Falha de conexão grava `RemoteSession` `Failed` com `FailureReason`
   (≤ 500, senha mascarada) e devolve 409 — tentativa fica auditável.
 - Nenhum teste abre rede: integration usa `FakeSshRemoteProvider`.
@@ -148,9 +151,9 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
   - User: permissões do Viewer + `RemoteSshConnect` + `RemoteRdpConnect`;
   - Admin: catálogo completo (herda por `Enum.GetValues`).
 - `CredentialUse`/`CredentialManage` entraram no enum `Permission`
-  (Admin-only, prontos para F11-T006 Credential Store) — **nenhum command
-  os exige hoje**; o consumo real começa quando existir credencial
-  armazenada.
+  (Admin-only) — `CredentialManage` passou a ser exigida pela gestão de
+  credencial em F11-T006; **`CredentialUse` continua sem consumo** (flow
+  que exponha credencial, ex.: RDP NLA, fica para task futura).
 - `RemoteSessionsController` sincronizado com a matriz: GET
   `Admin,User,Viewer`; POST / POST rdp / DELETE `Admin,User`.
 - `CloseRemoteSessionCommand` continua com RequiredPermissions AND
@@ -187,3 +190,41 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
   genérico, resource "RemoteSession" via marker, path Failed com
   rethrow) + integration Admin open→close grava as duas entries
   `RemoteSession` com `ActorId` "integration-test".
+
+### F11-T006 — Credential Store (2026-09-25)
+
+- Decisões do usuário: **DB criptografado com chave só em env**, rotação
+  **manual via PUT + audit** e API **GET/PUT/DELETE por device**.
+- Tabela `device_credentials` (migração `AddDeviceCredentials`): uma
+  credencial por device — `device_id` **único**, FK device **cascade**;
+  colunas `username` (≤ 256), `protected_password` (≤ 1024, sempre
+  cifrada), `rotated_at`.
+- Cifra **AES-256-GCM** (`AesGcmCredentialProtector`, prefixo `v1:`):
+  chave-símétrica base64 de 32 bytes vem **só de**
+  `RemoteAccess:CredentialEncryption:Key` (env; appsettings com `""` no
+  git); chave ausente/inválida → erro pt-BR; conteúdo adulterado →
+  "Falha ao decifrar credencial armazenada" sem detalhe criptográfico.
+  **Sem Data Protection/key ring**: chave única em env = rotação
+  operacional da chave sem pasta de key ring em container.
+- Cadeia (`StoreRemoteCredentialSource`): store por device primeiro →
+  fallback global `RemoteAccess:Ssh` (`ConfigurationRemoteCredentialSource`
+  reaproveitado) → `InvalidOperationException` pt-BR 409 se nada existir.
+- API: `GET/PUT/DELETE /api/v1/inventory/devices/{id}/remote/credential`
+  (`[Authorize(Roles="Admin")]` + `RequiredPermissions = CredentialManage`
+  no pipeline); PUT substitui e registra `RotatedAt` (audit `Failed`/
+  `Succeeded` com resource `DeviceCredential` vem do `AuditBehavior`);
+  DELETE remove e volta ao fallback; respostas só com username/flags —
+  **teste de reflexão** garante que `DeviceCredentialDto` não expõe senha.
+- Queries/commands (3 slices na regra BuildingBlocks):
+  `GetDeviceCredentialQuery` (sem credencial → `HasCredential=false`,
+  não é 404), `UpsertDeviceCredentialCommand` (404 device, 400
+  usuário/senha vazios ou > 256), `DeleteDeviceCredentialCommand` (404
+  device / credencial "não encontrada").
+- `IRemoteCredentialSource` agora é o `StoreRemoteCredentialSource`
+  (DI trocado); `CredentialUse` permanece sem consumo (decisão de escopo:
+  exigir no `OpenSshSessionCommand` quebraria a matriz User da F11-T004).
+- Evidência: 34 unit novos (`DeviceCredentialTests` domínio,
+  `CredentialProtectorTests` cifra, `StoreRemoteCredentialSourceTests`
+  cadeia, `DeviceCredentialCommandTests` gestão/DTO) + 5 integration no
+  PostgreSQL real (Admin grava→lê→rotaciona→delete, User/Viewer negado
+  com `*CredentialManage*`, senha nunca em texto puro no banco).

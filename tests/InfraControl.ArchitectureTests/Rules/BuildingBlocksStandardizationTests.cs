@@ -97,7 +97,10 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Network.SwitchPortVlans.Queries.GetSwitchPortVlansQuery",
             "InfraControl.Application.Network.SwitchPortVlans.Queries.GetVlanSwitchPortsQuery",
             "InfraControl.Application.Discovery.Runs.Queries.SearchDiscoveryRunsQuery",
-            "InfraControl.Application.Discovery.Runs.Queries.GetDiscoveryRunQuery"
+            "InfraControl.Application.Discovery.Runs.Queries.GetDiscoveryRunQuery",
+            "InfraControl.Application.RemoteAccess.Credentials.GetDeviceCredentialQuery",
+            "InfraControl.Application.RemoteAccess.Credentials.UpsertDeviceCredentialCommand",
+            "InfraControl.Application.RemoteAccess.Credentials.DeleteDeviceCredentialCommand"
         };
 
         foreach (var typeName in adminSlices)

@@ -5,6 +5,7 @@ using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
@@ -90,7 +91,16 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             options.Port = 3389;
             options.TimeoutSeconds = 5;
         });
-        services.AddScoped<IRemoteCredentialSource, ConfigurationRemoteCredentialSource>();
+        // F11-T006: cadeia real — store cifrado (chave de teste em config)
+        // + fallback global de teste
+        services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
+        services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
+        services.AddScoped<ConfigurationRemoteCredentialSource>();
+        services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
+        services.Configure<CredentialEncryptionOptions>(options =>
+        {
+            options.Key = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+        });
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Usuário de teste (role → permissões via RolePermissions)

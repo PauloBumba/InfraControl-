@@ -13,6 +13,7 @@ using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
 using InfraControl.Domain.Common;
@@ -143,15 +144,20 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
 
         // Remote access (F11-T002/T003, ADR-013): SSH sem terminal interativo
-        // + probe RDP TCP/X.224. Credencial SSH provisória via config/env —
-        // F11-T006 troca por Credential Store; RDP não usa credencial.
+        // + probe RDP TCP/X.224. Credencial: store por device cifrado com
+        // chave em env (F11-T006) e fallback global RemoteAccess:Ssh; RDP
+        // não usa credencial.
         services.Configure<RemoteSshOptions>(
             configuration.GetSection(RemoteSshOptions.SectionName));
         services.Configure<RemoteRdpOptions>(
             configuration.GetSection(RemoteRdpOptions.SectionName));
+        services.Configure<CredentialEncryptionOptions>(
+            configuration.GetSection(CredentialEncryptionOptions.SectionName));
         services.AddScoped<IRemoteProvider, SshRemoteProvider>();
         services.AddScoped<IRemoteProvider, RdpRemoteProvider>();
-        services.AddScoped<IRemoteCredentialSource, ConfigurationRemoteCredentialSource>();
+        services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
+        services.AddScoped<ConfigurationRemoteCredentialSource>();
+        services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Outbox
