@@ -28,13 +28,15 @@ public sealed record DeviceSessionsDto(
 /// O DTO não transporta credenciais (docs/10).
 /// </summary>
 public sealed record GetDeviceSessionsQuery(Guid Id, int Limit = 50)
-    : IQuery<DeviceSessionsDto>, IAuthorizedRequest
+    : IQuery<DeviceSessionsDto>, IAuthorizedRequest, IAuditableRequest
 {
     public const int MinLimit = 1;
     public const int MaxLimit = 500;
 
     public IReadOnlyCollection<string> RequiredPermissions =>
         [Permission.RemoteSessionsRead.ToString()];
+
+    public string AuditResource => "RemoteSession";
 }
 
 public sealed class GetDeviceSessionsQueryHandler(

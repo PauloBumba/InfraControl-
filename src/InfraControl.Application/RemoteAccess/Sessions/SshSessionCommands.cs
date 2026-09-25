@@ -10,10 +10,12 @@ namespace InfraControl.Application.RemoteAccess.Sessions;
 
 /// <summary>Abre uma sessão SSH no device (F11-T002, ADR-013).</summary>
 public sealed record OpenSshSessionCommand(Guid DeviceId)
-    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest
+    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredPermissions =>
         [Permission.RemoteSshConnect.ToString()];
+
+    public string AuditResource => "RemoteSession";
 }
 
 public sealed class OpenSshSessionCommandHandler(

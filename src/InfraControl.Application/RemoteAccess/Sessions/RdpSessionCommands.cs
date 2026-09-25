@@ -14,10 +14,12 @@ namespace InfraControl.Application.RemoteAccess.Sessions;
 /// para task futura (F11-T006+), então nenhuma credencial é consultada.
 /// </summary>
 public sealed record OpenRdpSessionCommand(Guid DeviceId)
-    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest
+    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredPermissions =>
         [Permission.RemoteRdpConnect.ToString()];
+
+    public string AuditResource => "RemoteSession";
 }
 
 public sealed class OpenRdpSessionCommandHandler(

@@ -54,3 +54,5 @@ Transaction é para comandos que alteram estado.
 Cache é aplicado somente a queries cacheáveis.
 
 Invalidação de cache e auditoria de sucesso ocorrem depois do commit.
+
+Audit grava `ActorId` (`ICurrentUserContext.UserName`) e `Resource` explícito via `IAuditableRequest` (F11-T005); sem o marker, `Resource` é `"ApplicationRequest"`.

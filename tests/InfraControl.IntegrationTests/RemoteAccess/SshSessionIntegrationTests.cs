@@ -58,6 +58,32 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task OpenAndClose_WithAdminRole_ShouldWriteRemoteSessionAuditEntries()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.74");
+        UseRole(UserRole.Admin);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var opened = await mediator.Send(new OpenSshSessionCommand(device.Id));
+        await mediator.Send(new CloseRemoteSessionCommand(device.Id, opened.Id));
+
+        var entries = await dbContext.AuditEntries
+            .Where(entry => entry.Resource == "RemoteSession")
+            .ToListAsync();
+
+        entries.Should().ContainSingle(entry =>
+            entry.Action == nameof(OpenSshSessionCommand)
+            && entry.Outcome == "Succeeded"
+            && entry.ActorId == "integration-test");
+        entries.Should().ContainSingle(entry =>
+            entry.Action == nameof(CloseRemoteSessionCommand)
+            && entry.Outcome == "Succeeded"
+            && entry.ActorId == "integration-test");
+    }
+
+    [Fact]
     public async Task OpenSsh_WithoutRemoteSshConnect_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();

@@ -161,3 +161,29 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
   SSH (novo), sem permissão → `UnauthorizedAccessException` pt-BR
   (negative trocou `UseRole(Viewer)` por `UseNoPermissions()` — hoje
   **toda role** tem `RemoteSessionsRead`).
+
+### F11-T005 — Audit de sessões remote (2026-09-25)
+
+- Integração com o audit existente (F1-T010): o `AuditBehavior` já gravava
+  uma entrada por request (action = nome do comando, outcome,
+  correlationId) — mas **sem ator** e com resource fixo
+  "ApplicationRequest".
+- `ActorId` agora vem de `ICurrentUserContext.UserName` (decisão do
+  usuário: login legível na UI de Audit — antes era sempre null e a UI
+  mostrava "sistema"); vale para **todos** os requests, não só remote.
+- Novo marker `IAuditableRequest.AuditResource` (BuildingBlocks, ao lado
+  de `IAuthorizedRequest`): `AuditBehavior` usa o resource do marker e
+  mantém `"ApplicationRequest"` como fallback — uma entrada por request,
+  sem duplicar linhas.
+- Os 4 requests remote (`OpenSshSessionCommand`/`OpenRdpSessionCommand`/
+  `CloseRemoteSessionCommand`/`GetDeviceSessionsQuery`) declaram
+  `AuditResource = "RemoteSession"`; a action continua sendo o nome do
+  comando — filtro e busca da UI continuam funcionando.
+- Falha de conexão/sessão: handler persiste `RemoteSession` `Failed` e o
+  `AuditBehavior` grava a entrada `Failed` (error = tipo da exceção) fora
+  do caminho do handler — tentativa fica auditável mesmo quando o comando
+  lança exceção.
+- Evidência: 3 testes em `AuditBehaviorTests` (atores + resource
+  genérico, resource "RemoteSession" via marker, path Failed com
+  rethrow) + integration Admin open→close grava as duas entries
+  `RemoteSession` com `ActorId` "integration-test".

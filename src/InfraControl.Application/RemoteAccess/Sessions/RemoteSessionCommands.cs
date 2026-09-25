@@ -36,13 +36,15 @@ internal static class RemoteSessionFlow
 /// registrada (F11-T003: comando é protocolo-agnóstico — um único DELETE).
 /// </summary>
 public sealed record CloseRemoteSessionCommand(Guid DeviceId, Guid SessionId)
-    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest
+    : BaseCommand<RemoteSessionDto>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredPermissions =>
     [
         Permission.RemoteSshConnect.ToString(),
         Permission.RemoteRdpConnect.ToString()
     ];
+
+    public string AuditResource => "RemoteSession";
 }
 
 public sealed class CloseRemoteSessionCommandHandler(
