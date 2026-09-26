@@ -81,6 +81,21 @@ Decisões do usuário: **ping falho = achado negativo** (run `Completed` +
 `reachable=false`); só erro de infraestrutura (exceção do probe) marca o
 run `Failed` e devolve o DTO com `errorMessage`.
 
+## Provider SNMP (F4-T004)
+
+Escopo aprovado: **só o system group MIB-II** (sem ifTable).
+
+```text
+StartDiscoveryCommand(provider: "Snmp")
+  → walk 1.3.6.1.2.1.1 via ISnmpClient (mesma seam do monitoring)
+  → 1 DiscoveryResult(Kind=Host) com sys_descr/sys_name/sys_up_time/
+    sys_location/sys_contact + reachable=true
+  → Summary "SNMP: <sys_name> — <sys_descr>" (≤500)
+```
+
+Sem resposta ou exceção → achado negativo (`reachable=false`, erro
+pt-BR), run `Completed` (mesma decisão do ICMP).
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`

@@ -61,7 +61,7 @@ public sealed class StartDiscoveryCommandHandler(
             return Map(run);
         }
 
-        var kind = DiscoveryResultKind.Host; // ICMP → Host; T004+ estende o mapeamento
+        var kind = DiscoveryResultKind.Host; // ICMP e SNMP → Host; T005+ (LLDP/CDP…) estende o mapeamento
         var summary = providerResult.Summary
             ?? (providerResult.Succeeded
                 ? $"Discovery de {device.Ip} concluída."

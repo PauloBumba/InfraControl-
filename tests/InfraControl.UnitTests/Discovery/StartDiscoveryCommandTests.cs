@@ -5,6 +5,7 @@ using InfraControl.Infrastructure.Discovery;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Services;
@@ -125,6 +126,46 @@ public sealed class StartDiscoveryCommandTests : IDisposable
         result.Summary.Should().Contain("inacessível");
         result.Values!["reachable"].Should().Be("false");
         context.DiscoveryRuns.Single().Status.Should().Be(DiscoveryRunStatus.Completed);
+    }
+
+    [Fact]
+    public async Task Start_Snmp_ShouldPersistSystemGroupResult()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.70");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.2.1.1.1.0", "MikroTik RouterOS"),
+            new("1.3.6.1.2.1.1.5.0", "rb-core-01")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new SnmpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Snmp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.Kind.Should().Be(DiscoveryResultKind.Host);
+        result.Summary.Should().Contain("rb-core-01");
+        result.Values!["sys_name"].Should().Be("rb-core-01");
+        result.Values!["reachable"].Should().Be("true");
+    }
+
+    private sealed class FakeSnmpWalkClient(
+        Func<string, IReadOnlyList<SnmpVariable>> walkFactory) : ISnmpClient
+    {
+        public Task<IReadOnlyList<SnmpVariable>> WalkAsync(
+            string target, string oid, TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(walkFactory(target));
     }
 
     [Fact]

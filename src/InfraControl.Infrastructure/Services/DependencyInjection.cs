@@ -138,8 +138,9 @@ public static class DependencyInjection
 
         // Monitoring (F5-T003/F5-T004): ping ICMP + SNMP de impressoras
         services.AddScoped<IIcmpClient, SystemNetIcmpClient>();
-        // Discovery (F4-T003): probe ICMP do gatilho manual de discovery
+        // Discovery (F4-T003/T004): probes ICMP e SNMP do gatilho manual
         services.AddScoped<IDiscoveryProvider, IcmpDiscoveryProvider>();
+        services.AddScoped<IDiscoveryProvider, SnmpDiscoveryProvider>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();

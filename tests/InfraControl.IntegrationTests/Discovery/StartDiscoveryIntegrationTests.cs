@@ -53,6 +53,23 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task Start_Snmp_WithUserRole_ShouldPersistSystemGroupResult()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.60");
+        UseRole(UserRole.User);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var dto = await mediator.Send(new StartDiscoveryCommand(device.Id, "Snmp"));
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        var result = dbContext.DiscoveryResults.Single();
+        result.Kind.Should().Be(DiscoveryResultKind.Host);
+        result.Values!["sys_name"].Should().Be("sw-core-01");
+    }
+
+    [Fact]
     public async Task Start_UnknownProvider_ShouldThrow400PtBr()
     {
         using var scope = CreateScope();
