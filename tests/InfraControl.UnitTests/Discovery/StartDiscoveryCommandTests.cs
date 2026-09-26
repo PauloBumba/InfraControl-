@@ -256,6 +256,36 @@ public sealed class StartDiscoveryCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_Arp_ShouldPersistArpEntryFindingsWithoutDeviceLink()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.2.1.4.22.1.3.11.192.0.2.10", "192.0.2.10"),
+            new("1.3.6.1.2.1.4.22.1.2.11.192.0.2.10", "aa:bb:cc:dd:ee:01")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.Kind.Should().Be(DiscoveryResultKind.ArpEntry);
+        result.Summary.Should().Be("192.0.2.10 — aa:bb:cc:dd:ee:01");
+        result.DeviceId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Start_WithoutIp_ShouldThrowPtBrAndCreateNoRun()
     {
         await using var context = await CreateContextAsync();

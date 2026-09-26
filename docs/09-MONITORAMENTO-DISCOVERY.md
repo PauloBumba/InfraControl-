@@ -130,6 +130,20 @@ StartDiscoveryCommand(provider: "Cdp")
   → walk vazio: 1 achado "Nenhum vizinho CDP." (neighbors=0)
 ```
 
+## Provider ARP (F4-T007)
+
+Decisões aprovadas: **1 achado por entrada** e **sem filtro de tipo**.
+
+```text
+StartDiscoveryCommand(provider: "Arp")
+  → walk 1.3.6.1.2.1.4.22.1 (ipNetToMediaTable, IP-MIB)
+  → colunas .1 ifIndex / .2 physAddress / .3 netAddress / .4 type
+    agrupadas por índice ifIndex.a.b.c.d
+  → 1 achado por entrada: Kind=ArpEntry, Summary "<ip> — <mac>",
+    Values: ip/mac/if_index/arp_type/local_if/arp_entries
+  → tabela vazia: 1 achado "Nenhuma entrada ARP." (arp_entries=0)
+```
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`
