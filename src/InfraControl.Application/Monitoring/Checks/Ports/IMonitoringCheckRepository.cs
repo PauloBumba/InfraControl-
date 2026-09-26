@@ -11,6 +11,13 @@ public interface IMonitoringCheckRepository : IRepository<MonitoringCheck>
         Guid deviceId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Todas as checks habilitadas de todos os devices (F5-T007:
+    /// polling periódico — fonte do que executar a cada ciclo).
+    /// </summary>
+    Task<IReadOnlyList<MonitoringCheck>> GetEnabledAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sincroniza as linhas com a lista do device (F5-T001): adiciona as que
     /// faltam (Enabled=true), remove as fora da lista e preserva as
     /// existentes. NÃO persiste — quem chama grava no mesmo SaveChanges.

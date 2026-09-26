@@ -12,6 +12,7 @@ using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
+using InfraControl.Application.Monitoring.Polling;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
@@ -186,6 +187,9 @@ public static class DependencyInjection
         // Performance (Dia 5 — docs/20): alerta de request lento
         services.Configure<PerformanceOptions>(configuration.GetSection("Performance"));
         services.AddScoped<ICleanupService, CleanupService>();
+
+        // F5-T007: polling periódico de monitoring (worker fino agenda)
+        services.AddScoped<IMonitoringPollingService, MonitoringPollingService>();
 
         // Invitations
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();

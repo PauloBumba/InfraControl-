@@ -31,6 +31,7 @@ builder.Services.AddSingleton<InfraControl.Workers.Backup.PostgresBackupService>
 builder.Services.AddHostedService<OutboxDispatcherWorker>();
 builder.Services.AddHostedService<CleanupWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.Backup.BackupWorker>();
+builder.Services.AddHostedService<MonitoringPollingWorker>();
 
 var host = builder.Build();
 host.Run();

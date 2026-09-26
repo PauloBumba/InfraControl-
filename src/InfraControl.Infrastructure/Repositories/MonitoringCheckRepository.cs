@@ -33,6 +33,20 @@ public sealed class MonitoringCheckRepository(AppDbContext dbContext)
         return rows.OrderBy(check => check.Kind).ToList();
     }
 
+    public async Task<IReadOnlyList<MonitoringCheck>> GetEnabledAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.MonitoringChecks
+            .AsNoTracking()
+            .Where(check => check.Enabled)
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .OrderBy(check => check.DeviceId)
+            .ThenBy(check => check.Kind)
+            .ToList();
+    }
+
     public async Task SynchronizeFromProfileAsync(
         Guid deviceId,
         IEnumerable<CheckKind> checks,

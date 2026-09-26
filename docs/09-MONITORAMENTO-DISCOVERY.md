@@ -260,6 +260,33 @@ Seam: `ITcpProbeClient` + `TcpProbeReply(Success, Error?)`; implementação
 real `SystemNetTcpProbeClient` (TcpClient.ConnectAsync, timeout por
 `CancellationToken`). Testes usam `FakeTcpProbeClient` (sem rede).
 
+## Polling periódico (F5-T007)
+
+Decisões aprovadas: **serviço + worker fino** (padrão `ICleanupService`)
+e **honrar os checks habilitados** por device (não `RunAllChecks` por
+kind — esse roda o check em todos os devices e quebra com
+`SnmpToner`/`Drum` fora de impressora).
+
+```text
+MonitoringPollingWorker (InfraControl.Workers, BackgroundService)
+  → config MonitoringPolling:Enabled (default true)
+             MonitoringPolling:IntervalSeconds (default 60)
+  → a cada ciclo: scope → IMonitoringPollingService.PollOnceAsync
+
+MonitoringPollingService (Application, testável sem host)
+  → devices com IP (GetAllOrderedByNameAsync)
+  + checks habilitados (IMonitoringCheckRepository.GetEnabledAsync)
+  → por device/check: RunCheckCommandHandler.ExecuteAsync
+      (guard de impressora/provider ausente → log Warning + pula;
+       erro inesperado → log Error + continua — o ciclo nunca aborta)
+  → 1 SaveChanges por ciclo (mesma decisão do RunAll)
+  → retorna nº de checks executados (log do worker)
+```
+
+Config (appsettings do Workers): seção `MonitoringPolling`. Sem
+auditoria por execução (worker não passa pelo pipeline MediatR —
+histórico fica em `MonitoringResult`, F5-T002).
+
 ## Alertas
 
 Evitar alert storm.
