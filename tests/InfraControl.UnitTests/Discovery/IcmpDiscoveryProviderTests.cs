@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InfraControl.Infrastructure.Discovery;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Monitoring;
 
 namespace InfraControl.UnitTests.Discovery;
@@ -46,13 +47,15 @@ public sealed class IcmpDiscoveryProviderTests
             .CanHandle(key).Should().BeFalse();
 
     [Fact]
-    public async Task DiscoverAsync_Success_ShouldReturnReachableAttributesAndSummary()
+    public async Task DiscoverAsync_Success_ShouldReturnSingleHostFinding()
     {
         var icmp = new FakeIcmpClient(new IcmpReply(true, 5));
         var provider = new IcmpDiscoveryProvider(icmp);
 
-        var result = await provider.DiscoverAsync("192.0.2.10");
+        var findings = await provider.DiscoverAsync("192.0.2.10");
 
+        var result = findings.Should().ContainSingle().Subject;
+        result.Kind.Should().Be(DiscoveryResultKind.Host);
         result.Succeeded.Should().BeTrue();
         result.Error.Should().BeNull();
         result.Summary.Should().Contain("acessível").And.Contain("192.0.2.10");
@@ -67,8 +70,10 @@ public sealed class IcmpDiscoveryProviderTests
         var provider = new IcmpDiscoveryProvider(
             new FakeIcmpClient(new IcmpReply(false, 0, "Host inacessível.")));
 
-        var result = await provider.DiscoverAsync("192.0.2.99");
+        var findings = await provider.DiscoverAsync("192.0.2.99");
 
+        var result = findings.Should().ContainSingle().Subject;
+        result.Kind.Should().Be(DiscoveryResultKind.Host);
         result.Succeeded.Should().BeFalse();
         result.Error.Should().Be("Host inacessível.");
         result.Summary.Should().Contain("inacessível");
@@ -81,8 +86,9 @@ public sealed class IcmpDiscoveryProviderTests
         var icmp = new FakeIcmpClient(new IcmpReply(true, 1));
         var provider = new IcmpDiscoveryProvider(icmp);
 
-        var result = await provider.DiscoverAsync("  ");
+        var findings = await provider.DiscoverAsync("  ");
 
+        var result = findings.Should().ContainSingle().Subject;
         result.Succeeded.Should().BeFalse();
         result.Error.Should().Be("Destino do ping é obrigatório.");
         icmp.Calls.Should().Be(0);

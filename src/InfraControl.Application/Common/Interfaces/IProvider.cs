@@ -1,3 +1,5 @@
+using InfraControl.Domain.Enums;
+
 namespace InfraControl.Application.Common.Interfaces;
 
 public interface IInfrastructureProvider
@@ -8,7 +10,10 @@ public interface IInfrastructureProvider
 
 public interface IDiscoveryProvider : IInfrastructureProvider
 {
-    Task<DiscoveryProviderResult> DiscoverAsync(
+    /// <summary>
+    /// Um ou mais achados (F4-T005: 1 por vizinho LLDP; ICMP/SNMP: 1).
+    /// </summary>
+    Task<IReadOnlyList<DiscoveryProviderResult>> DiscoverAsync(
         string target,
         CancellationToken cancellationToken = default);
 }
@@ -21,6 +26,7 @@ public interface IMonitoringProvider : IInfrastructureProvider
 }
 
 public sealed record DiscoveryProviderResult(
+    DiscoveryResultKind Kind,
     bool Succeeded,
     IReadOnlyDictionary<string, string> Attributes,
     string? Error = null,

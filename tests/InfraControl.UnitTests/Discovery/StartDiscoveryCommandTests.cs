@@ -169,6 +169,63 @@ public sealed class StartDiscoveryCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_Lldp_ShouldPersistOneNeighborFindingEachWithoutDeviceLink()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.80");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.0.8802.1.1.2.1.4.1.1.7.0.11.1", "sw-core-01"),
+            new("1.0.8802.1.1.2.1.4.1.1.6.0.11.1", "Gi0/1"),
+            new("1.0.8802.1.1.2.1.4.1.1.7.0.11.2", "sw-access-02"),
+            new("1.0.8802.1.1.2.1.4.1.1.5.0.11.2", "Gi1/0/24")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new LldpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Lldp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var results = context.DiscoveryResults.ToList();
+        results.Should().HaveCount(2);
+        results.Should().OnlyContain(r => r.Kind == DiscoveryResultKind.Neighbor);
+        results.Should().OnlyContain(r => r.DeviceId == null,
+            "vizinho não é o device escaneado — vínculo vem no T010");
+        results.Select(r => r.Summary).Should().BeEquivalentTo(
+            "sw-core-01 — Gi0/1", "sw-access-02 — Gi1/0/24");
+    }
+
+    [Fact]
+    public async Task Start_LldpEmptyWalk_ShouldRegisterNoNeighborsFinding()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.80");
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new LldpDiscoveryProvider(new FakeSnmpWalkClient(_ => []))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "lldp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        var result = context.DiscoveryResults.Single();
+        result.Summary.Should().Be("Nenhum vizinho LLDP.");
+        result.Values!["neighbors"].Should().Be("0");
+    }
+
+    [Fact]
     public async Task Start_WithoutIp_ShouldThrowPtBrAndCreateNoRun()
     {
         await using var context = await CreateContextAsync();

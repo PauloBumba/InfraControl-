@@ -70,6 +70,32 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task Start_Lldp_WithUserRole_ShouldPersistNeighborFindings()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.80");
+
+        var snmp = (FakeSnmpClient)scope.ServiceProvider
+            .GetRequiredService<InfraControl.Infrastructure.Monitoring.ISnmpClient>();
+        snmp.Variables =
+        [
+            new("1.0.8802.1.1.2.1.4.1.1.7.0.11.1", "sw-core-01"),
+            new("1.0.8802.1.1.2.1.4.1.1.6.0.11.1", "Gi0/1")
+        ];
+        UseRole(UserRole.User);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var dto = await mediator.Send(new StartDiscoveryCommand(device.Id, "Lldp"));
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        var result = dbContext.DiscoveryResults.Single();
+        result.Kind.Should().Be(DiscoveryResultKind.Neighbor);
+        result.Summary.Should().Be("sw-core-01 — Gi0/1");
+        result.DeviceId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Start_UnknownProvider_ShouldThrow400PtBr()
     {
         using var scope = CreateScope();

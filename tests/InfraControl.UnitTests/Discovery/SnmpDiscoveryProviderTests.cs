@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Monitoring;
 
@@ -76,8 +77,10 @@ public sealed class SnmpDiscoveryProviderTests
         var client = new FakeSnmpClient(_ => SampleSystemGroup());
         var provider = new SnmpDiscoveryProvider(client);
 
-        var result = await provider.DiscoverAsync("192.0.2.60");
+        var findings = await provider.DiscoverAsync("192.0.2.60");
 
+        var result = findings.Should().ContainSingle().Subject;
+        result.Kind.Should().Be(DiscoveryResultKind.Host);
         result.Succeeded.Should().BeTrue();
         result.Error.Should().BeNull();
         result.Summary.Should().Contain("sw-core-01").And.Contain("Cisco IOS XE Software");
@@ -96,8 +99,9 @@ public sealed class SnmpDiscoveryProviderTests
     {
         var provider = new SnmpDiscoveryProvider(new FakeSnmpClient(_ => []));
 
-        var result = await provider.DiscoverAsync("192.0.2.60");
+        var findings = await provider.DiscoverAsync("192.0.2.60");
 
+        var result = findings.Should().ContainSingle().Subject;
         result.Succeeded.Should().BeFalse();
         result.Error.Should().Be("SNMP sem resposta.");
         result.Summary.Should().Contain("sem resposta");
@@ -109,8 +113,9 @@ public sealed class SnmpDiscoveryProviderTests
     {
         var provider = new SnmpDiscoveryProvider(new ThrowingSnmpClient());
 
-        var result = await provider.DiscoverAsync("192.0.2.60");
+        var findings = await provider.DiscoverAsync("192.0.2.60");
 
+        var result = findings.Should().ContainSingle().Subject;
         result.Succeeded.Should().BeFalse();
         result.Error.Should().StartWith("Falha ao consultar SNMP:");
         result.Summary.Should().Contain("indisponível");
@@ -123,8 +128,9 @@ public sealed class SnmpDiscoveryProviderTests
         var client = new FakeSnmpClient(_ => SampleSystemGroup());
         var provider = new SnmpDiscoveryProvider(client);
 
-        var result = await provider.DiscoverAsync(" ");
+        var findings = await provider.DiscoverAsync(" ");
 
+        var result = findings.Should().ContainSingle().Subject;
         result.Succeeded.Should().BeFalse();
         result.Error.Should().Be("Destino do SNMP é obrigatório.");
         client.Calls.Should().Be(0);

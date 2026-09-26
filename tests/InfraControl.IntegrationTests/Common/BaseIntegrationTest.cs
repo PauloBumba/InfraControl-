@@ -84,6 +84,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<InfraControl.Application.Common.Interfaces.IDiscoveryProvider, IcmpDiscoveryProvider>();
         services.AddScoped<ISnmpClient, FakeSnmpClient>();
         services.AddScoped<InfraControl.Application.Common.Interfaces.IDiscoveryProvider, SnmpDiscoveryProvider>();
+        services.AddScoped<InfraControl.Application.Common.Interfaces.IDiscoveryProvider, LldpDiscoveryProvider>();
 
         // Remote access (F11-T002/T003): providers SSH/RDP falsos (sem rede)
         // + credencial provisória de teste + registry real em memória

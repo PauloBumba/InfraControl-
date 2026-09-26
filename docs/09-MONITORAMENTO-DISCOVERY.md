@@ -96,6 +96,27 @@ StartDiscoveryCommand(provider: "Snmp")
 Sem resposta ou exceção → achado negativo (`reachable=false`, erro
 pt-BR), run `Completed` (mesma decisão do ICMP).
 
+## Provider LLDP (F4-T005)
+
+Decisões do usuário: leitura via **SNMP/LLDP-MIB** (não SSH/CLI) e walk
+sem vizinhos → **registrar "nenhum"** como achado.
+
+```text
+StartDiscoveryCommand(provider: "Lldp")
+  → walk 1.0.8802.1.1.2.1.4.1.1 (lldpRemTable) via ISnmpClient
+  → colunas agrupadas por índice (timeMark.localPort.remIndex)
+  → 1 achado por vizinho: Kind=Neighbor, Summary "<sys_name> — <porta>",
+    Values: sys_name/chassis_id/port_id/port_desc/sys_descr/local_port
+  → walk vazio: 1 achado "Nenhum vizinho LLDP." (neighbors=0)
+```
+
+**Contrato** (evolução no F4-T005): `IDiscoveryProvider.DiscoverAsync`
+retorna **lista** de `DiscoveryProviderResult(Kind, Succeeded,
+Attributes, Error?, Summary?)` — ICMP/SNMP devolvem 1 achado
+`Kind=Host`, LLDP N achados `Kind=Neighbor`. O comando grava todos em 1
+`SaveChanges`; `DeviceId` do achado só é preenchido para `Host` (o
+próprio device) — vizinhos ficam sem vínculo até o **T010** casar.
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`

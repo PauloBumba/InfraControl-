@@ -45,10 +45,10 @@ public sealed class StartDiscoveryCommandHandler(
         var run = DiscoveryRun.Start(device.Id);
         await runRepository.AddAsync(run, cancellationToken);
 
-        DiscoveryProviderResult providerResult;
+        IReadOnlyList<DiscoveryProviderResult> findings;
         try
         {
-            providerResult = await provider.DiscoverAsync(device.Ip, cancellationToken);
+            findings = await provider.DiscoverAsync(device.Ip, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -61,20 +61,24 @@ public sealed class StartDiscoveryCommandHandler(
             return Map(run);
         }
 
-        var kind = DiscoveryResultKind.Host; // ICMP e SNMP → Host; T005+ (LLDP/CDP…) estende o mapeamento
-        var summary = providerResult.Summary
-            ?? (providerResult.Succeeded
-                ? $"Discovery de {device.Ip} concluída."
-                : $"Discovery de {device.Ip} falhou: {providerResult.Error}");
+        foreach (var finding in findings)
+        {
+            var summary = finding.Summary
+                ?? (finding.Succeeded
+                    ? $"Discovery de {device.Ip} concluída."
+                    : $"Discovery de {device.Ip} falhou: {finding.Error}");
 
-        await resultRepository.AddAsync(
-            DiscoveryResult.Create(
-                run.Id,
-                kind,
-                summary,
-                providerResult.Attributes,
-                deviceId: device.Id),
-            cancellationToken);
+            // Só achados do próprio device (Host) carregam o vínculo;
+            // vizinhos/ARP/MAC/leases ficam sem link até o T010 casar.
+            await resultRepository.AddAsync(
+                DiscoveryResult.Create(
+                    run.Id,
+                    finding.Kind,
+                    summary,
+                    finding.Attributes,
+                    deviceId: finding.Kind == DiscoveryResultKind.Host ? device.Id : null),
+                cancellationToken);
+        }
 
         run.Complete();
         await runRepository.SaveChangesAsync(cancellationToken);

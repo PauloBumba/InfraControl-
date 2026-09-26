@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Monitoring;
 
 namespace InfraControl.Infrastructure.Discovery;
@@ -29,16 +30,17 @@ public sealed class SnmpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPr
     public bool CanHandle(string providerKey)
         => string.Equals(providerKey, "Snmp", StringComparison.OrdinalIgnoreCase);
 
-    public async Task<DiscoveryProviderResult> DiscoverAsync(
+    public async Task<IReadOnlyList<DiscoveryProviderResult>> DiscoverAsync(
         string target,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(target))
-            return new DiscoveryProviderResult(
+            return [new DiscoveryProviderResult(
+                DiscoveryResultKind.Host,
                 false,
                 new Dictionary<string, string> { ["reachable"] = "false" },
                 "Destino do SNMP é obrigatório.",
-                "Destino do SNMP é obrigatório.");
+                "Destino do SNMP é obrigatório.")];
 
         target = target.Trim();
 
@@ -54,19 +56,21 @@ public sealed class SnmpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPr
         }
         catch (Exception exception)
         {
-            return new DiscoveryProviderResult(
+            return [new DiscoveryProviderResult(
+                DiscoveryResultKind.Host,
                 false,
                 new Dictionary<string, string> { ["reachable"] = "false" },
                 $"Falha ao consultar SNMP: {exception.Message}",
-                $"SNMP indisponível em {target}.");
+                $"SNMP indisponível em {target}.")];
         }
 
         if (variables.Count == 0)
-            return new DiscoveryProviderResult(
+            return [new DiscoveryProviderResult(
+                DiscoveryResultKind.Host,
                 false,
                 new Dictionary<string, string> { ["reachable"] = "false" },
                 "SNMP sem resposta.",
-                $"SNMP sem resposta em {target}.");
+                $"SNMP sem resposta em {target}.")];
 
         var attributes = new Dictionary<string, string> { ["reachable"] = "true" };
         string? sysName = null;
@@ -95,7 +99,8 @@ public sealed class SnmpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPr
                 ? $"SNMP: {sysName}."
                 : $"SNMP: {sysName} — {sysDescr}");
 
-        return new DiscoveryProviderResult(true, attributes, null, summary);
+        return [new DiscoveryProviderResult(
+            DiscoveryResultKind.Host, true, attributes, null, summary)];
     }
 
     private static string Truncate(string summary)

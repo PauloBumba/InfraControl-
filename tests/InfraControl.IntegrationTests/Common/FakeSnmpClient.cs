@@ -8,7 +8,7 @@ namespace InfraControl.IntegrationTests.Common;
 /// </summary>
 public sealed class FakeSnmpClient : ISnmpClient
 {
-    public IReadOnlyList<SnmpVariable> Variables { get; init; } =
+    public IReadOnlyList<SnmpVariable> Variables { get; set; } =
     [
         new("1.3.6.1.2.1.1.1.0", "Cisco IOS XE Software"),
         new("1.3.6.1.2.1.1.3.0", "123456"),
