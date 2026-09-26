@@ -144,6 +144,25 @@ StartDiscoveryCommand(provider: "Arp")
   → tabela vazia: 1 achado "Nenhuma entrada ARP." (arp_entries=0)
 ```
 
+## Provider DHCP (F4-T008)
+
+Escopo aprovado: **bindings de DHCP snooping** (vendor Cisco, mesmo
+natureza do CDP). MIB: CISCO-DHCP-SNOOPING-MIB.
+
+```text
+StartDiscoveryCommand(provider: "Dhcp")
+  → walk 1.3.6.1.4.1.9.9.380.1.4.1 (cdsBindingsTable)
+    via ISnmpClient
+  → colunas .1 vlan / .2 mac / .3 addrType / .4 ip / .5 interface /
+    .6 leasedTime / .7 status / .8 hostname,
+    agrupadas por índice vlan + mac (octetos)
+  → 1 achado por binding: Kind=DhcpLease, Summary "<ip> — <mac>",
+    Values: ip/mac/vlan/addr_type/local_if/leased_time/binding_status/
+    hostname/dhcp_bindings
+  → binding sem ip: descartado (não identifica o lease)
+  → tabela vazia: 1 achado "Nenhuma entrada DHCP." (dhcp_bindings=0)
+```
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`
