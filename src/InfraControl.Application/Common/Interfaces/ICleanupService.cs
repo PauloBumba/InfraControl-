@@ -20,6 +20,15 @@ public sealed record RetentionOptions
     public DateTime DiscoveryCutoff(DateTime utcNow) => utcNow.AddDays(-DiscoveryRunsDays);
 }
 
+/// <summary>
+/// Medição de performance dos requests (Dia 5 — docs/20): acima de
+/// <c>SlowRequestMs</c> o PerformanceBehavior loga Warning.
+/// </summary>
+public sealed record PerformanceOptions
+{
+    public int SlowRequestMs { get; set; } = 1000;
+}
+
 public sealed record CleanupResult(
     int OutboxDeleted,
     int ProcessedDeleted,

@@ -108,6 +108,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         });
         // F12-T002: defaults de retenção (sem seção — mesmas values do appsettings)
         services.Configure<RetentionOptions>(_ => { });
+        // F12-T005: alerta de request lento (Dia 5 — docs/20)
+        services.Configure<PerformanceOptions>(options => options.SlowRequestMs = 1000);
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
         // Usuário de teste (role → permissões via RolePermissions)

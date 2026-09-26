@@ -56,8 +56,10 @@ public sealed class RunCheckCommandHandler(
             ?? throw new KeyNotFoundException($"Device '{request.DeviceId}' não encontrado.");
 
         var kind = ParseCheck(request.Check);
-        return await ExecuteAsync(
+        var result = await ExecuteAsync(
             device, kind, providers, resultRepository, logger, cancellationToken);
+        await resultRepository.SaveChangesAsync(cancellationToken);
+        return result;
     }
 
     internal static CheckKind ParseCheck(string check)
@@ -118,7 +120,6 @@ public sealed class RunCheckCommandHandler(
             MonitoringResult.Create(
                 device.Id, kind, result.Succeeded, durationMs, error, result.Values),
             cancellationToken);
-        await resultRepository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
             "Check {Check} em {DeviceId} ({Name}, {Ip}): {Succeeded} em {DurationMs}ms.",
@@ -147,6 +148,11 @@ public sealed class RunAllChecksCommandHandler(
         foreach (var device in devices)
             results.Add(await RunCheckCommandHandler.ExecuteAsync(
                 device, kind, providers, resultRepository, logger, cancellationToken));
+
+        // Dia 5 (docs/20): um único SaveChanges para todos os devices —
+        // N idas ao banco por execução viram 1 (o TransactionBehavior do
+        // pipeline já garante atomicidade na API).
+        await resultRepository.SaveChangesAsync(cancellationToken);
 
         return results;
     }

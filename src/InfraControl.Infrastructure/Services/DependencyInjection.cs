@@ -168,6 +168,9 @@ public static class DependencyInjection
 
         // Retention / cleanup
         services.Configure<RetentionOptions>(configuration.GetSection("Retention"));
+
+        // Performance (Dia 5 — docs/20): alerta de request lento
+        services.Configure<PerformanceOptions>(configuration.GetSection("Performance"));
         services.AddScoped<ICleanupService, CleanupService>();
 
         // Invitations

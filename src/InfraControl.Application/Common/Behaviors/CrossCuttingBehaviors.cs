@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using InfraControl.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace InfraControl.Application.Common.Behaviors;
 
@@ -51,7 +52,9 @@ public sealed class LoggingBehavior<TRequest, TResponse>(ILogger<LoggingBehavior
     }
 }
 
-public sealed class PerformanceBehavior<TRequest, TResponse>(ILogger<PerformanceBehavior<TRequest, TResponse>> logger)
+public sealed class PerformanceBehavior<TRequest, TResponse>(
+    ILogger<PerformanceBehavior<TRequest, TResponse>> logger,
+    IOptions<PerformanceOptions> options)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
@@ -86,11 +89,22 @@ public sealed class PerformanceBehavior<TRequest, TResponse>(ILogger<Performance
                 elapsedMilliseconds,
                 new KeyValuePair<string, object?>("request", requestName),
                 new KeyValuePair<string, object?>("outcome", outcome));
-            logger.LogInformation(
-                "Request {RequestName} completed in {ElapsedMilliseconds} ms with outcome {Outcome}.",
-                requestName,
-                elapsedMilliseconds,
-                outcome);
+            if (elapsedMilliseconds >= options.Value.SlowRequestMs)
+            {
+                logger.LogWarning(
+                    "Slow request {RequestName} completed in {ElapsedMilliseconds} ms with outcome {Outcome}.",
+                    requestName,
+                    elapsedMilliseconds,
+                    outcome);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Request {RequestName} completed in {ElapsedMilliseconds} ms with outcome {Outcome}.",
+                    requestName,
+                    elapsedMilliseconds,
+                    outcome);
+            }
         }
     }
 }

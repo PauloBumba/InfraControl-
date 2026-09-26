@@ -9,14 +9,12 @@ namespace InfraControl.Infrastructure.Repositories;
 public sealed class RetentionPolicyRepository(AppDbContext dbContext)
     : IRetentionPolicyRepository
 {
-    public Task<IReadOnlyList<RetentionPolicy>> GetAllAsync(
+    public async Task<IReadOnlyList<RetentionPolicy>> GetAllAsync(
         CancellationToken cancellationToken = default)
-        => dbContext.RetentionPolicies
+        => await dbContext.RetentionPolicies
             .AsNoTracking()
             .OrderBy(p => p.DataType)
-            .ToListAsync(cancellationToken)
-            .ContinueWith<IReadOnlyList<RetentionPolicy>>(
-                task => task.Result, CancellationToken.None);
+            .ToListAsync(cancellationToken);
 
     public Task<RetentionPolicy?> GetByTypeAsync(
         RetentionDataType dataType, CancellationToken cancellationToken = default)

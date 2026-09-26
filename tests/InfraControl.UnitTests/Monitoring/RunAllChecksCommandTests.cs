@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -80,6 +81,56 @@ public sealed class RunAllChecksCommandTests : IDisposable
                     $"No provider registered for '{providerKey}'.");
 
         public IReadOnlyCollection<IMonitoringProvider> GetAll() => [provider];
+    }
+
+    [Fact]
+    public async Task RunAllChecks_ShouldPersistAllResultsInSingleSaveChanges()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        await SeedDeviceAsync(context, location.Id, "dev-a", "192.0.2.90");
+        await SeedDeviceAsync(context, location.Id, "dev-b", "192.0.2.91");
+        await SeedDeviceAsync(context, location.Id, "dev-c", "192.0.2.92");
+
+        var counting = new CountingResultRepository(new MonitoringResultRepository(context));
+        var handler = new RunAllChecksCommandHandler(
+            new DeviceRepository(context),
+            new FakeRegistry(new FakePingProvider(_ => true)),
+            counting,
+            NullLogger<RunAllChecksCommandHandler>.Instance);
+
+        var results = await handler.Handle(new RunAllChecksCommand("Ping"), CancellationToken.None);
+
+        results.Should().HaveCount(3);
+        results.Should().OnlyContain(result => result.Executed && result.Succeeded);
+        counting.SaveChangesCalls.Should().Be(1,
+            "RunAll deve persistir em lote — N+1 (Dia 5, docs/20)");
+        (await context.MonitoringResults.CountAsync()).Should().Be(3);
+    }
+
+    private sealed class CountingResultRepository(IMonitoringResultRepository inner)
+        : IMonitoringResultRepository
+    {
+        public int SaveChangesCalls { get; private set; }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesCalls++;
+            return inner.SaveChangesAsync(cancellationToken);
+        }
+
+        public Task<MonitoringResult?> GetByIdAsync(
+            Guid id, CancellationToken cancellationToken = default)
+            => inner.GetByIdAsync(id, cancellationToken);
+
+        public Task AddAsync(MonitoringResult entity, CancellationToken cancellationToken = default)
+            => inner.AddAsync(entity, cancellationToken);
+
+        public void Remove(MonitoringResult entity) => inner.Remove(entity);
+
+        public Task<IReadOnlyList<MonitoringResult>> GetRecentByDeviceAsync(
+            Guid deviceId, int limit, CancellationToken cancellationToken = default)
+            => inner.GetRecentByDeviceAsync(deviceId, limit, cancellationToken);
     }
 
     private static RunAllChecksCommandHandler Handler(
