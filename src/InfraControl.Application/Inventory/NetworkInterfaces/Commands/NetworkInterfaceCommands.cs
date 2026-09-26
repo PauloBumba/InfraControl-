@@ -1,5 +1,6 @@
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
+using InfraControl.Application.Network.Connections.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
@@ -87,6 +88,7 @@ public sealed record DeleteNetworkInterfaceCommand(Guid Id) : BaseCommand, IAuth
 
 public sealed class DeleteNetworkInterfaceCommandHandler(
     INetworkInterfaceRepository repository,
+    IConnectionRepository connectionRepository,
     ILogger<DeleteNetworkInterfaceCommandHandler> logger) : IRequestHandler<DeleteNetworkInterfaceCommand>
 {
     public async Task Handle(DeleteNetworkInterfaceCommand request, CancellationToken cancellationToken)
@@ -100,11 +102,14 @@ public sealed class DeleteNetworkInterfaceCommandHandler(
         if (await repository.HasIpsAsync(nic.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir a interface: existem IPs vinculados.");
 
+        if (await connectionRepository.HasConnectionsForInterfaceAsync(nic.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir a interface: existem conexões vinculadas.");
+
         repository.Remove(nic);
         await repository.SaveChangesAsync(cancellationToken);
 
-        // F2-T005/F2-T006: exclusão bloqueada acima quando há MACs ou IPs; a FK
-        // Restrict no banco é o backstop. Nenhuma entidade depende de IpAddress.
+        // F2-T005/F2-T006/F3-T005: exclusão bloqueada acima quando há MACs,
+        // IPs ou conexões; a FK Restrict no banco é o backstop.
         logger.LogInformation("NetworkInterface {InterfaceId} deleted ({Name}).", nic.Id, nic.Name);
     }
 }

@@ -73,6 +73,37 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditEntries", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Connection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SourceInterfaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_interface_id");
+
+                    b.Property<Guid>("TargetInterfaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_interface_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetInterfaceId");
+
+                    b.HasIndex("SourceInterfaceId", "TargetInterfaceId")
+                        .IsUnique();
+
+                    b.ToTable("connections", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Device", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1256,6 +1287,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Connection", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
+                        .WithMany()
+                        .HasForeignKey("SourceInterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
+                        .WithMany()
+                        .HasForeignKey("TargetInterfaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.Device", b =>

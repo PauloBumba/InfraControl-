@@ -61,7 +61,10 @@ public sealed class NetworkInterfaceCommandTests : IDisposable
         => new(new NetworkInterfaceRepository(context), NullLogger<UpdateNetworkInterfaceCommandHandler>.Instance);
 
     private static DeleteNetworkInterfaceCommandHandler DeleteHandler(AppDbContext context)
-        => new(new NetworkInterfaceRepository(context), NullLogger<DeleteNetworkInterfaceCommandHandler>.Instance);
+        => new(
+            new NetworkInterfaceRepository(context),
+            new ConnectionRepository(context),
+            NullLogger<DeleteNetworkInterfaceCommandHandler>.Instance);
 
     // ── Create ────────────────────────────────────────────────────────────
 
@@ -283,6 +286,27 @@ public sealed class NetworkInterfaceCommandTests : IDisposable
 
         (await action.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("Não é possível excluir a interface: existem IPs vinculados.");
+    }
+
+    [Fact]
+    public async Task Delete_InterfaceWithConnections_ShouldThrowConflictMessage()
+    {
+        // F3-T005: fecha a cadeia de bloqueio Interface → Connection
+        // (FK Restrict no banco é o backstop; 404/409 vem do handler).
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateNetworkInterfaceCommand(deviceId, "eth0"), CancellationToken.None);
+        var peer = await CreateHandler(context).Handle(
+            new CreateNetworkInterfaceCommand(deviceId, "eth1"), CancellationToken.None);
+        context.Connections.Add(Connection.Create(created.Id, peer.Id));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteNetworkInterfaceCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir a interface: existem conexões vinculadas.");
     }
 
     // ── Queries ───────────────────────────────────────────────────────────
