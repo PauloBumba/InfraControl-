@@ -316,6 +316,37 @@ public sealed class StartDiscoveryCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_Mac_ShouldPersistMacTableFindingsWithoutDeviceLink()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.2.1.17.4.3.1.170.187.204.221.238.1", "aa:bb:cc:dd:ee:01"),
+            new("1.3.6.1.2.1.17.4.3.2.170.187.204.221.238.1", "11"),
+            new("1.3.6.1.2.1.17.4.3.3.170.187.204.221.238.1", "3")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new MacTableDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Mac"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.Kind.Should().Be(DiscoveryResultKind.MacTableEntry);
+        result.Summary.Should().Be("aa:bb:cc:dd:ee:01 — porta 11");
+        result.DeviceId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Start_WithoutIp_ShouldThrowPtBrAndCreateNoRun()
     {
         await using var context = await CreateContextAsync();

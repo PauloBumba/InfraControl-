@@ -163,6 +163,24 @@ StartDiscoveryCommand(provider: "Dhcp")
   → tabela vazia: 1 achado "Nenhuma entrada DHCP." (dhcp_bindings=0)
 ```
 
+## Provider MAC Tables (F4-T009)
+
+Decisões aprovadas: **filtro só status=3 (learned)** e **chave "Mac"**.
+
+```text
+StartDiscoveryCommand(provider: "Mac")
+  → walk 1.3.6.1.2.1.17.4.3 (dot1dTpFdbTable, BRIDGE-MIB RFC 4188)
+    via ISnmpClient
+  → colunas .1 address / .2 port / .3 status
+    agrupadas por índice MAC (6 octetos)
+  → 1 achado por entrada learned: Kind=MacTableEntry,
+    Summary "<mac> — porta <port>",
+    Values: mac/bridge_port/fdb_status/mac_entries
+  → status != 3 (self/invalid/other): descartadas
+  → tabela vazia ou só não-learned: 1 achado
+    "Nenhuma entrada MAC." (mac_entries=0)
+```
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`
