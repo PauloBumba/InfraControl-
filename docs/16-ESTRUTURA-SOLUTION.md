@@ -67,8 +67,12 @@ Monitoring/
 └── GetMetrics/
 
 Topology/
-├── GetTopology/
-└── DiscoverTopology/
+└── GetTopology/
 ```
+
+> F3-T006: `DiscoverTopology` **não existe como slice** — a descoberta de
+> vizinhos e a ingestão de Connections vivem no slice `Discovery` (F4,
+> run de discovery com gatilho automático F3-T005b). Topologia só expõe a
+> leitura do grafo (`GetTopology`).
 
 Cada slice deve conter somente o necessário para aquela funcionalidade.
