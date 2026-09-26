@@ -226,6 +226,36 @@ public sealed class StartDiscoveryCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Start_Cdp_ShouldPersistOneNeighborFindingEach()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.90");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.4.1.9.9.23.1.2.1.1.6.11.1", "sw-cisco-01"),
+            new("1.3.6.1.4.1.9.9.23.1.2.1.1.7.11.1", "GigabitEthernet0/1")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new CdpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Cdp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.Kind.Should().Be(DiscoveryResultKind.Neighbor);
+        result.Summary.Should().Be("sw-cisco-01 — GigabitEthernet0/1");
+        result.DeviceId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Start_WithoutIp_ShouldThrowPtBrAndCreateNoRun()
     {
         await using var context = await CreateContextAsync();

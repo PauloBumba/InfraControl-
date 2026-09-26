@@ -117,6 +117,19 @@ Attributes, Error?, Summary?)` — ICMP/SNMP devolvem 1 achado
 `SaveChanges`; `DeviceId` do achado só é preenchido para `Host` (o
 próprio device) — vizinhos ficam sem vínculo até o **T010** casar.
 
+## Provider CDP (F4-T006)
+
+Mesmo padrão do LLDP (F4-T005), CISCO-CDP-MIB:
+
+```text
+StartDiscoveryCommand(provider: "Cdp")
+  → walk 1.3.6.1.4.1.9.9.23.1.2.1.1 (cdpCacheTable) via ISnmpClient
+  → colunas .4 address / .5 version / .6 device_id / .7 device_port
+    agrupadas por índice (ifIndex.deviceIndex)
+  → 1 achado por vizinho: Kind=Neighbor, Summary "<device_id> — <porta>"
+  → walk vazio: 1 achado "Nenhum vizinho CDP." (neighbors=0)
+```
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`

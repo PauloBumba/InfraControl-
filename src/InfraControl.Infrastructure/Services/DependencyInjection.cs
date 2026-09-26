@@ -142,6 +142,7 @@ public static class DependencyInjection
         services.AddScoped<IDiscoveryProvider, IcmpDiscoveryProvider>();
         services.AddScoped<IDiscoveryProvider, SnmpDiscoveryProvider>();
         services.AddScoped<IDiscoveryProvider, LldpDiscoveryProvider>();
+        services.AddScoped<IDiscoveryProvider, CdpDiscoveryProvider>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
