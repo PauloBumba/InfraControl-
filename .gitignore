@@ -234,6 +234,7 @@ Backup*/
 # ...exceto a fonte do F12-T003 (regra acima é lixo de template do VS)
 !src/InfraControl.Workers/Backup/
 !tests/InfraControl.UnitTests/Workers/Backup/
+!tests/InfraControl.IntegrationTests/Backup/
 # saída em runtime do BackupWorker
 backups/
 UpgradeLog*.XML

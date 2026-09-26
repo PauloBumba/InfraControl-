@@ -37,6 +37,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         new PostgreSqlBuilder("postgres:17-alpine").Build();
 
     protected ServiceProvider Services { get; private set; } = null!;
+
+    /// <summary>Connection do container — usada no round-trip de backup/restore (F12-T004).</summary>
+    protected string PostgresConnectionString => _postgres.GetConnectionString();
     protected TestCurrentUserContext CurrentUser { get; private set; } = null!;
 
     public virtual async Task InitializeAsync()

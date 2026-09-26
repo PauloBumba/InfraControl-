@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\src\InfraControl.Infrastructure\InfraControl.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\InfraControl.Contracts\InfraControl.Contracts.csproj" />
     <ProjectReference Include="..\..\src\InfraControl.Api\InfraControl.Api.csproj" />
+    <ProjectReference Include="..\..\src\InfraControl.Workers\InfraControl.Workers.csproj" />
   </ItemGroup>
 
 </Project>

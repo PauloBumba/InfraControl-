@@ -58,8 +58,26 @@ Backup:Path, Backup:FileNamePrefix, Backup:TimeoutSeconds
 - **Validação**: `latest.json` com `completedAtUtc` recente + log
   `Backup completed` + arquivo `.dump` com tamanho > 0.
 
-## Restauração
+## Restauração (F12-T004, 2026-09-25)
 
-`pg_restore` a partir do `.dump` (F12-T004 — teste periódico de restore
-ainda pendente; **um backup só é confiável depois que o restore for
-validado**).
+`pg_restore` a partir do `.dump`:
+
+```text
+pg_restore -h <host> -p <porta> -U <user> -d <banco> --no-owner <arquivo.dump>
+```
+
+**Critério do documento atendido:** o round-trip é validado
+automaticamente por `RestoreRoundTripTests`
+(`tests/InfraControl.IntegrationTests/Backup/`) a cada build — marker é
+gravado no PostgreSQL real (Testcontainers), dumpado pelo
+`PostgresBackupService` de verdade (`pg_dump -Fc`), restaurado em um
+banco novo (`infracontrol_restore_test`) e verificado (linha marker,
+contagem de linhas e contagem de tabelas do schema público iguais).
+Assim o CI executa o "teste periódico de restore" em toda alteração.
+
+Requisitos do host de teste/CI: binários `pg_dump` e `pg_restore` no
+PATH (ex.: `postgresql-client`). Se faltar, o teste **falha com
+instrução** — nunca skip escondido.
+
+Restauração manual em produção (mesmo caminho do runbook acima):
+sempre validar com consulta de contagem ao final.
