@@ -3,6 +3,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
@@ -247,5 +248,44 @@ public sealed class RunCheckCommandTests : IDisposable
         (await action.Should().ThrowAsync<ArgumentException>())
             .WithMessage("*só se aplica a devices do tipo Printer*");
         (await RowsAsync(context, sw.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunCheck_HttpWan_ShouldExecuteAndPersistResultWithValues()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var ap = await SeedDeviceAsync(
+            context, location.Id, DeviceType.AccessPoint, "ap-01", "192.0.2.20");
+
+        // https falha (ex.: cert self-signed rejeitado) → fallback http 200.
+        var probe = new FakeHttpProbeClient(url => url.StartsWith("https")
+            ? new HttpProbeReply(false, null, "certificate rejected")
+            : new HttpProbeReply(true, 200));
+        var registry = new FakeRegistry(new HttpWanMonitoringProvider(probe));
+
+        var result = await Handler(context, registry)
+            .Handle(new RunCheckCommand(ap.Id, "HttpWan"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+        result.Values!["scheme"].Should().Be("http");
+        result.Values!["status_code"].Should().Be("200");
+
+        var rows = await RowsAsync(context, ap.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.HttpWan);
+        rows[0].Succeeded.Should().BeTrue();
+        rows[0].Values!["url"].Should().Be("http://192.0.2.20/");
+    }
+
+    private sealed class FakeHttpProbeClient(Func<string, HttpProbeReply> factory)
+        : IHttpProbeClient
+    {
+        public Task<HttpProbeReply> SendAsync(
+            string url,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(factory(url));
     }
 }

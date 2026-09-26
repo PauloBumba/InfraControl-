@@ -81,6 +81,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
         services.AddScoped<IIcmpClient, FakeIcmpClient>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
+        services.AddScoped<IHttpProbeClient, FakeHttpProbeClient>();
+        services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<InfraControl.Application.Common.Interfaces.IDiscoveryProvider, IcmpDiscoveryProvider>();
         services.AddScoped<ISnmpClient, FakeSnmpClient>();
         services.AddScoped<InfraControl.Application.Common.Interfaces.IDiscoveryProvider, SnmpDiscoveryProvider>();

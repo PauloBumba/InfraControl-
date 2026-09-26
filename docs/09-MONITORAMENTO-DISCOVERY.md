@@ -216,6 +216,30 @@ não re-consultam o banco).
 
 Somente monitorar métricas efetivamente disponibilizadas pelo equipamento.
 
+## Check HTTP/HTTPS (F5-T005)
+
+Decisões aprovadas: **HTTPS com fallback HTTP**, **qualquer resposta
+HTTP recebida = sucesso** (erro de rede/timeout = falha) e **validação
+do cert TLS** (self-signed = falha do esquema HTTPS → tenta HTTP).
+
+```text
+RunCheckCommand(check: "HttpWan")   // CheckKind.HttpWan
+  → HttpWanMonitoringProvider (Name HttpWan, timeout 5s)
+  → sonda https://{ip}/ via IHttpProbeClient
+      IPv6: https://[2001:db8::1]/
+  → resposta HTTP (qualquer status) → sucesso
+      Values: url / scheme / status_code
+  → falha → fallback http://{ip}/ (mesma regra)
+  → ambos falham → erro "HTTP indisponível em {ip}."
+      Values: https_error / http_error
+  → exceção do seam → "Falha ao consultar HTTP: {msg}" (sem fallback)
+```
+
+Seam: `IHttpProbeClient` + `HttpProbeReply(Success, StatusCode, Error?)`;
+implementação real `SystemNetHttpProbeClient` (HttpClient estático,
+`ResponseHeadersRead`, validação TLS padrão do .NET; timeout por
+`CancellationToken`). Testes usam `FakeHttpProbeClient` (sem rede).
+
 ## Alertas
 
 Evitar alert storm.
