@@ -38,6 +38,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Vlan> Vlans => Set<Vlan>();
     public DbSet<SwitchPortVlan> SwitchPortVlans => Set<SwitchPortVlan>();
     public DbSet<DiscoveryRun> DiscoveryRuns => Set<DiscoveryRun>();
+    public DbSet<DiscoveryResult> DiscoveryResults => Set<DiscoveryResult>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
     public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
     public DbSet<Notification> Notifications => Set<Notification>();

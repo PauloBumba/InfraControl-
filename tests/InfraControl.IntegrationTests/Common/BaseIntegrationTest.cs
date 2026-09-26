@@ -11,6 +11,7 @@ using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
+using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.RemoteAccess;
@@ -80,6 +81,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
         services.AddScoped<IIcmpClient, FakeIcmpClient>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
+        services.AddScoped<InfraControl.Application.Common.Interfaces.IDiscoveryProvider, IcmpDiscoveryProvider>();
 
         // Remote access (F11-T002/T003): providers SSH/RDP falsos (sem rede)
         // + credencial provisória de teste + registry real em memória
@@ -100,6 +102,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
         services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
         services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
+        // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
+        services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
+        services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();
         services.AddScoped<ConfigurationRemoteCredentialSource>();
         services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
         services.Configure<CredentialEncryptionOptions>(options =>

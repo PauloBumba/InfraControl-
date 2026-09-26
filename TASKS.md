@@ -119,8 +119,8 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 ## Fase 4 — Discovery
 
 - [x] F4-T001 DiscoveryRun — entidade + enum (Running/Completed/Failed), migração AddDiscoveryRuns (FK Cascade device), API somente-leitura GET runs (filtro device) + GET runs/{id} (policy MonitoringRead); fluxo: gatilho manual por device, POST vem com providers T003/T004; 13 testes
-- [ ] F4-T002 DiscoveryResult
-- [ ] F4-T003 ICMP Provider
+- [x] F4-T002 DiscoveryResult  <!-- modelo aprovado pelo usuário: Kind + Summary + JSON; escopo leitura apenas. Entidade + enum DiscoveryResultKind (Neighbor|ArpEntry|MacTableEntry|DhcpLease|Host), tabela discovery_results (FK run cascade, device opcional SetNull p/ T010, values_json no padrão MonitoringResult), migração AddDiscoveryResults, repositório/paginação CreatedAt DESC, queries Search/Get (MonitoringRead; run desconhecido → 404 pt-BR), endpoints GET runs/{id}/results + results/{id}, registro dos dois repositórios no BaseIntegrationTest, docs/09 seção do modelo; 12 unit + 3 integration -->
+- [x] F4-T003 ICMP Provider  <!-- escopo aprovado: POST incluído + ping falho = achado negativo. IcmpDiscoveryProvider (Name ICMP, seam IIcmpClient, Attributes reachable/roundtrip_ms, Summary pt-BR opcional no DiscoveryProviderResult), StartDiscoveryCommand (MonitoringManage, AuditResource DiscoveryRun) valida device→provider(400 pt-BR via catch do registry)→IP, cria run, probe, grava DiscoveryResult(Host, DeviceId=device), Complete, 1 SaveChanges; exceção do probe → run.Fail(truncado 500) e DTO Failed sem exceção; POST api/v1/discovery/devices/{id}/runs (Admin,User) + StartDiscoveryViewModel; DI IcmpDiscoveryProvider (produção+testes); BUG corrigido: controllers de discovery usavam Policy="MonitoringRead" inexistente (fora do ADR-008) → Roles Admin,User,Viewer; docs/09 seção do provider; 17 unit + 3 integration -->
 - [ ] F4-T004 SNMP Provider
 - [ ] F4-T005 LLDP
 - [ ] F4-T006 CDP

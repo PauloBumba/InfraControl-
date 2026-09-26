@@ -21,6 +21,7 @@ using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
+using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
@@ -137,6 +138,8 @@ public static class DependencyInjection
 
         // Monitoring (F5-T003/F5-T004): ping ICMP + SNMP de impressoras
         services.AddScoped<IIcmpClient, SystemNetIcmpClient>();
+        // Discovery (F4-T003): probe ICMP do gatilho manual de discovery
+        services.AddScoped<IDiscoveryProvider, IcmpDiscoveryProvider>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();

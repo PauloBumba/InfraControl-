@@ -23,7 +23,8 @@ public interface IMonitoringProvider : IInfrastructureProvider
 public sealed record DiscoveryProviderResult(
     bool Succeeded,
     IReadOnlyDictionary<string, string> Attributes,
-    string? Error = null);
+    string? Error = null,
+    string? Summary = null);
 
 public sealed record MonitoringProviderResult(
     bool Succeeded,
