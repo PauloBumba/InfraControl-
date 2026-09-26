@@ -67,13 +67,21 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new DiscoveryResultRepository(context));
 
     private static async Task<Guid> SeedDeviceAsync(
-        AppDbContext context, string? ip = "192.0.2.40")
+        AppDbContext context,
+        string? ip = "192.0.2.40",
+        string name = "sw-disc",
+        string? mac = null)
     {
-        var location = Location.Create("Data Center A");
-        context.Locations.Add(location);
-        await context.SaveChangesAsync();
+        var location = await context.Locations.FirstOrDefaultAsync();
+        if (location is null)
+        {
+            location = Location.Create("Data Center A");
+            context.Locations.Add(location);
+            await context.SaveChangesAsync();
+        }
 
-        var device = Device.Create(location.Id, "sw-disc", DeviceType.Switch, ip: ip);
+        var device = Device.Create(
+            location.Id, name, DeviceType.Switch, ip: ip, mac: mac);
         context.Devices.Add(device);
         await context.SaveChangesAsync();
         return device.Id;
@@ -344,6 +352,182 @@ public sealed class StartDiscoveryCommandTests : IDisposable
         result.Kind.Should().Be(DiscoveryResultKind.MacTableEntry);
         result.Summary.Should().Be("aa:bb:cc:dd:ee:01 — porta 11");
         result.DeviceId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Start_Arp_FindingWithMatchingIp_ShouldLinkByIpWithPriorityOverMac()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+        var byIp = await SeedDeviceAsync(context, ip: "192.0.2.10", name: "pc-01");
+        _ = await SeedDeviceAsync(context, ip: null, name: "pc-02", mac: "aa:bb:cc:dd:ee:01");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.2.1.4.22.1.3.11.192.0.2.10", "192.0.2.10"),
+            new("1.3.6.1.2.1.4.22.1.2.11.192.0.2.10", "aa:bb:cc:dd:ee:01")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        // ip vence mac: o achado casa pc-01 (ip), não pc-02 (mac).
+        var result = context.DiscoveryResults.Single();
+        result.DeviceId.Should().Be(byIp);
+        result.Values!.ContainsKey("new_device").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Start_Arp_FindingWithMatchingMac_ShouldLinkByMac()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+        var byMac = await SeedDeviceAsync(
+            context, ip: null, name: "pc-03", mac: "AA:BB:CC:DD:EE:09");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.2.1.4.22.1.3.11.192.0.2.77", "192.0.2.77"),
+            new("1.3.6.1.2.1.4.22.1.2.11.192.0.2.77", "aa:bb:cc:dd:ee:09")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.DeviceId.Should().Be(byMac);
+        result.Values!.ContainsKey("new_device").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Start_Cdp_FindingWithMatchingName_ShouldLinkByName()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+        var byName = await SeedDeviceAsync(context, ip: null, name: "sw-cdp-01");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.4.1.9.9.23.1.2.1.1.6.11.1", "sw-cdp-01"),
+            new("1.3.6.1.4.1.9.9.23.1.2.1.1.7.11.1", "GigabitEthernet0/1")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new CdpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Cdp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.DeviceId.Should().Be(byName);
+        result.Values!.ContainsKey("new_device").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Start_Dhcp_FindingWithMatchingHostname_ShouldLinkByName()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+        var byName = await SeedDeviceAsync(context, ip: null, name: "pc-01");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.4.1.9.9.380.1.4.1.2.10.170.187.204.221.238.1", "aa:bb:cc:dd:ee:01"),
+            new("1.3.6.1.4.1.9.9.380.1.4.1.4.10.170.187.204.221.238.1", "192.0.2.10"),
+            new("1.3.6.1.4.1.9.9.380.1.4.1.8.10.170.187.204.221.238.1", "pc-01")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new DhcpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Dhcp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.DeviceId.Should().Be(byName);
+        result.Values!.ContainsKey("new_device").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Start_Arp_UnmatchedFinding_ShouldFlagAsNewDevice()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+
+        IReadOnlyList<SnmpVariable> Walk(string _) =>
+        [
+            new("1.3.6.1.2.1.4.22.1.3.11.192.0.2.50", "192.0.2.50"),
+            new("1.3.6.1.2.1.4.22.1.2.11.192.0.2.50", "aa:bb:cc:dd:ee:77")
+        ];
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.DeviceId.Should().BeNull();
+        result.Values!["new_device"].Should().Be("true");
+    }
+
+    [Fact]
+    public async Task Start_Arp_NegativeFinding_ShouldNotFlagNewDevice()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, ip: "192.0.2.1");
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new ArpDiscoveryProvider(new FakeSnmpWalkClient(_ => []))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context));
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+
+        var result = context.DiscoveryResults.Single();
+        result.Summary.Should().Be("Nenhuma entrada ARP.");
+        result.Values!.ContainsKey("new_device").Should().BeFalse();
     }
 
     [Fact]

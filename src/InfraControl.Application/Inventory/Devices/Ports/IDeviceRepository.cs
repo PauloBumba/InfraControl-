@@ -10,6 +10,12 @@ public interface IDeviceRepository : IRepository<Device>
     /// <summary>Busca device por nome global, sem distinção de maiúsculas/minúsculas.</summary>
     Task<Device?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
 
+    /// <summary>Busca device por IP exato, sem distinção de maiúsculas (F4-T010).</summary>
+    Task<Device?> GetByIpAsync(string ip, CancellationToken cancellationToken = default);
+
+    /// <summary>Busca device por MAC sem separador/caixa (F4-T010).</summary>
+    Task<Device?> GetByMacAsync(string mac, CancellationToken cancellationToken = default);
+
     Task<PagedResult<Device>> SearchAsync(
         Guid? locationId,
         Guid? rackId,

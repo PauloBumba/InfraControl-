@@ -181,6 +181,31 @@ StartDiscoveryCommand(provider: "Mac")
     "Nenhuma entrada MAC." (mac_entries=0)
 ```
 
+## New Device Detection (F4-T010)
+
+Decisões aprovadas: **vincular + flag** (não cria device) e chaves
+**ip > mac > nome**.
+
+Após o probe, o `StartDiscoveryCommandHandler` casa cada achado
+`Succeeded` não-Host com devices do inventário, na ordem de prioridade:
+
+1. `Values.ip` → `IDeviceRepository.GetByIpAsync` (case-insensitive);
+2. `Values.mac` → `GetByMacAsync` (sem separador/caixa: `aa:bb:...` e
+   `AA-BB-...` casam);
+3. `Values.sys_name` (LLDP) / `device_id` (CDP) / `hostname` (DHCP) →
+   `GetByNameAsync` (case-insensitive).
+
+Resultado:
+
+- achado casado → `DiscoveryResult.DeviceId` preenchido;
+- achado `Succeeded` sem match → `Values["new_device"]="true"`
+  (candidato a novo device, sem cadastro automático);
+- achado negativo ("Nenhuma entrada…") → sem vínculo e **sem** flag;
+- achado `Host` → `DeviceId` = próprio device descoberto (inalterado).
+
+Consultas por chave ficam em cache no handler (ip/mac/nome repetidos
+não re-consultam o banco).
+
 > Nota ADR-008: autorização de controller é por **Roles**
 > (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`

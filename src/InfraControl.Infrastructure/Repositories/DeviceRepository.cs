@@ -30,6 +30,27 @@ public sealed class DeviceRepository(AppDbContext dbContext) : IDeviceRepository
                 cancellationToken);
     }
 
+    public Task<Device?> GetByIpAsync(string ip, CancellationToken cancellationToken = default)
+    {
+        var normalized = ip.Trim().ToLowerInvariant();
+        return dbContext.Devices
+            .FirstOrDefaultAsync(
+                device => device.Ip != null && device.Ip.ToLower() == normalized,
+                cancellationToken);
+    }
+
+    public Task<Device?> GetByMacAsync(string mac, CancellationToken cancellationToken = default)
+    {
+        // Comparação sem separador nem caixa: cobre "aa:bb:..." e "AA-BB-...".
+        var normalized = mac.Replace(":", string.Empty)
+            .Replace("-", string.Empty).Trim().ToLowerInvariant();
+        return dbContext.Devices
+            .FirstOrDefaultAsync(
+                device => device.Mac != null
+                    && device.Mac.Replace(":", string.Empty).ToLower() == normalized,
+                cancellationToken);
+    }
+
     public Task<bool> HasByRackAsync(Guid rackId, CancellationToken cancellationToken = default)
         => dbContext.Devices.AnyAsync(device => device.RackId == rackId, cancellationToken);
 
