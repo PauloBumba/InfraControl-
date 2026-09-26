@@ -83,7 +83,8 @@ Conexão entre duas interfaces — `SourceInterfaceId` → `TargetInterfaceId`
 - Única restrição: self-loop (mesma interface nas duas pontas) → 400.
   Duas interfaces do mesmo device são permitidas.
 - FKs Restrict: excluir interface com conexão → 409 no handler.
-- Ingestão automática a partir de achados Neighbor (LLDP/CDP) fica em
-  F3-T005b (gatilho no fim do run de discovery).
+- Ingestão automática a partir de achados Neighbor (LLDP/CDP):
+  concluída em F3-T005b — gatilho no fim do run de discovery, casamento
+  por NOME via atributo `local_if_name` (detalhes em docs/09).
 
 PostgreSQL é a fonte da verdade.

@@ -216,6 +216,35 @@ não re-consultam o banco).
 
 Somente monitorar métricas efetivamente disponibilizadas pelo equipamento.
 
+## Ingestão de Connections (F3-T005b)
+
+Decisões aprovadas: **gatilho automático no fim do run** (mesmo
+`SaveChanges`; erro de ingestão não derruba o run) e **walk do ifName
+local** nos providers Neighbor — LLDP/CDP trazem só o ifIndex local
+(`local_port`/`local_if`), e `NetworkInterface` é casado por NOME.
+
+```text
+Providers LLDP/CDP (F4-T005/T006)
+  → após a tabela de vizinhos: walk tolerante do ifName
+    (IF-MIB 1.3.6.1.2.1.31.1.1.1.1) via IfNameLookup
+  → atributo local_if_name (falha → dicionário vazio → sem atributo)
+
+StartDiscoveryCommandHandler (após gravar achados)
+  → candidatos = achados Kind=Neighbor, Succeeded, DeviceId ≠ null
+    (F4-T010 já casou o vizinho no inventário)
+  → NeighborConnectionImporter.ImportAsync(device do run, candidatos):
+      local   = (device do run, local_if_name)
+      vizinho = (DeviceId do achado, port_desc ?? port_id ?? device_port)
+      ambos casam NetworkInterface por nome → Connection dirigida
+      self-loop / ponta ausente / par já existente → pula
+      erro por candidato → log Warning e continua
+  → RunComplete + 1 SaveChanges persiste achados e conexões
+```
+
+Sem `SaveChanges` próprio no importer — o run é quem persiste (mesmo
+DbContext scoped). Cada provider ganhou `IfNameTableOid` público; o
+lookup compartilhado fica em `Infrastructure/Discovery/IfNameLookup.cs`.
+
 ## Check HTTP/HTTPS (F5-T005)
 
 Decisões aprovadas: **HTTPS com fallback HTTP**, **qualquer resposta

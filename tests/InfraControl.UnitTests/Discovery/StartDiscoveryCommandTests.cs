@@ -10,6 +10,7 @@ using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InfraControl.UnitTests.Discovery;
 
@@ -64,7 +65,15 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new DeviceRepository(context),
             new ProviderRegistry<IDiscoveryProvider>([new IcmpDiscoveryProvider(icmpClient)]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
+
+    private static NeighborConnectionImporter Importer(AppDbContext context)
+        => new(
+            new NetworkInterfaceRepository(context),
+            new ConnectionRepository(context),
+            NullLogger<NeighborConnectionImporter>.Instance);
 
     private static async Task<Guid> SeedDeviceAsync(
         AppDbContext context,
@@ -153,7 +162,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new SnmpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Snmp"), CancellationToken.None);
@@ -195,7 +206,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new LldpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Lldp"), CancellationToken.None);
@@ -222,7 +235,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new LldpDiscoveryProvider(new FakeSnmpWalkClient(_ => []))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "lldp"), CancellationToken.None);
@@ -250,7 +265,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new CdpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Cdp"), CancellationToken.None);
@@ -280,7 +297,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
@@ -310,7 +329,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new DhcpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Dhcp"), CancellationToken.None);
@@ -341,7 +362,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new MacTableDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Mac"), CancellationToken.None);
@@ -373,7 +396,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
@@ -405,7 +430,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
@@ -435,7 +462,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new CdpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Cdp"), CancellationToken.None);
@@ -466,7 +495,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new DhcpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Dhcp"), CancellationToken.None);
@@ -495,7 +526,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new ArpDiscoveryProvider(new FakeSnmpWalkClient(Walk))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
@@ -518,7 +551,9 @@ public sealed class StartDiscoveryCommandTests : IDisposable
             new ProviderRegistry<IDiscoveryProvider>(
                 [new ArpDiscoveryProvider(new FakeSnmpWalkClient(_ => []))]),
             new DiscoveryRunRepository(context),
-            new DiscoveryResultRepository(context));
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
 
         var dto = await handler.Handle(
             new StartDiscoveryCommand(deviceId, "Arp"), CancellationToken.None);
@@ -586,5 +621,129 @@ public sealed class StartDiscoveryCommandTests : IDisposable
 
         context.DiscoveryRuns.Single().Status.Should().Be(DiscoveryRunStatus.Failed);
         context.DiscoveryResults.Should().BeEmpty();
+    }
+
+    // ── F3-T005b: ingestão de Connections a partir de vizinhos ────────────
+
+    private sealed class OidAwareWalkClient(
+        Func<string, IReadOnlyList<SnmpVariable>> walkFactory) : ISnmpClient
+    {
+        public Task<IReadOnlyList<SnmpVariable>> WalkAsync(
+            string target, string oid, TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(walkFactory(oid));
+    }
+
+    private static async Task<Guid> SeedInterfaceAsync(
+        AppDbContext context, Guid deviceId, string name)
+    {
+        var nic = NetworkInterface.Create(deviceId, name);
+        context.NetworkInterfaces.Add(nic);
+        await context.SaveChangesAsync();
+        return nic.Id;
+    }
+
+    // Vizinho LLDP: local_port=11 → ifName "Gi0/11"; sys_name sw-remoto
+    // casa o device vizinho (F4-T010) e port_desc "Gi0/24" a interface dele.
+    private static IReadOnlyList<SnmpVariable> NeighborWalk(string oid)
+        => oid == LldpDiscoveryProvider.IfNameTableOid
+            ? [new SnmpVariable($"{LldpDiscoveryProvider.IfNameTableOid}.11", "Gi0/11")]
+            :
+            [
+                new("1.0.8802.1.1.2.1.4.1.1.7.0.11.1", "sw-remoto"),
+                new("1.0.8802.1.1.2.1.4.1.1.6.0.11.1", "Gi0/24")
+            ];
+
+    private static StartDiscoveryCommandHandler LldpHandler(AppDbContext context)
+        => new(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new LldpDiscoveryProvider(new OidAwareWalkClient(NeighborWalk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
+
+    [Fact]
+    public async Task Start_Lldp_ShouldCreateConnectionFromNeighborFinding()
+    {
+        // F3-T005b: gatilho automático no fim do run — achado Neighbor com
+        // DeviceId (F4-T010) + local_if_name gera Connection dirigida.
+        await using var context = await CreateContextAsync();
+        var localId = await SeedDeviceAsync(context, ip: "192.0.2.80", name: "sw-local");
+        var localNic = await SeedInterfaceAsync(context, localId, "Gi0/11");
+        var remoteId = await SeedDeviceAsync(context, ip: null, name: "sw-remoto");
+        var remoteNic = await SeedInterfaceAsync(context, remoteId, "Gi0/24");
+
+        var dto = await LldpHandler(context).Handle(
+            new StartDiscoveryCommand(localId, "Lldp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        var connection = context.Connections.Should().ContainSingle().Subject;
+        connection.SourceInterfaceId.Should().Be(localNic);
+        connection.TargetInterfaceId.Should().Be(remoteNic);
+    }
+
+    [Fact]
+    public async Task Start_Lldp_NeighborWithoutLocalIfName_ShouldNotCreateConnection()
+    {
+        // Sem walk do ifName (fake devolve RemTable para todo OID) → sem
+        // local_if_name → ingestão pula — run continua Completed.
+        await using var context = await CreateContextAsync();
+        var localId = await SeedDeviceAsync(context, ip: "192.0.2.80", name: "sw-local");
+        _ = await SeedInterfaceAsync(context, localId, "Gi0/11");
+        var remoteId = await SeedDeviceAsync(context, ip: null, name: "sw-remoto");
+        _ = await SeedInterfaceAsync(context, remoteId, "Gi0/24");
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new LldpDiscoveryProvider(new FakeSnmpWalkClient(_ => NeighborWalk("x")))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(localId, "Lldp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        context.Connections.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Start_Lldp_Rerun_ShouldDedupeConnection()
+    {
+        await using var context = await CreateContextAsync();
+        var localId = await SeedDeviceAsync(context, ip: "192.0.2.80", name: "sw-local");
+        _ = await SeedInterfaceAsync(context, localId, "Gi0/11");
+        var remoteId = await SeedDeviceAsync(context, ip: null, name: "sw-remoto");
+        _ = await SeedInterfaceAsync(context, remoteId, "Gi0/24");
+
+        var handler = LldpHandler(context);
+        await handler.Handle(
+            new StartDiscoveryCommand(localId, "Lldp"), CancellationToken.None);
+        await handler.Handle(
+            new StartDiscoveryCommand(localId, "Lldp"), CancellationToken.None);
+
+        context.Connections.Should().ContainSingle(
+            "dedupe por par dirigido no fim de cada run");
+    }
+
+    [Fact]
+    public async Task Start_Lldp_UnknownNeighbor_ShouldNotCreateConnection()
+    {
+        // Vizinho fora do inventário (DeviceId null → new_device) → pula.
+        await using var context = await CreateContextAsync();
+        var localId = await SeedDeviceAsync(context, ip: "192.0.2.80", name: "sw-local");
+        _ = await SeedInterfaceAsync(context, localId, "Gi0/11");
+
+        var handler = LldpHandler(context);
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(localId, "Lldp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        context.DiscoveryResults.Single().Values!["new_device"].Should().Be("true");
+        context.Connections.Should().BeEmpty();
     }
 }

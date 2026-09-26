@@ -44,6 +44,25 @@ public sealed class LldpDiscoveryProviderTests
             => throw new TimeoutException("timeout");
     }
 
+    // Responde por OID (F3-T005b: RemTable + ifName local no mesmo alvo).
+    private sealed class OidAwareSnmpClient(
+        Func<string, IReadOnlyList<SnmpVariable>> walkFactory) : ISnmpClient
+    {
+        public int Calls { get; private set; }
+        public List<string> Oids { get; } = [];
+
+        public Task<IReadOnlyList<SnmpVariable>> WalkAsync(
+            string target,
+            string oid,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Oids.Add(oid);
+            return Task.FromResult(walkFactory(oid));
+        }
+    }
+
     // Index: timeMark.localPort.remIndex — dois vizinhos (remIndex 1 e 2).
     private static IReadOnlyList<SnmpVariable> SampleNeighbors() =>
     [
@@ -99,8 +118,50 @@ public sealed class LldpDiscoveryProviderTests
         second.Summary.Should().Be("sw-access-02 — Gi1/0/24");
         second.Attributes!["port_id"].Should().Be("Gi1/0/24");
 
-        client.Calls.Should().Be(1);
-        client.LastOid.Should().Be(RemTable);
+        // F3-T005b: 2º walk do ifName local (tolerante — aqui o fake
+        // devolve vars do RemTable, que não casam → sem local_if_name).
+        client.Calls.Should().Be(2);
+        client.LastOid.Should().Be(LldpDiscoveryProvider.IfNameTableOid);
+    }
+
+    [Fact]
+    public async Task DiscoverAsync_ShouldAddLocalIfNameFromIfNameWalk()
+    {
+        // F3-T005b: walk extra do ifName (1.3.6.1.2.1.31.1.1.1.1) mapeia
+        // ifIndex → nome; local_port=11 vira local_if_name="Gi0/11".
+        var client = new OidAwareSnmpClient(oid =>
+            oid == LldpDiscoveryProvider.IfNameTableOid
+                ? [new SnmpVariable($"{LldpDiscoveryProvider.IfNameTableOid}.11", "Gi0/11")]
+                : SampleNeighbors());
+        var provider = new LldpDiscoveryProvider(client);
+
+        var findings = await provider.DiscoverAsync("192.0.2.80");
+
+        findings.Should().OnlyContain(f => f.Succeeded);
+        findings.Should().OnlyContain(f =>
+            f.Attributes!.ContainsKey("local_if_name")
+            && f.Attributes["local_if_name"] == "Gi0/11");
+        client.Calls.Should().Be(2);
+        client.Oids.Should().Equal(LldpDiscoveryProvider.RemTableOid,
+            LldpDiscoveryProvider.IfNameTableOid);
+    }
+
+    [Fact]
+    public async Task DiscoverAsync_IfNameWalkFails_ShouldOmitLocalIfName()
+    {
+        // Tolerância: falha no ifName não derruba o achado — só sem atributo.
+        var client = new OidAwareSnmpClient(oid =>
+            oid == LldpDiscoveryProvider.IfNameTableOid
+                ? throw new TimeoutException("timeout")
+                : SampleNeighbors());
+        var provider = new LldpDiscoveryProvider(client);
+
+        var findings = await provider.DiscoverAsync("192.0.2.80");
+
+        findings.Should().HaveCount(2);
+        findings.Should().OnlyContain(f => f.Succeeded);
+        findings.Should().OnlyContain(f =>
+            !f.Attributes!.ContainsKey("local_if_name"));
     }
 
     [Fact]

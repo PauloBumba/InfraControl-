@@ -4,6 +4,7 @@ using InfraControl.Application.Discovery.Runs.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Discovery.Runs;
 
@@ -26,7 +27,9 @@ public sealed class StartDiscoveryCommandHandler(
     IDeviceRepository deviceRepository,
     IProviderRegistry<IDiscoveryProvider> providers,
     IDiscoveryRunRepository runRepository,
-    IDiscoveryResultRepository resultRepository)
+    IDiscoveryResultRepository resultRepository,
+    INeighborConnectionImporter connectionImporter,
+    ILogger<StartDiscoveryCommandHandler> logger)
     : IRequestHandler<StartDiscoveryCommand, DiscoveryRunDto>
 {
     public async Task<DiscoveryRunDto> Handle(
@@ -65,6 +68,9 @@ public sealed class StartDiscoveryCommandHandler(
         // achado Succeeded sem match vira candidato (new_device=true).
         var matchCache = new Dictionary<string, Guid?>(
             StringComparer.OrdinalIgnoreCase);
+
+        // F3-T005b: vizinhos vinculados viram candidatos de Connection.
+        var neighborCandidates = new List<NeighborCandidate>();
 
         foreach (var finding in findings)
         {
@@ -107,6 +113,42 @@ public sealed class StartDiscoveryCommandHandler(
                     values,
                     deviceId: linkedDeviceId),
                 cancellationToken);
+
+            if (finding.Kind == DiscoveryResultKind.Neighbor
+                && finding.Succeeded
+                && linkedDeviceId is not null)
+            {
+                neighborCandidates.Add(new NeighborCandidate(
+                    linkedDeviceId.Value, values));
+            }
+        }
+
+        // F3-T005b: ingestão automática no fim do run (mesmo SaveChanges).
+        // Erro aqui não derruba o run — Complete + persistência seguem.
+        if (neighborCandidates.Count > 0)
+        {
+            try
+            {
+                var imported = await connectionImporter.ImportAsync(
+                    device.Id, neighborCandidates, cancellationToken);
+                if (imported > 0)
+                {
+                    logger.LogInformation(
+                        "Discovery run {RunId}: {Imported} connection(s) imported.",
+                        run.Id, imported);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Falha ao importar conexões do discovery run {RunId}.",
+                    run.Id);
+            }
         }
 
         run.Complete();

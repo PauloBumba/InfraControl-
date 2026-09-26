@@ -16,6 +16,9 @@ namespace InfraControl.Infrastructure.Discovery;
 public sealed class LldpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryProvider
 {
     public const string RemTableOid = "1.0.8802.1.1.2.1.4.1.1";
+
+    /// <summary>ifName local (F3-T005b) — 2º walk tolerante do discovery.</summary>
+    public const string IfNameTableOid = IfNameLookup.TableOid;
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
 
     // Colunas da lldpRemEntry (IEEE 802.1AB).
@@ -78,6 +81,11 @@ public sealed class LldpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPr
                 "Nenhum vizinho LLDP.",
                 "Nenhum vizinho LLDP.")];
 
+        // F3-T005b: nome local da porta (local_port é ifIndex; a ingestão
+        // de Connection casa NetworkInterface por NOME). Tolerante: falha
+        // → sem local_if_name nos achados.
+        var ifNames = await IfNameLookup.GetAsync(snmpClient, target, cancellationToken);
+
         var findings = new List<DiscoveryProviderResult>(groups.Count);
         foreach (var group in groups.OrderBy(
             g => $"{g.Key.TimeMark}.{g.Key.LocalPort}.{g.Key.RemIndex}",
@@ -97,6 +105,9 @@ public sealed class LldpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPr
                 ["local_port"] = group.Key.LocalPort,
                 ["neighbors"] = groups.Count.ToString()
             };
+
+            if (ifNames.TryGetValue(group.Key.LocalPort, out var localIfName))
+                attributes["local_if_name"] = localIfName;
 
             findings.Add(new DiscoveryProviderResult(
                 DiscoveryResultKind.Neighbor,

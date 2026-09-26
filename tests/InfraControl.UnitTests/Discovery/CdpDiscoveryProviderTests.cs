@@ -44,6 +44,25 @@ public sealed class CdpDiscoveryProviderTests
             => throw new TimeoutException("timeout");
     }
 
+    // Responde por OID (F3-T005b: CacheTable + ifName local no mesmo alvo).
+    private sealed class OidAwareSnmpClient(
+        Func<string, IReadOnlyList<SnmpVariable>> walkFactory) : ISnmpClient
+    {
+        public int Calls { get; private set; }
+        public List<string> Oids { get; } = [];
+
+        public Task<IReadOnlyList<SnmpVariable>> WalkAsync(
+            string target,
+            string oid,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Oids.Add(oid);
+            return Task.FromResult(walkFactory(oid));
+        }
+    }
+
     // Índice: ifIndex.deviceIndex — dois vizinhos (11.1 e 12.3).
     private static IReadOnlyList<SnmpVariable> SampleNeighbors() =>
     [
@@ -98,8 +117,53 @@ public sealed class CdpDiscoveryProviderTests
         var second = findings.Single(f => f.Summary!.Contains("sw-cisco-02"));
         second.Summary.Should().Be("sw-cisco-02 — Gi1/0/24");
 
-        client.Calls.Should().Be(1);
-        client.LastOid.Should().Be(CacheTable);
+        // F3-T005b: 2º walk do ifName local (tolerante — sem local_if_name
+        // porque o fake devolve vars da CacheTable para o OID do ifName).
+        client.Calls.Should().Be(2);
+        client.LastOid.Should().Be(CdpDiscoveryProvider.IfNameTableOid);
+    }
+
+    [Fact]
+    public async Task DiscoverAsync_ShouldAddLocalIfNameFromIfNameWalk()
+    {
+        // F3-T005b: local_if=11 vira local_if_name via walk do ifName.
+        var client = new OidAwareSnmpClient(oid =>
+            oid == CdpDiscoveryProvider.IfNameTableOid
+                ?
+                [
+                    new SnmpVariable($"{CdpDiscoveryProvider.IfNameTableOid}.11", "Gi0/11"),
+                    new SnmpVariable($"{CdpDiscoveryProvider.IfNameTableOid}.12", "Gi0/12")
+                ]
+                : SampleNeighbors());
+        var provider = new CdpDiscoveryProvider(client);
+
+        var findings = await provider.DiscoverAsync("192.0.2.90");
+
+        findings.Should().OnlyContain(f => f.Succeeded);
+        findings.Should().OnlyContain(f =>
+            f.Attributes!.ContainsKey("local_if_name"));
+        findings.Single(f => f.Summary!.Contains("sw-cisco-01"))
+            .Attributes!["local_if_name"].Should().Be("Gi0/11");
+        findings.Single(f => f.Summary!.Contains("sw-cisco-02"))
+            .Attributes!["local_if_name"].Should().Be("Gi0/12");
+        client.Oids.Should().Equal(CacheTable, CdpDiscoveryProvider.IfNameTableOid);
+    }
+
+    [Fact]
+    public async Task DiscoverAsync_IfNameWalkFails_ShouldOmitLocalIfName()
+    {
+        var client = new OidAwareSnmpClient(oid =>
+            oid == CdpDiscoveryProvider.IfNameTableOid
+                ? throw new TimeoutException("timeout")
+                : SampleNeighbors());
+        var provider = new CdpDiscoveryProvider(client);
+
+        var findings = await provider.DiscoverAsync("192.0.2.90");
+
+        findings.Should().HaveCount(2);
+        findings.Should().OnlyContain(f => f.Succeeded);
+        findings.Should().OnlyContain(f =>
+            !f.Attributes!.ContainsKey("local_if_name"));
     }
 
     [Fact]

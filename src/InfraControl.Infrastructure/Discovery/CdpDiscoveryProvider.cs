@@ -15,6 +15,9 @@ namespace InfraControl.Infrastructure.Discovery;
 public sealed class CdpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryProvider
 {
     public const string CacheTableOid = "1.3.6.1.4.1.9.9.23.1.2.1.1";
+
+    /// <summary>ifName local (F3-T005b) — 2º walk tolerante do discovery.</summary>
+    public const string IfNameTableOid = IfNameLookup.TableOid;
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
 
     private static readonly Dictionary<string, string> ColumnMap = new()
@@ -73,6 +76,9 @@ public sealed class CdpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPro
                 "Nenhum vizinho CDP.",
                 "Nenhum vizinho CDP.")];
 
+        // F3-T005b: nome local da porta (local_if é ifIndex) — tolerante.
+        var ifNames = await IfNameLookup.GetAsync(snmpClient, target, cancellationToken);
+
         var findings = new List<DiscoveryProviderResult>(groups.Count);
         foreach (var group in groups.OrderBy(
             g => $"{g.Key.IfIndex}.{g.Key.DeviceIndex}", StringComparer.Ordinal))
@@ -90,6 +96,9 @@ public sealed class CdpDiscoveryProvider(ISnmpClient snmpClient) : IDiscoveryPro
                 ["local_if"] = group.Key.IfIndex,
                 ["neighbors"] = groups.Count.ToString()
             };
+
+            if (ifNames.TryGetValue(group.Key.IfIndex, out var localIfName))
+                attributes["local_if_name"] = localIfName;
 
             findings.Add(new DiscoveryProviderResult(
                 DiscoveryResultKind.Neighbor,

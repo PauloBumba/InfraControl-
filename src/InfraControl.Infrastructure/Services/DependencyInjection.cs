@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
+using InfraControl.Application.Discovery.Runs;
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
@@ -150,6 +151,8 @@ public static class DependencyInjection
         services.AddScoped<IDiscoveryProvider, ArpDiscoveryProvider>();
         services.AddScoped<IDiscoveryProvider, DhcpDiscoveryProvider>();
         services.AddScoped<IDiscoveryProvider, MacTableDiscoveryProvider>();
+        // F3-T005b: ingestão de Connections a partir de vizinhos LLDP/CDP
+        services.AddScoped<INeighborConnectionImporter, NeighborConnectionImporter>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();

@@ -1,8 +1,11 @@
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Discovery.Runs;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Monitoring.Checks;
+using InfraControl.Application.Network.Connections.Ports;
 using InfraControl.Application.Operations.Retention.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
@@ -116,6 +119,10 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();
+        // F3-T005b: ingestão de Connections ao fim do run (repos reais)
+        services.AddScoped<INeighborConnectionImporter, NeighborConnectionImporter>();
+        services.AddScoped<INetworkInterfaceRepository, NetworkInterfaceRepository>();
+        services.AddScoped<IConnectionRepository, ConnectionRepository>();
         services.AddScoped<ConfigurationRemoteCredentialSource>();
         services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
         services.Configure<CredentialEncryptionOptions>(options =>
