@@ -288,4 +288,38 @@ public sealed class RunCheckCommandTests : IDisposable
             CancellationToken cancellationToken = default)
             => Task.FromResult(factory(url));
     }
+
+    [Fact]
+    public async Task RunCheck_Tcp_ShouldExecuteAndPersistResultWithPort()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var camera = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Camera, "cam-01", "192.0.2.30");
+
+        var probe = new FakeTcpProbeClient(() => new TcpProbeReply(true));
+        var registry = new FakeRegistry(new TcpMonitoringProvider(probe));
+
+        var result = await Handler(context, registry)
+            .Handle(new RunCheckCommand(camera.Id, "Tcp"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+        result.Values!["port"].Should().Be("37777");
+
+        var rows = await RowsAsync(context, camera.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.Tcp);
+        rows[0].Succeeded.Should().BeTrue();
+    }
+
+    private sealed class FakeTcpProbeClient(Func<TcpProbeReply> factory) : ITcpProbeClient
+    {
+        public Task<TcpProbeReply> SendAsync(
+            string target,
+            int port,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(factory());
+    }
 }

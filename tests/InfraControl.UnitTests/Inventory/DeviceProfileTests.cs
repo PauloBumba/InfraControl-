@@ -17,7 +17,7 @@ public sealed class DeviceProfileTests
     [InlineData(DeviceType.AccessPoint, CheckKind.Ping, CheckKind.HttpWan)]
     [InlineData(DeviceType.Switch, CheckKind.Ping, CheckKind.SnmpSystem)]
     [InlineData(DeviceType.Server, CheckKind.Ping, CheckKind.SnmpSystem)]
-    [InlineData(DeviceType.Camera, CheckKind.Ping)]
+    [InlineData(DeviceType.Camera, CheckKind.Ping, CheckKind.Tcp)]
     [InlineData(DeviceType.Other, CheckKind.Ping)]
     public void Defaults_ShouldMatchAdr014(DeviceType type, params CheckKind[] expected)
     {
@@ -36,11 +36,11 @@ public sealed class DeviceProfileTests
     }
 
     [Fact]
-    public void Create_Camera_ShouldMaterializePingOnly()
+    public void Create_Camera_ShouldMaterializePingAndTcp()
     {
         var device = Device.Create(SomeLocationId, "cam-01", DeviceType.Camera);
 
-        device.MonitoringChecks.Should().Equal(CheckKind.Ping);
+        device.MonitoringChecks.Should().Equal(CheckKind.Ping, CheckKind.Tcp);
         device.ProfileIsCustom.Should().BeFalse();
     }
 

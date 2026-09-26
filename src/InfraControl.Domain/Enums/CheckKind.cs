@@ -10,5 +10,6 @@ public enum CheckKind
     SnmpToner = 1,
     SnmpDrum = 2,
     HttpWan = 3,
-    SnmpSystem = 4
+    SnmpSystem = 4,
+    Tcp = 5
 }

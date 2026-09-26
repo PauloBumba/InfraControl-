@@ -240,6 +240,26 @@ implementação real `SystemNetHttpProbeClient` (HttpClient estático,
 `ResponseHeadersRead`, validação TLS padrão do .NET; timeout por
 `CancellationToken`). Testes usam `FakeHttpProbeClient` (sem rede).
 
+## Check TCP (F5-T006)
+
+Escopo aprovado: **porta fixa 37777** (default de câmera) e o perfil
+default de `DeviceType.Camera` passou a incluir o check
+(ADR-014: mudança de default exige release).
+
+```text
+RunCheckCommand(check: "Tcp")   // CheckKind.Tcp = 5
+  → TcpMonitoringProvider (Name Tcp, porta 37777, timeout 2s)
+  → conecta {ip}:37777 via ITcpProbeClient
+  → handshake completo → sucesso, Values: port=37777
+  → recusa/timeout → "Porta 37777 inacessível em {ip}."
+      Values: tcp_error (detalhe)
+  → exceção do seam → "Falha ao consultar TCP: {msg}"
+```
+
+Seam: `ITcpProbeClient` + `TcpProbeReply(Success, Error?)`; implementação
+real `SystemNetTcpProbeClient` (TcpClient.ConnectAsync, timeout por
+`CancellationToken`). Testes usam `FakeTcpProbeClient` (sem rede).
+
 ## Alertas
 
 Evitar alert storm.

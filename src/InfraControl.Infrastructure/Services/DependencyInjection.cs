@@ -136,10 +136,11 @@ public static class DependencyInjection
         services.AddScoped<IFeatureFlagProvider, FeatureFlagProvider>();
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
 
-        // Monitoring (F5-T003/F5-T004/F5-T005): ping ICMP + SNMP de
-        // impressoras + probe HTTP/HTTPS
+        // Monitoring (F5-T003/F5-T004/F5-T005/F5-T006): ping ICMP + SNMP
+        // de impressoras + probe HTTP/HTTPS + probe TCP
         services.AddScoped<IIcmpClient, SystemNetIcmpClient>();
         services.AddScoped<IHttpProbeClient, SystemNetHttpProbeClient>();
+        services.AddScoped<ITcpProbeClient, SystemNetTcpProbeClient>();
         // Discovery (F4-T003/T004): probes ICMP e SNMP do gatilho manual
         services.AddScoped<IDiscoveryProvider, IcmpDiscoveryProvider>();
         services.AddScoped<IDiscoveryProvider, SnmpDiscoveryProvider>();
@@ -154,6 +155,7 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
+        services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
         // Remote access (F11-T002/T003, ADR-013): SSH sem terminal interativo
         // + probe RDP TCP/X.224. Credencial: store por device cifrado com
