@@ -145,4 +145,27 @@ public sealed class TasksController(ISender sender) : BaseController
         await sender.Send(new UnlinkTaskIncidentCommand(taskId, incidentId), cancellationToken);
         return NoContent();
     }
+
+    // F7-T005: comentários — autor é o usuário logado (ICurrentUserContext).
+
+    [HttpGet("{taskId:guid}/comments")]
+    [Authorize(Policy = "TasksRead")]
+    public async Task<IActionResult> GetComments(
+        Guid taskId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetTaskCommentsQuery(taskId), cancellationToken)));
+
+    [HttpPost("{taskId:guid}/comments")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> AddComment(
+        Guid taskId,
+        [FromBody] AddTaskCommentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new AddTaskCommentCommand(taskId, model.Content), cancellationToken);
+
+        return StatusCode(
+            StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
 }

@@ -59,6 +59,16 @@ N:N Task ↔ Incident na tabela `task_incidents` (PK composta; FK da task
   (policy `TasksManage`); duplicidade → 409, inexistente → 404.
 - `TaskDto` expõe `incidentCount` + `incidentIds`.
 
+### Comentários (F7-T005)
+
+Tabela `task_comments` (`task_id`, `author_id`, `content` ≤ 500; FK da
+task `Cascade`, FK do autor `Restrict`). Sem edição — histórico de
+alterações vem em `F7-T006`.
+
+- `GET api/v1/tasks/{taskId}/comments` (policy `TasksRead`) — ordem
+  cronológica, com `authorName` (DisplayName).
+- `POST .../comments` (policy `TasksManage`) — autor = usuário logado.
+
 API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
 `Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`).
 
