@@ -1,5 +1,6 @@
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
+using InfraControl.Api.Authorization;
 using InfraControl.Api.Middleware;
 using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -69,10 +70,12 @@ builder.Services.AddAuthentication(options =>
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
     });
-// Autorização nos controllers é por role direto — [Authorize(Roles = "...")]
-// mapeado da matriz RolePermissions (ADR-008). Claims de permissão continuam
-// no pipeline MediatR (AuthorizationBehavior), fora do HTTP.
-builder.Services.AddAuthorization();
+// Autorização HTTP: policies nomeadas por permissão (PermissionClaim
+// emitido no login) — controllers com [Authorize(Policy = "InventoryRead")]
+// etc. O escopo de claims continua no pipeline MediatR
+// (AuthorizationBehavior, ADR-008); roles continuam via [Authorize(Roles)].
+builder.Services.AddAuthorization(options =>
+    options.AddPermissionPolicies());
 
 // ── Rate limiting HTTP (ADR-011 / docs/08) ───────────────────────────────
 // Camada HTTP do ASP.NET Core Rate Limiter com estado distribuído no Redis

@@ -37,7 +37,8 @@ public sealed class AlertEvaluatorTests : IDisposable
     }
 
     private static AlertEvaluator Evaluator(AppDbContext context)
-        => new(new AlertRepository(context), new MonitoringResultRepository(context));
+        => new(new AlertRepository(context), new MonitoringResultRepository(context),
+            new IncidentRepository(context));
 
     private static async Task<Device> SeedDeviceAsync(
         AppDbContext context, DeviceType type = DeviceType.Switch, string name = "sw-01")
@@ -345,6 +346,107 @@ public sealed class AlertEvaluatorTests : IDisposable
 
         (await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpDrum))
             .Should().BeEmpty();
+    }
+
+    // ── F6-T003: auto-abertura de Incident em Alert Critical ─────────────
+
+    private static async Task<List<Incident>> OpenIncidentsAsync(
+        AppDbContext context, Guid deviceId)
+        => await context.Incidents.AsNoTracking()
+            .Where(incident => incident.DeviceId == deviceId
+                && incident.Status == IncidentStatus.Open)
+            .ToListAsync();
+
+    [Fact]
+    public async Task CriticalPingAlert_ShouldAutoOpenIncidentAndLinkAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var alert = await OpenAlertsAsync(context, device.Id, CheckKind.Ping);
+        alert.Should().ContainSingle();
+
+        var incident = (await OpenIncidentsAsync(context, device.Id))
+            .Should().ContainSingle().Subject;
+        incident.Severity.Should().Be(IncidentSeverity.Critical);
+        incident.Title.Should().Be(alert[0].Message);
+
+        var link = await context.IncidentAlerts.AsNoTracking()
+            .Where(link => link.IncidentId == incident.Id && link.AlertId == alert[0].Id)
+            .ToListAsync();
+        link.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task WarningAlert_ShouldNotOpenIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-x");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpToner,
+            Result(CheckKind.SnmpToner, true, new Dictionary<string, string>
+            {
+                ["levelPercent"] = "5"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await context.Incidents.AsNoTracking().ToListAsync()).Should().BeEmpty(
+            "só Alert Critical abre Incident");
+    }
+
+    [Fact]
+    public async Task RepeatedFailures_ShouldNotDuplicateIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(3));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        for (var i = 0; i < 2; i++)
+        {
+            await Evaluator(context).EvaluateAsync(
+                device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+                CancellationToken.None);
+            await context.SaveChangesAsync();
+        }
+
+        (await OpenIncidentsAsync(context, device.Id)).Should().ContainSingle(
+            "1 Incident Open por device (anti-storm)");
+    }
+
+    [Fact]
+    public async Task OrphanOpenAlert_ShouldGetLinkedToIncidentOnNextEvaluation()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        // alerta Open pré-existente (ex.: criado antes do T003), sem incidente
+        var orphan = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down legado");
+        context.Alerts.Add(orphan);
+        await context.SaveChangesAsync();
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var incident = (await OpenIncidentsAsync(context, device.Id))
+            .Should().ContainSingle().Subject;
+        (await context.IncidentAlerts.AsNoTracking()
+            .CountAsync(link => link.IncidentId == incident.Id
+                && link.AlertId == orphan.Id)).Should().Be(1);
     }
 
     // ── casos que NÃO avaliam ────────────────────────────────────────────

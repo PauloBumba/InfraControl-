@@ -1,5 +1,6 @@
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Alerts.Ports;
+using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs;
@@ -81,6 +82,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
         services.AddScoped<IAlertRepository, AlertRepository>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
 

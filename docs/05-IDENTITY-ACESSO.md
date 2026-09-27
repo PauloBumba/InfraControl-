@@ -36,13 +36,27 @@ O processo é idempotente: se já existir qualquer administrador ou se o email c
 
 O gerenciamento de roles segue Vertical Slice/CQRS. Os comandos `AssignUserRoleCommand` e `RemoveUserRoleCommand`, com seus handlers, ficam em `Application/Identity/Roles`; o domínio mantém as invariantes do agregado `User`; e `IUserRoleRepository` é a porta usada pelos handlers. O `IdentityUserRoleRepository` é o adaptador técnico em `Infrastructure`, responsável por sincronizar a role do domínio com o ASP.NET Core Identity em uma transação.
 
-A autorização nos controllers é por role direto (`[Authorize(Roles = "...")]`, mapeado da matriz `RolePermissions` — ADR-008). O controller HTTP apenas converte a requisição em comando e envia pelo MediatR. A alteração é autorizada por `Roles = "Admin"`, o último administrador ativo não pode perder a role `Admin` e um usuário não pode ficar sem role. Permissões granulares e auditoria permanecem em Tasks próprias.
+A autorização nos controllers combina dois mecanismos: roles diretas
+(`[Authorize(Roles = "...")]`, mapeado da matriz `RolePermissions` —
+ADR-008) e **policies HTTP nomeadas por permissão**
+(`[Authorize(Policy = "InventoryRead")]` etc.). O controller HTTP apenas
+converte a requisição em comando e envia pelo MediatR. A alteração de role
+é autorizada por `Roles = "Admin"`, o último administrador ativo não pode
+perder a role `Admin` e um usuário não pode ficar sem role.
+
+> **Achado F6-T003 (2026-09-26):** os controllers das fases 2/3/5 já usavam
+> `[Authorize(Policy = "InventoryRead")]`, mas só existiam as claims de
+> permissão — as policies nomeadas **não estavam registradas**
+> (`AddAuthorization()` puro), então esses endpoints falhariam em runtime.
+> Corrigido: `PermissionPolicies.AddPermissionPolicies()` registra uma
+> policy por `Permission`, exigindo a claim `PermissionClaim.Type` (emitida
+> no login). Coberto por `PermissionPolicyTests`.
 
 ### F1-T004 — Permissions
 
 O catálogo de permissões fica em `Domain/Authorization/Permission.cs`, sem dependência de ASP.NET Core. A matriz padrão é definida em `RolePermissions`: `Viewer` recebe permissões de leitura; `User` herda as permissões de leitura e recebe permissões de gestão operacional; `Admin` recebe o catálogo completo. A união de múltiplas roles não produz duplicatas.
 
-O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. As claims alimentam o `AuthorizationBehavior` do pipeline MediatR (2ª camada nos handlers); os controllers não usam policies HTTP — autorizam por role direto (ADR-008). A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
+O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. As claims alimentam o `AuthorizationBehavior` do pipeline MediatR (2ª camada nos handlers) **e** as policies HTTP nomeadas (achado F6-T003 acima); os controllers também podem autorizar por role direta (ADR-008). A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
 
 ## API de autenticação e dashboard
 

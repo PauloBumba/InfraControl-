@@ -105,3 +105,18 @@ Condição detectada (glossário) — F6-T001:
 - Thresholds **fixos em código** (`AlertThresholds`): toner < 20%,
   drum < 10%; down do Ping exige **streak de 3 falhas consecutivas**
   lido do histórico (F6-T002 — detalhes em docs/09).
+
+## Incident
+
+F6-T003 — agrupa N `Alert` (N:N via `incident_alerts`):
+
+- `Title` (obrigatório) + `Description?` + `Severity`
+  (Low | Medium | High | Critical) + `Status` (5 estados da UI: Open |
+  Investigating | Identified | Monitoring | Resolved) + `DeviceId?` +
+  `ResolvedAt?`.
+- **Auto-abertura**: um Alert **Critical** (Ping down com streak) cria 1
+  Incident Open por device e vincula o alerta; Warning nunca abre.
+  Alert órfão (criado antes do T003) ganha vínculo na próxima avaliação.
+- Transições livres dentro do enum (≠ atual → 400); Resolved estampa
+  `ResolvedAt` e sair dele limpa (reopen). `Acknowledge` = → Investigating.
+- Índices em `status` e `device_id`; FKs cascade (device/alert/exclusão).

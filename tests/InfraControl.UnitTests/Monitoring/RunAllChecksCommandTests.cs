@@ -99,7 +99,8 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new FakeRegistry(new FakePingProvider(_ => true)),
             counting,
             new AlertEvaluator(new AlertRepository(context),
-                new MonitoringResultRepository(context)),
+                new MonitoringResultRepository(context),
+                new IncidentRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
         var results = await handler.Handle(new RunAllChecksCommand("Ping"), CancellationToken.None);
@@ -148,7 +149,8 @@ public sealed class RunAllChecksCommandTests : IDisposable
             registry,
             new MonitoringResultRepository(context),
             new AlertEvaluator(new AlertRepository(context),
-                new MonitoringResultRepository(context)),
+                new MonitoringResultRepository(context),
+                new IncidentRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
     [Fact]

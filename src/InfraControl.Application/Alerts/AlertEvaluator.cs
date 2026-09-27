@@ -1,4 +1,5 @@
 using InfraControl.Application.Alerts.Ports;
+using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -34,7 +35,8 @@ public interface IAlertEvaluator
 
 public sealed class AlertEvaluator(
     IAlertRepository repository,
-    IMonitoringResultRepository resultRepository) : IAlertEvaluator
+    IMonitoringResultRepository resultRepository,
+    IIncidentRepository incidentRepository) : IAlertEvaluator
 {
     public async Task EvaluateAsync(
         Device device,
@@ -62,12 +64,15 @@ public sealed class AlertEvaluator(
                     if (previous.Count >= required
                         && previous.All(entry => !entry.Succeeded))
                     {
-                        await OpenAsync(
+                        var alert = await OpenOrGetAsync(
                             device, kind, AlertSeverity.Critical,
                             $"Device '{device.Name}' fora do ar "
                                 + $"({AlertThresholds.PingFailureStreak} falhas "
                                 + "consecutivas no ping).",
                             cancellationToken);
+
+                        // F6-T003: Alert Critical auto-abre Incident.
+                        await EnsureIncidentAsync(device, alert, cancellationToken);
                     }
                 }
                 break;
@@ -107,7 +112,8 @@ public sealed class AlertEvaluator(
 
         if (percent < minPercent)
         {
-            await OpenAsync(
+            // Warning não toca incidente (só Critical auto-abre — F6-T003).
+            _ = await OpenOrGetAsync(
                 device, kind, AlertSeverity.Warning,
                 $"{label} de '{device.Name}' em {percent}% (mínimo {minPercent}%).",
                 cancellationToken);
@@ -118,20 +124,24 @@ public sealed class AlertEvaluator(
         }
     }
 
-    private async Task OpenAsync(
+    /// <summary>
+    /// 1 alerta Open por (device, check) anti-storm — retorna o Open
+    /// existente ou o recém-criado.
+    /// </summary>
+    private async Task<Alert> OpenOrGetAsync(
         Device device,
         CheckKind kind,
         AlertSeverity severity,
         string message,
         CancellationToken cancellationToken)
     {
-        // Anti alert-storm: 1 alerta Open por (device, check).
         var open = await repository.GetOpenAsync(device.Id, kind, cancellationToken);
         if (open is not null)
-            return;
+            return open;
 
-        await repository.AddAsync(
-            Alert.Create(device.Id, kind, severity, message), cancellationToken);
+        var created = Alert.Create(device.Id, kind, severity, message);
+        await repository.AddAsync(created, cancellationToken);
+        return created;
     }
 
     private async Task ResolveOpenAsync(
@@ -139,5 +149,27 @@ public sealed class AlertEvaluator(
     {
         var open = await repository.GetOpenAsync(deviceId, kind, cancellationToken);
         open?.Resolve();
+    }
+
+    /// <summary>
+    /// F6-T003: Alert Critical garante 1 Incident Open por device e
+    /// vincula o alerta (N:N); alerta órfão (criado antes do T003) ganha
+    /// vínculo na próxima avaliação.
+    /// </summary>
+    private async Task EnsureIncidentAsync(
+        Device device, Alert alert, CancellationToken cancellationToken)
+    {
+        var incident = await incidentRepository.GetOpenByDeviceAsync(
+            device.Id, cancellationToken);
+
+        if (incident is null)
+        {
+            incident = Incident.Create(
+                alert.Message, IncidentSeverity.Critical, deviceId: device.Id);
+            await incidentRepository.AddAsync(incident, cancellationToken);
+        }
+
+        await incidentRepository.AddLinkAsync(
+            IncidentAlert.Create(incident.Id, alert.Id), cancellationToken);
     }
 }

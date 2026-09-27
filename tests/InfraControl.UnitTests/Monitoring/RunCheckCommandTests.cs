@@ -122,7 +122,8 @@ public sealed class RunCheckCommandTests : IDisposable
             registry,
             new MonitoringResultRepository(context),
             new AlertEvaluator(new AlertRepository(context),
-                new MonitoringResultRepository(context)),
+                new MonitoringResultRepository(context),
+                new IncidentRepository(context)),
             NullLogger<RunCheckCommandHandler>.Instance);
 
     // ── testes ───────────────────────────────────────────────────────────

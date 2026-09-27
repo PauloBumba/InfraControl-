@@ -8,6 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Policies HTTP de permissão (PermissionPolicyTests) — tipos de ASP.NET Core. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.4" />
     <PackageReference Include="FluentAssertions" Version="7.0.0" />

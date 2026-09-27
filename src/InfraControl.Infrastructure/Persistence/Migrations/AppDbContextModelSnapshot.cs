@@ -337,6 +337,84 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("discovery_runs", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Incident", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId")
+                        .HasDatabaseName("IX_incidents_device_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_incidents_status");
+
+                    b.ToTable("incidents", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.IncidentAlert", b =>
+                {
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("incident_id");
+
+                    b.Property<Guid>("AlertId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alert_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("IncidentId", "AlertId");
+
+                    b.HasIndex("AlertId");
+
+                    b.ToTable("incident_alerts", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1399,6 +1477,29 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Device", null)
                         .WithMany()
                         .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Incident", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.IncidentAlert", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Alert", null)
+                        .WithMany()
+                        .HasForeignKey("AlertId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Incident", null)
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

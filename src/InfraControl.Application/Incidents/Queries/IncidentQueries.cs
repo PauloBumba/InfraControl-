@@ -1,0 +1,75 @@
+using InfraControl.Application.Incidents.Ports;
+using InfraControl.Domain.Enums;
+
+namespace InfraControl.Application.Incidents.Queries;
+
+// F6-T003: leitura de incidentes (GetAlerts da docs/15 é a lista de
+// alerts; aqui: Search + Get com vínculos).
+
+public sealed record SearchIncidentsQuery(
+    Guid? DeviceId = null,
+    string? Status = null,
+    int Page = 1,
+    int PageSize = 20) : IQuery<PagedResult<IncidentDto>>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.IncidentsRead.ToString()];
+}
+
+public sealed class SearchIncidentsQueryHandler(IIncidentRepository repository)
+    : IRequestHandler<SearchIncidentsQuery, PagedResult<IncidentDto>>
+{
+    public async Task<PagedResult<IncidentDto>> Handle(
+        SearchIncidentsQuery request, CancellationToken cancellationToken)
+    {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+        var status = ParseStatus(request.Status);
+
+        var result = await repository.SearchAsync(
+            request.DeviceId, status, page, pageSize, cancellationToken);
+
+        return new PagedResult<IncidentDto>(
+            result.Items.Select(item => IncidentDto.From(
+                item.Incident, item.AlertCount)).ToArray(),
+            result.TotalCount, result.Page, result.PageSize);
+    }
+
+    internal static IncidentStatus? ParseStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return null;
+
+        if (!Enum.TryParse(status.Trim(), ignoreCase: true, out IncidentStatus parsed))
+            throw new ArgumentException(
+                $"Status inválido: '{status}'. Use open, investigating, "
+                + "identified, monitoring ou resolved.",
+                nameof(status));
+
+        return parsed;
+    }
+}
+
+public sealed record GetIncidentQuery(Guid Id)
+    : IQuery<IncidentDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredPermissions =>
+        [Permission.IncidentsRead.ToString()];
+}
+
+public sealed class GetIncidentQueryHandler(IIncidentRepository repository)
+    : IRequestHandler<GetIncidentQuery, IncidentDto>
+{
+    public async Task<IncidentDto> Handle(
+        GetIncidentQuery request, CancellationToken cancellationToken)
+    {
+        var incident = await repository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Incidente '{request.Id}' não encontrado.");
+
+        var alerts = await repository.GetAlertsAsync(incident.Id, cancellationToken);
+
+        return IncidentDto.From(
+            incident, alerts.Count, alerts.Select(alert => alert.Id).ToList());
+    }
+}

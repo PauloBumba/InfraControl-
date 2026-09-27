@@ -358,7 +358,23 @@ só o básico** (unicidade Open + streak).
   memória). Toner/Drum continuam imediatos (estado, não falha).
 - **Upstream**: pendência documentada para F6-T004 (Correlation).
 
-### F6-T003+ — pendências
+### F6-T003 — Incident auto-aberto (concluída)
+
+- Alert **Critical** (Ping down com streak) → cria **1 Incident Open por
+  device** e vincula o alerta (N:N `incident_alerts`); Warning não abre.
+- Alert órfão (aberto antes do T003) ganha vínculo na próxima avaliação;
+  repetição da falha não duplica incidente nem alerta.
+- Estados da UI (Open → Investigating → Identified → Monitoring →
+  Resolved, transições livres ≠ atual); `Acknowledge` = Investigating;
+  Resolved estampa/limpa `ResolvedAt`. Vínculos de exclusão: cascade.
+- API `POST /api/v1/incidents` (manual), `POST {id}/acknowledge`,
+  `PUT {id}/status`, `GET` lista/detalhe — policies HTTP `IncidentsRead`
+  / `IncidentsManage` (achado: policies por permissão registradas em
+  `PermissionPolicies`, docs/05).
+- Fechamento do incidente quando os alerts resolvem = **F6-T006
+  Recovery**; correlação entre alertas/incidentes = F6-T004.
+
+### F6-T004+ — pendências
 
 Evitar alert storm (além da unicidade Open + N=3):
 
