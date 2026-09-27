@@ -432,9 +432,29 @@ F3-T005) e **todos os kinds** do downstream.
   abertura; corrida atualiza p/ upstream no ciclo seguinte), integração
   +1 (RootCause via SearchIncidentsQuery no pipeline).
 
-### F6-T006+ — pendências
+### F6-T006 — Recovery do incidente (concluída)
 
-- recovery (F6-T006);
+- Gatilho: `ResolveActiveAsync` do avaliador (Ping ok / supply ≥ mínimo
+  resolve o alert Open **ou** Suppressed) → `CloseRecoveredIncidentsAsync`.
+- Verifica o **Incident Open do device** + incidentes Open vinculados ao
+  alerta resolvido (`IIncidentRepository.GetOpenIdsLinkedToAlertAsync`);
+  se **todos** os alerts vinculados estão `Resolved` →
+  `ChangeStatus(Resolved)` (estampa `ResolvedAt`).
+- Guardas: incidente **sem vínculos** (manual) não fecha (só por
+  comando); vínculo com alerta ainda ativo (downstream `Suppressed`)
+  mantém aberto — fecha quando o último normalizar. `GetAlertsAsync` é
+  AsNoTracking → o alert recém-resolvido (em memória) conta como
+  resolvido na comparação.
+- Reabertura: condição volta (streak) → novo alert abre → novo
+  incidente (anti-storm do F6-T003); o fechado não é reusado.
+- Testes: avaliador +3 (fecha com1 vínculo; fica aberto com vínculo
+  ativo e fecha no último; manual sem vínculo não fecha), integração +1
+  (RunCheck com ICMP fake → alert resolve → SearchIncidents mostra
+  Resolved).
+- **Fase 6 completa: F6-T001 → T006.**
+
+### Pendências (F6+)
+
 - correlação entre múltiplas raízes / upstream explícito em Device.
 
 ## Impressoras

@@ -706,6 +706,103 @@ public sealed class AlertEvaluatorTests : IDisposable
             "corrida coberta: causa passa a apontar o upstream no ciclo seguinte");
     }
 
+    // ── F6-T006: recovery fecha Incident quando tudo normalizou ──────────
+
+    [Fact]
+    public async Task PingUp_ShouldCloseIncidentWhenAllLinkedAlertsResolved()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        var alert = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down");
+        context.Alerts.Add(alert);
+        var incident = Incident.Create(
+            "fora do ar", IncidentSeverity.Critical, deviceId: device.Id);
+        context.Incidents.Add(incident);
+        await context.SaveChangesAsync();
+        context.IncidentAlerts.Add(IncidentAlert.Create(incident.Id, alert.Id));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var closed = await context.Incidents.AsNoTracking()
+            .FirstAsync(i => i.Id == incident.Id);
+        closed.Status.Should().Be(IncidentStatus.Resolved);
+        closed.ResolvedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task IncidentStaysOpen_WhileDownstreamSuppressedAlertStillActive()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context, name: "sw-root");
+        var down = await SeedDeviceAsync(context, name: "sw-edge");
+        var rootAlert = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "root down");
+        var downAlert = Alert.Create(
+            down.Id, CheckKind.Ping, AlertSeverity.Critical, "edge down");
+        downAlert.Suppress(); // vítima ainda sem resposta
+        context.Alerts.AddRange(rootAlert, downAlert);
+        var incident = Incident.Create(
+            "root down", IncidentSeverity.Critical, deviceId: device.Id);
+        context.Incidents.Add(incident);
+        await context.SaveChangesAsync();
+        context.IncidentAlerts.AddRange(
+            IncidentAlert.Create(incident.Id, rootAlert.Id),
+            IncidentAlert.Create(incident.Id, downAlert.Id));
+        await context.SaveChangesAsync();
+
+        // raiz volta: só o alerta do root resolve
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var stillOpen = await context.Incidents.AsNoTracking()
+            .FirstAsync(i => i.Id == incident.Id);
+        stillOpen.Status.Should().Be(IncidentStatus.Open,
+            "vínculo com alerta ainda ativo mantém o incidente aberto");
+
+        // downstream normaliza: resolve o Suppressed → todos resolved
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var closed = await context.Incidents.AsNoTracking()
+            .FirstAsync(i => i.Id == incident.Id);
+        closed.Status.Should().Be(IncidentStatus.Resolved,
+            "último vínculo resolved → recovery fecha o incidente raiz");
+        closed.ResolvedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task IncidentWithoutLinkedAlerts_ShouldNotAutoClose()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        var alert = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down");
+        context.Alerts.Add(alert);
+        // incidente manual sem vínculo de alerts
+        var manual = Incident.Create("investigação manual", IncidentSeverity.Low);
+        context.Incidents.Add(manual);
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var kept = await context.Incidents.AsNoTracking()
+            .FirstAsync(i => i.Id == manual.Id);
+        kept.Status.Should().Be(IncidentStatus.Open,
+            "sem vínculos (manual) — fecha só por comando, não por recovery");
+    }
+
     // ── casos que NÃO avaliam ────────────────────────────────────────────
 
     [Fact]

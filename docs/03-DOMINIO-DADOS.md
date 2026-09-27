@@ -130,6 +130,12 @@ F6-T003 — agrupa N `Alert` (N:N via `incident_alerts`):
 - **Vínculo upstream** (F6-T004): alerts `Suppressed` de devices atrás
   do root ficam ligados ao mesmo incidente pela N:N — 1 raiz, N
   relacionados.
+- **Recovery** (F6-T006): quando um alert resolve (condição normalizada),
+  incidentes **Open** vinculados a ele são verificados — se **todos** os
+  alerts vinculados estão `Resolved`, o incidente fecha automático
+  (→ Resolved com `ResolvedAt`). Incidente **sem vínculos** (manual)
+  nunca fecha por recovery — só por comando. Um vínculo ainda ativo
+  (ex.: downstream `Suppressed` sem resposta) mantém o incidente aberto.
 - **`RootCause`** (F6-T005, string? 500): causa provável derivada por
   heurística fixa — (1) upstream alcançável com Incident Open → falha
   nele; (2) vizinho com alerta de Ping Open **mais antigo** que o

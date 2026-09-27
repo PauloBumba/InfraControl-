@@ -3,6 +3,7 @@ using InfraControl.Application.Alerts;
 using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Incidents.Commands;
 using InfraControl.Application.Incidents.Queries;
+using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -119,5 +120,35 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
         item.RootCause.Should().Be(
             "Falha local no device (energia, processo ou enlace direto).",
             "F6-T005: causa provável derivada exposta na leitura");
+    }
+
+    [Fact]
+    public async Task RunCheckPingUp_ShouldResolveLinkedAlertAndCloseIncident()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(context, ip: "192.0.2.62");
+
+        var alert = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down");
+        context.Alerts.Add(alert);
+        var incident = Incident.Create(
+            "fora do ar", IncidentSeverity.Critical, deviceId: device.Id);
+        context.Incidents.Add(incident);
+        await context.SaveChangesAsync();
+        context.IncidentAlerts.Add(IncidentAlert.Create(incident.Id, alert.Id));
+        await context.SaveChangesAsync();
+
+        UseRole(UserRole.Admin);
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        // ICMP falso sempre sobe → resolve o alerta e dispara o recovery
+        var run = await mediator.Send(new RunCheckCommand(device.Id, "Ping"));
+        run.Succeeded.Should().BeTrue();
+
+        var incidents = await mediator.Send(new SearchIncidentsQuery());
+        var item = incidents.Items.Should().ContainSingle().Subject;
+        item.Status.Should().Be(nameof(IncidentStatus.Resolved));
+        item.ResolvedAt.Should().NotBeNull(
+            "F6-T006: todos os alerts vinculados resolved → fecha");
     }
 }

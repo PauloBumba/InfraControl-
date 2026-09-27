@@ -190,7 +190,48 @@ public sealed class AlertEvaluator(
     {
         // Resolve Open e Suppressed (F6-T004) — condição normalizada.
         var active = await repository.GetActiveAsync(deviceId, kind, cancellationToken);
-        active?.Resolve();
+        if (active is null)
+            return;
+
+        active.Resolve();
+
+        // F6-T006: recovery — incidente fecha quando todos os alerts
+        // vinculados normalizaram (sem vínculos = manual, só fecha por
+        // comando).
+        await CloseRecoveredIncidentsAsync(active, deviceId, cancellationToken);
+    }
+
+    private async Task CloseRecoveredIncidentsAsync(
+        Alert resolved, Guid deviceId, CancellationToken cancellationToken)
+    {
+        var ids = new HashSet<Guid>(await incidentRepository
+            .GetOpenIdsLinkedToAlertAsync(resolved.Id, cancellationToken));
+
+        var own = await incidentRepository
+            .GetOpenByDeviceAsync(deviceId, cancellationToken);
+        if (own is not null)
+            ids.Add(own.Id);
+
+        foreach (var id in ids)
+        {
+            var incident = await incidentRepository
+                .GetByIdAsync(id, cancellationToken);
+            if (incident is null || incident.Status != IncidentStatus.Open)
+                continue;
+
+            var alerts = await incidentRepository
+                .GetAlertsAsync(incident.Id, cancellationToken);
+            if (alerts.Count == 0)
+                continue;
+
+            // GetAlertsAsync é AsNoTracking: o alert resolvido agora pode
+            // vir com status antigo do banco — ele conta como resolvido.
+            var allResolved = alerts.All(alert =>
+                alert.Id == resolved.Id || alert.Status == AlertStatus.Resolved);
+
+            if (allResolved)
+                incident.ChangeStatus(IncidentStatus.Resolved);
+        }
     }
 
     /// <summary>

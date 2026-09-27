@@ -94,6 +94,18 @@ public sealed class IncidentRepository(AppDbContext dbContext)
             total, page, pageSize);
     }
 
+    public async Task<IReadOnlyList<Guid>> GetOpenIdsLinkedToAlertAsync(
+        Guid alertId, CancellationToken cancellationToken = default)
+        => await dbContext.IncidentAlerts.AsNoTracking()
+            .Where(link => link.AlertId == alertId)
+            .Join(dbContext.Incidents.AsNoTracking(),
+                link => link.IncidentId,
+                incident => incident.Id,
+                (link, incident) => incident)
+            .Where(incident => incident.Status == IncidentStatus.Open)
+            .Select(incident => incident.Id)
+            .ToListAsync(cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

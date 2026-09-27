@@ -21,6 +21,13 @@ public interface IIncidentRepository : IRepository<Incident>
     Task<IReadOnlyList<Alert>> GetAlertsAsync(
         Guid incidentId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Ids de Incident Open vinculados ao alerta (F6-T006 — fechamento
+    /// por recovery).
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetOpenIdsLinkedToAlertAsync(
+        Guid alertId, CancellationToken cancellationToken = default);
+
     /// <summary>Paginado, mais recente primeiro — filtros device/status.</summary>
     Task<PagedResult<IncidentWithAlertCount>> SearchAsync(
         Guid? deviceId,
