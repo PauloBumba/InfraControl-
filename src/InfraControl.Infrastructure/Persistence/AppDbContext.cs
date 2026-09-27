@@ -41,6 +41,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Alert> Alerts => Set<Alert>();
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentAlert> IncidentAlerts => Set<IncidentAlert>();
+    public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<DiscoveryRun> DiscoveryRuns => Set<DiscoveryRun>();
     public DbSet<DiscoveryResult> DiscoveryResults => Set<DiscoveryResult>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();

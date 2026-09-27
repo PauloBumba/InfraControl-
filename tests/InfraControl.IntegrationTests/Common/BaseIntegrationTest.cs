@@ -14,6 +14,7 @@ using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
+using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
@@ -124,6 +125,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
         services.AddScoped<IDeviceCredentialRepository, DeviceCredentialRepository>();
         services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
+        // F7-T001: CRUD de Tasks (repositório segue convenção I*Repository)
+        services.AddScoped<ITaskItemRepository, TaskItemRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();

@@ -153,7 +153,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 7 — Tasks
 
-- [ ] F7-T001 Task
+- [x] F7-T001 Task <!-- decisões (padrão CRUD = Locations F2-T001): entidade `TaskItem` (NÃO `Task` — evita CS0104 com System.Threading.Tasks.Task em todo o codebase async; documentado em docs/04), enums `TaskKind` (11 tipos de docs/04) e `TaskState` (7 estados — nome evita colisão com TaskStatus BCL), ambos persistidos como string(20) sem migração extra; nasce Open; Title 120 / Description 500 (padrão codebase, docs/04 não define tamanhos); state/kind mutáveis só via F7-T007 (ChangeState hoje no-op no mesmo estado); CRUD completo Create/Update/Delete/Search/Get em TasksController (policies HTTP TasksRead/TasksManage — registradas pelo fix do F6-T003) + ViewModels + parse pt-BR de kind/state (400); DI por convenção I*Repository (ITaskItemRepository/TaskItemRepository — sem linha manual) + registro no BaseIntegrationTest; Delete ainda sem pré-check de vínculos (F7-T002→T005 adicionam; FK Restrict é o backstop); migração AddTasks; testes +18 unit (TaskItemTests 6, TaskCommandTests 12) +4 integração (TaskIntegrationTests) -- 840 unit + 57 integration + 8 arch = 905, 0 falhas; docs/04 seção Task -->
 - [ ] F7-T002 TaskAssignee
 - [ ] F7-T003 TaskDevice
 - [ ] F7-T004 TaskIncident
