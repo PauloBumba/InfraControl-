@@ -11,12 +11,15 @@ public sealed record TaskDto(
     int AssigneeCount,
     Guid[] AssigneeIds,
     int DeviceCount,
-    Guid[] DeviceIds)
+    Guid[] DeviceIds,
+    int IncidentCount,
+    Guid[] IncidentIds)
 {
     internal static TaskDto From(
         Domain.Entities.TaskItem task,
         IReadOnlyCollection<Guid>? assigneeIds = null,
-        IReadOnlyCollection<Guid>? deviceIds = null)
+        IReadOnlyCollection<Guid>? deviceIds = null,
+        IReadOnlyCollection<Guid>? incidentIds = null)
         => new(
             task.Id,
             task.Title,
@@ -27,5 +30,7 @@ public sealed record TaskDto(
             assigneeIds?.Count ?? 0,
             assigneeIds?.ToArray() ?? [],
             deviceIds?.Count ?? 0,
-            deviceIds?.ToArray() ?? []);
+            deviceIds?.ToArray() ?? [],
+            incidentIds?.Count ?? 0,
+            incidentIds?.ToArray() ?? []);
 }

@@ -50,6 +50,15 @@ vinculadas é bloqueado no `DeleteDeviceCommand`).
   (policy `TasksManage`); duplicidade → 409, inexistente → 404.
 - `TaskDto` expõe `deviceCount` + `deviceIds`.
 
+### Incidentes vinculados (F7-T004)
+
+N:N Task ↔ Incident na tabela `task_incidents` (PK composta; FK da task
+`Cascade`, FK do incidente `Restrict`).
+
+- `POST/DELETE api/v1/tasks/{taskId}/incidents/{incidentId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404.
+- `TaskDto` expõe `incidentCount` + `incidentIds`.
+
 API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
 `Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`).
 

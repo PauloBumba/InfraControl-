@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { setActiveItem } from "@/app/store/slices/navigationSlice";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -28,6 +28,7 @@ const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m 
 const LocationsPage = lazy(() => import("@/pages/LocationsPage").then(m => ({ default: m.LocationsPage })));
 const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.SlaPage })));
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
+const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -49,6 +50,16 @@ function PageLoader() {
   );
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -65,32 +76,131 @@ function AppContent() {
     navigate(route);
   };
 
+  // Login page não tem layout
+  if (location.pathname === '/login') {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
   return (
     <AppLayout activeItem={activeLabel} onNavigate={handleNavigate}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/network" element={<NetworkPage />} />
-          <Route path="/wifi" element={<WiFiPage />} />
-          <Route path="/topology" element={<TopologyPage />} />
-          <Route path="/devices" element={<DevicesPage />} />
-          <Route path="/devices/:id" element={<DeviceDetailPage />} />
-          <Route path="/clients" element={<ClientsPage />} />
-          <Route path="/insights" element={<InsightsPage />} />
-          <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/health" element={<HealthPage />} />
-          <Route path="/logs" element={<LogsPage />} />
-          <Route path="/remote" element={<RemotePage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/knowledge" element={<KnowledgePage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/audit" element={<AuditPage />} />
-          <Route path="/incidents" element={<IncidentsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/locations" element={<LocationsPage />} />
-          <Route path="/sla" element={<SlaPage />} />
-          <Route path="/switches" element={<SwitchesPage />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/network" element={
+            <ProtectedRoute>
+              <NetworkPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/wifi" element={
+            <ProtectedRoute>
+              <WiFiPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/topology" element={
+            <ProtectedRoute>
+              <TopologyPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/devices" element={
+            <ProtectedRoute>
+              <DevicesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/devices/:id" element={
+            <ProtectedRoute>
+              <DeviceDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/clients" element={
+            <ProtectedRoute>
+              <ClientsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/insights" element={
+            <ProtectedRoute>
+              <InsightsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/alerts" element={
+            <ProtectedRoute>
+              <AlertsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/health" element={
+            <ProtectedRoute>
+              <HealthPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/logs" element={
+            <ProtectedRoute>
+              <LogsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/remote" element={
+            <ProtectedRoute>
+              <RemotePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/knowledge" element={
+            <ProtectedRoute>
+              <KnowledgePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/users" element={
+            <ProtectedRoute>
+              <UsersPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/audit" element={
+            <ProtectedRoute>
+              <AuditPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/incidents" element={
+            <ProtectedRoute>
+              <IncidentsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/locations" element={
+            <ProtectedRoute>
+              <LocationsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/sla" element={
+            <ProtectedRoute>
+              <SlaPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/switches" element={
+            <ProtectedRoute>
+              <SwitchesPage />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>

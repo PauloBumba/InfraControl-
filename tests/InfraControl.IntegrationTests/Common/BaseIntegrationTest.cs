@@ -133,6 +133,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<ITaskItemRepository, TaskItemRepository>();
         services.AddScoped<ITaskAssigneeRepository, TaskAssigneeRepository>();
         services.AddScoped<ITaskDeviceRepository, TaskDeviceRepository>();
+        services.AddScoped<ITaskIncidentRepository, TaskIncidentRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();

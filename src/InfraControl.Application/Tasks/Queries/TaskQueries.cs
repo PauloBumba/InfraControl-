@@ -24,7 +24,8 @@ public sealed record SearchTasksQuery(
 public sealed class SearchTasksQueryHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
-    ITaskDeviceRepository deviceRepository)
+    ITaskDeviceRepository deviceRepository,
+    ITaskIncidentRepository incidentRepository)
     : IRequestHandler<SearchTasksQuery, PagedResult<TaskDto>>
 {
     public async Task<PagedResult<TaskDto>> Handle(
@@ -45,12 +46,15 @@ public sealed class SearchTasksQueryHandler(
             pageIds, cancellationToken);
         var devices = await deviceRepository.GetDeviceIdsByTaskIdsAsync(
             pageIds, cancellationToken);
+        var incidents = await incidentRepository.GetIncidentIdsByTaskIdsAsync(
+            pageIds, cancellationToken);
 
         return new PagedResult<TaskDto>(
             result.Items.Select(task => TaskDto.From(
                 task,
                 assignees.TryGetValue(task.Id, out var ids) ? ids : null,
-                devices.TryGetValue(task.Id, out var deviceIds) ? deviceIds : null))
+                devices.TryGetValue(task.Id, out var deviceIds) ? deviceIds : null,
+                incidents.TryGetValue(task.Id, out var incidentIds) ? incidentIds : null))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -96,7 +100,8 @@ public sealed record GetTaskQuery(Guid Id)
 public sealed class GetTaskQueryHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
-    ITaskDeviceRepository deviceRepository)
+    ITaskDeviceRepository deviceRepository,
+    ITaskIncidentRepository incidentRepository)
     : IRequestHandler<GetTaskQuery, TaskDto>
 {
     public async Task<TaskDto> Handle(
@@ -109,7 +114,9 @@ public sealed class GetTaskQueryHandler(
             task.Id, cancellationToken);
         var deviceIds = await deviceRepository.GetDeviceIdsAsync(
             task.Id, cancellationToken);
+        var incidentIds = await incidentRepository.GetIncidentIdsAsync(
+            task.Id, cancellationToken);
 
-        return TaskDto.From(task, assigneeIds, deviceIds);
+        return TaskDto.From(task, assigneeIds, deviceIds, incidentIds);
     }
 }

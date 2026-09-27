@@ -120,4 +120,29 @@ public sealed class TasksController(ISender sender) : BaseController
         await sender.Send(new UnlinkTaskDeviceCommand(taskId, deviceId), cancellationToken);
         return NoContent();
     }
+
+    // F7-T004: incidentes vinculados (N:N) — 204 nos dois sentidos e estado
+    // atual embutido no TaskDto (incidentIds).
+
+    [HttpPost("{taskId:guid}/incidents/{incidentId:guid}")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> LinkIncident(
+        Guid taskId,
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkTaskIncidentCommand(taskId, incidentId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{taskId:guid}/incidents/{incidentId:guid}")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> UnlinkIncident(
+        Guid taskId,
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkTaskIncidentCommand(taskId, incidentId), cancellationToken);
+        return NoContent();
+    }
 }
