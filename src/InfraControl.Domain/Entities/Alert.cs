@@ -48,4 +48,21 @@ public sealed class Alert : AggregateRoot
         Status = AlertStatus.Resolved;
         ResolvedAt = DateTime.UtcNow;
     }
+
+    /// <summary>F6-T004: Open → Suppressed (upstream com incidente aberto).</summary>
+    public void Suppress()
+    {
+        if (Status == AlertStatus.Open)
+            Status = AlertStatus.Suppressed;
+    }
+
+    /// <summary>
+    /// F6-T004: Suppressed → Open (upstream normalizou; a condição local
+    /// persiste). Resolved nunca reabre — Resolve continua definitivo.
+    /// </summary>
+    public void Reopen()
+    {
+        if (Status == AlertStatus.Suppressed)
+            Status = AlertStatus.Open;
+    }
 }

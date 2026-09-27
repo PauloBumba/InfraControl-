@@ -38,7 +38,7 @@ public sealed class AlertEvaluatorTests : IDisposable
 
     private static AlertEvaluator Evaluator(AppDbContext context)
         => new(new AlertRepository(context), new MonitoringResultRepository(context),
-            new IncidentRepository(context));
+            new IncidentRepository(context), new UpstreamCorrelationRepository(context));
 
     private static async Task<Device> SeedDeviceAsync(
         AppDbContext context, DeviceType type = DeviceType.Switch, string name = "sw-01")
@@ -447,6 +447,198 @@ public sealed class AlertEvaluatorTests : IDisposable
         (await context.IncidentAlerts.AsNoTracking()
             .CountAsync(link => link.IncidentId == incident.Id
                 && link.AlertId == orphan.Id)).Should().Be(1);
+    }
+
+    // ── F6-T004: supressão topológica (correlation) ──────────────────────
+
+    private static async Task ConnectAsync(
+        AppDbContext context, Device from, Device to)
+    {
+        var nicFrom = NetworkInterface.Create(from.Id, $"eth-{from.Name}");
+        var nicTo = NetworkInterface.Create(to.Id, $"eth-{to.Name}");
+        context.NetworkInterfaces.AddRange(nicFrom, nicTo);
+        await context.SaveChangesAsync();
+        context.Connections.Add(Connection.Create(nicFrom.Id, nicTo.Id));
+        await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task DownstreamWithUpstreamIncident_ShouldSuppressAndLinkWithoutOwnIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-core");
+        var down = await SeedDeviceAsync(context, name: "sw-edge");
+        await ConnectAsync(context, up, down);
+        var rootIncident = Incident.Create(
+            "core fora do ar", IncidentSeverity.Critical, deviceId: up.Id);
+        context.Incidents.Add(rootIncident);
+        await context.SaveChangesAsync();
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var suppressed = await context.Alerts.AsNoTracking()
+            .Where(alert => alert.DeviceId == down.Id
+                && alert.Status == AlertStatus.Suppressed)
+            .ToListAsync();
+        suppressed.Should().ContainSingle("alerta do downstream é suprimido");
+        suppressed[0].Message.Should().Contain(down.Name);
+
+        (await context.IncidentAlerts.AsNoTracking()
+            .CountAsync(link => link.IncidentId == rootIncident.Id
+                && link.AlertId == suppressed[0].Id)).Should().Be(1,
+            "alerta suprimido é vinculado ao incidente raiz");
+
+        (await OpenIncidentsAsync(context, down.Id)).Should().BeEmpty(
+            "downstream não cria incidente próprio enquanto suprimido");
+    }
+
+    [Fact]
+    public async Task OpenAlert_ShouldFlipToSuppressedWhenUpstreamIncidentAppears()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-core");
+        var down = await SeedDeviceAsync(context, name: "sw-edge");
+        await ConnectAsync(context, up, down);
+        // alerta Open aberto antes (sem upstream) — corrida/F6-T003
+        context.Alerts.Add(Alert.Create(
+            down.Id, CheckKind.Ping, AlertSeverity.Critical, "down legado"));
+        await context.SaveChangesAsync();
+        // upstream passa a ter incidente Open
+        var rootIncident = Incident.Create(
+            "core fora do ar", IncidentSeverity.Critical, deviceId: up.Id);
+        context.Incidents.Add(rootIncident);
+        await context.SaveChangesAsync();
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var all = await context.Alerts.AsNoTracking()
+            .Where(alert => alert.DeviceId == down.Id).ToListAsync();
+        all.Should().ContainSingle("Open vira Suppressed — não duplica");
+        all[0].Status.Should().Be(AlertStatus.Suppressed);
+        var flippedId = all[0].Id;
+        (await context.IncidentAlerts.AsNoTracking()
+            .CountAsync(link => link.IncidentId == rootIncident.Id
+                && link.AlertId == flippedId)).Should().Be(1,
+            "alerta já aberto ganha vínculo com o incidente raiz");
+    }
+
+    [Fact]
+    public async Task TonerOnDownstream_ShouldSuppressToo_AllKinds()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-core");
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-behind");
+        await ConnectAsync(context, up, printer);
+        var rootIncident = Incident.Create(
+            "core fora do ar", IncidentSeverity.Critical, deviceId: up.Id);
+        context.Incidents.Add(rootIncident);
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpToner,
+            Result(CheckKind.SnmpToner, true, new Dictionary<string, string>
+            {
+                ["levelPercent"] = "18"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var alerts = await context.Alerts.AsNoTracking()
+            .Where(alert => alert.DeviceId == printer.Id).ToListAsync();
+        alerts.Should().ContainSingle("decisão: TODOS os kinds do downstream são suprimidos");
+        alerts[0].Status.Should().Be(AlertStatus.Suppressed);
+        (await OpenIncidentsAsync(context, printer.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PingUp_ShouldResolveSuppressedAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        var suppressed = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down");
+        suppressed.Suppress();
+        context.Alerts.Add(suppressed);
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var resolved = await context.Alerts.AsNoTracking()
+            .Where(alert => alert.DeviceId == device.Id
+                && alert.Status == AlertStatus.Resolved)
+            .ToListAsync();
+        resolved.Should().ContainSingle("condição normalizada resolve Suppressed também");
+        resolved[0].ResolvedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task UpstreamCleared_ShouldPromoteSuppressedToOpenWithOwnIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-core");
+        var down = await SeedDeviceAsync(context, name: "sw-edge");
+        await ConnectAsync(context, up, down);
+        // incidente raiz foi fechado (F6-T006/recovery manual)
+        var rootIncident = Incident.Create(
+            "core normalizou", IncidentSeverity.Critical, deviceId: up.Id);
+        rootIncident.ChangeStatus(IncidentStatus.Resolved);
+        context.Incidents.Add(rootIncident);
+        // alerta do downstream ainda suprimido
+        var suppressed = Alert.Create(
+            down.Id, CheckKind.Ping, AlertSeverity.Critical, "edge continua down");
+        suppressed.Suppress();
+        context.Alerts.Add(suppressed);
+        await context.SaveChangesAsync();
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, down.Id, CheckKind.Ping);
+        open.Should().ContainSingle("sem supressor, Suppressed promove a Open");
+        (await OpenIncidentsAsync(context, down.Id))
+            .Should().ContainSingle("e o Critical volta a abrir incidente próprio");
+    }
+
+    [Fact]
+    public async Task NeighborWithOnlyWarningAlert_NoIncident_ShouldNotSuppress()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-up");
+        var down = await SeedDeviceAsync(context, name: "sw-down");
+        await ConnectAsync(context, up, down);
+        // vizinho com alerta Open Warning (toner) — SEM incidente
+        context.Alerts.Add(Alert.Create(
+            up.Id, CheckKind.SnmpToner, AlertSeverity.Warning, "toner 15%"));
+        await context.SaveChangesAsync();
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, down.Id, CheckKind.Ping);
+        open.Should().ContainSingle(
+            "gatilho de supressão é Incident Open no upstream, não qualquer alerta");
+        (await OpenIncidentsAsync(context, down.Id)).Should().ContainSingle();
     }
 
     // ── casos que NÃO avaliam ────────────────────────────────────────────

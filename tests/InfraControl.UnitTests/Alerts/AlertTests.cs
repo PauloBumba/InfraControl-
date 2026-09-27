@@ -60,4 +60,82 @@ public sealed class AlertTests
 
         alert.ResolvedAt.Should().Be(first);
     }
+
+    // ── F6-T004: Suppressed (supressão topológica) ─────────────────────
+
+    [Fact]
+    public void Suppress_FromOpen_ShouldSetSuppressed()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+
+        alert.Suppress();
+
+        alert.Status.Should().Be(AlertStatus.Suppressed);
+        alert.ResolvedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Suppress_FromResolved_ShouldStayResolved()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+        alert.Resolve();
+
+        alert.Suppress();
+
+        alert.Status.Should().Be(AlertStatus.Resolved,
+            "Resolved é definitivo — supressão não retrocede o histórico");
+    }
+
+    [Fact]
+    public void Reopen_FromSuppressed_ShouldReturnOpen()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+        alert.Suppress();
+
+        alert.Reopen();
+
+        alert.Status.Should().Be(AlertStatus.Open);
+    }
+
+    [Fact]
+    public void Reopen_FromResolved_ShouldStayResolved()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+        alert.Resolve();
+
+        alert.Reopen();
+
+        alert.Status.Should().Be(AlertStatus.Resolved,
+            "upstream recuperado não reabre alerta já resolvido");
+    }
+
+    [Fact]
+    public void Resolve_FromSuppressed_ShouldCloseWithStamp()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.SnmpToner, AlertSeverity.Warning, "toner 18%");
+        alert.Suppress();
+
+        alert.Resolve();
+
+        alert.Status.Should().Be(AlertStatus.Resolved);
+        alert.ResolvedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Suppress_ThenReopen_ShouldRoundTripWithoutResolveStamp()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+
+        alert.Suppress();
+        alert.Reopen();
+
+        alert.Status.Should().Be(AlertStatus.Open);
+        alert.ResolvedAt.Should().BeNull();
+    }
 }

@@ -56,8 +56,9 @@ public sealed class SearchAlertsQueryHandler(IAlertRepository repository)
         {
             "open" => AlertStatus.Open,
             "resolved" => AlertStatus.Resolved,
+            "suppressed" => AlertStatus.Suppressed,
             _ => throw new ArgumentException(
-                $"Status inválido: '{status}'. Use 'open' ou 'resolved'.",
+                $"Status inválido: '{status}'. Use 'open', 'suppressed' ou 'resolved'.",
                 nameof(status))
         };
     }

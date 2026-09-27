@@ -123,7 +123,8 @@ public sealed class RunCheckCommandTests : IDisposable
             new MonitoringResultRepository(context),
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
-                new IncidentRepository(context)),
+                new IncidentRepository(context),
+                new UpstreamCorrelationRepository(context)),
             NullLogger<RunCheckCommandHandler>.Instance);
 
     // ── testes ───────────────────────────────────────────────────────────

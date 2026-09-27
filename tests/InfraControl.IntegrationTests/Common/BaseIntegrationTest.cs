@@ -83,6 +83,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
         services.AddScoped<IAlertRepository, AlertRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<IUpstreamCorrelationRepository, UpstreamCorrelationRepository>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
 

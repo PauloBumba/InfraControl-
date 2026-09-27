@@ -22,8 +22,9 @@ public sealed class AlertRepository(AppDbContext dbContext)
 
     public void Remove(Alert entity) => dbContext.Alerts.Remove(entity);
 
-    // Tracking: o avaliador chama Resolve() no retorno (auto-resolve).
-    public Task<Alert?> GetOpenAsync(
+    // Tracking: o avaliador chama Resolve()/Suppress()/Reopen() no
+    // retorno. F6-T004: ativo = Open OU Suppressed (não-Resolved).
+    public Task<Alert?> GetActiveAsync(
         Guid deviceId,
         CheckKind kind,
         CancellationToken cancellationToken = default)
@@ -31,7 +32,7 @@ public sealed class AlertRepository(AppDbContext dbContext)
             .FirstOrDefaultAsync(alert =>
                 alert.DeviceId == deviceId
                 && alert.Kind == kind
-                && alert.Status == AlertStatus.Open,
+                && alert.Status != AlertStatus.Resolved,
                 cancellationToken);
 
     public async Task<PagedResult<AlertWithDevice>> SearchAsync(

@@ -100,7 +100,8 @@ public sealed class RunAllChecksCommandTests : IDisposable
             counting,
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
-                new IncidentRepository(context)),
+                new IncidentRepository(context),
+                new UpstreamCorrelationRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
         var results = await handler.Handle(new RunAllChecksCommand("Ping"), CancellationToken.None);
@@ -150,7 +151,8 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new MonitoringResultRepository(context),
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
-                new IncidentRepository(context)),
+                new IncidentRepository(context),
+                new UpstreamCorrelationRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
     [Fact]

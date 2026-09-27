@@ -94,9 +94,16 @@ PostgreSQL é a fonte da verdade.
 Condição detectada (glossário) — F6-T001:
 
 - `DeviceId` + `Kind` (CheckKind) + `Severity` (Warning | Critical) +
-  `Status` (Open | Resolved) + `Message` (pt-BR) + `ResolvedAt?`.
+  `Status` (Open | Suppressed | Resolved) + `Message` (pt-BR) +
+  `ResolvedAt?`.
 - Nasce **Open** na avaliação pós-check e **resolve automático** quando o
   próximo check mostra a condição normal (auto-resolve).
+- **Suppressed** (F6-T004 — supressão topológica): com upstream
+  alcançável via `Connection` em Incident Open, o alerta de qualquer
+  kind nasce/vira `Suppressed` e é vinculado ao incidente raiz
+  (`incident_alerts`) — sem incidente próprio; upstream normalizado →
+  `Reopen` (Open de novo; `Resolved` nunca reabre). Busca de status
+  aceita `open|suppressed|resolved`.
 - Unicidade lógica: **1 alerta Open por (device, check)** — anti
   alert-storm; histórico completo é preservado (índice sem unicidade).
 - Índice `(device_id, kind)`; FK cascade (device excluído → alertas
@@ -120,3 +127,6 @@ F6-T003 — agrupa N `Alert` (N:N via `incident_alerts`):
 - Transições livres dentro do enum (≠ atual → 400); Resolved estampa
   `ResolvedAt` e sair dele limpa (reopen). `Acknowledge` = → Investigating.
 - Índices em `status` e `device_id`; FKs cascade (device/alert/exclusão).
+- **Vínculo upstream** (F6-T004): alerts `Suppressed` de devices atrás
+  do root ficam ligados ao mesmo incidente pela N:N — 1 raiz, N
+  relacionados.

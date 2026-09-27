@@ -36,7 +36,8 @@ public interface IAlertEvaluator
 public sealed class AlertEvaluator(
     IAlertRepository repository,
     IMonitoringResultRepository resultRepository,
-    IIncidentRepository incidentRepository) : IAlertEvaluator
+    IIncidentRepository incidentRepository,
+    IUpstreamCorrelationRepository correlationRepository) : IAlertEvaluator
 {
     public async Task EvaluateAsync(
         Device device,
@@ -49,7 +50,7 @@ public sealed class AlertEvaluator(
             case CheckKind.Ping:
                 if (result.Succeeded)
                 {
-                    await ResolveOpenAsync(device.Id, kind, cancellationToken);
+                    await ResolveActiveAsync(device.Id, kind, cancellationToken);
                 }
                 else
                 {
@@ -64,15 +65,12 @@ public sealed class AlertEvaluator(
                     if (previous.Count >= required
                         && previous.All(entry => !entry.Succeeded))
                     {
-                        var alert = await OpenOrGetAsync(
+                        await OpenOrSuppressAsync(
                             device, kind, AlertSeverity.Critical,
                             $"Device '{device.Name}' fora do ar "
                                 + $"({AlertThresholds.PingFailureStreak} falhas "
                                 + "consecutivas no ping).",
                             cancellationToken);
-
-                        // F6-T003: Alert Critical auto-abre Incident.
-                        await EnsureIncidentAsync(device, alert, cancellationToken);
                     }
                 }
                 break;
@@ -113,42 +111,80 @@ public sealed class AlertEvaluator(
         if (percent < minPercent)
         {
             // Warning não toca incidente (só Critical auto-abre — F6-T003).
-            _ = await OpenOrGetAsync(
+            await OpenOrSuppressAsync(
                 device, kind, AlertSeverity.Warning,
                 $"{label} de '{device.Name}' em {percent}% (mínimo {minPercent}%).",
                 cancellationToken);
         }
         else
         {
-            await ResolveOpenAsync(device.Id, kind, cancellationToken);
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
         }
     }
 
     /// <summary>
-    /// 1 alerta Open por (device, check) anti-storm — retorna o Open
-    /// existente ou o recém-criado.
+    /// F6-T004: com upstream alcançável (BFS nas Connections) em Incident
+    /// Open, o alerta de qualquer kind nasce/vira <see cref="AlertStatus.Suppressed"/>
+    /// e é vinculado ao incidente raiz (N:N) — sem incidente próprio. Sem
+    /// upstream: fluxo normal (Open; Critical auto-abre Incident — F6-T003;
+    /// alerta Suppressed libera para Open).
     /// </summary>
-    private async Task<Alert> OpenOrGetAsync(
+    private async Task OpenOrSuppressAsync(
         Device device,
         CheckKind kind,
         AlertSeverity severity,
         string message,
         CancellationToken cancellationToken)
     {
-        var open = await repository.GetOpenAsync(device.Id, kind, cancellationToken);
-        if (open is not null)
-            return open;
+        var upstream = await correlationRepository
+            .FindOpenIncidentUpstreamAsync(device.Id, cancellationToken);
+        var active = await repository
+            .GetActiveAsync(device.Id, kind, cancellationToken);
 
-        var created = Alert.Create(device.Id, kind, severity, message);
-        await repository.AddAsync(created, cancellationToken);
-        return created;
+        if (upstream is not null)
+        {
+            var alert = active;
+            if (alert is null)
+            {
+                alert = Alert.Create(device.Id, kind, severity, message);
+                alert.Suppress();
+                await repository.AddAsync(alert, cancellationToken);
+            }
+            else
+            {
+                alert.Suppress();
+            }
+
+            // Idempotente no repositório (já vinculado → skip).
+            await incidentRepository.AddLinkAsync(
+                IncidentAlert.Create(upstream.IncidentId, alert.Id),
+                cancellationToken);
+            return;
+        }
+
+        if (active is null)
+        {
+            active = Alert.Create(device.Id, kind, severity, message);
+            await repository.AddAsync(active, cancellationToken);
+        }
+        else
+        {
+            active.Reopen();
+        }
+
+        if (severity == AlertSeverity.Critical)
+        {
+            // F6-T003: Alert Critical auto-abre Incident.
+            await EnsureIncidentAsync(device, active, cancellationToken);
+        }
     }
 
-    private async Task ResolveOpenAsync(
+    private async Task ResolveActiveAsync(
         Guid deviceId, CheckKind kind, CancellationToken cancellationToken)
     {
-        var open = await repository.GetOpenAsync(deviceId, kind, cancellationToken);
-        open?.Resolve();
+        // Resolve Open e Suppressed (F6-T004) — condição normalizada.
+        var active = await repository.GetActiveAsync(deviceId, kind, cancellationToken);
+        active?.Resolve();
     }
 
     /// <summary>

@@ -374,14 +374,42 @@ só o básico** (unicidade Open + streak).
 - Fechamento do incidente quando os alerts resolvem = **F6-T006
   Recovery**; correlação entre alertas/incidentes = F6-T004.
 
-### F6-T004+ — pendências
+### F6-T004 — Correlation / supressão topológica (concluída)
 
-Evitar alert storm (além da unicidade Open + N=3):
+Decisões do usuário: **supressão topológica** (usa `Connections` do
+F3-T005) e **todos os kinds** do downstream.
 
-- dependências (→ F6-T004);
-- correlação;
-- recovery;
-- causa provável.
+- **Gatilho**: BFS não-dirigido (visited, semântica de distância) pelas
+  `Connection`s a partir dos vizinhos de D, si-mesmo excluído; suprime
+  enquanto qualquer device alcançável tiver **Incident Open** (só
+  Critical cria incidente — um toner Warning não suprime a rede).
+  Implementação: grafo em memória (2 queries LINQ — Sqlite e PG, sem CTE
+  recursiva) em `UpstreamCorrelationRepository`.
+- **Efeito**: alerta de D (ping/toner/drum) nasce `Suppressed` ou
+  `Open→Suppressed` (anti-storm preservado: 1 ativo por device+kind),
+  é vinculado ao incidente raiz (`incident_alerts`, idempotente) e D
+  **não abre incidente próprio**; normalização resolve `Suppressed`
+  também; upstream sem incidente → `Reopen` + incidente próprio se
+  Critical. Casca transitiva (core → switch → servidor): basta o root
+  ter Incident Open — vizinhos intermédios não precisam de alerta.
+- **Limitação documentada**: janela de corrida (downstream avaliado
+  antes do root no mesmo ciclo) — a próxima avaliação converte
+  Open→Suppressed; incidente já aberto não é mesclado (F6-T006 trata
+  fechamento).
+- `AlertStatus` ganha `Suppressed` (string(20), **sem migração**);
+  `Alert.Suppress()`/`Reopen()` (Resolved é definitivo);
+  `IAlertRepository.GetActiveAsync` (Open OU Suppressed);
+  filtro de busca `suppressed` (400 pt-BR para entrada inválida).
+- Testes: transições de domínio (6), repositório de correlação (8),
+  avaliador (6 — supressão, flip, todos os kinds, resolve, liberação,
+  gatilho só-incidente), queries (2), integração (3 — DI real + leitura
+  pela query no pipeline).
+
+### F6-T005+ — pendências
+
+- recovery (F6-T006);
+- causa provável (F6-T005);
+- correlação entre múltiplas raízes / upstream explícito em Device.
 
 ## Impressoras
 

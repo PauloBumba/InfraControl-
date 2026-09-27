@@ -7,8 +7,11 @@ namespace InfraControl.Application.Alerts.Ports;
 
 public interface IAlertRepository : IRepository<Alert>
 {
-    /// <summary>Alerta Open de (device, check) com tracking (para Resolve) ou null.</summary>
-    Task<Alert?> GetOpenAsync(
+    /// <summary>
+    /// Alerta ativo (Open OU Suppressed — F6-T004) de (device, check)
+    /// com tracking (para Resolve/Suppress/Reopen) ou null.
+    /// </summary>
+    Task<Alert?> GetActiveAsync(
         Guid deviceId,
         CheckKind kind,
         CancellationToken cancellationToken = default);
