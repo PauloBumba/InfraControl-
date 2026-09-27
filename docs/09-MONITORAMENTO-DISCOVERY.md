@@ -329,7 +329,7 @@ usuário; generalizar para perfil é F6-T002+ADR):
 
 | Check | Condição | Severidade | Ação |
 |---|---|---|---|
-| Ping | `Succeeded = false` | Critical | abre `Open` |
+| Ping | streak de **3 falhas consecutivas** (F6-T002) | Critical | abre `Open` |
 | Ping | `Succeeded = true` | — | resolve o `Open` |
 | SnmpToner | `levelPercent < 20` | Warning | abre `Open` |
 | SnmpDrum | `levelPercent < 10` | Warning | abre `Open` |
@@ -343,13 +343,27 @@ usuário; generalizar para perfil é F6-T002+ADR):
   (filtros `deviceId`, `status=open|resolved`, paginação) — criação é
   automática, não há POST de alerta.
 
-### F6-T002+ — pendências
+### F6-T002 — Alert Rules (concluída)
 
-Evitar alert storm (além da unicidade Open):
+Decisões do usuário: **Ping N=3 via histórico**; **dependência de
+upstream fica para F6-T004 Correlation** (sem modelo hoje); **anti-storm
+só o básico** (unicidade Open + streak).
 
-- dependências;
+- **Consecutive failures** (`AlertThresholds.PingFailureStreak = 3`):
+  o alerta de down só abre com **3 falhas consecutivas** — N-1=2 do
+  histórico (`GetRecentByDeviceAndKindAsync`, por device+kind, mais
+  recente primeiro) + o resultado atual. Sucesso salvo no meio quebra a
+  sequência; sucesso resolve o `Open` e a contagem recomeça. Streak é
+  determinístico (lido do banco — sobrevive a restart, sem estado em
+  memória). Toner/Drum continuam imediatos (estado, não falha).
+- **Upstream**: pendência documentada para F6-T004 (Correlation).
+
+### F6-T003+ — pendências
+
+Evitar alert storm (além da unicidade Open + N=3):
+
+- dependências (→ F6-T004);
 - correlação;
-- consecutive failures;
 - recovery;
 - causa provável.
 

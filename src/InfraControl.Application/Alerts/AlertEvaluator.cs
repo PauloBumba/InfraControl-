@@ -1,16 +1,22 @@
 using InfraControl.Application.Alerts.Ports;
+using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Alerts;
 
-// F6-T001: thresholds FIXOS em código (decisão do usuário — generalizar
-// para perfil/DeviceProfile fica para F6-T002+ADR). Avaliação pós-check.
+// F6-T001/F6-T002: thresholds e regras FIXOS em código (decisão do
+// usuário — generalizar para perfil/DeviceProfile fica para task+ADR
+// futura). Avaliação pós-check; anti-storm = 1 Open por (device, check) +
+// streak de falhas consecutivas no histórico (N=3 para Ping).
 
 public static class AlertThresholds
 {
     public const int TonerMinPercent = 20;
     public const int DrumMinPercent = 10;
+
+    /// <summary>Falhas consecutivas de Ping antes de abrir o alerta (F6-T002).</summary>
+    public const int PingFailureStreak = 3;
 }
 
 /// <summary>
@@ -26,7 +32,9 @@ public interface IAlertEvaluator
         CancellationToken cancellationToken = default);
 }
 
-public sealed class AlertEvaluator(IAlertRepository repository) : IAlertEvaluator
+public sealed class AlertEvaluator(
+    IAlertRepository repository,
+    IMonitoringResultRepository resultRepository) : IAlertEvaluator
 {
     public async Task EvaluateAsync(
         Device device,
@@ -38,12 +46,30 @@ public sealed class AlertEvaluator(IAlertRepository repository) : IAlertEvaluato
         {
             case CheckKind.Ping:
                 if (result.Succeeded)
+                {
                     await ResolveOpenAsync(device.Id, kind, cancellationToken);
+                }
                 else
-                    await OpenAsync(
-                        device, kind, AlertSeverity.Critical,
-                        $"Device '{device.Name}' está fora do ar (ping falhou).",
-                        cancellationToken);
+                {
+                    // F6-T002: só abre com N falhas consecutivas — N-1 do
+                    // histórico (banco) + o atual. Sucesso salvo no meio
+                    // (próximo ciclo) quebra a sequência.
+                    var required = AlertThresholds.PingFailureStreak - 1;
+                    var previous = await resultRepository
+                        .GetRecentByDeviceAndKindAsync(
+                            device.Id, kind, required, cancellationToken);
+
+                    if (previous.Count >= required
+                        && previous.All(entry => !entry.Succeeded))
+                    {
+                        await OpenAsync(
+                            device, kind, AlertSeverity.Critical,
+                            $"Device '{device.Name}' fora do ar "
+                                + $"({AlertThresholds.PingFailureStreak} falhas "
+                                + "consecutivas no ping).",
+                            cancellationToken);
+                    }
+                }
                 break;
 
             case CheckKind.SnmpToner:

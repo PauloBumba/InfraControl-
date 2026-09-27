@@ -31,4 +31,16 @@ public sealed class MonitoringResultRepository(AppDbContext dbContext)
             .OrderByDescending(result => result.CreateDateTime)
             .Take(limit)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<MonitoringResult>> GetRecentByDeviceAndKindAsync(
+        Guid deviceId,
+        Domain.Enums.CheckKind kind,
+        int limit,
+        CancellationToken cancellationToken = default)
+        => await dbContext.MonitoringResults
+            .AsNoTracking()
+            .Where(result => result.DeviceId == deviceId && result.Kind == kind)
+            .OrderByDescending(result => result.CreateDateTime)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
 }

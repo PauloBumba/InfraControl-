@@ -98,7 +98,8 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new DeviceRepository(context),
             new FakeRegistry(new FakePingProvider(_ => true)),
             counting,
-            new AlertEvaluator(new AlertRepository(context)),
+            new AlertEvaluator(new AlertRepository(context),
+                new MonitoringResultRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
         var results = await handler.Handle(new RunAllChecksCommand("Ping"), CancellationToken.None);
@@ -133,6 +134,11 @@ public sealed class RunAllChecksCommandTests : IDisposable
         public Task<IReadOnlyList<MonitoringResult>> GetRecentByDeviceAsync(
             Guid deviceId, int limit, CancellationToken cancellationToken = default)
             => inner.GetRecentByDeviceAsync(deviceId, limit, cancellationToken);
+
+        public Task<IReadOnlyList<MonitoringResult>> GetRecentByDeviceAndKindAsync(
+            Guid deviceId, Domain.Enums.CheckKind kind, int limit,
+            CancellationToken cancellationToken = default)
+            => inner.GetRecentByDeviceAndKindAsync(deviceId, kind, limit, cancellationToken);
     }
 
     private static RunAllChecksCommandHandler Handler(
@@ -141,7 +147,8 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new DeviceRepository(context),
             registry,
             new MonitoringResultRepository(context),
-            new AlertEvaluator(new AlertRepository(context)),
+            new AlertEvaluator(new AlertRepository(context),
+                new MonitoringResultRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
     [Fact]

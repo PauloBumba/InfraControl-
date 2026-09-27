@@ -37,7 +37,7 @@ public sealed class AlertEvaluatorTests : IDisposable
     }
 
     private static AlertEvaluator Evaluator(AppDbContext context)
-        => new(new AlertRepository(context));
+        => new(new AlertRepository(context), new MonitoringResultRepository(context));
 
     private static async Task<Device> SeedDeviceAsync(
         AppDbContext context, DeviceType type = DeviceType.Switch, string name = "sw-01")
@@ -66,6 +66,119 @@ public sealed class AlertEvaluatorTests : IDisposable
         => MonitoringResult.Create(
             Guid.NewGuid(), kind, succeeded, 5, succeeded ? null : "erro", values);
 
+    private static async Task SeedHistoryAsync(
+        AppDbContext context, Guid deviceId, bool succeeded, DateTime at)
+    {
+        var row = MonitoringResult.Create(
+            deviceId, CheckKind.Ping, succeeded, 5, succeeded ? null : "erro");
+        context.MonitoringResults.Add(row);
+        await context.SaveChangesAsync();
+
+        // SaveChangesAsync sobrescreve CreateDateTime (auditoria) — a
+        // ordem do histórico precisa de datas explícitas.
+        await context.Database.ExecuteSqlAsync(
+            $"UPDATE monitoring_results SET \"CreateDateTime\" = {at} WHERE id = {row.Id}");
+    }
+
+    private static DateTime At(int hoursAgo) =>
+        new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc).AddHours(-hoursAgo);
+
+    // ── F6-T002: consecutive failures (Ping N=3 via histórico) ───────────
+
+    [Fact]
+    public async Task PingThreeConsecutiveFailures_ShouldOpenAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, device.Id, CheckKind.Ping);
+        open.Should().ContainSingle("3 falhas consecutivas = abre");
+        open[0].Message.Should().Contain("consecutivas");
+    }
+
+    [Fact]
+    public async Task PingTwoConsecutiveFailures_ShouldNotOpenYet()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await context.Alerts.AsNoTracking().ToListAsync()).Should().BeEmpty(
+            "2 falhas < N=3 — ainda não abre");
+    }
+
+    [Fact]
+    public async Task PingFailureAfterSuccess_ShouldNotOpen()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        // sucesso mais recente quebra a sequência
+        await SeedHistoryAsync(context, device.Id, succeeded: true, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await context.Alerts.AsNoTracking().ToListAsync()).Should().BeEmpty(
+            "sucesso no meio zera a sequência");
+    }
+
+    [Fact]
+    public async Task PingUp_AfterOpenAlert_ShouldResolveEvenWithFailureHistory()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        context.Alerts.Add(Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down"));
+        await context.SaveChangesAsync();
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        // sucesso resolve independentemente do histórico de falhas — o
+        // streak é contado do banco, então o sucesso salvo (pelo handler)
+        // é quem zera a sequência no ciclo seguinte.
+        (await OpenAlertsAsync(context, device.Id, CheckKind.Ping))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PingStreak_ShouldCountOnlyThatDeviceHistory()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context, name: "sw-target");
+        var other = await SeedDeviceAsync(context, name: "sw-other");
+        //2 falhas do OUTRO device não podem contar para o alvo
+        await SeedHistoryAsync(context, other.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, other.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await context.Alerts.AsNoTracking().ToListAsync()).Should().BeEmpty(
+            "o streak é por device — histórico alheio não conta");
+    }
+
     // ── Ping ─────────────────────────────────────────────────────────────
 
     [Fact]
@@ -73,6 +186,9 @@ public sealed class AlertEvaluatorTests : IDisposable
     {
         await using var context = await CreateContextAsync();
         var device = await SeedDeviceAsync(context);
+        // F6-T002: 2 falhas já salvas + atual = streak N=3
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
 
         await Evaluator(context).EvaluateAsync(
             device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
@@ -127,6 +243,8 @@ public sealed class AlertEvaluatorTests : IDisposable
     {
         await using var context = await CreateContextAsync();
         var device = await SeedDeviceAsync(context);
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
 
         for (var i = 0; i < 2; i++)
         {

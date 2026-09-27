@@ -103,4 +103,5 @@ Condição detectada (glossário) — F6-T001:
   excluídos). Criação é automática (pós-check) — não há POST público;
   leitura via `GET /monitoring/alerts`.
 - Thresholds **fixos em código** (`AlertThresholds`): toner < 20%,
-  drum < 10%; Ping falho = Critical (detalhes em docs/09).
+  drum < 10%; down do Ping exige **streak de 3 falhas consecutivas**
+  lido do histórico (F6-T002 — detalhes em docs/09).

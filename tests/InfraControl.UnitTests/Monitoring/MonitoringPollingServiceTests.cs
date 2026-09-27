@@ -88,7 +88,8 @@ public sealed class MonitoringPollingServiceTests : IDisposable
             new MonitoringCheckRepository(context),
             new ProviderRegistry<IMonitoringProvider>(providers),
             new MonitoringResultRepository(context),
-            new AlertEvaluator(new AlertRepository(context)),
+            new AlertEvaluator(new AlertRepository(context),
+                new MonitoringResultRepository(context)),
             NullLogger<MonitoringPollingService>.Instance);
 
     [Fact]

@@ -121,7 +121,8 @@ public sealed class RunCheckCommandTests : IDisposable
             new DeviceRepository(context),
             registry,
             new MonitoringResultRepository(context),
-            new AlertEvaluator(new AlertRepository(context)),
+            new AlertEvaluator(new AlertRepository(context),
+                new MonitoringResultRepository(context)),
             NullLogger<RunCheckCommandHandler>.Instance);
 
     // ── testes ───────────────────────────────────────────────────────────
@@ -325,16 +326,18 @@ public sealed class RunCheckCommandTests : IDisposable
         var device = await SeedDeviceAsync(
             context, location.Id, DeviceType.Switch, "sw-alert", "192.0.2.40");
 
-        await Handler(context, new FakeRegistry(new FakePingProvider(_ => false)))
-            .Handle(new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
+        var handler = Handler(context, new FakeRegistry(new FakePingProvider(_ => false)));
+        for (var i = 0; i < 3; i++)
+            await handler.Handle(
+                new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
 
         var alert = await context.Alerts.AsNoTracking().SingleAsync();
         alert.DeviceId.Should().Be(device.Id);
         alert.Kind.Should().Be(CheckKind.Ping);
         alert.Severity.Should().Be(AlertSeverity.Critical);
         alert.Status.Should().Be(AlertStatus.Open);
-        (await RowsAsync(context, device.Id)).Should().ContainSingle(
-            "o resultado do check é persistido junto com o alerta");
+        (await RowsAsync(context, device.Id)).Should().HaveCount(3,
+            "os resultados do check são persistidos junto com o alerta");
     }
 
     [Fact]
@@ -346,7 +349,9 @@ public sealed class RunCheckCommandTests : IDisposable
             context, location.Id, DeviceType.Switch, "sw-rec", "192.0.2.41");
 
         var handler = Handler(context, new FakeRegistry(new FakePingProvider(_ => false)));
-        await handler.Handle(new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
+        for (var i = 0; i < 3; i++)
+            await handler.Handle(
+                new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
         await Handler(context, new FakeRegistry(new FakePingProvider(_ => true)))
             .Handle(new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
 
@@ -374,6 +379,33 @@ public sealed class RunCheckCommandTests : IDisposable
         alert.Kind.Should().Be(CheckKind.SnmpToner);
         alert.Severity.Should().Be(AlertSeverity.Warning);
         alert.Message.Should().Contain("15%");
+    }
+
+    [Fact]
+    public async Task RunCheck_PingDownThrice_ShouldOpenOnlyOnThirdConsecutiveFailure()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Switch, "sw-streak", "192.0.2.43");
+
+        var handler = Handler(context, new FakeRegistry(new FakePingProvider(_ => false)));
+
+        for (var i = 1; i <= 3; i++)
+        {
+            await handler.Handle(
+                new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
+
+            var open = await context.Alerts.AsNoTracking()
+                .Where(alert => alert.DeviceId == device.Id
+                    && alert.Status == AlertStatus.Open)
+                .ToListAsync();
+
+            if (i < 3)
+                open.Should().BeEmpty($"falha {i} < N=3 não abre alerta");
+            else
+                open.Should().ContainSingle("3ª falha consecutiva abre o alerta");
+        }
     }
 
     private sealed class FakeTcpProbeClient(Func<TcpProbeReply> factory) : ITcpProbeClient
