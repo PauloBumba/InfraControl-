@@ -1,3 +1,5 @@
+using InfraControl.Application.Alerts;
+using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs;
@@ -78,6 +80,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
+        services.AddScoped<IAlertRepository, AlertRepository>();
+        services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
 
         // Monitoring: registry real + PingMonitoringProvider com ICMP falso

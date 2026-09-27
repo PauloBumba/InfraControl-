@@ -1,3 +1,4 @@
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Discovery.Runs;
@@ -154,6 +155,7 @@ public static class DependencyInjection
         // F3-T005b: ingestão de Connections a partir de vizinhos LLDP/CDP
         services.AddScoped<INeighborConnectionImporter, NeighborConnectionImporter>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
+        services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();

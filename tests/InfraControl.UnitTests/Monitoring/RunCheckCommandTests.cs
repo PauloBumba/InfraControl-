@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Domain.Entities;
@@ -120,6 +121,7 @@ public sealed class RunCheckCommandTests : IDisposable
             new DeviceRepository(context),
             registry,
             new MonitoringResultRepository(context),
+            new AlertEvaluator(new AlertRepository(context)),
             NullLogger<RunCheckCommandHandler>.Instance);
 
     // ── testes ───────────────────────────────────────────────────────────
@@ -311,6 +313,67 @@ public sealed class RunCheckCommandTests : IDisposable
         rows.Should().ContainSingle();
         rows[0].Kind.Should().Be(CheckKind.Tcp);
         rows[0].Succeeded.Should().BeTrue();
+    }
+
+    // ── F6-T001: avaliação pós-check (alerta no mesmo SaveChanges) ──────
+
+    [Fact]
+    public async Task RunCheck_PingDown_ShouldOpenCriticalAlertWithResult()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Switch, "sw-alert", "192.0.2.40");
+
+        await Handler(context, new FakeRegistry(new FakePingProvider(_ => false)))
+            .Handle(new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
+
+        var alert = await context.Alerts.AsNoTracking().SingleAsync();
+        alert.DeviceId.Should().Be(device.Id);
+        alert.Kind.Should().Be(CheckKind.Ping);
+        alert.Severity.Should().Be(AlertSeverity.Critical);
+        alert.Status.Should().Be(AlertStatus.Open);
+        (await RowsAsync(context, device.Id)).Should().ContainSingle(
+            "o resultado do check é persistido junto com o alerta");
+    }
+
+    [Fact]
+    public async Task RunCheck_PingDownThenUp_ShouldOpenThenResolveAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Switch, "sw-rec", "192.0.2.41");
+
+        var handler = Handler(context, new FakeRegistry(new FakePingProvider(_ => false)));
+        await handler.Handle(new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
+        await Handler(context, new FakeRegistry(new FakePingProvider(_ => true)))
+            .Handle(new RunCheckCommand(device.Id, "Ping"), CancellationToken.None);
+
+        var alerts = await context.Alerts.AsNoTracking().ToListAsync();
+        alerts.Should().ContainSingle("auto-resolve não cria novo alerta — fecha o mesmo");
+        alerts[0].Status.Should().Be(AlertStatus.Resolved);
+        alerts[0].ResolvedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task RunCheck_TonerBelowThreshold_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var printer = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Printer, "pr-alert", "192.0.2.42");
+
+        var registry = new FakeRegistry(
+            new FakeSupplyProvider("SnmpToner", levelPercent: 15));
+
+        await Handler(context, registry)
+            .Handle(new RunCheckCommand(printer.Id, "SnmpToner"), CancellationToken.None);
+
+        var alert = await context.Alerts.AsNoTracking().SingleAsync();
+        alert.Kind.Should().Be(CheckKind.SnmpToner);
+        alert.Severity.Should().Be(AlertSeverity.Warning);
+        alert.Message.Should().Contain("15%");
     }
 
     private sealed class FakeTcpProbeClient(Func<TcpProbeReply> factory) : ITcpProbeClient

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Polling;
@@ -87,6 +88,7 @@ public sealed class MonitoringPollingServiceTests : IDisposable
             new MonitoringCheckRepository(context),
             new ProviderRegistry<IMonitoringProvider>(providers),
             new MonitoringResultRepository(context),
+            new AlertEvaluator(new AlertRepository(context)),
             NullLogger<MonitoringPollingService>.Instance);
 
     [Fact]

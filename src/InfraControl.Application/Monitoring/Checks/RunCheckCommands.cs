@@ -1,3 +1,4 @@
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
@@ -46,6 +47,7 @@ public sealed class RunCheckCommandHandler(
     IDeviceRepository deviceRepository,
     IProviderRegistry<IMonitoringProvider> providers,
     IMonitoringResultRepository resultRepository,
+    IAlertEvaluator alertEvaluator,
     ILogger<RunCheckCommandHandler> logger)
     : IRequestHandler<RunCheckCommand, CheckRunResultDto>
 {
@@ -57,7 +59,8 @@ public sealed class RunCheckCommandHandler(
 
         var kind = ParseCheck(request.Check);
         var result = await ExecuteAsync(
-            device, kind, providers, resultRepository, logger, cancellationToken);
+            device, kind, providers, resultRepository, alertEvaluator,
+            logger, cancellationToken);
         await resultRepository.SaveChangesAsync(cancellationToken);
         return result;
     }
@@ -76,6 +79,7 @@ public sealed class RunCheckCommandHandler(
         CheckKind kind,
         IProviderRegistry<IMonitoringProvider> providers,
         IMonitoringResultRepository resultRepository,
+        IAlertEvaluator alertEvaluator,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -116,14 +120,32 @@ public sealed class RunCheckCommandHandler(
             : result.Error ?? $"Check {check} falhou.";
         var durationMs = (long)result.Duration.TotalMilliseconds;
 
-        await resultRepository.AddAsync(
-            MonitoringResult.Create(
-                device.Id, kind, result.Succeeded, durationMs, error, result.Values),
-            cancellationToken);
+        var monitoringResult = MonitoringResult.Create(
+            device.Id, kind, result.Succeeded, durationMs, error, result.Values);
+        await resultRepository.AddAsync(monitoringResult, cancellationToken);
 
         logger.LogInformation(
             "Check {Check} em {DeviceId} ({Name}, {Ip}): {Succeeded} em {DurationMs}ms.",
             check, device.Id, device.Name, device.Ip, result.Succeeded, durationMs);
+
+        // F6-T001: avaliação pós-check (alerta nasce/resolve no MESMO
+        // SaveChanges do resultado). Falha do avaliador não derruba o check.
+        try
+        {
+            await alertEvaluator.EvaluateAsync(
+                device, kind, monitoringResult, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Falha ao avaliar alertas de {Check} em {DeviceId} ({Name}).",
+                check, device.Id, device.Name);
+        }
 
         return new CheckRunResultDto(
             device.Id, device.Name, device.Ip, check,
@@ -135,6 +157,7 @@ public sealed class RunAllChecksCommandHandler(
     IDeviceRepository deviceRepository,
     IProviderRegistry<IMonitoringProvider> providers,
     IMonitoringResultRepository resultRepository,
+    IAlertEvaluator alertEvaluator,
     ILogger<RunAllChecksCommandHandler> logger)
     : IRequestHandler<RunAllChecksCommand, IReadOnlyList<CheckRunResultDto>>
 {
@@ -147,7 +170,8 @@ public sealed class RunAllChecksCommandHandler(
         var results = new List<CheckRunResultDto>(devices.Count);
         foreach (var device in devices)
             results.Add(await RunCheckCommandHandler.ExecuteAsync(
-                device, kind, providers, resultRepository, logger, cancellationToken));
+                device, kind, providers, resultRepository, alertEvaluator,
+                logger, cancellationToken));
 
         // Dia 5 (docs/20): um único SaveChanges para todos os devices —
         // N idas ao banco por execução viram 1 (o TransactionBehavior do

@@ -1,3 +1,4 @@
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Checks.Ports;
@@ -17,6 +18,7 @@ public sealed class MonitoringPollingService(
     IMonitoringCheckRepository checkRepository,
     IProviderRegistry<IMonitoringProvider> providers,
     IMonitoringResultRepository resultRepository,
+    IAlertEvaluator alertEvaluator,
     ILogger<MonitoringPollingService> logger)
     : IMonitoringPollingService
 {
@@ -41,7 +43,8 @@ public sealed class MonitoringPollingService(
                 try
                 {
                     var result = await RunCheckCommandHandler.ExecuteAsync(
-                        device, kind, providers, resultRepository, logger, cancellationToken);
+                        device, kind, providers, resultRepository, alertEvaluator,
+                        logger, cancellationToken);
                     if (result.Executed)
                         executed++;
                 }

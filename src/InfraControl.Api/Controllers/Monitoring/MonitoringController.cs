@@ -1,3 +1,4 @@
+using InfraControl.Application.Alerts.Queries;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Results;
 using InfraControl.Api.Controllers;
@@ -49,6 +50,22 @@ public sealed class MonitoringController(ISender sender) : BaseController
         Guid id,
         [FromQuery] int limit = 50,
         CancellationToken cancellationToken = default)
-        => Ok(ApiResponse.Ok(
-            await sender.Send(new GetDeviceResultsQuery(id, limit), cancellationToken)));
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetDeviceResultsQuery(id, limit), cancellationToken)));
+
+    /// <summary>
+    /// Alertas paginados (F6-T001) — criação é automática pós-check;
+    /// status: open|resolved|vazio = todos.
+    /// </summary>
+    [HttpGet("alerts")]
+    [Authorize(Roles = "Admin,User,Viewer")]
+    public async Task<IActionResult> GetAlerts(
+        [FromQuery] Guid? deviceId,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchAlertsQuery(deviceId, status, page, pageSize),
+            cancellationToken)));
 }

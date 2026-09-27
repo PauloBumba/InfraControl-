@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Monitoring.Checks;
@@ -97,6 +98,7 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new DeviceRepository(context),
             new FakeRegistry(new FakePingProvider(_ => true)),
             counting,
+            new AlertEvaluator(new AlertRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
         var results = await handler.Handle(new RunAllChecksCommand("Ping"), CancellationToken.None);
@@ -139,6 +141,7 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new DeviceRepository(context),
             registry,
             new MonitoringResultRepository(context),
+            new AlertEvaluator(new AlertRepository(context)),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
     [Fact]

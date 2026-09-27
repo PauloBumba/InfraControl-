@@ -318,9 +318,34 @@ histórico fica em `MonitoringResult`, F5-T002).
 
 ## Alertas
 
-Evitar alert storm.
+### F6-T001 — criação/resolve pós-check (concluída)
 
-Usar:
+Avaliação acontece **logo após gravar o MonitoringResult**, no mesmo
+`SaveChanges` (compartilhada por RunCheck, RunAll e polling F5-T007);
+falha do avaliador vira Warning e não derruba o check.
+
+Regras e thresholds **fixos em código** (`AlertThresholds` — decisão do
+usuário; generalizar para perfil é F6-T002+ADR):
+
+| Check | Condição | Severidade | Ação |
+|---|---|---|---|
+| Ping | `Succeeded = false` | Critical | abre `Open` |
+| Ping | `Succeeded = true` | — | resolve o `Open` |
+| SnmpToner | `levelPercent < 20` | Warning | abre `Open` |
+| SnmpDrum | `levelPercent < 10` | Warning | abre `Open` |
+| Toner/Drum ≥ mínimo | — | — | resolve o `Open` |
+| Toner/Drum sem `Values` (erro SNMP) | nível desconhecido | — | não avalia |
+| Demais kinds (SnmpSystem, HttpWan, Tcp) | — | — | sem regra ainda |
+
+- **Anti alert-storm**: 1 alerta `Open` por (device, check) — repetição
+  do problema não cria linha nova; histórico abre/fecha sem duplicar.
+- Entidade `Alert` (docs/03); API `GET /api/v1/monitoring/alerts`
+  (filtros `deviceId`, `status=open|resolved`, paginação) — criação é
+  automática, não há POST de alerta.
+
+### F6-T002+ — pendências
+
+Evitar alert storm (além da unicidade Open):
 
 - dependências;
 - correlação;

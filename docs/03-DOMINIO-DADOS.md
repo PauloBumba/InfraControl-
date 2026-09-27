@@ -88,3 +88,19 @@ Conexão entre duas interfaces — `SourceInterfaceId` → `TargetInterfaceId`
   por NOME via atributo `local_if_name` (detalhes em docs/09).
 
 PostgreSQL é a fonte da verdade.
+
+## Alert
+
+Condição detectada (glossário) — F6-T001:
+
+- `DeviceId` + `Kind` (CheckKind) + `Severity` (Warning | Critical) +
+  `Status` (Open | Resolved) + `Message` (pt-BR) + `ResolvedAt?`.
+- Nasce **Open** na avaliação pós-check e **resolve automático** quando o
+  próximo check mostra a condição normal (auto-resolve).
+- Unicidade lógica: **1 alerta Open por (device, check)** — anti
+  alert-storm; histórico completo é preservado (índice sem unicidade).
+- Índice `(device_id, kind)`; FK cascade (device excluído → alertas
+  excluídos). Criação é automática (pós-check) — não há POST público;
+  leitura via `GET /monitoring/alerts`.
+- Thresholds **fixos em código** (`AlertThresholds`): toner < 20%,
+  drum < 10%; Ping falho = Critical (detalhes em docs/09).
