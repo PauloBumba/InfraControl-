@@ -6,6 +6,7 @@ using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -124,7 +125,11 @@ public sealed class RunCheckCommandTests : IDisposable
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
                 new IncidentRepository(context),
-                new UpstreamCorrelationRepository(context)),
+                new UpstreamCorrelationRepository(context),
+                new RootCauseResolver(new ConnectionRepository(context),
+                    new AlertRepository(context), new DeviceRepository(context),
+                    new UpstreamCorrelationRepository(context),
+                    new IncidentRepository(context))),
             NullLogger<RunCheckCommandHandler>.Instance);
 
     // ── testes ───────────────────────────────────────────────────────────

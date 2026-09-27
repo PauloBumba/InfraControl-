@@ -11,7 +11,8 @@ public sealed record IncidentDto(
     DateTime OpenedAt,
     DateTime? ResolvedAt,
     int AlertCount,
-    Guid[] AlertIds)
+    Guid[] AlertIds,
+    string? RootCause = null)
 {
     internal static IncidentDto From(
         Domain.Entities.Incident incident,
@@ -27,5 +28,6 @@ public sealed record IncidentDto(
             incident.CreateDateTime,
             incident.ResolvedAt,
             alertCount,
-            alertIds?.ToArray() ?? []);
+            alertIds?.ToArray() ?? [],
+            incident.RootCause);
 }

@@ -22,9 +22,11 @@ public sealed class IncidentRepository(AppDbContext dbContext)
 
     public void Remove(Incident entity) => dbContext.Incidents.Remove(entity);
 
+    // Tracking: F6-T005 usa a mesma carga para SetRootCause (causa
+    // provável recalculada pelo avaliador).
     public Task<Incident?> GetOpenByDeviceAsync(
         Guid deviceId, CancellationToken cancellationToken = default)
-        => dbContext.Incidents.AsNoTracking()
+        => dbContext.Incidents
             .FirstOrDefaultAsync(incident =>
                 incident.DeviceId == deviceId
                 && incident.Status == IncidentStatus.Open,

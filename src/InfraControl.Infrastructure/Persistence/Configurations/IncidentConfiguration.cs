@@ -42,6 +42,9 @@ public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(x => x.ResolvedAt)
             .HasColumnName("resolved_at");
 
+        builder.Property(x => x.RootCause)
+            .HasMaxLength(Incident.RootCauseMaxLength);
+
         // Incidente de device excluído acompanha (mesma política dos alerts).
         builder.HasOne<Device>()
             .WithMany()

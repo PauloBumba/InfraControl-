@@ -6,6 +6,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
+using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.IpAddresses.Ports;
@@ -156,6 +157,7 @@ public static class DependencyInjection
         services.AddScoped<INeighborConnectionImporter, NeighborConnectionImporter>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
+        services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();

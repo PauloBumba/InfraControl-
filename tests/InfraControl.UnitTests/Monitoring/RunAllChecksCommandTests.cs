@@ -6,6 +6,7 @@ using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -101,7 +102,11 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
                 new IncidentRepository(context),
-                new UpstreamCorrelationRepository(context)),
+                new UpstreamCorrelationRepository(context),
+                new RootCauseResolver(new ConnectionRepository(context),
+                    new AlertRepository(context), new DeviceRepository(context),
+                    new UpstreamCorrelationRepository(context),
+                    new IncidentRepository(context))),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
         var results = await handler.Handle(new RunAllChecksCommand("Ping"), CancellationToken.None);
@@ -152,7 +157,11 @@ public sealed class RunAllChecksCommandTests : IDisposable
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
                 new IncidentRepository(context),
-                new UpstreamCorrelationRepository(context)),
+                new UpstreamCorrelationRepository(context),
+                new RootCauseResolver(new ConnectionRepository(context),
+                    new AlertRepository(context), new DeviceRepository(context),
+                    new UpstreamCorrelationRepository(context),
+                    new IncidentRepository(context))),
             NullLogger<RunAllChecksCommandHandler>.Instance);
 
     [Fact]

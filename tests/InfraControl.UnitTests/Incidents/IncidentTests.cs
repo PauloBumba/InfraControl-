@@ -87,4 +87,49 @@ public sealed class IncidentTests
         action.Should().Throw<ArgumentException>()
             .WithMessage("O id do incidente é obrigatório.*");
     }
+
+    // ── F6-T005: causa provável (RootCause) ──────────────────────────────
+
+    [Fact]
+    public void SetRootCause_ShouldStoreTrimmedValue()
+    {
+        var incident = Incident.Create("t", IncidentSeverity.Critical);
+
+        incident.SetRootCause("  Falha no upstream 'core'.  ");
+
+        incident.RootCause.Should().Be("Falha no upstream 'core'.");
+    }
+
+    [Fact]
+    public void SetRootCause_WithNull_ShouldClear()
+    {
+        var incident = Incident.Create("t", IncidentSeverity.Critical);
+        incident.SetRootCause("antiga");
+
+        incident.SetRootCause(null);
+
+        incident.RootCause.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetRootCause_AboveMaxLength_ShouldThrowArgumentErrorPtBr()
+    {
+        var incident = Incident.Create("t", IncidentSeverity.Critical);
+
+        var action = () => incident.SetRootCause(new string('x', 501));
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("A causa provável deve ter no máximo 500 caracteres.*");
+    }
+
+    [Fact]
+    public void SetRootCause_SameValue_ShouldKeepOriginal()
+    {
+        var incident = Incident.Create("t", IncidentSeverity.Critical);
+        incident.SetRootCause("Falha local no device.");
+
+        incident.SetRootCause("Falha local no device.");
+
+        incident.RootCause.Should().Be("Falha local no device.");
+    }
 }

@@ -405,10 +405,36 @@ F3-T005) e **todos os kinds** do downstream.
   gatilho só-incidente), queries (2), integração (3 — DI real + leitura
   pela query no pipeline).
 
-### F6-T005+ — pendências
+### F6-T005 — Root Cause / causa provável (concluída)
+
+- `Incident.RootCause` (string? 500, migração `AddIncidentRootCause`) +
+  `SetRootCause` (trim, null limpa, >500 → 400 pt-BR, mesmo valor é
+  no-op). Exposto no `IncidentDto`.
+- `IRootCauseResolver` (`RootCauseResolver`): heurística fixa —
+  (1) BFS do F6-T004 acha upstream com Incident Open → "Falha no
+  upstream '{nome}'…"; (2) vizinho (1 hop via `GetNeighborDeviceIdsAsync`)
+  com alerta de Ping **Open** (Suppressed é vítima, não conta) cujo
+  alerta é **mais antigo** que o incidente → "Vizinho '{nome}' sem
+  resposta — provável enlace ou switch intermediário."; (3) senão →
+  "Falha local no device (energia, processo ou enlace direto).".
+  Regra de tempo = sem culpar vítimas (raiz cai primeiro; vítimas
+  depois).
+- O avaliador seta a causa na criação do incidente e chama
+  `RefreshAsync(deviceId)` ao final de **todo** ciclo — reavalia a
+  causa do Incident Open do device (cobre a corrida em que upstream ou
+  vizinho abrem depois; incidente manual sem device → null).
+- `IConnectionRepository.GetNeighborDeviceIdsAsync` (grafo não-dirigido,
+  si-mesmo excluído) + `IncidentRepository.GetOpenByDeviceAsync` com
+  tracking (SetRootCause persiste).
+- Testes: IncidentTests +4 (set/limpa/limite/no-op), RootCauseResolverTests
+  (8 — local, upstream, vizinho antes, vítima depois, Suppressed não
+  conta, sem device, refresh, no-op), avaliador +2 (causa local na
+  abertura; corrida atualiza p/ upstream no ciclo seguinte), integração
+  +1 (RootCause via SearchIncidentsQuery no pipeline).
+
+### F6-T006+ — pendências
 
 - recovery (F6-T006);
-- causa provável (F6-T005);
 - correlação entre múltiplas raízes / upstream explícito em Device.
 
 ## Impressoras

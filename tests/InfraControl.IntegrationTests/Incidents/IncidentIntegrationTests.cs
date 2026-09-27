@@ -1,9 +1,12 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts;
+using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Incidents.Commands;
 using InfraControl.Application.Incidents.Queries;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using InfraControl.IntegrationTests.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -79,5 +82,42 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("*IncidentsManage*");
+    }
+
+    [Fact]
+    public async Task AutoOpenedIncident_ShouldExposeRootCauseViaQuery()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(context, ip: "192.0.2.61");
+        for (var i = 2; i >= 1; i--)
+        {
+            var row = MonitoringResult.Create(
+                device.Id, CheckKind.Ping, succeeded: false, 5, "erro");
+            context.MonitoringResults.Add(row);
+            await context.SaveChangesAsync();
+            var at = DateTime.UtcNow.AddHours(-i);
+            await context.Database.ExecuteSqlRawAsync(
+                "UPDATE monitoring_results SET \"CreateDateTime\" = {0} WHERE id = {1}",
+                at, row.Id);
+        }
+
+        var evaluator = scope.ServiceProvider.GetRequiredService<IAlertEvaluator>();
+        await evaluator.EvaluateAsync(
+            device, CheckKind.Ping,
+            MonitoringResult.Create(
+                device.Id, CheckKind.Ping, succeeded: false, 5, "erro"),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        UseRole(UserRole.Admin);
+        var page = await scope.ServiceProvider.GetRequiredService<IMediator>()
+            .Send(new SearchIncidentsQuery());
+
+        var item = page.Items.Should().ContainSingle().Subject;
+        item.DeviceId.Should().Be(device.Id);
+        item.RootCause.Should().Be(
+            "Falha local no device (energia, processo ou enlace direto).",
+            "F6-T005: causa provável derivada exposta na leitura");
     }
 }

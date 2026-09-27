@@ -3,6 +3,7 @@ using InfraControl.Application.Alerts;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +39,11 @@ public sealed class AlertEvaluatorTests : IDisposable
 
     private static AlertEvaluator Evaluator(AppDbContext context)
         => new(new AlertRepository(context), new MonitoringResultRepository(context),
-            new IncidentRepository(context), new UpstreamCorrelationRepository(context));
+            new IncidentRepository(context), new UpstreamCorrelationRepository(context),
+            new RootCauseResolver(new ConnectionRepository(context),
+                new AlertRepository(context), new DeviceRepository(context),
+                new UpstreamCorrelationRepository(context),
+                new IncidentRepository(context)));
 
     private static async Task<Device> SeedDeviceAsync(
         AppDbContext context, DeviceType type = DeviceType.Switch, string name = "sw-01")
@@ -639,6 +644,66 @@ public sealed class AlertEvaluatorTests : IDisposable
         open.Should().ContainSingle(
             "gatilho de supressão é Incident Open no upstream, não qualquer alerta");
         (await OpenIncidentsAsync(context, down.Id)).Should().ContainSingle();
+    }
+
+    // ── F6-T005: causa provável do incidente ─────────────────────────────
+
+    [Fact]
+    public async Task AutoOpenedIncident_ShouldGetLocalRootCause()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context); // sem conexões
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var incident = (await OpenIncidentsAsync(context, device.Id))
+            .Should().ContainSingle().Subject;
+        incident.RootCause.Should().Be(
+            "Falha local no device (energia, processo ou enlace direto).");
+    }
+
+    [Fact]
+    public async Task RootCause_ShouldUpdateToUpstreamAfterRace()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-core");
+        var down = await SeedDeviceAsync(context, name: "sw-edge");
+        await ConnectAsync(context, up, down);
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, down.Id, succeeded: false, At(1));
+
+        // ciclo1: downstream abre incidente antes do upstream (corrida)
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var before = (await OpenIncidentsAsync(context, down.Id))
+            .Should().ContainSingle().Subject;
+        before.RootCause.Should().Be(
+            "Falha local no device (energia, processo ou enlace direto).",
+            "upstream ainda sem incidente no ciclo1");
+
+        // upstream ganha incidente (F6-T003) e é salvo
+        context.Incidents.Add(Incident.Create(
+            "core down", IncidentSeverity.Critical, deviceId: up.Id));
+        await context.SaveChangesAsync();
+
+        // ciclo2: avaliação do downstream recalcula a causa (RefreshAsync)
+        await Evaluator(context).EvaluateAsync(
+            down, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var refreshed = await context.Incidents.AsNoTracking()
+            .FirstAsync(incident => incident.Id == before.Id);
+        refreshed.RootCause.Should().Contain("upstream 'sw-core'",
+            "corrida coberta: causa passa a apontar o upstream no ciclo seguinte");
     }
 
     // ── casos que NÃO avaliam ────────────────────────────────────────────

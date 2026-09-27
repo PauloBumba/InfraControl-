@@ -32,6 +32,13 @@ public interface IConnectionRepository : IRepository<Connection>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Devices vizinhos em1 hop (qualquer direção da aresta; si-mesmo
+    /// excluído) — F6-T005 causa provável.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetNeighborDeviceIdsAsync(
+        Guid deviceId, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

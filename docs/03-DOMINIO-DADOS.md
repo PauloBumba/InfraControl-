@@ -130,3 +130,10 @@ F6-T003 — agrupa N `Alert` (N:N via `incident_alerts`):
 - **Vínculo upstream** (F6-T004): alerts `Suppressed` de devices atrás
   do root ficam ligados ao mesmo incidente pela N:N — 1 raiz, N
   relacionados.
+- **`RootCause`** (F6-T005, string? 500): causa provável derivada por
+  heurística fixa — (1) upstream alcançável com Incident Open → falha
+  nele; (2) vizinho com alerta de Ping Open **mais antigo** que o
+  incidente → enlace/switch do vizinho; (3) senão → falha local. A
+  regra de tempo evita culpar vítimas (que caem depois). Recalculada a
+  cada avaliação (cobre a corrida do T004); incidente manual sem device
+  → null; expondo na API (IncidentDto).

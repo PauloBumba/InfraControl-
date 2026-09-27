@@ -97,6 +97,30 @@ public sealed class ConnectionRepository(AppDbContext dbContext)
         return new PagedResult<ConnectionWithEndpoints>(items, totalCount, page, pageSize);
     }
 
+    // F6-T005: vizinhos em1 hop — grafo não-dirigido (qualquer lado da
+    // aresta), si-mesmo excluído.
+    public async Task<IReadOnlyList<Guid>> GetNeighborDeviceIdsAsync(
+        Guid deviceId, CancellationToken cancellationToken = default)
+    {
+        var edges = await dbContext.Connections.AsNoTracking()
+            .Join(dbContext.NetworkInterfaces.AsNoTracking(),
+                connection => connection.SourceInterfaceId,
+                nic => nic.Id,
+                (connection, nic) => new { nic.DeviceId, connection.TargetInterfaceId })
+            .Join(dbContext.NetworkInterfaces.AsNoTracking(),
+                pair => pair.TargetInterfaceId,
+                nic => nic.Id,
+                (pair, target) => new { From = pair.DeviceId, To = target.DeviceId })
+            .Where(edge => edge.From == deviceId || edge.To == deviceId)
+            .ToListAsync(cancellationToken);
+
+        return edges
+            .SelectMany(edge => new[] { edge.From, edge.To })
+            .Where(id => id != deviceId)
+            .Distinct()
+            .ToList();
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

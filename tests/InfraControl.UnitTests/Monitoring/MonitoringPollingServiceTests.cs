@@ -91,7 +91,11 @@ public sealed class MonitoringPollingServiceTests : IDisposable
             new AlertEvaluator(new AlertRepository(context),
                 new MonitoringResultRepository(context),
                 new IncidentRepository(context),
-                new UpstreamCorrelationRepository(context)),
+                new UpstreamCorrelationRepository(context),
+                new RootCauseResolver(new ConnectionRepository(context),
+                    new AlertRepository(context), new DeviceRepository(context),
+                    new UpstreamCorrelationRepository(context),
+                    new IncidentRepository(context))),
             NullLogger<MonitoringPollingService>.Instance);
 
     [Fact]

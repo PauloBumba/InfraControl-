@@ -37,7 +37,8 @@ public sealed class AlertEvaluator(
     IAlertRepository repository,
     IMonitoringResultRepository resultRepository,
     IIncidentRepository incidentRepository,
-    IUpstreamCorrelationRepository correlationRepository) : IAlertEvaluator
+    IUpstreamCorrelationRepository correlationRepository,
+    IRootCauseResolver rootCauseResolver) : IAlertEvaluator
 {
     public async Task EvaluateAsync(
         Device device,
@@ -91,6 +92,11 @@ public sealed class AlertEvaluator(
                 // F6-T001 cobre só Ping/toner/drum; demais kinds são F6-T002+.
                 break;
         }
+
+        // F6-T005: reavalia a causa provável do Incident Open do device
+        // (cobre a corrida: upstream/vizinho abriram depois; incidente
+        // recém-criado ganhou causa direto no EnsureIncidentAsync).
+        await rootCauseResolver.RefreshAsync(device.Id, cancellationToken);
     }
 
     private async Task EvaluateSupplyAsync(
@@ -202,6 +208,8 @@ public sealed class AlertEvaluator(
         {
             incident = Incident.Create(
                 alert.Message, IncidentSeverity.Critical, deviceId: device.Id);
+            incident.SetRootCause(
+                await rootCauseResolver.ResolveAsync(incident, cancellationToken));
             await incidentRepository.AddAsync(incident, cancellationToken);
         }
 
