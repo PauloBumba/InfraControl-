@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 
@@ -46,7 +47,7 @@ public sealed class Alert : AggregateRoot
             return;
 
         Status = AlertStatus.Resolved;
-        ResolvedAt = DateTime.UtcNow;
+        ResolvedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
     }
 
     /// <summary>F6-T004: Open → Suppressed (upstream com incidente aberto).</summary>

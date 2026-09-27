@@ -15,10 +15,11 @@ Regras obrigatórias para entidades de domínio e relacionamentos:
 6. Never put EF Core configuration inside Domain
 7. Domain entities must protect state changes through methods
 8. Every relationship must have its cardinality explicitly defined
+9. All DateTime operations in Domain must use `AppTimeProvider` instead of `DateTime.UtcNow`
 
 ## Motivo
 
-Garantir encapsulamento, integridade do domínio e separação de responsabilidades entre Domain e Infrastructure. Entidades de domínio devem ser imutáveis em relação a alterações externas e todas as mudanças de estado devem passar por métodos protegidos.
+Garantir encapsulamento, integridade do domínio e separação de responsabilidades entre Domain e Infrastructure. Entidades de domínio devem ser imutáveis em relação a alterações externas e todas as mudanças de estado devem passar por métodos protegidos. O uso de `AppTimeProvider` permite testabilidade e controle do tempo em operações de domínio.
 
 ## Conseqüências
 
@@ -28,3 +29,4 @@ Garantir encapsulamento, integridade do domínio e separação de responsabilida
 - Mudanças de estado só via métodos públicos com validação
 - Relacionamentos entre agregados usam IDs (ex: `DeviceId` em vez de `Device`)
 - Cardinalidade explícita em todas as relações (1:N, N:N, 1:1)
+- **Nunca usar `DateTime.UtcNow` no Domain** - sempre usar `AppTimeProvider.Current.GetUtcNow().UtcDateTime`

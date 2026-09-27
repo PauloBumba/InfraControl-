@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 
@@ -32,7 +33,7 @@ public sealed class DiscoveryRun : AggregateRoot
         {
             DeviceId = deviceId,
             Status = DiscoveryRunStatus.Running,
-            StartedAt = startedAt ?? DateTime.UtcNow
+            StartedAt = startedAt ?? AppTimeProvider.Current.GetUtcNow().UtcDateTime
         };
     }
 
@@ -41,7 +42,7 @@ public sealed class DiscoveryRun : AggregateRoot
         EnsureNotFinalized();
 
         Status = DiscoveryRunStatus.Completed;
-        FinishedAt = DateTime.UtcNow;
+        FinishedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
     }
 
     public void Fail(string errorMessage)
@@ -58,7 +59,7 @@ public sealed class DiscoveryRun : AggregateRoot
         EnsureNotFinalized();
 
         Status = DiscoveryRunStatus.Failed;
-        FinishedAt = DateTime.UtcNow;
+        FinishedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         ErrorMessage = errorMessage;
     }
 

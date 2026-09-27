@@ -23,7 +23,8 @@ public sealed record SearchTasksQuery(
 
 public sealed class SearchTasksQueryHandler(
     ITaskItemRepository repository,
-    ITaskAssigneeRepository assigneeRepository)
+    ITaskAssigneeRepository assigneeRepository,
+    ITaskDeviceRepository deviceRepository)
     : IRequestHandler<SearchTasksQuery, PagedResult<TaskDto>>
 {
     public async Task<PagedResult<TaskDto>> Handle(
@@ -38,14 +39,18 @@ public sealed class SearchTasksQueryHandler(
             string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim(),
             kind, state, page, pageSize, cancellationToken);
 
-        // F7-T002: group join de assignees da página inteira (sem N+1).
+        // F7-T002/T003: group joins da página inteira (sem N+1).
+        var pageIds = result.Items.Select(task => task.Id).ToArray();
         var assignees = await assigneeRepository.GetUserIdsByTaskIdsAsync(
-            result.Items.Select(task => task.Id).ToArray(), cancellationToken);
+            pageIds, cancellationToken);
+        var devices = await deviceRepository.GetDeviceIdsByTaskIdsAsync(
+            pageIds, cancellationToken);
 
         return new PagedResult<TaskDto>(
             result.Items.Select(task => TaskDto.From(
                 task,
-                assignees.TryGetValue(task.Id, out var ids) ? ids : null))
+                assignees.TryGetValue(task.Id, out var ids) ? ids : null,
+                devices.TryGetValue(task.Id, out var deviceIds) ? deviceIds : null))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -90,7 +95,8 @@ public sealed record GetTaskQuery(Guid Id)
 
 public sealed class GetTaskQueryHandler(
     ITaskItemRepository repository,
-    ITaskAssigneeRepository assigneeRepository)
+    ITaskAssigneeRepository assigneeRepository,
+    ITaskDeviceRepository deviceRepository)
     : IRequestHandler<GetTaskQuery, TaskDto>
 {
     public async Task<TaskDto> Handle(
@@ -101,7 +107,9 @@ public sealed class GetTaskQueryHandler(
 
         var assigneeIds = await assigneeRepository.GetUserIdsAsync(
             task.Id, cancellationToken);
+        var deviceIds = await deviceRepository.GetDeviceIdsAsync(
+            task.Id, cancellationToken);
 
-        return TaskDto.From(task, assigneeIds);
+        return TaskDto.From(task, assigneeIds, deviceIds);
     }
 }

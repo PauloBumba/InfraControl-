@@ -95,4 +95,29 @@ public sealed class TasksController(ISender sender) : BaseController
         await sender.Send(new UnassignTaskCommand(taskId, userId), cancellationToken);
         return NoContent();
     }
+
+    // F7-T003: devices vinculados (N:N) — 204 nos dois sentidos e estado
+    // atual embutido no TaskDto (deviceIds).
+
+    [HttpPost("{taskId:guid}/devices/{deviceId:guid}")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> LinkDevice(
+        Guid taskId,
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkTaskDeviceCommand(taskId, deviceId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{taskId:guid}/devices/{deviceId:guid}")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> UnlinkDevice(
+        Guid taskId,
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkTaskDeviceCommand(taskId, deviceId), cancellationToken);
+        return NoContent();
+    }
 }

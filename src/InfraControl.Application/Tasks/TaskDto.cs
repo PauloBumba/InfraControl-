@@ -9,11 +9,14 @@ public sealed record TaskDto(
     string State,
     DateTime OpenedAt,
     int AssigneeCount,
-    Guid[] AssigneeIds)
+    Guid[] AssigneeIds,
+    int DeviceCount,
+    Guid[] DeviceIds)
 {
     internal static TaskDto From(
         Domain.Entities.TaskItem task,
-        IReadOnlyCollection<Guid>? assigneeIds = null)
+        IReadOnlyCollection<Guid>? assigneeIds = null,
+        IReadOnlyCollection<Guid>? deviceIds = null)
         => new(
             task.Id,
             task.Title,
@@ -22,5 +25,7 @@ public sealed record TaskDto(
             task.State.ToString(),
             task.CreateDateTime,
             assigneeIds?.Count ?? 0,
-            assigneeIds?.ToArray() ?? []);
+            assigneeIds?.ToArray() ?? [],
+            deviceIds?.Count ?? 0,
+            deviceIds?.ToArray() ?? []);
 }

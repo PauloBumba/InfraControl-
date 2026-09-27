@@ -40,6 +40,16 @@ N:N Task ↔ Usuário na tabela `task_assignees` (PK composta, FKs
   (policy `TasksManage`); duplicidade → 409, inexistente → 404.
 - `TaskDto` expõe `assigneeCount` + `assigneeIds`.
 
+### Devices vinculados (F7-T003)
+
+N:N Task ↔ Device na tabela `task_devices` (PK composta; FK da task
+`Cascade`, FK do device `Restrict` — excluir um device com tasks
+vinculadas é bloqueado no `DeleteDeviceCommand`).
+
+- `POST/DELETE api/v1/tasks/{taskId}/devices/{deviceId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404.
+- `TaskDto` expõe `deviceCount` + `deviceIds`.
+
 API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
 `Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`).
 

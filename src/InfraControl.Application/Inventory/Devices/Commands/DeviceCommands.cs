@@ -199,6 +199,10 @@ public sealed class DeleteDeviceCommandHandler(
         if (await repository.HasInterfacesAsync(device.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o device: existem interfaces vinculadas.");
 
+        // F7-T003: tasks vinculadas bloqueiam a exclusão (FK Restrict é o backstop).
+        if (await repository.HasTasksAsync(device.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir o device: existem tasks vinculadas.");
+
         repository.Remove(device);
         await repository.SaveChangesAsync(cancellationToken);
 

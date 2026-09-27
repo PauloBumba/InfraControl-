@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 
 namespace InfraControl.Domain.Entities;
@@ -24,7 +25,7 @@ public sealed class AuditEntry : Entity
         ActorId = actorId;
         CorrelationId = correlationId;
         Error = error;
-        OccurredAt = DateTime.UtcNow;
+        OccurredAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
     }
 
     public string Action { get; private set; } = string.Empty;

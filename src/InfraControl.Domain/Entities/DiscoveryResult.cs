@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 
@@ -59,7 +60,7 @@ public sealed class DiscoveryResult : AggregateRoot
             Summary = summary,
             Values = values is null ? null : new Dictionary<string, string>(values),
             DeviceId = deviceId,
-            CreatedAt = createdAt ?? DateTime.UtcNow
+            CreatedAt = createdAt ?? AppTimeProvider.Current.GetUtcNow().UtcDateTime
         };
     }
 }

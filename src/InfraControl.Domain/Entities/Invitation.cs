@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Events;
@@ -128,7 +129,7 @@ public sealed class Invitation : AggregateRoot
             throw new InvalidOperationException($"Apenas convites pendentes podem ser cancelados (atual: {Status}).");
 
         Status = InvitationStatus.Cancelled;
-        DecidedAt = DateTime.UtcNow;
+        DecidedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         Touch();
     }
 
@@ -158,7 +159,7 @@ public sealed class Invitation : AggregateRoot
 
     private static DateTime RequireFutureExpiry(DateTime expiresAt)
     {
-        if (expiresAt <= DateTime.UtcNow)
+        if (expiresAt <= AppTimeProvider.Current.GetUtcNow().UtcDateTime)
             throw new ArgumentException("A expiração deve estar no futuro.", nameof(expiresAt));
 
         return expiresAt;

@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 
 namespace InfraControl.Domain.Entities;
@@ -14,6 +15,6 @@ public class ProcessedMessage : Entity
     {
         EventId = eventId;
         Consumer = consumer;
-        ProcessedAt = DateTime.UtcNow;
+        ProcessedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
     }
 }

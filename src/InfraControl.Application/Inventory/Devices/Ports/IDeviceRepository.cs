@@ -34,6 +34,9 @@ public interface IDeviceRepository : IRepository<Device>
     /// <summary>Usado pelo DeleteDevice para bloquear exclusão com portas de switch (F3-T002 → 409).</summary>
     Task<bool> HasPortsAsync(Guid deviceId, CancellationToken cancellationToken = default);
 
+    /// <summary>F7-T003: bloqueio de exclusão — tasks vinculadas ao device.</summary>
+    Task<bool> HasTasksAsync(Guid deviceId, CancellationToken cancellationToken = default);
+
     /// <summary>Todos os devices ordenados por nome (F5-T003: status de ping em massa).</summary>
     Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default);
 

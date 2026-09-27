@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 
 namespace InfraControl.Domain.Entities;
@@ -29,7 +30,7 @@ public class OutboxMessage : Entity
 
     public void MarkProcessed()
     {
-        ProcessedAt = DateTime.UtcNow;
+        ProcessedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         Error = null;
     }
 
