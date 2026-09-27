@@ -21,7 +21,9 @@ public sealed record SearchTasksQuery(
         [Permission.TasksRead.ToString()];
 }
 
-public sealed class SearchTasksQueryHandler(ITaskItemRepository repository)
+public sealed class SearchTasksQueryHandler(
+    ITaskItemRepository repository,
+    ITaskAssigneeRepository assigneeRepository)
     : IRequestHandler<SearchTasksQuery, PagedResult<TaskDto>>
 {
     public async Task<PagedResult<TaskDto>> Handle(
@@ -36,8 +38,15 @@ public sealed class SearchTasksQueryHandler(ITaskItemRepository repository)
             string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim(),
             kind, state, page, pageSize, cancellationToken);
 
+        // F7-T002: group join de assignees da página inteira (sem N+1).
+        var assignees = await assigneeRepository.GetUserIdsByTaskIdsAsync(
+            result.Items.Select(task => task.Id).ToArray(), cancellationToken);
+
         return new PagedResult<TaskDto>(
-            result.Items.Select(TaskDto.From).ToArray(),
+            result.Items.Select(task => TaskDto.From(
+                task,
+                assignees.TryGetValue(task.Id, out var ids) ? ids : null))
+                .ToArray(),
             result.TotalCount,
             result.Page,
             result.PageSize);
@@ -79,7 +88,9 @@ public sealed record GetTaskQuery(Guid Id)
         [Permission.TasksRead.ToString()];
 }
 
-public sealed class GetTaskQueryHandler(ITaskItemRepository repository)
+public sealed class GetTaskQueryHandler(
+    ITaskItemRepository repository,
+    ITaskAssigneeRepository assigneeRepository)
     : IRequestHandler<GetTaskQuery, TaskDto>
 {
     public async Task<TaskDto> Handle(
@@ -88,6 +99,9 @@ public sealed class GetTaskQueryHandler(ITaskItemRepository repository)
         var task = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Task '{request.Id}' não encontrada.");
 
-        return TaskDto.From(task);
+        var assigneeIds = await assigneeRepository.GetUserIdsAsync(
+            task.Id, cancellationToken);
+
+        return TaskDto.From(task, assigneeIds);
     }
 }

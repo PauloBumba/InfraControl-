@@ -37,6 +37,7 @@ public sealed class TaskCommandTests : IDisposable
     }
 
     private static TaskItemRepository Repo(AppDbContext context) => new(context);
+    private static TaskAssigneeRepository AssigneeRepo(AppDbContext context) => new(context);
 
     private static CreateTaskCommandHandler CreateHandler(AppDbContext context)
         => new(Repo(context), NullLogger<CreateTaskCommandHandler>.Instance);
@@ -181,7 +182,7 @@ public sealed class TaskCommandTests : IDisposable
             .Handle(new UpdateTaskCommand(created.Id, "Trocar UPS da sala fria",
                 "troca preventiva agendada"), CancellationToken.None);
 
-        var handler = new SearchTasksQueryHandler(Repo(context));
+        var handler = new SearchTasksQueryHandler(Repo(context), AssigneeRepo(context));
 
         var byTerm = await handler.Handle(
             new SearchTasksQuery(Term: "UPS"), CancellationToken.None);
@@ -206,7 +207,7 @@ public sealed class TaskCommandTests : IDisposable
     public async Task Search_InvalidKindOrState_ShouldThrowArgumentPtBr()
     {
         await using var context = await CreateContextAsync();
-        var handler = new SearchTasksQueryHandler(Repo(context));
+        var handler = new SearchTasksQueryHandler(Repo(context), AssigneeRepo(context));
 
         var kindAction = () => handler.Handle(
             new SearchTasksQuery(Kind: "besouro"), CancellationToken.None);
@@ -225,7 +226,7 @@ public sealed class TaskCommandTests : IDisposable
         await using var context = await CreateContextAsync();
         var unknown = Guid.NewGuid();
 
-        var action = () => new GetTaskQueryHandler(Repo(context)).Handle(
+        var action = () => new GetTaskQueryHandler(Repo(context), AssigneeRepo(context)).Handle(
             new GetTaskQuery(unknown), CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())

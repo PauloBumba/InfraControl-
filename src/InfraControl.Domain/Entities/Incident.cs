@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 
@@ -56,7 +57,7 @@ public sealed class Incident : AggregateRoot
 
         Status = status;
         if (status == IncidentStatus.Resolved)
-            ResolvedAt ??= DateTime.UtcNow;
+            ResolvedAt ??= AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         else
             ResolvedAt = null;
     }

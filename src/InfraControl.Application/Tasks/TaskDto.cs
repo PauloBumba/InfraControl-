@@ -7,14 +7,20 @@ public sealed record TaskDto(
     string? Description,
     string Kind,
     string State,
-    DateTime OpenedAt)
+    DateTime OpenedAt,
+    int AssigneeCount,
+    Guid[] AssigneeIds)
 {
-    internal static TaskDto From(Domain.Entities.TaskItem task)
+    internal static TaskDto From(
+        Domain.Entities.TaskItem task,
+        IReadOnlyCollection<Guid>? assigneeIds = null)
         => new(
             task.Id,
             task.Title,
             task.Description,
             task.Kind.ToString(),
             task.State.ToString(),
-            task.CreateDateTime);
+            task.CreateDateTime,
+            assigneeIds?.Count ?? 0,
+            assigneeIds?.ToArray() ?? []);
 }

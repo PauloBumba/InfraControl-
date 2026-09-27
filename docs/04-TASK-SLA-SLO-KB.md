@@ -31,6 +31,15 @@ tabela `tasks`, enums como `string(20)`.
 - Transições de estado são `F7-T007` (Workflow); vínculos (assignees,
   devices, incidentes), comentários e histórico: `F7-T002`→`T006`.
 
+### Assignees (F7-T002)
+
+N:N Task ↔ Usuário na tabela `task_assignees` (PK composta, FKs
+`Cascade` — apagar a task ou o usuário limpa os vínculos).
+
+- `POST/DELETE api/v1/tasks/{taskId}/assignees/{userId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404.
+- `TaskDto` expõe `assigneeCount` + `assigneeIds`.
+
 API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
 `Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`).
 

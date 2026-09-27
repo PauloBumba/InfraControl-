@@ -70,4 +70,29 @@ public sealed class TasksController(ISender sender) : BaseController
         await sender.Send(new DeleteTaskCommand(id), cancellationToken);
         return NoContent();
     }
+
+    // F7-T002: responsáveis (N:N com usuários) — 204 nos dois sentidos
+    // e estado atual embutido no TaskDto (assigneeIds).
+
+    [HttpPost("{taskId:guid}/assignees/{userId:guid}")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> Assign(
+        Guid taskId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new AssignTaskCommand(taskId, userId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{taskId:guid}/assignees/{userId:guid}")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> Unassign(
+        Guid taskId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnassignTaskCommand(taskId, userId), cancellationToken);
+        return NoContent();
+    }
 }

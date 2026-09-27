@@ -78,6 +78,10 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
         services.AddScoped<IAuditWriter, AuditWriter>();
+        // F7-T002: seed de DomainUsers dispara UserCreatedDomainEvent →
+        // OutboxDispatchHandler precisa do serviço real (grava OutboxMessages,
+        // sem broker).
+        services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
@@ -127,6 +131,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
         // F7-T001: CRUD de Tasks (repositório segue convenção I*Repository)
         services.AddScoped<ITaskItemRepository, TaskItemRepository>();
+        services.AddScoped<ITaskAssigneeRepository, TaskAssigneeRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();
