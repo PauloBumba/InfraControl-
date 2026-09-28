@@ -146,6 +146,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             SlaPolicyRepository>();
         services.AddScoped<InfraControl.Application.Sla.TaskSlas.Ports.ITaskSlaRepository,
             TaskSlaRepository>();
+        services.AddScoped<InfraControl.Application.Sla.TaskSlas.Ports.ITaskSlaPauseRepository,
+            TaskSlaPauseRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();

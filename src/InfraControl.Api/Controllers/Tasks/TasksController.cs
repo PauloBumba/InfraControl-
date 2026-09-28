@@ -217,4 +217,32 @@ public sealed class TasksController(ISender sender) : BaseController
         return StatusCode(
             StatusCodes.Status201Created, ApiResponse.Ok(result));
     }
+
+    // F8-T004: pausas do relógio de SLA — pausa/resume estendem os
+    // vencimentos ao fechar (snapshot de minutos intacto).
+
+    [HttpGet("{taskId:guid}/sla/pauses")]
+    [Authorize(Policy = "SlaRead")]
+    public async Task<IActionResult> GetSlaPauses(
+        Guid taskId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetTaskSlaPausesQuery(taskId), cancellationToken)));
+
+    [HttpPost("{taskId:guid}/sla/pause")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> PauseSla(
+        Guid taskId, CancellationToken cancellationToken)
+    {
+        await sender.Send(new PauseTaskSlaCommand(taskId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{taskId:guid}/sla/resume")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> ResumeSla(
+        Guid taskId, CancellationToken cancellationToken)
+    {
+        await sender.Send(new ResumeTaskSlaCommand(taskId), cancellationToken);
+        return NoContent();
+    }
 }

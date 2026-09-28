@@ -193,7 +193,19 @@ minutos). Mudanças futuras na política não alteram o snapshot.
 - `GET .../tasks/{taskId}/sla` (policy `SlaRead`) — 404 se não aplicado.
 - `DELETE api/v1/sla/policies/{id}` bloqueia com 409 enquanto houver
   tasks com o SLA aplicado (pré-check + FK `Restrict`).
-- Pausas do relógio chegam em `TaskSlaPause` (F8-T004).
+### TaskSlaPause (F8-T004)
+
+Pausa do relógio de SLA — tabela `task_sla_pauses` (`task_id` FK
+`Cascade` para `task_slas`: apagar a task/SLA limpa as pausas;
+`start_at`, `end_at` nullable = pausa em aberto).
+
+- `POST .../tasks/{taskId}/sla/pause` (`SlaManage`) — 404 sem SLA,
+  409 se já há pausa em aberto; grava `SlaPaused`.
+- `POST .../tasks/{taskId}/sla/resume` (`SlaManage`) — 409 se não há
+  pausa em aberto; **soma a duração aos `*DueAt`** (snapshot de minutos
+  intacto) e grava `SlaResumed`.
+- `GET .../tasks/{taskId}/sla/pauses` (`SlaRead`) — cronológico;
+  404 se o SLA não está aplicado.
 
 ## Knowledge Base
 

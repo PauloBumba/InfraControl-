@@ -16,10 +16,11 @@ public sealed class TaskSlaRepository(AppDbContext dbContext) : ITaskSlaReposito
     public Task<TaskSla?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => GetByTaskIdAsync(id, cancellationToken);
 
+    // Sem AsNoTracking: o Resume (F8-T004) altera os *DueAt do TaskSla e o
+    // SaveChanges persiste; leituras puras não sofrem efeito colateral.
     public Task<TaskSla?> GetByTaskIdAsync(
         Guid taskId, CancellationToken cancellationToken = default)
         => dbContext.TaskSlas
-            .AsNoTracking()
             .SingleOrDefaultAsync(sla => sla.TaskId == taskId, cancellationToken);
 
     public void Remove(TaskSla sla)

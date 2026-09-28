@@ -38,4 +38,17 @@ public sealed class TaskSla : Entity
             ResolutionDueAt = task.CreateDateTime.AddMinutes(policy.ResolutionMinutes)
         };
     }
+
+    /// <summary>
+    /// F8-T004: soma uma pausa fechada aos vencimentos — o snapshot de
+    /// minutos permanece (docs/04: prazos históricos preservados).
+    /// </summary>
+    public void ExtendDueDates(TimeSpan paused)
+    {
+        if (paused <= TimeSpan.Zero)
+            return;
+
+        ResponseDueAt = ResponseDueAt.Add(paused);
+        ResolutionDueAt = ResolutionDueAt.Add(paused);
+    }
 }
