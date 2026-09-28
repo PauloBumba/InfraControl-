@@ -95,7 +95,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [x] F1-T007 Reject Invitation
 - [x] F1-T010 Audit
 - [x] F1-T013 Guard de ativação do usuário (registro inativo, aceite provisiona conta inativa, `set-password` ativa, login/reset exigem ativo)
-- [x] F1-T014 Login social Google (Google Identity Services; `POST /api/v1/auth/google` valida o `id_token` no servidor via `GoogleJsonWebSignature` — assinatura/JWKS, `aud`, `iss`, `exp` e `email_verified`; **sem** Client Secret no frontend e **sem** auto-provisionamento: só conta já cadastrada e ativa, com resposta anti-enumeração (`401` credencial inválida, `403` e-mail desconhecido ou inativo, `503` provider não configurado); rate limit `Login`; `GoogleAuthOptions` com `ClientId`/`ClientSecret`/`AllowedDomains` (allow-list opcional, entradas vazias ignoradas); claim `displayName` no `GET /me`; `Microsoft.AspNetCore.Authentication.Google` 10.0.4 + `Google.Apis.Auth` 1.72.0; 19 testes em `GoogleExternalLoginTests`)
+- [x] F1-T014 Login social Google (Google Identity Services; `POST /api/v1/auth/google` valida o `id_token` no servidor via `GoogleJsonWebSignature` — assinatura/JWKS, `aud`, `iss`, `exp` e `email_verified`; **sem** Client Secret no frontend e **sem** auto-provisionamento: só conta já cadastrada e ativa, com resposta anti-enumeração (`401` credencial inválida, `403` e-mail desconhecido ou inativo, `503` provider não configurado); rate limit `Login`; `GoogleAuthOptions` com `ClientId`/`AllowedDomains` (allow-list opcional, entradas vazias ignoradas) e **sem** Client Secret (fluxo GSI: `Microsoft.AspNetCore.Authentication.Google` removido, só `Google.Apis.Auth` 1.72.0); claim `displayName` no `GET /me`; 26 testes em `GoogleExternalLoginTests`)
 
 ## Fase 2 — Inventário
 

@@ -6,10 +6,11 @@ using Microsoft.Extensions.Options;
 namespace InfraControl.Infrastructure.Auth;
 
 /// <summary>
-/// F1-T014 — configuração do login social Google. O Client Secret é do
-/// servidor (nunca vai ao bundle do frontend); o Client ID é público por
+/// F1-T014 — configuração do login social Google. O Client ID é público por
 /// natureza (o Google Identity Services exige que ele fique no browser) e
-/// aparece no bundle como identificador da aplicação, não como segredo.
+/// aparece no bundle como identificador da aplicação, não como segredo. Não
+/// há Client Secret: o fluxo é GSI com `id_token`, sem troca de
+/// authorization code, portanto nada é guardado em secret manager.
 /// </summary>
 public sealed class GoogleAuthOptions
 {
@@ -17,12 +18,16 @@ public sealed class GoogleAuthOptions
 
     public string ClientId { get; set; } = string.Empty;
 
-    public string ClientSecret { get; set; } = string.Empty;
-
     /// <summary>Domínios Google Workspace permitidos (ex.: "empresa.com.br"). Vazio = sem restrição.</summary>
     public string[] AllowedDomains { get; set; } = [];
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
+    /// <summary>
+    /// Só o ClientId é necessário: o fluxo é GSI (id_token) e a validação
+    /// confere a audiência do token. Não existe Client Secret no projeto —
+    /// a API nunca troca authorization code por token, então não há nada
+    /// para guardar em secret manager.
+    /// </summary>
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId);
 
     /// <summary>
     /// Emissores aceitos para o <c>iss</c> do id_token. A biblioteca do Google

@@ -84,7 +84,7 @@ public static class DependencyInjection
 
         // F1-T014: login social Google. A porta valida o id_token no servidor
         // (assinatura/JWKS + aud + iss + exp + email_verified); sem
-        // ClientId/ClientSecret a feature simplesmente fica desligada.
+        // ClientId a feature simplesmente fica desligada.
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
         services.AddScoped<IGoogleIdentityTokenValidator, GoogleIdentityTokenValidator>();
 

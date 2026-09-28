@@ -164,7 +164,7 @@ Respostas do endpoint (todas com o envelope `ApiResponse`):
 
 | Situação | Status | Mensagem |
 |---|---|---|
-| `ClientId`/`ClientSecret` ausentes | `503` | Login com Google não está configurado. |
+| `ClientId` ausente | `503` | Login com Google não está configurado. |
 | `id_token` inválido, expirado, assinatura/Aud/emissor/e-mail verificado inválidos | `401` | Credencial do Google inválida. |
 | E-mail sem conta ou conta inativa | `403` | Conta não encontrada ou inativa. Fale com o administrador. |
 
@@ -173,24 +173,23 @@ Regras de segurança aplicadas:
 - **Anti-enumeração**: e-mail desconhecido e conta inativa produzem a mesma falha
   (`AccountUnavailable`) e a mesma mensagem; nada de token, e-mail ou motivo é
   registrado em log.
-- **Sem Client Secret no frontend**: o segredo vive só em
-  `Authentication:Google:ClientSecret` (variável de ambiente/secret manager) e é
-  usado apenas para registrar o handler `AddGoogle`; a validação do `id_token`
-  não depende dele.
+- **Não existe Client Secret no projeto**: o fluxo é GSI com `id_token` e a API
+  nunca troca authorization code por token, logo não há handler `AddGoogle`
+  registrado nem segredo em secret manager — a única configuração é o ClientId
+  público, usado como `aud`. Superfície de segredo: zero.
 - **Frontend nunca é fonte de verdade**: roles e `email_verified` do token não
   autorizam nada; quem autoriza é o backend (claims emitidas na sessão + policies).
 - **Entrada não confiável**: `GoogleLoginViewModel` limita o `id_token` a 8192
   caracteres e exige preenchimento (erro em pt-BR, F0-T023).
 - **Rate limit** na categoria `Login` e auditoria de sucesso com o `UserId` (sem e-mail).
-- `AddGoogle` só é registrado quando `ClientId` **e** `ClientSecret` existem, e o
-  claim `displayName` foi adicionado ao principal (claim própria — `ClaimTypes.Name`
-  continua sendo o e-mail, usado por `ICurrentUserContext`/auditoria).
+- O claim `displayName` foi adicionado ao principal (claim própria —
+  `ClaimTypes.Name` continua sendo o e-mail, usado por `ICurrentUserContext`/auditoria).
 
 Configuração (ver `.env.example` e `src/InfraControl.Api/appsettings.json`):
 
 ```bash
 Authentication__Google__ClientId=...            # público, igual ao VITE_GOOGLE_CLIENT_ID
-Authentication__Google__ClientSecret=...         # segredo, somente backend
+# (sem ClientSecret: fluxo GSI, sem authorization code)
 # Authentication__Google__AllowedDomains__0=empresa.com.br   # opcional
 ```
 

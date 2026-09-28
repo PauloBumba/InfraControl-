@@ -210,11 +210,14 @@ public sealed class GoogleExternalLoginTests
     }
 
     [Fact]
-    public void GoogleAuthOptions_ShouldTreatMissingConfigurationAsDisabled()
+    public void GoogleAuthOptions_ShouldBeConfiguredWithClientIdAlone()
     {
-        new GoogleAuthOptions { ClientId = "id", ClientSecret = "" }.IsConfigured.Should().BeFalse();
-        new GoogleAuthOptions { ClientId = "", ClientSecret = "secret" }.IsConfigured.Should().BeFalse();
-        new GoogleAuthOptions { ClientId = "id", ClientSecret = "secret" }.IsConfigured.Should().BeTrue();
+        // Fluxo GSI: o ClientId público basta (é a audiência do id_token).
+        // ClientSecret deixou de existir — a API não troca authorization code.
+        new GoogleAuthOptions().IsConfigured.Should().BeFalse();
+        new GoogleAuthOptions { ClientId = "" }.IsConfigured.Should().BeFalse();
+        new GoogleAuthOptions { ClientId = "   " }.IsConfigured.Should().BeFalse();
+        new GoogleAuthOptions { ClientId = "id" }.IsConfigured.Should().BeTrue();
     }
 
     [Theory]
@@ -232,7 +235,6 @@ public sealed class GoogleExternalLoginTests
         var options = new GoogleAuthOptions
         {
             ClientId = "id",
-            ClientSecret = "secret",
             AllowedDomains = JsonSerializer.Deserialize<string[]>(domainsJson)!,
         };
 

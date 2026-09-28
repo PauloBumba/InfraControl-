@@ -71,21 +71,13 @@ builder.Services.AddAuthentication(options =>
         options.Cookie.SameSite = SameSiteMode.Strict;
     });
 
-// F1-T014: handler Google registrado apenas quando ClientId E ClientSecret
-// existem na configuração (segredo fora do código, docs/security). O Client
-// Secret nunca é lido pelo frontend. O fluxo do dashboard é Google Identity
-// Services → id_token → POST /api/v1/auth/google (validado no servidor).
-var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
-{
-    builder.Services.AddAuthentication()
-        .AddGoogle(options =>
-        {
-            options.ClientId = googleClientId;
-            options.ClientSecret = googleClientSecret;
-        });
-}
+// F1-T014: o fluxo do dashboard é Google Identity Services → id_token →
+// POST /api/v1/auth/google, com a validação da credencial no servidor
+// (GoogleJsonWebSignature: assinatura/JWKS, aud, iss, exp, email_verified).
+// Nenhum handler de authorization code do Google é registrado de propósito:
+// a API não troca código por token, portanto não existe Client Secret em
+// lugar nenhum do sistema — a única configuração é o ClientId público,
+// usado também como `aud`. Menos superfície de segredo, menos dependência.
 // Autorização HTTP: policies nomeadas por permissão (PermissionClaim
 // emitido no login) — controllers com [Authorize(Policy = "InventoryRead")]
 // etc. O escopo de claims continua no pipeline MediatR
