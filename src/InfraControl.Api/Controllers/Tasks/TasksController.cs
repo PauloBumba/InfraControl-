@@ -72,6 +72,20 @@ public sealed class TasksController(ISender sender) : BaseController
         return NoContent();
     }
 
+    // F7-T007 (Workflow): transição de estado — mapa no domínio
+    // (409 fora do mapa), 400 estado desconhecido; mesmo estado = no-op
+    // sem histórico. Retorna o TaskDto atualizado.
+
+    [HttpPut("{id:guid}/state")]
+    [Authorize(Policy = "TasksManage")]
+    public async Task<IActionResult> ChangeState(
+        Guid id,
+        [FromBody] ChangeTaskStateViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new ChangeTaskStateCommand(id, model.State), cancellationToken)));
+
+
     // F7-T002: responsáveis (N:N com usuários) — 204 nos dois sentidos
     // e estado atual embutido no TaskDto (assigneeIds).
 

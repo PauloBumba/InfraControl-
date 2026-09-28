@@ -80,8 +80,31 @@ uma entrada (`Created`, `Updated`, `Assigned`, `Unassigned`,
 - `GET api/v1/tasks/{taskId}/history` (policy `TasksRead`) — ordem
   cronológica, com `actorName` (DisplayName).
 
+### Workflow (F7-T007)
+
+Transições válidas (mapa `TaskStateWorkflow` no domínio); par fora do
+mapa → `InvalidOperationException` → 409 pt-BR; mesmo estado é no-op
+sem histórico:
+
+```text
+Open       → InProgress, Cancelled
+InProgress → Waiting, Blocked, Resolved, Cancelled
+Waiting    → InProgress, Blocked, Cancelled
+Blocked    → InProgress, Cancelled
+Resolved   → Closed, InProgress
+Cancelled  → Open
+Closed     → Open
+```
+
+- `PUT api/v1/tasks/{taskId}/state` (`TasksManage`) com body
+  `{ "state": "..." }` — devolve o `TaskDto` atualizado; estado
+  desconhecido → 400, task inexistente → 404.
+- Cada transição grava `StateChanged` no histórico com o detalhe
+  `"De → Para"`.
+
 API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
-`Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`).
+`Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`),
+`ChangeState` (`TasksManage`).
 
 ## Estados
 
@@ -94,6 +117,8 @@ Resolved
 Cancelled
 Closed
 ```
+
+Transições entre estados: seção **Workflow (F7-T007)** acima.
 
 ## SLA
 

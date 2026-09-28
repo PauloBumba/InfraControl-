@@ -14,5 +14,6 @@ public enum TaskHistoryAction
     DeviceUnlinked,
     IncidentLinked,
     IncidentUnlinked,
-    Commented
+    Commented,
+    StateChanged
 }

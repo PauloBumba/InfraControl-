@@ -55,13 +55,18 @@ public sealed class TaskItem : AggregateRoot
     }
 
     /// <summary>
-    /// F7-T007 (Workflow) valida as transições; aqui é no-op se o estado
-    /// já é o alvo (sem "transição para o mesmo estado").
+    /// F7-T007 (Workflow): no-op se o estado já é o alvo; fora do mapa de
+    /// <see cref="TaskStateWorkflow"/> lança InvalidOperationException
+    /// (GlobalExceptionHandler → 409 pt-BR).
     /// </summary>
     public void ChangeState(TaskState state)
     {
         if (State == state)
             return;
+
+        if (!TaskStateWorkflow.CanTransition(State, state))
+            throw new InvalidOperationException(
+                $"Transição inválida: '{State}' → '{state}'.");
 
         State = state;
     }
