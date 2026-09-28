@@ -236,6 +236,21 @@ Medição do SLO em um momento — valor observado comparável ao
 - `DELETE /api/v1/sla/slos/{id}` bloqueia com 409 enquanto houver
   medições (pré-check + FK `Restrict`).
 
+### SloBudget (F8-T007)
+
+Consumo do erro budget do SLO em uma janela. Tabela `slo_budgets`:
+`SloId` (FK `Restrict` → `slos`), `PeriodStart`, `PeriodEnd` (null =
+período aberto; se presente deve ser posterior ao início) e
+`ConsumedPercent` (`numeric(6,3)`, 0–100 — 400 pt-BR fora da faixa).
+
+- `GET api/v1/sla/slos/{sloId}/budgets` (`SlaRead`) — mais recentes
+  primeiro; `GET api/v1/sla/slos/budgets/{id}` (404).
+- `POST .../slos/{sloId}/budgets` (`SlaManage`) — 201; 404 para SLO
+  inexistente.
+- `DELETE .../slos/budgets/{id}` (`SlaManage`).
+- `DELETE /api/v1/sla/slos/{id}` bloqueia com 409 também com orçamentos
+  (pré-check + FK `Restrict`).
+
 ## Knowledge Base
 
 Artigos:

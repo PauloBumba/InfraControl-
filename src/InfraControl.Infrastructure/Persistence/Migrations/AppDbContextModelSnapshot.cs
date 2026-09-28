@@ -1026,6 +1026,43 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("slos", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.SloBudget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("ConsumedPercent")
+                        .HasPrecision(6, 3)
+                        .HasColumnType("numeric(6,3)")
+                        .HasColumnName("consumed_percent");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<Guid>("SloId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("slo_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SloId");
+
+                    b.ToTable("slo_budgets", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.SloMeasurement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1973,6 +2010,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Service", null)
                         .WithMany()
                         .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SloBudget", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Slo", null)
+                        .WithMany()
+                        .HasForeignKey("SloId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -1,5 +1,7 @@
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Sla;
+using InfraControl.Application.Sla.Slos.Budgets.Commands;
+using InfraControl.Application.Sla.Slos.Budgets.Queries;
 using InfraControl.Application.Sla.Slos.Commands;
 using InfraControl.Application.Sla.Slos.Measurements.Commands;
 using InfraControl.Application.Sla.Slos.Measurements.Queries;
@@ -111,6 +113,48 @@ public sealed class SlosController(ISender sender) : BaseController
         Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteSloMeasurementCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    // F8-T007: orçamento (erro budget) do SLO — mesmo desenho das medições.
+
+    [HttpGet("{sloId:guid}/budgets")]
+    [Authorize(Policy = "SlaRead")]
+    public async Task<IActionResult> SearchBudgets(
+        Guid sloId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchSloBudgetsQuery(sloId, page, pageSize), cancellationToken)));
+
+    [HttpGet("budgets/{id:guid}")]
+    [Authorize(Policy = "SlaRead")]
+    public async Task<IActionResult> GetBudget(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetSloBudgetQuery(id), cancellationToken)));
+
+    [HttpPost("{sloId:guid}/budgets")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> RecordBudget(
+        Guid sloId,
+        [FromBody] RecordSloBudgetViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new RecordSloBudgetCommand(
+                sloId, model.PeriodStart, model.PeriodEnd, model.ConsumedPercent),
+            cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
+
+    [HttpDelete("budgets/{id:guid}")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> DeleteBudget(
+        Guid id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteSloBudgetCommand(id), cancellationToken);
         return NoContent();
     }
 }

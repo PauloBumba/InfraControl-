@@ -54,6 +54,7 @@ public sealed class SloCommandTests : IDisposable
         => new(
             new SloRepository(context),
             new SloMeasurementRepository(context),
+            new SloBudgetRepository(context),
             NullLogger<DeleteSloCommandHandler>.Instance);
 
     private static DeleteServiceCommandHandler DeleteServiceHandler(AppDbContext context)
