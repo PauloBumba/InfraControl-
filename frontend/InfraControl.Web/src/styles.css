@@ -138,6 +138,17 @@ ul, ol { list-style: none; }
 .uni-user-info { flex: 1; min-width: 0; }
 .uni-user-name { font-size: 12px; font-weight: 600; display: block; }
 .uni-user-role { font-size: 11px; color: var(--uni-text-muted); display: block; }
+.uni-user-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--uni-text-muted);
+  padding: 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.uni-user-logout:hover:not(:disabled) { background: #f3f4f6; color: var(--uni-red); }
+.uni-user-logout:disabled { opacity: 0.6; cursor: not-allowed; }
 .uni-sidebar.collapsed .uni-user-info { display: none; }
 
 /* ============ MAIN ============ */
@@ -695,3 +706,123 @@ ul, ol { list-style: none; }
   .uni-subsystems { flex-wrap: wrap; gap: 10px; }
   .uni-connector { display: none; }
 }
+
+/* ============ LOGIN / RECUPERAÇÃO (UniFi-style) ============ */
+.uni-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(59, 130, 246, 0.35), transparent 60%),
+    linear-gradient(160deg, #0b1b33 0%, #10294d 55%, #0b1b33 100%);
+}
+.uni-login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--uni-surface);
+  border-radius: 14px;
+  padding: 32px 28px 24px;
+  box-shadow: 0 24px 60px rgba(2, 12, 27, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.uni-login-card-narrow { max-width: 340px; padding: 28px 24px; }
+.uni-login-brand { text-align: center; margin-bottom: 20px; }
+.uni-login-logo {
+  width: 56px; height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+.uni-login-logo i { font-size: 24px; color: #fff; }
+.uni-login-brand h1 { font-size: 20px; font-weight: 700; color: var(--uni-text); margin: 0 0 4px; }
+.uni-login-brand p { font-size: 12px; color: var(--uni-text-muted); margin: 0; }
+.uni-login-alert {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.uni-login-alert i { margin-top: 1px; }
+.uni-login-alert span { flex: 1; }
+.uni-login-alert button {
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.7; padding: 0 2px;
+}
+.uni-login-alert-success {
+  background: #f0fdf4; border-color: #bbf7d0; color: #15803d;
+}
+.uni-login-form { display: flex; flex-direction: column; gap: 6px; }
+.uni-login-label {
+  font-size: 11px; font-weight: 600; color: var(--uni-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.4px; margin-top: 8px;
+}
+.uni-login-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--uni-text);
+  background: #fff;
+  border: 1px solid var(--uni-border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.uni-login-input:focus {
+  border-color: var(--uni-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.uni-login-input:disabled { background: #f9fafb; color: var(--uni-text-muted); }
+.uni-login-password { position: relative; }
+.uni-login-password .uni-login-input { padding-right: 38px; }
+.uni-login-password button {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--uni-text-muted); padding: 4px;
+}
+.uni-login-password button:hover { color: var(--uni-text-secondary); }
+.uni-login-submit {
+  margin-top: 18px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 14px; font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none; border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.uni-login-submit:hover:not(:disabled) { filter: brightness(1.07); }
+.uni-login-submit:disabled { opacity: 0.65; cursor: not-allowed; }
+.uni-login-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0 14px;
+  color: var(--uni-text-muted); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.uni-login-divider::before,
+.uni-login-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--uni-border);
+}
+.uni-login-google { display: flex; justify-content: center; }
+.uni-login-google > div { width: 100%; }
+.uni-login-footer { margin-top: 18px; text-align: center; }
+.uni-login-link {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 500;
+  color: var(--uni-accent);
+  padding: 4px;
+}
+.uni-login-link:hover { color: var(--uni-accent-hover); text-decoration: underline; }
+.uni-login-link-center { display: block; margin: 14px auto 0; }
+.uni-login-card .uni-page-loader { min-height: 120px; }

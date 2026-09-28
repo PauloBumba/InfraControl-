@@ -1,7 +1,13 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { setActiveItem } from "@/app/store/slices/navigationSlice";
+import {
+  sessionCheckFailed,
+  sessionCheckStarted,
+  sessionChecked,
+} from "@/app/store/slices/authSlice";
+import { fetchCurrentUser } from "@/services/api/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { navigation, secondaryNavigation } from "@/data/dashboardData";
 
@@ -29,6 +35,7 @@ const LocationsPage = lazy(() => import("@/pages/LocationsPage").then(m => ({ de
 const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.SlaPage })));
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -50,10 +57,70 @@ function PageLoader() {
   );
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+/**
+ * F14-T008 — o estado de sessão NUNCA vem do localStorage: no boot o app
+ * pergunta ao backend (GET /auth/me) e só então decide. Erro de rede/5xx não
+ * vira logout (a sessão pode continuar válida): a tela oferece "Tentar de novo".
+ */
+function SessionGate({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch();
+  const status = useAppSelector((state) => state.auth.status);
+  const [attempt, setAttempt] = useState(0);
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      dispatch(sessionCheckStarted());
+      try {
+        const user = await fetchCurrentUser();
+        if (active) dispatch(sessionChecked(user));
+      } catch {
+        if (active) {
+          dispatch(sessionCheckFailed("Não foi possível validar sua sessão com o servidor."));
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [dispatch, attempt]);
+
+  if (status === "unavailable") {
+    return (
+      <div className="uni-login">
+        <div className="uni-login-card uni-login-card-narrow">
+          <div className="uni-login-alert" role="alert">
+            <i className="pi pi-exclamation-triangle" />
+            <span>Não foi possível falar com o servidor. Verifique a conexão e tente novamente.</span>
+          </div>
+          <button className="uni-login-submit" type="button" onClick={() => setAttempt((value) => value + 1)}>
+            <i className="pi pi-refresh" />
+            <span>Tentar novamente</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "checking") {
+    return (
+      <div className="uni-login">
+        <div className="uni-login-card uni-login-card-narrow">
+          <PageLoader />
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const status = useAppSelector((state) => state.auth.status);
+
+  if (status !== "authenticated") {
     return <Navigate to="/login" replace />;
   }
 
@@ -65,6 +132,7 @@ function AppContent() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const activeItemRedux = useAppSelector((s) => s.navigation.activeItem);
+  const authStatus = useAppSelector((s) => s.auth.status);
 
   const activeLabel = location.pathname.startsWith("/devices/")
     ? "Detalhes do Dispositivo"
@@ -76,12 +144,20 @@ function AppContent() {
     navigate(route);
   };
 
-  // Login page não tem layout
-  if (location.pathname === '/login') {
+  // Login e recuperação de senha não têm layout — e não redirecionam: quem
+  // já tem sessão confirmada vai direto para o app.
+  if (location.pathname === "/login" || location.pathname === "/forgot-password") {
+    const isPublicPage = location.pathname === "/forgot-password";
+
+    if (authStatus === "authenticated" && !isPublicPage) {
+      return <Navigate to="/" replace />;
+    }
+
     return (
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Routes>
       </Suspense>
     );
@@ -209,5 +285,9 @@ function AppContent() {
 }
 
 export function AppRouter() {
-  return <AppContent />;
+  return (
+    <SessionGate>
+      <AppContent />
+    </SessionGate>
+  );
 }

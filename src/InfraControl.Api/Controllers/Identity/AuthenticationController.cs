@@ -49,6 +49,32 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
         return Ok(ApiResponse.Ok(result));
     }
 
+    [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.Login)]
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin(GoogleLoginViewModel model, CancellationToken cancellationToken)
+    {
+        var result = await authenticationService.LoginWithGoogleAsync(
+            new GoogleLoginRequest(model.IdToken), cancellationToken);
+
+        // Mensagens fixas por motivo: e-mail desconhecido e conta inativa
+        // recebem a MESMA resposta (anti-enumeração, docs/05 F1-T013). O
+        // id_token nunca é ecoado na resposta nem registrado em log.
+        if (result.Failure == ExternalLoginFailure.ProviderNotConfigured)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse<object>.Fail(["Login com Google não está configurado."]));
+
+        if (result.Failure == ExternalLoginFailure.InvalidCredential)
+            return Unauthorized(ApiResponse<object>.Fail(["Credencial do Google inválida."]));
+
+        if (result.Failure == ExternalLoginFailure.AccountUnavailable)
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<object>.Fail(["Conta não encontrada ou inativa. Fale com o administrador."]));
+
+        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.Result!.User));
+        return Ok(ApiResponse.Ok(result.Result));
+    }
+
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] RefreshSessionViewModel? model, CancellationToken cancellationToken)
@@ -98,6 +124,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
         {
             userId = User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
             email = User.Identity?.Name,
+            displayName = User.FindFirst("displayName")?.Value,
             roles = User.FindAll("role").Select(claim => claim.Value).ToArray(),
             permissions = User.FindAll("permission").Select(claim => claim.Value).ToArray()
         }));
@@ -110,6 +137,11 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Name, user.Email)
         };
+
+        // Nome de exibição para a UI (claim própria: ClaimTypes.Name continua
+        // sendo o e-mail, usado por ICurrentUserContext/auditoria).
+        if (!string.IsNullOrWhiteSpace(user.DisplayName))
+            claims.Add(new Claim("displayName", user.DisplayName.Trim()));
 
         foreach (var role in user.Roles)
         {

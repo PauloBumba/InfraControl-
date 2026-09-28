@@ -1,13 +1,17 @@
-import { useEffect, useCallback, type ReactNode } from "react";
+import { useEffect, useCallback, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { navigation, secondaryNavigation } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
+import { signedOut } from "@/app/store/slices/authSlice";
+import { logout } from "@/services/api/auth";
 
 type AppLayoutProps = { children: ReactNode; activeItem: string; onNavigate: (item: string) => void };
 
 export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) {
   const dispatch = useAppDispatch();
+  const routerNavigate = useNavigate();
   const sidebarCollapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
   const mobileOpen = useAppSelector((s) => s.ui.mobileOpen);
   const recentTabs = useAppSelector((s) => s.navigation.recentTabs);
@@ -33,6 +37,37 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
   const removeRecentTab = useCallback((tab: string) => {
     dispatch(removeTab(tab));
   }, [dispatch]);
+
+  // F14-T008: identidade exibida vem do /auth/me (cache de tela). NÃO é fonte
+  // de autorização — nenhuma decisão de acesso é tomada no frontend.
+  const user = useAppSelector((s) => s.auth.user);
+  const displayName = user?.displayName || user?.email || "—";
+  const roleLabel = user?.roles?.includes("Admin")
+    ? "Administrador"
+    : user?.roles?.includes("User")
+      ? "Operador"
+      : "Visualizador";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "IC";
+
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      // Revoga a sessão no servidor (cookie + sessões persistidas) antes de
+      // limpar o estado local.
+      await logout();
+      dispatch(signedOut());
+      routerNavigate("/login", { replace: true });
+    } finally {
+      setSigningOut(false);
+    }
+  }, [dispatch, routerNavigate]);
 
   const allNavItems = [...navigation, ...secondaryNavigation];
   const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
@@ -96,11 +131,20 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
         <div className="uni-sidebar-footer">
           <div className="uni-user-card">
-            <div className="uni-user-avatar">PB</div>
+            <div className="uni-user-avatar">{initials}</div>
             <div className="uni-user-info">
-              <span className="uni-user-name">Paulo Bumba</span>
-              <span className="uni-user-role">Administrador</span>
+              <span className="uni-user-name">{displayName}</span>
+              <span className="uni-user-role">{roleLabel}</span>
             </div>
+            <button
+              className="uni-user-logout"
+              onClick={handleLogout}
+              disabled={signingOut}
+              title="Sair"
+              aria-label="Sair"
+            >
+              <i className={`pi ${signingOut ? "pi-spin pi-spinner" : "pi-sign-out"}`} />
+            </button>
           </div>
         </div>
       </aside>
@@ -142,7 +186,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
               <i className="pi pi-bell" />
               <span className="uni-notif-badge">3</span>
             </button>
-            <div className="uni-topbar-avatar" title="Paulo Bumba">PB</div>
+            <div className="uni-topbar-avatar" title={displayName}>{initials}</div>
           </div>
         </header>
 

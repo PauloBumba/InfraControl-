@@ -17,6 +17,7 @@ public sealed class IdentityAuthenticationService(
     AppDbContext dbContext,
     ICacheService cache,
     IIdentityEmailSender emailSender,
+    IGoogleIdentityTokenValidator googleTokenValidator,
     ILogger<IdentityAuthenticationService> logger) : IIdentityAuthenticationService
 {
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(30);
@@ -155,6 +156,49 @@ public sealed class IdentityAuthenticationService(
 
         await RevokeAllSessionsAsync(request.UserId, cancellationToken);
         return OperationResult.Success();
+    }
+
+    /// <summary>
+    /// F1-T014 — login social Google (Google Identity Services). A credencial
+    /// chega do browser, mas quem decide é o adaptador: assinatura, audiência,
+    /// emissor, expiração e e-mail verificado. Depois disso, o login só existe
+    /// para conta JÁ CADASTRADA e ATIVA (mesma regra da F1-T013) — nada é
+    /// provisionado e nada de vínculo externo é criado automaticamente.
+    /// E-mail desconhecido e conta inativa retornam a MESMA falha
+    /// (AccountUnavailable) para não enumerar contas.
+    /// </summary>
+    public async Task<ExternalLoginResult> LoginWithGoogleAsync(
+        GoogleLoginRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var validation = await googleTokenValidator.ValidateAsync(request.IdToken, cancellationToken);
+
+        if (validation.Status == GoogleTokenStatus.NotConfigured)
+            return ExternalLoginResult.Failed(ExternalLoginFailure.ProviderNotConfigured);
+
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Google login denied: the credential was not validated by the token validator.");
+            return ExternalLoginResult.Failed(ExternalLoginFailure.InvalidCredential);
+        }
+
+        var email = NormalizeEmail(validation.Identity!.Email);
+        var identityUser = await userManager.FindByEmailAsync(email);
+        var domainUser = identityUser is null
+            ? null
+            : await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
+
+        // Sem provisionamento e sem autoativação: conta ausente ou inativa é a
+        // mesma resposta. O e-mail NÃO é logado (LGPD, docs/security).
+        if (identityUser is null || domainUser is null || !domainUser.IsActive)
+        {
+            logger.LogWarning("Google login denied: no active account matches the validated e-mail.");
+            return ExternalLoginResult.Failed(ExternalLoginFailure.AccountUnavailable);
+        }
+
+        var result = await StartSessionAsync(identityUser, domainUser, cancellationToken);
+        logger.LogInformation("User {UserId} signed in with Google.", identityUser.Id);
+        return ExternalLoginResult.Success(result);
     }
 
     private async Task<AuthenticationResult> StartSessionAsync(InfraControlUser identityUser, User domainUser, CancellationToken cancellationToken)

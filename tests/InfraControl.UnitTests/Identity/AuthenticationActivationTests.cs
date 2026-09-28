@@ -232,8 +232,17 @@ public sealed class AuthenticationActivationTests
             .AddEntityFrameworkStores<AppDbContext>();
         services.AddScoped<ICacheService, FakeCacheService>();
         services.AddScoped<IIdentityEmailSender, FakeEmailSender>();
+        services.AddScoped<IGoogleIdentityTokenValidator, NotConfiguredGoogleValidator>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         return services.BuildServiceProvider();
+    }
+
+    // F1-T014: o login social não é objeto deste arquivo; o stub mantém o
+    // grafo de DI completo e devolve "não configurado".
+    private sealed class NotConfiguredGoogleValidator : IGoogleIdentityTokenValidator
+    {
+        public Task<GoogleTokenValidation> ValidateAsync(string idToken, CancellationToken cancellationToken = default)
+            => Task.FromResult(GoogleTokenValidation.NotConfigured());
     }
 
     private sealed class FakeEmailSender : IIdentityEmailSender

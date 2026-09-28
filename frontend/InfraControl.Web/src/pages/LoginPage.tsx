@@ -1,271 +1,160 @@
-import { useState } from 'react';
-import { Button } from 'primereact/button';
-import { InputText } from 'primereact/inputtext';
-import { Password } from 'primereact/password';
-import { GoogleLogin } from '@react-oauth/google';
-import { useDispatch } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure } from '../redux/slices/authSlice';
-import { useNavigate } from 'react-router-dom';
+import { useState, type FormEvent } from "react";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
+import { loginFailed, loginStarted, loginSucceeded, clearAuthError } from "@/app/store/slices/authSlice";
+import { AuthApiError, loginWithGoogle, loginWithPassword } from "@/services/api/auth";
+
+/**
+ * Client ID público do Google (Google Identity Services). Vazio = botão do
+ * Google não é renderizado e o login por senha continua funcionando.
+ * NUNCA coloque aqui um Client Secret: `VITE_*` é embutido no bundle.
+ */
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
+const GENERIC_ERROR = "Não foi possível entrar. Verifique suas credenciais e tente novamente.";
+
+function messageFor(error: unknown, fallback: string): string {
+  if (error instanceof AuthApiError) {
+    if (error.status === 403) return error.message; // ex.: conta inativa (backend não revela qual caso)
+    if (error.status === 401) return fallback;
+    return error.message;
+  }
+  return fallback;
+}
 
 export function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const pending = useAppSelector((state) => state.auth.pending);
+  const authError = useAppSelector((state) => state.auth.error);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    dispatch(loginStart());
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    dispatch(loginStarted());
 
     try {
-      // Chamada para API de login local
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include', // Importante para cookies
-      });
-
-      if (!response.ok) {
-        throw new Error('Credenciais inválidas');
-      }
-
-      // Obter dados do usuário logado
-      const meResponse = await fetch('/api/v1/auth/me', {
-        credentials: 'include',
-      });
-
-      if (meResponse.ok) {
-        const userData = await meResponse.json();
-        dispatch(loginSuccess({
-          id: userData.id,
-          email: userData.email,
-          displayName: userData.displayName,
-          roles: userData.roles,
-          permissions: userData.permissions,
-        }));
-        navigate('/dashboard');
-      }
+      const user = await loginWithPassword(email.trim(), password);
+      dispatch(loginSucceeded(user));
+      navigate("/", { replace: true });
     } catch (error) {
-      dispatch(loginFailure('Falha ao fazer login. Verifique suas credenciais.'));
+      dispatch(loginFailed(messageFor(error, "E-mail ou senha inválidos.")));
     } finally {
-      setLoading(false);
+      // A senha vive só no estado local do componente e some com ele.
+      setPassword("");
     }
   };
 
-  const handleGoogleLogin = async (credentialResponse: any) => {
-    setLoading(true);
-    dispatch(loginStart());
+  const handleGoogle = async (credential: string) => {
+    dispatch(loginStarted());
 
     try {
-      // Chamada para API de login Google
-      const response = await fetch('/api/v1/auth/google/callback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ credential: credentialResponse.credential }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha no login Google');
-      }
-
-      // Obter dados do usuário logado
-      const meResponse = await fetch('/api/v1/auth/me', {
-        credentials: 'include',
-      });
-
-      if (meResponse.ok) {
-        const userData = await meResponse.json();
-        dispatch(loginSuccess({
-          id: userData.id,
-          email: userData.email,
-          displayName: userData.displayName,
-          roles: userData.roles,
-          permissions: userData.permissions,
-        }));
-        navigate('/dashboard');
-      }
+      const user = await loginWithGoogle(credential);
+      dispatch(loginSucceeded(user));
+      navigate("/", { replace: true });
     } catch (error) {
-      dispatch(loginFailure('Falha no login Google. Tente novamente.'));
-    } finally {
-      setLoading(false);
+      dispatch(loginFailed(messageFor(error, GENERIC_ERROR)));
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%)',
-      padding: '20px',
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '400px',
-        background: 'white',
-        borderRadius: '16px',
-        padding: '40px',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-      }}>
-        {/* Logo/Brand */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            borderRadius: '20px',
-            margin: '0 auto 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)',
-          }}>
-            <i className="pi pi-cog" style={{ fontSize: '32px', color: 'white' }} />
+    <div className="uni-login">
+      <div className="uni-login-card">
+        <div className="uni-login-brand">
+          <div className="uni-login-logo">
+            <i className="pi pi-server" />
           </div>
-          <h1 style={{
-            fontSize: '28px',
-            fontWeight: '700',
-            color: '#1f2937',
-            margin: '0 0 8px',
-          }}>
-            InfraControl
-          </h1>
-          <p style={{
-            fontSize: '14px',
-            color: '#6b7280',
-            margin: '0',
-          }}>
-            Faça login para gerenciar sua infraestrutura
-          </p>
+          <h1>InfraControl</h1>
+          <p>Operações de TI · central de infraestrutura</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '8px',
-            }}>
-              Email
-            </label>
-            <InputText
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-              }}
-              disabled={loading}
-            />
+        {authError && (
+          <div className="uni-login-alert" role="alert">
+            <i className="pi pi-exclamation-circle" />
+            <span>{authError}</span>
+            <button type="button" onClick={() => dispatch(clearAuthError())} aria-label="Fechar aviso">
+              <i className="pi pi-times" />
+            </button>
           </div>
+        )}
 
-          <div>
-            <label style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#374151',
-              marginBottom: '8px',
-            }}>
-              Senha
-            </label>
-            <Password
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              feedback={false}
-              toggleMask
-              style={{
-                width: '100%',
-              }}
-              inputStyle={{
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-              }}
-              disabled={loading}
-            />
-          </div>
-
-          <Button
-            type="submit"
-            label={loading ? 'Entrando...' : 'Entrar'}
-            loading={loading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-              border: 'none',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
-            disabled={loading}
+        <form className="uni-login-form" onSubmit={handleSubmit}>
+          <label className="uni-login-label" htmlFor="login-email">E-mail</label>
+          <input
+            id="login-email"
+            className="uni-login-input"
+            type="email"
+            name="email"
+            autoComplete="username"
+            placeholder="voce@empresa.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={pending}
+            required
           />
+
+          <label className="uni-login-label" htmlFor="login-password">Senha</label>
+          <div className="uni-login-password">
+            <input
+              id="login-password"
+              className="uni-login-input"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={pending}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const field = document.getElementById("login-password") as HTMLInputElement | null;
+                if (field) field.type = field.type === "password" ? "text" : "password";
+              }}
+              aria-label="Mostrar ou ocultar a senha"
+              tabIndex={-1}
+            >
+              <i className="pi pi-eye" />
+            </button>
+          </div>
+
+          <button className="uni-login-submit" type="submit" disabled={pending}>
+            {pending ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-sign-in" />}
+            <span>{pending ? "Entrando..." : "Entrar"}</span>
+          </button>
         </form>
 
-        {/* Divider */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          margin: '24px 0',
-          color: '#9ca3af',
-          fontSize: '14px',
-        }}>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-          <span style={{ padding: '0 16px' }}>ou</span>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-        </div>
+        {googleClientId && (
+          <>
+            <div className="uni-login-divider"><span>ou continue com</span></div>
+            <div className="uni-login-google">
+              <GoogleOAuthProvider clientId={googleClientId}>
+                <GoogleLogin
+                  onSuccess={(response) => {
+                    if (response.credential) void handleGoogle(response.credential);
+                  }}
+                  onError={() => dispatch(loginFailed("Login com Google cancelado ou indisponível."))}
+                  useOneTap={false}
+                  theme="outline"
+                  size="large"
+                  shape="rectangular"
+                  width="100%"
+                  text="continue_with"
+                />
+              </GoogleOAuthProvider>
+            </div>
+          </>
+        )}
 
-        {/* Google Login */}
-        <div style={{ textAlign: 'center' }}>
-          {!loading && (
-            <GoogleLogin
-              onSuccess={handleGoogleLogin}
-              onError={() => dispatch(loginFailure('Falha no login Google'))}
-              useOneTap
-              theme="outline"
-              type="standard"
-              size="large"
-              text="signin_with"
-              shape="rectangular"
-            />
-          )}
-        </div>
-
-        {/* Forgot Password */}
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <a
-            href="/forgot-password"
-            style={{
-              fontSize: '14px',
-              color: '#3b82f6',
-              textDecoration: 'none',
-              fontWeight: '500',
-            }}
-          >
+        <div className="uni-login-footer">
+          <button type="button" className="uni-login-link" onClick={() => navigate("/forgot-password")}>
             Esqueceu sua senha?
-          </a>
+          </button>
         </div>
       </div>
     </div>
