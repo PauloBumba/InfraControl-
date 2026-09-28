@@ -1,40 +1,8 @@
-import type { ApiResponse } from "@/types/api";
 import type { AuthUser } from "@/app/store/slices/authSlice";
+import { ApiError, api } from "./client";
 
-/**
- * Cliente de autenticação (F14-T008/F1-T014).
- *
- * Regras de segurança aplicadas aqui:
- *  - a sessão é o cookie HttpOnly do backend (`credentials: "include"`); o
- *    JavaScript nunca enxerga access token nem refresh token;
- *  - o `refreshToken` que volta no corpo do login é DESCARTADO de propósito —
- *    o dashboard não usa refresh token (docs/05);
- *  - o id_token do Google é enviado direto ao backend e nunca é salvo em
- *    estado, storage ou log;
- *  - nada de resposta de login/forgot-password distingue "e-mail não existe"
- *    de "e-mail inativo" (anti-enumeração, igual ao backend).
- */
-
-export class AuthApiError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "AuthApiError";
-    this.status = status;
-  }
-
-  get isUnauthorized(): boolean {
-    return this.status === 401;
-  }
-
-  get isForbidden(): boolean {
-    return this.status === 403;
-  }
-}
-
-const GENERIC_ERROR = "Não foi possível falar com o servidor. Tente novamente.";
-const INVALID_CREDENTIALS = "E-mail ou senha inválidos.";
+export { ApiError as AuthApiError };
+export { GENERIC_ERROR, UNAUTHORIZED_ERROR as INVALID_CREDENTIALS } from "./client";
 
 interface CurrentUserPayload {
   userId: string;
@@ -44,34 +12,7 @@ interface CurrentUserPayload {
   permissions: string[];
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T | null> {
-  let response: Response;
 
-  try {
-    response = await fetch(path, {
-      ...init,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
-    });
-  } catch {
-    // Falha de transporte: sem status, sem vazar URL/credencial na mensagem.
-    throw new AuthApiError(GENERIC_ERROR, 0);
-  }
-
-  if (response.status === 204) return null;
-
-  const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
-
-  if (!response.ok || !payload?.isSuccess) {
-    const message = payload?.errors?.[0] ?? (response.status === 401 ? INVALID_CREDENTIALS : GENERIC_ERROR);
-    throw new AuthApiError(message, response.status);
-  }
-
-  return payload.data;
-}
 
 /** Traduz o payload de /auth/me para o formato usado na UI. */
 function toAuthUser(payload: CurrentUserPayload): AuthUser {
@@ -90,10 +31,10 @@ function toAuthUser(payload: CurrentUserPayload): AuthUser {
  */
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
   try {
-    const data = await request<CurrentUserPayload>("/api/v1/auth/me");
+    const data = await api.get<CurrentUserPayload>("/auth/me", { anonymousExpected: true });
     return data ? toAuthUser(data) : null;
   } catch (error) {
-    if (error instanceof AuthApiError && error.isUnauthorized) return null;
+    if (error instanceof ApiError && error.isUnauthorized) return null;
     throw error;
   }
 }
@@ -103,11 +44,11 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
  * permissões, então o estado da tela nunca diverge do backend.
  */
 async function establishSession(path: string, body: unknown): Promise<AuthUser> {
-  await request(path, { method: "POST", body: JSON.stringify(body) });
+  await api.post(path, body);
   const user = await fetchCurrentUser();
 
   if (!user) {
-    throw new AuthApiError("Sessão não estabelecida. Tente novamente.", 401);
+    throw new ApiError("Sessão não estabelecida. Tente novamente.", 401);
   }
 
   return user;
@@ -124,7 +65,7 @@ export function loginWithGoogle(idToken: string): Promise<AuthUser> {
 
 export async function logout(): Promise<void> {
   try {
-    await request("/api/v1/auth/logout", { method: "POST" });
+    await api.post("/auth/logout");
   } catch {
     // Logout local sempre acontece; cookie órfão é expirado pelo backend.
   }
@@ -132,10 +73,7 @@ export async function logout(): Promise<void> {
 
 /** Resposta genérica: não revela se o e-mail existe (anti-enumeração). */
 export async function requestPasswordReset(email: string): Promise<string> {
-  const data = await request<{ message: string }>("/api/v1/auth/forgot-password", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
+  const data = await api.post<{ message: string }>("/auth/forgot-password", { email });
 
   return data?.message ?? "Se o e-mail estiver cadastrado, enviaremos as instruções de redefinição.";
 }
