@@ -150,6 +150,20 @@ Entidades:
 - SloMeasurement
 - SloBudget
 
+### Service (F8-T001)
+
+Serviço de TI prestando — raiz do módulo SLA/SLO (`SlaPolicy` F8-T002 e
+`Slo` F8-T005 referenciam Service). Padrão Location: `Name` (120,
+obrigatório, único case-insensitive — pré-check + índice
+`ux_services_name ON services (LOWER(name))`) e `Description` (500,
+opcional); tabela `services`.
+
+- `GET api/v1/sla/services` (busca term/page/pageSize) e
+  `GET .../{id}` (policy `SlaRead`); `POST`/`PUT`/`DELETE`
+  (policy `SlaManage`); duplicidade → 409, id inexistente → 404.
+- Permissões novas `SlaRead`/`SlaManage` cobrem todo o módulo Fase 8
+  (SLA e SLO); Viewer ganha `SlaRead`, User ganha `SlaManage`.
+
 ## Knowledge Base
 
 Artigos:

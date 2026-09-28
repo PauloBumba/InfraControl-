@@ -17,6 +17,7 @@ public sealed class PermissionTests
             Permission.MonitoringRead,
             Permission.IncidentsRead,
             Permission.TasksRead,
+            Permission.SlaRead,
             Permission.RemoteSessionsRead
         ]);
         permissions.Should().NotContain(Permission.InventoryManage);

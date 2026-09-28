@@ -164,7 +164,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 8 — SLA/SLO
 
-- [ ] F8-T001 Service
+- [x] F8-T001 Service <!-- CRUD (heurística: docs/04 só lista Service entre as entidades do SLO — decidido dentro do pedido "sem pedir"): entidade `Service` (AggregateRoot, padrão Location) Name 120 obrigatório único case-insensitive (pré-check + migração `ux_services_name ON services (LOWER(name))` SQL bruto) + Description 500 opcional; tabela `services`. Permissões novas **`SlaRead`/`SlaManage`** (módulo inteiro Fase 8, SLA+SLO; Viewer +SlaRead, User +SlaManage; policies HTTP por reflection em PermissionPolicies; PermissionTests Viewer atualizado); namespace `Application/Sla/Services` (pasta .gitkeep já existia) com IServiceRepository (GetByName/Search) — auto-registro por convenção **não pega** no BaseIntegrationTest (a base não faz varredura — linha manual, mesmo achado do F7); rota `api/v1/sla/services` (`ServicesController`, policies SlaRead/SlaManage); Delete sem pré-check de dependentes ainda (Slo = F8-T005, FK Restrict backstop); migração `AddServices` **gerada SEM `--no-build`** (regra do reparo F7-T006) + índice SQL manual; testes +17 unit (ServiceTests 6 domínio, ServiceCommandTests 11 CRUD pt-BR) +5 integração (CRUD, 409, 403 SlaManage/SlaRead, 404) — suíte 960 unit + 84 integration + 8 arch = 1052, 0 falhas; docs/04 seção Service -->
 - [ ] F8-T002 SlaPolicy
 - [ ] F8-T003 TaskSla
 - [ ] F8-T004 TaskSlaPause

@@ -920,6 +920,35 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("retention_policies", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Service", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("services", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
                 {
                     b.Property<Guid>("Id")

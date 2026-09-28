@@ -18,6 +18,12 @@ public enum Permission
     IncidentsManage,
     TasksRead,
     TasksManage,
+
+    /// <summary>Ler serviços/SLA/SLO (módulo Fase 8 — F8-T001→T007).</summary>
+    SlaRead,
+
+    /// <summary>Gerenciar serviços/SLA/SLO (módulo Fase 8).</summary>
+    SlaManage,
     AuditRead,
     RemoteSessionsRead,
 

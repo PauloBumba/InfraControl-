@@ -139,6 +139,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             TaskHistoryRepository>();
         services.AddScoped<InfraControl.Application.Tasks.History.Ports.ITaskHistoryWriter,
             InfraControl.Application.Tasks.History.TaskHistoryWriter>();
+        // F8-T001: CRUD de Services (SLA/SLO — a base não faz varredura automática)
+        services.AddScoped<InfraControl.Application.Sla.Services.Ports.IServiceRepository,
+            ServiceRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();

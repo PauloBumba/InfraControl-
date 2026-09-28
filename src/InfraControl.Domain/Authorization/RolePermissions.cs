@@ -11,6 +11,7 @@ public static class RolePermissions
         Permission.MonitoringRead,
         Permission.IncidentsRead,
         Permission.TasksRead,
+        Permission.SlaRead,
         Permission.RemoteSessionsRead
     };
 
@@ -21,6 +22,7 @@ public static class RolePermissions
         Permission.MonitoringManage,
         Permission.IncidentsManage,
         Permission.TasksManage,
+        Permission.SlaManage,
         Permission.RemoteSshConnect,
         Permission.RemoteRdpConnect
     };
