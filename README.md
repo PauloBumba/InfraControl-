@@ -134,6 +134,19 @@ Execute a API:
 dotnet run --project src/InfraControl.Api
 ```
 
+> **Login por cookie exige HTTPS.** O cookie de sessão é `Secure` (além de
+> `HttpOnly` e `SameSite=Strict`), então em desenvolvimento rode a API no perfil
+> `https` com um certificado de dev:
+>
+> ```bash
+> dotnet dev-certs https --trust          # uma vez por máquina
+> dotnet run --project src/InfraControl.Api --launch-profile https
+> ```
+>
+> O proxy do Vite já aponta para `https://localhost:7237` (perfil https) e aceita
+> o certificado self-signed; para outro alvo, defina `VITE_DEV_API_TARGET` em
+> `frontend/InfraControl.Web/.env.local`.
+
 A API expõe health checks em:
 
 ```text
