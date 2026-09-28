@@ -43,7 +43,10 @@ public sealed class ServiceCommandTests : IDisposable
         => new(new ServiceRepository(context), NullLogger<UpdateServiceCommandHandler>.Instance);
 
     private static DeleteServiceCommandHandler DeleteHandler(AppDbContext context)
-        => new(new ServiceRepository(context), NullLogger<DeleteServiceCommandHandler>.Instance);
+        => new(
+            new ServiceRepository(context),
+            new SlaPolicyRepository(context),
+            NullLogger<DeleteServiceCommandHandler>.Instance);
 
     [Fact]
     public async Task Create_ShouldPersistAndReturnDto()

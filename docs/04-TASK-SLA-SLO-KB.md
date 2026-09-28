@@ -164,6 +164,22 @@ opcional); tabela `services`.
 - Permissões novas `SlaRead`/`SlaManage` cobrem todo o módulo Fase 8
   (SLA e SLO); Viewer ganha `SlaRead`, User ganha `SlaManage`.
 
+### SlaPolicy (F8-T002)
+
+Política de SLA — compromisso de **resposta** e **resolução** (docs/04).
+Tabela `sla_policies`: `Name` (120, obrigatório), `ResponseMinutes` e
+`ResolutionMinutes` (inteiros > 0 — 400 pt-BR caso contrário) e
+`ServiceId` opcional (FK `Restrict` para `services` — política global
+`null` ou vinculada a um Service).
+
+- `GET api/v1/sla/policies` (filtros `term` e `serviceId`) e
+  `GET .../{id}` (policy `SlaRead`); `POST`/`PUT`/`DELETE`
+  (`SlaManage`); 404 para política/serviço inexistente.
+- `DELETE /api/v1/sla/services/{id}` passa a bloquear com 409 quando
+  houver políticas vinculadas (pré-check + FK `Restrict`).
+- Os prazos serão snapshotados no `TaskSla` (F8-T003) para preservar os
+  prazos históricos (docs/04).
+
 ## Knowledge Base
 
 Artigos:

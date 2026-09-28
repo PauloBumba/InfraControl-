@@ -84,6 +84,7 @@ public sealed record DeleteServiceCommand(Guid Id) : BaseCommand, IAuthorizedReq
 
 public sealed class DeleteServiceCommandHandler(
     IServiceRepository repository,
+    InfraControl.Application.Sla.Policies.Ports.ISlaPolicyRepository slaPolicyRepository,
     ILogger<DeleteServiceCommandHandler> logger)
     : IRequestHandler<DeleteServiceCommand>
 {
@@ -93,8 +94,12 @@ public sealed class DeleteServiceCommandHandler(
         var service = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Serviço '{request.Id}' não encontrado.");
 
-        // Pré-checks de dependentes (Slo — F8-T005) passam a bloquear aqui
-        // quando existirem; FK Restrict no banco é o backstop.
+        // F8-T002: bloqueia exclusão com políticas de SLA; FK Restrict é o
+        // backstop (padrão Locations/HasRacks).
+        if (await slaPolicyRepository.HasServicePoliciesAsync(service.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "Não é possível excluir o serviço: existem políticas de SLA vinculadas.");
+
         repository.Remove(service);
         await repository.SaveChangesAsync(cancellationToken);
 

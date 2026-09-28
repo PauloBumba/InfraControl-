@@ -142,6 +142,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // F8-T001: CRUD de Services (SLA/SLO — a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Sla.Services.Ports.IServiceRepository,
             ServiceRepository>();
+        services.AddScoped<InfraControl.Application.Sla.Policies.Ports.ISlaPolicyRepository,
+            SlaPolicyRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();
