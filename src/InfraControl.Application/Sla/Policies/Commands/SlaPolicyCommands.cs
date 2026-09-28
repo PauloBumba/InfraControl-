@@ -110,6 +110,7 @@ public sealed record DeleteSlaPolicyCommand(Guid Id) : BaseCommand, IAuthorizedR
 
 public sealed class DeleteSlaPolicyCommandHandler(
     ISlaPolicyRepository repository,
+    Sla.TaskSlas.Ports.ITaskSlaRepository taskSlaRepository,
     ILogger<DeleteSlaPolicyCommandHandler> logger)
     : IRequestHandler<DeleteSlaPolicyCommand>
 {
@@ -120,9 +121,12 @@ public sealed class DeleteSlaPolicyCommandHandler(
             ?? throw new KeyNotFoundException(
                 $"Política de SLA '{request.Id}' não encontrada.");
 
-        // TaskSla (F8-T003) passa a bloquear aqui (pré-check) quando existirem
-        // aplicações; FK Restrict no banco é o backstop — prazos históricos
-        // preservados (docs/04).
+        // F8-T003: prazos históricos preservados (docs/04) — não apagar a
+        // política enquanto tasks a usam; FK Restrict é o backstop.
+        if (await taskSlaRepository.HasPolicySlasAsync(policy.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "Não é possível excluir a política de SLA: existem tasks com este SLA aplicado.");
+
         repository.Remove(policy);
         await repository.SaveChangesAsync(cancellationToken);
 

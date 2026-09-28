@@ -1236,6 +1236,45 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("tasks", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskSla", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ResolutionDueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolution_due_at");
+
+                    b.Property<int>("ResolutionMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("resolution_minutes");
+
+                    b.Property<DateTime>("ResponseDueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("response_due_at");
+
+                    b.Property<int>("ResponseMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("response_minutes");
+
+                    b.Property<Guid>("SlaPolicyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sla_policy_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId");
+
+                    b.HasIndex("SlaPolicyId");
+
+                    b.ToTable("task_slas", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1908,6 +1947,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Incident", null)
                         .WithMany()
                         .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskSla", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.SlaPolicy", null)
+                        .WithMany()
+                        .HasForeignKey("SlaPolicyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 

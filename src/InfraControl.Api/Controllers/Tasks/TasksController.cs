@@ -1,6 +1,9 @@
 using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Sla;
 using InfraControl.Api.ViewModels.Tasks;
 using InfraControl.BuildingBlocks.Application.Response;
+using InfraControl.Application.Sla.TaskSlas.Commands;
+using InfraControl.Application.Sla.TaskSlas.Queries;
 using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.History;
 using InfraControl.Application.Tasks.Queries;
@@ -186,6 +189,30 @@ public sealed class TasksController(ISender sender) : BaseController
     {
         var result = await sender.Send(
             new AddTaskCommentCommand(taskId, model.Content), cancellationToken);
+
+        return StatusCode(
+            StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
+
+    // F8-T003: SLA aplicado — snapshot dos prazos (docs/04); 409 se já
+    // aplicado, 404 task/política.
+
+    [HttpGet("{taskId:guid}/sla")]
+    [Authorize(Policy = "SlaRead")]
+    public async Task<IActionResult> GetSla(
+        Guid taskId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetTaskSlaQuery(taskId), cancellationToken)));
+
+    [HttpPost("{taskId:guid}/sla")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> ApplySla(
+        Guid taskId,
+        [FromBody] ApplyTaskSlaViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ApplyTaskSlaCommand(taskId, model.SlaPolicyId), cancellationToken);
 
         return StatusCode(
             StatusCodes.Status201Created, ApiResponse.Ok(result));

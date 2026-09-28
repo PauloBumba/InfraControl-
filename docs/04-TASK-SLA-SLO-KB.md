@@ -177,8 +177,23 @@ Tabela `sla_policies`: `Name` (120, obrigatório), `ResponseMinutes` e
   (`SlaManage`); 404 para política/serviço inexistente.
 - `DELETE /api/v1/sla/services/{id}` passa a bloquear com 409 quando
   houver políticas vinculadas (pré-check + FK `Restrict`).
-- Os prazos serão snapshotados no `TaskSla` (F8-T003) para preservar os
+- Os prazos são snapshotados no `TaskSla` (F8-T003) para preservar os
   prazos históricos (docs/04).
+
+### TaskSla (F8-T003)
+
+SLA aplicado a uma Task — 1:1 (PK `task_id`), tabela `task_slas`:
+`SlaPolicyId` (FK `Restrict`), snapshot `ResponseMinutes`/`ResolutionMinutes`
+e os vencimentos `ResponseDueAt`/`ResolutionDueAt` (= abertura da task +
+minutos). Mudanças futuras na política não alteram o snapshot.
+
+- `POST api/v1/tasks/{taskId}/sla` (policy `SlaManage`, body
+  `{ "slaPolicyId": "..." }`) — 409 se já aplicado; grava `SlaApplied`
+  no histórico com os prazos.
+- `GET .../tasks/{taskId}/sla` (policy `SlaRead`) — 404 se não aplicado.
+- `DELETE api/v1/sla/policies/{id}` bloqueia com 409 enquanto houver
+  tasks com o SLA aplicado (pré-check + FK `Restrict`).
+- Pausas do relógio chegam em `TaskSlaPause` (F8-T004).
 
 ## Knowledge Base
 

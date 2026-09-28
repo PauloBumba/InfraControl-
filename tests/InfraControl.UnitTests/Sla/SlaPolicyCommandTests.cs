@@ -51,7 +51,10 @@ public sealed class SlaPolicyCommandTests : IDisposable
             NullLogger<UpdateSlaPolicyCommandHandler>.Instance);
 
     private static DeleteSlaPolicyCommandHandler DeleteHandler(AppDbContext context)
-        => new(new SlaPolicyRepository(context), NullLogger<DeleteSlaPolicyCommandHandler>.Instance);
+        => new(
+            new SlaPolicyRepository(context),
+            new TaskSlaRepository(context),
+            NullLogger<DeleteSlaPolicyCommandHandler>.Instance);
 
     private static async Task<Guid> SeedServiceAsync(AppDbContext context, string name = "ERP")
     {

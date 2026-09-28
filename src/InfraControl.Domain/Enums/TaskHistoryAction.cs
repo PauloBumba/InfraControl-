@@ -15,5 +15,6 @@ public enum TaskHistoryAction
     IncidentLinked,
     IncidentUnlinked,
     Commented,
-    StateChanged
+    StateChanged,
+    SlaApplied
 }
