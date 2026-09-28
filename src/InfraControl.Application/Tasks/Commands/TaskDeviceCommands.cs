@@ -1,8 +1,10 @@
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -23,6 +25,7 @@ public sealed class LinkTaskDeviceCommandHandler(
     ITaskItemRepository taskRepository,
     IDeviceRepository deviceRepository,
     ITaskDeviceRepository taskDeviceRepository,
+    ITaskHistoryWriter historyWriter,
     ILogger<LinkTaskDeviceCommandHandler> logger)
     : IRequestHandler<LinkTaskDeviceCommand>
 {
@@ -46,6 +49,10 @@ public sealed class LinkTaskDeviceCommandHandler(
             TaskDevice.Create(request.TaskId, request.DeviceId), cancellationToken);
         await taskDeviceRepository.SaveChangesAsync(cancellationToken);
 
+        await historyWriter.RecordAsync(
+            request.TaskId, TaskHistoryAction.DeviceLinked,
+            request.DeviceId.ToString(), cancellationToken);
+
         logger.LogInformation(
             "Task {TaskId} linked to device {DeviceId}.",
             request.TaskId, request.DeviceId);
@@ -63,6 +70,7 @@ public sealed record UnlinkTaskDeviceCommand(
 public sealed class UnlinkTaskDeviceCommandHandler(
     ITaskItemRepository taskRepository,
     ITaskDeviceRepository taskDeviceRepository,
+    ITaskHistoryWriter historyWriter,
     ILogger<UnlinkTaskDeviceCommandHandler> logger)
     : IRequestHandler<UnlinkTaskDeviceCommand>
 {
@@ -81,6 +89,10 @@ public sealed class UnlinkTaskDeviceCommandHandler(
 
         taskDeviceRepository.Remove(link);
         await taskDeviceRepository.SaveChangesAsync(cancellationToken);
+
+        await historyWriter.RecordAsync(
+            request.TaskId, TaskHistoryAction.DeviceUnlinked,
+            request.DeviceId.ToString(), cancellationToken);
 
         logger.LogInformation(
             "Task {TaskId} unlinked from device {DeviceId}.",

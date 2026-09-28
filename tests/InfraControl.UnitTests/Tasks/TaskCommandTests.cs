@@ -41,8 +41,10 @@ public sealed class TaskCommandTests : IDisposable
     private static TaskDeviceRepository DeviceRepo(AppDbContext context) => new(context);
     private static TaskIncidentRepository IncidentRepo(AppDbContext context) => new(context);
 
+    private static RecordingTaskHistoryWriter History() => new();
+
     private static CreateTaskCommandHandler CreateHandler(AppDbContext context)
-        => new(Repo(context), NullLogger<CreateTaskCommandHandler>.Instance);
+        => new(Repo(context), History(), NullLogger<CreateTaskCommandHandler>.Instance);
 
     // ── Create ───────────────────────────────────────────────────────────
 
@@ -105,7 +107,7 @@ public sealed class TaskCommandTests : IDisposable
         var created = await CreateHandler(context).Handle(
             new CreateTaskCommand("antes", "manual"), CancellationToken.None);
 
-        await new UpdateTaskCommandHandler(Repo(context), NullLogger<UpdateTaskCommandHandler>.Instance)
+        await new UpdateTaskCommandHandler(Repo(context), History(), NullLogger<UpdateTaskCommandHandler>.Instance)
             .Handle(new UpdateTaskCommand(created.Id, "depois", "nova desc"),
                 CancellationToken.None);
 
@@ -121,7 +123,7 @@ public sealed class TaskCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => new UpdateTaskCommandHandler(
-                Repo(context), NullLogger<UpdateTaskCommandHandler>.Instance)
+                Repo(context), History(), NullLogger<UpdateTaskCommandHandler>.Instance)
             .Handle(new UpdateTaskCommand(unknown, "t"), CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -180,7 +182,7 @@ public sealed class TaskCommandTests : IDisposable
         await create.Handle(
             new CreateTaskCommand("Post-mortem do outage", "Incident"),
             CancellationToken.None);
-        await new UpdateTaskCommandHandler(Repo(context), NullLogger<UpdateTaskCommandHandler>.Instance)
+        await new UpdateTaskCommandHandler(Repo(context), History(), NullLogger<UpdateTaskCommandHandler>.Instance)
             .Handle(new UpdateTaskCommand(created.Id, "Trocar UPS da sala fria",
                 "troca preventiva agendada"), CancellationToken.None);
 

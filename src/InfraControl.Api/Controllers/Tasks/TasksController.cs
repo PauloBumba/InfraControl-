@@ -2,6 +2,7 @@ using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Tasks;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Application.Tasks.Commands;
+using InfraControl.Application.Tasks.History;
 using InfraControl.Application.Tasks.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -154,6 +155,13 @@ public sealed class TasksController(ISender sender) : BaseController
         Guid taskId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTaskCommentsQuery(taskId), cancellationToken)));
+
+    [HttpGet("{taskId:guid}/history")]
+    [Authorize(Policy = "TasksRead")]
+    public async Task<IActionResult> GetHistory(
+        Guid taskId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetTaskHistoryQuery(taskId), cancellationToken)));
 
     [HttpPost("{taskId:guid}/comments")]
     [Authorize(Policy = "TasksManage")]

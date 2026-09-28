@@ -73,9 +73,11 @@ public sealed class TaskCommentCommandTests : IDisposable
         public IReadOnlyCollection<string> Permissions => [];
     }
 
+    private static RecordingTaskHistoryWriter History() => new();
+
     private static AddTaskCommentCommandHandler AddHandler(
         AppDbContext context, ICurrentUserContext user)
-        => new(TaskRepo(context), CommentRepo(context), user,
+        => new(TaskRepo(context), CommentRepo(context), History(), user,
             NullLogger<AddTaskCommentCommandHandler>.Instance);
 
     private static GetTaskCommentsQueryHandler ListHandler(AppDbContext context)

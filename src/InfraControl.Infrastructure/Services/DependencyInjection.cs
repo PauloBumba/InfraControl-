@@ -185,6 +185,10 @@ public static class DependencyInjection
         // Outbox
         services.AddScoped<IInboxStore, InboxStore>();
         services.AddScoped<IAuditWriter, AuditWriter>();
+        // F7-T006: histórico de tasks (interface não termina em "Repository"
+        // → sem auto-registro; linha manual aqui).
+        services.AddScoped<InfraControl.Application.Tasks.History.Ports.ITaskHistoryWriter,
+            InfraControl.Application.Tasks.History.TaskHistoryWriter>();
         services.AddScoped<IAuditReader, AuditReader>();
         services.AddScoped<IDomainEventService, DomainEventService>();
 

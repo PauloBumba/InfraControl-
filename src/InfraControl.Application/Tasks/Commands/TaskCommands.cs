@@ -1,4 +1,5 @@
 using InfraControl.Application.Tasks.Ports;
+using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
@@ -24,6 +25,7 @@ public sealed record CreateTaskCommand(
 
 public sealed class CreateTaskCommandHandler(
     ITaskItemRepository repository,
+    ITaskHistoryWriter historyWriter,
     ILogger<CreateTaskCommandHandler> logger)
     : IRequestHandler<CreateTaskCommand, TaskDto>
 {
@@ -37,6 +39,10 @@ public sealed class CreateTaskCommandHandler(
 
         await repository.AddAsync(task, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
+
+        // F7-T006: histórico com o usuário logado como actor.
+        await historyWriter.RecordAsync(
+            task.Id, TaskHistoryAction.Created, cancellationToken: cancellationToken);
 
         logger.LogInformation(
             "Task {TaskId} created ({Kind} — {Title}).",
@@ -69,6 +75,7 @@ public sealed record UpdateTaskCommand(
 
 public sealed class UpdateTaskCommandHandler(
     ITaskItemRepository repository,
+    ITaskHistoryWriter historyWriter,
     ILogger<UpdateTaskCommandHandler> logger)
     : IRequestHandler<UpdateTaskCommand>
 {
@@ -80,6 +87,9 @@ public sealed class UpdateTaskCommandHandler(
 
         task.Update(request.Title, request.Description);
         await repository.SaveChangesAsync(cancellationToken);
+
+        await historyWriter.RecordAsync(
+            task.Id, TaskHistoryAction.Updated, task.Title, cancellationToken);
 
         logger.LogInformation("Task {TaskId} updated ({Title}).", task.Id, task.Title);
     }

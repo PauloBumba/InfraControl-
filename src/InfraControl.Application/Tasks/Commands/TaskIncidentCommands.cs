@@ -1,8 +1,10 @@
 using InfraControl.Application.Incidents.Ports;
+using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -23,6 +25,7 @@ public sealed class LinkTaskIncidentCommandHandler(
     ITaskItemRepository taskRepository,
     IIncidentRepository incidentRepository,
     ITaskIncidentRepository taskIncidentRepository,
+    ITaskHistoryWriter historyWriter,
     ILogger<LinkTaskIncidentCommandHandler> logger)
     : IRequestHandler<LinkTaskIncidentCommand>
 {
@@ -46,6 +49,10 @@ public sealed class LinkTaskIncidentCommandHandler(
             TaskIncident.Create(request.TaskId, request.IncidentId), cancellationToken);
         await taskIncidentRepository.SaveChangesAsync(cancellationToken);
 
+        await historyWriter.RecordAsync(
+            request.TaskId, TaskHistoryAction.IncidentLinked,
+            request.IncidentId.ToString(), cancellationToken);
+
         logger.LogInformation(
             "Task {TaskId} linked to incident {IncidentId}.",
             request.TaskId, request.IncidentId);
@@ -63,6 +70,7 @@ public sealed record UnlinkTaskIncidentCommand(
 public sealed class UnlinkTaskIncidentCommandHandler(
     ITaskItemRepository taskRepository,
     ITaskIncidentRepository taskIncidentRepository,
+    ITaskHistoryWriter historyWriter,
     ILogger<UnlinkTaskIncidentCommandHandler> logger)
     : IRequestHandler<UnlinkTaskIncidentCommand>
 {
@@ -81,6 +89,10 @@ public sealed class UnlinkTaskIncidentCommandHandler(
 
         taskIncidentRepository.Remove(link);
         await taskIncidentRepository.SaveChangesAsync(cancellationToken);
+
+        await historyWriter.RecordAsync(
+            request.TaskId, TaskHistoryAction.IncidentUnlinked,
+            request.IncidentId.ToString(), cancellationToken);
 
         logger.LogInformation(
             "Task {TaskId} unlinked from incident {IncidentId}.",

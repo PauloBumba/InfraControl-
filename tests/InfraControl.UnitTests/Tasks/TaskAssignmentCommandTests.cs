@@ -53,12 +53,14 @@ public sealed class TaskAssignmentCommandTests : IDisposable
         return (task.Id, user.Id);
     }
 
+    private static RecordingTaskHistoryWriter History() => new();
+
     private static AssignTaskCommandHandler AssignHandler(AppDbContext context)
-        => new(TaskRepo(context), AssigneeRepo(context),
+        => new(TaskRepo(context), AssigneeRepo(context), History(),
             NullLogger<AssignTaskCommandHandler>.Instance);
 
     private static UnassignTaskCommandHandler UnassignHandler(AppDbContext context)
-        => new(TaskRepo(context), AssigneeRepo(context),
+        => new(TaskRepo(context), AssigneeRepo(context), History(),
             NullLogger<UnassignTaskCommandHandler>.Instance);
 
     private static GetTaskQueryHandler GetHandler(AppDbContext context)

@@ -69,6 +69,17 @@ alterações vem em `F7-T006`.
   cronológica, com `authorName` (DisplayName).
 - `POST .../comments` (policy `TasksManage`) — autor = usuário logado.
 
+### Histórico (F7-T006)
+
+Tabela `task_histories` (`task_id`, `actor_id` nullable, `action`,
+`detail` ≤ 200; FK da task `Cascade`, sem FK no ator). Todo comando grava
+uma entrada (`Created`, `Updated`, `Assigned`, `Unassigned`,
+`DeviceLinked`, `DeviceUnlinked`, `IncidentLinked`, `IncidentUnlinked`,
+`Commented`).
+
+- `GET api/v1/tasks/{taskId}/history` (policy `TasksRead`) — ordem
+  cronológica, com `actorName` (DisplayName).
+
 API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
 `Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`).
 

@@ -1,7 +1,9 @@
 using InfraControl.Application.Tasks.Ports;
+using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -21,6 +23,7 @@ public sealed record AssignTaskCommand(
 public sealed class AssignTaskCommandHandler(
     ITaskItemRepository taskRepository,
     ITaskAssigneeRepository assigneeRepository,
+    ITaskHistoryWriter historyWriter,
     ILogger<AssignTaskCommandHandler> logger)
     : IRequestHandler<AssignTaskCommand>
 {
@@ -44,6 +47,10 @@ public sealed class AssignTaskCommandHandler(
             TaskAssignee.Create(request.TaskId, request.UserId), cancellationToken);
         await assigneeRepository.SaveChangesAsync(cancellationToken);
 
+        await historyWriter.RecordAsync(
+            request.TaskId, TaskHistoryAction.Assigned,
+            request.UserId.ToString(), cancellationToken);
+
         logger.LogInformation(
             "Task {TaskId} assigned to user {UserId}.",
             request.TaskId, request.UserId);
@@ -61,6 +68,7 @@ public sealed record UnassignTaskCommand(
 public sealed class UnassignTaskCommandHandler(
     ITaskItemRepository taskRepository,
     ITaskAssigneeRepository assigneeRepository,
+    ITaskHistoryWriter historyWriter,
     ILogger<UnassignTaskCommandHandler> logger)
     : IRequestHandler<UnassignTaskCommand>
 {
@@ -79,6 +87,10 @@ public sealed class UnassignTaskCommandHandler(
 
         assigneeRepository.Remove(assignee);
         await assigneeRepository.SaveChangesAsync(cancellationToken);
+
+        await historyWriter.RecordAsync(
+            request.TaskId, TaskHistoryAction.Unassigned,
+            request.UserId.ToString(), cancellationToken);
 
         logger.LogInformation(
             "Task {TaskId} unassigned from user {UserId}.",

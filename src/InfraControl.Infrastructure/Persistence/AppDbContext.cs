@@ -46,6 +46,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<TaskDevice> TaskDevices => Set<TaskDevice>();
     public DbSet<TaskIncident> TaskIncidents => Set<TaskIncident>();
     public DbSet<TaskComment> TaskComments => Set<TaskComment>();
+    public DbSet<TaskHistory> TaskHistories => Set<TaskHistory>();
     public DbSet<DiscoveryRun> DiscoveryRuns => Set<DiscoveryRun>();
     public DbSet<DiscoveryResult> DiscoveryResults => Set<DiscoveryResult>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();

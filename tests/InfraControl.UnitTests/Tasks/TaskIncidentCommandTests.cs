@@ -57,12 +57,14 @@ public sealed class TaskIncidentCommandTests : IDisposable
         return (task.Id, incident.Id);
     }
 
+    private static RecordingTaskHistoryWriter History() => new();
+
     private static LinkTaskIncidentCommandHandler LinkHandler(AppDbContext context)
         => new(TaskRepo(context), IncidentRepo(context), IncidentLinkRepo(context),
-            NullLogger<LinkTaskIncidentCommandHandler>.Instance);
+            History(), NullLogger<LinkTaskIncidentCommandHandler>.Instance);
 
     private static UnlinkTaskIncidentCommandHandler UnlinkHandler(AppDbContext context)
-        => new(TaskRepo(context), IncidentLinkRepo(context),
+        => new(TaskRepo(context), IncidentLinkRepo(context), History(),
             NullLogger<UnlinkTaskIncidentCommandHandler>.Instance);
 
     private static GetTaskQueryHandler GetHandler(AppDbContext context)

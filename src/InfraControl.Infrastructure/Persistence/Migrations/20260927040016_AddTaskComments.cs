@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,20 +10,17 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "RootCause",
-                table: "incidents",
-                type: "character varying(500)",
-                maxLength: 500,
-                nullable: true);
+            // CORRIGIDO (F7-T005): gerada contra assembly stale (--no-build) e
+            // contentava erradamente o AddColumn "RootCause" (duplicando o
+            // AddIncidentRootCause). As tabelas da Fase 7 são criadas em
+            // AddTaskHistories (20260928001322) — esta migração é um no-op
+            // proposital para bancos que ainda não a aplicaram.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "RootCause",
-                table: "incidents");
+            // No-op — ver Up.
         }
     }
 }

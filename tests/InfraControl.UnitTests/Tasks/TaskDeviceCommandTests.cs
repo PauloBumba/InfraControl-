@@ -63,12 +63,14 @@ public sealed class TaskDeviceCommandTests : IDisposable
         return (task.Id, device.Id);
     }
 
+    private static RecordingTaskHistoryWriter History() => new();
+
     private static LinkTaskDeviceCommandHandler LinkHandler(AppDbContext context)
         => new(TaskRepo(context), InventoryDeviceRepo(context), DeviceRepo(context),
-            NullLogger<LinkTaskDeviceCommandHandler>.Instance);
+            History(), NullLogger<LinkTaskDeviceCommandHandler>.Instance);
 
     private static UnlinkTaskDeviceCommandHandler UnlinkHandler(AppDbContext context)
-        => new(TaskRepo(context), DeviceRepo(context),
+        => new(TaskRepo(context), DeviceRepo(context), History(),
             NullLogger<UnlinkTaskDeviceCommandHandler>.Instance);
 
     private static GetTaskQueryHandler GetHandler(AppDbContext context)

@@ -1,7 +1,9 @@
 using InfraControl.Application.Tasks.Ports;
+using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -22,6 +24,7 @@ public sealed record AddTaskCommentCommand(
 public sealed class AddTaskCommentCommandHandler(
     ITaskItemRepository taskRepository,
     ITaskCommentRepository commentRepository,
+    ITaskHistoryWriter historyWriter,
     ICurrentUserContext currentUser,
     ILogger<AddTaskCommentCommandHandler> logger)
     : IRequestHandler<AddTaskCommentCommand, TaskCommentDto>
@@ -41,6 +44,10 @@ public sealed class AddTaskCommentCommandHandler(
 
         await commentRepository.AddAsync(comment, cancellationToken);
         await commentRepository.SaveChangesAsync(cancellationToken);
+
+        await historyWriter.RecordAsync(
+            comment.TaskId, TaskHistoryAction.Commented,
+            cancellationToken: cancellationToken);
 
         logger.LogInformation(
             "Comment {CommentId} added to task {TaskId}.",
