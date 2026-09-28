@@ -251,6 +251,19 @@ public sealed class GoogleExternalLoginTests
         results.Should().NotBeEmpty("the id_token comes from an untrusted client");
     }
 
+    [Theory]
+    [InlineData("accounts.google.com", true)]
+    [InlineData("https://accounts.google.com", true)]
+    [InlineData("https://ACCOUNTS.google.com", false)]
+    [InlineData("https://accounts.google.com.br", false)]
+    [InlineData("https://evil.com", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void GoogleAuthOptions_ShouldAcceptOnlyGoogleIssuers(string? issuer, bool expected)
+    {
+        new GoogleAuthOptions().IsIssuerAllowed(issuer).Should().Be(expected);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private static IIdentityAuthenticationService MockService(ExternalLoginResult result)

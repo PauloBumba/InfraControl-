@@ -25,6 +25,17 @@ public sealed class GoogleAuthOptions
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
 
     /// <summary>
+    /// Emissores aceitos para o <c>iss</c> do id_token. A biblioteca do Google
+    /// já valida o emissor, mas o backend NÃO delega essa decisão a um
+    /// detalhe de biblioteca: a allow-list é conferida aqui de forma
+    /// explícita (assim um token assinado por chave válida porém com
+    /// <c>iss</c> trocado é rejeitado mesmo que a biblioteca evolua).
+    /// </summary>
+    public bool IsIssuerAllowed(string? issuer) =>
+        string.Equals(issuer, "accounts.google.com", StringComparison.Ordinal)
+        || string.Equals(issuer, "https://accounts.google.com", StringComparison.Ordinal);
+
+    /// <summary>
     /// Allow-list de domínios Google Workspace. Entradas vazias são ignoradas
     /// (uma variável de ambiente sobrando como `AllowedDomains__0=` não pode
     /// trancar o login de todo mundo). Lista vazia = sem restrição.
@@ -94,6 +105,12 @@ public sealed class GoogleIdentityTokenValidator(
 
             var email = payload.Email?.Trim();
             var subject = payload.Subject;
+
+            if (!_options.IsIssuerAllowed(payload.Issuer))
+            {
+                logger.LogWarning("Google login rejected: the token issuer is not a Google issuer.");
+                return GoogleTokenValidation.Invalid();
+            }
 
             if (payload.EmailVerified != true
                 || string.IsNullOrWhiteSpace(email)
