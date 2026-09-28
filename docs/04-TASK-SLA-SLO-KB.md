@@ -218,8 +218,23 @@ Objetivo de serviço de um Service (docs/04: `Availability >= 99.95%`,
   (policy `SlaRead`); `POST`/`PUT`/`DELETE` (`SlaManage`).
 - `DELETE /api/v1/sla/services/{id}` passa a bloquear com 409 quando
   houver SLOs vinculados (pré-check + FK `Restrict`).
-- Medição chega em `SloMeasurement` (F8-T006) e orçamento em
+- Medição chega em `SloMeasurement` (abaixo) e orçamento em
   `SloBudget` (F8-T007).
+
+### SloMeasurement (F8-T006)
+
+Medição do SLO em um momento — valor observado comparável ao
+`TargetPercent`. Tabela `slo_measurements`: `SloId` (FK `Restrict` →
+`slos`), `MeasuredAt` (DateTime) e `ValuePercent` (`numeric(6,3)`,
+0–100 — 400 pt-BR fora da faixa). Registro imutável (sem `PUT`).
+
+- `GET api/v1/sla/slos/{sloId}/measurements` (`SlaRead`) — mais
+  recentes primeiro; `GET api/v1/sla/slos/measurements/{id}` (404).
+- `POST .../slos/{sloId}/measurements` (`SlaManage`) — 201; 404 para
+  SLO inexistente.
+- `DELETE .../slos/measurements/{id}` (`SlaManage`).
+- `DELETE /api/v1/sla/slos/{id}` bloqueia com 409 enquanto houver
+  medições (pré-check + FK `Restrict`).
 
 ## Knowledge Base
 

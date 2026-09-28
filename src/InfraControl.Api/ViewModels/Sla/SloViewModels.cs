@@ -13,3 +13,8 @@ public sealed record UpdateSloViewModel(
     decimal TargetPercent,
     int WindowDays,
     Guid ServiceId);
+
+/// <summary>Registro de medição de SLO (F8-T006).</summary>
+public sealed record RecordSloMeasurementViewModel(
+    DateTime MeasuredAt,
+    decimal ValuePercent);

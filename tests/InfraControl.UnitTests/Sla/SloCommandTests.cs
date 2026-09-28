@@ -51,7 +51,10 @@ public sealed class SloCommandTests : IDisposable
             NullLogger<UpdateSloCommandHandler>.Instance);
 
     private static DeleteSloCommandHandler DeleteHandler(AppDbContext context)
-        => new(new SloRepository(context), NullLogger<DeleteSloCommandHandler>.Instance);
+        => new(
+            new SloRepository(context),
+            new SloMeasurementRepository(context),
+            NullLogger<DeleteSloCommandHandler>.Instance);
 
     private static DeleteServiceCommandHandler DeleteServiceHandler(AppDbContext context)
         => new(

@@ -97,6 +97,7 @@ public sealed record DeleteSloCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 
 public sealed class DeleteSloCommandHandler(
     ISloRepository repository,
+    Measurements.Ports.ISloMeasurementRepository measurementRepository,
     ILogger<DeleteSloCommandHandler> logger)
     : IRequestHandler<DeleteSloCommand>
 {
@@ -106,8 +107,12 @@ public sealed class DeleteSloCommandHandler(
         var slo = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"SLO '{request.Id}' não encontrado.");
 
-        // SloMeasurement (F8-T006) / SloBudget (F8-T007) passam a bloquear
-        // aqui (pré-check); FK Restrict é o backstop.
+        // F8-T006: bloqueia exclusão com medições; SloBudget (F8-T007) passa
+        // a bloquear depois; FK Restrict é o backstop.
+        if (await measurementRepository.HasSloMeasurementsAsync(slo.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "Não é possível excluir o SLO: existem medições vinculadas.");
+
         repository.Remove(slo);
         await repository.SaveChangesAsync(cancellationToken);
 

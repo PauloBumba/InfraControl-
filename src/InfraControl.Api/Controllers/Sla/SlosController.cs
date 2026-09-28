@@ -1,6 +1,8 @@
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Sla;
 using InfraControl.Application.Sla.Slos.Commands;
+using InfraControl.Application.Sla.Slos.Measurements.Commands;
+using InfraControl.Application.Sla.Slos.Measurements.Queries;
 using InfraControl.Application.Sla.Slos.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -66,6 +68,49 @@ public sealed class SlosController(ISender sender) : BaseController
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteSloCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    // F8-T006: medições do SLO — registro imutável (sem PUT), 404 para
+    // SLO/medição inexistente.
+
+    [HttpGet("{sloId:guid}/measurements")]
+    [Authorize(Policy = "SlaRead")]
+    public async Task<IActionResult> SearchMeasurements(
+        Guid sloId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchSloMeasurementsQuery(sloId, page, pageSize), cancellationToken)));
+
+    [HttpGet("measurements/{id:guid}")]
+    [Authorize(Policy = "SlaRead")]
+    public async Task<IActionResult> GetMeasurement(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetSloMeasurementQuery(id), cancellationToken)));
+
+    [HttpPost("{sloId:guid}/measurements")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> RecordMeasurement(
+        Guid sloId,
+        [FromBody] RecordSloMeasurementViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new RecordSloMeasurementCommand(
+                sloId, model.MeasuredAt, model.ValuePercent),
+            cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
+
+    [HttpDelete("measurements/{id:guid}")]
+    [Authorize(Policy = "SlaManage")]
+    public async Task<IActionResult> DeleteMeasurement(
+        Guid id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteSloMeasurementCommand(id), cancellationToken);
         return NoContent();
     }
 }
