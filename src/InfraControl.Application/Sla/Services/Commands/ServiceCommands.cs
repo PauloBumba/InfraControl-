@@ -85,6 +85,7 @@ public sealed record DeleteServiceCommand(Guid Id) : BaseCommand, IAuthorizedReq
 public sealed class DeleteServiceCommandHandler(
     IServiceRepository repository,
     InfraControl.Application.Sla.Policies.Ports.ISlaPolicyRepository slaPolicyRepository,
+    InfraControl.Application.Sla.Slos.Ports.ISloRepository sloRepository,
     ILogger<DeleteServiceCommandHandler> logger)
     : IRequestHandler<DeleteServiceCommand>
 {
@@ -99,6 +100,11 @@ public sealed class DeleteServiceCommandHandler(
         if (await slaPolicyRepository.HasServicePoliciesAsync(service.Id, cancellationToken))
             throw new InvalidOperationException(
                 "Não é possível excluir o serviço: existem políticas de SLA vinculadas.");
+
+        // F8-T005: bloqueia exclusão com SLOs vinculados.
+        if (await sloRepository.HasServiceSlosAsync(service.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "Não é possível excluir o serviço: existem SLOs vinculados.");
 
         repository.Remove(service);
         await repository.SaveChangesAsync(cancellationToken);

@@ -51,6 +51,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<SlaPolicy> SlaPolicies => Set<SlaPolicy>();
     public DbSet<TaskSla> TaskSlas => Set<TaskSla>();
     public DbSet<TaskSlaPause> TaskSlasPauses => Set<TaskSlaPause>();
+    public DbSet<Slo> Slos => Set<Slo>();
     public DbSet<DiscoveryRun> DiscoveryRuns => Set<DiscoveryRun>();
     public DbSet<DiscoveryResult> DiscoveryResults => Set<DiscoveryResult>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();

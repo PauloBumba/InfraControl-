@@ -197,6 +197,7 @@ public sealed class SlaPolicyCommandTests : IDisposable
         var action = () => new DeleteServiceCommandHandler(
                 new ServiceRepository(context),
                 new SlaPolicyRepository(context),
+                new SloRepository(context),
                 NullLogger<DeleteServiceCommandHandler>.Instance)
             .Handle(new DeleteServiceCommand(serviceId), CancellationToken.None);
 

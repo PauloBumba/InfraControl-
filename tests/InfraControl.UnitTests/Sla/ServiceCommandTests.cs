@@ -46,6 +46,7 @@ public sealed class ServiceCommandTests : IDisposable
         => new(
             new ServiceRepository(context),
             new SlaPolicyRepository(context),
+            new SloRepository(context),
             NullLogger<DeleteServiceCommandHandler>.Instance);
 
     [Fact]

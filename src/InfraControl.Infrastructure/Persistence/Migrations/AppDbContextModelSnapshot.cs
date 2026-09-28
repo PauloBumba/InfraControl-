@@ -987,6 +987,45 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("sla_policies", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Slo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("service_id");
+
+                    b.Property<decimal>("TargetPercent")
+                        .HasPrecision(6, 3)
+                        .HasColumnType("numeric(6,3)")
+                        .HasColumnName("target_percent");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("WindowDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("window_days");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceId");
+
+                    b.ToTable("slos", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1894,6 +1933,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ServiceId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Slo", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Service", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.SwitchPort", b =>

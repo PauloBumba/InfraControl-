@@ -207,6 +207,20 @@ Pausa do relógio de SLA — tabela `task_sla_pauses` (`task_id` FK
 - `GET .../tasks/{taskId}/sla/pauses` (`SlaRead`) — cronológico;
   404 se o SLA não está aplicado.
 
+### Slo (F8-T005)
+
+Objetivo de serviço de um Service (docs/04: `Availability >= 99.95%`,
+`Window = 30 days`). Tabela `slos`: `Name` (120), `TargetPercent`
+(`numeric(6,3)`, 0 < alvo ≤ 100 — 400 pt-BR), `WindowDays` (> 0) e
+`ServiceId` obrigatório (FK `Restrict` → `services`).
+
+- `GET api/v1/sla/slos` (filtros `term` e `serviceId`) e `GET .../{id}`
+  (policy `SlaRead`); `POST`/`PUT`/`DELETE` (`SlaManage`).
+- `DELETE /api/v1/sla/services/{id}` passa a bloquear com 409 quando
+  houver SLOs vinculados (pré-check + FK `Restrict`).
+- Medição chega em `SloMeasurement` (F8-T006) e orçamento em
+  `SloBudget` (F8-T007).
+
 ## Knowledge Base
 
 Artigos:
