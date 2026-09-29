@@ -155,4 +155,7 @@ public interface IIdentityAuthenticationService
 public interface IIdentityEmailSender
 {
     Task SendPasswordResetAsync(string email, string resetUrl, CancellationToken cancellationToken = default);
+
+    /// <summary>F1-T017: convite por e-mail — link de aceite com o token de uso único.</summary>
+    Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default);
 }

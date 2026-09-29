@@ -264,10 +264,17 @@ public sealed class AuthenticationActivationTests
     private sealed class FakeEmailSender : IIdentityEmailSender
     {
         public List<(string Email, string ResetUrl)> Sent { get; } = [];
+        public List<(string Email, string AcceptUrl)> Invitations { get; } = [];
 
         public Task SendPasswordResetAsync(string email, string resetUrl, CancellationToken cancellationToken = default)
         {
             Sent.Add((email, resetUrl));
+            return Task.CompletedTask;
+        }
+
+        public Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default)
+        {
+            Invitations.Add((email, acceptUrl));
             return Task.CompletedTask;
         }
     }

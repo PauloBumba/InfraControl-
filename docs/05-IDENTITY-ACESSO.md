@@ -168,13 +168,25 @@ User → Role → nível de acesso (RoleAccess)
 
 ```text
 Admin
-→ Invitation
-→ Outbox
-→ RabbitMQ
-→ Notification Worker
-→ Email
+→ Invitation (POST /admin/invitations)
+→ IIdentityEmailSender
+→ Email (link de aceite, token de uso único)
 → Accept/Reject
 ```
+
+F1-T017 (decisão do usuário, 2026-09-29): o convite é enviado por e-mail
+pelo MESMO canal do forgot-password — o handler chama
+`IIdentityEmailSender.SendInvitationAsync` após salvar, com a origem derivada
+de `Request.Scheme://Request.Host` (sem mudar o frontend). O adaptador atual é
+o de logging (`LoggingIdentityEmailSender`); trocar por um provider real
+(SMTP/API) é pendência separada que não toca Application. O link é
+`{origem}/api/v1/auth/invitations/{id}/accept?token=` — token URL-safe
+(base64url), o mesmo que continua na resposta da API (copy-link). Falha de
+envio desfaz a linha (TransactionBehavior) e o admin pode recriar sem esbarrar
+em "convite pendente". O caminho Outbox → RabbitMQ → Notification Worker
+segue sendo o das notificações (F9): o convidado ainda não é usuário, então o
+convite não passa por lá. Pendências: página de aceite no frontend (a link
+chegando hoje cai na API) e o provider real de e-mail.
 
 Status:
 

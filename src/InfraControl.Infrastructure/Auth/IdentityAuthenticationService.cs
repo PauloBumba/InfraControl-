@@ -459,4 +459,10 @@ public sealed class LoggingIdentityEmailSender(ILogger<LoggingIdentityEmailSende
         logger.LogInformation("Password reset link generated for {Email}: {ResetUrl}", email, resetUrl);
         return Task.CompletedTask;
     }
+
+    public Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Invitation link generated for {Email}: {AcceptUrl}", email, acceptUrl);
+        return Task.CompletedTask;
+    }
 }

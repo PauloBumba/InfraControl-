@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Invitations.Commands;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Domain.Entities;
@@ -131,6 +132,60 @@ public sealed class InvitationTests
         stored.Status.Should().Be(InvitationStatus.Pending);
         stored.TokenHash.Should().NotBe(result.Token);
         stored.TokenHash.Should().HaveLength(64);
+    }
+
+    /// <summary>
+    /// F1-T017: criar convite dispara o e-mail para o convidado pelo mesmo
+    /// canal do forgot-password (IIdentityEmailSender) — o link leva ao aceite
+    /// com o token de uso único que só existe na resposta/do e-mail.
+    /// </summary>
+    [Fact]
+    public async Task CreateHandler_ShouldSendInvitationEmailWithAbsoluteAcceptUrl()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var handler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<CreateInvitationCommand, CreateInvitationResult>>();
+
+        var result = await handler.Handle(
+            new CreateInvitationCommand(
+                "mail-me@example.com", [UserRole.Viewer], Guid.NewGuid(), BaseUrl: "https://portal.example/"),
+            CancellationToken.None);
+
+        var sender = (RecordingEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
+        var sent = sender.Invitations.Should().ContainSingle().Which;
+        sent.To.Should().Be("mail-me@example.com");
+        sent.Url.Should().Be(
+            $"https://portal.example/api/v1/auth/invitations/{result.InvitationId}/accept?token={result.Token}",
+            "trailing slash do origem é cortado e o link aponta para o aceite com o token");
+    }
+
+    [Fact]
+    public async Task CreateHandler_ShouldSendRelativeAcceptLinkWhenNoBaseUrl()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var handler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<CreateInvitationCommand, CreateInvitationResult>>();
+
+        var result = await handler.Handle(
+            new CreateInvitationCommand("no-base@example.com", [UserRole.Viewer], Guid.NewGuid()),
+            CancellationToken.None);
+
+        var sender = (RecordingEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
+        var sent = sender.Invitations.Should().ContainSingle().Which;
+        sent.To.Should().Be("no-base@example.com");
+        sent.Url.Should().Be(
+            $"/api/v1/auth/invitations/{result.InvitationId}/accept?token={result.Token}",
+            "sem origem o link sai relativo — mesmo comportamento do forgot-password");
     }
 
     [Fact]
@@ -338,6 +393,8 @@ public sealed class InvitationTests
         services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IInvitationAccountPort, NoOpInvitationAccountPort>();
+        // F1-T017: o handler de convite dispara o e-mail — a porta precisa estar no harness.
+        services.AddScoped<IIdentityEmailSender, RecordingEmailSender>();
         return services.BuildServiceProvider();
     }
 
@@ -358,5 +415,27 @@ public sealed class InvitationTests
             string password,
             CancellationToken cancellationToken = default)
             => Task.FromResult(Application.Identity.Authentication.OperationResult.Success());
+    }
+
+    /// <summary>
+    /// F1-T017: grava o que o handler manda — os testes provam que o convite
+    /// sai por e-mail com o link de aceite (canal do forgot-password).
+    /// </summary>
+    private sealed class RecordingEmailSender : IIdentityEmailSender
+    {
+        public List<(string To, string Url)> Invitations { get; } = [];
+        public List<(string To, string Url)> PasswordResets { get; } = [];
+
+        public Task SendPasswordResetAsync(string email, string resetUrl, CancellationToken cancellationToken = default)
+        {
+            PasswordResets.Add((email, resetUrl));
+            return Task.CompletedTask;
+        }
+
+        public Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default)
+        {
+            Invitations.Add((email, acceptUrl));
+            return Task.CompletedTask;
+        }
     }
 }

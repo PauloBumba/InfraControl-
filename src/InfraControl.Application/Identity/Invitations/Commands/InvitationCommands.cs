@@ -1,3 +1,4 @@
+using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
@@ -12,7 +13,8 @@ public sealed record CreateInvitationCommand(
     string Email,
     IReadOnlyCollection<UserRole> Roles,
     Guid CreatedBy,
-    int ExpiresInDays = 7) : BaseCommand<CreateInvitationResult>, IAuthorizedRequest
+    int ExpiresInDays = 7,
+    string? BaseUrl = null) : BaseCommand<CreateInvitationResult>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Administer;
@@ -22,6 +24,7 @@ public sealed record CreateInvitationResult(Guid InvitationId, string Token);
 
 public sealed class CreateInvitationCommandHandler(
     IInvitationRepository repository,
+    IIdentityEmailSender emailSender,
     ILogger<CreateInvitationCommandHandler> logger) : IRequestHandler<CreateInvitationCommand, CreateInvitationResult>
 {
     public async Task<CreateInvitationResult> Handle(CreateInvitationCommand request, CancellationToken cancellationToken)
@@ -55,6 +58,15 @@ public sealed class CreateInvitationCommandHandler(
 
         await repository.AddAsync(invitation, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
+
+        // F1-T017: o convite é MANDADO POR E-MAIL pelo mesmo canal do
+        // forgot-password (IIdentityEmailSender — adaptador de logging hoje;
+        // provider real troca sem tocar Application). Com o TransactionBehavior
+        // uma falha de envio desfaz a linha e o admin pode recriar sem esbarrar
+        // no "convite pendente". Token é URL-safe (base64url), igual ao reset.
+        var baseUrl = request.BaseUrl ?? string.Empty;
+        var acceptUrl = $"{baseUrl.TrimEnd('/')}/api/v1/auth/invitations/{invitation.Id}/accept?token={token}";
+        await emailSender.SendInvitationAsync(normalizedEmail, acceptUrl, cancellationToken);
 
         logger.LogInformation("Invitation {InvitationId} created for {Email}.", invitation.Id, normalizedEmail);
 

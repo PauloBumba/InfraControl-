@@ -371,6 +371,9 @@ public sealed class GoogleExternalLoginTests
     {
         public Task SendPasswordResetAsync(string email, string resetUrl, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class NoOpCacheService : ICacheService

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Invitations.Commands;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Domain.Entities;
@@ -337,6 +338,18 @@ public sealed class InvitationActivationTests
         services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
+        // F1-T017: o handler de convite dispara o e-mail — a porta precisa estar no harness.
+        services.AddScoped<IIdentityEmailSender, NoOpEmailSender>();
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>F1-T017: só para o handler resolver; nenhum teste aqui afirma e-mail.</summary>
+    private sealed class NoOpEmailSender : IIdentityEmailSender
+    {
+        public Task SendPasswordResetAsync(string email, string resetUrl, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

@@ -25,8 +25,10 @@ public sealed class InvitationsController(ISender sender) : BaseController
                 out var inviterId))
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um convidante autenticado."]));
 
+        // F1-T017: origem do link do convite — mesma derivação do forgot-password.
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var result = await sender.Send(
-            new CreateInvitationCommand(model.Email, model.Roles, inviterId, model.ExpiresInDays),
+            new CreateInvitationCommand(model.Email, model.Roles, inviterId, model.ExpiresInDays, baseUrl),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
