@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.4" />
+    <PackageReference Include="Otp.NET" Version="1.4.1" />
     <!-- F0-T019: fixa a versão corrigida do SQLitePCLRaw (transitivo do EF Core
          Sqlite). A 2.1.11 traz NU1903 (GHSA-2m69-gcr7-jv3q); a 2.1.13 fecha.
          Afeta apenas dev/teste — não entra no runtime da API (PostgreSQL). -->

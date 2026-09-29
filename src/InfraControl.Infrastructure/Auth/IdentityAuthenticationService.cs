@@ -2,12 +2,16 @@ using System.Security.Cryptography;
 using System.Text;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.RemoteAccess;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using OtpNet;
 
 namespace InfraControl.Infrastructure.Auth;
 
@@ -18,6 +22,8 @@ public sealed class IdentityAuthenticationService(
     ICacheService cache,
     IIdentityEmailSender emailSender,
     IGoogleIdentityTokenValidator googleTokenValidator,
+    ICredentialProtector credentialProtector,
+    IOptions<MfaOptions> mfaOptions,
     ILogger<IdentityAuthenticationService> logger) : IIdentityAuthenticationService
 {
     // ADR-018: deslizante estica a cada refresh; o teto não. Configurável
@@ -47,18 +53,34 @@ public sealed class IdentityAuthenticationService(
         return OperationResult.Success();
     }
 
-    public async Task<AuthenticationResult?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
+    public async Task<LoginOutcome> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
         var email = NormalizeEmail(request.Email);
         var identityUser = await userManager.FindByEmailAsync(email);
         if (identityUser is null || !await userManager.CheckPasswordAsync(identityUser, request.Password))
-            return null;
+            return LoginOutcome.Failed(LoginFailure.InvalidCredentials);
 
         var domainUser = await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
         if (domainUser is null || !domainUser.IsActive)
-            return null;
+            return LoginOutcome.Failed(LoginFailure.InvalidCredentials);
 
-        return await StartSessionAsync(identityUser, domainUser, cancellationToken);
+        // ADR-019: a senha é validada PRIMEIRO; só depois o MFA (se ativo)
+        // destrava a sessão. Falha de MFA nunca cria sessão.
+        var mfa = await dbContext.UserMfas.FirstOrDefaultAsync(item => item.UserId == domainUser.Id, cancellationToken);
+        if (mfa is { Enabled: true })
+        {
+            if (string.IsNullOrWhiteSpace(request.MfaCode))
+                return LoginOutcome.Failed(LoginFailure.MfaRequired);
+
+            if (!VerifyMfaCode(mfa, request.MfaCode))
+                return LoginOutcome.Failed(LoginFailure.MfaCodeInvalid);
+
+            // Persiste o consumo de recovery code (quando foi o caso) antes
+            // de criar a sessão — uso único precisa ser registrado.
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return LoginOutcome.Success(await StartSessionAsync(identityUser, domainUser, cancellationToken));
     }
 
     public async Task<AuthenticationResult?> RefreshAsync(RefreshSessionRequest request, CancellationToken cancellationToken = default)
@@ -159,6 +181,137 @@ public sealed class IdentityAuthenticationService(
 
         await RevokeAllSessionsAsync(request.UserId, cancellationToken);
         return OperationResult.Success();
+    }
+
+    // ── MFA TOTP (F1-T016a, ADR-019) ────────────────────────────────────
+
+    public async Task<MfaSetupResult> SetupMfaAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var mfa = await dbContext.UserMfas.FirstOrDefaultAsync(item => item.UserId == userId, cancellationToken);
+
+        // Reemitir secret de uma conta já habilitada sem desativar antes
+        // derrubaria a 2ª camada sem verificação.
+        if (mfa is { Enabled: true })
+            throw new InvalidOperationException("MFA já está habilitado. Desative antes de reconfigurar.");
+
+        var domainUser = await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Usuário não encontrado.");
+
+        var secret = Base32Encoding.ToString(KeyGeneration.GenerateRandomKey(20));
+        if (mfa is null)
+        {
+            mfa = UserMfa.Create(userId, credentialProtector.Protect(secret));
+            dbContext.UserMfas.Add(mfa);
+        }
+        else
+        {
+            mfa.ResetSecret(credentialProtector.Protect(secret));
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("MFA setup started for user {UserId}.", userId);
+
+        var otpauthUri = new OtpUri(OtpType.Totp, secret, domainUser.Email, "InfraControl").ToString();
+        return new MfaSetupResult(secret, otpauthUri);
+    }
+
+    public async Task<MfaConfirmResult> ConfirmMfaAsync(Guid userId, string code, CancellationToken cancellationToken = default)
+    {
+        var mfa = await dbContext.UserMfas.FirstOrDefaultAsync(item => item.UserId == userId, cancellationToken);
+        if (mfa is null || mfa.Enabled)
+            return MfaConfirmResult.Fail("MFA não está configurado para este usuário.");
+
+        if (!VerifyTotp(mfa, code))
+            return MfaConfirmResult.Fail("Código MFA inválido.");
+
+        // Entregues UMA vez; no DB fica só o hash SHA-256 de cada um.
+        var recoveryCodes = GenerateRecoveryCodes();
+        mfa.Enable(recoveryCodes.Select(item => Hash(NormalizeRecoveryCode(item))).ToArray());
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("MFA enabled for user {UserId}.", userId);
+        return MfaConfirmResult.Success(recoveryCodes);
+    }
+
+    public async Task<OperationResult> DisableMfaAsync(Guid userId, string? code, string? password, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code) && string.IsNullOrWhiteSpace(password))
+            return OperationResult.Failure("Informe o código MFA ou a senha.");
+
+        var mfa = await dbContext.UserMfas.FirstOrDefaultAsync(item => item.UserId == userId, cancellationToken);
+        if (mfa is null)
+            return OperationResult.Failure("MFA não está configurado para este usuário.");
+
+        var verified = false;
+        if (!string.IsNullOrWhiteSpace(password))
+        {
+            var identityUser = await userManager.FindByIdAsync(userId.ToString());
+            verified = identityUser is not null && await userManager.CheckPasswordAsync(identityUser, password);
+        }
+
+        if (!verified && !string.IsNullOrWhiteSpace(code))
+            verified = VerifyMfaCode(mfa, code);
+
+        if (!verified)
+            return OperationResult.Failure("Código ou senha inválidos.");
+
+        dbContext.UserMfas.Remove(mfa);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("MFA disabled for user {UserId}.", userId);
+        return OperationResult.Success();
+    }
+
+    public async Task<MfaStatusResult> GetMfaStatusAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var mfa = await dbContext.UserMfas.AsNoTracking()
+            .FirstOrDefaultAsync(item => item.UserId == userId, cancellationToken);
+        return mfa is null
+            ? new MfaStatusResult(false, false, null)
+            : new MfaStatusResult(true, mfa.Enabled, mfa.ConfirmedAt);
+    }
+
+    /// <summary>
+    /// Confere um código contra o MFA do usuário: 6 dígitos → TOTP (janela
+    /// curta, ADR-019); qualquer outro formato normalizado → recovery code de
+    /// uso único (marca UsedAt, que é persistido pelo chamador).
+    /// </summary>
+    private bool VerifyMfaCode(UserMfa mfa, string code)
+        => IsTotpCode(code) ? VerifyTotp(mfa, code) : mfa.UseRecoveryCode(Hash(NormalizeRecoveryCode(code)));
+
+    private bool VerifyTotp(UserMfa mfa, string code)
+    {
+        var secret = credentialProtector.Unprotect(mfa.SecretEncrypted);
+        var totp = new Totp(Base32Encoding.ToBytes(secret));
+        var tolerance = Math.Max(1, mfaOptions.Value.ToleranceSteps);
+        var window = new VerificationWindow(previous: tolerance, future: tolerance);
+        return totp.VerifyTotp(NormalizeMfaCode(code), out _, window);
+    }
+
+    private static bool IsTotpCode(string? code)
+    {
+        var normalized = NormalizeMfaCode(code);
+        return normalized.Length == 6 && normalized.All(char.IsDigit);
+    }
+
+    private static string NormalizeMfaCode(string? code)
+        => string.IsNullOrWhiteSpace(code) ? string.Empty : code.Replace(" ", string.Empty).Trim();
+
+    private static string NormalizeRecoveryCode(string code)
+        => code.Replace("-", string.Empty).Replace(" ", string.Empty).Trim().ToUpperInvariant();
+
+    private static string[] GenerateRecoveryCodes()
+    {
+        // Base32 (RFC 4648): 8 caracteres no formato XXXX-XXXX — mesmo
+        // alfabeto do TOTP, sem caracteres de confusão (0/O, 1/I/L).
+        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var codes = new string[10];
+        for (var i = 0; i < codes.Length; i++)
+        {
+            var chars = new char[8];
+            for (var j = 0; j < chars.Length; j++)
+                chars[j] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+            codes[i] = string.Concat(chars.AsSpan(0, 4), "-", chars.AsSpan(4, 4));
+        }
+        return codes;
     }
 
     /// <summary>

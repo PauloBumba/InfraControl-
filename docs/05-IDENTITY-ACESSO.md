@@ -88,6 +88,24 @@ O backend expõe os fluxos de Identity inspirados no Sentinel:
 | `POST /api/v1/auth/change-password` | Troca senha e revoga sessões | Autenticado |
 | `POST /api/v1/auth/google` | Valida `id_token` do Google e cria sessão para conta já ativa | Anônimo |
 | `GET /api/v1/auth/me` | Retorna usuário, nome de exibição, roles e permissões | Autenticado |
+| `GET /api/v1/auth/mfa/status` | Estado do MFA da conta (configurado/ativo/desde quando) | Autenticado |
+| `POST /api/v1/auth/mfa/setup` | Emite secret TOTP novo (pendente) + URI otpauth p/ QR | Autenticado |
+| `POST /api/v1/auth/mfa/confirm` | Valida TOTP e ativa o MFA; devolve 10 recovery codes (1× só) | Autenticado |
+| `POST /api/v1/auth/mfa/disable` | Desativa e apaga o MFA (código TOTP **ou** senha) | Autenticado |
+
+### MFA TOTP (F1-T016a, ADR-019)
+
+O `POST /api/v1/auth/login` aceita `mfaCode` opcional. Quando a conta tem MFA
+ativo, a senha é validada primeiro e só então o segundo fator é exigido: sem
+código a resposta é `401 {"errors":["Código MFA obrigatório."]}` (a UI abre o
+campo), código errado responde `Código MFA inválido.` — nenhum dos dois cria
+sessão. O secret fica cifrado com AES-256-GCM (`ICredentialProtector`, chave
+`RemoteAccess:CredentialEncryption:Key`), a tolerância é de ±1 período de 30s
+(`Mfa:ToleranceSteps`) e os 10 recovery codes (formato `XXXX-XXXX`) são
+guardados apenas como hash SHA-256 de uso único. Os 4 endpoints de MFA são
+auto-serviço: qualquer role autenticada mexe na própria conta (`[Authorize]`
+sem exigir Operate/Administer — um Viewer também precisa proteger o próprio
+acesso).
 
 A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
 

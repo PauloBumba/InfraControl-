@@ -1,17 +1,21 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
 using System.Text.Json;
 using FluentAssertions;
 using InfraControl.Api.Controllers.Identity;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Authentication;
+using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.RemoteAccess;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace InfraControl.UnitTests.Identity;
@@ -338,6 +342,10 @@ public sealed class GoogleExternalLoginTests
         services.AddScoped<ICacheService, NoOpCacheService>();
         services.AddScoped<IIdentityEmailSender, NoOpEmailSender>();
         services.AddSingleton(validator);
+        // F1-T016a: o serviço de login passou a depender do protector (MFA).
+        services.Configure<CredentialEncryptionOptions>(options =>
+            options.Key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         return services.BuildServiceProvider();
     }

@@ -95,6 +95,10 @@ public static class DependencyInjection
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
         services.AddScoped<IGoogleIdentityTokenValidator, GoogleIdentityTokenValidator>();
 
+        // F1-T016a (ADR-019): tolerância do TOTP é política de configuração,
+        // não de código — padrão ±1 período de 30s.
+        services.Configure<MfaOptions>(configuration.GetSection(MfaOptions.SectionName));
+
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
 

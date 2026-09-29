@@ -1,7 +1,7 @@
 namespace InfraControl.Application.Identity.Authentication;
 
 public sealed record RegisterUserRequest(string Email, string DisplayName, string Password);
-public sealed record LoginRequest(string Email, string Password);
+public sealed record LoginRequest(string Email, string Password, string? MfaCode = null);
 public sealed record RefreshSessionRequest(string RefreshToken);
 public sealed record ForgotPasswordRequest(string Email, string? BaseUrl = null);
 public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
@@ -82,15 +82,67 @@ public sealed record OperationResult(bool Succeeded, IReadOnlyCollection<string>
     public static OperationResult Failure(params string[] errors) => new(false, errors);
 }
 
+/// <summary>
+/// Motivo da recusa do login por senha (F1-T016a, ADR-019). Senha errada e
+/// conta inativa continuam <see cref="InvalidCredentials"/> (anti-enumeração,
+/// mensagem única "Credenciais inválidas."); os outros dois motivos só
+/// existem DEPOIS da senha validada e permitem que a UI mostre o campo de MFA.
+/// </summary>
+public enum LoginFailure
+{
+    InvalidCredentials,
+    MfaRequired,
+    MfaCodeInvalid
+}
+
+/// <summary>
+/// Resultado do login por senha: sessão criada OU o motivo da recusa. Substitui
+/// o antigo null mudo — o MFA exige mensagem própria na UI.
+/// </summary>
+public sealed record LoginOutcome(AuthenticationResult? Authentication, LoginFailure? Failure)
+{
+    public static LoginOutcome Success(AuthenticationResult authentication) => new(authentication, null);
+
+    public static LoginOutcome Failed(LoginFailure failure) => new(null, failure);
+}
+
+/// <summary>Setup de MFA (F1-T016a): secret em Base32 p/ QR + URI otpauth.</summary>
+public sealed record MfaSetupResult(string Secret, string OtpauthUri);
+
+/// <summary>Confirm de MFA: em caso de sucesso entrega os 10 recovery codes (uma única vez).</summary>
+public sealed record MfaConfirmResult(
+    bool Succeeded,
+    IReadOnlyCollection<string> RecoveryCodes,
+    IReadOnlyCollection<string> Errors)
+{
+    public static MfaConfirmResult Success(IReadOnlyCollection<string> recoveryCodes) => new(true, recoveryCodes, []);
+
+    public static MfaConfirmResult Fail(params string[] errors) => new(false, [], errors);
+}
+
+/// <summary>Status do MFA da conta autenticada (auto-serviço).</summary>
+public sealed record MfaStatusResult(bool Configured, bool Enabled, DateTime? ConfirmedAt);
+
 public interface IIdentityAuthenticationService
 {
     Task<OperationResult> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default);
-    Task<AuthenticationResult?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+    Task<LoginOutcome> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
     Task<AuthenticationResult?> RefreshAsync(RefreshSessionRequest request, CancellationToken cancellationToken = default);
     Task LogoutAsync(Guid userId, string? refreshToken, CancellationToken cancellationToken = default);
     Task<PasswordResetRequestResult> RequestPasswordResetAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
     Task<OperationResult> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
     Task<OperationResult> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MFA TOTP (F1-T016a, ADR-019) — auto-serviço da conta autenticada.
+    /// Setup emite secret novo (pendente, enabled=false); Confirm só liga o
+    /// MFA com TOTP válido e devolve os 10 recovery codes uma vez; Disable
+    /// exige código TOTP OU senha e apaga a linha; Status é leitura pura.
+    /// </summary>
+    Task<MfaSetupResult> SetupMfaAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<MfaConfirmResult> ConfirmMfaAsync(Guid userId, string code, CancellationToken cancellationToken = default);
+    Task<OperationResult> DisableMfaAsync(Guid userId, string? code, string? password, CancellationToken cancellationToken = default);
+    Task<MfaStatusResult> GetMfaStatusAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Login social (F1-T014). A credencial recebida do browser é validada

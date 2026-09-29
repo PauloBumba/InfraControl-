@@ -33,11 +33,24 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
     {
-        var result = await authenticationService.LoginAsync(new LoginRequest(model.Email, model.Password), cancellationToken);
-        if (result is null) return Unauthorized(ApiResponse<object>.Fail(["Credenciais inválidas."]));
-        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.User));
-        return Ok(ApiResponse.Ok(result));
+        var outcome = await authenticationService.LoginAsync(
+            new LoginRequest(model.Email, model.Password, model.MfaCode), cancellationToken);
+
+        if (outcome.Authentication is null)
+            return Unauthorized(ApiResponse<object>.Fail([LoginFailureMessage(outcome.Failure)]));
+
+        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(outcome.Authentication.User));
+        return Ok(ApiResponse.Ok(outcome.Authentication));
     }
+
+    // F1-T016a (ADR-019): os motivos de MFA só existem depois da senha
+    // validada — a mensagem guia a UI ao campo do segundo fator.
+    private static string LoginFailureMessage(LoginFailure? failure) => failure switch
+    {
+        LoginFailure.MfaRequired => "Código MFA obrigatório.",
+        LoginFailure.MfaCodeInvalid => "Código MFA inválido.",
+        _ => "Credenciais inválidas."
+    };
 
     [AllowAnonymous]
     [HttpRateLimit(RateLimitCategory.Login)]

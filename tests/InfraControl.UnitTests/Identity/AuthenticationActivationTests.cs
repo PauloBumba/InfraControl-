@@ -1,12 +1,16 @@
+using System.Security.Cryptography;
 using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Authentication;
+using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.RemoteAccess;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace InfraControl.UnitTests.Identity;
 
@@ -53,7 +57,8 @@ public sealed class AuthenticationActivationTests
         var login = await service.LoginAsync(
             new LoginRequest("inactive-login@example.com", StrongPassword));
 
-        login.Should().BeNull("an inactive account must not be able to log in");
+        login.Authentication.Should().BeNull("an inactive account must not be able to log in");
+        login.Failure.Should().Be(LoginFailure.InvalidCredentials);
     }
 
     [Fact]
@@ -73,7 +78,8 @@ public sealed class AuthenticationActivationTests
         var login = await service.LoginAsync(
             new LoginRequest("active-login@example.com", StrongPassword));
 
-        login.Should().NotBeNull();
+        login.Failure.Should().BeNull();
+        login.Authentication.Should().NotBeNull();
     }
 
     [Fact]
@@ -198,7 +204,7 @@ public sealed class AuthenticationActivationTests
 
         var login = await service.LoginAsync(
             new LoginRequest("valid-reset@example.com", "NewPass!123456"));
-        login.Should().NotBeNull();
+        login.Authentication.Should().NotBeNull();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -233,6 +239,10 @@ public sealed class AuthenticationActivationTests
         services.AddScoped<ICacheService, FakeCacheService>();
         services.AddScoped<IIdentityEmailSender, FakeEmailSender>();
         services.AddScoped<IGoogleIdentityTokenValidator, NotConfiguredGoogleValidator>();
+        // F1-T016a: o serviço de login passou a depender do protector (MFA).
+        services.Configure<CredentialEncryptionOptions>(options =>
+            options.Key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         return services.BuildServiceProvider();
     }
