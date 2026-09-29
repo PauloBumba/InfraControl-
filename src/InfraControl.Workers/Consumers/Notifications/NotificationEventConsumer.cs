@@ -230,6 +230,13 @@ public sealed class NotificationEventConsumer(
                     "Canal Telegram em Notifications:Channels:Default sem ChatId configurado — deliveries não enfileiradas.");
                 return false;
 
+            case NotificationChannel.WhatsApp:
+                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.Phone))
+                    return true;
+                logger.LogWarning(
+                    "Canal WhatsApp em Notifications:Channels:Default sem Phone configurado — deliveries não enfileiradas.");
+                return false;
+
             default:
                 logger.LogWarning(
                     "Canal {Channel} em Notifications:Channels:Default ainda não tem worker — deliveries não enfileiradas.",

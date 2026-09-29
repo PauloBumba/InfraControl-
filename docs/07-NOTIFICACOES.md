@@ -132,7 +132,8 @@ e nos Workers, mesma seção nos dois hosts):
 "Notifications": {
   "Channels": {
     "Default": [ "Email", "SignalR" ],
-    "Telegram": { "ChatId": "" }
+    "Telegram": { "ChatId": "" },
+    "WhatsApp": { "Phone": "" }
   }
 }
 ```
@@ -146,7 +147,7 @@ e nos Workers, mesma seção nos dois hosts):
   enfileira Email — a notificação não morre por configuração incompleta.
 - A preferência por usuário (F9-T003) continua filtrando cada canal depois
   do fanout — desligada = sem delivery.
-- Canais ainda sem worker (WhatsApp F9-T007, Webhook F9-T008, Slack F9-T010)
+- Canais ainda sem worker (Webhook F9-T008, Slack F9-T010)
   não são enviáveis até as tasks deles.
 
 ## Canal Telegram (F9-T006)
@@ -162,6 +163,20 @@ bot token troca a implementação sem tocar em Application (credencial real =
 pendência, junto do SMTP do docs/05). ChatId esvaziado entre enfileirar e
 despachar vira `Failed` com erro pt-BR apontando a seção
 (`Notifications:Channels:Telegram:ChatId`).
+
+## Canal WhatsApp (F9-T007)
+
+Espelho do Telegram (F9-T006): o consumer enfileira `NotificationDelivery`
+(WhatsApp) por usuário final quando o canal está em `Default` **e**
+`WhatsApp:Phone` está preenchido (sem Phone = Warning, sem delivery). O
+`NotificationWhatsAppWorker` (mesmo loop base, 2s) despacha via porta
+`IWhatsAppNotificationDispatcher` (`Phone` global + `Title`/`Message`) e
+marca `Sent`/`Failed`. O adaptador é `LoggingWhatsAppNotificationDispatcher`
+(Infrastructure) — nenhuma chamada real à API; um adaptador com credencial
+(Cloud API/Business) troca a implementação sem tocar em Application
+(credencial real = pendência, junto do SMTP e do bot token do Telegram).
+Phone esvaziado entre enfileirar e despachar vira `Failed` com erro pt-BR
+apontando a seção (`Notifications:Channels:WhatsApp:Phone`).
 
 ## Delivery
 

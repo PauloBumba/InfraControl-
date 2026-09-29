@@ -380,4 +380,110 @@ public sealed class NotificationEventConsumerTests : IDisposable
         (await context.NotificationDeliveries.AsNoTracking()
             .CountAsync(d => d.Channel == NotificationChannel.Telegram)).Should().Be(0);
     }
+
+    /// <summary>WhatsApp na lista Default com Phone = delivery WhatsApp enfileirada (F9-T007).</summary>
+    [Fact]
+    public async Task Consume_WithWhatsAppInDefault_ShouldQueueWhatsAppDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { Phone = "+5511888887777" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "whatsapp@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        var delivery = await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.WhatsApp);
+        delivery.UserId.Should().Be(userId);
+        delivery.Status.Should().Be(DeliveryStatus.Pending);
+    }
+
+    /// <summary>Preferência WhatsApp desligada = sem delivery (regra F9-T003).</summary>
+    [Fact]
+    public async Task Consume_WithWhatsAppPreferenceDisabled_ShouldNotQueueWhatsAppDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { Phone = "+5511888887777" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        context.DomainUsers.Add(User.Create(userId, "whatsapp-off@exemplo.test", "Desligado"));
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.WhatsApp, enabled: false));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
+    }
+
+    /// <summary>WhatsApp na lista mas SEM destino = pula (Warning) e os canais seguem.</summary>
+    [Fact]
+    public async Task Consume_WithWhatsAppUnconfigured_ShouldSkipWhatsAppAndQueueDefaults()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { Phone = "" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "sem-whatsapp@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+    }
+
+    /// <summary>
+    /// Fallback de e-mail genérico (F9-T006, vale para qualquer canal):
+    /// Default = só WhatsApp sem Phone → enfileira Email.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithOnlyUnconfiguredWhatsApp_ShouldFallbackToEmail()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { Phone = "  " },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "fallback-whatsapp@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
+    }
 }

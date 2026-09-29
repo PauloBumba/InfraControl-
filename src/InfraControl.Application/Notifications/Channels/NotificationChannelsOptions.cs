@@ -18,10 +18,18 @@ public sealed class NotificationChannelsOptions
     public List<string> Default { get; set; } = ["Email", "SignalR"];
 
     public TelegramChannelOptions Telegram { get; set; } = new();
+
+    public WhatsAppChannelOptions WhatsApp { get; set; } = new();
 }
 
 /// <summary>Destino global do canal Telegram (chat id do bot).</summary>
 public sealed class TelegramChannelOptions
 {
     public string ChatId { get; set; } = string.Empty;
+}
+
+/// <summary>Destino global do canal WhatsApp (número que recebe as mensagens).</summary>
+public sealed class WhatsAppChannelOptions
+{
+    public string Phone { get; set; } = string.Empty;
 }
