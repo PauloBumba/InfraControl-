@@ -110,6 +110,9 @@ auto-serviço: qualquer role autenticada mexe na própria conta (`[Authorize]`
 sem exigir Operate/Administer — um Viewer também precisa proteger o próprio
 acesso).
 
+Ligar e desligar o MFA gravam evento no audit existente (`MfaEnabled` e
+`MfaDisabled`, resource `Mfa` — F1-T016c).
+
 A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
 
 ### Sessões (F1-T016b, ADR-020)
@@ -130,6 +133,14 @@ na hora, sem esperar o `CheckInterval`; por isso `logout`,
 `change-password`/`reset-password` e os próprios endpoints também gravam o
 check. Com o Redis fora, o fallback local mantém a janela de 30s (logado) —
 degradação, não falha.
+
+Toda revogação também vira evento no audit (`SessionRevoked` para uma sessão,
+`SessionsRevoked` para "sair de todos os outros" e para troca/reset de senha,
+`Logout` para o logout), além do `LoginWithMfa` do login que passou pelo 2º
+fator (F1-T016c). Os eventos são gravados pelos serviços de identidade fora do
+pipeline MediatR — `IAuditWriter` no mesmo `SaveChanges` da operação — só em
+sucesso e só com metadados (action, resource, outcome, actor = e-mail do dono,
+correlation = TraceId); nenhum código, senha ou secret entra na linha.
 
 Prazos e política ficam em `Session` no appsettings: `SlidingLifetime`,
 `AbsoluteLifetime`, `CheckInterval` e `RoleAbsoluteLifetimes` (cap por role

@@ -19,7 +19,8 @@ namespace InfraControl.Infrastructure.Auth;
 public sealed class SessionService(
     AppDbContext dbContext,
     ICacheService cache,
-    IOptions<SessionLifetimeOptions> options) : ISessionService
+    IOptions<SessionLifetimeOptions> options,
+    IAuditWriter auditWriter) : ISessionService
 {
     public async Task<IReadOnlyList<UserSessionItem>> ListAsync(
         Guid userId, Guid? currentSessionId, CancellationToken cancellationToken = default)
@@ -51,6 +52,8 @@ public sealed class SessionService(
             return OperationResult.Failure("Sessão não encontrada.");
 
         session.Revoke();
+        // F1-T016c: revogação é evento de segurança — audit na mesma transação.
+        await SecurityAudit.WriteAsync(auditWriter, dbContext, "SessionRevoked", "Session", userId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidateAsync([session.Id], cancellationToken);
         return OperationResult.Success();
@@ -70,6 +73,8 @@ public sealed class SessionService(
             .ToListAsync(cancellationToken);
 
         foreach (var session in sessions) session.Revoke();
+        // F1-T016c: revogação em massa é evento de segurança — audit na mesma transação.
+        await SecurityAudit.WriteAsync(auditWriter, dbContext, "SessionsRevoked", "Session", userId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidateAsync(sessions.Select(session => session.Id), cancellationToken);
         return OperationResult.Success();

@@ -192,6 +192,9 @@ public sealed class MfaLoginTests
         services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
         // F1-T016b: os prazos de sessão agora vêm das options (antes: constantes).
         services.AddOptions<SessionLifetimeOptions>();
+        // F1-T016c: os serviços de identidade gravam audit direto (fora do
+        // pipeline MediatR) — a porta precisa estar no harness.
+        services.AddScoped<IAuditWriter, InfraControl.Infrastructure.Repositories.AuditWriter>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         return services.BuildServiceProvider();
     }

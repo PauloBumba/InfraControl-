@@ -268,6 +268,9 @@ public sealed class SessionManagementTests
         else
             services.Configure(configureSession);
 
+        // F1-T016c: os serviços de identidade gravam audit direto (fora do
+        // pipeline MediatR) — a porta precisa estar no harness.
+        services.AddScoped<IAuditWriter, InfraControl.Infrastructure.Repositories.AuditWriter>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         services.AddScoped<ISessionService, SessionService>();
         return services.BuildServiceProvider();

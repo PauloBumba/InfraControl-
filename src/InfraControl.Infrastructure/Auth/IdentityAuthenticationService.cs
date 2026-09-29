@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using InfraControl.Application.Identity.Authentication;
@@ -26,6 +27,7 @@ public sealed class IdentityAuthenticationService(
     ICredentialProtector credentialProtector,
     IOptions<MfaOptions> mfaOptions,
     IOptions<SessionLifetimeOptions> sessionOptions,
+    IAuditWriter auditWriter,
     ILogger<IdentityAuthenticationService> logger) : IIdentityAuthenticationService
 {
     // ADR-018/ADR-020: os prazos vêm da configuração (antes: constantes
@@ -94,6 +96,12 @@ public sealed class IdentityAuthenticationService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        // F1-T016c: só o login que passou pelo 2º fator vira evento; a linha
+        // entra na mesma transação da sessão (StartSessionAsync salva em seguida).
+        if (mfa is { Enabled: true })
+            await SecurityAudit.WriteAsync(
+                auditWriter, "LoginWithMfa", "Session", identityUser.UserName, cancellationToken);
+
         return LoginOutcome.Success(await StartSessionAsync(identityUser, domainUser, cancellationToken));
     }
 
@@ -121,6 +129,8 @@ public sealed class IdentityAuthenticationService(
             .Where(session => session.UserId == userId && (refreshToken == null || session.RefreshTokenHash == Hash(refreshToken)))
             .ToListAsync(cancellationToken);
         foreach (var session in sessions) session.Revoke();
+        // F1-T016c: logout derruba sessões — audit antes do SaveChanges (mesma transação).
+        await SecurityAudit.WriteAsync(auditWriter, dbContext, "Logout", "Session", userId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         // ADR-020: revogar é duas escritas — banco e cache compartilhado.
@@ -244,6 +254,8 @@ public sealed class IdentityAuthenticationService(
         // Entregues UMA vez; no DB fica só o hash SHA-256 de cada um.
         var recoveryCodes = GenerateRecoveryCodes();
         mfa.Enable(recoveryCodes.Select(item => Hash(NormalizeRecoveryCode(item))).ToArray());
+        // F1-T016c: MFA ativado é evento de segurança — audit na mesma transação.
+        await SecurityAudit.WriteAsync(auditWriter, dbContext, "MfaEnabled", "Mfa", userId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("MFA enabled for user {UserId}.", userId);
         return MfaConfirmResult.Success(recoveryCodes);
@@ -272,6 +284,8 @@ public sealed class IdentityAuthenticationService(
             return OperationResult.Failure("Código ou senha inválidos.");
 
         dbContext.UserMfas.Remove(mfa);
+        // F1-T016c: MFA desativado é evento de segurança — audit na mesma transação.
+        await SecurityAudit.WriteAsync(auditWriter, dbContext, "MfaDisabled", "Mfa", userId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("MFA disabled for user {UserId}.", userId);
         return OperationResult.Success();
@@ -388,6 +402,8 @@ public sealed class IdentityAuthenticationService(
     {
         var sessions = await dbContext.UserSessions.Where(session => session.UserId == userId && session.RevokedAt == null).ToListAsync(cancellationToken);
         foreach (var session in sessions) session.Revoke();
+        // F1-T016c: troca/reset de senha derruba as sessões — audit do evento.
+        await SecurityAudit.WriteAsync(auditWriter, dbContext, "SessionsRevoked", "Session", userId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         // ADR-020: trocar/resetar a senha derruba os cookies das outras
