@@ -153,6 +153,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             SloMeasurementRepository>();
         services.AddScoped<InfraControl.Application.Sla.Slos.Budgets.Ports.ISloBudgetRepository,
             SloBudgetRepository>();
+        services.AddScoped<InfraControl.Application.Notifications.Recipients.Ports.INotificationRecipientRepository,
+            NotificationRecipientRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();
