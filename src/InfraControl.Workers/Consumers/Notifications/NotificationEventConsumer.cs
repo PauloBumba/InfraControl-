@@ -2,6 +2,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Events;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.Repositories;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -163,5 +164,40 @@ public sealed class NotificationEventConsumer(
         logger.LogInformation(
             "Notificação {NotificationId} criada a partir de {EventType}/{EventId}: {Title}.",
             notification.Id, eventType, eventId, title);
+
+        await CreateSignalRDeliveriesAsync(notification, cancellationToken);
+    }
+
+    /// <summary>
+    /// F9-T004: enfileira a entrega no canal SignalR para cada usuário
+    /// final (roles resolvidas + dedup). Preferência desligada = sem
+    /// delivery (default: habilitado). Canais futuros (F9-T005+) enfileiram
+    /// os seus.
+    /// </summary>
+    private async Task CreateSignalRDeliveriesAsync(
+        Notification notification, CancellationToken cancellationToken)
+    {
+        var userIds = await new NotificationRecipientRepository(dbContext)
+            .ResolveUserIdsAsync(notification.Id, cancellationToken);
+
+        var added = false;
+        foreach (var userId in userIds)
+        {
+            var disabled = await dbContext.NotificationPreferences.AnyAsync(
+                p => p.UserId == userId
+                    && p.Channel == Domain.Enums.NotificationChannel.SignalR
+                    && !p.Enabled,
+                cancellationToken);
+
+            if (disabled)
+                continue;
+
+            dbContext.NotificationDeliveries.Add(NotificationDelivery.Create(
+                notification.Id, userId, Domain.Enums.NotificationChannel.SignalR));
+            added = true;
+        }
+
+        if (added)
+            await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

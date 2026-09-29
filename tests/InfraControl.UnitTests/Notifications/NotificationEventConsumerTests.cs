@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -38,11 +39,19 @@ public sealed class NotificationEventConsumerTests : IDisposable
         return (context, consumer);
     }
 
+    /// <summary>Delivery tem FK p/ DomainUsers — o fluxo real sempre tem o usuário.</summary>
+    private static async Task SeedUserAsync(AppDbContext context, Guid userId, string email)
+    {
+        context.DomainUsers.Add(User.Create(userId, email, "Usuário"));
+        await context.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task Consume_UserCreated_ShouldCreateNotificationWithUserRecipient()
     {
         var (context, consumer) = await CreateAsync();
         var domainEvent = new UserCreatedDomainEvent(Guid.NewGuid(), "user@example.com");
+        await SeedUserAsync(context, domainEvent.UserId, domainEvent.Email);
 
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
@@ -68,6 +77,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
     {
         var (context, consumer) = await CreateAsync();
         var domainEvent = new UserDisabledDomainEvent(Guid.NewGuid());
+        await SeedUserAsync(context, domainEvent.UserId, "desativado@exemplo.test");
 
         var handle = () => consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
@@ -105,6 +115,45 @@ public sealed class NotificationEventConsumerTests : IDisposable
         var recipient = await context.NotificationRecipients.AsNoTracking().SingleAsync();
         recipient.Role.Should().Be("Viewer");
         recipient.UserId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Consume_UserCreated_ShouldQueueSignalRDelivery()
+    {
+        var (context, consumer) = await CreateAsync();
+        var domainEvent = new UserCreatedDomainEvent(Guid.NewGuid(), "fila@exemplo.test");
+        await SeedUserAsync(context, domainEvent.UserId, domainEvent.Email);
+
+        await consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Usuário criado", $"O usuário {domainEvent.Email} foi criado.",
+            recipientUserId: domainEvent.UserId, recipientRole: null,
+            CancellationToken.None);
+
+        var delivery = await context.NotificationDeliveries.AsNoTracking().SingleAsync();
+        delivery.UserId.Should().Be(domainEvent.UserId);
+        delivery.Channel.Should().Be(NotificationChannel.SignalR);
+        delivery.Status.Should().Be(DeliveryStatus.Pending);
+    }
+
+    [Fact]
+    public async Task Consume_WithSignalRPreferenceDisabled_ShouldNotQueueDelivery()
+    {
+        var (context, consumer) = await CreateAsync();
+        var userId = Guid.NewGuid();
+        context.DomainUsers.Add(User.Create(userId, "desligado@exemplo.test", "Desligado"));
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.SignalR, enabled: false));
+        await context.SaveChangesAsync();
+
+        var domainEvent = new UserCreatedDomainEvent(userId, "desligado@exemplo.test");
+        await consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Usuário criado", "Mensagem.",
+            recipientUserId: domainEvent.UserId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking().CountAsync()).Should().Be(0);
     }
 
     [Fact]

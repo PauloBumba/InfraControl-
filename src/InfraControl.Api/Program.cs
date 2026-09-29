@@ -6,10 +6,14 @@ using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
+using InfraControl.Api.Hubs;
 using InfraControl.Api.Services;
+using InfraControl.Api.Workers;
+using InfraControl.Application.Notifications.SignalR;
 using InfraControl.BuildingBlocks.Application;
 using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -56,6 +60,12 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
         return new BadRequestObjectResult(ApiResponse<object>.Fail(errors));
     };
 });
+// ── Notificações (F9-T004: canal SignalR) ────────────────────────────────
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, SignalRUserIdProvider>();
+builder.Services.AddSingleton<ISignalRNotificationDispatcher, SignalRNotificationDispatcher>();
+builder.Services.AddHostedService<NotificationSignalRWorker>();
+
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
@@ -186,5 +196,8 @@ app.MapHealthChecks("/health/startup", new HealthCheckOptions
 });
 
 app.MapControllers();
+
+// Hub de notificações em tempo real (F9-T004).
+app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();

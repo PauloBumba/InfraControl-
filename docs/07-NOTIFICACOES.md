@@ -84,6 +84,27 @@ Decisão F9-T003: escrita em nível Operar (a ADR-016 não separa
 "próprio vs alheio"; preferência alheia é gestão de notificação). A
 entrega (F9-T004+) deve consultar `enabled` por canal antes de enviar.
 
+## Canal SignalR (F9-T004)
+
+`GET /hubs/notifications` (SignalR, `[Authorize]`): o usuário conecta e o
+`SignalRUserIdProvider` usa a claim `ClaimTypes.NameIdentifier` do login —
+`OnConnectedAsync` entra no grupo `user:{userId}`.
+
+- **Enfileira**: o `NotificationEventConsumer`, após notification +
+  destinatários, resolve os usuários finais (dedup) e cria uma
+  `NotificationDelivery` (`Pending`, canal SignalR) por usuário —
+  **preferência desligada = sem delivery** (default habilitado). Canais
+  dos F9-T005+ enfileiram os seus.
+- **Envia**: `NotificationSignalRWorker` (BackgroundService no Api, 2s)
+  lê `Pending` (limite 50), envia via porta `ISignalRNotificationDispatcher`
+  (evento `notification` com deliveryId/notificationId/title/message/createdAt)
+  e marca `Sent` (+`sent_at`) ou `Failed` (`last_error` ≤500 pt-BR).
+  Retry/backoff/DLQ = F9-T009.
+
+Tabela `notification_deliveries`: `notification_id`/`user_id` FKs
+`Cascade`, `channel`/`status` (strings), `sent_at`, `last_error`;
+índice `(channel, status)` — a fila por canal.
+
 ## Delivery
 
 Estados:

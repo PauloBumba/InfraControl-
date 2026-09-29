@@ -157,6 +157,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             NotificationRecipientRepository>();
         services.AddScoped<InfraControl.Application.Notifications.Preferences.Ports.INotificationPreferenceRepository,
             NotificationPreferenceRepository>();
+        services.AddScoped<InfraControl.Application.Notifications.Deliveries.Ports.INotificationDeliveryRepository,
+            NotificationDeliveryRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();
