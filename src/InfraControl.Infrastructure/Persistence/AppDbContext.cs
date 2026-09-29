@@ -60,6 +60,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationRecipient> NotificationRecipients => Set<NotificationRecipient>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<RemoteSession> RemoteSessions => Set<RemoteSession>();
     public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();

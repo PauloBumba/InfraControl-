@@ -65,6 +65,25 @@ entrega nos canais, F9-T004+).
 Autorização (ADR-016): leitura em `RoleAccess.Read` (qualquer role
 canônica) no pipeline MediatR e `[Authorize]` na rota.
 
+## Preferências (F9-T003)
+
+Tabela `notification_preferences`: `user_id` (FK `Cascade` →
+`DomainUsers` — a preferência morre com o usuário), `channel` (enum
+`NotificationChannel`: SignalR, Email, Telegram, WhatsApp, Webhook) e
+`enabled`; índice único `(user_id, channel)` — uma por combinação.
+
+- `GET api/v1/notifications/preferences?userId=` (`RoleAccess.Read`) —
+  404 se o usuário não existe.
+- `PUT api/v1/notifications/preferences` (`RoleAccess.Operate`) —
+  **upsert** por (usuário, canal): cria ou atualiza `enabled`; 404
+  usuário, 400 canal inválido.
+- `DELETE .../preferences?userId=&channel=` (`RoleAccess.Operate`) — 404
+  se não existe.
+
+Decisão F9-T003: escrita em nível Operar (a ADR-016 não separa
+"próprio vs alheio"; preferência alheia é gestão de notificação). A
+entrega (F9-T004+) deve consultar `enabled` por canal antes de enviar.
+
 ## Delivery
 
 Estados:

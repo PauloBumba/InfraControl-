@@ -1,4 +1,7 @@
 using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Notifications;
+using InfraControl.Application.Notifications.Preferences.Commands;
+using InfraControl.Application.Notifications.Preferences.Queries;
 using InfraControl.Application.Notifications.Recipients.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -35,4 +38,34 @@ public sealed class NotificationsController(IMediator sender) : BaseController
         Guid notificationId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new ResolveNotificationUsersQuery(notificationId), cancellationToken)));
+
+    // F9-T003: preferências de notificação por usuário/canal.
+
+    [HttpGet("preferences")]
+    public async Task<IActionResult> SearchPreferences(
+        [FromQuery] Guid userId,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchNotificationPreferencesQuery(userId), cancellationToken)));
+
+    /// <summary>Upsert: cria ou atualiza a preferência (usuário, canal).</summary>
+    [HttpPut("preferences")]
+    public async Task<IActionResult> SetPreference(
+        [FromBody] SetNotificationPreferenceViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SetNotificationPreferenceCommand(
+                model.UserId, model.Channel, model.Enabled),
+            cancellationToken)));
+
+    [HttpDelete("preferences")]
+    public async Task<IActionResult> DeletePreference(
+        [FromQuery] Guid userId,
+        [FromQuery] Domain.Enums.NotificationChannel channel,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new DeleteNotificationPreferenceCommand(userId, channel), cancellationToken);
+        return NoContent();
+    }
 }
