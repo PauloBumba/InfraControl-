@@ -94,7 +94,7 @@ os 46 literais de role. Use-se `AuthorizationPolicies.Operate` /
 - **Role customizada futura** precisa ser encaixada em um nível (seção
   Extensibilidade) ou exigiria um 4º nível.
 
-###-security
+### Segurança
 - Toda `IAuthoredRequest` passa a exigir usuário **autenticado** mesmo sem
   `RequiredRoles` declarado, e a mensagem de 401 passou a ser determinística
   (`Roles ausentes: …`, ordenado ordinalmente) para poder ser testada.
@@ -117,7 +117,7 @@ baseado em claim `permission` não existem mais.
    `AuthorizationPolicies.Operate` e `.Administer` registradas em `Program.cs`.
 3. **Application** — 126 `RequiredPermissions` convertidos para `RoleAccess`
    conforme a tabela de equivalência abaixo.
-4. **Controllers** — 126 `[Authorize]` convertidos (52 leitura, 74 `Operate`,
+4. **Controllers** — 126 `[Authorize]` convertidos (52 leitura, 64 `Operate`,
    10 `Administer`).
 5. **Frontend** — labels e mocks `User` → `Operator`; a tela de matriz de
    permissões sai (não existe mais o conceito).
@@ -148,14 +148,18 @@ valor gravado precisa mudar, ou um `Operator` novo receberia o acesso de `User`:
 |----------------------|--------|---------|
 | `DomainUserRoles`    | `Role` | `'User'` → `'Operator'` |
 | `AspNetRoles`        | `Name` | `'User'` → `'Operator'` (mesmo `Id`, portanto `AspNetUserRoles.RoleId` não muda) |
+| `AspNetRoles`        | `NormalizedName` | `'USER'` → `'OPERATOR'` — é a coluna que o `RoleManager` consulta; sem ela o rename criaria uma role `Operator` duplicada e órfã |
 | `AspNetUserRoles`    | `RoleId` | sem mudança — resolve para a role renomeada |
 
 Além disso:
 
-- **Sessões antigas revogadas**: o cookie de autenticação carrega a claim
-  `ClaimTypes.Role` com o valor antigo; sem revogação/reemissão, um cookie
-  emitido antes da migração continuaria com `User` e passaria só em `Operate`,
-  nunca em `Administer` — falha silenciosa de autorização.
+- **Sessões de refresh revogadas e stamp rotacionado**: `UserSessions` é
+  esvaziada e o `SecurityStamp` muda. O cookie em si é **auto-contido**
+  (`AddCookie` com `ClaimsPrincipal` próprio, 14 dias) e não consulta o stamp,
+  então ele não é invalidado no instante — um cookie emitido antes carrega
+  `User`, que deixou de ser role válida, e é **negado** em `Operate` e
+  `Administer` até o usuário entrar de novo. Fail-closed: o efeito é exigir
+  novo login, nunca abrir acesso.
 - Idempotente: rodar duas vezes não faz nada na segunda.
 
 ## Extensibilidade
@@ -177,6 +181,14 @@ Para uma role customizada no futuro:
 - [x] Testes dos 3 níveis (HTTP e MediatR) e teste de arquitetura anti-literal
 - [x] Migração de dados idempotente + revogação de sessões
 - [x] `User` → `Operator` em código, dados, frontend e documentação
+- [x] A matrix 3×3 da 2ª camada (quem lê/opera/administra) tem teste positivo —
+      sem ele, uma regressão para AND passaria verde e negaria a leitura
+
+**Evidência**: `AuthorizationPolicyTests` (9), `AuthorizationBehaviorTests`
+(12), `RoleAuthorizationStandardizationTests` (arquitetura), 23 casos de
+integração ajustados para `Roles ausentes: …`, `RenameUserRoleToOperatorMigrationTests`
+(3, executando o SQL da própria migration). Reposição: 1080 unit, 73 arquitetura,
+123/123 integração; `npm run build` + `tsc -b` do frontend.
 
 ## Referências
 
@@ -185,3 +197,4 @@ Para uma role customizada no futuro:
 - `src/InfraControl.Api/Authorization/AuthorizationPolicies.cs` — policies HTTP
 - `src/InfraControl.Application/Common/Behaviors/AuthorizationBehavior.cs` — 2ª camada
 - `src/InfraControl.Domain/Enums/UserRole.cs` — `Viewer`, `Operator`, `Admin`
+- `src/InfraControl.Infrastructure/Persistence/Migrations/20260929010000_RenameUserRoleToOperator.cs` — dados

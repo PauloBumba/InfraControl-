@@ -13,9 +13,12 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
     ///
     /// O que muda:
     /// - "DomainUserRoles"."Role": 'User' → 'Operator' (papel do domínio);
-    /// - "AspNetRoles"."Name": 'User' → 'Operator' (papel do Identity). O
-    ///   "AspNetUserRoles"."RoleId" continua apontando para o mesmo Id, então
-    ///   as atribuições não precisam ser tocadas;
+    /// - "AspNetRoles"."Name": 'User' → 'Operator' (papel do Identity) e
+    ///   "AspNetRoles"."NormalizedName": 'USER' → 'OPERATOR' — a coluna que o
+    ///   RoleManager realmente consulta (FindByNameAsync → NormalizedName). Se
+    ///   ela ficasse 'USER', o RoleManager não acharia 'Operator' e criaria uma
+    ///   role duplicada e órfã. O "AspNetUserRoles"."RoleId" continua apontando
+    ///   para o mesmo Id, então as atribuições não precisam ser tocadas;
     /// - "UserSessions" é esvaziada e o "SecurityStamp" é rotacionado, porque
     ///   o cookie de autenticação é auto-contido (AddCookie com
     ///   ClaimsPrincipal próprio) e carrega a claim de role antiga.
@@ -41,7 +44,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             migrationBuilder.Sql(
                 """
-                UPDATE "AspNetRoles" SET "Name" = 'Operator' WHERE "Name" = 'User';
+                UPDATE "AspNetRoles"
+                   SET "Name" = 'Operator', "NormalizedName" = 'OPERATOR'
+                 WHERE "Name" = 'User';
                 """);
 
             // o cookie carrega a claim de role: rotaciona o stamp e derruba as
@@ -65,7 +70,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             migrationBuilder.Sql(
                 """
-                UPDATE "AspNetRoles" SET "Name" = 'User' WHERE "Name" = 'Operator';
+                UPDATE "AspNetRoles"
+                   SET "Name" = 'User', "NormalizedName" = 'USER'
+                 WHERE "Name" = 'Operator';
                 """);
 
             // as sessões removidas e o stamp anterior não são recuperáveis:

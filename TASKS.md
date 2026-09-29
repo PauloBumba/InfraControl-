@@ -223,3 +223,16 @@ Prototipação das páginas que faltam conforme `docs/14-UI-UX.md`, com mock dat
 - [x] F14-T007 Switches/Ports como áreas próprias (hoje embutidas em Network/Devices)
 - [x] F14-T008 Autenticação do dashboard (tela de Login no estilo UniFi com alternância Senha/Google Identity Services e **sem** One Tap; página "Esqueci minha senha" com resposta anti-enumeração; `authSlice` com `status` (`checking`/`authenticated`/`anonymous`/`unavailable`) em vez de `isAuthenticated`; `redux-persist` com whitelist apenas de `user`; `SessionGate` que revalida com `GET /api/v1/auth/me` no boot e nunca confia em `localStorage`; `POST /auth/google` com o `id_token` (o `refreshToken` da resposta é descartado); proteção de rotas por sessão; usuário/role reais e botão "Sair" no AppLayout; `AuthApiError` sem vazar mensagem do servidor)
 - [x] F14 polish UI (Health no sidebar, chunks vendor/redux no Vite, accent unificado)
+
+## Transversal — Autorização por roles (ADR-016)
+
+Substitui o modelo de permissões (decisão humana, 2026-09-29). `User` → `Operator`; a role passa a ser a única unidade de acesso.
+
+- [x] ADR-016 — decisão, supersessão do ADR-008 e matriz de equivalência <!-- docs/05 §ADR-016: role como fonte única; 3 níveis canônicos; enum `Permission`, `RolePermissions` e claims `permission` removidos -->
+- [x] Migrar núcleo (enum, claims, `ICurrentUserContext`, `AuthorizationBehavior`, `RequiredRoles`) <!-- sem claims de permissão: `IdentityUserRoleRepository` e o bootstrap do Admin não sincronizam mais claims; `AuthorizationBehavior` exige autenticado e usa OU (basta 1 role exigida) -->
+- [x] `RoleAccess` como hierarquia única + policies HTTP `Operate`/`Administer` <!-- `RoleAccess.Read/Operate/Administer` consumidos por MediatR e por `AuthorizationPolicies`; leitura usa `[Authorize]` -->
+- [x] Converter 126 requests + 126 atributos de controller <!-- 52 leitura, 64 `Operate`, 10 `Administer` — equivalência 1:1 com o mapa anterior, sem reclassificar endpoint -->
+- [x] Frontend sem permissões <!-- `types/roles.ts` espelha os níveis; sai a matriz de permissões; `AuthUser` sem `permissions`; `Operator` nos mocks -->
+- [x] Migration de dados `'User'` → `'Operator'` <!-- `20260929010000`: `DomainUserRoles.Role`, `AspNetRoles.Name` **e** `NormalizedName`; esvazia `UserSessions` e rotaciona `SecurityStamp`; cookie antigo falha em `Operate`/`Administer` (fail-closed) -->
+- [x] Guardas e testes <!-- `RoleAuthorizationStandardizationTests` (arquitetura, proíbe literal de role e policy por permissão), `AuthorizationPolicyTests` (9), `AuthorizationBehaviorTests` (12, matriz 3×3 positiva — sem ela uma regressão para AND passaria verde), `RenameUserRoleToOperatorMigrationTests` (3, executa o SQL da própria migration) -->
+- [x] Documentação e estado <!-- docs/05, 09, 10, 11, 12, 15, 24 e ADR-008 com nota de supersessão -->

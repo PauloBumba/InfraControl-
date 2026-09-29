@@ -54,6 +54,16 @@ Clean Architecture + Modular Monolith.
 
 ASP.NET Core Identity.
 
+### Autorização
+
+Role como fonte única, 3 níveis canônicos (`Admin`, `Operator`, `Viewer`).
+Sem permissões: o enum `Permission`, `RolePermissions`, as claims `permission`
+e as policies por permissão foram removidos (ADR-008 → ADR-016). A hierarquia é
+declarada uma vez em `RoleAccess` e consumida pelas policies HTTP
+(`Operate`/`Administer`) e pelo `AuthorizationBehavior` (`RequiredRoles`).
+Endpoints de leitura usam `[Authorize]`; nenhum controller pode usar literal de
+role ou policy por permissão.
+
 ### Resiliência
 
 Polly.

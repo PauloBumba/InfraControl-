@@ -7,7 +7,7 @@ ASP.NET Core Identity.
 ### F1-T001 — Fundação implementada
 
 - `InfraControl.Domain.Identity.User` é o agregado de negócio e possui estado ativo, email e roles;
-- `UserRole` define `Admin`, `User` e `Viewer`, com atribuição controlada pelo agregado;
+- `UserRole` define `Admin`, `Operator` e `Viewer`, com atribuição controlada pelo agregado (`User` foi renomeado para `Operator` no ADR-016);
 - `UserSession` é o agregado responsável por expiração, refresh token hash e revogação de sessão;
 - eventos de domínio cobrem criação, ativação, desativação, role e ciclo de sessão;
 - `InfraControlUser` é somente o adaptador técnico de credenciais do ASP.NET Identity;
@@ -36,27 +36,42 @@ O processo é idempotente: se já existir qualquer administrador ou se o email c
 
 O gerenciamento de roles segue Vertical Slice/CQRS. Os comandos `AssignUserRoleCommand` e `RemoveUserRoleCommand`, com seus handlers, ficam em `Application/Identity/Roles`; o domínio mantém as invariantes do agregado `User`; e `IUserRoleRepository` é a porta usada pelos handlers. O `IdentityUserRoleRepository` é o adaptador técnico em `Infrastructure`, responsável por sincronizar a role do domínio com o ASP.NET Core Identity em uma transação.
 
-A autorização nos controllers combina dois mecanismos: roles diretas
-(`[Authorize(Roles = "...")]`, mapeado da matriz `RolePermissions` —
-ADR-008) e **policies HTTP nomeadas por permissão**
-(`[Authorize(Policy = "InventoryRead")]` etc.). O controller HTTP apenas
-converte a requisição em comando e envia pelo MediatR. A alteração de role
-é autorizada por `Roles = "Admin"`, o último administrador ativo não pode
-perder a role `Admin` e um usuário não pode ficar sem role.
+### ADR-016 — autorização por roles (fonte única)
 
-> **Achado F6-T003 (2026-09-26):** os controllers das fases 2/3/5 já usavam
-> `[Authorize(Policy = "InventoryRead")]`, mas só existiam as claims de
-> permissão — as policies nomeadas **não estavam registradas**
-> (`AddAuthorization()` puro), então esses endpoints falhariam em runtime.
-> Corrigido: `PermissionPolicies.AddPermissionPolicies()` registra uma
-> policy por `Permission`, exigindo a claim `PermissionClaim.Type` (emitida
-> no login). Coberto por `PermissionPolicyTests`.
+A **role é a única unidade de acesso**. Não existem permissões: o enum
+`Permission`, a matriz `RolePermissions`, as claims `permission` e as policies
+HTTP por permissão foram removidos. A hierarquia vive em um lugar só,
+`RoleAccess` (`Domain/Enums/RoleAccess.cs`), e é consumida pelos dois pontos de
+checagem:
 
-### F1-T004 — Permissions
+| Nível | HTTP | MediatR (`RequiredRoles`) | Roles |
+|---|---|---|---|
+| Ler | `[Authorize]` | `RoleAccess.Read` | `Viewer`, `Operator`, `Admin` |
+| Operar | `[Authorize(Policy = AuthorizationPolicies.Operate)]` | `RoleAccess.Operate` | `Operator`, `Admin` |
+| Administrar | `[Authorize(Policy = AuthorizationPolicies.Administer)]` | `RoleAccess.Administer` | `Admin` |
 
-O catálogo de permissões fica em `Domain/Authorization/Permission.cs`, sem dependência de ASP.NET Core. A matriz padrão é definida em `RolePermissions`: `Viewer` recebe permissões de leitura; `User` herda as permissões de leitura e recebe permissões de gestão operacional; `Admin` recebe o catálogo completo. A união de múltiplas roles não produz duplicatas.
+O controller HTTP apenas converte a requisição em comando e envia pelo MediatR;
+`AuthorizationBehavior` é a 2ª camada, dentro dos handlers, e vale também para
+workers que não passam pelo HTTP. Ele exige usuário **autenticado** mesmo sem
+role declarada e responde `Roles ausentes: …` (ordenado, para ser testável).
 
-O adaptador `IdentityUserRoleRepository` sincroniza as claims `permission` após cada alteração de role. O bootstrap do administrador inicial também grava todas as claims de permissão. As claims alimentam o `AuthorizationBehavior` do pipeline MediatR (2ª camada nos handlers) **e** as policies HTTP nomeadas (achado F6-T003 acima); os controllers também podem autorizar por role direta (ADR-008). A claim deve ser renovada quando a sessão for reemitida; auditoria e concessões customizadas continuam fora do escopo desta Task.
+A alteração de role é autorizada por `Administer`; o último administrador ativo
+não pode perder a role `Admin` e um usuário não pode ficar sem role.
+
+> **Histórico:** o ADR-008 removeu as policies por permissão, mas os slices
+> F6/F7/F8 as reintroduziram e 12 slices passaram a usar
+> `[Authorize(Policy = "<Permission>")]`. Passaram a coexistir dois estilos —
+> 46 literais de role e 80 policies por permissão. O ADR-016 remove os dois e
+> fixa a role como fonte única; `RoleAuthorizationStandardizationTests` impede a
+> reintrodução de literal ou de policy por permissão.
+
+> **Migração de dados:** `UserRole` é persistido como string, então
+> `20260929010000_RenameUserRoleToOperator` renomeia `'User'` → `'Operator'` em
+> `DomainUserRoles.Role` e `AspNetRoles.Name` (o `AspNetUserRoles.RoleId` não
+> muda), esvazia `UserSessions` e rotaciona o `SecurityStamp`. Um cookie emitido
+> antes carrega a role antiga, que deixa de ser válida: as policies passam a
+> **negar** (fail-closed) e o usuário entra de novo — não há escalada de
+> privilégio.
 
 ## API de autenticação e dashboard
 
@@ -79,7 +94,7 @@ A área administrativa possui `GET /api/v1/admin/users`, alteração de status e
 ## Modelo
 
 ```text
-User → Role → Permission
+User → Role → nível de acesso (RoleAccess)
 ```
 
 ## Recursos

@@ -30,8 +30,8 @@ linha por tipo (`data_type` único, `days` 1–3650). O `CleanupService`
 lê as políticas a cada execução e mescla sobre a config — ausente a
 linha, vale `Retention:*`.
 
-API (`[Authorize(Roles="Admin")]` + `RequiredPermissions =
-RetentionManage` — nova permissão `operations.retain.manage`,
+API (`[Authorize(Policy = AuthorizationPolicies.Administer)]` +
+`RequiredRoles = RoleAccess.Administer` — nível de administração,
 Admin-only):
 
 ```text

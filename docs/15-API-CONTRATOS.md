@@ -40,7 +40,7 @@ controllers não fazem `try/catch` de falhas de negócio — só compõem sucess
 | `RequestValidationException` | `400` | validação de regra (erros em `errors[]`) |
 | `ArgumentException` | `400` | pré-condições (sufixo `(Parameter 'x')` removido) |
 | `KeyNotFoundException` | `404` | recurso inexistente ("Convite '…' não encontrado.") |
-| `UnauthorizedAccessException` | `401` anônimo / `403` autenticado | token/convite inválido, permissão ausente |
+| `UnauthorizedAccessException` | `401` anônimo / `403` autenticado | token/convite inválido, role insuficiente (`Roles ausentes: …`) |
 | `DuplicateRequestException` | `409` | idempotência |
 | `InvalidOperationException` | `409` | conflito de estado ("último admin", convite já aceito) |
 | demais | `500` | mensagem genérica em pt-BR; detalhe só no log (TraceId) |

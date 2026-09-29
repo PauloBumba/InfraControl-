@@ -207,7 +207,8 @@ Consultas por chave ficam em cache no handler (ip/mac/nome repetidos
 não re-consultam o banco).
 
 > Nota ADR-008: autorização de controller é por **Roles**
-> (`[Authorize(Roles=...)]`); claims de permissão ficam no pipeline
+> (`[Authorize]` para leitura, `AuthorizationPolicies.Operate` para
+> escrita); a checagem por role no pipeline
 > MediatR. Os controllers de discovery usavam `Policy="MonitoringRead"`
 > inexistente (bug do F4-T001) — corrigido no F4-T003.
 - CPU
@@ -369,8 +370,8 @@ só o básico** (unicidade Open + streak).
   Resolved estampa/limpa `ResolvedAt`. Vínculos de exclusão: cascade.
 - API `POST /api/v1/incidents` (manual), `POST {id}/acknowledge`,
   `PUT {id}/status`, `GET` lista/detalhe — policies HTTP `IncidentsRead`
-  / `IncidentsManage` (achado: policies por permissão registradas em
-  `PermissionPolicies`, docs/05).
+  (ADR-016: sem policies por permissão; a autorização é pela role
+  `Operator`/`Admin` via `AuthorizationPolicies.Operate`, docs/05).
 - Fechamento do incidente quando os alerts resolvem = **F6-T006
   Recovery**; correlação entre alertas/incidentes = F6-T004.
 

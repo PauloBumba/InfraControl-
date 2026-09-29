@@ -56,14 +56,14 @@ Todo slice CQRS novo deve seguir este padrão; ele é imposto pelos testes de ar
 | --- | --- |
 | Command | Estende `BaseCommand` / `BaseCommand<T>` (nunca `IRequest` cru) |
 | Query | Estende `BaseQuery<T>` (cacheável) ou implementa `IQuery<T>` |
-| Caso administrativo | Implementa `IAuthorizedRequest` declarando `RequiredPermissions` com nomes do enum `Permission` |
+| Caso administrativo | Implementa `IAuthoredRequest` declarando `RequiredRoles` com um dos níveis de `RoleAccess` (`Read`/`Operate`/`Administer`) |
 | Porta de repositório | Estende `IRepository<TEntity>`; adaptador implementa `GetByIdAsync`/`AddAsync`/`Remove` |
 | Resposta HTTP | Controllers respondem com o envelope `ApiResponse` (`{ isSuccess, data, errors }`); sucesso sem conteúdo continua HTTP 204 sem corpo |
 
 Comportamentos do pipeline ligados a esses contratos:
 
 - `CachingBehavior` só age sobre `IQuery<T>` + `ICacheableQuery` e monta a chave com `CacheKeyBuilder` (usuário, roles e hash dos parâmetros), evitando colisão entre usuários.
-- `AuthorizationBehavior` só age sobre `IAuthorizedRequest` e compara `RequiredPermissions` com as permissões de `ICurrentUserContext`.
+- `AuthorizationBehavior` só age sobre `IAuthoredRequest`: exige `IsAuthenticated` e compara `RequiredRoles` com as **roles** de `ICurrentUserContext` (fonte única de acesso, ADR-016 — não existem claims de permissão).
 - `TransactionBehavior` pula queries (`IQuery<T>`) e commita o restante via `IUnitOfWork`.
 - O `ApiResponse` estático (sem argumento de tipo) existe porque C# não infere argumentos de tipo em membros estáticos de tipos genéricos — usar `ApiResponse.Ok(resultado)` / `ApiResponse.Fail(erros)` nos controllers.
 

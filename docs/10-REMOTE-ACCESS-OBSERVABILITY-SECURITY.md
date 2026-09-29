@@ -73,10 +73,10 @@ React → ASP.NET Core → Provider SSH (F11-T002) / RDP (F11-T003) → RemoteSe
 
 - `RemoteSession` (Domain/RemoteAccess): `Open/Close/Fail` com invariantes
   em pt-BR; nunca contém credencial.
-- Permissão `Permission.RemoteSessionsRead` (= `device.remote.read`):
-  Admin/User/Viewer (matriz F11-T004).
+- Nível de leitura: Admin/Operator/Viewer (matriz F11-T004, hoje
+  `RoleAccess.Read` — ADR-016).
 - `GET /api/v1/inventory/devices/{id}/remote/sessions`
-  (`[Authorize(Roles="Admin,User,Viewer")]`):
+  (`[Authorize]`):
   ordem mais-recente-primeiro; `RemoteSessionDto` sem campos de credencial
   (teste de reflexão).
 - Tabela `remote_sessions` (FK device cascade, índice
@@ -98,10 +98,11 @@ React → POST open → OpenSshSessionCommand → IRemoteCredentialSource
 - `IRemoteProvider`/`IRemoteCredentialSource`/`IRemoteConnectionRegistry`
   (Application/RemoteAccess/Sessions/Ports) — RDP entra em F11-T003 pelo
   mesmo port.
-- Permissão `Permission.RemoteSshConnect` (= `device.ssh.connect`): Admin
-  e User; Viewer não (matriz F11-T004).
+- Nível de operação (`RoleAccess.Operate`): Admin e Operator; Viewer não
+  (matriz F11-T004).
 - `POST/DELETE /api/v1/inventory/devices/{id}/remote/sessions`
-  (`[Authorize(Roles="Admin,User")]`): sem terminal interativo — só conexão
+  (`[Authorize(Policy = AuthorizationPolicies.Operate)]`): sem terminal
+  interativo — só conexão
   autenticada registrada na sessão.
 - Credencial: **Credential Store por device** (F11-T006, cifrada) com
   fallback global `RemoteAccess:Ssh` (config/env, **vazia no git**); sem
@@ -127,8 +128,8 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
                                       → session.Close() + dispose socket
 ```
 
-- `Permission.RemoteRdpConnect` (= `device.rdp.connect`): Admin e User;
-  Viewer não (matriz F11-T004).
+- RDP: mesmo nível de operação — Admin e Operator; Viewer não
+  (matriz F11-T004).
 - `OpenRdpSessionCommand` **não consulta** `IRemoteCredentialSource` (probe
   não usa credencial); `CloseRemoteSessionCommand` substitui
   `CloseSshSessionCommand` — era protocolo-agnóstico com um único DELETE;
@@ -148,22 +149,19 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
 
 - Decisão do usuário: **"Viewer lê, User lê+conecta"** —
   - Viewer: `RemoteSessionsRead` (histórico de sessões);
-  - User: permissões do Viewer + `RemoteSshConnect` + `RemoteRdpConnect`;
-  - Admin: catálogo completo (herda por `Enum.GetValues`).
-- `CredentialUse`/`CredentialManage` entraram no enum `Permission`
-  (Admin-only) — `CredentialManage` passou a ser exigida pela gestão de
-  credencial em F11-T006; **`CredentialUse` continua sem consumo** (flow
-  que exponha credencial, ex.: RDP NLA, fica para task futura).
-- `RemoteSessionsController` sincronizado com a matriz: GET
-  `Admin,User,Viewer`; POST / POST rdp / DELETE `Admin,User`.
-- `CloseRemoteSessionCommand` continua com RequiredPermissions AND
-  (`RemoteSshConnect` + `RemoteRdpConnect`) — com a matriz, User fecha
-  sessões dos dois protocolos; Viewer é negado.
-- Evidência: `PermissionTests` (matriz por role incluindo os 2 novos
-  Credential*), integration Viewer lê histórico (novo), User abre→fecha
-  SSH (novo), sem permissão → `UnauthorizedAccessException` pt-BR
-  (negative trocou `UseRole(Viewer)` por `UseNoPermissions()` — hoje
-  **toda role** tem `RemoteSessionsRead`).
+  - Operator: nível `Operate` (inclui leitura);
+  - Admin: todos os níveis (`Read` ⊃ `Operate` ⊃ `Administer`).
+- Gestão de credencial passou a exigir o nível `Administer` (Admin-only) em
+  F11-T006. O antigo `CredentialUse` **nunca teve consumidor** e foi removido
+  junto com o enum `Permission` (ADR-016); o flow que expõe credencial
+  (ex.: RDP NLA) fica para task futura.
+- `RemoteSessionsController` sincronizado com a hierarquia: GET
+  `[Authorize]`; POST / POST rdp / DELETE `Operate`.
+- `CloseRemoteSessionCommand` continua com `RequiredRoles = RoleAccess.Operate`:
+  quem abre qualquer protocolo também fecha; Viewer é negado.
+- Evidência: `AuthorizationPolicyTests` (os 3 níveis), integration Viewer lê
+  histórico, Operator abre→fecha SSH, sem role → `UnauthorizedAccessException`
+  pt-BR (`Roles ausentes: …`). A matriz por permissão foi removida no ADR-016.
 
 ### F11-T005 — Audit de sessões remote (2026-09-25)
 
@@ -210,8 +208,8 @@ React → POST .../remote/sessions/rdp → OpenRdpSessionCommand
   fallback global `RemoteAccess:Ssh` (`ConfigurationRemoteCredentialSource`
   reaproveitado) → `InvalidOperationException` pt-BR 409 se nada existir.
 - API: `GET/PUT/DELETE /api/v1/inventory/devices/{id}/remote/credential`
-  (`[Authorize(Roles="Admin")]` + `RequiredPermissions = CredentialManage`
-  no pipeline); PUT substitui e registra `RotatedAt` (audit `Failed`/
+  (`[Authorize(Policy = AuthorizationPolicies.Administer)]` +
+  `RequiredRoles = RoleAccess.Administer` no pipeline); PUT substitui e registra `RotatedAt` (audit `Failed`/
   `Succeeded` com resource `DeviceCredential` vem do `AuditBehavior`);
   DELETE remove e volta ao fallback; respostas só com username/flags —
   **teste de reflexão** garante que `DeviceCredentialDto` não expõe senha.
