@@ -4,6 +4,20 @@ import { ApiError, api } from "./client";
 export { ApiError as AuthApiError };
 export { GENERIC_ERROR, UNAUTHORIZED_ERROR as INVALID_CREDENTIALS } from "./client";
 
+/**
+ * F1-T016d (ADR-019): o 401 com estas mensagens é o CONTRATO que leva a UI
+ * ao campo do 2º fator — o backend propositalmente guia a UI pela mensagem
+ * pt-BR (o motivo enum não viaja no envelope). Mudar a string no controller
+ * quebra a tela; se um dia existir um campo estruturado, troque aqui.
+ */
+export const MFA_REQUIRED_MESSAGE = "Código MFA obrigatório.";
+export const MFA_INVALID_MESSAGE = "Código MFA inválido.";
+
+/** `true` quando a senha passou e falta o código (TOTP ou recovery code). */
+export function isMfaRequired(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401 && error.message === MFA_REQUIRED_MESSAGE;
+}
+
 interface CurrentUserPayload {
   userId: string;
   email: string;
@@ -40,9 +54,13 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
 /**
  * Após o login o app pergunta QUEM é o usuário: é o /auth/me que traz roles e
  * permissões, então o estado da tela nunca diverge do backend.
+ *
+ * `anonymousExpected` = a recusa do login (401) NÃO derruba o estado global:
+ * quem trata é a tela — sem isso, o interceptor de logout agiria sobre um
+ * 401 legítimo da tela de login (mesma razão do GET /auth/me do boot).
  */
-async function establishSession(path: string, body: unknown): Promise<AuthUser> {
-  await api.post(path, body);
+async function establishSession(path: string, body: unknown, anonymousExpected = false): Promise<AuthUser> {
+  await api.post(path, body, anonymousExpected ? { anonymousExpected: true } : undefined);
   const user = await fetchCurrentUser();
 
   if (!user) {
@@ -52,13 +70,19 @@ async function establishSession(path: string, body: unknown): Promise<AuthUser> 
   return user;
 }
 
-export function loginWithPassword(email: string, password: string): Promise<AuthUser> {
-  return establishSession("/api/v1/auth/login", { email, password });
+/**
+ * F1-T016d (ADR-019): `mfaCode` só existe no 2º passo — o 401 "Código MFA
+ * obrigatório." é o que troca a tela; o retry reenvia email+senha+código.
+ * Recovery code entra no MESMO campo (é single-use no backend).
+ */
+export function loginWithPassword(email: string, password: string, mfaCode?: string): Promise<AuthUser> {
+  const body = mfaCode ? { email, password, mfaCode } : { email, password };
+  return establishSession("/api/v1/auth/login", body, true);
 }
 
 /** F1-T014: o backend valida assinatura/audience/issuer/expiração do id_token. */
 export function loginWithGoogle(idToken: string): Promise<AuthUser> {
-  return establishSession("/api/v1/auth/google", { idToken });
+  return establishSession("/api/v1/auth/google", { idToken }, true);
 }
 
 export async function logout(): Promise<void> {

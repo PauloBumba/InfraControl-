@@ -3,7 +3,14 @@ import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { loginFailed, loginStarted, loginSucceeded, clearAuthError } from "@/app/store/slices/authSlice";
-import { AuthApiError, loginWithGoogle, loginWithPassword } from "@/services/api/auth";
+import {
+  AuthApiError,
+  isMfaRequired,
+  loginWithGoogle,
+  loginWithPassword,
+  MFA_INVALID_MESSAGE,
+  MFA_REQUIRED_MESSAGE,
+} from "@/services/api/auth";
 
 /**
  * Client ID público do Google (Google Identity Services). Vazio = botão do
@@ -31,21 +38,53 @@ export function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // F1-T016d (ADR-019): 2º passo do login. A senha fica no estado local do
+  // componente porque o retry envia email+senha+código de uma vez — nada é
+  // persistido (some com a navegação, como sempre foi a regra desta tela).
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (mfaStep && !mfaCode.trim()) {
+      dispatch(loginFailed(MFA_REQUIRED_MESSAGE));
+      return;
+    }
+
     dispatch(loginStarted());
 
     try {
-      const user = await loginWithPassword(email.trim(), password);
+      const user = await loginWithPassword(
+        email.trim(),
+        password,
+        mfaStep ? mfaCode.trim() : undefined,
+      );
       dispatch(loginSucceeded(user));
-      navigate("/", { replace: true });
-    } catch (error) {
-      dispatch(loginFailed(messageFor(error, "E-mail ou senha inválidos.")));
-    } finally {
       // A senha vive só no estado local do componente e some com ele.
       setPassword("");
+      setMfaCode("");
+      navigate("/", { replace: true });
+    } catch (error) {
+      if (!mfaStep && isMfaRequired(error)) {
+        // Senha validada: a mensagem do backend leva a UI ao campo do 2º fator
+        // e a senha permanece para o retry.
+        setMfaStep(true);
+        dispatch(clearAuthError());
+        return;
+      }
+
+      dispatch(loginFailed(messageFor(error, mfaStep ? MFA_INVALID_MESSAGE : "E-mail ou senha inválidos.")));
+      // Falhou o passo 1: a senha errada some. No passo 2 a senha fica (é
+      // necessária para o retry) e o código também — para correção in loco.
+      if (!mfaStep) setPassword("");
     }
+  };
+
+  const handleBackToPassword = () => {
+    setMfaStep(false);
+    setMfaCode("");
+    dispatch(clearAuthError());
   };
 
   const handleGoogle = async (credential: string) => {
@@ -81,55 +120,108 @@ export function LoginPage() {
           </div>
         )}
 
-        <form className="uni-login-form" onSubmit={handleSubmit}>
-          <label className="uni-login-label" htmlFor="login-email">E-mail</label>
-          <input
-            id="login-email"
-            className="uni-login-input"
-            type="email"
-            name="email"
-            autoComplete="username"
-            placeholder="voce@empresa.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={pending}
-            required
-          />
-
-          <label className="uni-login-label" htmlFor="login-password">Senha</label>
-          <div className="uni-login-password">
-            <input
-              id="login-password"
-              className="uni-login-input"
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={pending}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const field = document.getElementById("login-password") as HTMLInputElement | null;
-                if (field) field.type = field.type === "password" ? "text" : "password";
-              }}
-              aria-label="Mostrar ou ocultar a senha"
-              tabIndex={-1}
-            >
-              <i className="pi pi-eye" />
-            </button>
+        {mfaStep && (
+          <div style={{ marginBottom: 4 }}>
+            <p style={{ fontSize: 14, fontWeight: 600 }}>Verificação em duas etapas</p>
+            <p style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+              Entrando como <strong>{email}</strong>
+            </p>
           </div>
+        )}
+
+        <form className="uni-login-form" onSubmit={handleSubmit}>
+          {!mfaStep && (
+            <>
+              <label className="uni-login-label" htmlFor="login-email">E-mail</label>
+              <input
+                id="login-email"
+                className="uni-login-input"
+                type="email"
+                name="email"
+                autoComplete="username"
+                placeholder="voce@empresa.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={pending}
+                required
+              />
+
+              <label className="uni-login-label" htmlFor="login-password">Senha</label>
+              <div className="uni-login-password">
+                <input
+                  id="login-password"
+                  className="uni-login-input"
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={pending}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const field = document.getElementById("login-password") as HTMLInputElement | null;
+                    if (field) field.type = field.type === "password" ? "text" : "password";
+                  }}
+                  aria-label="Mostrar ou ocultar a senha"
+                  tabIndex={-1}
+                >
+                  <i className="pi pi-eye" />
+                </button>
+              </div>
+            </>
+          )}
+
+          {mfaStep && (
+            <>
+              <label className="uni-login-label" htmlFor="login-mfa">Código de verificação</label>
+              <input
+                id="login-mfa"
+                className="uni-login-input"
+                type="text"
+                name="one-time-code"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value)}
+                disabled={pending}
+                autoFocus
+                required
+              />
+              <p style={{ fontSize: 12, color: "#64748b", margin: "-4px 0 8px" }}>
+                Digite o código de 6 dígitos do aplicativo autenticador ou um
+                código de recuperação (XXXX-XXXX).
+              </p>
+            </>
+          )}
 
           <button className="uni-login-submit" type="submit" disabled={pending}>
-            {pending ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-sign-in" />}
-            <span>{pending ? "Entrando..." : "Entrar"}</span>
+            {pending ? (
+              <i className="pi pi-spin pi-spinner" />
+            ) : (
+              <i className={mfaStep ? "pi pi-shield" : "pi pi-sign-in"} />
+            )}
+            <span>
+              {pending ? (mfaStep ? "Verificando..." : "Entrando...") : mfaStep ? "Verificar" : "Entrar"}
+            </span>
           </button>
+
+          {mfaStep && (
+            <button
+              type="button"
+              className="uni-login-link"
+              onClick={handleBackToPassword}
+              style={{ marginTop: 8 }}
+            >
+              <i className="pi pi-arrow-left" /> Voltar
+            </button>
+          )}
         </form>
 
-        {googleClientId && (
+        {!mfaStep && googleClientId && (
           <>
             <div className="uni-login-divider"><span>ou continue com</span></div>
             <div className="uni-login-google">
@@ -151,11 +243,13 @@ export function LoginPage() {
           </>
         )}
 
-        <div className="uni-login-footer">
-          <button type="button" className="uni-login-link" onClick={() => navigate("/forgot-password")}>
-            Esqueceu sua senha?
-          </button>
-        </div>
+        {!mfaStep && (
+          <div className="uni-login-footer">
+            <button type="button" className="uni-login-link" onClick={() => navigate("/forgot-password")}>
+              Esqueceu sua senha?
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

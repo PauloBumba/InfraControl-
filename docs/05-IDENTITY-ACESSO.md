@@ -113,6 +113,19 @@ acesso).
 Ligar e desligar o MFA gravam evento no audit existente (`MfaEnabled` e
 `MfaDisabled`, resource `Mfa` — F1-T016c).
 
+F1-T016d (UI): a tela de login do dashboard tem os 2 passos — o `401
+"Código MFA obrigatório."` troca a tela para o campo "Código de verificação"
+(`autoComplete="one-time-code"`; aceita TOTP de 6 dígitos **ou** recovery code
+no mesmo campo, como o contrato manda, com hint dizendo os dois), com
+"Voltar" para o passo da senha. A senha fica só no estado local do componente
+(nunca persistida) e é limpa no sucesso e na falha do passo 1 — no passo 2
+ela fica porque o retry reenvia email+senha+código. No passo do código o
+Google e o "esqueceu a senha" somem. Detalhe de contrato: a mensagem pt-BR é
+o que leva a UI ao campo (constantes `MFA_REQUIRED_MESSAGE`/`isMfaRequired`
+em `services/api/auth.ts` — trocar a string do controller quebra a tela).
+As recusas do login mandam `anonymousExpected` no client: o 401 da tela de
+login não dispara mais o interceptor global de `signedOut`.
+
 A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
 
 ### Sessões (F1-T016b, ADR-020)
@@ -145,6 +158,16 @@ correlation = TraceId); nenhum código, senha ou secret entra na linha.
 Prazos e política ficam em `Session` no appsettings: `SlidingLifetime`,
 `AbsoluteLifetime`, `CheckInterval` e `RoleAbsoluteLifetimes` (cap por role
 que só encurta o teto, aplicado no login e validado na startup).
+
+F1-T016d (UI): rota `/sessions` ("Sessões" no menu, antes de Configurações) —
+`SessionsPage` consome o `GET /auth/sessions` real (badge "Este dispositivo"
+em `isCurrent`, criada em, última atividade, expira em + teto absoluto) com
+revogação por linha e "Sair de todos os outros", `window.confirm` antes de
+cada ação e estados de carregamento/erro/retry. Revogar a sessão atual derruba
+o cookie no backend e a tela acompanha na hora (`signedOut` → `/login`) em vez
+de esperar o 401 do próximo request. É a primeira página do dashboard que
+consome API real (as demais seguem o mock do F14) e o antiforgery dos DELETE
+vem do client (ADR-017).
 
 ## Modelo
 

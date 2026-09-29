@@ -36,6 +36,7 @@ const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.Sla
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -250,6 +251,11 @@ function AppContent() {
           <Route path="/audit" element={
             <ProtectedRoute>
               <AuditPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/sessions" element={
+            <ProtectedRoute>
+              <SessionsPage />
             </ProtectedRoute>
           } />
           <Route path="/incidents" element={
