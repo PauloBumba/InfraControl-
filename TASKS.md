@@ -242,3 +242,51 @@ Substitui o modelo de permissões (decisão humana, 2026-09-29). `User` → `Ope
 - [x] Migration de dados `'User'` → `'Operator'` <!-- `20260929010000`: `DomainUserRoles.Role`, `AspNetRoles.Name` **e** `NormalizedName`; esvazia `UserSessions` e rotaciona `SecurityStamp`; cookie antigo falha em `Operate`/`Administer` (fail-closed) -->
 - [x] Guardas e testes <!-- `RoleAuthorizationStandardizationTests` (arquitetura, proíbe literal de role e policy por permissão), `AuthorizationPolicyTests` (9), `AuthorizationBehaviorTests` (12, matriz 3×3 positiva — sem ela uma regressão para AND passaria verde), `RenameUserRoleToOperatorMigrationTests` (3, executa o SQL da própria migration) -->
 - [x] Documentação e estado <!-- docs/05, 09, 10, 11, 12, 15, 24 e ADR-008 com nota de supersessão -->
+
+## Fase P — Pendências (tudo que não foi concluído)
+
+Consolidado único (decisão do usuário, 2026-09-29) de todo item em aberto até aqui:
+tasks de fase com checkbox ainda `[ ]` **e** pendências soltas de tasks já
+concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque aqui
+**e** na origem (linha da fase ou ADR).
+
+### Tasks por concluir (checkboxes abertos nas fases acima)
+
+- [ ] F0-T010 Configurar CI — **BLOCKED**: cota do GitHub Actions gratuita esgotada
+  (2.000/2.000 min), reset em 01/10/2026
+- [ ] F9-T006 Telegram
+- [ ] F9-T007 WhatsApp
+- [ ] F9-T008 Webhook
+- [ ] F9-T009 Retry/DLQ (mensageria)
+- [ ] F10-T001 Category
+- [ ] F10-T002 Article
+- [ ] F10-T003 Publishing
+- [ ] F10-T004 Relationships
+
+### Pendências soltas (de tasks concluídas e decisões registradas)
+
+- [ ] **Revalidar a suíte de integração** (Testcontainers/PostgreSQL) onde houver
+  Docker — não roda nesta máquina (sem Docker) desde F1-T016a; último run verde
+  128/128
+- [ ] **Provider real de e-mail** (SMTP/API + credenciais) — hoje só adaptadores
+  de logging (`LoggingIdentityEmailSender` + `LoggingEmailNotificationDispatcher`);
+  cobre forgot-password, convite (F1-T017) e canal Email (F9-T005). Requer
+  escolha do usuário
+- [ ] **Página de aceite de convite no frontend** — o link e-maiado em F1-T017
+  aponta para a API (`POST /auth/invitations/{id}/accept`) sem página GET
+- [ ] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — pendência
+  declarada nas ADR-017/ADR-018 (middleware/behavior testados com fakes)
+- [ ] **Rate limit específico do login com código MFA** — pendência da ADR-019
+  (o `HttpRateLimit` de login cobre o passo 1)
+- [ ] **Investigar flakiness** de `RdpRemoteProviderTests.ConnectAsync_NegotiationFailure_ShouldReturnNlaFailurePtBr`
+  (timeout de loopback sob carga da suíte completa; passa isolado e em rerun)
+- [ ] **Conectar as páginas com mock ao backend** — F14 foi prototipação com dados
+  estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real
+- [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
+- [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
+  F11-T003 (probe de porta sem autenticação)
+- [ ] **Limpar `frontend/InfraControl.Web/tsconfig.tsbuildinfo` do versionamento**
+  (rastreado por engano; regra vigente = nunca stagear — levar a um cleanup
+  próprio)
+- [ ] **Warnings `CS8601`/`CS8605`** em `RestoreRoundTripTests.cs` no build
+  Release (pré-existentes, fora de escopo até aqui)
