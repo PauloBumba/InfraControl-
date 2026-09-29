@@ -28,6 +28,7 @@ Domain Event
 - Telegram
 - WhatsApp
 - Webhook
+- Slack (F9-T010 — decidido pelo usuário, não existia nesta lista)
 
 ## Destinatários
 
@@ -120,6 +121,47 @@ O adaptador concreto é `LoggingEmailNotificationDispatcher`
 do identity (docs/05): um provider SMTP/API troca a implementação sem
 tocar em Application. `PendingDeliveryItem` ganhou `RecipientEmail`
 (join com DomainUsers).
+
+## Configuração de canais (F9-T006)
+
+Decisão do usuário: **o admin escolhe por onde as notificações são
+enviadas** — seção `Notifications:Channels` no appsettings (presente na Api
+e nos Workers, mesma seção nos dois hosts):
+
+```json
+"Notifications": {
+  "Channels": {
+    "Default": [ "Email", "SignalR" ],
+    "Telegram": { "ChatId": "" }
+  }
+}
+```
+
+- `Default` é a **lista do fanout** do `NotificationEventConsumer` (antes
+  fixa em código: SignalR + Email). Canal desconhecido na lista é ignorado
+  com Warning; duplicado não repete.
+- Canal com destino externo **sem a seção preenchida = não enviável**
+  (Warning, sem delivery).
+- **Fallback de e-mail**: se NENHUM canal da lista for enviável, o consumer
+  enfileira Email — a notificação não morre por configuração incompleta.
+- A preferência por usuário (F9-T003) continua filtrando cada canal depois
+  do fanout — desligada = sem delivery.
+- Canais ainda sem worker (WhatsApp F9-T007, Webhook F9-T008, Slack F9-T010)
+  não são enviáveis até as tasks deles.
+
+## Canal Telegram (F9-T006)
+
+Espelho do canal Email: o consumer enfileira `NotificationDelivery`
+(Telegram) por usuário final quando o canal está em `Default` **e**
+`Telegram:ChatId` está preenchido (sem ChatId = Warning, sem delivery). O
+`NotificationTelegramWorker` (mesmo loop base, 2s) despacha via porta
+`ITelegramNotificationDispatcher` (`ChatId` global + `Title`/`Message`) e
+marca `Sent`/`Failed`. O adaptador é `LoggingTelegramNotificationDispatcher`
+(Infrastructure) — nenhuma chamada real à API do Telegram; um adaptador com
+bot token troca a implementação sem tocar em Application (credencial real =
+pendência, junto do SMTP do docs/05). ChatId esvaziado entre enfileirar e
+despachar vira `Failed` com erro pt-BR apontando a seção
+(`Notifications:Channels:Telegram:ChatId`).
 
 ## Delivery
 

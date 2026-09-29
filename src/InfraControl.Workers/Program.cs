@@ -15,6 +15,13 @@ builder.Services.AddMediatR(configuration =>
 builder.Services.AddMassTransit(configuration =>
     configuration.AddConsumers(typeof(NotificationEventConsumer).Assembly));
 
+// F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —
+// a MESMA seção que o host da Api lê para os workers de canal.
+builder.Services.Configure<InfraControl.Application.Notifications.Channels.NotificationChannelsOptions>(
+    options => builder.Configuration
+        .GetSection(InfraControl.Application.Notifications.Channels.NotificationChannelsOptions.SectionName)
+        .Bind(options));
+
 // F12-T003: backup periódico do PostgreSQL — senha só via ConnectionString
 // (env ConnectionStrings__DefaultConnection), nunca em config nova.
 builder.Services.Configure<InfraControl.Workers.Backup.BackupOptions>(options =>

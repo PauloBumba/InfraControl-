@@ -1,4 +1,5 @@
 using InfraControl.Application.Notifications.Email;
+using InfraControl.Application.Notifications.Telegram;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
@@ -91,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
         services.AddScoped<IEmailNotificationDispatcher, LoggingEmailNotificationDispatcher>();
+        services.AddScoped<ITelegramNotificationDispatcher, LoggingTelegramNotificationDispatcher>();
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
 

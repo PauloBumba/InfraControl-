@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Notifications.Channels;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
@@ -9,6 +10,7 @@ using InfraControl.Workers.Consumers.Notifications;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace InfraControl.UnitTests.Notifications;
 
@@ -31,11 +33,20 @@ public sealed class NotificationEventConsumerTests : IDisposable
 
     public void Dispose() => _connection.Dispose();
 
-    private async Task<(AppDbContext Context, NotificationEventConsumer Consumer)> CreateAsync()
+    /// <summary>
+    /// F9-T006: os canais do fanout vêm de `Notifications:Channels:Default`
+    /// (default = Email + SignalR, igual ao antigo comportamento fixo).
+    /// </summary>
+    private async Task<(AppDbContext Context, NotificationEventConsumer Consumer)> CreateAsync(
+        NotificationChannelsOptions? channels = null)
     {
         var context = new AppDbContext(_options);
         await context.Database.EnsureCreatedAsync();
-        var consumer = new NotificationEventConsumer(context, new InboxStore(context), NullLogger<NotificationEventConsumer>.Instance);
+        var consumer = new NotificationEventConsumer(
+            context,
+            new InboxStore(context),
+            Options.Create(channels ?? new NotificationChannelsOptions()),
+            NullLogger<NotificationEventConsumer>.Instance);
         return (context, consumer);
     }
 
@@ -231,5 +242,142 @@ public sealed class NotificationEventConsumerTests : IDisposable
 
         (await context.Notifications.AsNoTracking().CountAsync()).Should().Be(1);
         (await context.NotificationRecipients.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    /// <summary>Telegram na lista Default com ChatId = delivery Telegram enfileirada.</summary>
+    [Fact]
+    public async Task Consume_WithTelegramInDefault_ShouldQueueTelegramDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Telegram"],
+            Telegram = new TelegramChannelOptions { ChatId = "-100555" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "telegram@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        var delivery = await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.Telegram);
+        delivery.UserId.Should().Be(userId);
+        delivery.Status.Should().Be(DeliveryStatus.Pending);
+    }
+
+    /// <summary>Preferência desligada no canal = sem delivery (regra F9-T003 vale para todo canal).</summary>
+    [Fact]
+    public async Task Consume_WithTelegramPreferenceDisabled_ShouldNotQueueTelegramDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Telegram"],
+            Telegram = new TelegramChannelOptions { ChatId = "-100555" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        context.DomainUsers.Add(User.Create(userId, "telegram-off@exemplo.test", "Desligado"));
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.Telegram, enabled: false));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Telegram)).Should().Be(0);
+    }
+
+    /// <summary>Telegram na lista mas SEM destino = pula (Warning) e os canais seguem.</summary>
+    [Fact]
+    public async Task Consume_WithTelegramUnconfigured_ShouldSkipTelegramAndQueueDefaults()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Telegram"],
+            Telegram = new TelegramChannelOptions { ChatId = "" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "sem-telegram@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Telegram)).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+    }
+
+    /// <summary>
+    /// Fallback de e-mail: NENHUM canal da lista é enviável (Default = só
+    /// Telegram sem ChatId) → enfileira Email — a notificação não morre por
+    /// configuração incompleta.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithOnlyUnsendableChannels_ShouldFallbackToEmail()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Telegram"],
+            Telegram = new TelegramChannelOptions { ChatId = " " },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "fallback@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Telegram)).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Fanout é CONFIG-driven (F9-T006): canal fora da lista Default não
+    /// recebe delivery (antes SignalR+Email eram fixos) e canal inexistente
+    /// na config (ex.: "Slack", F9-T010) é ignorado sem quebrar.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithConfiguredChannels_ShouldFanoutExactlyTheDefaultList()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "Slack"],
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "só-email@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Telegram)).Should().Be(0);
     }
 }

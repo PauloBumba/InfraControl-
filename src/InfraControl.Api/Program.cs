@@ -11,6 +11,7 @@ using InfraControl.Infrastructure.Auth;
 using InfraControl.Api.Hubs;
 using InfraControl.Api.Services;
 using InfraControl.Api.Workers;
+using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.SignalR;
 using InfraControl.BuildingBlocks.Application;
 using MediatR;
@@ -68,6 +69,13 @@ builder.Services.AddSingleton<IUserIdProvider, SignalRUserIdProvider>();
 builder.Services.AddSingleton<ISignalRNotificationDispatcher, SignalRNotificationDispatcher>();
 builder.Services.AddHostedService<NotificationSignalRWorker>();
 builder.Services.AddHostedService<NotificationEmailWorker>();
+builder.Services.AddHostedService<NotificationTelegramWorker>();
+// F9-T006: o admin escolhe os canais do fanout e os destinos por canal
+// (Notifications:Channels) — a MESMA seção lida pelo NotificationEventConsumer
+// no host dos Workers; defaults vazios = comportamento Email+SignalR.
+builder.Services
+    .AddOptions<NotificationChannelsOptions>()
+    .Bind(builder.Configuration.GetSection(NotificationChannelsOptions.SectionName));
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();

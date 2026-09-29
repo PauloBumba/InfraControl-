@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -9,6 +10,7 @@ using InfraControl.Workers.Consumers.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace InfraControl.IntegrationTests.Notifications;
 
@@ -22,6 +24,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
         => new(
             context,
             new InfraControl.Infrastructure.Repositories.InboxStore(context),
+            Options.Create(new NotificationChannelsOptions()),
             NullLogger<NotificationEventConsumer>.Instance);
 
     private static async Task<Guid> SeedUserAsync(AppDbContext context, string email)

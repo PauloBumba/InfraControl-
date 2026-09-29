@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Notifications.Channels;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
@@ -7,18 +8,21 @@ using InfraControl.Infrastructure.Repositories;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace InfraControl.Workers.Consumers.Notifications;
 
 /// <summary>
 /// ADR-012/docs/07: recebe os domain events do RabbitMQ, é idempotente
 /// via ProcessedMessage (EventId + Consumer, docs/06) e cria a
-/// Notification + seus destinatários (F9-T002) no banco. Canais vêm em
-/// F9-T004+.
+/// Notification + seus destinatários (F9-T002) no banco. Os canais do
+/// fanout vêm de Notifications:Channels:Default (F9-T006 — o admin escolhe;
+/// antes era fixo SignalR+Email).
 /// </summary>
 public sealed class NotificationEventConsumer(
     AppDbContext dbContext,
     IInboxStore inboxStore,
+    IOptions<NotificationChannelsOptions> channelsOptions,
     ILogger<NotificationEventConsumer> logger)
     : IConsumer<UserCreatedDomainEvent>,
       IConsumer<UserDisabledDomainEvent>,
@@ -166,15 +170,79 @@ public sealed class NotificationEventConsumer(
             "Notificação {NotificationId} criada a partir de {EventType}/{EventId}: {Title}.",
             notification.Id, eventType, eventId, title);
 
-        await QueueDeliveriesAsync(notification, NotificationChannel.SignalR, cancellationToken);
-        await QueueDeliveriesAsync(notification, NotificationChannel.Email, cancellationToken);
+        foreach (var channel in ResolveFanoutChannels())
+            await QueueDeliveriesAsync(notification, channel, cancellationToken);
+    }
+
+    /// <summary>
+    /// Canais do fanout = Notifications:Channels:Default (F9-T006, decisão
+    /// do usuário: admin escolhe por onde enviar; default Email+SignalR).
+    /// Canal desconhecido na config é ignorado com Warning; canal sem
+    /// destino configurado não é enviável (também Warning) e, se NENHUM
+    /// canal da lista for enviável, o fallback é Email — a notificação não
+    /// morre por configuração incompleta.
+    /// </summary>
+    private List<NotificationChannel> ResolveFanoutChannels()
+    {
+        var configured = new List<NotificationChannel>();
+        foreach (var raw in channelsOptions.Value.Default)
+        {
+            if (!Enum.TryParse<NotificationChannel>(raw, ignoreCase: true, out var channel))
+            {
+                logger.LogWarning(
+                    "Canal '{Raw}' em Notifications:Channels:Default não existe — ignorado.",
+                    raw);
+                continue;
+            }
+
+            if (!configured.Contains(channel))
+                configured.Add(channel);
+        }
+
+        var sendable = configured.Where(IsSendable).ToList();
+        if (sendable.Count == 0)
+        {
+            logger.LogWarning(
+                "Nenhum canal enviável em Notifications:Channels:Default — fallback para Email.");
+            sendable.Add(NotificationChannel.Email);
+        }
+
+        return sendable;
+    }
+
+    /// <summary>
+    /// SignalR e Email não têm destino externo (sempre enviáveis). Canais
+    /// com destino na config exigem a seção preenchida; canais ainda sem
+    /// worker (F9-T007/008/010) não são enviáveis até a task deles.
+    /// </summary>
+    private bool IsSendable(NotificationChannel channel)
+    {
+        switch (channel)
+        {
+            case NotificationChannel.SignalR:
+            case NotificationChannel.Email:
+                return true;
+
+            case NotificationChannel.Telegram:
+                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.Telegram.ChatId))
+                    return true;
+                logger.LogWarning(
+                    "Canal Telegram em Notifications:Channels:Default sem ChatId configurado — deliveries não enfileiradas.");
+                return false;
+
+            default:
+                logger.LogWarning(
+                    "Canal {Channel} em Notifications:Channels:Default ainda não tem worker — deliveries não enfileiradas.",
+                    channel);
+                return false;
+        }
     }
 
     /// <summary>
     /// Enfileira as deliveries do canal para cada usuário final (roles
     /// resolvidas + dedup). Preferência desligada = sem delivery (default
-    /// habilitado); canal Email exige e-mail cadastrado. Canais restantes
-    /// entram aqui (F9-T006+).
+    /// habilitado); canal Email exige e-mail cadastrado. Quais canais
+    /// entram no fanout vem de <see cref="ResolveFanoutChannels"/> (F9-T006).
     /// </summary>
     private async Task QueueDeliveriesAsync(
         Notification notification, NotificationChannel channel, CancellationToken cancellationToken)
