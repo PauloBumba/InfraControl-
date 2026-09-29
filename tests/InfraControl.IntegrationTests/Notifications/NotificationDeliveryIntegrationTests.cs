@@ -57,6 +57,30 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task Consumer_ShouldQueueEmailDeliveryWithRecipientAddress()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userId = await SeedUserAsync(context, "email-delivery@exemplo.test");
+
+        var domainEvent = new Domain.Events.UserCreatedDomainEvent(
+            userId, "email-delivery@exemplo.test");
+        await CreateConsumer(context).HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        var repository = scope.ServiceProvider
+            .GetRequiredService<INotificationDeliveryRepository>();
+        var pending = await repository.ListPendingByChannelAsync(
+            NotificationChannel.Email, limit: 50, CancellationToken.None);
+
+        pending.Should().ContainSingle(p => p.UserId == userId);
+        pending.Single().RecipientEmail.Should().Be("email-delivery@exemplo.test");
+    }
+
+    [Fact]
     public async Task Consumer_WithSignalPreferenceDisabled_ShouldNotQueue()
     {
         using var scope = CreateScope();
@@ -75,6 +99,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
-            .CountAsync(d => d.UserId == userId)).Should().Be(0);
+            .CountAsync(d => d.UserId == userId && d.Channel == NotificationChannel.SignalR))
+            .Should().Be(0);
     }
 }

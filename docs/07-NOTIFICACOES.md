@@ -105,6 +105,22 @@ Tabela `notification_deliveries`: `notification_id`/`user_id` FKs
 `Cascade`, `channel`/`status` (strings), `sent_at`, `last_error`;
 índice `(channel, status)` — a fila por canal.
 
+## Canal Email (F9-T005)
+
+Espelho do canal SignalR: o consumer também enfileira
+`NotificationDelivery` com canal `Email` para cada usuário final
+(respeitando a preferência do canal); **usuário sem e-mail = sem delivery**
+(Warning no log). O `NotificationEmailWorker` (mesmo loop base, 2s) lê os
+`Pending` do canal e despacha via porta `IEmailNotificationDispatcher`
+(`To` = e-mail do destinatário, `Subject` = title, `Body` = message) e
+marca `Sent`/`Failed`.
+
+O adaptador concreto é `LoggingEmailNotificationDispatcher`
+(Infrastructure) — nenhum SMTP real, igual ao `LoggingIdentityEmailSender`
+do identity (docs/05): um provider SMTP/API troca a implementação sem
+tocar em Application. `PendingDeliveryItem` ganhou `RecipientEmail`
+(join com DomainUsers).
+
 ## Delivery
 
 Estados:

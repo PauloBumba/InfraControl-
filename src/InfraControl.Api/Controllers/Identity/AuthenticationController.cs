@@ -1,5 +1,6 @@
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Api.Controllers;
+using InfraControl.Api.Middleware;
 using InfraControl.Api.RateLimiting;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
@@ -142,7 +143,12 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
         {
             new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Name, user.Email)
+            new(ClaimTypes.Name, user.Email),
+
+            // ADR-018: o cookie diz QUAL sessão é. Sem esta claim o
+            // ActiveSessionMiddleware não tem o que conferir e rejeita
+            // todo mundo — inclusive os cookies novos.
+            new(ActiveSessionMiddleware.SessionIdClaim, user.SessionId.ToString())
         };
 
         // Nome de exibição para a UI (claim própria: ClaimTypes.Name continua

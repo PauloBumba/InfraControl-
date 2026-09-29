@@ -11,29 +11,50 @@ public sealed class UserSession : AggregateRoot
     public DateTime CreatedAt { get; private set; }
     public DateTime LastSeenAt { get; private set; }
     public DateTime ExpiresAt { get; private set; }
+    public DateTime AbsoluteExpiresAt { get; private set; }
     public DateTime? RevokedAt { get; private set; }
 
-    public bool IsActive => RevokedAt is null && ExpiresAt > AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+    // Dois prazos (ADR-018): o deslizante é esticado a cada Refresh, o teto
+    // não. Sem o teto, uma sessão ativa nunca expira sozinha.
+    public bool IsActive
+    {
+        get
+        {
+            var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+            return RevokedAt is null && ExpiresAt > now && AbsoluteExpiresAt > now;
+        }
+    }
 
     private UserSession() { }
 
-    private UserSession(Guid id, Guid userId, string refreshTokenHash, DateTime expiresAt)
+    private UserSession(Guid id, Guid userId, string refreshTokenHash, DateTime expiresAt, DateTime absoluteExpiresAt)
         : base(id)
     {
         if (userId == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(userId));
         if (string.IsNullOrWhiteSpace(refreshTokenHash)) throw new ArgumentException("O hash do refresh token é obrigatório.", nameof(refreshTokenHash));
-        if (expiresAt <= AppTimeProvider.Current.GetUtcNow().UtcDateTime) throw new ArgumentException("A expiração da sessão deve estar no futuro.", nameof(expiresAt));
+        var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        if (expiresAt <= now) throw new ArgumentException("A expiração da sessão deve estar no futuro.", nameof(expiresAt));
+        if (absoluteExpiresAt <= now) throw new ArgumentException("A expiração absoluta da sessão deve estar no futuro.", nameof(absoluteExpiresAt));
+        if (absoluteExpiresAt > expiresAt) throw new ArgumentException("O teto da sessão não pode ser maior que o prazo deslizante.", nameof(absoluteExpiresAt));
 
         UserId = userId;
         RefreshTokenHash = refreshTokenHash;
-        CreatedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
-        LastSeenAt = CreatedAt;
+        CreatedAt = now;
+        LastSeenAt = now;
         ExpiresAt = expiresAt;
+        AbsoluteExpiresAt = absoluteExpiresAt;
         RaiseDomainEvent(new UserSessionStartedDomainEvent(Id, UserId));
     }
 
-    public static UserSession Start(Guid userId, string refreshTokenHash, TimeSpan lifetime)
-        => new(Guid.NewGuid(), userId, refreshTokenHash, AppTimeProvider.Current.GetUtcNow().UtcDateTime.Add(lifetime));
+    public static UserSession Start(Guid userId, string refreshTokenHash, TimeSpan lifetime, TimeSpan absoluteLifetime)
+    {
+        if (absoluteLifetime > lifetime)
+            throw new ArgumentException("O teto da sessão não pode ser maior que o prazo deslizante.", nameof(absoluteLifetime));
+
+        var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        return new UserSession(
+            Guid.NewGuid(), userId, refreshTokenHash, now.Add(lifetime), now.Add(absoluteLifetime));
+    }
 
     public void Refresh(string refreshTokenHash, TimeSpan lifetime)
     {

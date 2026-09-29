@@ -1,3 +1,4 @@
+using InfraControl.Application.Notifications.Email;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
@@ -6,6 +7,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Roles.Ports;
+using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
@@ -78,7 +80,12 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>();
 
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
+
+        // ADR-018: dá autoridade ao cookie. Sem este registro o
+        // ActiveSessionMiddleware não tem o que consultar.
+        services.AddScoped<IActiveSessionReader, ActiveSessionReader>();
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
+        services.AddScoped<IEmailNotificationDispatcher, LoggingEmailNotificationDispatcher>();
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
 

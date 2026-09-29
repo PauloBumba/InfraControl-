@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
@@ -165,35 +166,52 @@ public sealed class NotificationEventConsumer(
             "Notificação {NotificationId} criada a partir de {EventType}/{EventId}: {Title}.",
             notification.Id, eventType, eventId, title);
 
-        await CreateSignalRDeliveriesAsync(notification, cancellationToken);
+        await QueueDeliveriesAsync(notification, NotificationChannel.SignalR, cancellationToken);
+        await QueueDeliveriesAsync(notification, NotificationChannel.Email, cancellationToken);
     }
 
     /// <summary>
-    /// F9-T004: enfileira a entrega no canal SignalR para cada usuário
-    /// final (roles resolvidas + dedup). Preferência desligada = sem
-    /// delivery (default: habilitado). Canais futuros (F9-T005+) enfileiram
-    /// os seus.
+    /// Enfileira as deliveries do canal para cada usuário final (roles
+    /// resolvidas + dedup). Preferência desligada = sem delivery (default
+    /// habilitado); canal Email exige e-mail cadastrado. Canais restantes
+    /// entram aqui (F9-T006+).
     /// </summary>
-    private async Task CreateSignalRDeliveriesAsync(
-        Notification notification, CancellationToken cancellationToken)
+    private async Task QueueDeliveriesAsync(
+        Notification notification, NotificationChannel channel, CancellationToken cancellationToken)
     {
         var userIds = await new NotificationRecipientRepository(dbContext)
             .ResolveUserIdsAsync(notification.Id, cancellationToken);
+        if (userIds.Count == 0)
+            return;
+
+        var disabled = await dbContext.NotificationPreferences
+            .Where(p => p.Channel == channel && !p.Enabled && userIds.Contains(p.UserId))
+            .Select(p => p.UserId)
+            .ToListAsync(cancellationToken);
+
+        var emails = channel == NotificationChannel.Email
+            ? await dbContext.DomainUsers
+                .Where(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken)
+            : [];
 
         var added = false;
         foreach (var userId in userIds)
         {
-            var disabled = await dbContext.NotificationPreferences.AnyAsync(
-                p => p.UserId == userId
-                    && p.Channel == Domain.Enums.NotificationChannel.SignalR
-                    && !p.Enabled,
-                cancellationToken);
-
-            if (disabled)
+            if (disabled.Contains(userId))
                 continue;
 
+            if (channel == NotificationChannel.Email
+                && (!emails.TryGetValue(userId, out var email) || string.IsNullOrWhiteSpace(email)))
+            {
+                logger.LogWarning(
+                    "Delivery Email não enfileirada: usuário {UserId} sem e-mail na notificação {NotificationId}.",
+                    userId, notification.Id);
+                continue;
+            }
+
             dbContext.NotificationDeliveries.Add(NotificationDelivery.Create(
-                notification.Id, userId, Domain.Enums.NotificationChannel.SignalR));
+                notification.Id, userId, channel));
             added = true;
         }
 

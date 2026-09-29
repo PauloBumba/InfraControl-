@@ -65,6 +65,7 @@ public interface IGoogleIdentityTokenValidator
 
 public sealed record AuthenticatedUser(
     Guid UserId,
+    Guid SessionId,
     string Email,
     string DisplayName,
     IReadOnlyCollection<string> Roles);

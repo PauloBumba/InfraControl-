@@ -130,9 +130,9 @@ public sealed class NotificationEventConsumerTests : IDisposable
             recipientUserId: domainEvent.UserId, recipientRole: null,
             CancellationToken.None);
 
-        var delivery = await context.NotificationDeliveries.AsNoTracking().SingleAsync();
+        var delivery = await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.SignalR);
         delivery.UserId.Should().Be(domainEvent.UserId);
-        delivery.Channel.Should().Be(NotificationChannel.SignalR);
         delivery.Status.Should().Be(DeliveryStatus.Pending);
     }
 
@@ -153,7 +153,51 @@ public sealed class NotificationEventConsumerTests : IDisposable
             recipientUserId: domainEvent.UserId, recipientRole: null,
             CancellationToken.None);
 
-        (await context.NotificationDeliveries.AsNoTracking().CountAsync()).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Consume_UserCreated_ShouldQueueEmailDeliveryWithAddress()
+    {
+        var (context, consumer) = await CreateAsync();
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "fila-email@exemplo.test");
+
+        var domainEvent = new UserCreatedDomainEvent(userId, "fila-email@exemplo.test");
+        await consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        var delivery = await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.Email);
+        delivery.UserId.Should().Be(userId);
+        delivery.Status.Should().Be(DeliveryStatus.Pending);
+    }
+
+    [Fact]
+    public async Task Consume_WithEmailPreferenceDisabled_ShouldQueueOnlySignalR()
+    {
+        var (context, consumer) = await CreateAsync();
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "email-off@exemplo.test");
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.Email, enabled: false));
+        await context.SaveChangesAsync();
+
+        var domainEvent = new UserCreatedDomainEvent(userId, "email-off@exemplo.test");
+        await consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(1);
     }
 
     [Fact]

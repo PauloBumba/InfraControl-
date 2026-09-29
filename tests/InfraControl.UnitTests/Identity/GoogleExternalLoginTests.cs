@@ -197,7 +197,7 @@ public sealed class GoogleExternalLoginTests
     public async Task Controller_ShouldSignInCookie_AndReturnEnvelope()
     {
         var session = new AuthenticationResult(
-            new AuthenticatedUser(Guid.NewGuid(), GoogleUser.Email, "Google User", [nameof(Domain.Enums.UserRole.Viewer)]),
+            new AuthenticatedUser(Guid.NewGuid(), Guid.NewGuid(), GoogleUser.Email, "Google User", [nameof(Domain.Enums.UserRole.Viewer)]),
             "refresh-token",
             DateTime.UtcNow.AddDays(30));
 

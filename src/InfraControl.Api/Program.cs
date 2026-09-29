@@ -2,6 +2,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Middleware;
+using InfraControl.Api.Configuration;
 using InfraControl.Api.Security;
 using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -66,6 +67,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IUserIdProvider, SignalRUserIdProvider>();
 builder.Services.AddSingleton<ISignalRNotificationDispatcher, SignalRNotificationDispatcher>();
 builder.Services.AddHostedService<NotificationSignalRWorker>();
+builder.Services.AddHostedService<NotificationEmailWorker>();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
@@ -99,6 +101,19 @@ builder.Services.AddAuthorization(options =>
 // AntiforgeryCookieSetup para que os testes validem exatamente a mesma
 // configuração que roda (cookie XSRF-TOKEN legível + header X-XSRF-TOKEN).
 builder.Services.AddAntiforgery(AntiforgeryCookieSetup.Configure);
+
+// F1-T016(b)/ADR-018: prazos de sessão em configuração. A validação acontece
+// na resolução do IOptions, abaixo, porque teto maior que deslizante é
+// configuração sem sentido e falhar no boot é melhor do que falhar em produção.
+builder.Services.AddMemoryCache();
+builder.Services
+    .AddOptions<SessionLifetimeOptions>()
+    .Bind(builder.Configuration.GetSection(SessionLifetimeOptions.SectionName))
+    .Validate(options => options.IsValid,
+        "Session:AbsoluteLifetime precisa ser maior que zero e <= Session:SlidingLifetime.")
+    .ValidateOnStart();
+builder.Services.Configure<CookiePolicyOptions>(options =>
+    options.CheckConsentNeeded = _ => false);
 
 // ── Rate limiting HTTP (ADR-011 / docs/08) ───────────────────────────────
 // Camada HTTP do ASP.NET Core Rate Limiter com estado distribuído no Redis
@@ -167,6 +182,12 @@ app.UseAuthentication();
 // novo nasça protegido por padrão. Depende de UseAuthentication: precisa saber
 // se a request está autenticada para decidir se valida.
 app.UseMiddleware<AntiforgeryCookieMiddleware>();
+
+// F1-T016(b)/ADR-018: a sessão que o cookie afirma é conferida contra o banco
+// a cada request autenticado, com cache curto. Também depois de
+// UseAuthentication e antes de UseAuthorization, para a sessão morrer antes de
+// qualquer decisão de endpoint.
+app.UseMiddleware<ActiveSessionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 

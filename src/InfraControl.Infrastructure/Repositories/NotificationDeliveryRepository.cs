@@ -39,13 +39,19 @@ public sealed class NotificationDeliveryRepository(AppDbContext dbContext)
                 dbContext.Notifications.AsNoTracking(),
                 delivery => delivery.NotificationId,
                 notification => notification.Id,
-                (delivery, notification) => new PendingDeliveryItem(
-                    delivery.Id,
-                    delivery.NotificationId,
-                    delivery.UserId,
-                    notification.Title,
-                    notification.Message,
-                    notification.CreateDateTime))
+                (delivery, notification) => new { Delivery = delivery, Notification = notification })
+            .Join(
+                dbContext.DomainUsers.AsNoTracking(),
+                x => x.Delivery.UserId,
+                user => user.Id,
+                (x, user) => new PendingDeliveryItem(
+                    x.Delivery.Id,
+                    x.Delivery.NotificationId,
+                    x.Delivery.UserId,
+                    x.Notification.Title,
+                    x.Notification.Message,
+                    x.Notification.CreateDateTime,
+                    user.Email))
             .ToListAsync(cancellationToken);
     }
 

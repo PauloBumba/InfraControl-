@@ -1,0 +1,290 @@
+using System.Security.Claims;
+using FluentAssertions;
+using InfraControl.Api.Configuration;
+using InfraControl.Api.Middleware;
+using InfraControl.Application.Identity.Sessions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+namespace InfraControl.UnitTests.Api;
+
+/// <summary>
+/// F1-T016(b) / ADR-018: o cookie é auto-contido e por isso não tinha
+/// autoridade nenhuma — revogar sessão não tirava ninguém de lugar. O
+/// middleware é o que devolve essa autoridade, então a política é testada aqui
+/// com um leitor falso (é a decisão que importa: quem passa, quem é recusado,
+/// quem paga consulta ao banco).
+///
+/// O leitor de verdade é testado contra Postgres em
+/// <c>ActiveSessionReaderIntegrationTests</c> — a consulta é o outro lado.
+/// </summary>
+public sealed class ActiveSessionMiddlewareTests
+{
+    private static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid SessionId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+    private sealed class StubReader(Func<Guid, Guid, ActiveSessionCheck> respond)
+        : IActiveSessionReader
+    {
+        public int Calls { get; private set; }
+
+        public Task<ActiveSessionCheck> CheckAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Task.FromResult(respond(sessionId, userId));
+        }
+    }
+
+    private static ClaimsPrincipal Principal(Guid? userId, Guid? sessionId)
+    {
+        var claims = new List<Claim>();
+        if (userId is not null) claims.Add(new Claim(ClaimTypes.NameIdentifier, userId.Value.ToString()));
+        if (sessionId is not null) claims.Add(new Claim(ActiveSessionMiddleware.SessionIdClaim, sessionId.Value.ToString()));
+
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, "cookie", ClaimTypes.Name, ClaimTypes.Role));
+    }
+
+    /// <summary>
+    /// O middleware assina o cookie fora (SignOutAsync) ao recusar. Isso resolve
+    /// IAuthenticationService do RequestServices — sem um provider aqui o teste
+    /// estouraria por falta de container, não por política.
+    /// </summary>
+    private sealed class StubAuthenticator : IAuthenticationService
+    {
+        public int SignOuts { get; private set; }
+
+        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme)
+            => Task.FromResult(AuthenticateResult.NoResult());
+
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
+
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
+
+        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties) => Task.CompletedTask;
+
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
+        {
+            SignOuts++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private static DefaultHttpContext Request(ClaimsPrincipal principal, StubAuthenticator? authenticator = null)
+    {
+        var context = new DefaultHttpContext { User = principal };
+        context.Response.Body = new MemoryStream();
+        context.RequestServices = new ServiceCollection()
+            .AddSingleton<IAuthenticationService>(authenticator ?? new StubAuthenticator())
+            .AddLogging()
+            .BuildServiceProvider();
+        return context;
+    }
+
+    private static ActiveSessionMiddleware Middleware(
+        IActiveSessionReader reader,
+        IMemoryCache? cache = null,
+        TimeSpan? checkInterval = null,
+        Action? onNext = null)
+        => new(
+            _ => { onNext?.Invoke(); return Task.CompletedTask; },
+            reader,
+            cache ?? new MemoryCache(new MemoryCacheOptions()),
+            Options.Create(new SessionLifetimeOptions
+            {
+                SlidingLifetime = TimeSpan.FromDays(30),
+                AbsoluteLifetime = TimeSpan.FromHours(12),
+                CheckInterval = checkInterval ?? TimeSpan.FromSeconds(30)
+            }),
+            NullLogger<ActiveSessionMiddleware>.Instance);
+
+    private static ClaimsPrincipal ActiveUser(Guid? sessionId = null) => Principal(UserId, sessionId ?? SessionId);
+
+    [Fact]
+    public async Task Active_Session_Should_Pass()
+    {
+        var reached = false;
+        var context = Request(ActiveUser());
+
+        await Middleware(new StubReader((_, _) => ActiveSessionCheck.Active), onNext: () => reached = true)
+            .InvokeAsync(context);
+
+        reached.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+    }
+
+    [Theory]
+    [InlineData(ActiveSessionStatus.NotFound)]
+    [InlineData(ActiveSessionStatus.Revoked)]
+    [InlineData(ActiveSessionStatus.SlidingExpired)]
+    [InlineData(ActiveSessionStatus.AbsoluteExpired)]
+    [InlineData(ActiveSessionStatus.WrongUser)]
+    public async Task Dead_Session_Should_Be_401(ActiveSessionStatus status)
+    {
+        var reached = false;
+        var authenticator = new StubAuthenticator();
+        var context = Request(ActiveUser(), authenticator);
+
+        await Middleware(new StubReader((_, _) => new ActiveSessionCheck(status)), onNext: () => reached = true)
+            .InvokeAsync(context);
+
+        reached.Should().BeFalse("a sessão morreu antes do endpoint");
+        context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        authenticator.SignOuts.Should().Be(1, "o cookie morto é apagado, senão o browser reenvia e o usuário preso em 401");
+    }
+
+    [Fact]
+    public async Task Rejection_Should_Not_Say_Why()
+    {
+        // "sessão revogada" vs "não encontrei a sessão" vs "de outra pessoa" é
+        // informação sobre a sessão para quem tem o cookie
+        var messages = new List<string>();
+
+        foreach (var status in new[]
+                 {
+                     ActiveSessionStatus.NotFound, ActiveSessionStatus.Revoked,
+                     ActiveSessionStatus.SlidingExpired, ActiveSessionStatus.AbsoluteExpired,
+                     ActiveSessionStatus.WrongUser
+                 })
+        {
+            var context = Request(ActiveUser());
+            await Middleware(new StubReader((_, _) => new ActiveSessionCheck(status))).InvokeAsync(context);
+
+            context.Response.Body.Position = 0;
+            messages.Add(await new StreamReader(context.Response.Body).ReadToEndAsync());
+        }
+
+        messages.Distinct().Should().HaveCount(1, "a resposta é a mesma nos cinco casos");
+    }
+
+    private static ClaimsPrincipal MalformedSidPrincipal() => new(new ClaimsIdentity(
+        [new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
+         new Claim(ActiveSessionMiddleware.SessionIdClaim, "não-é-guid")],
+        "cookie", ClaimTypes.Name, ClaimTypes.Role));
+
+    [Fact]
+    public async Task Cookie_Without_Session_Claim_Should_Be_401_Without_Hitting_The_Database()
+    {
+        // cookie emitido antes da ADR-018: fail-closed, e sem consulta —
+        // não há id para consultar
+        var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
+        var context = Request(Principal(UserId, sessionId: null));
+
+        await Middleware(reader).InvokeAsync(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        reader.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Malformed_Session_Claim_Should_Be_401_Without_Hitting_The_Database()
+    {
+        var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
+        var context = Request(MalformedSidPrincipal());
+
+        await Middleware(reader).InvokeAsync(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized, "sid ilegível é fail-closed");
+        reader.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Anonymous_Should_Pass_Without_Hitting_The_Database()
+    {
+        var reader = new StubReader((_, _) => new ActiveSessionCheck(ActiveSessionStatus.Revoked));
+        var reached = false;
+
+        await Middleware(reader, onNext: () => reached = true)
+            .InvokeAsync(Request(new ClaimsPrincipal(new ClaimsIdentity())));
+
+        reached.Should().BeTrue();
+        reader.Calls.Should().Be(0, "anônimo não tem sessão para conferir");
+    }
+
+    [Fact]
+    public async Task Second_Request_In_The_Check_Interval_Should_Not_Hit_The_Database()
+    {
+        // o cache é o motivo de a verificação ser barata: sem ele seria uma
+        // consulta ao banco por request em toda a API
+        var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var middleware = Middleware(reader, cache);
+
+        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser()));
+
+        reader.Calls.Should().Be(1, "três requests dentro da janela, uma consulta");
+    }
+
+    [Fact]
+    public async Task Rejected_Session_Should_Also_Be_Cached()
+    {
+        // sem isto, cookie morto vira uma consulta por request enquanto o
+        // usuário navega na tela de erro
+        var reader = new StubReader((_, _) => new ActiveSessionCheck(ActiveSessionStatus.Revoked));
+        var middleware = Middleware(reader);
+
+        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser()));
+
+        reader.Calls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Check_Interval_Expiry_Should_Recheck()
+    {
+        var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var middleware = Middleware(reader, cache, checkInterval: TimeSpan.FromMilliseconds(1));
+
+        await middleware.InvokeAsync(Request(ActiveUser()));
+        await Task.Delay(30);
+        await middleware.InvokeAsync(Request(ActiveUser()));
+
+        reader.Calls.Should().Be(2, "passado o intervalo, a sessão é conferida de novo — é aí que a revogação passa a valer");
+    }
+
+    [Fact]
+    public async Task Session_Of_Another_User_Should_Be_Refused_By_The_Reader()
+    {
+        // o sid vem do cookie: o leitor precisa da dona para conferir
+        var attacker = Guid.Parse("99999999-9999-9999-9999-999999999999");
+        var seen = Guid.Empty;
+        var reader = new StubReader((_, userId) =>
+        {
+            seen = userId;
+            return new ActiveSessionCheck(ActiveSessionStatus.Active);
+        });
+
+        await Middleware(reader).InvokeAsync(Request(Principal(attacker, SessionId)));
+
+        seen.Should().Be(attacker, "a dona precisa travelsse até a consulta");
+    }
+
+    [Fact]
+    public void Options_Should_Reject_A_Ceiling_Longer_Than_The_Sliding_Lifetime()
+    {
+        var options = new SessionLifetimeOptions
+        {
+            SlidingLifetime = TimeSpan.FromHours(1),
+            AbsoluteLifetime = TimeSpan.FromHours(2)
+        };
+
+        options.IsValid.Should().BeFalse("teto maior que deslizante é configuração sem sentido");
+    }
+
+    [Fact]
+    public void Default_Options_Should_Be_Sane()
+    {
+        var options = new SessionLifetimeOptions();
+
+        options.IsValid.Should().BeTrue();
+        options.SlidingLifetime.Should().Be(TimeSpan.FromDays(30));
+        options.AbsoluteLifetime.Should().Be(TimeSpan.FromHours(12));
+        options.AbsoluteLifetime.Should().BeLessThan(options.SlidingLifetime, "é o teto que dá sentido ao deslizante");
+    }
+}

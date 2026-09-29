@@ -20,7 +20,10 @@ public sealed class IdentityAuthenticationService(
     IGoogleIdentityTokenValidator googleTokenValidator,
     ILogger<IdentityAuthenticationService> logger) : IIdentityAuthenticationService
 {
+    // ADR-018: deslizante estica a cada refresh; o teto não. Configurável
+    // (appsettings "Session") para que a política não fique no código.
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(30);
+    private static readonly TimeSpan AbsoluteSessionLifetime = TimeSpan.FromHours(12);
 
     public async Task<OperationResult> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
     {
@@ -73,7 +76,7 @@ public sealed class IdentityAuthenticationService(
         var refreshToken = GenerateToken();
         session.Refresh(Hash(refreshToken), SessionLifetime);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToResult(identityUser, domainUser, refreshToken, session.ExpiresAt);
+        return ToResult(identityUser, domainUser, session, refreshToken, session.ExpiresAt);
     }
 
     public async Task LogoutAsync(Guid userId, string? refreshToken, CancellationToken cancellationToken = default)
@@ -204,10 +207,10 @@ public sealed class IdentityAuthenticationService(
     private async Task<AuthenticationResult> StartSessionAsync(InfraControlUser identityUser, User domainUser, CancellationToken cancellationToken)
     {
         var refreshToken = GenerateToken();
-        var session = UserSession.Start(domainUser.Id, Hash(refreshToken), SessionLifetime);
+        var session = UserSession.Start(domainUser.Id, Hash(refreshToken), SessionLifetime, AbsoluteSessionLifetime);
         dbContext.UserSessions.Add(session);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToResult(identityUser, domainUser, refreshToken, session.ExpiresAt);
+        return ToResult(identityUser, domainUser, session, refreshToken, session.ExpiresAt);
     }
 
     private async Task RevokeAllSessionsAsync(Guid userId, CancellationToken cancellationToken)
@@ -223,8 +226,16 @@ public sealed class IdentityAuthenticationService(
             EnsureSucceeded(await roleManager.CreateAsync(new IdentityRole<Guid>(role)), "criação de função");
     }
 
-    private static AuthenticationResult ToResult(InfraControlUser identityUser, User domainUser, string refreshToken, DateTime expiresAt)
-        => new(new AuthenticatedUser(identityUser.Id, identityUser.Email!, domainUser.DisplayName, domainUser.Roles.Select(role => role.ToString()).ToArray()), refreshToken, expiresAt);
+    private static AuthenticationResult ToResult(InfraControlUser identityUser, User domainUser, UserSession session, string refreshToken, DateTime expiresAt)
+        => new(
+            new AuthenticatedUser(
+                identityUser.Id,
+                session.Id,
+                identityUser.Email!,
+                domainUser.DisplayName,
+                domainUser.Roles.Select(role => role.ToString()).ToArray()),
+            refreshToken,
+            expiresAt);
 
     private static string NormalizeEmail(string email) => string.IsNullOrWhiteSpace(email) ? throw new ArgumentException("O e-mail é obrigatório.", nameof(email)) : email.Trim().ToLowerInvariant();
     private static string GenerateToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
