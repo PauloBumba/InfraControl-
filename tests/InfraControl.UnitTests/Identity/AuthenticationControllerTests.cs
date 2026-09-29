@@ -17,7 +17,7 @@ public sealed class AuthenticationControllerTests
     {
         // Arrange
         var authServiceMock = new Mock<IIdentityAuthenticationService>();
-        var controller = new AuthenticationController(authServiceMock.Object);
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>());
 
         var user = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, "123"),
@@ -51,7 +51,7 @@ public sealed class AuthenticationControllerTests
     {
         // Arrange
         var authServiceMock = new Mock<IIdentityAuthenticationService>();
-        var controller = new AuthenticationController(authServiceMock.Object);
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>());
 
         var user = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, "123"),

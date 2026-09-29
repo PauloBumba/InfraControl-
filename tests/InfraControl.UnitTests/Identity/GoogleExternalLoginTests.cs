@@ -288,7 +288,7 @@ public sealed class GoogleExternalLoginTests
             .BuildServiceProvider();
 
         var httpContext = new DefaultHttpContext { RequestServices = authServices };
-        var controller = new AuthenticationController(service)
+        var controller = new AuthenticationController(service, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>())
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

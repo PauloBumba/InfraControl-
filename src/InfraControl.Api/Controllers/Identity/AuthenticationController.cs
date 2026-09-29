@@ -6,6 +6,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Enums;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace InfraControl.Api.Controllers.Identity;
 
 [Route("api/v1/auth")]
-public sealed class AuthenticationController(IIdentityAuthenticationService authenticationService) : BaseController
+public sealed class AuthenticationController(IIdentityAuthenticationService authenticationService, IAntiforgery antiforgery) : BaseController
 {
     [AllowAnonymous]
     [HttpPost("register")]
@@ -119,13 +120,21 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
-        => Ok(ApiResponse.Ok(new
+    {
+        // F1-T015/ADR-017: nasce aqui o cookie XSRF-TOKEN. O /auth/me já é
+        // chamado no boot do dashboard (SessionGate), então o token existe
+        // antes da primeira escrita e não custa endpoint nem round trip extra.
+        // Precisa ser autenticado porque o token é vinculado à identidade.
+        antiforgery.GetAndStoreTokens(HttpContext);
+
+        return Ok(ApiResponse.Ok(new
         {
             userId = User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
             email = User.Identity?.Name,
             displayName = User.FindFirst("displayName")?.Value,
             roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray()
         }));
+    }
 
     private static ClaimsPrincipal CreatePrincipal(AuthenticatedUser user)
     {

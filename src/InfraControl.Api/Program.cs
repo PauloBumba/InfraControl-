@@ -2,6 +2,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Middleware;
+using InfraControl.Api.Security;
 using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Services;
@@ -94,6 +95,11 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization(options =>
     options.AddRolePolicies());
 
+// F1-T015/ADR-017: double-submit de CSRF. A configuração fica em
+// AntiforgeryCookieSetup para que os testes validem exatamente a mesma
+// configuração que roda (cookie XSRF-TOKEN legível + header X-XSRF-TOKEN).
+builder.Services.AddAntiforgery(AntiforgeryCookieSetup.Configure);
+
 // ── Rate limiting HTTP (ADR-011 / docs/08) ───────────────────────────────
 // Camada HTTP do ASP.NET Core Rate Limiter com estado distribuído no Redis
 // (GlobalLimiter) e janela em memória como fallback. A camada MediatR
@@ -155,6 +161,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+
+// F1-T015/ADR-017: escrita autenticada por cookie exige token de antiforgery.
+// Fica no pipeline (e não como atributo de controller) para que um endpoint
+// novo nasça protegido por padrão. Depende de UseAuthentication: precisa saber
+// se a request está autenticada para decidir se valida.
+app.UseMiddleware<AntiforgeryCookieMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 

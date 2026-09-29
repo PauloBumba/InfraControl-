@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using InfraControl.Api.Middleware;
 using InfraControl.Application.Common.Interfaces;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -112,6 +113,26 @@ public sealed class GlobalExceptionHandlerTests
         json.GetProperty("isSuccess").GetBoolean().Should().BeFalse();
         json.GetProperty("errors").GetArrayLength().Should().BeGreaterThan(0,
             "toda falha precisa entregar mensagem exibível para a UX");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AntiforgeryValidation_ShouldReturn400_AndNotLeakWhetherTheTokenExisted(bool authenticated)
+    {
+        // F1-T015/ADR-017: 400 e não 403 — o usuário está autenticado, o que
+        // falta é um header válido. E a mensagem é a mesma em qualquer caso:
+        // dizer "token ausente" vs "token inválido" seria oráculo.
+        var (status, json) = await HandleAsync(
+            new AntiforgeryValidationException("The cookie token and the request token were swapped."),
+            authenticated);
+
+        status.Should().Be(StatusCodes.Status400BadRequest);
+        json.GetProperty("isSuccess").GetBoolean().Should().BeFalse();
+
+        var error = json.GetProperty("errors")[0].GetString();
+        error.Should().Be("A requisição não pôde ser validada. Recarregue a página e tente novamente.");
+        error.Should().NotContain("swapped");
     }
 
     private static async Task<(int Status, JsonElement Json)> HandleAsync(

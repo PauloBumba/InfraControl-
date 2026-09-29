@@ -4,6 +4,7 @@ using InfraControl.Api.Controllers.Identity;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Domain.Enums;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -19,8 +20,12 @@ namespace InfraControl.UnitTests.Api;
 public sealed class AuthenticationMeTests
 {
     private static AuthenticationController ControllerWith(params Claim[] claims)
+        => ControllerWithAntiforgery(Mock.Of<IAntiforgery>(), claims);
+
+    private static AuthenticationController ControllerWithAntiforgery(
+        IAntiforgery antiforgery, params Claim[] claims)
     {
-        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>())
+        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>(), antiforgery)
         {
             ControllerContext = new ControllerContext
             {
@@ -84,5 +89,20 @@ public sealed class AuthenticationMeTests
             new Claim(ClaimTypes.NameIdentifier, "user-123"));
 
         RolesIn(controller.Me()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Me_Should_Issue_The_Antiforgery_Token()
+    {
+        // F1-T015/ADR-017: o XSRF-TOKEN nasce aqui porque o dashboard já chama
+        // /auth/me no boot. Sem isso, a primeira escrita autenticada do dia
+        // bateria em 400 — o token nunca existiu.
+        var antiforgery = new Mock<IAntiforgery>();
+        var controller = ControllerWithAntiforgery(
+            antiforgery.Object, new Claim(ClaimTypes.NameIdentifier, "user-123"));
+
+        controller.Me();
+
+        antiforgery.Verify(antiforgery => antiforgery.GetAndStoreTokens(controller.HttpContext), Times.Once);
     }
 }

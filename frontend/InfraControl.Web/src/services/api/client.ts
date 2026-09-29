@@ -10,9 +10,11 @@ import { signedOut } from "@/app/store/slices/authSlice";
  *    JavaScript nunca enxerga access token nem refresh token;
  *  - **401 é global**: qualquer chamada que receba 401 derruba o estado local
  *    (`signedOut`), então o SessionGate volta a renderizar o LoginPage na hora,
- *    sem esperar o próximo boot. O backend continua sendo a autoridade — isto
- *    é consistência de UI, não autorização;
+ *    sem esperar o próximo boot. O backend continua sendo sendo a autoridade —
+ *    isto é consistência de UI, não autorização;
  *  - 403 NÃO desloga: falta de permissão é caso de tela/erro, não de sessão;
+ *  - **400 de antiforgery não desloga** (F1-T015/ADR-017): é token faltando,
+ *    não sessão morta;
  *  - falha de transporte não vira logout (senão uma queda de rede jogaria o
  *    usuário para fora do app) e a mensagem não carrega URL nem credencial;
  *  - nenhum header, body, id_token ou token é logado.
@@ -48,6 +50,24 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
+/** F1-T015/ADR-017: o backend exige o token de antiforgery em toda escrita. */
+const XSRF_COOKIE = "XSRF-TOKEN";
+const XSRF_HEADER = "X-XSRF-TOKEN";
+
+/**
+ * Lê o cookie de antiforgery. O backend o emite em `GET /auth/me` (o boot do
+ * dashboard), sem HttpOnly justamente para o JS conseguir ler — é o que fecha o
+ * double-submit: um site cross-site não lê o cookie, então não monta o header.
+ *
+ * O valor NÃO é logado nem entra em mensagem de erro: é credencial de sessão.
+ */
+function antiforgeryToken(): string | undefined {
+  const prefix = `${XSRF_COOKIE}=`;
+  const found = document.cookie.split("; ").find((entry) => entry.startsWith(prefix));
+  return found ? decodeURIComponent(found.slice(prefix.length)) : undefined;
+}
+
+const WRITE_METHODS: ReadonlySet<Method> = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 interface RequestOptions {
   /**
@@ -61,11 +81,22 @@ interface RequestOptions {
 async function request<T>(path: string, method: Method, body?: unknown, options?: RequestOptions): Promise<T | null> {
   let response: Response;
 
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  // escrita autenticada: o header é obrigatório. Sem token a API responde 400
+  // ("A requisição não pôde ser validada") e a ação é perdida — por isso o
+  // token é lido aqui e não em cada call site.
+  if (WRITE_METHODS.has(method)) {
+    const token = antiforgeryToken();
+    if (token) headers[XSRF_HEADER] = token;
+  }
+
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       method,
       credentials: "include",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: Object.keys(headers).length ? headers : undefined,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {

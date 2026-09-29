@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace InfraControl.Api.Middleware;
@@ -45,6 +46,14 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         {
             RequestValidationException validation => (
                 StatusCodes.Status400BadRequest, validation.Errors),
+            // F1-T015/ADR-017: token de antiforgery ausente, forjado ou de
+            // outro usuário. 400 (não 403): o usuário ESTÁ autenticado, o que
+            // falta é um header válido — é request inválida, não falta de
+            // permissão. A mensagem é genérica de propósito: distinguir
+            // "faltou" de "invalidou" seria oráculo sobre o token em uso.
+            AntiforgeryValidationException => (
+                StatusCodes.Status400BadRequest,
+                ["A requisição não pôde ser validada. Recarregue a página e tente novamente."]),
             KeyNotFoundException => (
                 StatusCodes.Status404NotFound, [UserMessage(exception)]),
             UnauthorizedAccessException => (
