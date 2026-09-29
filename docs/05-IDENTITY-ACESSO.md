@@ -92,6 +92,9 @@ O backend expõe os fluxos de Identity inspirados no Sentinel:
 | `POST /api/v1/auth/mfa/setup` | Emite secret TOTP novo (pendente) + URI otpauth p/ QR | Autenticado |
 | `POST /api/v1/auth/mfa/confirm` | Valida TOTP e ativa o MFA; devolve 10 recovery codes (1× só) | Autenticado |
 | `POST /api/v1/auth/mfa/disable` | Desativa e apaga o MFA (código TOTP **ou** senha) | Autenticado |
+| `GET /api/v1/auth/sessions` | Lista as sessões ativas do próprio usuário (com marcador da atual) | Autenticado |
+| `DELETE /api/v1/auth/sessions/{sessionId}` | Revoga uma sessão; se for a atual, assina o cookie para fora | Autenticado |
+| `DELETE /api/v1/auth/sessions/others` | "Sair de todos os outros" (mantém a sessão atual) | Autenticado |
 
 ### MFA TOTP (F1-T016a, ADR-019)
 
@@ -108,6 +111,29 @@ sem exigir Operate/Administer — um Viewer também precisa proteger o próprio
 acesso).
 
 A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
+
+### Sessões (F1-T016b, ADR-020)
+
+Os 3 endpoints de sessão são auto-serviço (`[Authorize]`, qualquer role — o
+usuário mexe nas PRÓPRIAS sessões, mesma lógica do MFA). A lista mostra só
+as ativas do dono, da mais recente para a mais antiga, com `isCurrent`
+apontando o `sid` do cookie e `lastSeenAt` mantido por touch sob throttle de
+5min no `ActiveSessionReader` (sem isso o dashboard, que não usa refresh,
+mostraria a hora do login). Tentar revogar sessão inexistente **ou** de outra
+pessoa responde a MESMA mensagem `Sessão não encontrada.` (`404`) — o cliente
+não vira oráculo do sid.
+
+A revogação é sempre **duas escritas**: a entidade no banco e o check
+`Revoked` em `active-session:{sid}` no cache distribuído (Redis primário,
+fallback memória — ADR-010). A segunda derruba o cookie da outra instância
+na hora, sem esperar o `CheckInterval`; por isso `logout`,
+`change-password`/`reset-password` e os próprios endpoints também gravam o
+check. Com o Redis fora, o fallback local mantém a janela de 30s (logado) —
+degradação, não falha.
+
+Prazos e política ficam em `Session` no appsettings: `SlidingLifetime`,
+`AbsoluteLifetime`, `CheckInterval` e `RoleAbsoluteLifetimes` (cap por role
+que só encurta o teto, aplicado no login e validado na startup).
 
 ## Modelo
 

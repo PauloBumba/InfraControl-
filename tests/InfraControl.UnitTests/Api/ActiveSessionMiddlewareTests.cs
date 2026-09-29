@@ -1,11 +1,10 @@
 using System.Security.Claims;
 using FluentAssertions;
-using InfraControl.Api.Configuration;
 using InfraControl.Api.Middleware;
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Sessions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -19,8 +18,8 @@ namespace InfraControl.UnitTests.Api;
 /// com um leitor falso (é a decisão que importa: quem passa, quem é recusado,
 /// quem paga consulta ao banco).
 ///
-/// O leitor de verdade é testado contra Postgres em
-/// <c>ActiveSessionReaderIntegrationTests</c> — a consulta é o outro lado.
+/// O leitor de verdade é testado em <c>ActiveSessionReaderTests</c> (Sqlite,
+/// com os estados vencidos fabricados por SQL) — a consulta é o outro lado.
 /// </summary>
 public sealed class ActiveSessionMiddlewareTests
 {
@@ -86,13 +85,13 @@ public sealed class ActiveSessionMiddlewareTests
 
     private static ActiveSessionMiddleware Middleware(
         IActiveSessionReader reader,
-        IMemoryCache? cache = null,
+        ICacheService? cache = null,
         TimeSpan? checkInterval = null,
         Action? onNext = null)
         => new(
             _ => { onNext?.Invoke(); return Task.CompletedTask; },
             reader,
-            cache ?? new MemoryCache(new MemoryCacheOptions()),
+            cache ?? new FakeCacheService(),
             Options.Create(new SessionLifetimeOptions
             {
                 SlidingLifetime = TimeSpan.FromDays(30),
@@ -210,7 +209,7 @@ public sealed class ActiveSessionMiddlewareTests
         // o cache é o motivo de a verificação ser barata: sem ele seria uma
         // consulta ao banco por request em toda a API
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = new FakeCacheService();
         var middleware = Middleware(reader, cache);
 
         await middleware.InvokeAsync(Request(ActiveUser()));
@@ -238,7 +237,7 @@ public sealed class ActiveSessionMiddlewareTests
     public async Task Check_Interval_Expiry_Should_Recheck()
     {
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
-        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cache = new FakeCacheService();
         var middleware = Middleware(reader, cache, checkInterval: TimeSpan.FromMilliseconds(1));
 
         await middleware.InvokeAsync(Request(ActiveUser()));
@@ -246,6 +245,24 @@ public sealed class ActiveSessionMiddlewareTests
         await middleware.InvokeAsync(Request(ActiveUser()));
 
         reader.Calls.Should().Be(2, "passado o intervalo, a sessão é conferida de novo — é aí que a revogação passa a valer");
+    }
+
+    [Fact]
+    public async Task Revoked_Check_In_The_Shared_Cache_Should_Reject_Without_The_Reader()
+    {
+        // ADR-020: é ASSIM que a revogação escrita por outra instância vale na
+        // hora — quem revoga grava o check "Revoked" no cache compartilhado e o
+        // middleware lê o cache antes de qualquer consulta ao banco. Sem isto a
+        // janela de 30s da ADR-018 continuaria de pé entre instâncias.
+        var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
+        var cache = new FakeCacheService();
+        await cache.SetAsync(ActiveSessionCache.Key(SessionId), new ActiveSessionCheck(ActiveSessionStatus.Revoked));
+        var context = Request(ActiveUser());
+
+        await Middleware(reader, cache).InvokeAsync(context);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        reader.Calls.Should().Be(0, "o estado revogado já estava no cache compartilhado");
     }
 
     [Fact]
@@ -286,5 +303,60 @@ public sealed class ActiveSessionMiddlewareTests
         options.SlidingLifetime.Should().Be(TimeSpan.FromDays(30));
         options.AbsoluteLifetime.Should().Be(TimeSpan.FromHours(12));
         options.AbsoluteLifetime.Should().BeLessThan(options.SlidingLifetime, "é o teto que dá sentido ao deslizante");
+    }
+
+    /// <summary>
+    /// O middleware passou a ler o ICacheService (Redis primário, fallback em
+    /// memória — ADR-010/ADR-020), não o IMemoryCache local. O fake tem TTL de
+    /// verdade porque o teste do CheckInterval depende do expiry, não de um
+    /// dicionário eterno.
+    /// </summary>
+    private sealed class FakeCacheService : ICacheService
+    {
+        private sealed record Entry(object? Value, DateTime? ExpiresAtUtc);
+        private readonly Dictionary<string, Entry> _store = new();
+
+        public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
+        {
+            if (!_store.TryGetValue(key, out var entry))
+                return Task.FromResult(default(T));
+
+            if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc <= DateTime.UtcNow)
+            {
+                _store.Remove(key);
+                return Task.FromResult(default(T));
+            }
+
+            return Task.FromResult(entry.Value is T typed ? typed : default);
+        }
+
+        public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+        {
+            _store[key] = new Entry(value, expiration is null ? null : DateTime.UtcNow.Add(expiration.Value));
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+        {
+            _store.Remove(key);
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+        {
+            if (!_store.TryGetValue(key, out var entry))
+                return Task.FromResult(false);
+
+            if (entry.ExpiresAtUtc is not null && entry.ExpiresAtUtc <= DateTime.UtcNow)
+            {
+                _store.Remove(key);
+                return Task.FromResult(false);
+            }
+
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> TryAcquireAsync(string key, TimeSpan expiry, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("o middleware não usa lock distribuído.");
     }
 }

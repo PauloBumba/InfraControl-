@@ -84,6 +84,11 @@ public static class DependencyInjection
         // ADR-018: dá autoridade ao cookie. Sem este registro o
         // ActiveSessionMiddleware não tem o que consultar.
         services.AddScoped<IActiveSessionReader, ActiveSessionReader>();
+
+        // F1-T016b (ADR-020): auto-serviço de sessões — lista, revogação
+        // individual e "sair de todos os outros", com a invalidação do cache
+        // compartilhado que derruba o cookie na hora.
+        services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
         services.AddScoped<IEmailNotificationDispatcher, LoggingEmailNotificationDispatcher>();
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();

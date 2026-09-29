@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Authentication;
+using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Persistence;
@@ -243,6 +244,8 @@ public sealed class AuthenticationActivationTests
         services.Configure<CredentialEncryptionOptions>(options =>
             options.Key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
+        // F1-T016b: os prazos de sessão agora vêm das options (antes: constantes).
+        services.AddOptions<SessionLifetimeOptions>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         return services.BuildServiceProvider();
     }

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using InfraControl.Application.Identity.Authentication;
+using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Domain.Entities;
@@ -24,12 +25,25 @@ public sealed class IdentityAuthenticationService(
     IGoogleIdentityTokenValidator googleTokenValidator,
     ICredentialProtector credentialProtector,
     IOptions<MfaOptions> mfaOptions,
+    IOptions<SessionLifetimeOptions> sessionOptions,
     ILogger<IdentityAuthenticationService> logger) : IIdentityAuthenticationService
 {
-    // ADR-018: deslizante estica a cada refresh; o teto não. Configurável
-    // (appsettings "Session") para que a política não fique no código.
-    private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(30);
-    private static readonly TimeSpan AbsoluteSessionLifetime = TimeSpan.FromHours(12);
+    // ADR-018/ADR-020: os prazos vêm da configuração (antes: constantes
+    // estáticas que ignoravam o appsettings que a ADR-018 dizia existir) e o
+    // teto é cortado por role no login — cap só encurta, o menor valor vence.
+    private TimeSpan SlidingLifetime => sessionOptions.Value.SlidingLifetime;
+
+    private TimeSpan AbsoluteLifetimeFor(User domainUser)
+    {
+        var absolute = sessionOptions.Value.AbsoluteLifetime;
+        foreach (var role in domainUser.Roles)
+        {
+            if (sessionOptions.Value.TryGetRoleCap(role.ToString(), out var cap) && cap < absolute)
+                absolute = cap;
+        }
+
+        return absolute;
+    }
 
     public async Task<OperationResult> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
     {
@@ -96,7 +110,7 @@ public sealed class IdentityAuthenticationService(
             return null;
 
         var refreshToken = GenerateToken();
-        session.Refresh(Hash(refreshToken), SessionLifetime);
+        session.Refresh(Hash(refreshToken), SlidingLifetime);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToResult(identityUser, domainUser, session, refreshToken, session.ExpiresAt);
     }
@@ -108,6 +122,9 @@ public sealed class IdentityAuthenticationService(
             .ToListAsync(cancellationToken);
         foreach (var session in sessions) session.Revoke();
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // ADR-020: revogar é duas escritas — banco e cache compartilhado.
+        await InvalidateSessionCacheAsync(sessions.Select(session => session.Id), cancellationToken);
     }
 
     public async Task<PasswordResetRequestResult> RequestPasswordResetAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
@@ -360,7 +377,8 @@ public sealed class IdentityAuthenticationService(
     private async Task<AuthenticationResult> StartSessionAsync(InfraControlUser identityUser, User domainUser, CancellationToken cancellationToken)
     {
         var refreshToken = GenerateToken();
-        var session = UserSession.Start(domainUser.Id, Hash(refreshToken), SessionLifetime, AbsoluteSessionLifetime);
+        var session = UserSession.Start(
+            domainUser.Id, Hash(refreshToken), SlidingLifetime, AbsoluteLifetimeFor(domainUser));
         dbContext.UserSessions.Add(session);
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToResult(identityUser, domainUser, session, refreshToken, session.ExpiresAt);
@@ -371,6 +389,25 @@ public sealed class IdentityAuthenticationService(
         var sessions = await dbContext.UserSessions.Where(session => session.UserId == userId && session.RevokedAt == null).ToListAsync(cancellationToken);
         foreach (var session in sessions) session.Revoke();
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // ADR-020: trocar/resetar a senha derruba os cookies das outras
+        // instâncias na hora, não no próximo CheckInterval.
+        await InvalidateSessionCacheAsync(sessions.Select(session => session.Id), cancellationToken);
+    }
+
+    /// <summary>
+    /// ADR-020: a segunda escrita da revogação. Gravar o check "Revoked" (e
+    /// não apagar a chave) faz a outra instância ler o negativo na hora —
+    /// apagar deixaria o fallback local dela servindo o positivo velho.
+    /// </summary>
+    private async Task InvalidateSessionCacheAsync(IEnumerable<Guid> sessionIds, CancellationToken cancellationToken)
+    {
+        var revoked = new ActiveSessionCheck(ActiveSessionStatus.Revoked);
+        foreach (var sessionId in sessionIds)
+        {
+            await cache.SetAsync(
+                ActiveSessionCache.Key(sessionId), revoked, sessionOptions.Value.CheckInterval, cancellationToken);
+        }
     }
 
     private async Task EnsureRoleAsync(string role, CancellationToken cancellationToken)

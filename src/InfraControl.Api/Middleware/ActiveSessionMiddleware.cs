@@ -1,10 +1,9 @@
 using System.Security.Claims;
-using InfraControl.Api.Configuration;
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Sessions;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Api.Middleware;
@@ -28,14 +27,12 @@ namespace InfraControl.Api.Middleware;
 public sealed class ActiveSessionMiddleware(
     RequestDelegate next,
     IActiveSessionReader sessionReader,
-    IMemoryCache cache,
+    ICacheService cache,
     IOptions<SessionLifetimeOptions> options,
     ILogger<ActiveSessionMiddleware> logger)
 {
     /// <summary>Claim que diz QUAL sessão é — sem ela o cookie não tem autoridade.</summary>
     public const string SessionIdClaim = "sid";
-
-    private static readonly string CacheKeyPrefix = "active-session:";
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -73,15 +70,20 @@ public sealed class ActiveSessionMiddleware(
     private async Task<ActiveSessionCheck> ResolveAsync(
         Guid sessionId, Guid userId, CancellationToken cancellationToken)
     {
-        var key = CacheKeyPrefix + sessionId;
-        if (cache.TryGetValue(key, out ActiveSessionCheck? cached) && cached is not null)
+        // ADR-020: o cache do check é o distribuído (Redis primário, fallback
+        // local — ADR-010), não mais o IMemoryCache da instância. Quem revoga
+        // grava "Revoked" na mesma chave, então a outra instância lê o estado
+        // negativo na hora; sem isto a revogação só pegaria no CheckInterval.
+        var key = ActiveSessionCache.Key(sessionId);
+        var cached = await cache.GetAsync<ActiveSessionCheck>(key, cancellationToken);
+        if (cached is not null)
             return cached;
 
         var check = await sessionReader.CheckAsync(sessionId, userId, cancellationToken);
 
         // até sessão recusada entra no cache: sem isso, um cookie morto vira uma
         // consulta ao banco por request enquanto o usuário navega
-        cache.Set(key, check, options.Value.CheckInterval);
+        await cache.SetAsync(key, check, options.Value.CheckInterval, cancellationToken);
         return check;
     }
 

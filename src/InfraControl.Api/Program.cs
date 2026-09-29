@@ -2,7 +2,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Middleware;
-using InfraControl.Api.Configuration;
+using InfraControl.Application.Identity.Sessions;
 using InfraControl.Api.Security;
 using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -102,15 +102,17 @@ builder.Services.AddAuthorization(options =>
 // configuração que roda (cookie XSRF-TOKEN legível + header X-XSRF-TOKEN).
 builder.Services.AddAntiforgery(AntiforgeryCookieSetup.Configure);
 
-// F1-T016(b)/ADR-018: prazos de sessão em configuração. A validação acontece
-// na resolução do IOptions, abaixo, porque teto maior que deslizante é
-// configuração sem sentido e falhar no boot é melhor do que falhar em produção.
+// F1-T016(b)/ADR-018 + F1-T016b/ADR-020: prazos de sessão em configuração,
+// inclusive o corte por role (RoleAbsoluteLifetimes: cap só encurta e precisa
+// nomear role conhecida). A validação acontece na resolução do IOptions,
+// abaixo, porque configuração sem sentido é melhor derrubando o boot do que
+// aparecendo em produção.
 builder.Services.AddMemoryCache();
 builder.Services
     .AddOptions<SessionLifetimeOptions>()
     .Bind(builder.Configuration.GetSection(SessionLifetimeOptions.SectionName))
     .Validate(options => options.IsValid,
-        "Session:AbsoluteLifetime precisa ser maior que zero e <= Session:SlidingLifetime.")
+        "Session inválida: AbsoluteLifetime e CheckInterval > 0, AbsoluteLifetime <= SlidingLifetime, RoleAbsoluteLifetimes com valores > 0 e roles conhecidas (Admin, Operator, Viewer).")
     .ValidateOnStart();
 builder.Services.Configure<CookiePolicyOptions>(options =>
     options.CheckConsentNeeded = _ => false);

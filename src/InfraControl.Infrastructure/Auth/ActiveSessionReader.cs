@@ -17,6 +17,14 @@ namespace InfraControl.Infrastructure.Auth;
 /// </summary>
 public sealed class ActiveSessionReader(AppDbContext dbContext) : IActiveSessionReader
 {
+    /// <summary>
+    /// F1-T016b/ADR-020: o "visto por último" da lista de sessões anda no
+    /// máximo uma vez por este intervalo. Sem isto o dashboard, que não chama
+    /// refresh, mostraria a hora do login como última atividade — a lista
+    /// ficaria inútil para reconhecer dispositivo.
+    /// </summary>
+    private static readonly TimeSpan LastSeenTouchInterval = TimeSpan.FromMinutes(5);
+
     public async Task<ActiveSessionCheck> CheckAsync(
         Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
     {
@@ -25,7 +33,7 @@ public sealed class ActiveSessionReader(AppDbContext dbContext) : IActiveSession
         var session = await dbContext.UserSessions
             .AsNoTracking()
             .Where(item => item.Id == sessionId)
-            .Select(item => new { item.UserId, item.RevokedAt, item.ExpiresAt, item.AbsoluteExpiresAt })
+            .Select(item => new { item.UserId, item.RevokedAt, item.ExpiresAt, item.AbsoluteExpiresAt, item.LastSeenAt })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (session is null)
@@ -42,9 +50,22 @@ public sealed class ActiveSessionReader(AppDbContext dbContext) : IActiveSession
         // mesmo relógio do domínio (AppTimeProvider), para o teste poder andar no tempo
         var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 
-        return new ActiveSessionCheck(
-            session.AbsoluteExpiresAt <= now ? ActiveSessionStatus.AbsoluteExpired
+        var status = session.AbsoluteExpiresAt <= now ? ActiveSessionStatus.AbsoluteExpired
             : session.ExpiresAt <= now ? ActiveSessionStatus.SlidingExpired
-            : ActiveSessionStatus.Active);
+            : ActiveSessionStatus.Active;
+
+        // ADR-020: só sessão ATIVA é tocada (morta não ganha vida nova na
+        // tela), e só fora do throttle — embutido no round trip que o cache
+        // miss já faz, sem change tracker (ExecuteUpdate é SQL direto).
+        var cutoff = now - LastSeenTouchInterval;
+        if (status == ActiveSessionStatus.Active && session.LastSeenAt <= cutoff)
+        {
+            await dbContext.UserSessions
+                .Where(item => item.Id == sessionId && item.LastSeenAt <= cutoff)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(item => item.LastSeenAt, now), cancellationToken);
+        }
+
+        return new ActiveSessionCheck(status);
     }
 }

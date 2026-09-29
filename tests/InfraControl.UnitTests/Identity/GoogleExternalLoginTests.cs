@@ -6,6 +6,7 @@ using InfraControl.Api.Controllers.Identity;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Authentication;
+using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Auth;
@@ -346,6 +347,8 @@ public sealed class GoogleExternalLoginTests
         services.Configure<CredentialEncryptionOptions>(options =>
             options.Key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         services.AddScoped<ICredentialProtector, AesGcmCredentialProtector>();
+        // F1-T016b: os prazos de sessão agora vêm das options (antes: constantes).
+        services.AddOptions<SessionLifetimeOptions>();
         services.AddScoped<IIdentityAuthenticationService, IdentityAuthenticationService>();
         return services.BuildServiceProvider();
     }
