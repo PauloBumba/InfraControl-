@@ -17,8 +17,8 @@ namespace InfraControl.Application.Discovery.Runs;
 public sealed record StartDiscoveryCommand(Guid DeviceId, string Provider)
     : BaseCommand<DiscoveryRunDto>, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 
     public string AuditResource => "DiscoveryRun";
 }

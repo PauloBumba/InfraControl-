@@ -82,13 +82,13 @@ public sealed class SlaPolicyIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(
             new CreateSlaPolicyCommand("Sem permissão", 30, 480));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: SlaManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

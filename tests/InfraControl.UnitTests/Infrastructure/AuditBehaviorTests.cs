@@ -115,6 +115,5 @@ public sealed class AuditBehaviorTests
         public string? UserName => "test@example.com";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles => ["Admin"];
-        public IReadOnlyCollection<string> Permissions => [];
     }
 }

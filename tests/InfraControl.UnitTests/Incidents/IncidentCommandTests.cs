@@ -1,7 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.Incidents.Commands;
 using InfraControl.Application.Incidents.Queries;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
@@ -44,9 +43,9 @@ public sealed class IncidentCommandTests : IDisposable
     // ── Create ───────────────────────────────────────────────────────────
 
     [Fact]
-    public void Create_ShouldRequireIncidentsManage()
-        => new CreateIncidentCommand("t", IncidentSeverity.High).RequiredPermissions
-            .Should().Equal(Permission.IncidentsManage.ToString());
+    public void Create_ShouldRequireOperatorOrAdmin()
+        => new CreateIncidentCommand("t", IncidentSeverity.High).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
 
     [Fact]
     public async Task Create_ShouldOpenIncidentAndReturnDto()
@@ -171,12 +170,12 @@ public sealed class IncidentCommandTests : IDisposable
     // ── Queries ──────────────────────────────────────────────────────────
 
     [Fact]
-    public void Queries_ShouldRequireIncidentsRead()
+    public void Queries_ShouldRequireAnyRole()
     {
-        new SearchIncidentsQuery().RequiredPermissions.Should()
-            .Equal(Permission.IncidentsRead.ToString());
-        new GetIncidentQuery(Guid.NewGuid()).RequiredPermissions.Should()
-            .Equal(Permission.IncidentsRead.ToString());
+        new SearchIncidentsQuery().RequiredRoles.Should()
+            .BeEquivalentTo(RoleAccess.Read);
+        new GetIncidentQuery(Guid.NewGuid()).RequiredRoles.Should()
+            .BeEquivalentTo(RoleAccess.Read);
     }
 
     [Fact]

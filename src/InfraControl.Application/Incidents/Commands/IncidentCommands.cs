@@ -1,6 +1,5 @@
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -18,8 +17,8 @@ public sealed record CreateIncidentCommand(
     string? Description = null,
     Guid? DeviceId = null) : BaseCommand<IncidentDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.IncidentsManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateIncidentCommandHandler(
@@ -47,8 +46,8 @@ public sealed class CreateIncidentCommandHandler(
 public sealed record AcknowledgeIncidentCommand(Guid Id)
     : BaseCommand<IncidentDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.IncidentsManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class AcknowledgeIncidentCommandHandler(
@@ -73,8 +72,8 @@ public sealed class AcknowledgeIncidentCommandHandler(
 public sealed record UpdateIncidentStatusCommand(Guid Id, string Status)
     : BaseCommand<IncidentDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.IncidentsManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateIncidentStatusCommandHandler(

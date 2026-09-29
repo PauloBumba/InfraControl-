@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.IpAddresses.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.IpAddresses.Queries;
 
@@ -16,8 +16,8 @@ public sealed record SearchIpAddressesQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<IpAddressDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchIpAddressesQueryHandler(IIpAddressRepository repository)
@@ -46,8 +46,8 @@ public sealed class SearchIpAddressesQueryHandler(IIpAddressRepository repositor
 
 public sealed record GetIpAddressQuery(Guid Id) : IQuery<IpAddressDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetIpAddressQueryHandler(IIpAddressRepository repository)

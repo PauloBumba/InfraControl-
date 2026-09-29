@@ -1,10 +1,10 @@
 using InfraControl.Application.Sla.Slos.Measurements.Ports;
 using InfraControl.Application.Sla.Slos.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Slos.Measurements.Commands;
 
@@ -16,8 +16,8 @@ public sealed record RecordSloMeasurementCommand(
     DateTime MeasuredAt,
     decimal ValuePercent) : BaseCommand<SloMeasurementDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class RecordSloMeasurementCommandHandler(
@@ -50,8 +50,8 @@ public sealed class RecordSloMeasurementCommandHandler(
 
 public sealed record DeleteSloMeasurementCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteSloMeasurementCommandHandler(

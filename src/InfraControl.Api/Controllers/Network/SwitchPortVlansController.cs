@@ -5,6 +5,7 @@ using InfraControl.Api.ViewModels.Network;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Network;
 
@@ -18,7 +19,7 @@ namespace InfraControl.Api.Controllers.Network;
 public sealed class SwitchPortVlansController(ISender sender) : BaseController
 {
     [HttpGet("switch-ports/{switchPortId:guid}/vlans")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetVlansOfPort(
         Guid switchPortId,
         CancellationToken cancellationToken)
@@ -26,7 +27,7 @@ public sealed class SwitchPortVlansController(ISender sender) : BaseController
             new GetSwitchPortVlansQuery(switchPortId), cancellationToken)));
 
     [HttpPost("switch-ports/{switchPortId:guid}/vlans")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Assign(
         Guid switchPortId,
         [FromBody] AssignSwitchPortVlanViewModel model,
@@ -40,7 +41,7 @@ public sealed class SwitchPortVlansController(ISender sender) : BaseController
     }
 
     [HttpDelete("switch-ports/{switchPortId:guid}/vlans/{vlanId:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Unassign(
         Guid switchPortId,
         Guid vlanId,
@@ -53,7 +54,7 @@ public sealed class SwitchPortVlansController(ISender sender) : BaseController
     }
 
     [HttpGet("vlans/{vlanId:guid}/ports")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetPortsOfVlan(
         Guid vlanId,
         CancellationToken cancellationToken)

@@ -42,7 +42,7 @@ public sealed class RdpSessionIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task OpenRdp_WithoutRemoteRdpConnect_ShouldThrowUnauthorizedPtBr()
+    public async Task OpenRdp_WithoutRole_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -53,12 +53,12 @@ public sealed class RdpSessionIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new OpenRdpSessionCommand(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RemoteRdpConnect*");
+            .WithMessage("Roles ausentes: Admin, Operator");
         (await dbContext.RemoteSessions.CountAsync()).Should().Be(0);
     }
 
     [Fact]
-    public async Task CloseRemote_WithoutConnectPermissions_ShouldThrowUnauthorizedPtBr()
+    public async Task CloseRemote_WithoutRole_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -70,7 +70,7 @@ public sealed class RdpSessionIntegrationTests : BaseIntegrationTest
             new CloseRemoteSessionCommand(device.Id, Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RemoteRdpConnect*");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

@@ -55,12 +55,12 @@ public sealed class TaskIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(new SearchTasksQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: TasksRead");
+            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
     }
 
     [Fact]
@@ -68,13 +68,13 @@ public sealed class TaskIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(
             new CreateTaskCommand("t", "Manual"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: TasksManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

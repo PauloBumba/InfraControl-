@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.NetworkInterfaces.Queries;
 
@@ -15,8 +15,8 @@ public sealed record SearchNetworkInterfacesQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<NetworkInterfaceDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchNetworkInterfacesQueryHandler(INetworkInterfaceRepository repository)
@@ -44,8 +44,8 @@ public sealed class SearchNetworkInterfacesQueryHandler(INetworkInterfaceReposit
 
 public sealed record GetNetworkInterfaceQuery(Guid Id) : IQuery<NetworkInterfaceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetNetworkInterfaceQueryHandler(INetworkInterfaceRepository repository)

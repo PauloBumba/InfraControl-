@@ -38,18 +38,18 @@ public sealed class MonitoringIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task RunCheck_WithoutMonitoringReadPermission_ShouldThrowUnauthorizedPtBr()
+    public async Task RunCheck_WithoutRole_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.11");
-        UseNoPermissions();
+        UseNoRoles();
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(new RunCheckCommand(device.Id, "Ping"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*MonitoringRead*");
+            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
     }
 
     [Fact]

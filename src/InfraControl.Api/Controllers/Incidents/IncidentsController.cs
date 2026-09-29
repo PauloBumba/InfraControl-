@@ -6,6 +6,7 @@ using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Incidents;
 
@@ -18,7 +19,7 @@ namespace InfraControl.Api.Controllers.Incidents;
 public sealed class IncidentsController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "IncidentsRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? deviceId,
         [FromQuery] string? status,
@@ -30,14 +31,14 @@ public sealed class IncidentsController(ISender sender) : BaseController
             cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "IncidentsRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(
         Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetIncidentQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "IncidentsManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateIncidentViewModel model,
         CancellationToken cancellationToken)
@@ -53,14 +54,14 @@ public sealed class IncidentsController(ISender sender) : BaseController
     }
 
     [HttpPost("{id:guid}/acknowledge")]
-    [Authorize(Policy = "IncidentsManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Acknowledge(
         Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new AcknowledgeIncidentCommand(id), cancellationToken)));
 
     [HttpPut("{id:guid}/status")]
-    [Authorize(Policy = "IncidentsManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> UpdateStatus(
         Guid id,
         [FromBody] UpdateIncidentStatusViewModel model,

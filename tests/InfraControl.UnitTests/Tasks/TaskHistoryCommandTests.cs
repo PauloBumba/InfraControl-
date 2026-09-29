@@ -5,7 +5,6 @@ using InfraControl.Application.Tasks.History;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Queries;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -55,7 +54,6 @@ public sealed class TaskHistoryCommandTests : IDisposable
         public string? UserName => "ator@exemplo.test";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles => ["Admin"];
-        public IReadOnlyCollection<string> Permissions => [];
     }
 
     private static async Task<(Guid TaskId, Guid ActorId, Guid DeviceId)> SeedAsync(
@@ -153,8 +151,8 @@ public sealed class TaskHistoryCommandTests : IDisposable
 
     [Fact]
     public void Query_ShouldRequireTasksRead()
-        => new GetTaskHistoryQuery(Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksRead.ToString());
+        => new GetTaskHistoryQuery(Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Read);
 
     [Fact]
     public async Task List_ShouldReturnChronologicalEntriesWithActorName()

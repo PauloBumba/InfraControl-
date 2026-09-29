@@ -49,7 +49,7 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
         var act = () => mediator.Send(new StartDiscoveryCommand(device.Id, "Icmp"));
 
         (await act.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*MonitoringManage*");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.60");
-        UseRole(UserRole.User);
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var dto = await mediator.Send(new StartDiscoveryCommand(device.Id, "Snmp"));
@@ -83,7 +83,7 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
             new("1.0.8802.1.1.2.1.4.1.1.7.0.11.1", "sw-core-01"),
             new("1.0.8802.1.1.2.1.4.1.1.6.0.11.1", "Gi0/1")
         ];
-        UseRole(UserRole.User);
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var dto = await mediator.Send(new StartDiscoveryCommand(device.Id, "Lldp"));
@@ -101,7 +101,7 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.52");
-        UseRole(UserRole.User);
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var act = () => mediator.Send(new StartDiscoveryCommand(device.Id, "Foo"));

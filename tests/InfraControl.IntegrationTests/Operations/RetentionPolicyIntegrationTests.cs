@@ -72,14 +72,14 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
     public async Task Put_WithUserRole_ShouldThrowUnauthorizedRetentionManage()
     {
         using var scope = CreateScope();
-        UseRole(UserRole.User);
+        UseRole(UserRole.Operator);
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var action = () => mediator.Send(new UpsertRetentionPolicyCommand(
             RetentionDataType.AuditEntries, 30));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RetentionManage*");
+            .WithMessage("Roles ausentes: Admin");
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetRetentionPoliciesQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RetentionManage*");
+            .WithMessage("Roles ausentes: Admin");
     }
 
     [Fact]

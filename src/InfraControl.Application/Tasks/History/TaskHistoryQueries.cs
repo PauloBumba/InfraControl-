@@ -1,8 +1,8 @@
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Tasks.History;
 
@@ -12,8 +12,8 @@ namespace InfraControl.Application.Tasks.History;
 public sealed record GetTaskHistoryQuery(Guid TaskId)
     : IQuery<IReadOnlyCollection<TaskHistoryDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetTaskHistoryQueryHandler(

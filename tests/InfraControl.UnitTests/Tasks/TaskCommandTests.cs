@@ -1,7 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.Queries;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
@@ -49,9 +48,9 @@ public sealed class TaskCommandTests : IDisposable
     // ── Create ───────────────────────────────────────────────────────────
 
     [Fact]
-    public void Create_ShouldRequireTasksManage()
-        => new CreateTaskCommand("t", "manual").RequiredPermissions
-            .Should().Equal(Permission.TasksManage.ToString());
+    public void Create_ShouldRequireOperatorOrAdmin()
+        => new CreateTaskCommand("t", "manual").RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
 
     [Fact]
     public async Task Create_ShouldOpenTaskAndReturnDto()
@@ -160,12 +159,12 @@ public sealed class TaskCommandTests : IDisposable
     // ── Search / Get ─────────────────────────────────────────────────────
 
     [Fact]
-    public void Queries_ShouldRequireTasksRead()
+    public void Queries_ShouldRequireAnyRole()
     {
-        new SearchTasksQuery().RequiredPermissions
-            .Should().Equal(Permission.TasksRead.ToString());
-        new GetTaskQuery(Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksRead.ToString());
+        new SearchTasksQuery().RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Read);
+        new GetTaskQuery(Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Read);
     }
 
     [Fact]

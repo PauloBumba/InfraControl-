@@ -1,4 +1,5 @@
 using InfraControl.Application.Network.Connections.Ports;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.Connections.Queries;
 
@@ -11,8 +12,8 @@ public sealed record SearchConnectionsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<ConnectionDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchConnectionsQueryHandler(IConnectionRepository repository)
@@ -42,8 +43,8 @@ public sealed class SearchConnectionsQueryHandler(IConnectionRepository reposito
 
 public sealed record GetConnectionQuery(Guid Id) : IQuery<ConnectionDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetConnectionQueryHandler(IConnectionRepository repository)

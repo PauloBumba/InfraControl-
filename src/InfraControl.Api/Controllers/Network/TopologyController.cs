@@ -15,7 +15,7 @@ namespace InfraControl.Api.Controllers.Network;
 public sealed class TopologyController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTopologyQuery(), cancellationToken)));

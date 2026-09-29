@@ -10,6 +10,7 @@ using InfraControl.Application.Tasks.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Tasks;
 
@@ -21,7 +22,7 @@ namespace InfraControl.Api.Controllers.Tasks;
 public sealed class TasksController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "TasksRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] string? kind,
@@ -34,13 +35,13 @@ public sealed class TasksController(ISender sender) : BaseController
             cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "TasksRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(
         Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetTaskQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateTaskViewModel model,
         CancellationToken cancellationToken)
@@ -54,7 +55,7 @@ public sealed class TasksController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateTaskViewModel model,
@@ -67,7 +68,7 @@ public sealed class TasksController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(
         Guid id, CancellationToken cancellationToken)
     {
@@ -80,7 +81,7 @@ public sealed class TasksController(ISender sender) : BaseController
     // sem histórico. Retorna o TaskDto atualizado.
 
     [HttpPut("{id:guid}/state")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> ChangeState(
         Guid id,
         [FromBody] ChangeTaskStateViewModel model,
@@ -93,7 +94,7 @@ public sealed class TasksController(ISender sender) : BaseController
     // e estado atual embutido no TaskDto (assigneeIds).
 
     [HttpPost("{taskId:guid}/assignees/{userId:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Assign(
         Guid taskId,
         Guid userId,
@@ -104,7 +105,7 @@ public sealed class TasksController(ISender sender) : BaseController
     }
 
     [HttpDelete("{taskId:guid}/assignees/{userId:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Unassign(
         Guid taskId,
         Guid userId,
@@ -118,7 +119,7 @@ public sealed class TasksController(ISender sender) : BaseController
     // atual embutido no TaskDto (deviceIds).
 
     [HttpPost("{taskId:guid}/devices/{deviceId:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> LinkDevice(
         Guid taskId,
         Guid deviceId,
@@ -129,7 +130,7 @@ public sealed class TasksController(ISender sender) : BaseController
     }
 
     [HttpDelete("{taskId:guid}/devices/{deviceId:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> UnlinkDevice(
         Guid taskId,
         Guid deviceId,
@@ -143,7 +144,7 @@ public sealed class TasksController(ISender sender) : BaseController
     // atual embutido no TaskDto (incidentIds).
 
     [HttpPost("{taskId:guid}/incidents/{incidentId:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> LinkIncident(
         Guid taskId,
         Guid incidentId,
@@ -154,7 +155,7 @@ public sealed class TasksController(ISender sender) : BaseController
     }
 
     [HttpDelete("{taskId:guid}/incidents/{incidentId:guid}")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> UnlinkIncident(
         Guid taskId,
         Guid incidentId,
@@ -167,21 +168,21 @@ public sealed class TasksController(ISender sender) : BaseController
     // F7-T005: comentários — autor é o usuário logado (ICurrentUserContext).
 
     [HttpGet("{taskId:guid}/comments")]
-    [Authorize(Policy = "TasksRead")]
+    [Authorize]
     public async Task<IActionResult> GetComments(
         Guid taskId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTaskCommentsQuery(taskId), cancellationToken)));
 
     [HttpGet("{taskId:guid}/history")]
-    [Authorize(Policy = "TasksRead")]
+    [Authorize]
     public async Task<IActionResult> GetHistory(
         Guid taskId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTaskHistoryQuery(taskId), cancellationToken)));
 
     [HttpPost("{taskId:guid}/comments")]
-    [Authorize(Policy = "TasksManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> AddComment(
         Guid taskId,
         [FromBody] AddTaskCommentViewModel model,
@@ -198,14 +199,14 @@ public sealed class TasksController(ISender sender) : BaseController
     // aplicado, 404 task/política.
 
     [HttpGet("{taskId:guid}/sla")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> GetSla(
         Guid taskId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTaskSlaQuery(taskId), cancellationToken)));
 
     [HttpPost("{taskId:guid}/sla")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> ApplySla(
         Guid taskId,
         [FromBody] ApplyTaskSlaViewModel model,
@@ -222,14 +223,14 @@ public sealed class TasksController(ISender sender) : BaseController
     // vencimentos ao fechar (snapshot de minutos intacto).
 
     [HttpGet("{taskId:guid}/sla/pauses")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> GetSlaPauses(
         Guid taskId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTaskSlaPausesQuery(taskId), cancellationToken)));
 
     [HttpPost("{taskId:guid}/sla/pause")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> PauseSla(
         Guid taskId, CancellationToken cancellationToken)
     {
@@ -238,7 +239,7 @@ public sealed class TasksController(ISender sender) : BaseController
     }
 
     [HttpPost("{taskId:guid}/sla/resume")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> ResumeSla(
         Guid taskId, CancellationToken cancellationToken)
     {

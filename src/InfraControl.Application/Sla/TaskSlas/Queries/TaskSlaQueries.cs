@@ -1,7 +1,7 @@
 using InfraControl.Application.Sla.TaskSlas.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.TaskSlas.Queries;
 
@@ -9,8 +9,8 @@ namespace InfraControl.Application.Sla.TaskSlas.Queries;
 
 public sealed record GetTaskSlaQuery(Guid TaskId) : IQuery<TaskSlaDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetTaskSlaQueryHandler(ITaskSlaRepository repository)

@@ -12,7 +12,7 @@ public sealed class MissingBehaviorTests
     public async Task AuthorizationBehavior_ShouldRejectMissingPermission()
     {
         var behavior = new AuthorizationBehavior<AuthorizedRequest, string>(
-            new FakeCurrentUser(true, ["InventoryRead"]));
+            new FakeCurrentUser(true));
 
         var action = () => behavior.Handle(
             new AuthorizedRequest(["InventoryManage"]),
@@ -28,7 +28,7 @@ public sealed class MissingBehaviorTests
         var cache = new FakeCache("cached");
         var behavior = new CachingBehavior<CachedQuery, string>(
             cache,
-            new FakeCurrentUser(true, []),
+            new FakeCurrentUser(true),
             NullLogger<CachingBehavior<CachedQuery, string>>.Instance);
         var executed = false;
 
@@ -52,11 +52,11 @@ public sealed class MissingBehaviorTests
         var query = new CachedQuery();
         var behaviorForUserA = new CachingBehavior<CachedQuery, string>(
             cache,
-            new FakeCurrentUser(true, []),
+            new FakeCurrentUser(true),
             NullLogger<CachingBehavior<CachedQuery, string>>.Instance);
         var behaviorForUserB = new CachingBehavior<CachedQuery, string>(
             cache,
-            new FakeCurrentUser(true, []),
+            new FakeCurrentUser(true),
             NullLogger<CachingBehavior<CachedQuery, string>>.Instance);
 
         var first = await behaviorForUserA.Handle(
@@ -92,7 +92,7 @@ public sealed class MissingBehaviorTests
         unitOfWork.SaveCalls.Should().Be(1);
     }
 
-    private sealed record AuthorizedRequest(IReadOnlyCollection<string> RequiredPermissions) : IAuthorizedRequest;
+    private sealed record AuthorizedRequest(IReadOnlyCollection<string> RequiredRoles) : IAuthorizedRequest;
     private sealed record CachedQuery : IQuery<string>, ICacheableQuery
     {
         public string CacheKey => "unit-test";
@@ -100,14 +100,13 @@ public sealed class MissingBehaviorTests
     }
     private sealed record CommandRequest : ICommand<string>;
 
-    private sealed class FakeCurrentUser(bool authenticated, IReadOnlyCollection<string> permissions) : ICurrentUserContext
+    private sealed class FakeCurrentUser(bool authenticated) : ICurrentUserContext
     {
         private readonly Guid? _userId = Guid.NewGuid();
         public Guid? UserId => _userId;
         public string? UserName => "test@example.com";
         public bool IsAuthenticated => authenticated;
         public IReadOnlyCollection<string> Roles => [];
-        public IReadOnlyCollection<string> Permissions => permissions;
     }
 
     private sealed class FakeCache(string? value) : ICacheService

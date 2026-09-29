@@ -2,10 +2,10 @@ using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Network.Connections.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.NetworkInterfaces.Commands;
 
@@ -18,8 +18,8 @@ public sealed record CreateNetworkInterfaceCommand(
     string Name,
     string? Description = null) : BaseCommand<NetworkInterfaceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateNetworkInterfaceCommandHandler(
@@ -55,8 +55,8 @@ public sealed record UpdateNetworkInterfaceCommand(
     string Name,
     string? Description = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateNetworkInterfaceCommandHandler(
@@ -82,8 +82,8 @@ public sealed class UpdateNetworkInterfaceCommandHandler(
 
 public sealed record DeleteNetworkInterfaceCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteNetworkInterfaceCommandHandler(

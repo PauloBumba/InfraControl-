@@ -21,7 +21,7 @@ public sealed class TaskAssigneeIntegrationTests : BaseIntegrationTest
     private static async Task<Guid> SeedUserAsync(
         AppDbContext dbContext, string email, string displayName)
     {
-        var user = User.Create(email, displayName, UserRole.User);
+        var user = User.Create(email, displayName, UserRole.Operator);
         dbContext.DomainUsers.Add(user);
         await dbContext.SaveChangesAsync();
         return user.Id;
@@ -82,12 +82,12 @@ public sealed class TaskAssigneeIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(
             new AssignTaskCommand(Guid.NewGuid(), Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: TasksManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 }

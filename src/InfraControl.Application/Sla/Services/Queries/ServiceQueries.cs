@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Sla.Services.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Services.Queries;
 
@@ -13,8 +13,8 @@ public sealed record SearchServicesQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<ServiceDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchServicesQueryHandler(IServiceRepository repository)
@@ -41,8 +41,8 @@ public sealed class SearchServicesQueryHandler(IServiceRepository repository)
 
 public sealed record GetServiceQuery(Guid Id) : IQuery<ServiceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetServiceQueryHandler(IServiceRepository repository)

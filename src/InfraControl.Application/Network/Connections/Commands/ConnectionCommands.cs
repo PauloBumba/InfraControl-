@@ -2,6 +2,7 @@ using InfraControl.Application.Inventory.NetworkInterfaces.Queries;
 using InfraControl.Application.Network.Connections.Ports;
 using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.Connections.Commands;
 
@@ -14,8 +15,8 @@ public sealed record CreateConnectionCommand(
     Guid SourceInterfaceId,
     Guid TargetInterfaceId) : BaseCommand<ConnectionDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateConnectionCommandHandler(
@@ -63,8 +64,8 @@ public sealed class CreateConnectionCommandHandler(
 
 public sealed record DeleteConnectionCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteConnectionCommandHandler(

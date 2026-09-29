@@ -1,10 +1,10 @@
 using InfraControl.Application.Sla.Policies.Ports;
 using InfraControl.Application.Sla.Services.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Policies.Commands;
 
@@ -18,8 +18,8 @@ public sealed record CreateSlaPolicyCommand(
     int ResolutionMinutes,
     Guid? ServiceId = null) : BaseCommand<SlaPolicyDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateSlaPolicyCommandHandler(
@@ -73,8 +73,8 @@ public sealed record UpdateSlaPolicyCommand(
     int ResolutionMinutes,
     Guid? ServiceId = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateSlaPolicyCommandHandler(
@@ -104,8 +104,8 @@ public sealed class UpdateSlaPolicyCommandHandler(
 
 public sealed record DeleteSlaPolicyCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteSlaPolicyCommandHandler(

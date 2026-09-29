@@ -96,12 +96,12 @@ public sealed class SloIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(
             new CreateSloCommand("Sem permissão", 99.9m, 30, Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: SlaManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 }

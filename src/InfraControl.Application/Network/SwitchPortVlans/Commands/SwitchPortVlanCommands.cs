@@ -4,6 +4,7 @@ using InfraControl.Application.Network.Vlans;
 using InfraControl.Application.Network.Vlans.Queries;
 using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.SwitchPortVlans.Commands;
 
@@ -16,8 +17,8 @@ public sealed record AssignVlanToSwitchPortCommand(
     Guid SwitchPortId,
     Guid VlanId) : BaseCommand<VlanDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class AssignVlanToSwitchPortCommandHandler(
@@ -59,8 +60,8 @@ public sealed record UnassignVlanFromSwitchPortCommand(
     Guid SwitchPortId,
     Guid VlanId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UnassignVlanFromSwitchPortCommandHandler(

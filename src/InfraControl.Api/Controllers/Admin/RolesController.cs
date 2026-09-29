@@ -5,6 +5,7 @@ using InfraControl.Api.ViewModels.Admin;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Admin;
 
@@ -12,7 +13,7 @@ namespace InfraControl.Api.Controllers.Admin;
 /// F0-T023: erros (KeyNotFound/UnauthorizedAccess/InvalidOperation) são
 /// embrulhados pelo GlobalExceptionHandler — o controller só compõe sucesso.
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AuthorizationPolicies.Administer)]
 [Route("api/identity/users")]
 public sealed class RolesController(ISender sender) : BaseController
 {

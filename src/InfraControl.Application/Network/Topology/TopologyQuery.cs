@@ -1,4 +1,5 @@
 using InfraControl.Application.Network.Topology.Ports;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.Topology;
 
@@ -29,8 +30,8 @@ public sealed record TopologyEdgeDto(
 
 public sealed record GetTopologyQuery : IQuery<TopologyDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetTopologyQueryHandler(ITopologyRepository repository)

@@ -2,10 +2,10 @@ using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.Racks.Commands;
 
@@ -18,8 +18,8 @@ public sealed record CreateRackCommand(
     string Name,
     string? Description = null) : BaseCommand<RackDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateRackCommandHandler(
@@ -55,8 +55,8 @@ public sealed record UpdateRackCommand(
     string Name,
     string? Description = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateRackCommandHandler(
@@ -82,8 +82,8 @@ public sealed class UpdateRackCommandHandler(
 
 public sealed record DeleteRackCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteRackCommandHandler(

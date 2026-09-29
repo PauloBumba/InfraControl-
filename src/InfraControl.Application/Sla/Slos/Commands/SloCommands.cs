@@ -1,10 +1,10 @@
 using InfraControl.Application.Sla.Services.Ports;
 using InfraControl.Application.Sla.Slos.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Slos.Commands;
 
@@ -17,8 +17,8 @@ public sealed record CreateSloCommand(
     int WindowDays,
     Guid ServiceId) : BaseCommand<SloDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateSloCommandHandler(
@@ -62,8 +62,8 @@ public sealed record UpdateSloCommand(
     int WindowDays,
     Guid ServiceId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateSloCommandHandler(
@@ -91,8 +91,8 @@ public sealed class UpdateSloCommandHandler(
 
 public sealed record DeleteSloCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteSloCommandHandler(

@@ -4,8 +4,8 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  /** Roles canônicas (ADR-016): "Admin" | "Operator" | "Viewer". */
   roles: string[];
-  permissions: string[];
 }
 
 /**
@@ -19,7 +19,7 @@ export type AuthStatus = "checking" | "authenticated" | "anonymous" | "unavailab
 export interface AuthState {
   status: AuthStatus;
   /**
-   * Cache de EXIBIÇÃO (nome, e-mail, roles/permissões). Persistido apenas
+   * Cache de EXIBIÇÃO (nome, e-mail, roles). Persistido apenas
    * para não piscar a tela no F5 — nunca como fonte de autorização: quem
    * autoriza é o backend (cookie HttpOnly + policies). Nenhum token, refresh
    * token ou credencial entra neste estado.

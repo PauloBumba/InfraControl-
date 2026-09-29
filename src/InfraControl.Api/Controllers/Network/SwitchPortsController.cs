@@ -5,6 +5,7 @@ using InfraControl.Api.ViewModels.Network;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Network;
 
@@ -18,7 +19,7 @@ namespace InfraControl.Api.Controllers.Network;
 public sealed class SwitchPortsController(ISender sender) : BaseController
 {
     [HttpGet("switches/{switchId:guid}/ports")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         Guid switchId,
         [FromQuery] string? term,
@@ -29,7 +30,7 @@ public sealed class SwitchPortsController(ISender sender) : BaseController
             new SearchSwitchPortsQuery(switchId, term, page, pageSize), cancellationToken)));
 
     [HttpPost("switches/{switchId:guid}/ports")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         Guid switchId,
         [FromBody] CreateSwitchPortViewModel model,
@@ -43,12 +44,12 @@ public sealed class SwitchPortsController(ISender sender) : BaseController
     }
 
     [HttpGet("switch-ports/{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetSwitchPortQuery(id), cancellationToken)));
 
     [HttpPut("switch-ports/{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateSwitchPortViewModel model,
@@ -61,7 +62,7 @@ public sealed class SwitchPortsController(ISender sender) : BaseController
     }
 
     [HttpDelete("switch-ports/{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteSwitchPortCommand(id), cancellationToken);

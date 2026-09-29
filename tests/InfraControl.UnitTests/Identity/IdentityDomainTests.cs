@@ -24,10 +24,10 @@ public sealed class IdentityDomainTests
         var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
         user.ClearDomainEvents();
 
-        user.AssignRole(UserRole.User);
-        user.AssignRole(UserRole.User);
+        user.AssignRole(UserRole.Operator);
+        user.AssignRole(UserRole.Operator);
 
-        user.Roles.Should().Contain([UserRole.Admin, UserRole.User]);
+        user.Roles.Should().Contain([UserRole.Admin, UserRole.Operator]);
         user.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<UserRoleAssignedDomainEvent>();
     }
 

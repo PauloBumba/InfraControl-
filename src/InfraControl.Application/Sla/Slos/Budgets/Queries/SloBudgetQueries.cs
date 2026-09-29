@@ -1,7 +1,7 @@
 using InfraControl.Application.Sla.Slos.Budgets.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Slos.Budgets.Queries;
 
@@ -12,8 +12,8 @@ public sealed record SearchSloBudgetsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<SloBudgetDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchSloBudgetsQueryHandler(ISloBudgetRepository repository)
@@ -42,8 +42,8 @@ public sealed class SearchSloBudgetsQueryHandler(ISloBudgetRepository repository
 public sealed record GetSloBudgetQuery(Guid Id)
     : IQuery<SloBudgetDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetSloBudgetQueryHandler(ISloBudgetRepository repository)

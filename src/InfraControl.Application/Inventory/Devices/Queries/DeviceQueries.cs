@@ -2,7 +2,6 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Commands;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -19,8 +18,8 @@ public sealed record SearchDevicesQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<DeviceDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchDevicesQueryHandler(IDeviceRepository repository)
@@ -52,8 +51,8 @@ public sealed class SearchDevicesQueryHandler(IDeviceRepository repository)
 
 public sealed record GetDeviceQuery(Guid Id) : IQuery<DeviceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetDeviceQueryHandler(IDeviceRepository repository)

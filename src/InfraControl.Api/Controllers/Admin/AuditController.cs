@@ -4,10 +4,11 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Admin;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AuthorizationPolicies.Administer)]
 [Route("api/v1/admin/audit")]
 public sealed class AuditController(ISender sender) : BaseController
 {

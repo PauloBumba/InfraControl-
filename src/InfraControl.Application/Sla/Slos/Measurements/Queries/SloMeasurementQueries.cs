@@ -1,7 +1,7 @@
 using InfraControl.Application.Sla.Slos.Measurements.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Slos.Measurements.Queries;
 
@@ -12,8 +12,8 @@ public sealed record SearchSloMeasurementsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<SloMeasurementDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchSloMeasurementsQueryHandler(ISloMeasurementRepository repository)
@@ -41,8 +41,8 @@ public sealed class SearchSloMeasurementsQueryHandler(ISloMeasurementRepository 
 public sealed record GetSloMeasurementQuery(Guid Id)
     : IQuery<SloMeasurementDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetSloMeasurementQueryHandler(ISloMeasurementRepository repository)

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { users, roles, rolePermissionsMatrix } from "@/data/dashboardData";
+import { users, roles } from "@/data/dashboardData";
+import { ACCESS_LEVEL_LABEL, type AccessLevel } from "@/types/roles";
 
 const tabs = [
   { id: "users", label: "Usuários", icon: "pi pi-users" },
   { id: "roles", label: "Roles", icon: "pi pi-id-card" },
-  { id: "matrix", label: "Permissões", icon: "pi pi-lock" },
 ];
 
 const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
@@ -15,7 +15,7 @@ const statusConfig: Record<string, { label: string; bg: string; color: string }>
 
 const roleColors: Record<string, { bg: string; color: string }> = {
   Admin: { bg: "#fee2e2", color: "#dc2626" },
-  User: { bg: "#dbeafe", color: "#2563eb" },
+  Operator: { bg: "#dbeafe", color: "#2563eb" },
   Viewer: { bg: "#f1f5f9", color: "#64748b" },
 };
 
@@ -243,21 +243,17 @@ export function UsersPage() {
                 </div>
                 <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>{role.description}</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {role.permissions.map((perm) => (
-                    <span
-                      key={perm}
-                      style={{
-                        fontSize: 10,
-                        fontFamily: "monospace",
-                        padding: "2px 6px",
-                        borderRadius: 4,
-                        background: "#f1f5f9",
-                        color: "#475569",
-                      }}
-                    >
-                      {perm}
-                    </span>
-                  ))}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: "#f1f5f9",
+                      color: "#475569",
+                    }}
+                  >
+                    Nível: {ACCESS_LEVEL_LABEL[role.level as AccessLevel]}
+                  </span>
                 </div>
               </div>
             );
@@ -265,48 +261,6 @@ export function UsersPage() {
         </div>
       )}
 
-      {activeTab === "matrix" && (
-        <div className="uni-panel">
-          <table className="uni-clients-table">
-            <thead>
-              <tr>
-                <th>Permissão</th>
-                <th style={{ textAlign: "center", width: 100 }}>Admin</th>
-                <th style={{ textAlign: "center", width: 100 }}>User</th>
-                <th style={{ textAlign: "center", width: 100 }}>Viewer</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rolePermissionsMatrix.map((row) => (
-                <tr key={row.permission}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{row.permission}</td>
-                  <td style={{ textAlign: "center" }}>
-                    {row.admin ? (
-                      <i className="pi pi-check" style={{ color: "#16a34a", fontSize: 14 }} />
-                    ) : (
-                      <i className="pi pi-times" style={{ color: "#cbd5e1", fontSize: 14 }} />
-                    )}
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    {row.user ? (
-                      <i className="pi pi-check" style={{ color: "#16a34a", fontSize: 14 }} />
-                    ) : (
-                      <i className="pi pi-times" style={{ color: "#cbd5e1", fontSize: 14 }} />
-                    )}
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    {row.viewer ? (
-                      <i className="pi pi-check" style={{ color: "#16a34a", fontSize: 14 }} />
-                    ) : (
-                      <i className="pi pi-times" style={{ color: "#cbd5e1", fontSize: 14 }} />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,5 +1,4 @@
 using InfraControl.Domain.Enums;
-using InfraControl.Domain.Authorization;
 using InfraControl.Application.Identity;
 using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Persistence;
@@ -49,11 +48,6 @@ public sealed class IdentityAdminProvisioner(
 
             var roleAssignmentResult = await userManager.AddToRoleAsync(identityUser, adminRole);
             EnsureSucceeded(roleAssignmentResult, "admin role assignment");
-
-            var permissionClaims = RolePermissions.ForRole(UserRole.Admin)
-                .Select(permission => new Claim(PermissionClaim.Type, permission.ToString()))
-                .ToArray();
-            EnsureSucceeded(await userManager.AddClaimsAsync(identityUser, permissionClaims), "admin permission claims");
 
             dbContext.DomainUsers.Add(user);
             await dbContext.SaveChangesAsync(cancellationToken);

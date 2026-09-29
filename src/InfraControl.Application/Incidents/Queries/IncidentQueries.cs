@@ -12,8 +12,8 @@ public sealed record SearchIncidentsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<IncidentDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.IncidentsRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchIncidentsQueryHandler(IIncidentRepository repository)
@@ -53,8 +53,8 @@ public sealed class SearchIncidentsQueryHandler(IIncidentRepository repository)
 public sealed record GetIncidentQuery(Guid Id)
     : IQuery<IncidentDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.IncidentsRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetIncidentQueryHandler(IIncidentRepository repository)

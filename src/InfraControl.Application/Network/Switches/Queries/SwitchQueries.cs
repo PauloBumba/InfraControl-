@@ -4,7 +4,6 @@ using InfraControl.Application.Inventory.Devices.Commands;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Devices.Queries;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -22,8 +21,8 @@ public sealed record SearchSwitchesQuery(
     Guid? LocationId = null,
     Guid? RackId = null) : IQuery<PagedResult<DeviceDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchSwitchesQueryHandler(SearchDevicesQueryHandler devices)
@@ -45,8 +44,8 @@ public sealed class SearchSwitchesQueryHandler(SearchDevicesQueryHandler devices
 
 public sealed record GetSwitchQuery(Guid Id) : IQuery<DeviceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetSwitchQueryHandler(IDeviceRepository repository)

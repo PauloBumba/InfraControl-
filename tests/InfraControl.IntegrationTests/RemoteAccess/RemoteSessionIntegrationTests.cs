@@ -57,13 +57,13 @@ public sealed class RemoteSessionIntegrationTests : BaseIntegrationTest
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.32");
         await SeedSessionsAsync(dbContext, device.Id, count: 1);
-        UseNoPermissions();
+        UseNoRoles();
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(new GetDeviceSessionsQuery(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RemoteSessionsRead*");
+            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
     }
 
     private static async Task SeedSessionsAsync(

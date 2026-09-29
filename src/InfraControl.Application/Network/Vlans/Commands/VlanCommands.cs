@@ -2,6 +2,7 @@ using InfraControl.Application.Network.SwitchPortVlans.Ports;
 using InfraControl.Application.Network.Vlans.Ports;
 using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.Vlans.Commands;
 
@@ -15,8 +16,8 @@ public sealed record CreateVlanCommand(
     int VlanNumber,
     string? Description = null) : BaseCommand<VlanDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateVlanCommandHandler(
@@ -51,8 +52,8 @@ public sealed record UpdateVlanCommand(
     int VlanNumber,
     string? Description = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateVlanCommandHandler(
@@ -83,8 +84,8 @@ public sealed class UpdateVlanCommandHandler(
 
 public sealed record DeleteVlanCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteVlanCommandHandler(

@@ -102,11 +102,11 @@ public sealed class TaskSlaPauseIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(new PauseTaskSlaCommand(Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: SlaManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 }

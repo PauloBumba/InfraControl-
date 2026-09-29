@@ -15,7 +15,7 @@ namespace InfraControl.Api.Controllers.Discovery;
 public sealed class DiscoveryResultsController(ISender sender) : BaseController
 {
     [HttpGet("runs/{runId:guid}/results")]
-    [Authorize(Roles = "Admin,User,Viewer")]
+    [Authorize]
     public async Task<IActionResult> Search(
         Guid runId,
         [FromQuery] int page = 1,
@@ -25,7 +25,7 @@ public sealed class DiscoveryResultsController(ISender sender) : BaseController
             new SearchDiscoveryResultsQuery(runId, page, pageSize), cancellationToken)));
 
     [HttpGet("results/{id:guid}")]
-    [Authorize(Roles = "Admin,User,Viewer")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDiscoveryResultQuery(id), cancellationToken)));
 }

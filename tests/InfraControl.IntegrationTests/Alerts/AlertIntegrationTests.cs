@@ -75,16 +75,16 @@ public sealed class AlertIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task SearchAlerts_WithoutMonitoringReadPermission_ShouldThrowUnauthorizedPtBr()
+    public async Task SearchAlerts_WithoutRole_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
-        UseNoPermissions();
+        UseNoRoles();
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(new SearchAlertsQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*MonitoringRead*");
+            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
     }
 
     [Fact]

@@ -3,7 +3,6 @@ using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.Application.Tasks.Queries;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -17,8 +16,8 @@ namespace InfraControl.Application.Tasks.Commands;
 public sealed record ChangeTaskStateCommand(Guid Id, string State)
     : BaseCommand<TaskDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class ChangeTaskStateCommandHandler(

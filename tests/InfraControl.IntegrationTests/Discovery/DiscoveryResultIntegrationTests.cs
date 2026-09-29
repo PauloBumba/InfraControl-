@@ -38,16 +38,16 @@ public sealed class DiscoveryResultIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task List_WithoutMonitoringReadPermission_ShouldThrowUnauthorizedPtBr()
+    public async Task List_WithoutRole_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
-        UseNoPermissions();
+        UseNoRoles();
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var act = () => mediator.Send(new SearchDiscoveryResultsQuery(Guid.NewGuid()));
 
         (await act.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*MonitoringRead*");
+            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
     }
 
     [Fact]

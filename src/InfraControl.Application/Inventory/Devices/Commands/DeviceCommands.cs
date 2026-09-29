@@ -3,7 +3,6 @@ using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -28,8 +27,8 @@ public sealed record CreateDeviceCommand(
     Guid? VlanId = null,
     string? Description = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateDeviceCommandHandler(
@@ -127,8 +126,8 @@ public sealed record UpdateDeviceCommand(
     Guid? VlanId = null,
     string? Description = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateDeviceCommandHandler(
@@ -179,8 +178,8 @@ public sealed class UpdateDeviceCommandHandler(
 
 public sealed record DeleteDeviceCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteDeviceCommandHandler(
@@ -220,8 +219,8 @@ public sealed record UpdateDeviceProfileCommand(
     IReadOnlyCollection<CheckKind>? Checks = null,
     bool UseDefault = false) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateDeviceProfileCommandHandler(

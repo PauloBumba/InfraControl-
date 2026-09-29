@@ -1,0 +1,88 @@
+using System.Security.Claims;
+using FluentAssertions;
+using InfraControl.Api.Controllers.Identity;
+using InfraControl.Api.ViewModels.Identity;
+using InfraControl.Application.Identity.Authentication;
+using InfraControl.Domain.Enums;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+
+namespace InfraControl.UnitTests.Api;
+
+/// <summary>
+/// F1-T014/ADR-016: <c>GET /api/v1/auth/me</c> devolvia <c>roles</c> vazio
+/// porque lia a claim com o literal "role" enquanto o login emite
+/// <see cref="ClaimTypes.Role"/>. O frontend usa <c>roles</c> para decidir o
+/// que exibir, então o bug era silencioso. Este teste trava o tipo de claim.
+/// </summary>
+public sealed class AuthenticationMeTests
+{
+    private static AuthenticationController ControllerWith(params Claim[] claims)
+    {
+        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>())
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(
+                        new ClaimsIdentity(claims, authenticationType: "Test"))
+                }
+            }
+        };
+
+        return controller;
+    }
+
+    // o payload de Me() é anônimo; navega por reflexão para não acoplar o
+    // teste à forma do envelope
+    private static string[] RolesIn(IActionResult result)
+    {
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = ok.Value!.GetType().GetProperty("Data")!.GetValue(ok.Value);
+
+        return (string[])data!.GetType().GetProperty("roles")!.GetValue(data)!;
+    }
+
+    [Fact]
+    public void Me_Should_Return_Roles_From_ClaimTypesRole()
+    {
+        var controller = ControllerWith(
+            new Claim(ClaimTypes.NameIdentifier, "user-123"),
+            new Claim(ClaimTypes.Email, "admin@exemplo.test"),
+            new Claim(ClaimTypes.Role, UserRole.Admin.ToString()));
+
+        RolesIn(controller.Me()).Should().BeEquivalentTo([UserRole.Admin.ToString()]);
+    }
+
+    [Fact]
+    public void Me_Should_Return_All_Roles_Of_A_Multi_Role_User()
+    {
+        var controller = ControllerWith(
+            new Claim(ClaimTypes.Role, UserRole.Viewer.ToString()),
+            new Claim(ClaimTypes.Role, UserRole.Operator.ToString()));
+
+        RolesIn(controller.Me()).Should().BeEquivalentTo(
+            [UserRole.Viewer.ToString(), UserRole.Operator.ToString()]);
+    }
+
+    [Fact]
+    public void Me_Should_Not_Read_A_Literal_Role_Claim()
+    {
+        // claim errada ("role" em vez de ClaimTypes.Role) não pode alimentar
+        // a resposta: é exatamente o bug que foi corrigido
+        var controller = ControllerWith(new Claim("role", UserRole.Admin.ToString()));
+
+        RolesIn(controller.Me()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Me_Should_Return_Empty_Roles_When_User_Has_No_Role()
+    {
+        var controller = ControllerWith(
+            new Claim(ClaimTypes.NameIdentifier, "user-123"));
+
+        RolesIn(controller.Me()).Should().BeEmpty();
+    }
+}

@@ -3,7 +3,6 @@ using FluentAssertions;
 using InfraControl.Application.RemoteAccess.Credentials;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.RemoteAccess;
 using InfraControl.Infrastructure.Persistence;
@@ -238,14 +237,14 @@ public sealed class DeviceCredentialCommandTests : IDisposable
     [Fact]
     public void Commands_ShouldRequireCredentialManageAndAuditAsDeviceCredential()
     {
-        var required = new[] { Permission.CredentialManage.ToString() };
+        var required = RoleAccess.Administer;
 
         new UpsertDeviceCredentialCommand(Guid.NewGuid(), "svc", "Senha!1")
-            .RequiredPermissions.Should().Equal(required);
+            .RequiredRoles.Should().BeEquivalentTo(required);
         new DeleteDeviceCredentialCommand(Guid.NewGuid())
-            .RequiredPermissions.Should().Equal(required);
+            .RequiredRoles.Should().BeEquivalentTo(required);
         new GetDeviceCredentialQuery(Guid.NewGuid())
-            .RequiredPermissions.Should().Equal(required);
+            .RequiredRoles.Should().BeEquivalentTo(required);
 
         ((IAuditableRequest)new UpsertDeviceCredentialCommand(Guid.NewGuid(), "svc", "Senha!1"))
             .AuditResource.Should().Be("DeviceCredential");

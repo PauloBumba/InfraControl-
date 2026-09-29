@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.Locations.Queries;
 
@@ -15,8 +15,8 @@ public sealed record SearchLocationsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<LocationDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchLocationsQueryHandler(ILocationRepository repository)
@@ -44,8 +44,8 @@ public sealed class SearchLocationsQueryHandler(ILocationRepository repository)
 
 public sealed record GetLocationQuery(Guid Id) : IQuery<LocationDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetLocationQueryHandler(ILocationRepository repository)

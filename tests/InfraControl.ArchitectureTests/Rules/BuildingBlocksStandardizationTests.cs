@@ -31,7 +31,7 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
     }
 
     [Fact]
-    public void Admin_Slices_Should_Declare_Required_Permissions_Via_IAuthorizedRequest()
+    public void Admin_Slices_Should_Declare_Required_Roles_Via_IAuthorizedRequest()
     {
         var adminSlices = new[]
         {
@@ -111,11 +111,11 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             var type = ApplicationAssembly.GetType(typeName, throwOnError: false);
             type.Should().NotBeNull($"o slice {typeName} deve existir no assembly Application");
             type!.Should().BeAssignableTo<IAuthorizedRequest>(
-                $"o slice {typeName} deve declarar permissões exigidas no pipeline MediatR");
+                $"o slice {typeName} deve declarar as roles exigidas no pipeline MediatR");
 
             var instance = (IAuthorizedRequest)RuntimeHelpers.GetUninitializedObject(type!);
-            instance.RequiredPermissions.Should().NotBeEmpty(
-                $"o slice {typeName} deve exigir ao menos uma permissão");
+            instance.RequiredRoles.Should().NotBeEmpty(
+                $"o slice {typeName} deve exigir ao menos a role Admin");
         }
     }
 

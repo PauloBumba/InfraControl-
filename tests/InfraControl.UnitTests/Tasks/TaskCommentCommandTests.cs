@@ -3,7 +3,6 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.Queries;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -49,7 +48,7 @@ public sealed class TaskCommentCommandTests : IDisposable
         context.Tasks.Add(task);
 
         var author = User.Create(
-            "bia@exemplo.test", "Bia Infra", UserRole.User);
+            "bia@exemplo.test", "Bia Infra", UserRole.Operator);
         context.DomainUsers.Add(author);
         await context.SaveChangesAsync();
         return (task.Id, author.Id);
@@ -61,7 +60,6 @@ public sealed class TaskCommentCommandTests : IDisposable
         public string? UserName => "bia@exemplo.test";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles => ["User"];
-        public IReadOnlyCollection<string> Permissions => [];
     }
 
     private sealed class AnonymousCurrentUser : ICurrentUserContext
@@ -70,7 +68,6 @@ public sealed class TaskCommentCommandTests : IDisposable
         public string? UserName => null;
         public bool IsAuthenticated => false;
         public IReadOnlyCollection<string> Roles => [];
-        public IReadOnlyCollection<string> Permissions => [];
     }
 
     private static RecordingTaskHistoryWriter History() => new();
@@ -87,8 +84,8 @@ public sealed class TaskCommentCommandTests : IDisposable
 
     [Fact]
     public void Command_ShouldRequireTasksManage()
-        => new AddTaskCommentCommand(Guid.NewGuid(), "c").RequiredPermissions
-            .Should().Equal(Permission.TasksManage.ToString());
+        => new AddTaskCommentCommand(Guid.NewGuid(), "c").RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
 
     [Fact]
     public async Task Add_ShouldUseLoggedUserAsAuthor()
@@ -152,8 +149,8 @@ public sealed class TaskCommentCommandTests : IDisposable
 
     [Fact]
     public void Query_ShouldRequireTasksRead()
-        => new GetTaskCommentsQuery(Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksRead.ToString());
+        => new GetTaskCommentsQuery(Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Read);
 
     [Fact]
     public async Task List_ShouldReturnChronologicalCommentsWithAuthorName()

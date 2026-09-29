@@ -62,13 +62,13 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
     public async Task SearchIncidents_WithoutIncidentsRead_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
-        UseNoPermissions();
+        UseNoRoles();
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(new SearchIncidentsQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*IncidentsRead*");
+            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
             new CreateIncidentCommand("x", IncidentSeverity.Low));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*IncidentsManage*");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

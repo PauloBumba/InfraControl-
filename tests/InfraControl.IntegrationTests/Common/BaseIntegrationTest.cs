@@ -16,7 +16,6 @@ using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Monitoring;
@@ -173,7 +172,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.Configure<PerformanceOptions>(options => options.SlowRequestMs = 1000);
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
-        // Usuário de teste (role → permissões via RolePermissions)
+        // Usuário de teste (roles são a fonte da verdade, ADR-016)
         services.AddSingleton<ICurrentUserContext>(CurrentUser);
 
         Services = services.BuildServiceProvider();
@@ -193,19 +192,15 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
 
     protected IServiceScope CreateScope() => Services.CreateScope();
 
-    /// <summary>Aplica o role do usuário como no login real (RolePermissions → claims).</summary>
+    /// <summary>Aplica a role do usuário como no login real (claim <c>ClaimTypes.Role</c>).</summary>
     protected void UseRole(UserRole role)
     {
         CurrentUser.Roles = [role.ToString()];
-        CurrentUser.Permissions = RolePermissions.ForRole(role)
-            .Select(permission => permission.ToString())
-            .ToArray();
     }
 
-    protected void UseNoPermissions()
+    protected void UseNoRoles()
     {
         CurrentUser.Roles = [];
-        CurrentUser.Permissions = [];
     }
 
     protected static async Task<Domain.Entities.Device> SeedDeviceAsync(

@@ -100,12 +100,12 @@ public sealed class SloMeasurementIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(new RecordSloMeasurementCommand(
             Guid.NewGuid(), DateTime.UtcNow, 99.9m));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: SlaManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 }

@@ -1,6 +1,5 @@
 using InfraControl.Application.Operations.Retention.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -14,8 +13,8 @@ namespace InfraControl.Application.Operations.Retention;
 public sealed record UpsertRetentionPolicyCommand(RetentionDataType DataType, int Days)
     : BaseCommand<RetentionPolicyDto>, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.RetentionManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 
     public string AuditResource => "RetentionPolicy";
 }
@@ -27,8 +26,8 @@ public sealed record UpsertRetentionPolicyCommand(RetentionDataType DataType, in
 public sealed record DeleteRetentionPolicyCommand(RetentionDataType DataType)
     : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.RetentionManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 
     public string AuditResource => "RetentionPolicy";
 }

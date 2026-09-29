@@ -78,12 +78,11 @@ builder.Services.AddAuthentication(options =>
 // a API não troca código por token, portanto não existe Client Secret em
 // lugar nenhum do sistema — a única configuração é o ClientId público,
 // usado também como `aud`. Menos superfície de segredo, menos dependência.
-// Autorização HTTP: policies nomeadas por permissão (PermissionClaim
-// emitido no login) — controllers com [Authorize(Policy = "InventoryRead")]
-// etc. O escopo de claims continua no pipeline MediatR
-// (AuthorizationBehavior, ADR-008); roles continuam via [Authorize(Roles)].
+// Autorização HTTP: 3 níveis canônicos (Operate/Administer) sobre a role,
+// fonte única da verdade (ADR-016). Leitura é [Authorize] simples. A mesma
+// hierarquia é aplicada na camada MediatR por IAuthorizedRequest.RequiredRoles.
 builder.Services.AddAuthorization(options =>
-    options.AddPermissionPolicies());
+    options.AddRolePolicies());
 
 // ── Rate limiting HTTP (ADR-011 / docs/08) ───────────────────────────────
 // Camada HTTP do ASP.NET Core Rate Limiter com estado distribuído no Redis

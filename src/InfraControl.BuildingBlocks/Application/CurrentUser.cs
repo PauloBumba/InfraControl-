@@ -6,5 +6,4 @@ public interface ICurrentUserContext
     string? UserName { get; }
     bool IsAuthenticated { get; }
     IReadOnlyCollection<string> Roles { get; }
-    IReadOnlyCollection<string> Permissions { get; }
 }

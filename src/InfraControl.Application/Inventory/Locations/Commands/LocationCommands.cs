@@ -1,9 +1,9 @@
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.Locations.Commands;
 
@@ -15,8 +15,8 @@ public sealed record CreateLocationCommand(
     string Name,
     string? Description = null) : BaseCommand<LocationDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateLocationCommandHandler(
@@ -45,8 +45,8 @@ public sealed record UpdateLocationCommand(
     string Name,
     string? Description = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateLocationCommandHandler(
@@ -72,8 +72,8 @@ public sealed class UpdateLocationCommandHandler(
 
 public sealed record DeleteLocationCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteLocationCommandHandler(

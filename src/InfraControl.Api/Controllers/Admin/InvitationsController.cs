@@ -5,6 +5,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Admin;
 
@@ -12,7 +13,7 @@ namespace InfraControl.Api.Controllers.Admin;
 /// F0-T023: falhas (KeyNotFound/UnauthorizedAccess/InvalidOperation/Argument)
 /// são embrulhadas pelo GlobalExceptionHandler — aqui só o sucesso compõe corpo.
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AuthorizationPolicies.Administer)]
 [Route("api/v1/admin/invitations")]
 public sealed class InvitationsController(ISender sender) : BaseController
 {

@@ -2,7 +2,6 @@ using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -17,8 +16,8 @@ public sealed record LinkTaskDeviceCommand(
     Guid TaskId,
     Guid DeviceId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class LinkTaskDeviceCommandHandler(
@@ -63,8 +62,8 @@ public sealed record UnlinkTaskDeviceCommand(
     Guid TaskId,
     Guid DeviceId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UnlinkTaskDeviceCommandHandler(

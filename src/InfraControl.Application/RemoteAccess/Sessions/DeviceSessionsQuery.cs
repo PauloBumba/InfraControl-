@@ -2,8 +2,8 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.RemoteAccess.Sessions;
 
@@ -33,8 +33,8 @@ public sealed record GetDeviceSessionsQuery(Guid Id, int Limit = 50)
     public const int MinLimit = 1;
     public const int MaxLimit = 500;
 
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.RemoteSessionsRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 
     public string AuditResource => "RemoteSession";
 }

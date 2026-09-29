@@ -6,6 +6,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Inventory;
 
@@ -17,7 +18,7 @@ namespace InfraControl.Api.Controllers.Inventory;
 public sealed class MacAddressesController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? interfaceId,
         [FromQuery] Guid? deviceId,
@@ -29,12 +30,12 @@ public sealed class MacAddressesController(ISender sender) : BaseController
             new SearchMacAddressesQuery(interfaceId, deviceId, term, page, pageSize), cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetMacAddressQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateMacAddressViewModel model,
         CancellationToken cancellationToken)
@@ -47,7 +48,7 @@ public sealed class MacAddressesController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateMacAddressViewModel model,
@@ -58,7 +59,7 @@ public sealed class MacAddressesController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteMacAddressCommand(id), cancellationToken);

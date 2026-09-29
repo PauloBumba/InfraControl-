@@ -3,6 +3,6 @@ namespace InfraControl.Domain.Enums;
 public enum UserRole
 {
     Viewer = 1,
-    User = 2,
+    Operator = 2,
     Admin = 3,
 }

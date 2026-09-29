@@ -100,12 +100,12 @@ public sealed class SloBudgetIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(new RecordSloBudgetCommand(
             Guid.NewGuid(), Start, null, 10m));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: SlaManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 }

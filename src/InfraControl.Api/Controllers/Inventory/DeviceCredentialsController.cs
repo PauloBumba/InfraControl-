@@ -4,6 +4,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Inventory;
 
@@ -16,7 +17,7 @@ public sealed class DeviceCredentialsController(ISender sender) : BaseController
 {
     /// <summary>Estado da credencial (username e flags — sem senha).</summary>
     [HttpGet]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> GetCredential(
         Guid deviceId,
         CancellationToken cancellationToken = default)
@@ -28,7 +29,7 @@ public sealed class DeviceCredentialsController(ISender sender) : BaseController
     /// RotatedAt — F11-T006).
     /// </summary>
     [HttpPut]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> UpsertCredential(
         Guid deviceId,
         UpsertDeviceCredentialRequest request,
@@ -43,7 +44,7 @@ public sealed class DeviceCredentialsController(ISender sender) : BaseController
     /// (RemoteAccess:Ssh).
     /// </summary>
     [HttpDelete]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> DeleteCredential(
         Guid deviceId,
         CancellationToken cancellationToken = default)

@@ -2,8 +2,8 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Monitoring.Results;
 
@@ -30,8 +30,8 @@ public sealed record GetDeviceResultsQuery(Guid Id, int Limit = 50)
     public const int MinLimit = 1;
     public const int MaxLimit = 500;
 
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetDeviceResultsQueryHandler(

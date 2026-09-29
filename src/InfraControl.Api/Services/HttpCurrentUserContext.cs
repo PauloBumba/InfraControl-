@@ -14,5 +14,4 @@ public sealed class HttpCurrentUserContext(IHttpContextAccessor accessor) : ICur
     public string? UserName => Principal.Identity?.Name;
     public bool IsAuthenticated => Principal.Identity?.IsAuthenticated == true;
     public IReadOnlyCollection<string> Roles => Principal.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray();
-    public IReadOnlyCollection<string> Permissions => Principal.FindAll("permission").Select(claim => claim.Value).ToArray();
 }

@@ -1,5 +1,6 @@
 using InfraControl.Application.Network.SwitchPorts.Ports;
 using InfraControl.Application.Network.Switches.Queries;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.SwitchPorts.Queries;
 
@@ -12,8 +13,8 @@ public sealed record SearchSwitchPortsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<SwitchPortDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchSwitchPortsQueryHandler(
@@ -46,8 +47,8 @@ public sealed class SearchSwitchPortsQueryHandler(
 
 public sealed record GetSwitchPortQuery(Guid Id) : IQuery<SwitchPortDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetSwitchPortQueryHandler(ISwitchPortRepository repository)

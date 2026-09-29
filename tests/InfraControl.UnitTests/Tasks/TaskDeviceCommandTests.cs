@@ -3,7 +3,6 @@ using InfraControl.Application.Inventory.Devices.Commands;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.Queries;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -82,10 +81,10 @@ public sealed class TaskDeviceCommandTests : IDisposable
     [Fact]
     public void Commands_ShouldRequireTasksManage()
     {
-        new LinkTaskDeviceCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksManage.ToString());
-        new UnlinkTaskDeviceCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksManage.ToString());
+        new LinkTaskDeviceCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
+        new UnlinkTaskDeviceCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
     }
 
     [Fact]

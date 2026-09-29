@@ -4,6 +4,7 @@ using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Operations;
 
@@ -12,7 +13,7 @@ namespace InfraControl.Api.Controllers.Operations;
 /// os defaults de <c>Retention:*</c> usados pelo cleanup.
 /// </summary>
 [Route("api/v1/operations/retention-policies")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AuthorizationPolicies.Administer)]
 public sealed class RetentionPoliciesController(ISender sender) : BaseController
 {
     /// <summary>Estado efetivo dos 7 tipos (valor da policy ou da config).</summary>

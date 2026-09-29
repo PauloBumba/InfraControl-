@@ -1,7 +1,6 @@
 using InfraControl.Application.Sla.TaskSlas.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -14,8 +13,8 @@ namespace InfraControl.Application.Sla.TaskSlas.Commands;
 
 public sealed record PauseTaskSlaCommand(Guid TaskId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class PauseTaskSlaCommandHandler(
@@ -52,8 +51,8 @@ public sealed class PauseTaskSlaCommandHandler(
 
 public sealed record ResumeTaskSlaCommand(Guid TaskId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class ResumeTaskSlaCommandHandler(

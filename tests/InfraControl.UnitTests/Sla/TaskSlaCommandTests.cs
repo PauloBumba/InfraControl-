@@ -5,7 +5,6 @@ using InfraControl.Application.Sla.TaskSlas.Commands;
 using InfraControl.Application.Sla.TaskSlas.Queries;
 using InfraControl.Application.Tasks.History;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;

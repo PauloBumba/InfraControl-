@@ -1,9 +1,9 @@
 using InfraControl.Application.Sla.Services.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Services.Commands;
 
@@ -15,8 +15,8 @@ public sealed record CreateServiceCommand(
     string Name,
     string? Description = null) : BaseCommand<ServiceDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateServiceCommandHandler(
@@ -48,8 +48,8 @@ public sealed record UpdateServiceCommand(
     string Name,
     string? Description = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateServiceCommandHandler(
@@ -78,8 +78,8 @@ public sealed class UpdateServiceCommandHandler(
 
 public sealed record DeleteServiceCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteServiceCommandHandler(

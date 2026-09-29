@@ -1,9 +1,9 @@
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.RemoteAccess;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.RemoteAccess.Credentials;
 
@@ -16,8 +16,8 @@ public sealed record UpsertDeviceCredentialCommand(
     Guid DeviceId, string Username, string Password)
     : BaseCommand<DeviceCredentialDto>, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.CredentialManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 
     public string AuditResource => "DeviceCredential";
 }
@@ -77,8 +77,8 @@ public sealed class UpsertDeviceCredentialCommandHandler(
 public sealed record DeleteDeviceCredentialCommand(Guid DeviceId)
     : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.CredentialManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 
     public string AuditResource => "DeviceCredential";
 }

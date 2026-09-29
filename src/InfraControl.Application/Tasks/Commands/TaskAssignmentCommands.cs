@@ -1,7 +1,6 @@
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -16,8 +15,8 @@ public sealed record AssignTaskCommand(
     Guid TaskId,
     Guid UserId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class AssignTaskCommandHandler(
@@ -61,8 +60,8 @@ public sealed record UnassignTaskCommand(
     Guid TaskId,
     Guid UserId) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UnassignTaskCommandHandler(

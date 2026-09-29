@@ -16,7 +16,7 @@ namespace InfraControl.Api.Controllers.Inventory;
 public sealed class GlobalSearchController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] int limit = 5,

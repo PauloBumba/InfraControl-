@@ -2,7 +2,6 @@ using InfraControl.Application.Sla.Policies.Ports;
 using InfraControl.Application.Sla.TaskSlas.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -16,8 +15,8 @@ public sealed record ApplyTaskSlaCommand(
     Guid TaskId,
     Guid SlaPolicyId) : BaseCommand<TaskSlaDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class ApplyTaskSlaCommandHandler(

@@ -2,9 +2,9 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.RemoteAccess;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.RemoteAccess.Sessions;
 
@@ -12,8 +12,8 @@ namespace InfraControl.Application.RemoteAccess.Sessions;
 public sealed record OpenSshSessionCommand(Guid DeviceId)
     : BaseCommand<RemoteSessionDto>, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.RemoteSshConnect.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 
     public string AuditResource => "RemoteSession";
 }

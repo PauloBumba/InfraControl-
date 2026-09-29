@@ -4,6 +4,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Inventory;
 
@@ -17,7 +18,7 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
 {
     /// <summary>Sessões registradas do device, mais recente primeiro.</summary>
     [HttpGet]
-    [Authorize(Roles = "Admin,User,Viewer")]
+    [Authorize]
     public async Task<IActionResult> GetSessions(
         Guid deviceId,
         [FromQuery] int limit = 50,
@@ -30,7 +31,7 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
     /// a conexão fica registrada até o encerramento.
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> OpenSshSession(
         Guid deviceId,
         CancellationToken cancellationToken = default)
@@ -44,7 +45,7 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
     /// confirma que o endpoint fala RDP, sem autenticação.
     /// </summary>
     [HttpPost("rdp")]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> OpenRdpSession(
         Guid deviceId,
         CancellationToken cancellationToken = default)
@@ -58,7 +59,7 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
     /// (F11-T003: comando protocolo-agnóstico).
     /// </summary>
     [HttpDelete("{sessionId:guid}")]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> CloseRemoteSession(
         Guid deviceId,
         Guid sessionId,

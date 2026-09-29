@@ -1,7 +1,6 @@
 using InfraControl.Domain.Enums;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -11,8 +10,8 @@ namespace InfraControl.Application.Identity.Roles.Commands;
 public sealed record AssignUserRoleCommand(Guid UserId, UserRole Role)
     : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.IdentityRolesManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 }
 
 public sealed class AssignUserRoleCommandHandler(

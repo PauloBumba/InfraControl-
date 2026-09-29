@@ -1,6 +1,7 @@
 using InfraControl.Application.Discovery.Results;
 using InfraControl.Application.Discovery.Results.Ports;
 using InfraControl.Application.Discovery.Runs.Ports;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Discovery.Results.Queries;
 
@@ -13,8 +14,8 @@ public sealed record SearchDiscoveryResultsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<DiscoveryResultDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchDiscoveryResultsQueryHandler(
@@ -55,8 +56,8 @@ public sealed class SearchDiscoveryResultsQueryHandler(
 
 public sealed record GetDiscoveryResultQuery(Guid Id) : IQuery<DiscoveryResultDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetDiscoveryResultQueryHandler(IDiscoveryResultRepository repository)

@@ -5,6 +5,7 @@ using InfraControl.Api.ViewModels.Network;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Network;
 
@@ -17,7 +18,7 @@ namespace InfraControl.Api.Controllers.Network;
 public sealed class VlansController(ISender sender) : BaseController
 {
     [HttpGet("vlans")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] int page = 1,
@@ -27,7 +28,7 @@ public sealed class VlansController(ISender sender) : BaseController
             new SearchVlansQuery(term, page, pageSize), cancellationToken)));
 
     [HttpPost("vlans")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateVlanViewModel model,
         CancellationToken cancellationToken)
@@ -40,12 +41,12 @@ public sealed class VlansController(ISender sender) : BaseController
     }
 
     [HttpGet("vlans/{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetVlanQuery(id), cancellationToken)));
 
     [HttpPut("vlans/{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateVlanViewModel model,
@@ -58,7 +59,7 @@ public sealed class VlansController(ISender sender) : BaseController
     }
 
     [HttpDelete("vlans/{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteVlanCommand(id), cancellationToken);

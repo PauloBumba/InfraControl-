@@ -6,6 +6,7 @@ import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
 import { signedOut } from "@/app/store/slices/authSlice";
 import { logout } from "@/services/api/auth";
+import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 
 type AppLayoutProps = { children: ReactNode; activeItem: string; onNavigate: (item: string) => void };
 
@@ -42,11 +43,9 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
   // de autorização — nenhuma decisão de acesso é tomada no frontend.
   const user = useAppSelector((s) => s.auth.user);
   const displayName = user?.displayName || user?.email || "—";
-  const roleLabel = user?.roles?.includes("Admin")
-    ? "Administrador"
-    : user?.roles?.includes("User")
-      ? "Operador"
-      : "Visualizador";
+  // ADR-016: "User" virou "Operator"; o rótulo vem do nível canônico
+  const access = highestAccessLevel(user?.roles);
+  const roleLabel = access ? ACCESS_LEVEL_LABEL[access] : "—";
   const initials = displayName
     .split(" ")
     .filter(Boolean)

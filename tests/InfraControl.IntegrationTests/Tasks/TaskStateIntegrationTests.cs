@@ -109,13 +109,13 @@ public sealed class TaskStateIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(
             new ChangeTaskStateCommand(Guid.NewGuid(), "InProgress"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: TasksManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

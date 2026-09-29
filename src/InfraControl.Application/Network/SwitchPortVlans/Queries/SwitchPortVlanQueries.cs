@@ -5,6 +5,7 @@ using InfraControl.Application.Network.SwitchPortVlans.Ports;
 using InfraControl.Application.Network.Vlans;
 using InfraControl.Application.Network.Vlans.Ports;
 using InfraControl.Application.Network.Vlans.Queries;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.SwitchPortVlans.Queries;
 
@@ -14,8 +15,8 @@ namespace InfraControl.Application.Network.SwitchPortVlans.Queries;
 public sealed record GetSwitchPortVlansQuery(Guid SwitchPortId)
     : IQuery<IReadOnlyList<VlanDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetSwitchPortVlansQueryHandler(
@@ -48,8 +49,8 @@ public sealed class GetSwitchPortVlansQueryHandler(
 public sealed record GetVlanSwitchPortsQuery(Guid VlanId)
     : IQuery<IReadOnlyList<SwitchPortDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetVlanSwitchPortsQueryHandler(

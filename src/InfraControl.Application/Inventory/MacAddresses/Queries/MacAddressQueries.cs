@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.MacAddresses.Queries;
 
@@ -16,8 +16,8 @@ public sealed record SearchMacAddressesQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<MacAddressDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchMacAddressesQueryHandler(IMacAddressRepository repository)
@@ -46,8 +46,8 @@ public sealed class SearchMacAddressesQueryHandler(IMacAddressRepository reposit
 
 public sealed record GetMacAddressQuery(Guid Id) : IQuery<MacAddressDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetMacAddressQueryHandler(IMacAddressRepository repository)

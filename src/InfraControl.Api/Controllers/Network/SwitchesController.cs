@@ -16,7 +16,7 @@ namespace InfraControl.Api.Controllers.Network;
 public sealed class SwitchesController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] Guid? locationId,
@@ -29,7 +29,7 @@ public sealed class SwitchesController(ISender sender) : BaseController
             cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetSwitchQuery(id), cancellationToken)));
 }

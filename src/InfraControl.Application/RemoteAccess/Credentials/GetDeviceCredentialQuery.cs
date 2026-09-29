@@ -1,8 +1,8 @@
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.RemoteAccess.Credentials;
 
@@ -25,8 +25,8 @@ public sealed record DeviceCredentialDto(
 public sealed record GetDeviceCredentialQuery(Guid DeviceId)
     : IQuery<DeviceCredentialDto>, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.CredentialManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 
     public string AuditResource => "DeviceCredential";
 }

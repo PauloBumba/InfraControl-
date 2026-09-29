@@ -1,4 +1,5 @@
 using InfraControl.Application.Network.Vlans.Ports;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.Vlans.Queries;
 
@@ -10,8 +11,8 @@ public sealed record SearchVlansQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<VlanDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchVlansQueryHandler(IVlanRepository repository)
@@ -39,8 +40,8 @@ public sealed class SearchVlansQueryHandler(IVlanRepository repository)
 
 public sealed record GetVlanQuery(Guid Id) : IQuery<VlanDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetVlanQueryHandler(IVlanRepository repository)

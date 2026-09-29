@@ -1,4 +1,5 @@
 using InfraControl.Application.Discovery.Runs.Ports;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Discovery.Runs.Queries;
 
@@ -10,8 +11,8 @@ public sealed record SearchDiscoveryRunsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<DiscoveryRunDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchDiscoveryRunsQueryHandler(IDiscoveryRunRepository repository)
@@ -43,8 +44,8 @@ public sealed class SearchDiscoveryRunsQueryHandler(IDiscoveryRunRepository repo
 
 public sealed record GetDiscoveryRunQuery(Guid Id) : IQuery<DiscoveryRunDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetDiscoveryRunQueryHandler(IDiscoveryRunRepository repository)

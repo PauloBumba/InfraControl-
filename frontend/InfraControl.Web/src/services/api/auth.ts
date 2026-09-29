@@ -9,7 +9,6 @@ interface CurrentUserPayload {
   email: string;
   displayName: string | null;
   roles: string[];
-  permissions: string[];
 }
 
 
@@ -21,7 +20,6 @@ function toAuthUser(payload: CurrentUserPayload): AuthUser {
     email: payload.email,
     displayName: payload.displayName || payload.email,
     roles: payload.roles ?? [],
-    permissions: payload.permissions ?? [],
   };
 }
 

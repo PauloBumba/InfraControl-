@@ -48,6 +48,5 @@ public sealed class BuildingBlocksTests
         public string? UserName => "test@example.com";
         public bool IsAuthenticated => UserId.HasValue;
         public IReadOnlyCollection<string> Roles { get; } = roles;
-        public IReadOnlyCollection<string> Permissions => [];
     }
 }

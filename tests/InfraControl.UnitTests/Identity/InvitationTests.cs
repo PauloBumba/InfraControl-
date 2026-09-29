@@ -25,11 +25,11 @@ public sealed class InvitationTests
             "hash-123",
             DateTime.UtcNow.AddDays(7),
             Guid.NewGuid(),
-            [UserRole.User]);
+            [UserRole.Operator]);
 
         invitation.Email.Should().Be("new.user@example.com");
         invitation.Status.Should().Be(InvitationStatus.Pending);
-        invitation.Roles.Should().ContainSingle().Which.Should().Be(UserRole.User);
+        invitation.Roles.Should().ContainSingle().Which.Should().Be(UserRole.Operator);
         invitation.DomainEvents.Should().ContainSingle();
     }
 
@@ -118,7 +118,7 @@ public sealed class InvitationTests
         var inviterId = Guid.NewGuid();
 
         var result = await handler.Handle(
-            new CreateInvitationCommand("invited@example.com", [UserRole.User], inviterId),
+            new CreateInvitationCommand("invited@example.com", [UserRole.Operator], inviterId),
             CancellationToken.None);
 
         result.InvitationId.Should().NotBeEmpty();
@@ -165,7 +165,7 @@ public sealed class InvitationTests
             "hash-123",
             DateTime.UtcNow.AddDays(7),
             Guid.NewGuid(),
-            [UserRole.User]);
+            [UserRole.Operator]);
 
         invitation.Accept("hash-123", DateTime.UtcNow);
 
@@ -222,7 +222,7 @@ public sealed class InvitationTests
             IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>>();
 
         var created = await createHandler.Handle(
-            new CreateInvitationCommand("accept@example.com", [UserRole.User], Guid.NewGuid()),
+            new CreateInvitationCommand("accept@example.com", [UserRole.Operator], Guid.NewGuid()),
             CancellationToken.None);
 
         var accepted = await acceptHandler.Handle(
@@ -230,7 +230,7 @@ public sealed class InvitationTests
             CancellationToken.None);
 
         accepted.Email.Should().Be("accept@example.com");
-        accepted.Roles.Should().ContainSingle().Which.Should().Be(UserRole.User);
+        accepted.Roles.Should().ContainSingle().Which.Should().Be(UserRole.Operator);
 
         var repository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
         (await repository.GetAsync(created.InvitationId))!.Status

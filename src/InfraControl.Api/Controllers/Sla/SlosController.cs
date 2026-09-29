@@ -10,6 +10,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Sla;
 
@@ -22,7 +23,7 @@ namespace InfraControl.Api.Controllers.Sla;
 public sealed class SlosController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] Guid? serviceId,
@@ -33,12 +34,12 @@ public sealed class SlosController(ISender sender) : BaseController
             new SearchSlosQuery(term, serviceId, page, pageSize), cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetSloQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateSloViewModel model,
         CancellationToken cancellationToken)
@@ -52,7 +53,7 @@ public sealed class SlosController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateSloViewModel model,
@@ -66,7 +67,7 @@ public sealed class SlosController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteSloCommand(id), cancellationToken);
@@ -77,7 +78,7 @@ public sealed class SlosController(ISender sender) : BaseController
     // SLO/medição inexistente.
 
     [HttpGet("{sloId:guid}/measurements")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> SearchMeasurements(
         Guid sloId,
         [FromQuery] int page = 1,
@@ -87,13 +88,13 @@ public sealed class SlosController(ISender sender) : BaseController
             new SearchSloMeasurementsQuery(sloId, page, pageSize), cancellationToken)));
 
     [HttpGet("measurements/{id:guid}")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> GetMeasurement(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetSloMeasurementQuery(id), cancellationToken)));
 
     [HttpPost("{sloId:guid}/measurements")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> RecordMeasurement(
         Guid sloId,
         [FromBody] RecordSloMeasurementViewModel model,
@@ -108,7 +109,7 @@ public sealed class SlosController(ISender sender) : BaseController
     }
 
     [HttpDelete("measurements/{id:guid}")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> DeleteMeasurement(
         Guid id, CancellationToken cancellationToken)
     {
@@ -119,7 +120,7 @@ public sealed class SlosController(ISender sender) : BaseController
     // F8-T007: orçamento (erro budget) do SLO — mesmo desenho das medições.
 
     [HttpGet("{sloId:guid}/budgets")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> SearchBudgets(
         Guid sloId,
         [FromQuery] int page = 1,
@@ -129,13 +130,13 @@ public sealed class SlosController(ISender sender) : BaseController
             new SearchSloBudgetsQuery(sloId, page, pageSize), cancellationToken)));
 
     [HttpGet("budgets/{id:guid}")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> GetBudget(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetSloBudgetQuery(id), cancellationToken)));
 
     [HttpPost("{sloId:guid}/budgets")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> RecordBudget(
         Guid sloId,
         [FromBody] RecordSloBudgetViewModel model,
@@ -150,7 +151,7 @@ public sealed class SlosController(ISender sender) : BaseController
     }
 
     [HttpDelete("budgets/{id:guid}")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> DeleteBudget(
         Guid id, CancellationToken cancellationToken)
     {

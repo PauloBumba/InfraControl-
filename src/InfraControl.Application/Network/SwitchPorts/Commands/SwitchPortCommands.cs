@@ -3,6 +3,7 @@ using InfraControl.Application.Network.SwitchPortVlans.Ports;
 using InfraControl.Application.Network.Switches.Queries;
 using InfraControl.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Network.SwitchPorts.Commands;
 
@@ -16,8 +17,8 @@ public sealed record CreateSwitchPortCommand(
     string Name,
     string? Description = null) : BaseCommand<SwitchPortDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateSwitchPortCommandHandler(
@@ -54,8 +55,8 @@ public sealed record UpdateSwitchPortCommand(
     string? Description = null,
     bool? LinkUp = null) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateSwitchPortCommandHandler(
@@ -82,8 +83,8 @@ public sealed class UpdateSwitchPortCommandHandler(
 
 public sealed record DeleteSwitchPortCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteSwitchPortCommandHandler(

@@ -3,7 +3,6 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.RemoteAccess.Sessions;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.RemoteAccess;
 using InfraControl.Infrastructure.Persistence;
@@ -271,11 +270,9 @@ public sealed class RdpSessionCommandTests : IDisposable
         var open = new OpenRdpSessionCommand(Guid.NewGuid());
         var close = new CloseRemoteSessionCommand(Guid.NewGuid(), Guid.NewGuid());
 
-        open.RequiredPermissions.Should()
-            .Equal(Permission.RemoteRdpConnect.ToString());
-        // close é protocolo-agnóstico: Admin tem ambas; matriz real em F11-T004
-        close.RequiredPermissions.Should().Equal(
-            Permission.RemoteSshConnect.ToString(),
-            Permission.RemoteRdpConnect.ToString());
+        open.RequiredRoles.Should().BeEquivalentTo(RoleAccess.Operate);
+        // close é protocolo-agnóstico: Operator e Admin openede qualquer
+        // protocolo (SSH e RDP), ver ADR-016.
+        close.RequiredRoles.Should().BeEquivalentTo(RoleAccess.Operate);
     }
 }

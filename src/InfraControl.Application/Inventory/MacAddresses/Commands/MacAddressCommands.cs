@@ -1,10 +1,10 @@
 using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.MacAddresses.Commands;
 
@@ -16,8 +16,8 @@ public sealed record CreateMacAddressCommand(
     Guid InterfaceId,
     string Mac) : BaseCommand<MacAddressDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateMacAddressCommandHandler(
@@ -52,8 +52,8 @@ public sealed record UpdateMacAddressCommand(
     Guid Id,
     string Mac) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateMacAddressCommandHandler(
@@ -79,8 +79,8 @@ public sealed class UpdateMacAddressCommandHandler(
 
 public sealed record DeleteMacAddressCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteMacAddressCommandHandler(

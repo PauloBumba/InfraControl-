@@ -3,7 +3,6 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -31,16 +30,16 @@ public sealed record CheckRunResultDto(
 public sealed record RunCheckCommand(Guid DeviceId, string Check)
     : BaseCommand<CheckRunResultDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 /// <summary>Executa um check em todos os devices (estilo Zabbix "check now").</summary>
 public sealed record RunAllChecksCommand(string Check)
     : BaseCommand<IReadOnlyList<CheckRunResultDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class RunCheckCommandHandler(

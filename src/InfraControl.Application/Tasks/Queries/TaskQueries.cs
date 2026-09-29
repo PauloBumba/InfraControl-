@@ -1,7 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -17,8 +16,8 @@ public sealed record SearchTasksQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<TaskDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchTasksQueryHandler(
@@ -93,8 +92,8 @@ public sealed class SearchTasksQueryHandler(
 public sealed record GetTaskQuery(Guid Id)
     : IQuery<TaskDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetTaskQueryHandler(

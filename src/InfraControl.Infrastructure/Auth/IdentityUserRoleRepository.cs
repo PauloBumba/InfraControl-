@@ -1,5 +1,4 @@
 using InfraControl.Domain.Enums;
-using InfraControl.Domain.Authorization;
 using InfraControl.Application.Identity.Roles.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Persistence;
@@ -57,8 +56,6 @@ public sealed class IdentityUserRoleRepository(
                 : await userManager.RemoveFromRoleAsync(identityUser, roleName);
             EnsureSucceeded(result, "sincronização de função");
 
-            await SynchronizePermissionClaimsAsync(identityUser, user.Roles, cancellationToken);
-
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
@@ -74,24 +71,5 @@ public sealed class IdentityUserRoleRepository(
         if (result.Succeeded) return;
         var errors = string.Join("; ", result.Errors.Select(error => error.Code));
         throw new InvalidOperationException($"Não foi possível concluir {operation}: {errors}");
-    }
-
-    private async Task SynchronizePermissionClaimsAsync(
-        InfraControlUser identityUser,
-        IReadOnlyCollection<UserRole> roles,
-        CancellationToken cancellationToken)
-    {
-        var currentClaims = await userManager.GetClaimsAsync(identityUser);
-        var permissionClaims = currentClaims.Where(claim => claim.Type == PermissionClaim.Type).ToList();
-
-        if (permissionClaims.Count > 0)
-            EnsureSucceeded(await userManager.RemoveClaimsAsync(identityUser, permissionClaims), "limpeza de claims de permissão");
-
-        var claims = RolePermissions.ForRoles(roles)
-            .Select(permission => new Claim(PermissionClaim.Type, permission.ToString()))
-            .ToArray();
-
-        if (claims.Length > 0)
-            EnsureSucceeded(await userManager.AddClaimsAsync(identityUser, claims), "sincronização de claims de permissão");
     }
 }

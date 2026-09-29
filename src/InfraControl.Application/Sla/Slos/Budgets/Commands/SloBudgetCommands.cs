@@ -1,10 +1,10 @@
 using InfraControl.Application.Sla.Slos.Budgets.Ports;
 using InfraControl.Application.Sla.Slos.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Slos.Budgets.Commands;
 
@@ -17,8 +17,8 @@ public sealed record RecordSloBudgetCommand(
     DateTime? PeriodEnd,
     decimal ConsumedPercent) : BaseCommand<SloBudgetDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class RecordSloBudgetCommandHandler(
@@ -52,8 +52,8 @@ public sealed class RecordSloBudgetCommandHandler(
 
 public sealed record DeleteSloBudgetCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteSloBudgetCommandHandler(

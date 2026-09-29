@@ -286,30 +286,21 @@ export const speedTestHistory = [
 // ============ USERS & ROLES ============
 export const users = [
   { id: "1", name: "Paulo Bumba", email: "paulo.bumba@empresa.com", role: "Admin" as const, status: "active" as const, lastLogin: "14/09/2026 15:40", createdAt: "01/09/2026", sessions: 2 },
-  { id: "2", name: "Ana Souza", email: "ana.souza@empresa.com", role: "User" as const, status: "active" as const, lastLogin: "14/09/2026 14:12", createdAt: "03/09/2026", sessions: 1 },
-  { id: "3", name: "Carlos Lima", email: "carlos.lima@empresa.com", role: "User" as const, status: "active" as const, lastLogin: "13/09/2026 09:30", createdAt: "05/09/2026", sessions: 0 },
+  { id: "2", name: "Ana Souza", email: "ana.souza@empresa.com", role: "Operator" as const, status: "active" as const, lastLogin: "14/09/2026 14:12", createdAt: "03/09/2026", sessions: 1 },
+  { id: "3", name: "Carlos Lima", email: "carlos.lima@empresa.com", role: "Operator" as const, status: "active" as const, lastLogin: "13/09/2026 09:30", createdAt: "05/09/2026", sessions: 0 },
   { id: "4", name: "Mariana Reis", email: "mariana.reis@empresa.com", role: "Viewer" as const, status: "active" as const, lastLogin: "12/09/2026 17:45", createdAt: "07/09/2026", sessions: 1 },
   { id: "5", name: "Pedro Alves", email: "pedro.alves@empresa.com", role: "Viewer" as const, status: "inactive" as const, lastLogin: "08/09/2026 11:20", createdAt: "09/09/2026", sessions: 0 },
-  { id: "6", name: "Fernanda Costa", email: "fernanda.costa@empresa.com", role: "User" as const, status: "pending" as const, lastLogin: "—", createdAt: "14/09/2026", sessions: 0 },
+  { id: "6", name: "Fernanda Costa", email: "fernanda.costa@empresa.com", role: "Operator" as const, status: "pending" as const, lastLogin: "—", createdAt: "14/09/2026", sessions: 0 },
 ];
 
+// ADR-016: a role é a única unidade de acesso — não existe matriz de
+// permissões. Cada card mostra o nível canônico que a role alcança
+// (RoleAccess no backend: src/InfraControl.Domain/Enums/RoleAccess.cs).
 export const roles = [
-  { id: "admin", name: "Admin", description: "Acesso total à plataforma", users: 1, system: true, permissions: ["DashboardView", "InventoryRead", "IdentityUsersManage", "IdentityRolesManage", "SettingsManage", "RemoteAccess"] },
-  { id: "user", name: "User", description: "Operação e tarefas do dia a dia", users: 3, system: true, permissions: ["DashboardView", "InventoryRead", "TasksManage", "KnowledgeRead"] },
-  { id: "viewer", name: "Viewer", description: "Somente leitura de dashboards e relatórios", users: 2, system: true, permissions: ["DashboardView", "InventoryRead"] },
-];
-
-export const rolePermissionsMatrix = [
-  { permission: "DashboardView", admin: true, user: true, viewer: true },
-  { permission: "InventoryRead", admin: true, user: true, viewer: true },
-  { permission: "TasksManage", admin: true, user: true, viewer: false },
-  { permission: "KnowledgeRead", admin: true, user: true, viewer: false },
-  { permission: "IdentityUsersManage", admin: true, user: false, viewer: false },
-  { permission: "IdentityRolesManage", admin: true, user: false, viewer: false },
-  { permission: "SettingsManage", admin: true, user: false, viewer: false },
-  { permission: "RemoteAccess", admin: true, user: false, viewer: false },
-  { permission: "AuditRead", admin: true, user: false, viewer: false },
-];
+  { id: "admin", name: "Admin", level: "administer", description: "Acesso total à plataforma", users: 1, system: true },
+  { id: "operator", name: "Operator", level: "operate", description: "Operação e tarefas do dia a dia", users: 3, system: true },
+  { id: "viewer", name: "Viewer", level: "read", description: "Somente leitura de dashboards e relatórios", users: 2, system: true },
+] as const;
 
 // ============ AUDIT (alinhado a AuditEntrySummary / GET /api/v1/admin/audit) ============
 export const auditEntries = [

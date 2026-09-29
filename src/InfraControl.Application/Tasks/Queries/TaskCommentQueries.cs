@@ -1,7 +1,7 @@
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Tasks.Queries;
 
@@ -10,8 +10,8 @@ namespace InfraControl.Application.Tasks.Queries;
 public sealed record GetTaskCommentsQuery(Guid TaskId)
     : IQuery<IReadOnlyCollection<TaskCommentDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetTaskCommentsQueryHandler(

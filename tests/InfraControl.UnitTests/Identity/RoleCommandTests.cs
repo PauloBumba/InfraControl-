@@ -16,11 +16,11 @@ public sealed class RoleCommandTests
         var repository = new FakeRoleRepository(user, activeAdmins: 0);
         var handler = new AssignUserRoleCommandHandler(repository, NullLogger<AssignUserRoleCommandHandler>.Instance);
 
-        await handler.Handle(new AssignUserRoleCommand(user.Id, UserRole.User), CancellationToken.None);
+        await handler.Handle(new AssignUserRoleCommand(user.Id, UserRole.Operator), CancellationToken.None);
 
-        user.Roles.Should().Contain([UserRole.Viewer, UserRole.User]);
+        user.Roles.Should().Contain([UserRole.Viewer, UserRole.Operator]);
         repository.Saved.Should().BeTrue();
-        repository.LastRole.Should().Be(UserRole.User);
+        repository.LastRole.Should().Be(UserRole.Operator);
     }
 
     [Fact]

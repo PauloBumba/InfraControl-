@@ -4,7 +4,6 @@ using InfraControl.Api.RateLimiting;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
@@ -125,8 +124,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
             userId = User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
             email = User.Identity?.Name,
             displayName = User.FindFirst("displayName")?.Value,
-            roles = User.FindAll("role").Select(claim => claim.Value).ToArray(),
-            permissions = User.FindAll("permission").Select(claim => claim.Value).ToArray()
+            roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray()
         }));
 
     private static ClaimsPrincipal CreatePrincipal(AuthenticatedUser user)
@@ -146,11 +144,6 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
         foreach (var role in user.Roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
-            if (Enum.TryParse<UserRole>(role, out var parsedRole))
-            {
-                claims.AddRange(RolePermissions.ForRole(parsedRole)
-                    .Select(permission => new Claim(PermissionClaim.Type, permission.ToString())));
-            }
         }
 
         return new ClaimsPrincipal(new ClaimsIdentity(claims, IdentityConstants.ApplicationScheme));

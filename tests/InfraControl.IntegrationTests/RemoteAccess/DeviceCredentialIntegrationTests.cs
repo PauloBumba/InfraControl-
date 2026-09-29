@@ -44,14 +44,14 @@ public sealed class DeviceCredentialIntegrationTests : BaseIntegrationTest
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.81");
-        UseRole(UserRole.User);
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var action = () => mediator.Send(new UpsertDeviceCredentialCommand(
             device.Id, "svc", "Senha!1"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*CredentialManage*");
+            .WithMessage("Roles ausentes: Admin");
         (await dbContext.DeviceCredentials.CountAsync()).Should().Be(0);
     }
 
@@ -105,6 +105,6 @@ public sealed class DeviceCredentialIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetDeviceCredentialQuery(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*CredentialManage*");
+            .WithMessage("Roles ausentes: Admin");
     }
 }

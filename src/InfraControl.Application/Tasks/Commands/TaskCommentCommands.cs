@@ -1,7 +1,6 @@
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -17,8 +16,8 @@ public sealed record AddTaskCommentCommand(
     Guid TaskId,
     string Content) : BaseCommand<TaskCommentDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.TasksManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class AddTaskCommentCommandHandler(

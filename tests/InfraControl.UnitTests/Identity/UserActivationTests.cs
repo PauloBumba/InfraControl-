@@ -13,12 +13,12 @@ public sealed class UserActivationTests
             Guid.NewGuid(),
             " Pending@Example.com ",
             "Pending User",
-            new[] { UserRole.User, UserRole.User, UserRole.Viewer });
+            new[] { UserRole.Operator, UserRole.Operator, UserRole.Viewer });
 
         user.IsActive.Should().BeFalse("an account created outside an explicit activation step must not be active");
         user.Email.Should().Be("pending@example.com");
         user.DisplayName.Should().Be("Pending User");
-        user.Roles.Should().BeEquivalentTo([UserRole.User, UserRole.Viewer]);
+        user.Roles.Should().BeEquivalentTo([UserRole.Operator, UserRole.Viewer]);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class UserActivationTests
     public void CreatePending_ThenEnable_ShouldActivateUser()
     {
         var user = User.CreatePending(
-            Guid.NewGuid(), "pending@example.com", "Pending", new[] { UserRole.User });
+            Guid.NewGuid(), "pending@example.com", "Pending", new[] { UserRole.Operator });
         user.ClearDomainEvents();
 
         user.Enable();

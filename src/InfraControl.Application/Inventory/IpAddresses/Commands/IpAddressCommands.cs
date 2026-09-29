@@ -1,10 +1,10 @@
 using InfraControl.Application.Inventory.IpAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.IpAddresses.Commands;
 
@@ -16,8 +16,8 @@ public sealed record CreateIpAddressCommand(
     Guid InterfaceId,
     string Ip) : BaseCommand<IpAddressDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class CreateIpAddressCommandHandler(
@@ -52,8 +52,8 @@ public sealed record UpdateIpAddressCommand(
     Guid Id,
     string Ip) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class UpdateIpAddressCommandHandler(
@@ -79,8 +79,8 @@ public sealed class UpdateIpAddressCommandHandler(
 
 public sealed record DeleteIpAddressCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryManage.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 }
 
 public sealed class DeleteIpAddressCommandHandler(

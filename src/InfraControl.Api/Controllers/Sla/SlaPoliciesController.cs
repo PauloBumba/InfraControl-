@@ -6,6 +6,7 @@ using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Sla;
 
@@ -17,7 +18,7 @@ namespace InfraControl.Api.Controllers.Sla;
 public sealed class SlaPoliciesController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] string? term,
         [FromQuery] Guid? serviceId,
@@ -28,12 +29,12 @@ public sealed class SlaPoliciesController(ISender sender) : BaseController
             new SearchSlaPoliciesQuery(term, serviceId, page, pageSize), cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "SlaRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetSlaPolicyQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateSlaPolicyViewModel model,
         CancellationToken cancellationToken)
@@ -47,7 +48,7 @@ public sealed class SlaPoliciesController(ISender sender) : BaseController
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateSlaPolicyViewModel model,
@@ -61,7 +62,7 @@ public sealed class SlaPoliciesController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "SlaManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteSlaPolicyCommand(id), cancellationToken);

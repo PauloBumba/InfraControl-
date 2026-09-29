@@ -2,7 +2,6 @@ using FluentAssertions;
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.Queries;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -76,10 +75,10 @@ public sealed class TaskIncidentCommandTests : IDisposable
     [Fact]
     public void Commands_ShouldRequireTasksManage()
     {
-        new LinkTaskIncidentCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksManage.ToString());
-        new UnlinkTaskIncidentCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredPermissions
-            .Should().Equal(Permission.TasksManage.ToString());
+        new LinkTaskIncidentCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
+        new UnlinkTaskIncidentCommand(Guid.NewGuid(), Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
     }
 
     [Fact]

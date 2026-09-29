@@ -1,7 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Network.Topology;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -83,9 +82,9 @@ public sealed class TopologyQueryTests : IDisposable
     }
 
     [Fact]
-    public void Query_ShouldRequireInventoryRead()
-        => new GetTopologyQuery().RequiredPermissions.Should()
-            .Equal(Permission.InventoryRead.ToString());
+    public void Query_ShouldRequireAnyRole()
+        => new GetTopologyQuery().RequiredRoles.Should()
+            .BeEquivalentTo(RoleAccess.Read);
 
     [Fact]
     public async Task Graph_WithConnection_ShouldReturnNodesAndEdge()

@@ -107,7 +107,7 @@ public sealed class InvitationActivationTests
             IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>>();
 
         var created = await createHandler.Handle(
-            new CreateInvitationCommand("invited-user@example.com", [UserRole.User], Guid.NewGuid()),
+            new CreateInvitationCommand("invited-user@example.com", [UserRole.Operator], Guid.NewGuid()),
             CancellationToken.None);
 
         await acceptHandler.Handle(
@@ -122,7 +122,7 @@ public sealed class InvitationActivationTests
         domainUser.IsActive.Should().BeFalse(
             "accepting an invitation must create the account inactive, awaiting password definition");
 
-        domainUser.Roles.Should().ContainSingle().Which.Should().Be(UserRole.User);
+        domainUser.Roles.Should().ContainSingle().Which.Should().Be(UserRole.Operator);
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<InfraControlUser>>();
         var identityUser = await userManager.FindByEmailAsync("invited-user@example.com");
@@ -297,7 +297,7 @@ public sealed class InvitationActivationTests
             IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>>();
 
         var created = await createHandler.Handle(
-            new CreateInvitationCommand(email, [UserRole.User], Guid.NewGuid()),
+            new CreateInvitationCommand(email, [UserRole.Operator], Guid.NewGuid()),
             CancellationToken.None);
 
         await acceptHandler.Handle(
@@ -315,7 +315,7 @@ public sealed class InvitationActivationTests
             InvitationToken.Hash(token),
             DateTime.UtcNow.AddDays(expiresInDays),
             Guid.NewGuid(),
-            [UserRole.User]);
+            [UserRole.Operator]);
 
         invitation.Accept(InvitationToken.Hash(token), DateTime.UtcNow);
         invitation.ClearDomainEvents();

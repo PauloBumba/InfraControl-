@@ -1,6 +1,6 @@
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.RemoteAccess;
 using MediatR;
 
@@ -38,11 +38,8 @@ internal static class RemoteSessionFlow
 public sealed record CloseRemoteSessionCommand(Guid DeviceId, Guid SessionId)
     : BaseCommand<RemoteSessionDto>, IAuthorizedRequest, IAuditableRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-    [
-        Permission.RemoteSshConnect.ToString(),
-        Permission.RemoteRdpConnect.ToString()
-    ];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
 
     public string AuditResource => "RemoteSession";
 }

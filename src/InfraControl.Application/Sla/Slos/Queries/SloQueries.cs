@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Sla.Slos.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Sla.Slos.Queries;
 
@@ -14,8 +14,8 @@ public sealed record SearchSlosQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<SloDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchSlosQueryHandler(ISloRepository repository)
@@ -44,8 +44,8 @@ public sealed class SearchSlosQueryHandler(ISloRepository repository)
 
 public sealed record GetSloQuery(Guid Id) : IQuery<SloDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.SlaRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetSloQueryHandler(ISloRepository repository)

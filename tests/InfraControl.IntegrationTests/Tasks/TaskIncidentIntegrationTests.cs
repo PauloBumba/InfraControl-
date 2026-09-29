@@ -69,12 +69,12 @@ public sealed class TaskIncidentIntegrationTests : BaseIntegrationTest
     {
         using var scope = CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseNoPermissions();
+        UseNoRoles();
 
         var action = () => mediator.Send(
             new LinkTaskIncidentCommand(Guid.NewGuid(), Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Permissões ausentes: TasksManage");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 }

@@ -46,7 +46,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.73");
-        UseRole(UserRole.User);
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
@@ -84,7 +84,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task OpenSsh_WithoutRemoteSshConnect_ShouldThrowUnauthorizedPtBr()
+    public async Task OpenSsh_WithoutRole_ShouldThrowUnauthorizedPtBr()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -95,7 +95,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new OpenSshSessionCommand(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RemoteSshConnect*");
+            .WithMessage("Roles ausentes: Admin, Operator");
         (await dbContext.RemoteSessions.CountAsync()).Should().Be(0);
     }
 
@@ -112,7 +112,7 @@ public sealed class SshSessionIntegrationTests : BaseIntegrationTest
             new CloseRemoteSessionCommand(device.Id, Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("*RemoteSshConnect*");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

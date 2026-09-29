@@ -23,7 +23,6 @@
     <Using Include="MediatR" />
     <Using Include="InfraControl.BuildingBlocks.Application" />
     <Using Include="InfraControl.Application.Common.Interfaces" />
-    <Using Include="InfraControl.Domain.Authorization" />
   </ItemGroup>
 
 </Project>

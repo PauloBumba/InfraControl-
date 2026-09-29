@@ -12,18 +12,28 @@ public sealed class AuthorizationBehavior<TRequest, TResponse>(ICurrentUserConte
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        if (request is not IAuthorizedRequest authorizedRequest || authorizedRequest.RequiredPermissions.Count == 0)
+        if (request is not IAuthorizedRequest authorizedRequest)
             return next();
 
+        // Toda request autorizada exige usuário autenticado, mesmo sem role
+        // declarada (leitura): sem isso a camada MediatR aceitaria chamadas
+        // anônimas de dentro de workers ou chamadores que não passam pelo HTTP.
         if (!currentUser.IsAuthenticated)
             throw new UnauthorizedAccessException("Autenticação é necessária para esta requisição.");
 
-        var granted = currentUser.Permissions.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var missing = authorizedRequest.RequiredPermissions
-            .Where(permission => !granted.Contains(permission))
-            .ToArray();
-        if (missing.Length > 0)
-            throw new UnauthorizedAccessException($"Permissões ausentes: {string.Join(", ", missing)}");
+        if (authorizedRequest.RequiredRoles.Count == 0)
+            return next();
+
+        var grantedRoles = currentUser.Roles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var requiredRoleNames = authorizedRequest.RequiredRoles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Nível de acesso (RoleAccess.Read/Operate/Administer): basta UMA
+        // role exigida estar concedida (OR) — Read = qualquer role, Operate
+        // = Operator|Admin, Administer = Admin. AND tornaria Read inatingível.
+        // ordenação determinística: a mensagem é observável (401) e testada
+        if (!grantedRoles.Overlaps(requiredRoleNames))
+            throw new UnauthorizedAccessException(
+                $"Roles ausentes: {string.Join(", ", requiredRoleNames.OrderBy(role => role, StringComparer.Ordinal))}");
 
         return next();
     }

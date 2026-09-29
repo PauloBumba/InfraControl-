@@ -4,7 +4,6 @@ using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.History;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -47,7 +46,6 @@ public sealed class TaskStateCommandTests : IDisposable
         public string? UserName => "gestor@exemplo.test";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles => ["Admin"];
-        public IReadOnlyCollection<string> Permissions => [];
     }
 
     private static async Task<Guid> SeedTaskAsync(AppDbContext context, TaskState state)

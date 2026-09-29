@@ -6,8 +6,8 @@ using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.GlobalSearch.Queries;
 
@@ -19,8 +19,8 @@ public sealed record GlobalSearchQuery(
     string? Term,
     int Limit = 5) : IQuery<GlobalSearchResultDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GlobalSearchQueryHandler(

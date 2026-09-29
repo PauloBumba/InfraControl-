@@ -1,7 +1,7 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Common.Audit.Queries;
 
@@ -15,8 +15,8 @@ public sealed record SearchAuditEntriesQuery(
 {
     public override TimeSpan? CacheDuration => TimeSpan.FromMinutes(1);
 
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.AuditRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
 }
 
 public sealed class SearchAuditEntriesQueryHandler(IAuditReader reader)

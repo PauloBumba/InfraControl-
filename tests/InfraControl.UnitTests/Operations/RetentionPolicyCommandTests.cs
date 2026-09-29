@@ -2,7 +2,6 @@ using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Operations.Retention;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
@@ -14,7 +13,7 @@ namespace InfraControl.UnitTests.Operations;
 
 /// <summary>
 /// F12-T002: gestão de RetentionPolicy — upsert/reset com validação,
-/// RequiredPermissions RetentionManage e GET com valor efetivo
+/// RequiredRoles Administer (RetentionManage) e GET com valor efetivo
 /// (policy sobrepõe o default de Retention:* — docs/11).
 /// </summary>
 public sealed class RetentionPolicyCommandTests : IDisposable
@@ -156,16 +155,16 @@ public sealed class RetentionPolicyCommandTests : IDisposable
     }
 
     [Fact]
-    public void Requests_ShouldDeclareRetentionManagePermissionAndAuditResource()
+    public void Requests_ShouldDeclareAdminRoleAndAuditResource()
     {
-        var required = new[] { Permission.RetentionManage.ToString() };
+        var required = RoleAccess.Administer;
 
         new UpsertRetentionPolicyCommand(RetentionDataType.AuditEntries, 30)
-            .RequiredPermissions.Should().Equal(required);
+            .RequiredRoles.Should().BeEquivalentTo(required);
         new DeleteRetentionPolicyCommand(RetentionDataType.AuditEntries)
-            .RequiredPermissions.Should().Equal(required);
+            .RequiredRoles.Should().BeEquivalentTo(required);
         new GetRetentionPoliciesQuery()
-            .RequiredPermissions.Should().Equal(required);
+            .RequiredRoles.Should().BeEquivalentTo(required);
 
         ((IAuditableRequest)new UpsertRetentionPolicyCommand(
             RetentionDataType.AuditEntries, 30)).AuditResource.Should().Be("RetentionPolicy");

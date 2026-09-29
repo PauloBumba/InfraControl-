@@ -3,7 +3,6 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.RemoteAccess.Sessions;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.RemoteAccess;
 using InfraControl.Infrastructure.Persistence;
@@ -371,11 +370,8 @@ public sealed class SshSessionCommandTests : IDisposable
         var open = new OpenSshSessionCommand(Guid.NewGuid());
         var close = new CloseRemoteSessionCommand(Guid.NewGuid(), Guid.NewGuid());
 
-        open.RequiredPermissions.Should()
-            .Equal(Permission.RemoteSshConnect.ToString());
+        open.RequiredRoles.Should().BeEquivalentTo(RoleAccess.Operate);
         // close é protocolo-agnóstico: Admin tem ambas; matriz real em F11-T004
-        close.RequiredPermissions.Should().Equal(
-            Permission.RemoteSshConnect.ToString(),
-            Permission.RemoteRdpConnect.ToString());
+        close.RequiredRoles.Should().BeEquivalentTo(RoleAccess.Operate);
     }
 }

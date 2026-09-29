@@ -5,6 +5,7 @@ using InfraControl.Application.Network.Connections.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Network;
 
@@ -17,7 +18,7 @@ namespace InfraControl.Api.Controllers.Network;
 public sealed class ConnectionsController(ISender sender) : BaseController
 {
     [HttpGet]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? deviceId,
         [FromQuery] string? term,
@@ -29,7 +30,7 @@ public sealed class ConnectionsController(ISender sender) : BaseController
             cancellationToken)));
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = "InventoryRead")]
+    [Authorize]
     public async Task<IActionResult> GetById(
         Guid id,
         CancellationToken cancellationToken)
@@ -37,7 +38,7 @@ public sealed class ConnectionsController(ISender sender) : BaseController
             new GetConnectionQuery(id), cancellationToken)));
 
     [HttpPost]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(
         [FromBody] CreateConnectionViewModel model,
         CancellationToken cancellationToken)
@@ -50,7 +51,7 @@ public sealed class ConnectionsController(ISender sender) : BaseController
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "InventoryManage")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(
         Guid id,
         CancellationToken cancellationToken)

@@ -13,8 +13,8 @@ public sealed record SearchAlertsQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<AlertDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.MonitoringRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchAlertsQueryHandler(IAlertRepository repository)

@@ -1,8 +1,8 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.BuildingBlocks.Application;
-using InfraControl.Domain.Authorization;
 using MediatR;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Inventory.Racks.Queries;
 
@@ -15,8 +15,8 @@ public sealed record SearchRacksQuery(
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<RackDto>>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class SearchRacksQueryHandler(IRackRepository repository)
@@ -44,8 +44,8 @@ public sealed class SearchRacksQueryHandler(IRackRepository repository)
 
 public sealed record GetRackQuery(Guid Id) : IQuery<RackDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredPermissions =>
-        [Permission.InventoryRead.ToString()];
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
 }
 
 public sealed class GetRackQueryHandler(IRackRepository repository)

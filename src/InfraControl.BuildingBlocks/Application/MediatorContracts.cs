@@ -8,7 +8,7 @@ public interface IQuery<out TResponse> : IRequest<TResponse>;
 
 public interface IAuthorizedRequest
 {
-    IReadOnlyCollection<string> RequiredPermissions { get; }
+    IReadOnlyCollection<string> RequiredRoles { get; }
 }
 
 /// <summary>

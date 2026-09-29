@@ -5,6 +5,7 @@ using InfraControl.Api.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Discovery;
 
@@ -17,7 +18,7 @@ namespace InfraControl.Api.Controllers.Discovery;
 public sealed class DiscoveryRunsController(ISender sender) : BaseController
 {
     [HttpGet("runs")]
-    [Authorize(Roles = "Admin,User,Viewer")]
+    [Authorize]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? deviceId,
         [FromQuery] int page = 1,
@@ -27,13 +28,13 @@ public sealed class DiscoveryRunsController(ISender sender) : BaseController
             new SearchDiscoveryRunsQuery(deviceId, page, pageSize), cancellationToken)));
 
     [HttpGet("runs/{id:guid}")]
-    [Authorize(Roles = "Admin,User,Viewer")]
+    [Authorize]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDiscoveryRunQuery(id), cancellationToken)));
 
     /// <summary>Gatilho manual de discovery (F4-T003) — MonitoringManage.</summary>
     [HttpPost("devices/{deviceId:guid}/runs")]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Start(
         Guid deviceId,
         [FromBody] StartDiscoveryViewModel model,

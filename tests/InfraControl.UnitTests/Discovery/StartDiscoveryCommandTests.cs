@@ -2,7 +2,6 @@ using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs;
 using InfraControl.Infrastructure.Discovery;
-using InfraControl.Domain.Authorization;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Discovery;
@@ -97,10 +96,10 @@ public sealed class StartDiscoveryCommandTests : IDisposable
     }
 
     [Fact]
-    public void Command_ShouldRequireMonitoringManage()
+    public void Command_ShouldRequireOperatorOrAdmin()
         => new StartDiscoveryCommand(Guid.NewGuid(), "Icmp")
-            .RequiredPermissions.Should()
-            .Equal(Permission.MonitoringManage.ToString());
+            .RequiredRoles.Should()
+            .BeEquivalentTo(RoleAccess.Operate);
 
     [Fact]
     public async Task Start_Success_ShouldCompleteRunAndPersistHostResult()
