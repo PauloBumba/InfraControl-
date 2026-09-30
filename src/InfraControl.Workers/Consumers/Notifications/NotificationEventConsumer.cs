@@ -213,7 +213,7 @@ public sealed class NotificationEventConsumer(
     /// <summary>
     /// SignalR e Email não têm destino externo (sempre enviáveis). Canais
     /// com destino na config exigem a seção preenchida; canais ainda sem
-    /// worker (F9-T010) não são enviáveis até a task deles.
+    /// worker (canais futuros) não são enviáveis até a task deles.
     /// </summary>
     private bool IsSendable(NotificationChannel channel)
     {
@@ -242,6 +242,13 @@ public sealed class NotificationEventConsumer(
                     return true;
                 logger.LogWarning(
                     "Canal Webhook em Notifications:Channels:Default sem Url configurada — deliveries não enfileiradas.");
+                return false;
+
+            case NotificationChannel.Slack:
+                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.Slack.Channel))
+                    return true;
+                logger.LogWarning(
+                    "Canal Slack em Notifications:Channels:Default sem Channel configurado — deliveries não enfileiradas.");
                 return false;
 
             default:

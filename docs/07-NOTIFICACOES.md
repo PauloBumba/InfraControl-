@@ -134,7 +134,8 @@ e nos Workers, mesma seção nos dois hosts):
     "Default": [ "Email", "SignalR" ],
     "Telegram": { "ChatId": "" },
     "WhatsApp": { "Phone": "" },
-    "Webhook": { "Url": "" }
+    "Webhook": { "Url": "" },
+    "Slack": { "Channel": "" }
   }
 }
 ```
@@ -192,6 +193,21 @@ marca `Sent`/`Failed`. O adaptador é `LoggingWebhookNotificationDispatcher`
 (endpoint real = pendência, junto do SMTP e das credenciais dos demais
 canais). Url esvaziada entre enfileirar e despachar vira `Failed` com
 erro pt-BR apontando a seção (`Notifications:Channels:Webhook:Url`).
+
+## Canal Slack (F9-T010)
+
+Decidido pelo usuário na F9-T006 (não existia em docs/07): espelho do
+Telegram (F9-T006) — o consumer enfileira `NotificationDelivery` (Slack)
+por usuário final quando o canal está em `Default` **e**
+`Slack:Channel` está preenchido (sem Channel = Warning, sem delivery). O
+`NotificationSlackWorker` (mesmo loop base, 2s) despacha via porta
+`ISlackNotificationDispatcher` (`Channel` global + `Title`/`Message`) e
+marca `Sent`/`Failed`. O adaptador é `LoggingSlackNotificationDispatcher`
+(Infrastructure) — nenhuma chamada real à API; um adaptador com token do
+bot troca a implementação sem tocar em Application (credencial real =
+pendência, junto do SMTP e do bot token do Telegram). Channel esvaziado
+entre enfileirar e despachar vira `Failed` com erro pt-BR apontando a
+seção (`Notifications:Channels:Slack:Channel`).
 
 ## Delivery
 

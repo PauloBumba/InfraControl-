@@ -9,5 +9,6 @@ public enum NotificationChannel
     Email = 2,
     Telegram = 3,
     WhatsApp = 4,
-    Webhook = 5
+    Webhook = 5,
+    Slack = 6
 }

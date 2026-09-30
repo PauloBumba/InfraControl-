@@ -353,8 +353,8 @@ public sealed class NotificationEventConsumerTests : IDisposable
 
     /// <summary>
     /// Fanout é CONFIG-driven (F9-T006): canal fora da lista Default não
-    /// recebe delivery (antes SignalR+Email eram fixos) e canal inexistente
-    /// na config (ex.: "Slack", F9-T010) é ignorado sem quebrar.
+    /// recebe delivery (antes SignalR+Email eram fixos) e canal na lista
+    /// sem destino configurado (ex.: "Slack" sem Channel) não é enviável.
     /// </summary>
     [Fact]
     public async Task Consume_WithConfiguredChannels_ShouldFanoutExactlyTheDefaultList()
@@ -586,5 +586,106 @@ public sealed class NotificationEventConsumerTests : IDisposable
             .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
         (await context.NotificationDeliveries.AsNoTracking()
             .CountAsync(d => d.Channel == NotificationChannel.Webhook)).Should().Be(0);
+    }
+
+    /// <summary>Slack na lista Default com Channel = delivery Slack enfileirada (F9-T010).</summary>
+    [Fact]
+    public async Task Consume_WithSlackInDefault_ShouldQueueSlackDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Slack"],
+            Slack = new SlackChannelOptions { Channel = "#infra-alertas" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "com-slack@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.Slack);
+    }
+
+    /// <summary>Preferência Slack desligada = sem delivery (regra F9-T003).</summary>
+    [Fact]
+    public async Task Consume_WithSlackPreferenceDisabled_ShouldNotQueueSlackDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Slack"],
+            Slack = new SlackChannelOptions { Channel = "#infra-alertas" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "slack-off@exemplo.test");
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.Slack, enabled: false));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Slack)).Should().Be(0);
+    }
+
+    /// <summary>Slack na lista mas SEM Channel = pula (Warning) e os canais seguem.</summary>
+    [Fact]
+    public async Task Consume_WithSlackUnconfigured_ShouldSkipSlackAndQueueDefaults()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Slack"],
+            Slack = new SlackChannelOptions { Channel = "" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "sem-slack@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Slack)).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+    }
+
+    /// <summary>Fallback de e-mail: Default = só Slack sem Channel → enfileira Email.</summary>
+    [Fact]
+    public async Task Consume_WithOnlyUnconfiguredSlack_ShouldFallbackToEmail()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Slack"],
+            Slack = new SlackChannelOptions { Channel = "  " },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "fallback-slack@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Slack)).Should().Be(0);
     }
 }

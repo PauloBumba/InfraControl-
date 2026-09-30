@@ -72,6 +72,7 @@ builder.Services.AddHostedService<NotificationEmailWorker>();
 builder.Services.AddHostedService<NotificationTelegramWorker>();
 builder.Services.AddHostedService<NotificationWhatsAppWorker>();
 builder.Services.AddHostedService<NotificationWebhookWorker>();
+builder.Services.AddHostedService<NotificationSlackWorker>();
 // F9-T006: o admin escolhe os canais do fanout e os destinos por canal
 // (Notifications:Channels) — a MESMA seção lida pelo NotificationEventConsumer
 // no host dos Workers; defaults vazios = comportamento Email+SignalR.
