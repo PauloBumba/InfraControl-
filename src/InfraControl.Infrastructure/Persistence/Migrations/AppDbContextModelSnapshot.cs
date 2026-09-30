@@ -532,6 +532,48 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("ip_addresses", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("knowledge_articles", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2170,6 +2212,14 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasForeignKey("InterfaceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticle", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>

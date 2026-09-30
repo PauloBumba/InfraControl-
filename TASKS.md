@@ -196,7 +196,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 ## Fase 10 — Knowledge
 
 - [x] F10-T001 Category <!-- heurística docs/04 (Knowledge Base mínimo): entidade `KnowledgeCategory` (name≤120 **único case-insensitive**: pré-check handler → 409 pt-BR + índice `ux_knowledge_categories_name ON (LOWER(name))` via SQL bruto, precedente Location; description≤500 opcional); tabela `knowledge_categories`; migração `AddKnowledgeCategories` sem `--no-build`. Porta `IKnowledgeCategoryRepository` (HasNameAsync c/ excludeId, SearchAsync term→nome/descrição asc); comandos Create (201)/Update/Delete (404, escrita RoleAccess.Operate) + queries Search/Get (RoleAccess.Read); rotas `api/v1/knowledge/categories` no novo `KnowledgeController` + ViewModels com [Required]/[MaxLength] (400 pt-BR); `IKnowledgeCategoryRepository` manual no BaseIntegrationTest; FK dos artigos fica p/ F10-T002. RED antes do GREEN (12 unit + 4 integration erros só em tests/). Testes +17 unit (KnowledgeCategoryTests 7, KnowledgeCategoryCommandTests 10) +5 integration — suíte 1253 unit + 86 arch + 135 integration = 1474, 0 falhas; docs/04 §Categorias -->
-- [ ] F10-T002 Article
+- [x] F10-T002 Article <!-- heurística docs/04 (Knowledge Base mínimo). Decisões da task: (1) FK SetNull — apagar categoria não apaga nem bloqueia o artigo (T001 sem FK; constraint vem aqui); (2) enum KnowledgeArticleStatus (Draft/Published/Archived, string(32)) já existe e a entidade nasce Draft, mas Update NÃO mexe no status e não há endpoint de transição — Publishing = F10-T003; (3) content ≤20.000 (maior texto livre do repo = 1.000; corpo de KB exige mais — decisão da task); (4) RoleAccess ADR-016 como a T001 (leitura Read, escrita Operate); (5) controller novo KnowledgeArticlesController porque KnowledgeController já ocupa api/v1/knowledge/categories. Escopo: entity KnowledgeArticle (title 200/content 20000/category_id?/status, invariantes pt-BR) + KnowledgeArticleStatus; Knowledge/Articles/ (Dto com enum Status, porta IKnowledgeArticleRepository com SearchAsync por termo em title/content mais recentes primeiro, comandos Create 201/Update/Delete — categoria de destino inexistente = 404 pt-BR antes de persistir —, queries Search/Get) + KnowledgeArticleRepository + KnowledgeArticleConfiguration (tabela knowledge_articles, FK SetNull, índice category_id) + DbSet + migração AddKnowledgeArticles (script TEMP, sem --no-build, output-dir Persistence/Migrations) + rota api/v1/knowledge/articles + ViewModels 400 pt-BR + linha manual no BaseIntegrationTest. RED antes do GREEN (10 erros CS0234/CS0246 só em tests/). Testes +18 unit (KnowledgeArticleTests 9 invariantes, KnowledgeArticleCommandTests 9 CRUD/404/busca) +5 integration (KnowledgeArticleIntegrationTests: CRUD com categoria, 404 artigo, 404 categoria, 400 título, 403 sem Operate) — suíte 1271 unit + 88 arch, 0 falhas; 1 flaky na validação final (CorrelationTracingTests.MassTransitEventBus_WithoutCorrelation_ShouldPublishPlain — timeout 24s sob carga, isolado 4/4 verde, registrado na Fase P; não desta task); integração compila mas não executa (Docker não instalado — desinstalado em 27/07/2026); docs/04 §Artigos -->
 - [ ] F10-T003 Publishing
 - [ ] F10-T004 Relationships
 
@@ -279,10 +279,10 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F9-T006 Telegram
 - [x] F9-T007 WhatsApp
 - [x] F9-T008 Webhook
-- [x] F9-T009 Retry/DLQ (mensageria) (mensageria)
+- [x] F9-T009 Retry/DLQ (mensageria)
 - [x] F9-T010 Slack
 - [x] F10-T001 Category
-- [ ] F10-T002 Article
+- [x] F10-T002 Article
 - [ ] F10-T003 Publishing
 - [ ] F10-T004 Relationships
 
@@ -303,6 +303,9 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   (o `HttpRateLimit` de login cobre o passo 1)
 - [ ] **Investigar flakiness** de `RdpRemoteProviderTests.ConnectAsync_NegotiationFailure_ShouldReturnNlaFailurePtBr`
   (timeout de loopback sob carga da suíte completa; passa isolado e em rerun)
+- [ ] **Investigar flakiness** de `CorrelationTracingTests.MassTransitEventBus_WithoutCorrelation_ShouldPublishPlain`
+  (F15/ADR-021 — `TaskCanceledException` de 24s sob carga da suíte completa;
+  passa isolado 4/4; observado em 30/09 na validação da F10-T002)
 - [ ] **Conectar as páginas com mock ao backend** — F14 foi prototipação com dados
   estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)

@@ -273,3 +273,19 @@ com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201), `PUT`,
 `DELETE` (`RoleAccess.Operate`; 404). Escrita 400 pt-BR via
 `[Required]`/`[MaxLength]` no ViewModel. A FK dos artigos (F10-T002)
 vem com a própria task.
+
+### Artigos (F10-T002)
+
+`KnowledgeArticle` (tabela `knowledge_articles`): `title` (200,
+obrigatório), `content` (20.000, obrigatório), `category_id` (FK →
+`knowledge_categories`, **SetNull** — apagar a categoria não apaga nem
+bloqueia o artigo) e `status` (`Draft`/`Published`/`Archived`; nasce
+**Draft** — as transições são F10-T003). Busca por termo no
+título/conteúdo, mais recentes primeiro.
+
+Rotas `api/v1/knowledge/articles` (`KnowledgeArticlesController` — o
+`KnowledgeController` da T001 já ocupa a rota de categorias): `GET`
+(busca com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201,
+nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
+404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
+Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
