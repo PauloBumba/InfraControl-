@@ -195,7 +195,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 
 ## Fase 10 — Knowledge
 
-- [ ] F10-T001 Category
+- [x] F10-T001 Category <!-- heurística docs/04 (Knowledge Base mínimo): entidade `KnowledgeCategory` (name≤120 **único case-insensitive**: pré-check handler → 409 pt-BR + índice `ux_knowledge_categories_name ON (LOWER(name))` via SQL bruto, precedente Location; description≤500 opcional); tabela `knowledge_categories`; migração `AddKnowledgeCategories` sem `--no-build`. Porta `IKnowledgeCategoryRepository` (HasNameAsync c/ excludeId, SearchAsync term→nome/descrição asc); comandos Create (201)/Update/Delete (404, escrita RoleAccess.Operate) + queries Search/Get (RoleAccess.Read); rotas `api/v1/knowledge/categories` no novo `KnowledgeController` + ViewModels com [Required]/[MaxLength] (400 pt-BR); `IKnowledgeCategoryRepository` manual no BaseIntegrationTest; FK dos artigos fica p/ F10-T002. RED antes do GREEN (12 unit + 4 integration erros só em tests/). Testes +17 unit (KnowledgeCategoryTests 7, KnowledgeCategoryCommandTests 10) +5 integration — suíte 1253 unit + 86 arch + 135 integration = 1474, 0 falhas; docs/04 §Categorias -->
 - [ ] F10-T002 Article
 - [ ] F10-T003 Publishing
 - [ ] F10-T004 Relationships
@@ -281,7 +281,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F9-T008 Webhook
 - [x] F9-T009 Retry/DLQ (mensageria) (mensageria)
 - [x] F9-T010 Slack
-- [ ] F10-T001 Category
+- [x] F10-T001 Category
 - [ ] F10-T002 Article
 - [ ] F10-T003 Publishing
 - [ ] F10-T004 Relationships

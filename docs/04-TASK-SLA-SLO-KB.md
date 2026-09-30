@@ -260,3 +260,16 @@ Artigos:
 - Archived
 
 Relacionamentos possíveis com Device, Incident e Service.
+
+### Categorias (F10-T001)
+
+`KnowledgeCategory` (tabela `knowledge_categories`): `name` (120, **único
+case-insensitive** — pré-check no handler → 409 + índice
+`ux_knowledge_categories_name ON (LOWER(name))` via SQL bruto,
+precedente da Location) e `description` (500, opcional).
+
+Rotas `api/v1/knowledge/categories` (`KnowledgeController`): `GET` (busca
+com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201), `PUT`,
+`DELETE` (`RoleAccess.Operate`; 404). Escrita 400 pt-BR via
+`[Required]`/`[MaxLength]` no ViewModel. A FK dos artigos (F10-T002)
+vem com a própria task.
