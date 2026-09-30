@@ -280,7 +280,7 @@ vem com a própria task.
 obrigatório), `content` (20.000, obrigatório), `category_id` (FK →
 `knowledge_categories`, **SetNull** — apagar a categoria não apaga nem
 bloqueia o artigo) e `status` (`Draft`/`Published`/`Archived`; nasce
-**Draft** — as transições são F10-T003). Busca por termo no
+**Draft** — ciclo em §Publicação). Busca por termo no
 título/conteúdo, mais recentes primeiro.
 
 Rotas `api/v1/knowledge/articles` (`KnowledgeArticlesController` — o
@@ -289,3 +289,18 @@ Rotas `api/v1/knowledge/articles` (`KnowledgeArticlesController` — o
 nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
 404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
 Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
+
+### Publicação (F10-T003)
+
+Transições de status em `POST api/v1/knowledge/articles/{id}/status`
+(corpo `{"status": "..."}`, `RoleAccess.Operate`, 200 devolve o artigo
+com o status novo). Ciclo válido **Draft → Published → Archived →
+Draft**; qualquer outra transição (incluindo repetir o mesmo estado) =
+**409** `Transição inválida: 'X' → 'Y'.` Status fora do enum = 400
+`Status inválido: 'X'. Use 'draft', 'published' ou 'archived'.`
+
+**Rascunho (Draft) só para quem escreve**: para quem não tem nível de
+escrita (ADR-016 ≡ `RoleAccess.Operate`), a busca exclui os Drafts e o
+`GET/{id}` de um Draft responde **404 como se não existisse** — não vaza
+a existência do rascunho. `Published`/`Archived` continuam visíveis para
+todo mundo com `RoleAccess.Read`.

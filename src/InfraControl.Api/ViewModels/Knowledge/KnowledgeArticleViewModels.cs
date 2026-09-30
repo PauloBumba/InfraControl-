@@ -27,3 +27,11 @@ public sealed class UpdateKnowledgeArticleViewModel
 
     public Guid? CategoryId { get; set; }
 }
+
+/// <summary>F10-T003: corpo do POST {id}/status — o valor em si é
+/// validado no handler (400 pt-BR com a lista de opções).</summary>
+public sealed class ChangeKnowledgeArticleStatusViewModel
+{
+    [Required(ErrorMessage = "O status do artigo é obrigatório.")]
+    public string Status { get; set; } = string.Empty;
+}

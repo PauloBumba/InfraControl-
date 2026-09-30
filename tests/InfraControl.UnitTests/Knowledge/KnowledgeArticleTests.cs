@@ -100,4 +100,73 @@ public sealed class KnowledgeArticleTests
         article.CategoryId.Should().Be(categoryId);
         article.Status.Should().Be(KnowledgeArticleStatus.Draft);
     }
+
+    [Fact]
+    public void TransitionTo_DraftToPublished_ShouldPublish()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        article.Status.Should().Be(KnowledgeArticleStatus.Published);
+    }
+
+    [Fact]
+    public void TransitionTo_PublishedToArchived_ShouldArchive()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        article.TransitionTo(KnowledgeArticleStatus.Archived);
+
+        article.Status.Should().Be(KnowledgeArticleStatus.Archived);
+    }
+
+    [Fact]
+    public void TransitionTo_ArchivedToDraft_ShouldRestoreDraft()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+        article.TransitionTo(KnowledgeArticleStatus.Archived);
+
+        article.TransitionTo(KnowledgeArticleStatus.Draft);
+
+        article.Status.Should().Be(KnowledgeArticleStatus.Draft);
+    }
+
+    [Fact]
+    public void TransitionTo_DraftToArchived_ShouldThrowConflictPtBr()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+
+        var act = () => article.TransitionTo(KnowledgeArticleStatus.Archived);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Transição inválida: 'Draft' → 'Archived'.");
+        article.Status.Should().Be(KnowledgeArticleStatus.Draft);
+    }
+
+    [Fact]
+    public void TransitionTo_PublishedToDraft_ShouldThrowConflictPtBr()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        var act = () => article.TransitionTo(KnowledgeArticleStatus.Draft);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Transição inválida: 'Published' → 'Draft'.");
+    }
+
+    [Fact]
+    public void TransitionTo_SameState_ShouldThrowConflictPtBr()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        var act = () => article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Transição inválida: 'Published' → 'Published'.");
+    }
 }

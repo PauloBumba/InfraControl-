@@ -9,8 +9,9 @@ using Microsoft.Extensions.Logging;
 namespace InfraControl.Application.Knowledge.Articles.Commands;
 
 // F10-T002: CRUD de KnowledgeArticle — 400 (título/conteúdo), 404
-// (artigo ou categoria de destino inexistente). Create nasce Draft;
-// transições de status ficam em F10-T003.
+// (artigo ou categoria de destino inexistente). Create nasce Draft.
+// F10-T003: ChangeKnowledgeArticleStatus — ciclo Draft → Published →
+// Archived → Draft (409 fora do ciclo), status fora do enum = 400.
 
 public sealed record CreateKnowledgeArticleCommand(
     string Title,
@@ -123,5 +124,47 @@ public sealed class DeleteKnowledgeArticleCommandHandler(
 
         logger.LogInformation(
             "KnowledgeArticle {ArticleId} deleted ({Title}).", article.Id, article.Title);
+    }
+}
+
+// F10-T003: transição de status — ciclo Draft → Published → Archived →
+// Draft no domínio; fora do ciclo = 409, status fora do enum = 400 pt-BR.
+
+public sealed record ChangeKnowledgeArticleStatusCommand(
+    Guid Id,
+    string Status) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class ChangeKnowledgeArticleStatusCommandHandler(
+    IKnowledgeArticleRepository repository,
+    ILogger<ChangeKnowledgeArticleStatusCommandHandler> logger)
+    : IRequestHandler<ChangeKnowledgeArticleStatusCommand, KnowledgeArticleDto>
+{
+    public async Task<KnowledgeArticleDto> Handle(
+        ChangeKnowledgeArticleStatusCommand request, CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<KnowledgeArticleStatus>(
+                request.Status, ignoreCase: true, out var target))
+            throw new ArgumentException(
+                $"Status inválido: '{request.Status}'. Use 'draft', 'published' ou 'archived'.",
+                nameof(request.Status));
+
+        var article = await repository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Artigo '{request.Id}' não encontrado.");
+
+        // Fora do ciclo → InvalidOperationException → 409 (GlobalExceptionHandler).
+        article.TransitionTo(target);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "KnowledgeArticle {ArticleId} status changed to {Status}.",
+            article.Id, article.Status);
+
+        return new KnowledgeArticleDto(
+            article.Id, article.Title, article.Content, article.CategoryId, article.Status);
     }
 }

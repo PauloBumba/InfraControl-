@@ -15,8 +15,8 @@ namespace InfraControl.Api.Controllers.Knowledge;
 /// <summary>
 /// F10-T002: CRUD de artigos da base de conhecimento (docs/04).
 /// Controller próprio — o de categorias (F10-T001) já ocupa a rota
-/// api/v1/knowledge/categories. Transições de status vêm em F10-T003.
-/// Falhas embrulhadas pelo GlobalExceptionHandler.
+/// api/v1/knowledge/categories. F10-T003: transições de status em
+/// POST {id}/status. Falhas embrulhadas pelo GlobalExceptionHandler.
 /// </summary>
 [Route("api/v1/knowledge/articles")]
 public sealed class KnowledgeArticlesController(ISender sender) : BaseController
@@ -69,4 +69,15 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         await sender.Send(new DeleteKnowledgeArticleCommand(id), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>F10-T003: ciclo Draft → Published → Archived → Draft;
+    /// fora do ciclo = 409 pt-BR, status desconhecido = 400 pt-BR.</summary>
+    [HttpPost("{id:guid}/status")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ChangeStatus(
+        Guid id,
+        [FromBody] ChangeKnowledgeArticleStatusViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new ChangeKnowledgeArticleStatusCommand(id, model.Status), cancellationToken)));
 }

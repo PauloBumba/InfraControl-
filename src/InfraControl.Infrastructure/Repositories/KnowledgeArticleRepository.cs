@@ -2,6 +2,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Knowledge.Articles.Ports;
 using InfraControl.BuildingBlocks.Domain;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,6 +29,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         string? term,
         int page,
         int pageSize,
+        bool includeDrafts,
         CancellationToken cancellationToken = default)
     {
         var query = dbContext.KnowledgeArticles.AsNoTracking().AsQueryable();
@@ -39,6 +41,10 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
                 article.Title.ToLower().Contains(normalized)
                 || article.Content.ToLower().Contains(normalized));
         }
+
+        if (!includeDrafts)
+            query = query.Where(article =>
+                article.Status != KnowledgeArticleStatus.Draft);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

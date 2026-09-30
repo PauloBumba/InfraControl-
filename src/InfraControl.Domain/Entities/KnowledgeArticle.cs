@@ -4,9 +4,10 @@ using InfraControl.Domain.Enums;
 namespace InfraControl.Domain.Entities;
 
 /// <summary>
-/// Artigo da base de conhecimento (F10-T002, docs/04 — Knowledge Base).
-/// Nasce <see cref="KnowledgeArticleStatus.Draft"/>; as transições de
-/// status vêm em F10-T003 (Publishing). Categoria opcional — a FK é
+/// Artigo da base de conhecimento (F10-T002/T003, docs/04 — Knowledge
+/// Base). Nasce <see cref="KnowledgeArticleStatus.Draft"/>; o ciclo de
+/// publicação Draft → Published → Archived → Draft vive em
+/// <see cref="TransitionTo"/> (F10-T003). Categoria opcional — a FK é
 /// SetNull na migration: apagar categoria não apaga nem bloqueia o
 /// artigo (decisão da task, T001 não tinha FK).
 /// </summary>
@@ -33,8 +34,8 @@ public sealed class KnowledgeArticle : AggregateRoot
     }
 
     /// <summary>
-    /// Atualiza título/conteúdo/categoria. NÃO mexe no Status — transição
-    /// de estado é responsabilidade de F10-T003 (Publishing).
+    /// Atualiza título/conteúdo/categoria. NÃO mexe no Status — mudar
+    /// estado é só via <see cref="TransitionTo"/> (F10-T003).
     /// </summary>
     public void Update(string title, string content, Guid? categoryId)
     {
@@ -62,4 +63,29 @@ public sealed class KnowledgeArticle : AggregateRoot
         Content = content;
         CategoryId = categoryId;
     }
+
+    /// <summary>
+    /// F10-T003 (Publishing): ciclo válido Draft → Published →
+    /// Archived → Draft. Qualquer outra transição (inclusive repetir o
+    /// mesmo estado) é conflito — 409 pt-BR com os dois estados.
+    /// </summary>
+    public void TransitionTo(KnowledgeArticleStatus target)
+    {
+        if (!IsValidTransition(Status, target))
+            throw new InvalidOperationException(
+                $"Transição inválida: '{Status}' → '{target}'.");
+
+        Status = target;
+    }
+
+    private static bool IsValidTransition(
+        KnowledgeArticleStatus from,
+        KnowledgeArticleStatus target)
+        => (from, target) switch
+        {
+            (KnowledgeArticleStatus.Draft, KnowledgeArticleStatus.Published) => true,
+            (KnowledgeArticleStatus.Published, KnowledgeArticleStatus.Archived) => true,
+            (KnowledgeArticleStatus.Archived, KnowledgeArticleStatus.Draft) => true,
+            _ => false,
+        };
 }

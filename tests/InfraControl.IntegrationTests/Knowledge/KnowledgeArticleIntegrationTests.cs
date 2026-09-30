@@ -99,4 +99,73 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Roles ausentes: Admin, Operator");
     }
+
+    /// <summary>Ciclo completo Draft → Published → Archived → Draft via API.</summary>
+    [Fact]
+    public async Task ChangeStatus_Lifecycle_ShouldRoundTripViaQueries()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var created = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Artigo de publicação", "Conteúdo.", null));
+
+        var published = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "published"));
+        published.Status.Should().Be(KnowledgeArticleStatus.Published);
+
+        var archived = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "archived"));
+        archived.Status.Should().Be(KnowledgeArticleStatus.Archived);
+
+        var restored = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "draft"));
+        restored.Status.Should().Be(KnowledgeArticleStatus.Draft);
+
+        var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
+        fetched.Status.Should().Be(KnowledgeArticleStatus.Draft);
+    }
+
+    [Fact]
+    public async Task ChangeStatus_InvalidTransition_ShouldFailWith409PtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var created = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null));
+
+        var action = () => mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "archived"));
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Transição inválida: 'Draft' → 'Archived'.");
+    }
+
+    [Fact]
+    public async Task Draft_ShouldBeHiddenFromViewer()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var draft = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Rascunho interno", "Segredo.", null));
+        var published = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "published"));
+
+        UseRole(UserRole.Viewer);
+        var page = await mediator.Send(new SearchKnowledgeArticlesQuery());
+        page.Items.Should().ContainSingle(article => article.Id == published.Id);
+
+        var getDraft = () => mediator.Send(new GetKnowledgeArticleQuery(draft.Id));
+        (await getDraft.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Artigo '{draft.Id}' não encontrado.");
+
+        var change = () => mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(draft.Id, "published"));
+        (await change.Should().ThrowAsync<UnauthorizedAccessException>())
+            .WithMessage("Roles ausentes: Admin, Operator");
+    }
 }

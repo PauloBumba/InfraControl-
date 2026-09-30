@@ -7,6 +7,9 @@ using MediatR;
 namespace InfraControl.Application.Knowledge.Articles.Queries;
 
 // Sem cache (IQuery direto): artigo muda a cada mutation.
+// F10-T003: rascunho (Draft) só aparece para quem tem nível de
+// escrita (ADR-016 ≡ Operate) — a busca filtra e o GET/{id} de um
+// Draft responde 404 como se não existisse (não vaza existência).
 
 public sealed record SearchKnowledgeArticlesQuery(
     string? Term = null,
@@ -17,7 +20,9 @@ public sealed record SearchKnowledgeArticlesQuery(
         RoleAccess.Read;
 }
 
-public sealed class SearchKnowledgeArticlesQueryHandler(IKnowledgeArticleRepository repository)
+public sealed class SearchKnowledgeArticlesQueryHandler(
+    IKnowledgeArticleRepository repository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<SearchKnowledgeArticlesQuery, PagedResult<KnowledgeArticleDto>>
 {
     public async Task<PagedResult<KnowledgeArticleDto>> Handle(
@@ -27,7 +32,10 @@ public sealed class SearchKnowledgeArticlesQueryHandler(IKnowledgeArticleReposit
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
         var term = string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim();
 
-        var result = await repository.SearchAsync(term, page, pageSize, cancellationToken);
+        var result = await repository.SearchAsync(
+            term, page, pageSize,
+            includeDrafts: CanSeeDrafts(currentUser),
+            cancellationToken);
 
         return new PagedResult<KnowledgeArticleDto>(
             result.Items
@@ -39,6 +47,13 @@ public sealed class SearchKnowledgeArticlesQueryHandler(IKnowledgeArticleReposit
             result.Page,
             result.PageSize);
     }
+
+    /// <summary>
+    /// Rascunho só para quem escreve: papeis do usuário cortados em
+    /// <see cref="RoleAccess.Operate"/> (Admin/Operator — ADR-016).
+    /// </summary>
+    internal static bool CanSeeDrafts(ICurrentUserContext currentUser)
+        => RoleAccess.Operate.Any(role => currentUser.Roles.Contains(role));
 }
 
 public sealed record GetKnowledgeArticleQuery(Guid Id)
@@ -48,7 +63,9 @@ public sealed record GetKnowledgeArticleQuery(Guid Id)
         RoleAccess.Read;
 }
 
-public sealed class GetKnowledgeArticleQueryHandler(IKnowledgeArticleRepository repository)
+public sealed class GetKnowledgeArticleQueryHandler(
+    IKnowledgeArticleRepository repository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<GetKnowledgeArticleQuery, KnowledgeArticleDto>
 {
     public async Task<KnowledgeArticleDto> Handle(
@@ -56,6 +73,11 @@ public sealed class GetKnowledgeArticleQueryHandler(IKnowledgeArticleRepository 
     {
         var article = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException(
+                $"Artigo '{request.Id}' não encontrado.");
+
+        if (article.Status == KnowledgeArticleStatus.Draft
+            && !SearchKnowledgeArticlesQueryHandler.CanSeeDrafts(currentUser))
+            throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
         return new KnowledgeArticleDto(

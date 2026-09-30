@@ -55,11 +55,23 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
             new KnowledgeArticleRepository(context),
             NullLogger<DeleteKnowledgeArticleCommandHandler>.Instance);
 
+    private sealed class FakeCurrentUser(string[] roles) : ICurrentUserContext
+    {
+        public Guid? UserId { get; } = Guid.NewGuid();
+        public string? UserName => "usuario@exemplo.test";
+        public bool IsAuthenticated => true;
+        public IReadOnlyCollection<string> Roles => roles;
+    }
+
     private static SearchKnowledgeArticlesQueryHandler SearchHandler(AppDbContext context)
-        => new(new KnowledgeArticleRepository(context));
+        => new(
+            new KnowledgeArticleRepository(context),
+            new FakeCurrentUser(["Operator"]));
 
     private static GetKnowledgeArticleQueryHandler GetHandler(AppDbContext context)
-        => new(new KnowledgeArticleRepository(context));
+        => new(
+            new KnowledgeArticleRepository(context),
+            new FakeCurrentUser(["Operator"]));
 
     private static async Task<Guid> SeedCategoryAsync(AppDbContext context, string name = "Redes")
     {
