@@ -19,6 +19,15 @@ public sealed class NotificationDelivery : Entity
     public DateTime? SentAt { get; private set; }
     public string? LastError { get; private set; }
 
+    /// <summary>Tentativas já feitas nesta delivery (F9-T009).</summary>
+    public int AttemptCount { get; private set; }
+
+    /// <summary>
+    /// Próxima tentativa agendada; nula = sem retry (viva = ainda não
+    /// falhou, morta = esgotou as tentativas e entrou na DLQ).
+    /// </summary>
+    public DateTime? NextAttemptAt { get; private set; }
+
     private NotificationDelivery() { }
 
     public static NotificationDelivery Create(
@@ -56,6 +65,34 @@ public sealed class NotificationDelivery : Entity
         Status = DeliveryStatus.Sent;
         SentAt = sentAt;
         LastError = null;
+        NextAttemptAt = null;
+    }
+
+    /// <summary>
+    /// F9-T009: registra a falha e agenda o próximo retry com backoff
+    /// exponencial (base dobrando a cada tentativa). Ao esgotar
+    /// <paramref name="maxAttempts"/> não agenda mais — a delivery entra
+    /// na DLQ (Failed sem próximo retry) e o worker não a volta a ler.
+    /// </summary>
+    public void RegisterFailedAttempt(
+        string error, DateTime now, int maxAttempts, TimeSpan backoff)
+    {
+        if (maxAttempts < 1)
+            throw new ArgumentOutOfRangeException(
+                nameof(maxAttempts), "O máximo de tentativas deve ser ao menos 1.");
+
+        MarkFailed(error);
+
+        AttemptCount++;
+
+        if (AttemptCount >= maxAttempts)
+        {
+            NextAttemptAt = null;
+            return;
+        }
+
+        var factor = 1L << (AttemptCount - 1);
+        NextAttemptAt = now + TimeSpan.FromTicks(backoff.Ticks * factor);
     }
 
     public void MarkFailed(string error)

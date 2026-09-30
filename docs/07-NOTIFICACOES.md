@@ -220,3 +220,16 @@ Estados:
 - Cancelled
 
 Retry usa backoff e, quando necessário, DLQ.
+
+### Retry/DLQ (F9-T009)
+
+Política no `NotificationChannelWorkerBase` (vale para TODOS os canais):
+
+- falha = `RegisterFailedAttempt` na delivery (`attempt_count` +
+  `next_attempt_at`, colunas novas em `notification_deliveries`);
+- **backoff exponencial**: 30s → 60s → 120s → 240s (base dobrando);
+- o worker lê `Pending` **ou** `Failed` com `next_attempt_at` vencido;
+- **5ª falha = DLQ**: `Failed` sem `next_attempt_at` (nunca mais volta à
+  fila) + log `Error` identificando a delivery;
+- retries ainda no futuro ficam de fora da consulta (índice
+  `(channel, status)` atende a fila por canal).

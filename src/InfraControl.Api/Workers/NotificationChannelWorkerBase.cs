@@ -18,6 +18,11 @@ public abstract class NotificationChannelWorkerBase(
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(2);
 
+    /// <summary>F9-T009: 5 tentativas (30s/60s/120s/240s) — depois, DLQ.</summary>
+    public const int MaxAttempts = 5;
+
+    public static readonly TimeSpan RetryBackoff = TimeSpan.FromSeconds(30);
+
     protected abstract Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
@@ -88,11 +93,22 @@ public abstract class NotificationChannelWorkerBase(
             }
             catch (Exception exception)
             {
-                delivery.MarkFailed(exception.Message);
-                logger.LogWarning(
-                    exception,
-                    "Delivery {DeliveryId} falhou no canal {Channel} (usuário {UserId}).",
-                    item.DeliveryId, channel, item.UserId);
+                delivery.RegisterFailedAttempt(
+                    exception.Message,
+                    AppTimeProvider.Current.GetUtcNow().UtcDateTime,
+                    MaxAttempts,
+                    RetryBackoff);
+
+                if (delivery.NextAttemptAt is null)
+                    logger.LogError(
+                        "Delivery {DeliveryId} esgotou {MaxAttempts} tentativas no canal {Channel} — DLQ (usuário {UserId}): {Error}.",
+                        item.DeliveryId, MaxAttempts, channel, item.UserId, delivery.LastError);
+                else
+                    logger.LogWarning(
+                        exception,
+                        "Delivery {DeliveryId} falhou no canal {Channel} (usuário {UserId}) — retry {Attempt}/{MaxAttempts} em {NextAttempt:O}.",
+                        item.DeliveryId, channel, item.UserId,
+                        delivery.AttemptCount, MaxAttempts, delivery.NextAttemptAt);
             }
         }
 

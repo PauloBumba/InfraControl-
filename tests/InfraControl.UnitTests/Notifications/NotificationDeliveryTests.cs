@@ -73,6 +73,62 @@ public sealed class NotificationDeliveryTests
         delivery.LastError.Should().BeNull();
     }
 
+    /// <summary>
+    /// F9-T009: primeira falha agenda o próximo retry com backoff
+    /// exponencial (base 30s) e mantém Status = Failed.
+    /// </summary>
+    [Fact]
+    public void RegisterFailedAttempt_FirstFailure_ShouldScheduleRetryWithBackoff()
+    {
+        var delivery = NotificationDelivery.Create(
+            NotificationId, Guid.NewGuid(), NotificationChannel.Email);
+        var now = new DateTime(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc);
+
+        delivery.RegisterFailedAttempt(
+            "smtp offline", now, maxAttempts: 5, backoff: TimeSpan.FromSeconds(30));
+
+        delivery.Status.Should().Be(DeliveryStatus.Failed);
+        delivery.AttemptCount.Should().Be(1);
+        delivery.NextAttemptAt.Should().Be(now.AddSeconds(30));
+        delivery.LastError.Should().Be("smtp offline");
+    }
+
+    /// <summary>Backoff dobra a cada tentativa (30 → 60 → 120 → 240s).</summary>
+    [Fact]
+    public void RegisterFailedAttempt_BackoffShouldDoubleEachAttempt()
+    {
+        var delivery = NotificationDelivery.Create(
+            NotificationId, Guid.NewGuid(), NotificationChannel.Email);
+        var now = new DateTime(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc);
+
+        delivery.RegisterFailedAttempt("falha", now, 5, TimeSpan.FromSeconds(30));
+        delivery.RegisterFailedAttempt("falha", now, 5, TimeSpan.FromSeconds(30));
+        delivery.RegisterFailedAttempt("falha", now, 5, TimeSpan.FromSeconds(30));
+
+        delivery.AttemptCount.Should().Be(3);
+        delivery.NextAttemptAt.Should().Be(now.AddSeconds(120));
+    }
+
+    /// <summary>
+    /// Esgotou as tentativas = DLQ: Status Failed e SEM próximo retry
+    /// (o worker não volta a escolher a delivery).
+    /// </summary>
+    [Fact]
+    public void RegisterFailedAttempt_AtMaxAttempts_ShouldEnterDlqWithoutNextRetry()
+    {
+        var delivery = NotificationDelivery.Create(
+            NotificationId, Guid.NewGuid(), NotificationChannel.Email);
+        var now = new DateTime(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc);
+
+        for (var i = 0; i < 5; i++)
+            delivery.RegisterFailedAttempt("falha", now, 5, TimeSpan.FromSeconds(30));
+
+        delivery.Status.Should().Be(DeliveryStatus.Failed);
+        delivery.AttemptCount.Should().Be(5);
+        delivery.NextAttemptAt.Should().BeNull();
+        delivery.LastError.Should().Be("falha");
+    }
+
     [Fact]
     public void MarkFailed_ShouldTruncateErrorTo500()
     {

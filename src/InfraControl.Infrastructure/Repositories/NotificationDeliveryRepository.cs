@@ -29,10 +29,18 @@ public sealed class NotificationDeliveryRepository(AppDbContext dbContext)
         CancellationToken cancellationToken = default)
     {
         var take = Math.Clamp(limit, 1, 200);
+        var now = Domain.Common.AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 
+        // F9-T009: pendentes novos + retries vencidos (Failed com
+        // NextAttemptAt na frente ficam de fora; DLQ = Failed sem
+        // NextAttemptAt nunca volta).
         return await dbContext.NotificationDeliveries
             .AsNoTracking()
-            .Where(d => d.Channel == channel && d.Status == DeliveryStatus.Pending)
+            .Where(d => d.Channel == channel && (
+                d.Status == DeliveryStatus.Pending
+                || (d.Status == DeliveryStatus.Failed
+                    && d.NextAttemptAt != null
+                    && d.NextAttemptAt <= now)))
             .OrderBy(d => d.CreateDateTime)
             .Take(take)
             .Join(

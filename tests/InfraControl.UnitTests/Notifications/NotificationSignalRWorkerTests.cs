@@ -112,6 +112,76 @@ public sealed class NotificationSignalRWorkerTests : IDisposable
         delivery.SentAt.Should().BeNull();
     }
 
+    /// <summary>
+    /// F9-T009: falha agenda retry — a mesma delivery volta a ser
+    /// escolhida quando o `NextAttemptAt` vence e é despachada com
+    /// sucesso na segunda tentativa.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPending_DueRetry_ShouldDispatchAgainAndMarkSent()
+    {
+        var (context, worker, dispatcher, deliveryId) = await CreateAsync();
+        dispatcher.Fail = true;
+        (await worker.ProcessPendingAsync(CancellationToken.None)).Should().Be(0);
+
+        dispatcher.Fail = false;
+        var delivery = await context.NotificationDeliveries.SingleAsync(d => d.Id == deliveryId);
+        delivery.RegisterFailedAttempt(
+            "erro transitório",
+            DateTime.UtcNow.AddDays(-1),
+            maxAttempts: 5,
+            backoff: TimeSpan.FromSeconds(30));
+        await context.SaveChangesAsync();
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(1);
+        dispatcher.Sent.Should().ContainSingle(m => m.DeliveryId == deliveryId);
+        delivery = await context.NotificationDeliveries
+            .AsNoTracking().SingleAsync(d => d.Id == deliveryId);
+        delivery.Status.Should().Be(DeliveryStatus.Sent);
+        delivery.NextAttemptAt.Should().BeNull();
+    }
+
+    /// <summary>Retry ainda no futuro não é escolhida (backoff respeitado).</summary>
+    [Fact]
+    public async Task ProcessPending_RetryNotDue_ShouldSkipDelivery()
+    {
+        var (context, worker, dispatcher, deliveryId) = await CreateAsync();
+        dispatcher.Fail = true;
+        (await worker.ProcessPendingAsync(CancellationToken.None)).Should().Be(0);
+        dispatcher.Fail = false;
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(0);
+        dispatcher.Sent.Should().BeEmpty();
+        var delivery = await context.NotificationDeliveries
+            .AsNoTracking().SingleAsync(d => d.Id == deliveryId);
+        delivery.Status.Should().Be(DeliveryStatus.Failed);
+        delivery.NextAttemptAt.Should().NotBeNull();
+    }
+
+    /// <summary>DLQ: esgotadas as tentativas a delivery não volta mais à fila.</summary>
+    [Fact]
+    public async Task ProcessPending_DlqDelivery_ShouldNeverBePickedAgain()
+    {
+        var (context, worker, dispatcher, deliveryId) = await CreateAsync();
+        var delivery = await context.NotificationDeliveries.SingleAsync(d => d.Id == deliveryId);
+        for (var i = 0; i < 5; i++)
+            delivery.RegisterFailedAttempt(
+                "falha permanente",
+                DateTime.UtcNow.AddDays(-1),
+                maxAttempts: 5,
+                backoff: TimeSpan.FromSeconds(30));
+        await context.SaveChangesAsync();
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(0);
+        dispatcher.Sent.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task ProcessPending_WithoutPending_ShouldReturnZeroAndNotCallDispatcher()
     {

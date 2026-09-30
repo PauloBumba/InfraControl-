@@ -39,6 +39,14 @@ public sealed class NotificationDeliveryConfiguration
             .HasColumnName("last_error")
             .HasMaxLength(NotificationDelivery.LastErrorMaxLength);
 
+        // Retry/DLQ (F9-T009): backoff exponencial por delivery.
+        builder.Property(x => x.AttemptCount)
+            .HasColumnName("attempt_count")
+            .HasDefaultValue(0);
+
+        builder.Property(x => x.NextAttemptAt)
+            .HasColumnName("next_attempt_at");
+
         // Delivery pertence à notificação e ao usuário (morrem juntos).
         builder.HasOne<Notification>()
             .WithMany()
