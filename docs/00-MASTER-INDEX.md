@@ -28,6 +28,7 @@
 24. [BuildingBlocks e Shared Kernel](24-BUILDING-BLOCKS.md)
 25. [Estrutura MVC da API](25-API-MVC-STRUCTURE.md)
 26. [Performance (Dia 5)](26-PERFORMANCE.md)
+27. [Integração Zabbix](27-INTEGRACAO-ZABBIX.md)
 
 ## ADRs
 

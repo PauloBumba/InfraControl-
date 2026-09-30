@@ -11,6 +11,13 @@ public interface IIncidentRepository : IRepository<Incident>
     Task<Incident?> GetOpenByDeviceAsync(
         Guid deviceId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Incident não-Resolved com mesmo título e device (null incluso) —
+    /// dedup/fechamento do webhook Zabbix (F16-T001/ADR-023).
+    /// </summary>
+    Task<Incident?> GetOpenByTitleAndDeviceAsync(
+        string title, Guid? deviceId, CancellationToken cancellationToken = default);
+
     /// <summary>Alert já vinculado ao incidente?</summary>
     Task<bool> IsAlertLinkedAsync(
         Guid incidentId, Guid alertId, CancellationToken cancellationToken = default);

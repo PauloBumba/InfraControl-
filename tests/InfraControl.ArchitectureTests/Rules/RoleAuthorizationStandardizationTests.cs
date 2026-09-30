@@ -111,8 +111,11 @@ public sealed class RoleAuthorizationStandardizationTests : BaseArchitectureTest
             "AuthenticationController.ResetPassword",
             "InvitationAcceptanceController.Accept",
             "InvitationAcceptanceController.SetPassword",
-            "InvitationAcceptanceController.Reject"
-        ], "endpoint público exige AllowAnonymous explícito e na lista conhecida (ADR-016)");
+            "InvitationAcceptanceController.Reject",
+            // F16-T001/ADR-023: webhook de entrada do Zabbix — guard é o
+            // token X-Zabbix-Token no controller (404 desligado/401 inválido)
+            "ZabbixIntegrationController.Problems"
+        ], "endpoint público exige AllowAnonymous explícito e na lista conhecida (ADR-016/ADR-023)");
     }
 
     [Fact]
