@@ -1,11 +1,14 @@
 /**
  * Roles canônicas do InfraControl (ADR-016). Espelha `RoleAccess`
  * (src/InfraControl.Domain/Enums/RoleAccess.cs) — o backend é a fonte da
- * verdade; aqui só existe para tipar a exibição, nunca para autorizar.
+ * verdade; aqui existe para tipar a exibição e para a CONFORMIDADE da UI
+ * (F14-T009: menu, rota e botão escondidos quando a role não alcança o
+ * nível — `useCan`/`Can`/`ProtectedRoute` em app/router/access.ts).
  *
- * Nenhuma decisão de acesso é tomada no frontend: quem autoriza é o backend
- * (cookie HttpOnly + policies Operate/Administer). Um usuário sem role não
- * deixa de ver um botão aqui, apenas recebe 401 ao chamar a API.
+ * Nenhuma decisão de acesso EFETIVA é tomada no frontend: quem autoriza é
+ * o backend (cookie HttpOnly + policies Operate/Administer) — esconder
+ * botão não concede acesso e não esconder não concede: sem role, a API
+ * responde 401/403 no envelope, com ou sem UI visível.
  */
 
 export const USER_ROLES = ["Admin", "Operator", "Viewer"] as const;

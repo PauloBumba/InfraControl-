@@ -1,4 +1,5 @@
 import { tasks } from "@/data/dashboardData";
+import { Can } from "@/components/auth/Can";
 
 const columns = [
   { id: "todo", label: "A Fazer", color: "#6b7280" },
@@ -17,9 +18,11 @@ export function TasksPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Tarefas</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{tasks.length} tarefas</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
-          <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
-        </button>
+        <Can level="operate">
+          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
+          </button>
+        </Can>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, alignItems: "start" }}>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { incidents } from "@/data/dashboardData";
+import { Can } from "@/components/auth/Can";
 
 const severityConfig: Record<string, { label: string; bg: string; color: string }> = {
   critical: { label: "Crítico", bg: "#fee2e2", color: "#dc2626" },
@@ -43,9 +44,11 @@ export function IncidentsPage() {
             <option value="monitoring">Monitorando</option>
             <option value="resolved">Resolvido</option>
           </select>
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none" }}>
-            <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Incidente
-          </button>
+          <Can level="operate">
+            <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none" }}>
+              <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Incidente
+            </button>
+          </Can>
         </div>
       </div>
 

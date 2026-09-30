@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { vlans, dhcpLeases, routes, firewallRules } from "@/data/dashboardData";
+import { Can } from "@/components/auth/Can";
 
 const tabs = ["VLANs", "DHCP", "Rotas", "Firewall"];
 
@@ -13,9 +14,11 @@ export function NetworkPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Rede</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>VLANs, DHCP, rotas e firewall</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
-          <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-        </button>
+        <Can level="operate">
+          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+          </button>
+        </Can>
       </div>
 
       <div style={{ display: "flex", gap: 2, background: "#f3f4f6", padding: 2, borderRadius: 6, width: "fit-content" }}>

@@ -1,4 +1,5 @@
 import { knowledgeArticles } from "@/data/dashboardData";
+import { Can } from "@/components/auth/Can";
 
 export function KnowledgePage() {
   return (
@@ -13,9 +14,11 @@ export function KnowledgePage() {
             <i className="pi pi-search" style={{ fontSize: 12, color: "#9ca3af" }} />
             <input type="text" placeholder="Buscar artigos..." style={{ border: "none", background: "none", outline: "none", fontSize: 12, width: 160 }} />
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
-            <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
-          </button>
+          <Can level="operate">
+            <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+              <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
+            </button>
+          </Can>
         </div>
       </div>
 

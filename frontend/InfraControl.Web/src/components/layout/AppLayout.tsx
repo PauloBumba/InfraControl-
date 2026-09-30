@@ -7,6 +7,7 @@ import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
 import { signedOut } from "@/app/store/slices/authSlice";
 import { logout } from "@/services/api/auth";
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
+import { canReach, routeLevel } from "@/app/router/access";
 
 type AppLayoutProps = { children: ReactNode; activeItem: string; onNavigate: (item: string) => void };
 
@@ -39,8 +40,9 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
     dispatch(removeTab(tab));
   }, [dispatch]);
 
-  // F14-T008: identidade exibida vem do /auth/me (cache de tela). NÃO é fonte
-  // de autorização — nenhuma decisão de acesso é tomada no frontend.
+  // F14-T008: identidade exibida vem do /auth/me (cache de tela). As roles
+  // daqui NÃO autorizam (quem autoriza é o backend); o F14-T009 usa-as só
+  // para conformidade da UI — esconder menu/aba acima do nível do usuário.
   const user = useAppSelector((s) => s.auth.user);
   const displayName = user?.displayName || user?.email || "—";
   // ADR-016: "User" virou "Operator"; o rótulo vem do nível canônico
@@ -71,6 +73,17 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
   const allNavItems = [...navigation, ...secondaryNavigation];
   const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
 
+  // F14-T009 — menu e abas acompanham o nível da rota (ADR-016): o Admin
+  // (administer) vê tudo; Operator/Viewer não enxergam as rotas administer
+  // nem as abas recentes delas. Exibição apenas — o backend autoriza de verdade.
+  const canSee = (route: string) => canReach(user?.roles, routeLevel(route));
+  const visibleNavigation = navigation.filter((item) => canSee(item.route));
+  const visibleSecondaryNavigation = secondaryNavigation.filter((item) => canSee(item.route));
+  const visibleRecentTabs = recentTabs.filter((label) => {
+    const item = getNavItem(label);
+    return item ? canSee(item.route) : true;
+  });
+
   const sidebarClassName = `uni-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`;
 
   return (
@@ -94,7 +107,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
         <nav className="uni-nav" aria-label="Navegação principal">
           <ul className="uni-nav-list">
-            {navigation.map((item) => (
+            {visibleNavigation.map((item) => (
               <li key={item.label}>
                 <button
                   className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
@@ -112,7 +125,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           <div className="uni-nav-divider" />
 
           <ul className="uni-nav-list">
-            {secondaryNavigation.map((item) => (
+            {visibleSecondaryNavigation.map((item) => (
               <li key={item.label}>
                 <button
                   className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
@@ -189,9 +202,9 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           </div>
         </header>
 
-        {recentTabs.length > 0 && (
+        {visibleRecentTabs.length > 0 && (
           <div className="uni-tabs-bar">
-            {recentTabs.map((tab: string) => {
+            {visibleRecentTabs.map((tab: string) => {
               const navItem = getNavItem(tab);
               return (
                 <button

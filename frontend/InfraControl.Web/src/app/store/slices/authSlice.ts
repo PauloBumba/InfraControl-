@@ -20,9 +20,10 @@ export interface AuthState {
   status: AuthStatus;
   /**
    * Cache de EXIBIÇÃO (nome, e-mail, roles). Persistido apenas
-   * para não piscar a tela no F5 — nunca como fonte de autorização: quem
-   * autoriza é o backend (cookie HttpOnly + policies). Nenhum token, refresh
-   * token ou credencial entra neste estado.
+   * para não piscar a tela no F5 — nunca como fonte de autorização EFETIVA:
+   * quem autoriza é o backend (cookie HttpOnly + policies); o F14-T009 usa
+   * as roles só para conformidade da UI (esconder menu/rota/botão). Nenhum
+   * token, refresh token ou credencial entra neste estado.
    */
   user: AuthUser | null;
   /** Estado transitório: nunca persistido (some no F5). */
