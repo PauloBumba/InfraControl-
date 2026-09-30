@@ -194,6 +194,11 @@ app.UseAuthentication();
 // Fica no pipeline (e não como atributo de controller) para que um endpoint
 // novo nasça protegido por padrão. Depende de UseAuthentication: precisa saber
 // se a request está autenticada para decidir se valida.
+// ADR-021: PRIMEIRO middleware do pipeline, antes do Serilog request logging e
+// antes de qualquer tratamento de erro. Se a requisição que estourou não tem
+// correlation id na linha, o log de rastro não serve para nada.
+app.UseMiddleware<RequestLoggingMiddleware>();
+
 app.UseMiddleware<AntiforgeryCookieMiddleware>();
 
 // F1-T016(b)/ADR-018: a sessão que o cookie afirma é conferida contra o banco

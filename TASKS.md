@@ -244,6 +244,27 @@ Substitui o modelo de permissões (decisão humana, 2026-09-29). `User` → `Ope
 - [x] Guardas e testes <!-- `RoleAuthorizationStandardizationTests` (arquitetura, proíbe literal de role e policy por permissão), `AuthorizationPolicyTests` (9), `AuthorizationBehaviorTests` (12, matriz 3×3 positiva — sem ela uma regressão para AND passaria verde), `RenameUserRoleToOperatorMigrationTests` (3, executa o SQL da própria migration) -->
 - [x] Documentação e estado <!-- docs/05, 09, 10, 11, 12, 15, 24 e ADR-008 com nota de supersessão -->
 
+## Fase 15 — Integração Docker + Rastreio de requisição (concluída 2026-09-30)
+
+Entrega o caminho de produção e a plataforma de logs (decisões do usuário
+"faz tudo", registradas em ADR-021 e ADR-022; o "sequenciamento" de todas as
+telas com API real fica na F14/pendências).
+
+- [x] ADR-021 + ADR-022 <!-- decisões: Seq como plataforma única (workers entram na mesma config da API), nginx same-origin em vez de CORS (cookie Secure volta a valer), compose único com profiles (infra sem profile; app; obs), Seq SEM porta pública atrás de nginx com basic auth -->
+- [x] Serilog nos Workers (O1) <!-- Adiciona Serilog.Extensions.Hosting/Settings.Configuration/Sinks.Console/Sinks.Seq nos Workers; Program.cs = Log.Logger via ReadFrom.Configuration + ClearProviders + AddSerilog; seção "Serilog" no appsettings dos Workers (espelho da API) -->
+- [x] RequestLoggingMiddleware (O2) <!-- 1º middleware do pipeline; respeita X-Correlation-Id do cliente senão usa TraceIdentifier; LogContext.PushProperty; loga pelo template de rota; silent em /health -->
+- [x] Propagação do correlation id (O3) <!-- ICurrentCorrelation + NullCurrentCorrelation (Application; Infrastructure registra o null e a Api sobrescreve no Program.cs — última-registração ganha); OutboxMessage.CorrelationId (coluna correlation_id, migração AddOutboxCorrelationId 20260930004311 isolada das colunas de retry da F9-T009); DomainEventService persiste; IEventBus.PublishAsync(object,Type,ct,correlationId) + MassTransitEventBus com Pipe.Execute<PublishContext> (header "CorrelationId"); OutboxDispatcherWorker empurra LogContext e o id; CorrelationIdConsumeObserver nos Workers (ConditionalWeakTable); testes CorrelationTracingTests (4) provam escritas + header ponta-a-ponta -->
+- [x] Docker (D1-D3) <!-- docker/Dockerfile multi-stage com targets api/workers/frontend (build validado nos 3), docker/nginx.conf (443 SSL autoassinado + /api e /hubs + Seq em 5341 com basic auth + resolver dinâmico p/ seq/api — nginx sobe mesmo sem os serviços), docker-compose.yml unificado (profiles app/obs; otel-collector; docker-compose.infrastructure.yml removido), .dockerignore, .env.example estendido, README atualizado -->
+- [x] Seq (O4) <!-- serviço seq sem ports:, exposto só pelo nginx com basic auth (env SEQ_AUTH_USER/PASSWORD; entrypoint gera htpasswd); smoke-testado: 401 sem auth, HTTPS 200, redirect 301 -->
+- [x] Tela /logs (O5) <!-- LogsPage vira porta de entrada do Seq: botão "Abrir plataforma de logs" + busca por CorrelationId montando deep link #/events?filter=CorrelationId='...' (formato datalust.co/docs/urls); URL via VITE_LOGS_URL (default http://localhost:5341) -->
+
+Decisões de coordenação entre sessões (registro): a migration `AddOutboxCorrelationId`
+foi gerada com colunas `attempt_count`/`next_attempt_at` da F9-T009 ainda não
+commitadas; o agente isolou o arquivo para conter SÓ `correlation_id` (gerando
+`dotnet ef migrations script` limpo: cada coluna uma vez, tabelas distintas).
+`docker-compose.infrastructure.yml` foi removido conforme ADR-022 e restaurado
+por engano na F9-T009 (`bbff9ef`); removido de novo com registro explícito aqui.
+
 ## Fase P — Pendências (tudo que não foi concluído)
 
 Consolidado único (decisão do usuário, 2026-09-29) de todo item em aberto até aqui:
@@ -268,8 +289,8 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 ### Pendências soltas (de tasks concluídas e decisões registradas)
 
 - [ ] **Revalidar a suíte de integração** (Testcontainers/PostgreSQL) onde houver
-  Docker — não roda nesta máquina (sem Docker) desde F1-T016a; último run verde
-  128/128
+  Docker — revalidada em 2026-09-30 nesta máquina (Docker presente): **130/130
+  verdes** junto da F15; pendência mantida para o caso de outras máquinas sem Docker
 - [ ] **Provider real de e-mail** (SMTP/API + credenciais) — hoje só adaptadores
   de logging (`LoggingIdentityEmailSender` + `LoggingEmailNotificationDispatcher`);
   cobre forgot-password, convite (F1-T017) e canal Email (F9-T005). Requer

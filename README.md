@@ -108,13 +108,36 @@ cp .env.example .env
 Os serviços de infraestrutura podem ser iniciados com:
 
 ```bash
-docker compose -f docker-compose.infrastructure.yml up -d
+docker compose up -d
 ```
+
+A aplicação completa (API + workers + frontend) com o Docker:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+Frontend em `http://localhost:8080` (redireciona para `https://localhost:8443`,
+com certificado autoassinado — aceite no navegador). A API e os workers falam
+com o PostgreSQL, Redis e RabbitMQ pela rede interna do compose; nenhuma porta
+da API é publicada no host além das do frontend.
+
+A plataforma de logs (ADR-021/ADR-022) com observabilidade:
+
+```bash
+docker compose --profile app --profile obs up -d --build
+```
+
+- Seq (logs centralizados) em `http://localhost:5341` — acesso com o usuário e
+  senha de `SEQ_AUTH_USER`/`SEQ_AUTH_PASSWORD` no `.env` (dev: `admin`/`admin`).
+  O serviço Seq em si não publica porta; quem publica é o nginx com basic auth.
+- Coletor OpenTelemetry em `localhost:4317` (sem backend de tracing em
+  homologação — despeja em console).
 
 Para conferir os containers:
 
 ```bash
-docker compose -f docker-compose.infrastructure.yml ps
+docker compose ps
 ```
 
 Não use credenciais reais em arquivos versionados. As credenciais do Compose são destinadas somente ao ambiente de desenvolvimento local.

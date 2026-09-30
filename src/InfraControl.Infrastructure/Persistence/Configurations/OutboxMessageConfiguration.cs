@@ -31,6 +31,11 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(x => x.ProcessedAt)
             .HasColumnName("processed_at");
 
+        // ADR-021: de onde veio a requisição que criou o evento.
+        builder.Property(x => x.CorrelationId)
+            .HasColumnName("correlation_id")
+            .HasMaxLength(128);
+
         builder.Property(x => x.Error)
             .HasColumnName("error");
 

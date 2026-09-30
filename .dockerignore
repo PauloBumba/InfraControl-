@@ -1,0 +1,17 @@
+# Reduz o contexto de build do Docker (ADR-022). O Dockerfile só usa src/,
+# frontend/, docker/ e global.json — o resto é lixo que aumenta o upload.
+
+.git
+.gitignore
+**/bin
+**/obj
+**/node_modules
+**/dist
+tests
+docs
+*.md
+docker-compose.yml
+docker-compose.infrastructure.yml
+.env
+.env.*
+!.env.example

@@ -1,10 +1,28 @@
 using InfraControl.Infrastructure.Services;
 using InfraControl.Workers;
 using InfraControl.Workers.Consumers.Notifications;
+using InfraControl.Workers.Tracing;
 using MassTransit;
 using MediatR;
+using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// ADR-021: o worker entra na MESMA plataforma de log da API. Sem isto, tudo o
+// que roda fora da API (outbox, cleanup, backup, polling, notificações) não
+// chega a lugar nenhum e o admin enxerga metade da aplicação.
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "InfraControl.Workers")
+    .WriteTo.Console()
+    .CreateLogger();
+
+// HostApplicationBuilder nao tem .Host: o Serilog entra pelo ILoggerFactory.
+// ClearProviders e obrigatorio, senao o console padrao continua junto e cada
+// linha sai duas vezes.
+builder.Logging.ClearProviders();
+builder.Logging.AddSerilog(Log.Logger);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMediatR(configuration =>
@@ -13,7 +31,13 @@ builder.Services.AddMediatR(configuration =>
 // Consumers do broker — combinados com o UsingRabbitMq do AddInfrastructure
 // (ADR-004/docs/06: OutboxWorker publica, aqui consome).
 builder.Services.AddMassTransit(configuration =>
-    configuration.AddConsumers(typeof(NotificationEventConsumer).Assembly));
+{
+    configuration.AddConsumers(typeof(NotificationEventConsumer).Assembly);
+
+    // ADR-021: observador global — levanta o CorrelationId do header da
+    // mensagem para o LogContext de qualquer consumer, sem alterá-los.
+    configuration.AddConsumeObserver<CorrelationIdConsumeObserver>();
+});
 
 // F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —
 // a MESMA seção que o host da Api lê para os workers de canal.

@@ -11,11 +11,13 @@ public class DomainEventService : IDomainEventService
 {
     private readonly IPublisher _publisher;
     private readonly AppDbContext _context;
+    private readonly ICurrentCorrelation? _correlation;
 
-    public DomainEventService(IPublisher publisher, AppDbContext context)
+    public DomainEventService(IPublisher publisher, AppDbContext context, ICurrentCorrelation? correlation = null)
     {
         _publisher = publisher;
         _context = context;
+        _correlation = correlation;
     }
 
     public async Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
@@ -25,7 +27,8 @@ public class DomainEventService : IDomainEventService
         var outboxMessage = new OutboxMessage(
             domainEvent.EventType,
             payload,
-            domainEvent.OccurredAt);
+            domainEvent.OccurredAt,
+            correlationId: _correlation?.Id);
 
         await _context.OutboxMessages.AddAsync(outboxMessage, cancellationToken);
     }

@@ -4,6 +4,7 @@ using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog.Context;
 
 namespace InfraControl.Workers;
 
@@ -58,14 +59,17 @@ public sealed class OutboxDispatcherWorker(
                 var payload = JsonSerializer.Deserialize(message.Payload, eventType, OutboxJson.Options)
                     ?? throw new InvalidOperationException($"Outbox payload for '{message.EventType}' is empty.");
 
-                await eventBus.PublishAsync(payload, eventType, cancellationToken);
-                await repository.MarkAsProcessedAsync(message.Id, cancellationToken);
-                await unitOfWork.SaveChangesAsync(cancellationToken);
+                using (var _ = LogContext.PushProperty("CorrelationId", message.CorrelationId))
+                {
+                    await eventBus.PublishAsync(payload, eventType, cancellationToken, message.CorrelationId);
+                    await repository.MarkAsProcessedAsync(message.Id, cancellationToken);
+                    await unitOfWork.SaveChangesAsync(cancellationToken);
 
-                logger.LogInformation(
-                    "Outbox message {MessageId} of type {EventType} dispatched.",
-                    message.Id,
-                    message.EventType);
+                    logger.LogInformation(
+                        "Outbox message {MessageId} of type {EventType} dispatched.",
+                        message.Id,
+                        message.EventType);
+                }
             }
             catch (Exception exception)
             {

@@ -1,17 +1,26 @@
+# ADR-022 — compose único com profiles.
+#
+#   infra (sem profile):        docker compose up -d
+#   aplicação completa:         docker compose --profile app up -d
+#   sistema + observabilidade:  docker compose --profile app --profile obs up -d
+#
+# DNS interno: os serviços se enxergam pelo nome do serviço (api, workers,
+# seq, otel-collector), não por localhost.
+
 services:
   postgres:
     image: postgres:17-alpine
     container_name: infracontrol-postgres
     environment:
-      POSTGRES_DB: infracontrol
-      POSTGRES_USER: infracontrol
-      POSTGRES_PASSWORD: infracontrol_dev_2026
+      POSTGRES_DB: ${POSTGRES_DB:-infracontrol}
+      POSTGRES_USER: ${POSTGRES_USER:-infracontrol}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-infracontrol_dev_2026}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U infracontrol -d infracontrol"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-infracontrol} -d ${POSTGRES_DB:-infracontrol}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +31,7 @@ services:
     image: redis:7-alpine
     container_name: infracontrol-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -37,11 +46,11 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: infracontrol-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: infracontrol
-      RABBITMQ_DEFAULT_PASS: infracontrol_dev_2026
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-infracontrol}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-infracontrol_dev_2026}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -66,10 +75,112 @@ services:
     networks:
       - infracontrol
 
+  # ---------------- profile: app ----------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    image: infracontrol-api:dev
+    profiles: ["app"]
+    environment: &app-env
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=infracontrol;Username=${POSTGRES_USER:-infracontrol};Password=${POSTGRES_PASSWORD:-infracontrol_dev_2026}"
+      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__RabbitMQ: rabbitmq
+      RabbitMQ__User: ${RABBITMQ_USER:-infracontrol}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-infracontrol_dev_2026}
+      Serilog__WriteTo__Seq__Args__serverUrl: http://seq:80
+      OpenTelemetry__Endpoint: http://otel-collector:4317
+      Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  workers:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: workers
+    image: infracontrol-workers:dev
+    profiles: ["app"]
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: frontend
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_API_BASE_URL: ""
+    image: infracontrol-frontend:dev
+    profiles: ["app"]
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+      # Rota PROVADA do Seq (nginx com basic auth) — o serviço `seq` em si
+      # não publica porta nenhuma (ADR-022).
+      - "${SEQ_UI_PORT:-5341}:5341"
+    environment:
+      SEQ_AUTH_USER: ${SEQ_AUTH_USER:-admin}
+      SEQ_AUTH_PASSWORD: ${SEQ_AUTH_PASSWORD:-admin}
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  # ---------------- profile: obs ----------------
+  seq:
+    image: datalust/seq:latest
+    profiles: ["obs"]
+    environment:
+      ACCEPT_EULA: Y
+    volumes:
+      - seq_data:/data
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    profiles: ["obs"]
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./docker/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "${OTLP_PORT:-4317}:4317"
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
 volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  seq_data:
 
 networks:
   infracontrol:

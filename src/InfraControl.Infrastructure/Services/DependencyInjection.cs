@@ -222,6 +222,13 @@ public static class DependencyInjection
         services.AddScoped<IAuditReader, AuditReader>();
         services.AddScoped<IDomainEventService, DomainEventService>();
 
+        // ADR-021: implementação "sem requisição": fora do host HTTP (os
+        // workers) não há correlation id em andamento, e DomainEventService
+        // precisa de algo para resolver. A API sobrescreve com a do HttpContext
+        // (registrada mais tarde no Program.cs, última-registração ganha).
+        services.AddScoped<InfraControl.Application.Common.Interfaces.ICurrentCorrelation,
+            InfraControl.Application.Common.Interfaces.NullCurrentCorrelation>();
+
         // Retention / cleanup
         services.Configure<RetentionOptions>(configuration.GetSection("Retention"));
 
