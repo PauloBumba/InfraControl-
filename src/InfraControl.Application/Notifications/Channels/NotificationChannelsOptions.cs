@@ -20,6 +20,8 @@ public sealed class NotificationChannelsOptions
     public TelegramChannelOptions Telegram { get; set; } = new();
 
     public WhatsAppChannelOptions WhatsApp { get; set; } = new();
+
+    public WebhookChannelOptions Webhook { get; set; } = new();
 }
 
 /// <summary>Destino global do canal Telegram (chat id do bot).</summary>
@@ -32,4 +34,10 @@ public sealed class TelegramChannelOptions
 public sealed class WhatsAppChannelOptions
 {
     public string Phone { get; set; } = string.Empty;
+}
+
+/// <summary>Destino global do canal Webhook (URL que recebe o POST).</summary>
+public sealed class WebhookChannelOptions
+{
+    public string Url { get; set; } = string.Empty;
 }

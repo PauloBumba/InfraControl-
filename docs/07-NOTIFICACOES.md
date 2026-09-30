@@ -133,7 +133,8 @@ e nos Workers, mesma seção nos dois hosts):
   "Channels": {
     "Default": [ "Email", "SignalR" ],
     "Telegram": { "ChatId": "" },
-    "WhatsApp": { "Phone": "" }
+    "WhatsApp": { "Phone": "" },
+    "Webhook": { "Url": "" }
   }
 }
 ```
@@ -177,6 +178,20 @@ marca `Sent`/`Failed`. O adaptador é `LoggingWhatsAppNotificationDispatcher`
 (credencial real = pendência, junto do SMTP e do bot token do Telegram).
 Phone esvaziado entre enfileirar e despachar vira `Failed` com erro pt-BR
 apontando a seção (`Notifications:Channels:WhatsApp:Phone`).
+
+## Canal Webhook (F9-T008)
+
+Espelho do WhatsApp (F9-T007): o consumer enfileira `NotificationDelivery`
+(Webhook) por usuário final quando o canal está em `Default` **e**
+`Webhook:Url` está preenchida (sem Url = Warning, sem delivery). O
+`NotificationWebhookWorker` (mesmo loop base, 2s) despacha via porta
+`IWebhookNotificationDispatcher` (`Url` global + `Title`/`Message`) e
+marca `Sent`/`Failed`. O adaptador é `LoggingWebhookNotificationDispatcher`
+(Infrastructure) — nenhum POST real; um adaptador com HTTP
+(`IHttpClientFactory`) troca a implementação sem tocar em Application
+(endpoint real = pendência, junto do SMTP e das credenciais dos demais
+canais). Url esvaziada entre enfileirar e despachar vira `Failed` com
+erro pt-BR apontando a seção (`Notifications:Channels:Webhook:Url`).
 
 ## Delivery
 

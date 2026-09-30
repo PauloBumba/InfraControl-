@@ -213,7 +213,7 @@ public sealed class NotificationEventConsumer(
     /// <summary>
     /// SignalR e Email não têm destino externo (sempre enviáveis). Canais
     /// com destino na config exigem a seção preenchida; canais ainda sem
-    /// worker (F9-T007/008/010) não são enviáveis até a task deles.
+    /// worker (F9-T010) não são enviáveis até a task deles.
     /// </summary>
     private bool IsSendable(NotificationChannel channel)
     {
@@ -235,6 +235,13 @@ public sealed class NotificationEventConsumer(
                     return true;
                 logger.LogWarning(
                     "Canal WhatsApp em Notifications:Channels:Default sem Phone configurado — deliveries não enfileiradas.");
+                return false;
+
+            case NotificationChannel.Webhook:
+                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.Webhook.Url))
+                    return true;
+                logger.LogWarning(
+                    "Canal Webhook em Notifications:Channels:Default sem Url configurada — deliveries não enfileiradas.");
                 return false;
 
             default:

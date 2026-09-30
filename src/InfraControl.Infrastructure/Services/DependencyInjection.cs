@@ -1,4 +1,5 @@
 using InfraControl.Application.Notifications.Email;
+using InfraControl.Application.Notifications.Webhook;
 using InfraControl.Application.Notifications.Telegram;
 using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.Application.Alerts;
@@ -93,6 +94,7 @@ public static class DependencyInjection
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
         services.AddScoped<IEmailNotificationDispatcher, LoggingEmailNotificationDispatcher>();
+        services.AddScoped<IWebhookNotificationDispatcher, LoggingWebhookNotificationDispatcher>();
         services.AddScoped<ITelegramNotificationDispatcher, LoggingTelegramNotificationDispatcher>();
         services.AddScoped<IWhatsAppNotificationDispatcher, LoggingWhatsAppNotificationDispatcher>();
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();

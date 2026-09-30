@@ -486,4 +486,105 @@ public sealed class NotificationEventConsumerTests : IDisposable
         (await context.NotificationDeliveries.AsNoTracking()
             .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
     }
+
+    /// <summary>Webhook na lista Default com Url = delivery Webhook enfileirada (F9-T008).</summary>
+    [Fact]
+    public async Task Consume_WithWebhookInDefault_ShouldQueueWebhookDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Webhook"],
+            Webhook = new WebhookChannelOptions { Url = "https://exemplo.test/webhook" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "com-webhook@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.Webhook);
+    }
+
+    /// <summary>Preferência Webhook desligada = sem delivery (regra F9-T003).</summary>
+    [Fact]
+    public async Task Consume_WithWebhookPreferenceDisabled_ShouldNotQueueWebhookDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Webhook"],
+            Webhook = new WebhookChannelOptions { Url = "https://exemplo.test/webhook" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "webhook-off@exemplo.test");
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.Webhook, enabled: false));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Webhook)).Should().Be(0);
+    }
+
+    /// <summary>Webhook na lista mas SEM Url = pula (Warning) e os canais seguem.</summary>
+    [Fact]
+    public async Task Consume_WithWebhookUnconfigured_ShouldSkipWebhookAndQueueDefaults()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "Webhook"],
+            Webhook = new WebhookChannelOptions { Url = "" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "sem-webhook@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Webhook)).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+    }
+
+    /// <summary>Fallback de e-mail: Default = só Webhook sem Url → enfileira Email.</summary>
+    [Fact]
+    public async Task Consume_WithOnlyUnconfiguredWebhook_ShouldFallbackToEmail()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Webhook"],
+            Webhook = new WebhookChannelOptions { Url = "  " },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "fallback-webhook@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRole: null,
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Webhook)).Should().Be(0);
+    }
 }
