@@ -93,8 +93,8 @@ public sealed class RenameUserRoleToOperatorMigrationTests : BaseIntegrationTest
         await dbContext.Database.ExecuteSqlRawAsync(
             """
             INSERT INTO "UserSessions" ("Id", "UserId", "RefreshTokenHash", "CreatedAt",
-                "LastSeenAt", "ExpiresAt", "CreateDateTime", "UpdateDateTime")
-            VALUES ({0}, {1}, 'hash-refresh', now(), now(), now() + interval '7 days', now(), now());
+                "LastSeenAt", "ExpiresAt", "AbsoluteExpiresAt", "CreateDateTime", "UpdateDateTime")
+            VALUES ({0}, {1}, 'hash-refresh', now(), now(), now() + interval '7 days', now() + interval '7 days', now(), now());
             """, Guid.NewGuid(), domainUser.Id);
 
         // ── a migration ───────────────────────────────────────────────

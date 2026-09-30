@@ -58,7 +58,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                  WHERE "SecurityStamp" IS NOT NULL;
                 """);
 
-            migrationBuilder.Sql("""DELETE FROM "UserSessions";""");
+            migrationBuilder.Sql(
+                """
+                DELETE FROM "UserSessions";
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

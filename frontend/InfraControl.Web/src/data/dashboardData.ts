@@ -315,7 +315,7 @@ export const auditEntries = [
   { id: "a8", action: "BootstrapAdmin.Run", resource: "ApplicationRequest", outcome: "Success" as const, actorId: null, correlationId: "corr-0a2b55d9", error: null as string | null, occurredAt: "01/09/2026 10:00:00" },
   { id: "a9", action: "Identity.PasswordReset", resource: "ApplicationRequest", outcome: "Success" as const, actorId: "mariana.reis@empresa.com", correlationId: "corr-4c8e10a3", error: null as string | null, occurredAt: "11/09/2026 13:27:55" },
   { id: "a10", action: "Identity.Login", resource: "ApplicationRequest", outcome: "Success" as const, actorId: "fernanda.costa@empresa.com", correlationId: "corr-6b3f82e1", error: null as string | null, occurredAt: "14/09/2026 08:33:41" },
-  { id: "a11", action: "ApplicationRequest", resource: "UpdateRoleCommand", outcome: "Failure" as const, actorId: "ana.souza@empresa.com", correlationId: "corr-8d5a24f6", error: "Forbidden: missing permission IdentityRolesManage", occurredAt: "12/09/2026 10:19:07" },
+  { id: "a11", action: "ApplicationRequest", resource: "UpdateRoleCommand", outcome: "Failure" as const, actorId: "ana.souza@empresa.com", correlationId: "corr-8d5a24f6", error: "Forbidden: missing role Admin", occurredAt: "12/09/2026 10:19:07" },
   { id: "a12", action: "Identity.Logout", resource: "ApplicationRequest", outcome: "Success" as const, actorId: "paulo.bumba@empresa.com", correlationId: "corr-9e7c35b0", error: null as string | null, occurredAt: "14/09/2026 15:52:10" },
 ];
 
