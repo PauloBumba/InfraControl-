@@ -163,6 +163,12 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             KnowledgeCategoryRepository>();
         services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleRepository,
             KnowledgeArticleRepository>();
+        services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleDeviceRepository,
+            KnowledgeArticleDeviceRepository>();
+        services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleIncidentRepository,
+            KnowledgeArticleIncidentRepository>();
+        services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleServiceRepository,
+            KnowledgeArticleServiceRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();

@@ -574,6 +574,75 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("knowledge_articles", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleDevice", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ArticleId", "DeviceId");
+
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("knowledge_article_devices", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleIncident", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("incident_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ArticleId", "IncidentId");
+
+                    b.HasIndex("IncidentId");
+
+                    b.ToTable("knowledge_article_incidents", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleService", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("service_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ArticleId", "ServiceId");
+
+                    b.HasIndex("ServiceId");
+
+                    b.ToTable("knowledge_article_services", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2220,6 +2289,51 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleDevice", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleIncident", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Incident", null)
+                        .WithMany()
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleService", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Service", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>

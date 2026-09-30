@@ -65,6 +65,9 @@ public sealed record GetKnowledgeArticleQuery(Guid Id)
 
 public sealed class GetKnowledgeArticleQueryHandler(
     IKnowledgeArticleRepository repository,
+    IKnowledgeArticleDeviceRepository deviceLinkRepository,
+    IKnowledgeArticleIncidentRepository incidentLinkRepository,
+    IKnowledgeArticleServiceRepository serviceLinkRepository,
     ICurrentUserContext currentUser)
     : IRequestHandler<GetKnowledgeArticleQuery, KnowledgeArticleDto>
 {
@@ -82,6 +85,15 @@ public sealed class GetKnowledgeArticleQueryHandler(
 
         return new KnowledgeArticleDto(
             article.Id, article.Title, article.Content,
-            article.CategoryId, article.Status);
+            article.CategoryId, article.Status)
+        {
+            // F10-T004: vínculos só no detalhe (a busca não detalha).
+            DeviceIds = await deviceLinkRepository.GetDeviceIdsAsync(
+                article.Id, cancellationToken),
+            IncidentIds = await incidentLinkRepository.GetIncidentIdsAsync(
+                article.Id, cancellationToken),
+            ServiceIds = await serviceLinkRepository.GetServiceIdsAsync(
+                article.Id, cancellationToken),
+        };
     }
 }

@@ -64,6 +64,9 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
+    public DbSet<KnowledgeArticleDevice> KnowledgeArticleDevices => Set<KnowledgeArticleDevice>();
+    public DbSet<KnowledgeArticleIncident> KnowledgeArticleIncidents => Set<KnowledgeArticleIncident>();
+    public DbSet<KnowledgeArticleService> KnowledgeArticleServices => Set<KnowledgeArticleService>();
     public DbSet<RemoteSession> RemoteSessions => Set<RemoteSession>();
     public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();

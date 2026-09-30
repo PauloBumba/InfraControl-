@@ -55,7 +55,12 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
         => new(new KnowledgeArticleRepository(context), new FakeCurrentUser(roles));
 
     private static GetKnowledgeArticleQueryHandler GetHandler(AppDbContext context, string[] roles)
-        => new(new KnowledgeArticleRepository(context), new FakeCurrentUser(roles));
+        => new(
+            new KnowledgeArticleRepository(context),
+            new KnowledgeArticleDeviceRepository(context),
+            new KnowledgeArticleIncidentRepository(context),
+            new KnowledgeArticleServiceRepository(context),
+            new FakeCurrentUser(roles));
 
     private static async Task<Guid> SeedArticleAsync(
         AppDbContext context,

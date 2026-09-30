@@ -16,7 +16,9 @@ namespace InfraControl.Api.Controllers.Knowledge;
 /// F10-T002: CRUD de artigos da base de conhecimento (docs/04).
 /// Controller próprio — o de categorias (F10-T001) já ocupa a rota
 /// api/v1/knowledge/categories. F10-T003: transições de status em
-/// POST {id}/status. Falhas embrulhadas pelo GlobalExceptionHandler.
+/// POST {id}/status. F10-T004: vínculos N:N em
+/// POST/DELETE {id}/{devices|incidents|services}/{targetId}.
+/// Falhas embrulhadas pelo GlobalExceptionHandler.
 /// </summary>
 [Route("api/v1/knowledge/articles")]
 public sealed class KnowledgeArticlesController(ISender sender) : BaseController
@@ -80,4 +82,74 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new ChangeKnowledgeArticleStatusCommand(id, model.Status), cancellationToken)));
+
+    // F10-T004: vínculos N:N (Device/Incident/Service) — 204 nos dois
+    // sentidos e estado atual embutido no dto do GET (deviceIds,
+    // incidentIds, serviceIds).
+
+    [HttpPost("{id:guid}/devices/{deviceId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> LinkDevice(
+        Guid id,
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkKnowledgeArticleDeviceCommand(id, deviceId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/devices/{deviceId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnlinkDevice(
+        Guid id,
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkKnowledgeArticleDeviceCommand(id, deviceId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/incidents/{incidentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> LinkIncident(
+        Guid id,
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkKnowledgeArticleIncidentCommand(id, incidentId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/incidents/{incidentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnlinkIncident(
+        Guid id,
+        Guid incidentId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkKnowledgeArticleIncidentCommand(id, incidentId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/services/{serviceId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> LinkService(
+        Guid id,
+        Guid serviceId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkKnowledgeArticleServiceCommand(id, serviceId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/services/{serviceId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnlinkService(
+        Guid id,
+        Guid serviceId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkKnowledgeArticleServiceCommand(id, serviceId), cancellationToken);
+        return NoContent();
+    }
 }

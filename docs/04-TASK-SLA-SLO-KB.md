@@ -304,3 +304,22 @@ escrita (ADR-016 ≡ `RoleAccess.Operate`), a busca exclui os Drafts e o
 `GET/{id}` de um Draft responde **404 como se não existisse** — não vaza
 a existência do rascunho. `Published`/`Archived` continuam visíveis para
 todo mundo com `RoleAccess.Read`.
+
+### Relacionamentos (F10-T004)
+
+Vínculos N:N do artigo (tabelas `knowledge_article_devices`,
+`knowledge_article_incidents` e `knowledge_article_services`, chave
+composta `article_id + <target_id>`), espelhando `task_devices`:
+`POST`/`DELETE api/v1/knowledge/articles/{id}/{devices|incidents|
+services}/{targetId}` (`RoleAccess.Operate`, **204** nos dois
+sentidos). Artigo ou alvo inexistente = 404 pt-BR; duplicidade = 409
+`O device já está vinculado ao artigo.` (e os espelhos "incidente" /
+"serviço").
+
+Os ids aparecem só no `GET/{id}` (`deviceIds`/`incidentIds`/
+`serviceIds`) — a busca não detalha (sem N+1 por página). **Delete em
+cascata dos dois lados (decisão do usuário, 30/09/2026)**: apagar o
+artigo limpa os vínculos e apagar device/incident/service remove **só o
+vínculo** — o artigo permanece (nenhum pré-check em
+`DeleteDeviceCommand`/`DeleteServiceCommand`; FKs `ON DELETE CASCADE`
+na migration `AddKnowledgeArticleLinks`).

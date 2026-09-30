@@ -71,6 +71,9 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
     private static GetKnowledgeArticleQueryHandler GetHandler(AppDbContext context)
         => new(
             new KnowledgeArticleRepository(context),
+            new KnowledgeArticleDeviceRepository(context),
+            new KnowledgeArticleIncidentRepository(context),
+            new KnowledgeArticleServiceRepository(context),
             new FakeCurrentUser(["Operator"]));
 
     private static async Task<Guid> SeedCategoryAsync(AppDbContext context, string name = "Redes")
