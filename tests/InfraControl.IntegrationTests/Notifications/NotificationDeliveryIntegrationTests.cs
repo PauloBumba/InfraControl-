@@ -47,7 +47,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
         await CreateConsumer(context).HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         var repository = scope.ServiceProvider
@@ -71,7 +71,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
         await CreateConsumer(context).HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         var repository = scope.ServiceProvider
@@ -135,7 +135,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
         await CreateConsumer(context).HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()

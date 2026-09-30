@@ -1,4 +1,5 @@
 import { wifiNetworks, apData } from "@/data/dashboardData";
+import { Can } from "@/components/auth/Can";
 
 export function WiFiPage() {
   return (
@@ -8,9 +9,11 @@ export function WiFiPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>WiFi</h1>
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{wifiNetworks.length} redes · {apData.length} access points</p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
-          <i className="pi pi-plus" style={{ fontSize: 11 }} /> Criar Rede
-        </button>
+        <Can level="operate">
+          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Criar Rede
+          </button>
+        </Can>
       </div>
 
       {/* WiFi Networks */}

@@ -8,6 +8,8 @@ import {
   sessionChecked,
 } from "@/app/store/slices/authSlice";
 import { fetchCurrentUser } from "@/services/api/auth";
+import { routeLevel, useCan } from "@/app/router/access";
+import { AccessDenied } from "@/components/auth/AccessDenied";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { navigation, secondaryNavigation } from "@/data/dashboardData";
 
@@ -118,11 +120,23 @@ function SessionGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * F14-T009 — duas checagens em cascata: sem sessão → /login (como sempre);
+ * com sessão mas nível da rota insuficiente → tela 403 dedicada. O nível
+ * vem do mapa `ROUTE_ACCESS` (ADR-016) — o backend continua autorizando
+ * cada chamada de verdade.
+ */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const status = useAppSelector((state) => state.auth.status);
+  const location = useLocation();
+  const allowed = useCan(routeLevel(location.pathname));
 
   if (status !== "authenticated") {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!allowed) {
+    return <AccessDenied />;
   }
 
   return <>{children}</>;

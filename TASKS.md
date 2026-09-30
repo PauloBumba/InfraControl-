@@ -196,10 +196,9 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 ## Fase 10 — Knowledge
 
 - [x] F10-T001 Category <!-- heurística docs/04 (Knowledge Base mínimo): entidade `KnowledgeCategory` (name≤120 **único case-insensitive**: pré-check handler → 409 pt-BR + índice `ux_knowledge_categories_name ON (LOWER(name))` via SQL bruto, precedente Location; description≤500 opcional); tabela `knowledge_categories`; migração `AddKnowledgeCategories` sem `--no-build`. Porta `IKnowledgeCategoryRepository` (HasNameAsync c/ excludeId, SearchAsync term→nome/descrição asc); comandos Create (201)/Update/Delete (404, escrita RoleAccess.Operate) + queries Search/Get (RoleAccess.Read); rotas `api/v1/knowledge/categories` no novo `KnowledgeController` + ViewModels com [Required]/[MaxLength] (400 pt-BR); `IKnowledgeCategoryRepository` manual no BaseIntegrationTest; FK dos artigos fica p/ F10-T002. RED antes do GREEN (12 unit + 4 integration erros só em tests/). Testes +17 unit (KnowledgeCategoryTests 7, KnowledgeCategoryCommandTests 10) +5 integration — suíte 1253 unit + 86 arch + 135 integration = 1474, 0 falhas; docs/04 §Categorias -->
-- [ ] F10-T002 Article
-- [ ] F10-T003 Publishing
-- [ ] F10-T004 Relationships
-
+- [x] F10-T002 Article <!-- heurística docs/04 (Knowledge Base mínimo). Decisões da task: (1) FK SetNull — apagar categoria não apaga nem bloqueia o artigo (T001 sem FK; constraint vem aqui); (2) enum KnowledgeArticleStatus (Draft/Published/Archived, string(32)) já existe e a entidade nasce Draft, mas Update NÃO mexe no status e não há endpoint de transição — Publishing = F10-T003; (3) content ≤20.000 (maior texto livre do repo = 1.000; corpo de KB exige mais — decisão da task); (4) RoleAccess ADR-016 como a T001 (leitura Read, escrita Operate); (5) controller novo KnowledgeArticlesController porque KnowledgeController já ocupa api/v1/knowledge/categories. Escopo: entity KnowledgeArticle (title 200/content 20000/category_id?/status, invariantes pt-BR) + KnowledgeArticleStatus; Knowledge/Articles/ (Dto com enum Status, porta IKnowledgeArticleRepository com SearchAsync por termo em title/content mais recentes primeiro, comandos Create 201/Update/Delete — categoria de destino inexistente = 404 pt-BR antes de persistir —, queries Search/Get) + KnowledgeArticleRepository + KnowledgeArticleConfiguration (tabela knowledge_articles, FK SetNull, índice category_id) + DbSet + migração AddKnowledgeArticles (script TEMP, sem --no-build, output-dir Persistence/Migrations) + rota api/v1/knowledge/articles + ViewModels 400 pt-BR + linha manual no BaseIntegrationTest. RED antes do GREEN (10 erros CS0234/CS0246 só em tests/). Testes +18 unit (KnowledgeArticleTests 9 invariantes, KnowledgeArticleCommandTests 9 CRUD/404/busca) +5 integration (KnowledgeArticleIntegrationTests: CRUD com categoria, 404 artigo, 404 categoria, 400 título, 403 sem Operate) — suíte 1271 unit + 88 arch, 0 falhas; 1 flaky na validação final (CorrelationTracingTests.MassTransitEventBus_WithoutCorrelation_ShouldPublishPlain — timeout 24s sob carga, isolado 4/4 verde, registrado na Fase P; não desta task); integração compila mas não executa (Docker não instalado — desinstalado em 27/07/2026); docs/04 §Artigos -->
+- [x] F10-T003 Publishing <!-- heurística docs/04 (Knowledge Base): ciclo **Draft → Published → Archived → Draft** no domínio (`KnowledgeArticle.TransitionTo`; qualquer outra transição, inclusive repetir o mesmo estado, = **409** `Transição inválida: 'X' → 'Y'.` via InvalidOperationException → GlobalExceptionHandler); status fora do enum = 400 `Status inválido: 'X'. Use 'draft', 'published' ou 'archived'.` (precedente AlertQueries; WithMessage com sufixo .* pelo `(Parameter 'Status')` do ArgumentException); rota `POST api/v1/knowledge/articles/{id}/status` (`RoleAccess.Operate`, 200 devolve dto) + VM `[Required]`; **rascunho (Draft) só para quem escreve** (ADR-016 ≡ Operate): `SearchAsync` ganhou `includeDrafts` (WHERE Status != Draft junto com a contagem) e GET/{id} de Draft sem escrita = 404 mesmo (não vaza existência); queries Search/Get passam a receber `ICurrentUserContext`. RED antes do GREEN (9 erros CS0246 só em tests/). Testes +17 unit (KnowledgeArticleTests +6 transições válidas/inválidas; novo `KnowledgeArticleStatusCommandTests` 11: ciclo completo via handler, 409×2, 404, 400 status, busca oculta/mostra Draft, GET Draft leitor 404 / operador ok / leitor Published ok) +3 integration (KnowledgeArticleIntegrationTests: ciclo via API, transição inválida 409 pt-BR, Draft invisível para Viewer — busca/404/403) — suíte **1288 unit + 88 arch, 0 falhas** (1 flaky conhecido RdpRemoteProviderTests...NlaFailurePtBr na rodada completa — já na Fase P; 1 falha própria de asserção no meio, corrigida com o sufixo .* conforme precedente); integração compila mas não executa (Docker não instalado); docs/04 §Publicação -->
+- [x] F10-T004 Relationships <!-- heurística docs/04 ("Relacionamentos possíveis com Device, Incident e Service"): 3 junctions N:N espelhando TaskDevice (KnowledgeArticleDevice/Incident/Service, Entity com chave composta article_id+<target_id>, Ignore(Id), factory com Guid vazio = 400 pt-BR); configs knowledge_article_devices/incidents/services com FK CASCADE DOS DOIS LADOS — decisão do usuário (30/09): apagar device/incident/service remove só o vínculo, o artigo permanece (sem pré-check nos deletes de outros módulos); apagar artigo limpa os vínculos; migration AddKnowledgeArticleLinks (script TEMP, sem --no-build; ON DELETE CASCADE confirmado no arquivo). Portas IKnowledgeArticle{Device|Incident|Service}Repository (ExistsAsync/FindAsync/Get*IdsAsync) + repositórios (GetByIdAsync = NotSupportedException, padrão TaskDevice); 6 comandos Link/Unlink (Operate): artigo 404 → alvo 404 pt-BR → duplicidade 409 "O device já está vinculado ao artigo."; GET /{id} devolve deviceIds/incidentIds/serviceIds (init props no dto, a busca não detalha — sem N+1); 6 rotas POST/DELETE {id}/{devices|incidents|services}/{targetId} (204); 3 linhas manuais no BaseIntegrationTest. RED antes do GREEN (20+ erros CS0246/CS1061 só em tests/). Testes +24 unit (KnowledgeArticleLinkTests 9 invariantes, KnowledgeArticleLinkCommandTests 15 — incluem os 2 de cascade da decisão do usuário) +4 integration (KnowledgeArticleLinkIntegrationTests: lifecycle device, 404 alvo, 409 duplicidade, 403 sem Operate) — suíte 1312 unit + 88 arch, 0 falhas; integração compila mas não executa (Docker não instalado); docs/04 §Relacionamentos -->
 ## Fase 11 — Remote Access
 
 - [x] F11-T001 RemoteSession  <!-- entity RemoteSession (Open/Close/Fail com invariantes pt-BR, FailureReason≤500) + Permission.RemoteSessionsRead (= docs/10 device.remote.read; Admin herda automaticamente, User/Viewer não — matriz de connect/use em F11-T004) + GetDeviceSessionsQuery (IQuery+IAuthorizedRequest, ordem StartedAt desc, limit 1–500, 404 pt-BR) + GET /api/v1/inventory/devices/{id}/remote/sessions ([Authorize(Roles="Admin")] conservador até F11-T004) + DTO RemoteSessionDto sem campos de credencial (teste de reflexão, docs/10) + tabela remote_sessions (FK device cascade, índices (device_id, started_at)) + migração AddRemoteSessions; abrir/conectar sessão real só com provider SSH/RDP em F11-T002/T003; AuditEntry explícito em F11-T005; 16 unit + 2 integration -->
@@ -230,6 +229,7 @@ Prototipação das páginas que faltam conforme `docs/14-UI-UX.md`, com mock dat
 - [x] F14-T007 Switches/Ports como áreas próprias (hoje embutidas em Network/Devices)
 - [x] F14-T008 Autenticação do dashboard (tela de Login no estilo UniFi com alternância Senha/Google Identity Services e **sem** One Tap; página "Esqueci minha senha" com resposta anti-enumeração; `authSlice` com `status` (`checking`/`authenticated`/`anonymous`/`unavailable`) em vez de `isAuthenticated`; `redux-persist` com whitelist apenas de `user`; `SessionGate` que revalida com `GET /api/v1/auth/me` no boot e nunca confia em `localStorage`; `POST /auth/google` com o `id_token` (o `refreshToken` da resposta é descartado); proteção de rotas por sessão; usuário/role reais e botão "Sair" no AppLayout; `AuthApiError` sem vazar mensagem do servidor)
 - [x] F14 polish UI (Health no sidebar, chunks vendor/redux no Vite, accent unificado)
+- [x] F14-T009 Autorização por roles no frontend (menu, rotas e botões) <!-- decisões do usuário (questionário antes do plano): escopo = menu + rotas + botões; nível administer em /users, /audit, /settings E /sessions (a UI fica mais estrita que o self-service do backend nesta — decisão consciente); URL acima do nível = tela 403 dedicada ("Acesso restrito" + voltar), não redirect. Espelho do ADR-016 na UI: novo `src/app/router/access.ts` (ROUTE_ACCESS com padrão read + `useCan`/`canReach` reaproveitando `types/roles.ts`); `ProtectedRoute` em cascata (sem sessão → /login como antes; sessão ok + nível insuficiente → `AccessDenied`); AppLayout filtra `navigation`/`secondaryNavigation`/abas recentes por nível; componente `<Can level="operate">` nos 8 CTAs de escrita (Devices "Adicionar", Incidents "Novo Incidente", Knowledge "Novo Artigo", Network "Adicionar", Remote "Nova Conexão", Sla "Novo Serviço", Tasks "Nova Tarefa", WiFi "Criar Rede") — Users/Sessions/Settings já ficam atrás do gate de rota. Backend intocado (continua autoridade: 403 no envelope é a rede de segurança); doc-comments de roles.ts/authSlice/AppLayout ajustados (exibição, não autorização efetiva). Validação: `npx tsc -b` + `npm run build` = 0 erros (sem runner de testes no front) -->
 
 ## Transversal — Autorização por roles (ADR-016)
 
@@ -265,6 +265,15 @@ commitadas; o agente isolou o arquivo para conter SÓ `correlation_id` (gerando
 `docker-compose.infrastructure.yml` foi removido conforme ADR-022 e restaurado
 por engano na F9-T009 (`bbff9ef`); removido de novo com registro explícito aqui.
 
+## Fase 16 — Integrações
+
+Integrações com sistemas externos (decisões do usuário 2026-09-30: Zabbix →
+InfraControl via webhook; notificação de incidente em task separada com
+destinatários Operator + Admin). Arquitetura em ADR-023, runbook em docs/27.
+
+- [x] F16-T001 Zabbix Webhook  <!-- ADR-023: POST api/v1/integrations/zabbix/problems — primeiro endpoint público ([AllowAnonymous] explícito + entrada nova na allowlist de Public_Endpoints_Should_Be_The_Explicit_Allowlist); auth header X-Zabbix-Token vs Integrations:Zabbix:Token (vazio→404 desligado, ausente/errado→401 envelope; comparação ordinal; binding AddOptions+Bind no Program.cs); contrato {eventId?, host?, ip?, name, severity 0..5, status PROBLEM|OK} com validação no handler (name→severity→status, ArgumentException 400 pt-BR); PROBLEM → device por IP com fallback hostname (GetByIpAsync/GetByNameAsync) → Incident.Create (sem match → deviceId nulo com host/ip/eventId na descrição — decisão do usuário), dedup anti-storm título+device não-Resolved idempotente "duplicate"; OK → resolve correspondente "resolved" senão "none"; severidade Zabbix 0/1→Low, 2→Medium, 3→High, 4/5→Critical; comando BaseCommand sem IAuthorizedRequest (guard = token; Admin_Slices não muda); port nova GetOpenByTitleAndDeviceAsync em IIncidentRepository+IncidentRepository; sem migration; slice Application/Integrations/Zabbix + controller Integrations + VM; testes unit (handler + controller com Moq) + integration + allowlist arch -->
+- [x] F16-T002 Notificação de incidente  <!-- IncidentCreatedDomainEvent (Domain/Events/IncidentDomainEvents.cs) levantado em Incident.Create — um único ponto cobre manual F6, auto-abertura F6 e webhook F16-T001; caminho outbox via AppDbContext → MediatR → OutboxDispatchHandler → DomainEventService (mesma transação, ADR-005 — sem migration e sem IEventBus direto); NotificationEventConsumer ganhou IConsumer<IncidentCreatedDomainEvent> (registro automático: AddConsumers assembly scan dos Workers); HandleAsync generalizado de recipientRole (string?) para recipientRoles (string[], dedup OrdinalIgnoreCase, usuário OU 1..N roles) — 32 call sites migrados; destinatários por role Operator e Admin (decisão do usuário 2026-09-30); msg pt-BR título "Incidente aberto", corpo "O incidente '{title}' foi aberto ({severity})."; fanout resolve roles → usuários ativos (NotificationRecipientRepository) nos canais default Email+SignalR; idempotência via inbox (1 notification, 2 recipients, 1 ProcessedMessage); unit +6 (IncidentTests +3, IncidentCreatedNotificationTests +3), integration +2 (outbox manual e via webhook) -->
+
 ## Fase P — Pendências (tudo que não foi concluído)
 
 Consolidado único (decisão do usuário, 2026-09-29) de todo item em aberto até aqui:
@@ -279,18 +288,30 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F9-T006 Telegram
 - [x] F9-T007 WhatsApp
 - [x] F9-T008 Webhook
-- [x] F9-T009 Retry/DLQ (mensageria) (mensageria)
+- [x] F9-T009 Retry/DLQ (mensageria)
 - [x] F9-T010 Slack
 - [x] F10-T001 Category
-- [ ] F10-T002 Article
-- [ ] F10-T003 Publishing
-- [ ] F10-T004 Relationships
+- [x] F10-T002 Article
+- [x] F10-T003 Publishing
+- [x] F10-T004 Relationships
+- [x] F16-T001 Zabbix Webhook
+- [x] F16-T002 Notificação de incidente
 
 ### Pendências soltas (de tasks concluídas e decisões registradas)
 
 - [ ] **Revalidar a suíte de integração** (Testcontainers/PostgreSQL) onde houver
-  Docker — revalidada em 2026-09-30 nesta máquina (Docker presente): **130/130
-  verdes** junto da F15; pendência mantida para o caso de outras máquinas sem Docker
+  Docker — revalidada em 2026-09-30 nesta máquina (Docker Desktop 4.93.0
+  instalado no ciclo pós-F16-T002): **152/152 verdes** na primeira execução
+  completa da suíte nesta máquina (13m12s; antes: 130/130 junto da F15 e
+  149/152 na primeira rodada com 3 falhas já corrigidas e commitadas);
+  pendência mantida para o caso de outras máquinas sem Docker
+- [ ] **`postgresql-client` na imagem dos Workers** (`docker/Dockerfile`) —
+  `PostgresBackupService` faz spawn de `pg_dump`/`pg_restore`, mas a imagem
+  multi-stage **não instala o cliente PostgreSQL**: no deploy "Servidor com
+  Docker" (decisão do usuário) o BackupWorker falharia com binário não
+  encontrado (achado em 30/09/2026 na primeira execução completa da suíte com
+  Docker). Resolve com `apk add --no-cache postgresql-client` no target
+  `workers` — requer autorização (muda artefato de deploy)
 - [ ] **Provider real de e-mail** (SMTP/API + credenciais) — hoje só adaptadores
   de logging (`LoggingIdentityEmailSender` + `LoggingEmailNotificationDispatcher`);
   cobre forgot-password, convite (F1-T017) e canal Email (F9-T005). Requer
@@ -303,6 +324,9 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   (o `HttpRateLimit` de login cobre o passo 1)
 - [ ] **Investigar flakiness** de `RdpRemoteProviderTests.ConnectAsync_NegotiationFailure_ShouldReturnNlaFailurePtBr`
   (timeout de loopback sob carga da suíte completa; passa isolado e em rerun)
+- [ ] **Investigar flakiness** de `CorrelationTracingTests.MassTransitEventBus_WithoutCorrelation_ShouldPublishPlain`
+  (F15/ADR-021 — `TaskCanceledException` de 24s sob carga da suíte completa;
+  passa isolado 4/4; observado em 30/09 na validação da F10-T002)
 - [ ] **Conectar as páginas com mock ao backend** — F14 foi prototipação com dados
   estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)

@@ -273,3 +273,53 @@ com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201), `PUT`,
 `DELETE` (`RoleAccess.Operate`; 404). Escrita 400 pt-BR via
 `[Required]`/`[MaxLength]` no ViewModel. A FK dos artigos (F10-T002)
 vem com a própria task.
+
+### Artigos (F10-T002)
+
+`KnowledgeArticle` (tabela `knowledge_articles`): `title` (200,
+obrigatório), `content` (20.000, obrigatório), `category_id` (FK →
+`knowledge_categories`, **SetNull** — apagar a categoria não apaga nem
+bloqueia o artigo) e `status` (`Draft`/`Published`/`Archived`; nasce
+**Draft** — ciclo em §Publicação). Busca por termo no
+título/conteúdo, mais recentes primeiro.
+
+Rotas `api/v1/knowledge/articles` (`KnowledgeArticlesController` — o
+`KnowledgeController` da T001 já ocupa a rota de categorias): `GET`
+(busca com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201,
+nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
+404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
+Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
+
+### Publicação (F10-T003)
+
+Transições de status em `POST api/v1/knowledge/articles/{id}/status`
+(corpo `{"status": "..."}`, `RoleAccess.Operate`, 200 devolve o artigo
+com o status novo). Ciclo válido **Draft → Published → Archived →
+Draft**; qualquer outra transição (incluindo repetir o mesmo estado) =
+**409** `Transição inválida: 'X' → 'Y'.` Status fora do enum = 400
+`Status inválido: 'X'. Use 'draft', 'published' ou 'archived'.`
+
+**Rascunho (Draft) só para quem escreve**: para quem não tem nível de
+escrita (ADR-016 ≡ `RoleAccess.Operate`), a busca exclui os Drafts e o
+`GET/{id}` de um Draft responde **404 como se não existisse** — não vaza
+a existência do rascunho. `Published`/`Archived` continuam visíveis para
+todo mundo com `RoleAccess.Read`.
+
+### Relacionamentos (F10-T004)
+
+Vínculos N:N do artigo (tabelas `knowledge_article_devices`,
+`knowledge_article_incidents` e `knowledge_article_services`, chave
+composta `article_id + <target_id>`), espelhando `task_devices`:
+`POST`/`DELETE api/v1/knowledge/articles/{id}/{devices|incidents|
+services}/{targetId}` (`RoleAccess.Operate`, **204** nos dois
+sentidos). Artigo ou alvo inexistente = 404 pt-BR; duplicidade = 409
+`O device já está vinculado ao artigo.` (e os espelhos "incidente" /
+"serviço").
+
+Os ids aparecem só no `GET/{id}` (`deviceIds`/`incidentIds`/
+`serviceIds`) — a busca não detalha (sem N+1 por página). **Delete em
+cascata dos dois lados (decisão do usuário, 30/09/2026)**: apagar o
+artigo limpa os vínculos e apagar device/incident/service remove **só o
+vínculo** — o artigo permanece (nenhum pré-check em
+`DeleteDeviceCommand`/`DeleteServiceCommand`; FKs `ON DELETE CASCADE`
+na migration `AddKnowledgeArticleLinks`).

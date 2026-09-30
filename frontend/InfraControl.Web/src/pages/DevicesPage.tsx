@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { allDevices, switchPortMap, sectorMap } from "@/data/deviceData";
+import { Can } from "@/components/auth/Can";
 
 const typeIcons: Record<string, string> = {
   gateway: "pi pi-th-large", switch: "pi pi-server", ap: "pi pi-wifi",
@@ -239,9 +240,11 @@ export function DevicesPage() {
             {offline > 0 && <span style={{ color: "#dc2626" }}>{offline} offline</span>}
           </div>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
-          <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-        </button>
+        <Can level="operate">
+          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+          </button>
+        </Can>
       </div>
 
       {/* Tabs */}

@@ -47,14 +47,16 @@ role) — exatamente um dos dois (pt-BR). Índices únicos
 `(notification_id, user_id)` e `(notification_id, role)` garantem o
 dedup por notificação.
 
-O `NotificationEventConsumer` anexa o destinatário junto da notificação
-(mesma transação, após o inbox de idempotência):
+O `NotificationEventConsumer` anexa os destinatários junto da notificação
+(mesma transação, após o inbox de idempotência; desde a F16-T002 aceita
+**1..N roles** por notificação, com dedup):
 
 | Evento | Destinatário |
 |---|---|
 | `UserCreated` / `UserDisabled` | usuário (`user_id`) |
 | `UserRoleAssigned` / `UserRoleRemoved` | role (`role`) |
 | `InvitationAccepted` | usuário resolvido por e-mail (sem correspondência: notificação sem destinatário + log Warning) |
+| `IncidentCreated` (F16-T002) | roles `Operator` e `Admin` — cobre webhook Zabbix (F16-T001), criação manual e auto-abertura (F6) |
 
 `GET /api/v1/notifications/{id}/recipients` lista os destinatários;
 `GET /api/v1/notifications/{id}/recipients/users` resolve os **usuários

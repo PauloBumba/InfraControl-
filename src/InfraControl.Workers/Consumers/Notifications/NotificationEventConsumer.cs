@@ -28,9 +28,25 @@ public sealed class NotificationEventConsumer(
       IConsumer<UserDisabledDomainEvent>,
       IConsumer<UserRoleAssignedDomainEvent>,
       IConsumer<UserRoleRemovedDomainEvent>,
-      IConsumer<InvitationAcceptedDomainEvent>
+      IConsumer<InvitationAcceptedDomainEvent>,
+      IConsumer<IncidentCreatedDomainEvent>
 {
     public const string ConsumerName = "NotificationConsumer";
+
+    /// <summary>
+    /// F16-T002/ADR-023: incidente (webhook Zabbix F16-T001, manual F6 ou
+    /// auto-abertura F6) → destinatários por role Operator e Admin
+    /// (decisão do usuário 2026-09-30).
+    /// </summary>
+    public Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Incidente aberto",
+            $"O incidente '{context.Message.Title}' foi aberto ({context.Message.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            context.CancellationToken);
 
     public Task Consume(ConsumeContext<UserCreatedDomainEvent> context)
         => HandleAsync(
@@ -39,7 +55,7 @@ public sealed class NotificationEventConsumer(
             "Usuário criado",
             $"O usuário {context.Message.Email} foi criado.",
             recipientUserId: context.Message.UserId,
-            recipientRole: null,
+            recipientRoles: [],
             context.CancellationToken);
 
     public Task Consume(ConsumeContext<UserDisabledDomainEvent> context)
@@ -49,7 +65,7 @@ public sealed class NotificationEventConsumer(
             "Usuário desativado",
             $"O usuário {context.Message.UserId} foi desativado.",
             recipientUserId: context.Message.UserId,
-            recipientRole: null,
+            recipientRoles: [],
             context.CancellationToken);
 
     public Task Consume(ConsumeContext<UserRoleAssignedDomainEvent> context)
@@ -59,7 +75,7 @@ public sealed class NotificationEventConsumer(
             "Perfil atribuído",
             $"O perfil {context.Message.Role} foi atribuído ao usuário {context.Message.UserId}.",
             recipientUserId: null,
-            recipientRole: context.Message.Role.ToString(),
+            recipientRoles: [context.Message.Role.ToString()],
             context.CancellationToken);
 
     public Task Consume(ConsumeContext<UserRoleRemovedDomainEvent> context)
@@ -69,7 +85,7 @@ public sealed class NotificationEventConsumer(
             "Perfil removido",
             $"O perfil {context.Message.Role} foi removido do usuário {context.Message.UserId}.",
             recipientUserId: null,
-            recipientRole: context.Message.Role.ToString(),
+            recipientRoles: [context.Message.Role.ToString()],
             context.CancellationToken);
 
     public Task Consume(ConsumeContext<InvitationAcceptedDomainEvent> context)
@@ -100,7 +116,7 @@ public sealed class NotificationEventConsumer(
             "Convite aceito",
             $"O convite para {domainEvent.Email} foi aceito.",
             recipientUserId: userId,
-            recipientRole: null,
+            recipientRoles: [],
             cancellationToken);
     }
 
@@ -115,7 +131,8 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// Valida, marca idempotência (inbox) e persiste a notificação com
-    /// seu destinatário (F9-T002) na mesma transação.
+    /// seu destinatário (F9-T002) na mesma transação. Destinatário é o
+    /// usuário OU 1..N roles (F16-T002: incidente avisa Operator + Admin).
     /// </summary>
     public async Task HandleAsync(
         Guid eventId,
@@ -123,7 +140,7 @@ public sealed class NotificationEventConsumer(
         string title,
         string message,
         Guid? recipientUserId,
-        string? recipientRole,
+        string[] recipientRoles,
         CancellationToken cancellationToken)
     {
         // Valida antes de marcar o inbox — erro de domínio não pode virar
@@ -143,8 +160,8 @@ public sealed class NotificationEventConsumer(
         dbContext.Notifications.Add(notification);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // exatamente um destinatário (usuário OU role) — ambos nulos
-        // apenas quando a resolução falhou (ex.: convite sem usuário).
+        // usuário OU roles (1..N, dedup) — vazio apenas quando a resolução
+        // falhou (ex.: convite sem usuário).
         if (recipientUserId is { } userId)
         {
             var recipient = NotificationRecipient.CreateForUser(notification.Id, userId);
@@ -155,15 +172,19 @@ public sealed class NotificationEventConsumer(
                 "Destinatário {NotificationRecipientId} (usuário {UserId}) anexado à notificação {NotificationId}.",
                 recipient.Id, userId, notification.Id);
         }
-        else if (recipientRole is { } roleName)
+        else if (recipientRoles.Length > 0)
         {
-            var recipient = NotificationRecipient.CreateForRole(notification.Id, roleName);
-            dbContext.NotificationRecipients.Add(recipient);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            var roleNames = recipientRoles.Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var roleName in roleNames)
+            {
+                var recipient = NotificationRecipient.CreateForRole(notification.Id, roleName);
+                dbContext.NotificationRecipients.Add(recipient);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
-            logger.LogInformation(
-                "Destinatário {NotificationRecipientId} (role {Role}) anexado à notificação {NotificationId}.",
-                recipient.Id, roleName, notification.Id);
+                logger.LogInformation(
+                    "Destinatário {NotificationRecipientId} (role {Role}) anexado à notificação {NotificationId}.",
+                    recipient.Id, roleName, notification.Id);
+            }
         }
 
         logger.LogInformation(

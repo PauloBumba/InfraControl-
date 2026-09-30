@@ -67,7 +67,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", $"O usuário {domainEvent.Email} foi criado.",
-            recipientUserId: domainEvent.UserId, recipientRole: null,
+            recipientUserId: domainEvent.UserId, recipientRoles: [],
             CancellationToken.None);
 
         var notifications = await context.Notifications.AsNoTracking().ToListAsync();
@@ -93,7 +93,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         var handle = () => consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário desativado", $"O usuário {domainEvent.UserId} foi desativado.",
-            recipientUserId: domainEvent.UserId, recipientRole: null,
+            recipientUserId: domainEvent.UserId, recipientRoles: [],
             CancellationToken.None);
 
         await handle();
@@ -115,7 +115,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Perfil atribuído", $"O perfil {domainEvent.Role} foi atribuído ao usuário {domainEvent.UserId}.",
-            recipientUserId: null, recipientRole: domainEvent.Role.ToString(),
+            recipientUserId: null, recipientRoles: [domainEvent.Role.ToString()],
             CancellationToken.None);
 
         var notification = await context.Notifications.AsNoTracking().SingleAsync();
@@ -138,7 +138,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", $"O usuário {domainEvent.Email} foi criado.",
-            recipientUserId: domainEvent.UserId, recipientRole: null,
+            recipientUserId: domainEvent.UserId, recipientRoles: [],
             CancellationToken.None);
 
         var delivery = await context.NotificationDeliveries.AsNoTracking()
@@ -161,7 +161,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", "Mensagem.",
-            recipientUserId: domainEvent.UserId, recipientRole: null,
+            recipientUserId: domainEvent.UserId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -179,7 +179,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         var delivery = await context.NotificationDeliveries.AsNoTracking()
@@ -202,7 +202,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -260,7 +260,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         var delivery = await context.NotificationDeliveries.AsNoTracking()
@@ -288,7 +288,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -311,7 +311,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -342,7 +342,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -370,7 +370,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -397,7 +397,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         var delivery = await context.NotificationDeliveries.AsNoTracking()
@@ -425,7 +425,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -448,7 +448,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -478,7 +478,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -503,7 +503,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         await context.NotificationDeliveries.AsNoTracking()
@@ -529,7 +529,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -552,7 +552,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -579,7 +579,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -604,7 +604,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         await context.NotificationDeliveries.AsNoTracking()
@@ -630,7 +630,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -653,7 +653,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()
@@ -680,7 +680,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         await consumer.HandleAsync(
             Guid.NewGuid(), "UserCreatedDomainEvent",
             "Usuário criado", "Mensagem.",
-            recipientUserId: userId, recipientRole: null,
+            recipientUserId: userId, recipientRoles: [],
             CancellationToken.None);
 
         (await context.NotificationDeliveries.AsNoTracking()

@@ -1,5 +1,6 @@
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
+using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Middleware;
 using InfraControl.Application.Identity.Sessions;
@@ -79,6 +80,13 @@ builder.Services.AddHostedService<NotificationSlackWorker>();
 builder.Services
     .AddOptions<NotificationChannelsOptions>()
     .Bind(builder.Configuration.GetSection(NotificationChannelsOptions.SectionName));
+
+// F16-T001/ADR-023: token do webhook de entrada do Zabbix (Integrations:
+// Zabbix) — vazio = integração desligada (404 no endpoint), não valida no
+// boot de propósito (o desligado é o default).
+builder.Services
+    .AddOptions<ZabbixIntegrationOptions>()
+    .Bind(builder.Configuration.GetSection(ZabbixIntegrationOptions.SectionName));
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();

@@ -1,4 +1,5 @@
 import { services, sloBudgets } from "@/data/dashboardData";
+import { Can } from "@/components/auth/Can";
 
 const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
   operational: { label: "Operacional", bg: "#dcfce7", color: "#16a34a" },
@@ -24,9 +25,11 @@ export function SlaPage() {
             {services.length} serviços · uptime médio {avgUptime}% · {openIncidents} incidentes abertos
           </p>
         </div>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none" }}>
-          <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Serviço
-        </button>
+        <Can level="operate">
+          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none" }}>
+            <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Serviço
+          </button>
+        </Can>
       </div>
 
       <div className="uni-panel">

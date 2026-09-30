@@ -94,7 +94,8 @@ public sealed class RenameUserRoleToOperatorMigrationTests : BaseIntegrationTest
             """
             INSERT INTO "UserSessions" ("Id", "UserId", "RefreshTokenHash", "CreatedAt",
                 "LastSeenAt", "ExpiresAt", "AbsoluteExpiresAt", "CreateDateTime", "UpdateDateTime")
-            VALUES ({0}, {1}, 'hash-refresh', now(), now(), now() + interval '7 days', now() + interval '7 days', now(), now());
+            VALUES ({0}, {1}, 'hash-refresh', now(), now(), now() + interval '7 days',
+                now() + interval '30 days', now(), now());
             """, Guid.NewGuid(), domainUser.Id);
 
         // ── a migration ───────────────────────────────────────────────

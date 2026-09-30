@@ -75,8 +75,12 @@ banco novo (`infracontrol_restore_test`) e verificado (linha marker,
 contagem de linhas e contagem de tabelas do schema público iguais).
 Assim o CI executa o "teste periódico de restore" em toda alteração.
 
-Requisitos do host de teste/CI: binários `pg_dump` e `pg_restore` no
-PATH (ex.: `postgresql-client`). Se faltar, o teste **falha com
+Requisitos do host de teste/CI (decisão do usuário, 2026-09-30: "usa
+banco com docker"): **Docker** — as ferramentas rodam de dentro da mesma
+imagem `postgres:17-alpine` do Testcontainers via `docker run --rm`
+(`DockerPgToolRunner`, traduz `-h localhost` → `host.docker.internal` e
+o caminho do dump → `/backup` com bind mount). Binários locais no PATH
+não são mais necessários. Se o Docker faltar, o teste **falha com
 instrução** — nunca skip escondido.
 
 Restauração manual em produção (mesmo caminho do runbook acima):

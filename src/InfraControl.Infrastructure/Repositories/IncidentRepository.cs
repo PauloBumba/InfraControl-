@@ -32,6 +32,17 @@ public sealed class IncidentRepository(AppDbContext dbContext)
                 && incident.Status == IncidentStatus.Open,
                 cancellationToken);
 
+    // F16-T001: chave título+device (null incluso) de qualquer status não-
+    // Resolved — EF compensa o parâmetro nulo (device_id IS NULL).
+    public Task<Incident?> GetOpenByTitleAndDeviceAsync(
+        string title, Guid? deviceId, CancellationToken cancellationToken = default)
+        => dbContext.Incidents
+            .FirstOrDefaultAsync(incident =>
+                incident.Title == title
+                && incident.DeviceId == deviceId
+                && incident.Status != IncidentStatus.Resolved,
+                cancellationToken);
+
     public Task<bool> IsAlertLinkedAsync(
         Guid incidentId, Guid alertId, CancellationToken cancellationToken = default)
         => dbContext.IncidentAlerts.AsNoTracking()

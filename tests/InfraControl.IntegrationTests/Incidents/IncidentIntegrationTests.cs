@@ -6,11 +6,13 @@ using InfraControl.Application.Incidents.Queries;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using InfraControl.IntegrationTests.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace InfraControl.IntegrationTests.Incidents;
 
@@ -150,5 +152,32 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
         item.Status.Should().Be(nameof(IncidentStatus.Resolved));
         item.ResolvedAt.Should().NotBeNull(
             "F6-T006: todos os alerts vinculados resolved → fecha");
+    }
+
+    /// <summary>
+    /// F16-T002: criação manual levanta IncidentCreatedDomainEvent na mesma
+    /// transação (ADR-005 — AppDbContext despacha → OutboxMessage).
+    /// </summary>
+    [Fact]
+    public async Task ManualCreate_ShouldWriteIncidentCreatedEventToOutbox()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        UseRole(UserRole.Admin);
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var created = await mediator.Send(new CreateIncidentCommand(
+            "Servidor de backup fora do ar", IncidentSeverity.High));
+
+        created.Status.Should().Be(nameof(IncidentStatus.Open));
+        var outboxEvents = await context.OutboxMessages.AsNoTracking()
+            .Where(m => m.EventType == nameof(IncidentCreatedDomainEvent))
+            .ToListAsync();
+        // Payload é JSON com escape Unicode (JavaScriptEncoder default):
+        // compara o Title parseado, não o texto cru.
+        outboxEvents.Should().ContainSingle();
+        var payloadTitle = JsonDocument
+            .Parse(outboxEvents[0].Payload).RootElement.GetProperty("Title").GetString();
+        payloadTitle.Should().Be("Servidor de backup fora do ar");
     }
 }

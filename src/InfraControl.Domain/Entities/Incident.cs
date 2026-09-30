@@ -1,6 +1,7 @@
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -39,7 +40,7 @@ public sealed class Incident : AggregateRoot
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("O título do incidente é obrigatório.", nameof(title));
 
-        return new Incident
+        var incident = new Incident
         {
             Title = title.Trim(),
             Description = description?.Trim(),
@@ -47,6 +48,15 @@ public sealed class Incident : AggregateRoot
             Status = IncidentStatus.Open,
             DeviceId = deviceId
         };
+
+        // F16-T002: nasce → IncidentCreatedDomainEvent; o AppDbContext
+        // despacha para o outbox na mesma transação (ADR-005) e o consumer
+        // de notificações avisa Operator + Admin. Um único ponto de
+        // levantamento cobre manual, webhook e auto-abertura.
+        incident.RaiseDomainEvent(new IncidentCreatedDomainEvent(
+            incident.Id, incident.Title, severity, deviceId));
+
+        return incident;
     }
 
     public void ChangeStatus(IncidentStatus status)
