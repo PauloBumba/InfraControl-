@@ -61,31 +61,92 @@ public sealed class AntiforgeryCookieMiddlewareTests
     }
 
     /// <summary>
-    /// GET /auth/me: o servidor emite o cookie e devolve o token que o JS
-    /// copiou para o header. Reproduz a emissão de verdade e verifica as
-    /// propriedades do cookie — inclusive que ele NÃO é HttpOnly.
+    /// GET /auth/me: o servidor emite os cookies e o JS devolve o legível no
+    /// header. Reproduz a emissão de verdade (mesmo EmitForJavaScript do
+    /// controller) e devolve o MESMO par que o navegador usaria.
+    ///
+    /// O header sai do cookie legível, e é isso que o client.ts faz. Não é
+    /// detalhe: o IAntiforgery exige o request-token no header e o
+    /// cookie-token no cookie, e o segundo request-token nunca sai do servidor
+    /// por conta própria.
     /// </summary>
     private static (string Cookie, string Header) IssueToken(ClaimsPrincipal principal)
     {
         var issuing = Request("GET", principal);
-        var tokens = issuing.RequestServices.GetRequiredService<IAntiforgery>().GetAndStoreTokens(issuing);
+        AntiforgeryCookieSetup.EmitForJavaScript(
+            issuing, issuing.RequestServices.GetRequiredService<IAntiforgery>());
 
-        var setCookie = issuing.Response.Headers.SetCookie.ToString();
-        setCookie.Should().Contain(AntiforgeryCookieSetup.CookieName);
-        setCookie.Should().Contain("samesite=strict");
-        setCookie.Should().Contain("secure");
-        setCookie.Should().NotContain("httponly", "sem HttpOnly=false o JS não tem o que mandar no header");
+        var jar = CookieJar(issuing);
 
-        // São DOIS tokens: o cookie carrega o cookie-token (o segredo que o
-        // navegador devolve sozinho) e o header carrega o request-token (o
-        // que o JS leu). Mandar o mesmo valor nos dois lados é justamente o
-        // que o ASP.NET rejeita como "swapped".
-        var cookieToken = setCookie
-            .Split(';')[0]
-            .Split('=', 2)[1];
+        jar.Should().ContainKey(AntiforgeryCookieSetup.CookieName, "o segredo do framework");
+        jar.Should().ContainKey(AntiforgeryCookieSetup.ReadableCookieName, "o que o JS lê");
 
-        cookieToken.Should().NotBe(tokens.RequestToken);
-        return (cookieToken, tokens.RequestToken!);
+        // o header é o valor do cookie legível, não o segredo
+        return (jar[AntiforgeryCookieSetup.CookieName], jar[AntiforgeryCookieSetup.ReadableCookieName]);
+    }
+
+    /// <summary>Cookie jar do navegador: todos os Set-Cookie viram um cookie só.</summary>
+    private static Dictionary<string, string> CookieJar(HttpContext context) =>
+        context.Response.Headers.SetCookie
+            .Select(value => value!.Split(';')[0])
+            .Select(value => value.Split('=', 2))
+            .ToDictionary(part => part[0], part => part[1]);
+
+    [Fact]
+    public async Task Browser_Round_Trip_Should_Pass_Using_Only_What_The_Script_Can_See()
+    {
+        // O teste que faltava na F1-T015 e que reprova a versão anterior:
+        // o servidor publicava SÓ o cookie-token, o JS o copiava para o
+        // header, e o ASP.NET rejeitava como "swapped" — ou seja, TODA escrita
+        // autenticada da aplicação devolvia 400 e os testes passavam porque
+        // aqui o request-token era usado de mão.
+        var principal = User(VictimId);
+
+        var issuing = Request("GET", principal);
+        AntiforgeryCookieSetup.EmitForJavaScript(
+            issuing, issuing.RequestServices.GetRequiredService<IAntiforgery>());
+
+        // o navegador manda TODOS os cookies de volta, e o JS copia só o legível
+        var jar = CookieJar(issuing);
+        var writing = Request("POST", principal);
+        writing.Request.Headers.Cookie = string.Join("; ", jar.Select(pair => $"{pair.Key}={pair.Value}"));
+        writing.Request.Headers[AntiforgeryCookieSetup.HeaderName] = jar[AntiforgeryCookieSetup.ReadableCookieName];
+
+        var reached = false;
+        await new AntiforgeryCookieMiddleware(
+                _ => { reached = true; return Task.CompletedTask; },
+                writing.RequestServices.GetRequiredService<IAntiforgery>())
+            .InvokeAsync(writing);
+
+        reached.Should().BeTrue("o fluxo real do navegador tem que passar");
+    }
+
+    [Fact]
+    public void Readable_Cookie_Should_Carry_The_Request_Token_And_The_Secret_Cookie_Stay_HttpOnly()
+    {
+        var options = new AntiforgeryOptions();
+        AntiforgeryCookieSetup.Configure(options);
+
+        // o segredo é HttpOnly e tem nome próprio...
+        options.Cookie.Name.Should().Be(AntiforgeryCookieSetup.CookieName);
+        options.Cookie.Name.Should().NotBe(AntiforgeryCookieSetup.ReadableCookieName, "se colidissem, um sobrescreveria o outro");
+        options.Cookie.HttpOnly.Should().BeTrue();
+        options.Cookie.SecurePolicy.Should().Be(CookieSecurePolicy.Always);
+        options.Cookie.SameSite.Should().Be(SameSiteMode.Strict);
+        options.Cookie.Path.Should().Be("/");
+        options.HeaderName.Should().Be("X-XSRF-TOKEN");
+
+        // ...e o legível é o que o JS copia para o header
+        var issuing = Request("GET", User(VictimId));
+        AntiforgeryCookieSetup.EmitForJavaScript(
+            issuing, issuing.RequestServices.GetRequiredService<IAntiforgery>());
+
+        // olha SÓ o cookie legível: o segredo, ao lado, é HttpOnly de propósito
+        var readable = issuing.Response.Headers.SetCookie
+            .Select(value => value!.Split(';')[0])
+            .Single(line => line.StartsWith(AntiforgeryCookieSetup.ReadableCookieName + "="));
+
+        readable.Should().NotContain("httponly", "o JS precisa ler o cookie legível");
     }
 
     private static Task Act(HttpContext context)
@@ -180,23 +241,6 @@ public sealed class AntiforgeryCookieMiddlewareTests
         var act = () => Act(Request("POST", User(VictimId), ("token-forjado", "token-forjado")));
 
         await act.Should().ThrowAsync<AntiforgeryValidationException>();
-    }
-
-    [Fact]
-    public void Cookie_Configuration_Must_Stay_Readable_By_The_Script_And_Tls_Only()
-    {
-        // se HttpOnly voltar a true, o JS não tem o que mandar no header e
-        // toda escrita autenticada passa a dar 400 — o sintoma aparece em
-        // produção, não no build
-        var options = new AntiforgeryOptions();
-        AntiforgeryCookieSetup.Configure(options);
-
-        options.Cookie.Name.Should().Be("XSRF-TOKEN");
-        options.Cookie.HttpOnly.Should().BeFalse();
-        options.Cookie.SecurePolicy.Should().Be(CookieSecurePolicy.Always);
-        options.Cookie.SameSite.Should().Be(SameSiteMode.Strict);
-        options.Cookie.Path.Should().Be("/");
-        options.HeaderName.Should().Be("X-XSRF-TOKEN");
     }
 
     [Fact]

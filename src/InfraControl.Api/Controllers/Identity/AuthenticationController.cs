@@ -2,6 +2,7 @@ using InfraControl.Application.Identity.Authentication;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.Middleware;
 using InfraControl.Api.RateLimiting;
+using InfraControl.Api.Security;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -135,11 +136,14 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpGet("me")]
     public IActionResult Me()
     {
-        // F1-T015/ADR-017: nasce aqui o cookie XSRF-TOKEN. O /auth/me já é
-        // chamado no boot do dashboard (SessionGate), então o token existe
-        // antes da primeira escrita e não custa endpoint nem round trip extra.
+        // F1-T015/ADR-017: nasce aqui o XSRF-TOKEN. O /auth/me já é chamado no
+        // boot do dashboard (SessionGate), então o token existe antes da
+        // primeira escrita e não custa endpoint nem round trip extra.
         // Precisa ser autenticado porque o token é vinculado à identidade.
-        antiforgery.GetAndStoreTokens(HttpContext);
+        // EmitForJavaScript (e não GetAndStoreTokens) porque o JS precisa do
+        // request-token: publicar só o cookie-token faria o header sair errado
+        // e toda escrita autenticada cair em 400.
+        AntiforgeryCookieSetup.EmitForJavaScript(HttpContext, antiforgery);
 
         return Ok(ApiResponse.Ok(new
         {

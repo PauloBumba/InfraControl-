@@ -109,10 +109,14 @@ public sealed class AntiforgeryRegistrationTests : BaseArchitectureTest
     }
 
     [Fact]
-    public void Antiforgery_Cookie_Should_Not_Be_HttpOnly()
+    public void Antiforgery_Should_Split_The_Secret_Cookie_From_The_Readable_One()
     {
-        // HttpOnly=true faria o JS não ter o que mandar no header: o sintoma é
-        // 400 em toda escrita, visível só em runtime
+        // O IAntiforgery usa DOIS valores: o cookie carrega o cookie-token (o
+        // segredo, que só o servidor vê) e o header exige o request-token. O
+        // JS só consegue ler um cookie, então o servidor precisa publicar o
+        // request-token num segundo cookie legível. Se os dois tiverem o mesmo
+        // nome, um sobrescreve o outro e toda escrita autenticada cai em 400
+        // com "cookie token and request token were swapped".
         var setup = typeof(InfraControl.Api.Security.AntiforgeryCookieSetup);
         var configure = setup.GetMethod(nameof(InfraControl.Api.Security.AntiforgeryCookieSetup.Configure))
             ?? throw new MissingMethodException(setup.FullName, "Configure");
@@ -120,8 +124,9 @@ public sealed class AntiforgeryRegistrationTests : BaseArchitectureTest
         var options = new AntiforgeryOptions();
         configure.Invoke(null, [options]);
 
-        options.Cookie.HttpOnly.Should().BeFalse();
-        options.Cookie.Name.Should().Be("XSRF-TOKEN");
+        options.Cookie.Name.Should().Be(InfraControl.Api.Security.AntiforgeryCookieSetup.CookieName);
+        options.Cookie.Name.Should().NotBe("XSRF-TOKEN", "o segredo não pode ocupar o nome do legível");
+        options.Cookie.HttpOnly.Should().BeTrue("é o segredo do servidor");
         options.HeaderName.Should().Be("X-XSRF-TOKEN");
         options.Cookie.SecurePolicy.Should().Be(CookieSecurePolicy.Always);
     }
