@@ -299,8 +299,18 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 ### Pendências soltas (de tasks concluídas e decisões registradas)
 
 - [ ] **Revalidar a suíte de integração** (Testcontainers/PostgreSQL) onde houver
-  Docker — revalidada em 2026-09-30 nesta máquina (Docker presente): **130/130
-  verdes** junto da F15; pendência mantida para o caso de outras máquinas sem Docker
+  Docker — revalidada em 2026-09-30 nesta máquina (Docker Desktop 4.93.0
+  instalado no ciclo pós-F16-T002): **152/152 verdes** na primeira execução
+  completa da suíte nesta máquina (13m12s; antes: 130/130 junto da F15 e
+  149/152 na primeira rodada com 3 falhas já corrigidas e commitadas);
+  pendência mantida para o caso de outras máquinas sem Docker
+- [ ] **`postgresql-client` na imagem dos Workers** (`docker/Dockerfile`) —
+  `PostgresBackupService` faz spawn de `pg_dump`/`pg_restore`, mas a imagem
+  multi-stage **não instala o cliente PostgreSQL**: no deploy "Servidor com
+  Docker" (decisão do usuário) o BackupWorker falharia com binário não
+  encontrado (achado em 30/09/2026 na primeira execução completa da suíte com
+  Docker). Resolve com `apk add --no-cache postgresql-client` no target
+  `workers` — requer autorização (muda artefato de deploy)
 - [ ] **Provider real de e-mail** (SMTP/API + credenciais) — hoje só adaptadores
   de logging (`LoggingIdentityEmailSender` + `LoggingEmailNotificationDispatcher`);
   cobre forgot-password, convite (F1-T017) e canal Email (F9-T005). Requer
