@@ -77,12 +77,12 @@ async function establishSession(path: string, body: unknown, anonymousExpected =
  */
 export function loginWithPassword(email: string, password: string, mfaCode?: string): Promise<AuthUser> {
   const body = mfaCode ? { email, password, mfaCode } : { email, password };
-  return establishSession("/api/v1/auth/login", body, true);
+  return establishSession("/auth/login", body, true);
 }
 
 /** F1-T014: o backend valida assinatura/audience/issuer/expiração do id_token. */
 export function loginWithGoogle(idToken: string): Promise<AuthUser> {
-  return establishSession("/api/v1/auth/google", { idToken }, true);
+  return establishSession("/auth/google", { idToken }, true);
 }
 
 export async function logout(): Promise<void> {
