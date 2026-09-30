@@ -8,6 +8,7 @@ using InfraControl.IntegrationTests.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace InfraControl.IntegrationTests.Integrations;
 
@@ -95,7 +96,11 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         var outboxEvents = await context.OutboxMessages.AsNoTracking()
             .Where(m => m.EventType == nameof(IncidentCreatedDomainEvent))
             .ToListAsync();
-        outboxEvents.Should().ContainSingle(
-            m => m.Payload.Contains("Memória no limite"));
+        // Payload é JSON com escape Unicode (JavaScriptEncoder default):
+        // compara o Title parseado, não o texto cru.
+        outboxEvents.Should().ContainSingle();
+        var payloadTitle = JsonDocument
+            .Parse(outboxEvents[0].Payload).RootElement.GetProperty("Title").GetString();
+        payloadTitle.Should().Be("Memória no limite");
     }
 }

@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using InfraControl.IntegrationTests.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace InfraControl.IntegrationTests.Incidents;
 
@@ -172,7 +173,11 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
         var outboxEvents = await context.OutboxMessages.AsNoTracking()
             .Where(m => m.EventType == nameof(IncidentCreatedDomainEvent))
             .ToListAsync();
-        outboxEvents.Should().ContainSingle(
-            m => m.Payload.Contains("Servidor de backup fora do ar"));
+        // Payload é JSON com escape Unicode (JavaScriptEncoder default):
+        // compara o Title parseado, não o texto cru.
+        outboxEvents.Should().ContainSingle();
+        var payloadTitle = JsonDocument
+            .Parse(outboxEvents[0].Payload).RootElement.GetProperty("Title").GetString();
+        payloadTitle.Should().Be("Servidor de backup fora do ar");
     }
 }
