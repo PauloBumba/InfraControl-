@@ -271,7 +271,7 @@ InfraControl via webhook; notificação de incidente em task separada com
 destinatários Operator + Admin). Arquitetura em ADR-023, runbook em docs/27.
 
 - [x] F16-T001 Zabbix Webhook  <!-- ADR-023: POST api/v1/integrations/zabbix/problems — primeiro endpoint público ([AllowAnonymous] explícito + entrada nova na allowlist de Public_Endpoints_Should_Be_The_Explicit_Allowlist); auth header X-Zabbix-Token vs Integrations:Zabbix:Token (vazio→404 desligado, ausente/errado→401 envelope; comparação ordinal; binding AddOptions+Bind no Program.cs); contrato {eventId?, host?, ip?, name, severity 0..5, status PROBLEM|OK} com validação no handler (name→severity→status, ArgumentException 400 pt-BR); PROBLEM → device por IP com fallback hostname (GetByIpAsync/GetByNameAsync) → Incident.Create (sem match → deviceId nulo com host/ip/eventId na descrição — decisão do usuário), dedup anti-storm título+device não-Resolved idempotente "duplicate"; OK → resolve correspondente "resolved" senão "none"; severidade Zabbix 0/1→Low, 2→Medium, 3→High, 4/5→Critical; comando BaseCommand sem IAuthorizedRequest (guard = token; Admin_Slices não muda); port nova GetOpenByTitleAndDeviceAsync em IIncidentRepository+IncidentRepository; sem migration; slice Application/Integrations/Zabbix + controller Integrations + VM; testes unit (handler + controller com Moq) + integration + allowlist arch -->
-- [ ] F16-T002 Notificação de incidente  <!-- IncidentCreatedDomainEvent + publicação no outbox (DomainEventService/IEventBus) + NotificationEventConsumer tratando o evento; destinatários por role Operator e Admin (decisão do usuário 2026-09-30); cobre incidentes criados pelo webhook F16-T001 e os manuais/automáticos do F6 -->
+- [x] F16-T002 Notificação de incidente  <!-- IncidentCreatedDomainEvent (Domain/Events/IncidentDomainEvents.cs) levantado em Incident.Create — um único ponto cobre manual F6, auto-abertura F6 e webhook F16-T001; caminho outbox via AppDbContext → MediatR → OutboxDispatchHandler → DomainEventService (mesma transação, ADR-005 — sem migration e sem IEventBus direto); NotificationEventConsumer ganhou IConsumer<IncidentCreatedDomainEvent> (registro automático: AddConsumers assembly scan dos Workers); HandleAsync generalizado de recipientRole (string?) para recipientRoles (string[], dedup OrdinalIgnoreCase, usuário OU 1..N roles) — 32 call sites migrados; destinatários por role Operator e Admin (decisão do usuário 2026-09-30); msg pt-BR título "Incidente aberto", corpo "O incidente '{title}' foi aberto ({severity})."; fanout resolve roles → usuários ativos (NotificationRecipientRepository) nos canais default Email+SignalR; idempotência via inbox (1 notification, 2 recipients, 1 ProcessedMessage); unit +6 (IncidentTests +3, IncidentCreatedNotificationTests +3), integration +2 (outbox manual e via webhook) -->
 
 ## Fase P — Pendências (tudo que não foi concluído)
 
@@ -294,7 +294,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F10-T003 Publishing
 - [x] F10-T004 Relationships
 - [x] F16-T001 Zabbix Webhook
-- [ ] F16-T002 Notificação de incidente
+- [x] F16-T002 Notificação de incidente
 
 ### Pendências soltas (de tasks concluídas e decisões registradas)
 

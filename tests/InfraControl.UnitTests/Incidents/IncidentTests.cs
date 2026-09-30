@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.UnitTests.Incidents;
 
@@ -33,6 +34,44 @@ public sealed class IncidentTests
 
         action.Should().Throw<ArgumentException>()
             .WithMessage("O título do incidente é obrigatório.*");
+    }
+
+    [Fact]
+    public void Create_ShouldRaiseIncidentCreatedDomainEvent()
+    {
+        var device = Guid.NewGuid();
+        var incident = Incident.Create(
+            "Carga de CPU alta", IncidentSeverity.Critical, device,
+            "Recebido do Zabbix.");
+
+        incident.DomainEvents.Should().HaveCount(1);
+        var domainEvent = incident.DomainEvents.OfType<IncidentCreatedDomainEvent>().Single();
+        domainEvent.IncidentId.Should().Be(incident.Id);
+        domainEvent.Title.Should().Be("Carga de CPU alta");
+        domainEvent.Severity.Should().Be(IncidentSeverity.Critical);
+        domainEvent.DeviceId.Should().Be(device);
+        domainEvent.EventType.Should().Be(nameof(IncidentCreatedDomainEvent));
+        domainEvent.EventId.Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void Create_WithoutDevice_ShouldRaiseEventWithNullDevice()
+    {
+        var incident = Incident.Create("Host desconhecido", IncidentSeverity.Low);
+
+        var domainEvent = incident.DomainEvents.OfType<IncidentCreatedDomainEvent>().Single();
+        domainEvent.DeviceId.Should().BeNull();
+    }
+
+    [Fact]
+    public void ChangeStatus_ShouldNotRaiseCreatedEventAgain()
+    {
+        var incident = Incident.Create("Para resolver", IncidentSeverity.Medium);
+        incident.ClearDomainEvents();
+
+        incident.ChangeStatus(IncidentStatus.Resolved);
+
+        incident.DomainEvents.Should().BeEmpty();
     }
 
     [Fact]

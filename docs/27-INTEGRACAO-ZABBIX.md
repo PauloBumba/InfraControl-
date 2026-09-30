@@ -2,8 +2,9 @@
 
 - **Task**: F16-T001 (Fase 16 — Integrações) · **ADR**: [ADR-023](adr/ADR-023-ZABBIX-INBOUND-WEBHOOK.md)
 - **Fluxo**: Zabbix **avisa** (problem/OK) → InfraControl **orquestra** (incidente
-  no ciclo F6/F7: leitura, tarefa, conhecimento). Notificação fanout fica na
-  F16-T002 (hoje incidente nenhum notifica — só eventos de identidade).
+  no ciclo F6/F7: leitura, tarefa, conhecimento). Notificação fanout concluída
+  na F16-T002 (`IncidentCreatedDomainEvent` → outbox → consumer, destinatários
+  Operator + Admin — cobre webhook, manual e auto-abertura).
 
 ## 1. Endpoint
 
@@ -143,14 +144,12 @@ curl -X POST https://<seu-host>/api/v1/integrations/zabbix/problems \
 - Dedup é **heurística** (título+device), a mesma filosofia anti-storm do F6:
   dois hosts **fora do inventário** com o mesmo nome de problema dividem a
   chave e o segundo vira `duplicate`. Se importar, cadastre os devices.
-- Sem notificação ainda — crie a F16-T002 (`IncidentCreatedDomainEvent` +
-  outbox + consumer, destinatários Operator e Admin) para o fanout.
 - Sem correlation de eventos (reenvio do mesmo `eventId` não é detectado por
   id — a chave é título+device).
 - Direção B (sair consumindo a API JSON-RPC do Zabbix) ficou como alternativa
   descartada no ADR-023 — possível num futuro se precisarmos de inventário/acks.
 
-## 6. Evidências (F16-T001)
+## 6. Evidências (F16-T001, F16-T002)
 
 - Unit: `tests/InfraControl.UnitTests/Integrations/ZabbixIngestTests.cs` (19)
   + `ZabbixIntegrationControllerTests.cs` (5) — criação, sem device, fallback
@@ -158,7 +157,13 @@ curl -X POST https://<seu-host>/api/v1/integrations/zabbix/problems \
   tabela de severidade, 400 pt-BR, 404 desligado, 401 token, 200 envelope,
   case-sensitivity do token.
 - Integration: `tests/InfraControl.IntegrationTests/Integrations/
-  ZabbixIngestIntegrationTests.cs` (3 — ponta-a-ponta pelo MediatR; exige
-  Docker para executar).
+  ZabbixIngestIntegrationTests.cs` (4 — ponta-a-ponta pelo MediatR, incl.
+  outbox `IncidentCreatedDomainEvent` do F16-T002; exige Docker para
+  executar).
 - Arch: allowlist de endpoints públicos com `ZabbixIntegrationController.
   Problems`.
+- F16-T002 (notificação): unit `IncidentTests` (+3, evento levantado em
+  `Incident.Create`) e `IncidentCreatedNotificationTests` (3 — roles
+  Operator+Admin, deliveries para usuários dessas roles, idempotência);
+  integration `IncidentIntegrationTests.ManualCreate_ShouldWrite
+  IncidentCreatedEventToOutbox`.

@@ -2,8 +2,11 @@ using FluentAssertions;
 using InfraControl.Application.Incidents.Queries;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
+using InfraControl.Infrastructure.Persistence;
 using InfraControl.IntegrationTests.Common;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace InfraControl.IntegrationTests.Integrations;
@@ -71,5 +74,28 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         incident.DeviceId.Should().BeNull();
         incident.Description.Should()
             .Contain("host-fora-do-inventario").And.Contain("203.0.113.50");
+    }
+
+    /// <summary>
+    /// F16-T002: o PROBLEM do webhook cria o incidente e grava
+    /// IncidentCreatedDomainEvent no outbox (mesma transação, ADR-005) — o
+    /// consumer de notificações sai daqui.
+    /// </summary>
+    [Fact]
+    public async Task Problem_ShouldWriteIncidentCreatedEventToOutbox()
+    {
+        using var scope = CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var created = await mediator.Send(new IngestZabbixProblemCommand(
+            "evt-ob-1", "host-zbx", "192.0.2.89", "Memória no limite", 3, "PROBLEM"));
+
+        created.Outcome.Should().Be("created");
+        var outboxEvents = await context.OutboxMessages.AsNoTracking()
+            .Where(m => m.EventType == nameof(IncidentCreatedDomainEvent))
+            .ToListAsync();
+        outboxEvents.Should().ContainSingle(
+            m => m.Payload.Contains("Memória no limite"));
     }
 }
