@@ -16,8 +16,11 @@ namespace InfraControl.IntegrationTests.Backup;
 /// Testcontainers: marker → pg_dump -Fc (PostgresBackupService de
 /// verdade) → CREATE DATABASE → pg_restore → marker + contagens iguais.
 /// Roda a cada build, atendendo o "teste periódico" do
-/// docs/operations/BACKUP-RESTORE.md. Exige pg_dump/pg_restore no PATH —
-/// se faltar, o teste FALHA com instrução (nunca skip escondido).
+/// docs/operations/BACKUP-RESTORE.md. As ferramentas rodam via Docker
+/// (<see cref="DockerPgToolRunner"/> — imagem postgres:17-alpine do
+/// próprio Testcontainers, decisão do usuário 2026-09-30: "usa banco com
+/// docker"); se o Docker faltar, o teste FALHA com instrução (nunca skip
+/// escondido).
 /// </summary>
 public sealed class RestoreRoundTripTests : BaseIntegrationTest
 {
@@ -35,7 +38,7 @@ public sealed class RestoreRoundTripTests : BaseIntegrationTest
     [Fact]
     public async Task BackupAndRestore_ShouldRecoverMarkerRowAndSchema()
     {
-        var runner = new SystemProcessRunner();
+        var runner = new DockerPgToolRunner();
         await RequireToolAsync(runner, "pg_dump");
         await RequireToolAsync(runner, "pg_restore");
 
@@ -129,8 +132,9 @@ public sealed class RestoreRoundTripTests : BaseIntegrationTest
             tool, ["--version"], new Dictionary<string, string>(), CancellationToken.None);
 
         probe.ExitCode.Should().Be(0,
-            "o binário '{0}' precisa estar no PATH (ex.: instale postgresql-client) — " +
-            "sem ele o round-trip de backup/restore não pode ser validado", tool);
+            "a ferramenta '{0}' deve rodar via Docker (imagem postgres:17-alpine, " +
+            "mesma do Testcontainers) — sem ela o round-trip de backup/restore " +
+            "não pode ser validado. Erro: {1}", tool, probe.StandardError);
     }
 
     private static async Task<int> CountPublicTablesAsync(string connectionString)
