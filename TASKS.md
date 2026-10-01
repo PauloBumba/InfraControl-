@@ -587,11 +587,28 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     tabela, painel honesto apontando para a plataforma de logs e para a
     Auditoria; comentários `uni-logs-table`/`uni-log-level` no CSS
     ficaram sem uso (semântica preservada caso o painel volte)
+  - [x] **F17-T020 `SwitchesPage`** — `listSwitches` adicionado ao
+    `services/api/network.ts` **existente** (T008, VLANs — na task o
+    arquivo foi reescrito por engano e restaurado do HEAD; diff final
+    verificado puramente aditivo). Fontes: `GET /network/switches`
+    (F3-T001 — switch é Device com type=Switch, devolve `DeviceDto`;
+    `term`/`locationId`/`rackId` reais) + localização resolvida via
+    `listLocations` + `GET /network/switches/{id}/ports` por seleção
+    (serviço do T007, `linkUp` tri-estado; guarda de ref anti
+    duplo-fetch do StrictMode; seleção por card OU pelo `select` do
+    cabeçalho, auto-seleciona o primeiro). Saiu sem contrato: chip
+    Online/Offline e "X online" (estado atual — decisão T007); por card
+    `activePorts/totalPorts`, `poePorts`, `firmware` (sem contagem
+    agregada sem 1 requisição por switch); na tabela Dispositivo/Tipo/
+    Velocidade/PoE/VLAN (`SwitchPortDto` só tem name/description/linkUp;
+    VLAN por porta = `GET /network/switch-ports/{id}/vlans`, 1 pedido
+    POR PORTA — futuro). Grade visual e contagens refeitas com `linkUp`
+    (Up/Down/—); sem mutations
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
     N/A + Insights esvaziado); o grupo permanece aberto pela decisão de
-    produto do Insights (construir backend / apagar página / demo) e pelas
-    páginas restantes `SwitchesPage`, `TopologyPage`
-    (escopo autorizado pelo usuário em 01/10 — próximas tasks T020+).
+    produto do Insights (construir backend / apagar página / demo) e pela
+    página restante `TopologyPage`
+    (escopo autorizado pelo usuário em 01/10 — próxima task T021).
     Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)

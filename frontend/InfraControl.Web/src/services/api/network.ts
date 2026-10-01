@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { DeviceItem } from "./inventory";
 
 /**
  * F17-T008 — conexão da NetworkPage ao backend (contrato real de
@@ -49,4 +50,33 @@ export function createVlan(input: {
     vlanNumber: input.vlanNumber,
     description: input.description || undefined,
   });
+}
+
+// ============ F17-T020 — SwitchesPage ============
+
+/**
+ * `GET /api/v1/network/switches` (F3-T001). O backend não tem entidade
+ * Switch: é **Device com type=Switch** (docs/03), e o endpoint devolve o
+ * mesmo `DeviceDto` da lista de devices — F3-T001 delega ao fluxo
+ * F2-T003 com `Type: "Switch"` fixo (guarda de tipo só no Get).
+ * `term`/`locationId`/`rackId` são parâmetros reais; pageSize 1..100.
+ */
+export async function listSwitches(
+  filters: {
+    term?: string;
+    locationId?: string;
+    rackId?: string;
+    page?: number;
+    pageSize?: number;
+  } = {},
+): Promise<Paged<DeviceItem>> {
+  const params = new URLSearchParams();
+  if (filters.term) params.set("term", filters.term);
+  if (filters.locationId) params.set("locationId", filters.locationId);
+  if (filters.rackId) params.set("rackId", filters.rackId);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? PAGE_SIZE));
+
+  const data = await api.get<Paged<DeviceItem>>(`/network/switches?${params}`);
+  return data ?? { items: [], totalCount: 0, page: 1, pageSize: PAGE_SIZE };
 }
