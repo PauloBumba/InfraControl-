@@ -1,449 +1,249 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { allDevices } from "@/data/deviceData";
-import { printerDetails, cameraDetails, phoneDetails, serverDetails, vmDetails, switchPorts, nasDetails, upsDetails } from "@/data/deviceData";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ApiError } from "@/services/api/client";
+import {
+  getDevice,
+  listDeviceIps,
+  listDeviceMacs,
+  listLocations,
+  listNetworkInterfaces,
+  listSwitchPorts,
+  type DeviceItem,
+  type IpAddressItem,
+  type MacAddressItem,
+  type NetworkInterfaceItem,
+  type SwitchPortItem,
+} from "@/services/api/inventory";
+import {
+  getDeviceResults,
+  type MonitoringResultItem,
+} from "@/services/api/monitoring";
+import { listAlerts, type AlertItem } from "@/services/api/alerts";
+import { formatDateTime } from "@/utils/format";
 
-function ProgressBar({ value, color = "#3b82f6" }: { value: number; color?: string }) {
-  return (
-    <div style={{ width: "100%", height: 6, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: `${value}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
-    </div>
-  );
+/**
+ * F17-T017 — DeviceDetailPage conectada ao backend (substitui
+ * `allDevices` + `printerDetails/cameraDetails/phoneDetails/serverDetails/
+ * vmDetails/switchPorts/nasDetails/upsDetails` de `data/deviceData`).
+ *
+ * O protótipo tinha uma visão por TIPO com telemetria de agente (toner de
+ * impressora, linhas de telefone, CPU/memória/discos/serviços, volumes do
+ * NAS, bateria da UPS…) — **nada disso tem backend** (não existe coleta de
+ * agente; o histórico real é o poll de `MonitoringResult`), então todos os
+ * `*View` por tipo saíram. A página virou abas sobre contratos reais:
+ *
+ * - **Geral** — `GET /inventory/devices/{id}` (404 → tela "não encontrado")
+ *   + localização resolvida por `GET /inventory/locations`; checks do
+ *   perfil vêm no próprio `DeviceDto.monitoringChecks` (sem pedido extra).
+ * - **Monitoramento** — `GET /monitoring/results/{id}?limit=20` (polls com
+ *   check/status/duração/erro/`values`) + `GET /monitoring/alerts?deviceId=`
+ *   (5 últimos; total real).
+ * - **Endereços** — `GET /inventory/network-interfaces|ip-addresses|
+ *   mac-addresses?deviceId=` (IP/MAC pertencem a interface → join local).
+ * - **Portas** (só `DeviceType.Switch`) — `GET /network/switches/{id}/ports`
+ *   (reusa o serviço do T007), carregada só ao abrir a aba.
+ *
+ * Divergências do protótipo: chip Online/Offline (sem endpoint de estado
+ * atual — decisão do T007), `department`/`firmware`/`uptime` saíram (não
+ * existem no `DeviceDto`), ícones/cores agora usam o enum real
+ * `DeviceType` (Server/Switch/… — os tipos minúsculos do mock `vm`/`nas`/
+ * `gateway` não existem). Sem mutations nesta página.
+ */
+
+type Tab = "geral" | "monitoramento" | "enderecos" | "portas";
+
+const typeIcon: Record<string, string> = {
+  Server: "pi pi-server",
+  Workstation: "pi pi-desktop",
+  Switch: "pi pi-clone",
+  Router: "pi pi-compass",
+  Firewall: "pi pi-shield",
+  AccessPoint: "pi pi-wifi",
+  Printer: "pi pi-print",
+  Camera: "pi pi-video",
+  Phone: "pi pi-phone",
+  UPS: "pi pi-bolt",
+  Other: "pi pi-question",
+};
+
+const typeColor: Record<string, string> = {
+  Server: "#3b82f6",
+  Workstation: "#06b6d4",
+  Switch: "#8b5cf6",
+  Router: "#3b82f6",
+  Firewall: "#ef4444",
+  AccessPoint: "#22c55e",
+  Printer: "#f59e0b",
+  Camera: "#ec4899",
+  Phone: "#06b6d4",
+  UPS: "#f59e0b",
+  Other: "#94a3b8",
+};
+
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f3f4f6", fontSize: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "6px 0", borderBottom: "1px solid #f3f4f6", fontSize: 12 }}>
       <span style={{ color: "#6b7280" }}>{label}</span>
-      <span style={{ fontWeight: 500, fontFamily: "monospace" }}>{value}</span>
+      <span style={{ fontWeight: 500, fontFamily: "monospace", textAlign: "right", overflowWrap: "anywhere" }}>{value}</span>
     </div>
   );
 }
 
-// ============ PRINTER VIEW ============
-function PrinterView({ deviceId }: { deviceId: string }) {
-  const data = printerDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
+const tabStyle = (active: boolean) => ({
+  padding: "6px 14px",
+  fontSize: 12,
+  fontWeight: 500,
+  borderRadius: 5,
+  background: active ? "white" : "transparent",
+  color: active ? "#1a1a1a" : "#6b7280",
+  boxShadow: active ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+  border: "none",
+  cursor: "pointer",
+});
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Toner */}
-        <div className="uni-panel">
-          <div className="uni-panel-header"><h2>Toner</h2></div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[
-              { name: "Preto", value: data.tonerBlack, color: "#1a1a1a" },
-              { name: "Ciano", value: data.tonerCyan, color: "#00bcd4" },
-              { name: "Magenta", value: data.tonerMagenta, color: "#e91e63" },
-              { name: "Amarelo", value: data.tonerYellow, color: "#ffc107" },
-            ].filter(t => t.value > 0 || data.tonerCyan > 0).map((t) => (
-              <div key={t.name}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-                  <span style={{ fontWeight: 500 }}>{t.name}</span>
-                  <span style={{ color: t.value < 20 ? "#dc2626" : "#6b7280" }}>{t.value}%</span>
-                </div>
-                <ProgressBar value={t.value} color={t.value < 20 ? "#dc2626" : t.color} />
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Drum */}
-        <div className="uni-panel">
-          <div className="uni-panel-header"><h2>Cilindro (Drum)</h2></div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[
-              { name: "Preto", value: data.drumBlack, color: "#1a1a1a" },
-              { name: "Ciano", value: data.drumCyan, color: "#00bcd4" },
-              { name: "Magenta", value: data.drumMagenta, color: "#e91e63" },
-              { name: "Amarelo", value: data.drumYellow, color: "#ffc107" },
-            ].filter(t => t.value > 0 || data.drumCyan > 0).map((t) => (
-              <div key={t.name}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-                  <span style={{ fontWeight: 500 }}>{t.name}</span>
-                  <span style={{ color: t.value < 20 ? "#dc2626" : "#6b7280" }}>{t.value}%</span>
-                </div>
-                <ProgressBar value={t.value} color={t.value < 20 ? "#dc2626" : t.color} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Estatísticas</h2></div>
-        <div className="uni-panel-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, textAlign: "center" }}>
-            <div><div style={{ fontSize: 10, color: "#9ca3af" }}>Total Impressões</div><div style={{ fontSize: 18, fontWeight: 700 }}>{data.totalPages.toLocaleString()}</div></div>
-            <div><div style={{ fontSize: 10, color: "#9ca3af" }}>Hoje</div><div style={{ fontSize: 18, fontWeight: 700 }}>{data.pagesToday}</div></div>
-            <div><div style={{ fontSize: 10, color: "#9ca3af" }}>Jams</div><div style={{ fontSize: 18, fontWeight: 700, color: data.paperJams > 0 ? "#dc2626" : "#22c55e" }}>{data.paperJams}</div></div>
-            <div><div style={{ fontSize: 10, color: "#9ca3af" }}>Velocidade</div><div style={{ fontSize: 14, fontWeight: 600 }}>{data.printSpeed}</div></div>
-          </div>
-          {data.warnings.length > 0 && (
-            <div style={{ marginTop: 12, padding: 10, background: "#fefce8", borderRadius: 6, fontSize: 12 }}>
-              {data.warnings.map((w, i) => <div key={i} style={{ color: "#ca8a04" }}>⚠ {w}</div>)}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ CAMERA VIEW ============
-function CameraView({ deviceId }: { deviceId: string }) {
-  const data = cameraDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-
-  const storagePercent = (data.storageUsed / data.storageTotal) * 100;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="uni-panel">
-          <div className="uni-panel-header"><h2>Configuração</h2></div>
-          <div className="uni-panel-body">
-            <InfoRow label="Resolução" value={data.resolution} />
-            <InfoRow label="FPS" value={`${data.fps} fps`} />
-            <InfoRow label="Visão Noturno" value={data.nightVision ? "Sim" : "Não"} />
-            <InfoRow label="Detecção Movimento" value={data.motionDetection ? "Sim" : "Não"} />
-            <InfoRow label="PTZ" value={data.ptz ? "Sim" : "Não"} />
-            <InfoRow label="Microfone" value={data.micEnabled ? "Sim" : "Não"} />
-            <InfoRow label="Alto-falante" value={data.speakerEnabled ? "Sim" : "Não"} />
-            <InfoRow label="Distância IR" value={data.irDistance} />
-            <InfoRow label="Detecção IA" value={data.aiDetection ? "Sim" : "Não"} />
-          </div>
-        </div>
-        <div className="uni-panel">
-          <div className="uni-panel-header"><h2>Armazenamento</h2></div>
-          <div className="uni-panel-body">
-            <div style={{ textAlign: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 28, fontWeight: 700 }}>{data.storageUsed} GB</div>
-              <div style={{ fontSize: 11, color: "#9ca3af" }}>de {data.storageTotal} GB usados</div>
-              <div style={{ marginTop: 8 }}>
-                <ProgressBar value={storagePercent} color={storagePercent > 80 ? "#dc2626" : "#3b82f6"} />
-              </div>
-              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>{storagePercent.toFixed(1)}%</div>
-            </div>
-            <InfoRow label="Modo Gravação" value={data.recordingMode} />
-            <InfoRow label="Destino" value={data.storagePath} />
-            <InfoRow label="Eventos 24h" value={`${data.events24h}`} />
-            <InfoRow label="Movimento 24h" value={`${data.motionEvents}`} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ PHONE VIEW ============
-function PhoneView({ deviceId }: { deviceId: string }) {
-  const data = phoneDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Linhas</h2></div>
-        <div className="uni-panel-body">
-          {data.lines.map((line, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: i < data.lines.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{line.number}</div>
-                <div style={{ fontSize: 11, color: "#9ca3af" }}>{line.label}</div>
-              </div>
-              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f0fdf4", color: "#16a34a" }}>Ativa</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Chamadas Hoje</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{data.callsToday}</div>
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Perdidas</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: data.callsMissed > 0 ? "#dc2626" : "#22c55e" }}>{data.callsMissed}</div>
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Duração Média</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{data.avgCallDuration}</div>
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Chamadas Recentes</h2></div>
-        <div className="uni-panel-body">
-          {data.recentCalls.map((call, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < data.recentCalls.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-              <i className={`pi ${call.type === "Recebida" ? "pi-phone" : call.type === "Realizada" ? "pi-arrow-up" : "pi-missing"}`} style={{ fontSize: 12, color: call.type === "Perdida" ? "#dc2626" : call.type === "Recebida" ? "#22c55e" : "#3b82f6" }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 500 }}>{call.name}</div>
-                <div style={{ fontSize: 10, color: "#9ca3af" }}>{call.number}</div>
-              </div>
-              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: call.type === "Perdida" ? "#fef2f2" : "#f3f4f6", color: call.type === "Perdida" ? "#dc2626" : "#6b7280" }}>{call.type}</span>
-              <span style={{ fontSize: 11 }}>{call.duration}</span>
-              <span style={{ fontSize: 10, color: "#9ca3af" }}>{call.time}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ SERVER VIEW ============
-function ServerView({ deviceId }: { deviceId: string }) {
-  const data = serverDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="uni-panel">
-          <div className="uni-panel-header"><h2>CPU</h2></div>
-          <div className="uni-panel-body">
-            <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>{data.cpu.model}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span>Uso</span><span style={{ fontWeight: 600 }}>{data.cpu.usage}%</span></div>
-            <ProgressBar value={data.cpu.usage} color={data.cpu.usage > 80 ? "#dc2626" : "#3b82f6"} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#9ca3af", marginTop: 8 }}><span>{data.cpu.cores} cores</span><span>{data.cpu.temp}°C</span></div>
-          </div>
-        </div>
-        <div className="uni-panel">
-          <div className="uni-panel-header"><h2>Memória</h2></div>
-          <div className="uni-panel-body">
-            <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>{data.ram.total} GB total</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span>Uso</span><span style={{ fontWeight: 600 }}>{data.ram.used} GB / {data.ram.total} GB</span></div>
-            <ProgressBar value={(data.ram.used / data.ram.total) * 100} color={data.ram.used / data.ram.total > 0.8 ? "#dc2626" : "#22c55e"} />
-            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>{data.ram.free} GB livres</div>
-          </div>
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Discos</h2></div>
-        <div className="uni-panel-body">
-          {data.disks.map((disk, i) => (
-            <div key={i} style={{ marginBottom: i < data.disks.length - 1 ? 12 : 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                <span style={{ fontWeight: 500 }}>{disk.name} <span style={{ color: "#9ca3af", fontSize: 10 }}>({disk.type})</span></span>
-                <span>{disk.used} / {disk.total} GB</span>
-              </div>
-              <ProgressBar value={(disk.used / disk.total) * 100} color={(disk.used / disk.total) > 0.8 ? "#dc2626" : "#3b82f6"} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Serviços</h2></div>
-        <div className="uni-panel-body">
-          {data.services.map((svc, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: i < data.services.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-              <span style={{ fontSize: 12, fontWeight: 500 }}>{svc.name}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace" }}>:{svc.port}</span>
-                <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f0fdf4", color: "#16a34a" }}>{svc.status}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ VM VIEW ============
-function VmView({ deviceId }: { deviceId: string }) {
-  const data = vmDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>CPU</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{data.cpuUsage}%</div>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>{data.cpuCores} cores</div>
-          <ProgressBar value={data.cpuUsage} color={data.cpuUsage > 80 ? "#dc2626" : "#3b82f6"} />
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>RAM</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{data.ramUsed} GB</div>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>de {data.ramTotal} GB</div>
-          <ProgressBar value={(data.ramUsed / data.ramTotal) * 100} color={(data.ramUsed / data.ramTotal) > 0.8 ? "#dc2626" : "#22c55e"} />
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Disco</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{data.diskUsed} GB</div>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>de {data.diskTotal} GB</div>
-          <ProgressBar value={(data.diskUsed / data.diskTotal) * 100} color={(data.diskUsed / data.diskTotal) > 0.8 ? "#dc2626" : "#3b82f6"} />
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Detalhes</h2></div>
-        <div className="uni-panel-body">
-          <InfoRow label="Host" value={data.host} />
-          <InfoRow label="OS" value={data.os} />
-          <InfoRow label="Uptime" value={data.uptime} />
-          <InfoRow label="Snapshots" value={`${data.snapshots}`} />
-          <InfoRow label="Rede RX" value={data.networkRx} />
-          <InfoRow label="Rede TX" value={data.networkTx} />
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Serviços</h2></div>
-        <div className="uni-panel-body">
-          {data.services.map((svc, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: i < data.services.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-              <span style={{ fontSize: 12, fontWeight: 500 }}>{svc.name}</span>
-              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f0fdf4", color: "#16a34a" }}>{svc.status}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ SWITCH PORTS VIEW ============
-function SwitchView({ deviceId }: { deviceId: string }) {
-  const switchData = switchPorts[deviceId];
-  if (!switchData) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-  const ports = switchData.ports;
-
-  const active = ports.filter(p => p.status === "active").length;
-  const poe = ports.filter(p => p.poe).length;
-  const poeWatts = poe * 15.4;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Portas Ativas</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{active}/{ports.length}</div>
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>PoE Ativos</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#f59e0b" }}>{poe}</div>
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>PoE Watts</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{poeWatts.toFixed(1)}W</div>
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Portas</h2></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 6, padding: 16 }}>
-          {ports.map((port) => (
-            <div key={port.port} style={{
-              padding: "8px 4px", borderRadius: 6, border: `2px solid ${port.status === "active" ? "#22c55e" : port.status === "disabled" ? "#f59e0b" : "#e5e7eb"}`,
-              background: port.status === "active" ? "#f0fdf4" : port.status === "disabled" ? "#fefce8" : "#f9fafb",
-              textAlign: "center", fontSize: 10, cursor: "pointer", transition: "all 0.12s"
-            }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{port.port}</div>
-              {port.poe && <div style={{ fontSize: 8, color: "#f59e0b", fontWeight: 700 }}>PoE</div>}
-              {port.device !== "—" && <div style={{ fontSize: 8, color: "#6b7280", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{port.device}</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ NAS VIEW ============
-function NasView({ deviceId }: { deviceId: string }) {
-  const data = nasDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Discos</h2></div>
-        <div className="uni-panel-body">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-            {data.disks.map((disk) => (
-              <div key={disk.slot} style={{ padding: 12, borderRadius: 6, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
-                <div style={{ fontSize: 10, color: "#9ca3af" }}>Slot {disk.slot}</div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>{disk.model}</div>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>{disk.size} GB · {disk.temp}°C</div>
-                <div style={{ fontSize: 10, color: "#22c55e", fontWeight: 500, marginTop: 4 }}>{disk.status}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Volumes</h2></div>
-        <div className="uni-panel-body">
-          {data.volumes.map((vol, i) => (
-            <div key={i} style={{ marginBottom: i < data.volumes.length - 1 ? 12 : 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-                <span style={{ fontWeight: 500 }}>{vol.name} <span style={{ color: "#9ca3af", fontSize: 10 }}>({vol.raid} · {vol.filesystem})</span></span>
-                <span>{vol.used} / {vol.size} GB</span>
-              </div>
-              <ProgressBar value={(vol.used / vol.size) * 100} color="#3b82f6" />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Serviços</h2></div>
-        <div className="uni-panel-body">
-          {data.services.map((svc, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderBottom: i < data.services.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-              <span style={{ fontSize: 12, fontWeight: 500 }}>{svc.name}</span>
-              <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f0fdf4", color: "#16a34a" }}>{svc.status}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ UPS VIEW ============
-function UpsView({ deviceId }: { deviceId: string }) {
-  const data = upsDetails[deviceId];
-  if (!data) return <div style={{ padding: 20, color: "#9ca3af" }}>Dados não disponíveis</div>;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Bateria</div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: data.batteryLevel > 50 ? "#22c55e" : "#dc2626" }}>{data.batteryLevel}%</div>
-          <ProgressBar value={data.batteryLevel} color={data.batteryLevel > 50 ? "#22c55e" : "#dc2626"} />
-          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>{data.batteryTimeLeft} restantes</div>
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Carga</div>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{data.loadPercent}%</div>
-          <ProgressBar value={data.loadPercent} color={data.loadPercent > 80 ? "#dc2626" : "#3b82f6"} />
-          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>{data.capacity} VA</div>
-        </div>
-        <div className="uni-panel" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>Temperatura</div>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{data.temperature}°C</div>
-          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>{data.inputVoltage}V → {data.outputVoltage}V</div>
-        </div>
-      </div>
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Informações</h2></div>
-        <div className="uni-panel-body">
-          <InfoRow label="Modelo" value={data.model} />
-          <InfoRow label="Último Self-Test" value={data.lastSelfTest} />
-          <InfoRow label="Substituir Bateria" value={data.replaceBattery} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ MAIN DEVICE DETAIL ============
 export function DeviceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const device = allDevices.find(d => d.id === id);
 
-  if (!device) {
+  const [device, setDevice] = useState<DeviceItem | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [locations, setLocations] = useState<Record<string, string>>({});
+
+  const [tab, setTab] = useState<Tab>("geral");
+
+  const [results, setResults] = useState<MonitoringResultItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [alertsTotal, setAlertsTotal] = useState(0);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+
+  const [interfaces, setInterfaces] = useState<NetworkInterfaceItem[]>([]);
+  const [ips, setIps] = useState<IpAddressItem[]>([]);
+  const [macs, setMacs] = useState<MacAddressItem[]>([]);
+  const [addrTotals, setAddrTotals] = useState({ networkInterfaces: 0, ipAddresses: 0, macAddresses: 0 });
+  const [addrLoading, setAddrLoading] = useState(false);
+
+  const [ports, setPorts] = useState<SwitchPortItem[]>([]);
+  const [portsTotal, setPortsTotal] = useState(0);
+  const [portsLoading, setPortsLoading] = useState(false);
+
+  // Abas carregam uma vez (ref síncrono protege do duplo-effect do StrictMode).
+  const requested = useRef<Set<Tab>>(new Set());
+
+  const loadDevice = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    setNotFound(false);
+    try {
+      const data = await getDevice(id);
+      if (data) setDevice(data);
+      else setNotFound(true);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 404) setNotFound(true);
+      else setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void loadDevice();
+  }, [loadDevice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listLocations()
+      .then((page) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        page.items.forEach((entry) => { map[entry.id] = entry.name; });
+        setLocations(map);
+      })
+      .catch(() => { /* rótulo de localização é auxiliar — em falha mostra o Guid */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const loadMonitoring = useCallback(async () => {
+    if (!id) return;
+    setMonitoringLoading(true);
+    setError(null);
+    try {
+      const [deviceResults, deviceAlerts] = await Promise.all([
+        getDeviceResults(id, 20),
+        listAlerts({ deviceId: id, page: 1, pageSize: 5 }),
+      ]);
+      setResults(deviceResults?.results ?? []);
+      setAlerts(deviceAlerts.items);
+      setAlertsTotal(deviceAlerts.totalCount);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setMonitoringLoading(false);
+    }
+  }, [id]);
+
+  const loadAddresses = useCallback(async () => {
+    if (!id) return;
+    setAddrLoading(true);
+    setError(null);
+    try {
+      const [networkInterfaces, ipAddresses, macAddresses] = await Promise.all([
+        listNetworkInterfaces(id),
+        listDeviceIps(id),
+        listDeviceMacs(id),
+      ]);
+      setInterfaces(networkInterfaces.items);
+      setIps(ipAddresses.items);
+      setMacs(macAddresses.items);
+      setAddrTotals({
+        networkInterfaces: networkInterfaces.totalCount,
+        ipAddresses: ipAddresses.totalCount,
+        macAddresses: macAddresses.totalCount,
+      });
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setAddrLoading(false);
+    }
+  }, [id]);
+
+  const loadPorts = useCallback(async () => {
+    if (!id) return;
+    setPortsLoading(true);
+    setError(null);
+    try {
+      const page = await listSwitchPorts(id);
+      setPorts(page.items);
+      setPortsTotal(page.totalCount);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setPortsLoading(false);
+    }
+  }, [id]);
+
+  function requestTab(name: Tab, force = false) {
+    if (!force && requested.current.has(name)) return;
+    requested.current.add(name);
+    if (name === "monitoramento") void loadMonitoring();
+    else if (name === "enderecos") void loadAddresses();
+    else if (name === "portas") void loadPorts();
+  }
+
+  useEffect(() => {
+    if (device) requestTab(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, device]);
+
+  if (notFound) {
     return (
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
@@ -455,66 +255,370 @@ export function DeviceDetailPage() {
     );
   }
 
-  const typeIcons: Record<string, string> = {
-    gateway: "pi pi-th-large", switch: "pi pi-server", ap: "pi pi-wifi",
-    printer: "pi pi-print", camera: "pi pi-video", phone: "pi pi-phone",
-    server: "pi pi-desktop", vm: "pi pi-box", nas: "pi pi-database",
-    ups: "pi pi-bolt", storage: "pi pi-database"
-  };
-  const typeColors: Record<string, string> = {
-    gateway: "#3b82f6", switch: "#8b5cf6", ap: "#22c55e",
-    printer: "#f59e0b", camera: "#ec4899", phone: "#06b6d4",
-    server: "#3b82f6", vm: "#8b5cf6", nas: "#22c55e",
-    ups: "#f59e0b", storage: "#3b82f6"
-  };
+  if (loading && !device) {
+    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+  }
 
-  const renderTypeView = () => {
-    switch (device.type) {
-      case "printer": return <PrinterView deviceId={device.id} />;
-      case "camera": return <CameraView deviceId={device.id} />;
-      case "phone": return <PhoneView deviceId={device.id} />;
-      case "server": return <ServerView deviceId={device.id} />;
-      case "vm": return <VmView deviceId={device.id} />;
-      case "switch": return <SwitchView deviceId={device.id} />;
-      case "nas": return <NasView deviceId={device.id} />;
-      case "ups": return <UpsView deviceId={device.id} />;
-      default: return <div style={{ padding: 20, color: "#9ca3af" }}>Visualização não disponível para este tipo</div>;
-    }
-  };
+  if (!device) {
+    return (
+      <div className="uni-page-empty">
+        <i className="pi pi-exclamation-circle" />
+        <h2>{error ?? "Erro ao carregar o dispositivo"}</h2>
+        <button onClick={() => void loadDevice()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+          Tentar de novo
+        </button>
+      </div>
+    );
+  }
+
+  const icon = typeIcon[device.type] ?? "pi pi-question";
+  const color = typeColor[device.type] ?? "#3b82f6";
+  const isSwitch = device.type === "Switch";
+  const tabs: Array<{ id: Tab; label: string }> = [
+    { id: "geral", label: "Geral" },
+    { id: "monitoramento", label: "Monitoramento" },
+    { id: "enderecos", label: "Endereços" },
+    ...(isSwitch ? [{ id: "portas" as Tab, label: "Portas" }] : []),
+  ];
+
+  const interfaceName = (interfaceId: string): string =>
+    interfaces.find((entry) => entry.id === interfaceId)?.name ?? "—";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={() => navigate("/devices")} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", background: "white" }}>
+        <button onClick={() => navigate("/devices")} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", background: "white", cursor: "pointer" }}>
           <i className="pi pi-arrow-left" style={{ fontSize: 12 }} />
         </button>
-        <div style={{ width: 40, height: 40, borderRadius: 8, background: `${typeColors[device.type]}15`, color: typeColors[device.type], display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <i className={typeIcons[device.type] || "pi pi-circle"} />
+        <div style={{ width: 40, height: 40, borderRadius: 8, background: `${color}15`, color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <i className={icon} />
         </div>
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 700 }}>{device.name}</h1>
-          <p style={{ fontSize: 12, color: "#6b7280" }}>{device.model} · {device.ip}</p>
+          <p style={{ fontSize: 12, color: "#6b7280" }}>
+            {device.model ?? device.type} · {device.ip ?? "sem IP"}
+          </p>
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: device.status === "online" ? "#f0fdf4" : device.status === "warning" ? "#fefce8" : "#fef2f2", color: device.status === "online" ? "#16a34a" : device.status === "warning" ? "#ca8a04" : "#dc2626" }}>
-          {device.status === "online" ? "Online" : device.status === "warning" ? "Atenção" : "Offline"}
+        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: `${color}15`, color }}>
+          {device.type}
         </span>
       </div>
 
-      {/* Info Bar */}
+      {/* Info bar */}
       <div className="uni-panel" style={{ padding: 12 }}>
         <div style={{ display: "flex", gap: 20, fontSize: 11, color: "#6b7280", flexWrap: "wrap" }}>
-          <span><i className="pi pi-map-marker" style={{ marginRight: 4 }} />{device.location}</span>
-          <span><i className="pi pi-building" style={{ marginRight: 4 }} />{device.department}</span>
-          <span><i className="pi pi-tag" style={{ marginRight: 4 }} />{device.serial}</span>
-          <span><i className="pi pi-code" style={{ marginRight: 4 }} />v{device.firmware}</span>
-          <span><i className="pi pi-clock" style={{ marginRight: 4 }} />{device.uptime}</span>
-          <span style={{ fontFamily: "monospace" }}>{device.mac}</span>
+          <span><i className="pi pi-map-marker" style={{ marginRight: 4 }} />{locations[device.locationId] ?? device.locationId}</span>
+          {device.serial && <span><i className="pi pi-tag" style={{ marginRight: 4 }} />{device.serial}</span>}
+          {device.vendor && <span><i className="pi pi-credit-card" style={{ marginRight: 4 }} />{device.vendor}</span>}
+          {device.mac && <span style={{ fontFamily: "monospace" }}>{device.mac}</span>}
         </div>
       </div>
 
-      {/* Type-Specific View */}
-      {renderTypeView()}
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => { setError(null); requestTab(tab, true); }} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {/* Abas */}
+      <div style={{ display: "flex", gap: 4, background: "#f3f4f6", padding: 2, borderRadius: 6, alignSelf: "flex-start" }}>
+        {tabs.map((entry) => (
+          <button key={entry.id} onClick={() => setTab(entry.id)} style={tabStyle(tab === entry.id)}>
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Geral */}
+      {tab === "geral" && (
+        <div className="uni-panel">
+          <div className="uni-panel-header"><h2>Identificação</h2></div>
+          <div className="uni-panel-body">
+            <InfoRow label="Nome" value={device.name} />
+            <InfoRow label="Tipo" value={device.type} />
+            <InfoRow label="IP" value={device.ip ?? "—"} />
+            <InfoRow label="MAC" value={device.mac ?? "—"} />
+            <InfoRow label="Serial" value={device.serial ?? "—"} />
+            <InfoRow label="Modelo" value={device.model ?? "—"} />
+            <InfoRow label="Vendor" value={device.vendor ?? "—"} />
+            <InfoRow label="Localização" value={locations[device.locationId] ?? device.locationId} />
+            <InfoRow label="Descrição" value={device.description ?? "—"} />
+            <InfoRow label="Perfil de checks" value={device.profileIsCustom ? "personalizado (override)" : "padrão do tipo"} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "8px 0", fontSize: 12 }}>
+              <span style={{ color: "#6b7280" }}>Checks ativos</span>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                {device.monitoringChecks.length > 0 ? (
+                  device.monitoringChecks.map((check) => (
+                    <span key={check} style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#eff6ff", color: "#2563eb" }}>
+                      {check}
+                    </span>
+                  ))
+                ) : (
+                  <span style={{ fontFamily: "monospace" }}>—</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Monitoramento */}
+      {tab === "monitoramento" && (
+        <>
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Últimos polls</h2>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>até 20, mais recentes primeiro</span>
+            </div>
+            <table className="uni-clients-table">
+              <thead>
+                <tr>
+                  <th>Check</th>
+                  <th>Status</th>
+                  <th>Duração</th>
+                  <th>Detalhes</th>
+                  <th>Quando</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((result) => (
+                  <tr key={result.id}>
+                    <td style={{ fontWeight: 500, fontSize: 12 }}>{result.check}</td>
+                    <td>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: result.succeeded ? "#f0fdf4" : "#fef2f2", color: result.succeeded ? "#15803d" : "#dc2626" }}>
+                        {result.succeeded ? "OK" : "Falhou"}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 12, color: "#64748b" }}>{result.durationMs} ms</td>
+                    <td style={{ fontSize: 11, maxWidth: 260 }}>
+                      {result.error ? (
+                        <span style={{ color: "#dc2626" }}>{result.error}</span>
+                      ) : result.values ? (
+                        <span style={{ fontFamily: "monospace", color: "#64748b", overflowWrap: "anywhere" }}>
+                          {Object.entries(result.values).map(([key, value]) => `${key}=${value}`).join(" · ")}
+                        </span>
+                      ) : (
+                        <span style={{ color: "#94a3b8" }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(result.checkedAt))}</td>
+                  </tr>
+                ))}
+                {!monitoringLoading && results.length === 0 && !error && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                      Nenhum poll registrado ainda — o histórico nasce com a execução dos checks
+                    </td>
+                  </tr>
+                )}
+                {monitoringLoading && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                      Carregando…
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Alertas deste dispositivo</h2>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>{alertsTotal} no total · mostrando até 5</span>
+            </div>
+            <table className="uni-clients-table">
+              <thead>
+                <tr>
+                  <th>Severidade</th>
+                  <th>Check</th>
+                  <th>Mensagem</th>
+                  <th>Status</th>
+                  <th>Aberto em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alerts.map((alert) => (
+                  <tr key={alert.id}>
+                    <td>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: alert.severity === "Critical" ? "#fef2f2" : "#fef3c7", color: alert.severity === "Critical" ? "#dc2626" : "#d97706" }}>
+                        {alert.severity === "Critical" ? "Crítico" : "Atenção"}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 12, fontWeight: 500 }}>{alert.check}</td>
+                    <td style={{ fontSize: 12, color: "#64748b" }}>{alert.message}</td>
+                    <td style={{ fontSize: 12 }}>{alert.status === "Open" ? "Aberto" : alert.status === "Resolved" ? "Resolvido" : "Suprimido"}</td>
+                    <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(alert.openedAt))}</td>
+                  </tr>
+                ))}
+                {!monitoringLoading && alerts.length === 0 && !error && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                      Nenhum alerta neste dispositivo
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Endereços */}
+      {tab === "enderecos" && (
+        <>
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Interfaces de rede</h2>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                {addrTotals.networkInterfaces > interfaces.length
+                  ? `mostrando ${interfaces.length} de ${addrTotals.networkInterfaces}`
+                  : `${interfaces.length}`}
+              </span>
+            </div>
+            <table className="uni-clients-table">
+              <thead>
+                <tr><th>Nome</th><th>Descrição</th></tr>
+              </thead>
+              <tbody>
+                {interfaces.map((entry) => (
+                  <tr key={entry.id}>
+                    <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{entry.name}</td>
+                    <td style={{ fontSize: 12, color: "#64748b" }}>{entry.description ?? "—"}</td>
+                  </tr>
+                ))}
+                {!addrLoading && interfaces.length === 0 && !error && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                      Nenhuma interface cadastrada
+                    </td>
+                  </tr>
+                )}
+                {addrLoading && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Endereços IP</h2>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                {addrTotals.ipAddresses > ips.length ? `mostrando ${ips.length} de ${addrTotals.ipAddresses}` : `${ips.length}`}
+              </span>
+            </div>
+            <table className="uni-clients-table">
+              <thead>
+                <tr><th>IP</th><th>Interface</th></tr>
+              </thead>
+              <tbody>
+                {ips.map((entry) => (
+                  <tr key={entry.id}>
+                    <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{entry.ip}</td>
+                    <td style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }}>{interfaceName(entry.interfaceId)}</td>
+                  </tr>
+                ))}
+                {!addrLoading && ips.length === 0 && !error && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                      Nenhum endereço IP cadastrado
+                    </td>
+                  </tr>
+                )}
+                {addrLoading && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Endereços MAC</h2>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                {addrTotals.macAddresses > macs.length ? `mostrando ${macs.length} de ${addrTotals.macAddresses}` : `${macs.length}`}
+              </span>
+            </div>
+            <table className="uni-clients-table">
+              <thead>
+                <tr><th>MAC</th><th>Interface</th></tr>
+              </thead>
+              <tbody>
+                {macs.map((entry) => (
+                  <tr key={entry.id}>
+                    <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{entry.mac}</td>
+                    <td style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }}>{interfaceName(entry.interfaceId)}</td>
+                  </tr>
+                ))}
+                {!addrLoading && macs.length === 0 && !error && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                      Nenhum endereço MAC cadastrado
+                    </td>
+                  </tr>
+                )}
+                {addrLoading && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Portas (só Switch) */}
+      {tab === "portas" && isSwitch && (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Portas</h2>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+              {portsTotal > ports.length ? `mostrando ${ports.length} de ${portsTotal}` : `${ports.length}`}
+            </span>
+          </div>
+          <table className="uni-clients-table">
+            <thead>
+              <tr><th>Nome</th><th>Descrição</th><th>Link</th></tr>
+            </thead>
+            <tbody>
+              {ports.map((port) => (
+                <tr key={port.id}>
+                  <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{port.name}</td>
+                  <td style={{ fontSize: 12, color: "#64748b" }}>{port.description ?? "—"}</td>
+                  <td>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: port.linkUp === true ? "#f0fdf4" : port.linkUp === false ? "#fef2f2" : "#f1f5f9", color: port.linkUp === true ? "#15803d" : port.linkUp === false ? "#dc2626" : "#64748b" }}>
+                      {port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {!portsLoading && ports.length === 0 && !error && (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                    Nenhuma porta cadastrada
+                  </td>
+                </tr>
+              )}
+              {portsLoading && (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

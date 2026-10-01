@@ -118,3 +118,62 @@ export function createDevice(input: {
     description: input.description || undefined,
   });
 }
+
+// ============ F17-T017 — detalhe do device ============
+
+/**
+ * Device por id (Read) — 404 pt-BR no envelope quando não existe
+ * (`KeyNotFoundException` do handler). Mesmo `DeviceDto` da lista.
+ */
+export async function getDevice(id: string): Promise<DeviceItem | null> {
+  return api.get<DeviceItem>(`/inventory/devices/${id}`);
+}
+
+export interface NetworkInterfaceItem {
+  id: string;
+  deviceId: string;
+  name: string;
+  description: string | null;
+}
+
+export interface IpAddressItem {
+  id: string;
+  interfaceId: string;
+  ip: string;
+}
+
+export interface MacAddressItem {
+  id: string;
+  interfaceId: string;
+  mac: string;
+}
+
+/** Interfaces de rede do device (`?deviceId=`; página única de 100). */
+export async function listNetworkInterfaces(
+  deviceId: string,
+): Promise<Paged<NetworkInterfaceItem>> {
+  const data = await api.get<Paged<NetworkInterfaceItem>>(
+    `/inventory/network-interfaces?deviceId=${deviceId}&page=1&pageSize=${INVENTORY_PAGE_SIZE}`,
+  );
+  return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
+}
+
+/** IPs por device (`?deviceId=`; pertencem a uma interface — join no front). */
+export async function listDeviceIps(
+  deviceId: string,
+): Promise<Paged<IpAddressItem>> {
+  const data = await api.get<Paged<IpAddressItem>>(
+    `/inventory/ip-addresses?deviceId=${deviceId}&page=1&pageSize=${INVENTORY_PAGE_SIZE}`,
+  );
+  return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
+}
+
+/** MACs por device (`?deviceId=`; pertencem a uma interface). */
+export async function listDeviceMacs(
+  deviceId: string,
+): Promise<Paged<MacAddressItem>> {
+  const data = await api.get<Paged<MacAddressItem>>(
+    `/inventory/mac-addresses?deviceId=${deviceId}&page=1&pageSize=${INVENTORY_PAGE_SIZE}`,
+  );
+  return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
+}

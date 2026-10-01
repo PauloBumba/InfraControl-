@@ -2,8 +2,9 @@ import { api } from "./client";
 
 /**
  * F17-T009 — contrato real de `GET /api/v1/monitoring/alerts`
- * (`SearchAlertsQuery` → `PagedResult<AlertDto>`), usado pelo Dashboard e
- * futuro pela AlertsPage. `severity`/`status` chegam como strings
+ * (`SearchAlertsQuery` → `PagedResult<AlertDto>`), usado pelo Dashboard,
+ * AlertsPage (T011) e DeviceDetail (T017, filtro `deviceId` — parâmetro
+ * real do endpoint). `severity`/`status` chegam como strings
  * `ToString()` ("Critical"/"Warning"; "Open"/"Resolved"/"Suppressed");
  * o parâmetro `status` da query é validado em minúsculas
  * (open|resolved|suppressed — valor fora responde 400 pt-BR).
@@ -35,11 +36,13 @@ export interface Paged<T> {
 export type AlertStatusFilter = "open" | "resolved" | "suppressed";
 
 export async function listAlerts(filters: {
+  deviceId?: string;
   status?: AlertStatusFilter;
   page?: number;
   pageSize?: number;
 } = {}): Promise<Paged<AlertItem>> {
   const params = new URLSearchParams();
+  if (filters.deviceId) params.set("deviceId", filters.deviceId);
   if (filters.status) params.set("status", filters.status);
   params.set("page", String(filters.page ?? 1));
   params.set("pageSize", String(filters.pageSize ?? 20));

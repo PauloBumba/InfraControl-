@@ -544,14 +544,33 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     houver produto de tráfego, decidir entre construir o backend, apagar a
     página/rota ou manter como demo — decisão humana registrada aqui e no
     PROJECT_STATE
+  - [x] **F17-T017 `DeviceDetailPage`** — novo `services/api/monitoring.ts`
+    (`GET /monitoring/results/{id}?limit=` → `DeviceResultsDto`
+    `{check,succeeded,durationMs,error,values,checkedAt}`) + extensão de
+    `inventory.ts` (`GET /inventory/devices/{id}` com 404 → tela "não
+    encontrado"; `network-interfaces|ip-addresses|mac-addresses?deviceId=`
+    → coleções de 100) + `deviceId` exposto em `listAlerts` (parâmetro
+    real do endpoint, T011). **Todos os `*View` por tipo do protótipo
+    saíram** (toner/drum, linhas de telefone, CPU/mem/discos/serviços,
+    portas/volumes do NAS, bateria da UPS — telemetria de agente sem
+    backend; `vm`/`nas`/`gateway` nem existem no enum `DeviceType`). A
+    página virou 4 abas: **Geral** (identificação completa + checks do
+    perfil vindos no próprio `DeviceDto.monitoringChecks` + localização
+    resolvida por `listLocations`), **Monitoramento** (20 polls com
+    `values` exibidos tipo `roundtrip_ms` + 5 alertas do device com total
+    real), **Endereços** (interfaces/IPs/MACs com join local
+    interfaceId→nome e aviso de truncamento) e **Portas** (só
+    `DeviceType.Switch`, lazy ao abrir a aba, reusa o serviço do T007 com
+    `linkUp` tri-estado). Chip Online/Offline e `department`/`firmware`/
+    `uptime` saíram (sem contrato — mesma decisão do T007); abas carregam
+    uma vez (ref contra duplo-effect do StrictMode)
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
-    N/A + Insights esvaziado); o grupo permanece aberto por
-    `DeviceDetailPage` (task separada já prevista), pela decisão de
+    N/A + Insights esvaziado); o grupo permanece aberto pela decisão de
     produto do Insights (construir backend / apagar página / demo) e pelas
-    páginas fora do checklist ainda em mock (`LocationsPage`, `LogsPage`,
-    `SwitchesPage`, `TopologyPage`) — escopo para decisão humana.
-    Os gaps de backend identificados aqui viram a **frente F18**
-    (subseção própria abaixo)
+    páginas restantes `LocationsPage`, `LogsPage`, `SwitchesPage`,
+    `TopologyPage` (escopo autorizado pelo usuário em 01/10 — próximas
+    tasks T018+). Os gaps de backend identificados aqui viram a **frente
+    F18** (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
