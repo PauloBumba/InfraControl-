@@ -50,6 +50,14 @@ public sealed class AuthenticationMeTests
         return (string[])data!.GetType().GetProperty("roles")!.GetValue(data)!;
     }
 
+    private static string? UserIdIn(IActionResult result)
+    {
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = ok.Value!.GetType().GetProperty("Data")!.GetValue(ok.Value);
+
+        return (string?)data!.GetType().GetProperty("userId")!.GetValue(data);
+    }
+
     [Fact]
     public void Me_Should_Return_Roles_From_ClaimTypesRole()
     {
@@ -89,6 +97,28 @@ public sealed class AuthenticationMeTests
             new Claim(ClaimTypes.NameIdentifier, "user-123"));
 
         RolesIn(controller.Me()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Me_Should_Return_UserId_From_The_Session_Identity_Claim()
+    {
+        // O cookie nasce em CreatePrincipal com ClaimTypes.NameIdentifier (URI
+        // longa). Me() lia "sub"/"nameidentifier" e nunca achava: userId saía
+        // null e o frontend (auth.ts id: payload.userId) ficava sem identidade.
+        var userId = Guid.NewGuid().ToString();
+        var controller = ControllerWith(
+            new Claim(ClaimTypes.NameIdentifier, userId),
+            new Claim(ClaimTypes.Email, "admin@exemplo.test"));
+
+        UserIdIn(controller.Me()).Should().Be(userId);
+    }
+
+    [Fact]
+    public void Me_Should_Return_Null_UserId_When_Unauthenticated_But_Not_Crash()
+    {
+        // /auth/me é [Authorize]; aqui só garante que a leitura da claim é
+        // tolerante (sem claim de identidade → null, não exceção).
+        UserIdIn(ControllerWith().Me()).Should().BeNull();
     }
 
     [Fact]

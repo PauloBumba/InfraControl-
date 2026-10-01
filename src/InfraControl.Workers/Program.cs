@@ -24,20 +24,26 @@ Log.Logger = new LoggerConfiguration()
 // linha sai duas vezes.
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(Log.Logger);
+// Consumers do broker — combinados com o UsingRabbitMq do AddInfrastructure
+// (ADR-004/docs/06: OutboxWorker publica, aqui consome). Entram pela MESMA
+// chamada de AddMassTransit: uma segunda chamada aqui derrubava o boot com
+// MassTransit.ConfigurationException ("already called ... may only be called
+// once per container").
+builder.Services.AddInfrastructure(
+    builder.Configuration,
+    configuration =>
+    {
+        configuration.AddConsumers(typeof(NotificationEventConsumer).Assembly);
 
+        // ADR-021: observador global — levanta o CorrelationId do header da
+        // mensagem para o LogContext de qualquer consumer, sem alterá-los.
+        configuration.AddConsumeObserver<CorrelationIdConsumeObserver>();
+    });
+
+builder.Services.AddMediatR(configuration =>
+    configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationMediatR();
-
-// Consumers do broker — combinados com o UsingRabbitMq do AddInfrastructure
-// (ADR-004/docs/06: OutboxWorker publica, aqui consome).
-builder.Services.AddMassTransit(configuration =>
-{
-    configuration.AddConsumers(typeof(NotificationEventConsumer).Assembly);
-
-    // ADR-021: observador global — levanta o CorrelationId do header da
-    // mensagem para o LogContext de qualquer consumer, sem alterá-los.
-    configuration.AddConsumeObserver<CorrelationIdConsumeObserver>();
-});
 
 // F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —
 // a MESMA seção que o host da Api lê para os workers de canal.

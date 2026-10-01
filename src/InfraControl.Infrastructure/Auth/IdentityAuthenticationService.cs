@@ -76,7 +76,12 @@ public sealed class IdentityAuthenticationService(
         if (identityUser is null || !await userManager.CheckPasswordAsync(identityUser, request.Password))
             return LoginOutcome.Failed(LoginFailure.InvalidCredentials);
 
-        var domainUser = await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
+        // Roles moram na coleção _roleAssignments (campo mapeado): sem o
+        // Include o aggregate volta sem elas, o cookie nasce sem ClaimTypes.Role
+        // e toda policy nega. Mesmo Include de IdentityAdministrationService.
+        var domainUser = await dbContext.DomainUsers
+            .Include(user => user.RoleAssignments)
+            .FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
         if (domainUser is null || !domainUser.IsActive)
             return LoginOutcome.Failed(LoginFailure.InvalidCredentials);
 
@@ -113,7 +118,9 @@ public sealed class IdentityAuthenticationService(
             return null;
 
         var identityUser = await userManager.FindByIdAsync(session.UserId.ToString());
-        var domainUser = await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == session.UserId, cancellationToken);
+        var domainUser = await dbContext.DomainUsers
+            .Include(user => user.RoleAssignments)
+            .FirstOrDefaultAsync(user => user.Id == session.UserId, cancellationToken);
         if (identityUser is null || domainUser is null || !domainUser.IsActive)
             return null;
 
@@ -373,7 +380,9 @@ public sealed class IdentityAuthenticationService(
         var identityUser = await userManager.FindByEmailAsync(email);
         var domainUser = identityUser is null
             ? null
-            : await dbContext.DomainUsers.FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
+            : await dbContext.DomainUsers
+                .Include(user => user.RoleAssignments)
+                .FirstOrDefaultAsync(user => user.Id == identityUser.Id, cancellationToken);
 
         // Sem provisionamento e sem autoativação: conta ausente ou inativa é a
         // mesma resposta. O e-mail NÃO é logado (LGPD, docs/security).

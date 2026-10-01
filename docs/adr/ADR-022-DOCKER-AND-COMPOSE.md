@@ -32,7 +32,9 @@ separação em três arquivos duplicaria o restore e o `COPY` de todo o contexto
 
 ### 2. nginx serve o frontend e é o proxy da API
 
-Uma origem só. nginx atende o React e encaminha `/api/v1` e `/hubs` para a API.
+Uma origem só. nginx atende o React e encaminha `/api`, `/hubs` e `/health`
+para a API (a página de saúde da SPA é `/status` justamente para não disputar
+`/health` com os health checks, que ficam na raiz do backend).
 
 Isso é o que **elimina** a necessidade de CORS: mesma origem, o cookie
 `SameSite=Strict` volta a valer, e `Secure` funciona porque há TLS no nginx

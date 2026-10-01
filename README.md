@@ -179,6 +179,11 @@ A API expõe health checks em:
 /health/startup
 ```
 
+O nginx repassa esses caminhos na mesma origem do app (o mesmo vale para o
+proxy do Vite em dev, junto com `/api` e `/hubs`). Por isso a página de saúde
+da SPA ficou em `/status` — se ela voltar para `/health`, disputa a rota com a
+API.
+
 A documentação OpenAPI é disponibilizada no ambiente de desenvolvimento.
 
 ## Executar o frontend

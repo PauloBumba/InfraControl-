@@ -1,7 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs;
-using InfraControl.Infrastructure.Discovery;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Discovery;

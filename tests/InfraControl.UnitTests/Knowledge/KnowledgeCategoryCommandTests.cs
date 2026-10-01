@@ -43,7 +43,8 @@ public sealed class KnowledgeCategoryCommandTests : IDisposable
         => new(new KnowledgeCategoryRepository(context), NullLogger<UpdateKnowledgeCategoryCommandHandler>.Instance);
 
     private static DeleteKnowledgeCategoryCommandHandler DeleteHandler(AppDbContext context)
-        => new(new KnowledgeCategoryRepository(context), NullLogger<DeleteKnowledgeCategoryCommandHandler>.Instance);
+        => new(new KnowledgeCategoryRepository(context),
+            NullLogger<DeleteKnowledgeCategoryCommandHandler>.Instance);
 
     [Fact]
     public async Task Create_ShouldPersistAndReturnDto()

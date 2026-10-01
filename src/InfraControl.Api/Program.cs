@@ -19,6 +19,7 @@ using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenTelemetry.Metrics;
@@ -94,6 +95,10 @@ builder.Services
 // ExceptionHandler must be set") e a API não sobe em NENHUM ambiente.
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+// O .NET 10 exige IProblemDetailsService quando UseExceptionHandler() vem sem
+// delegate — o IExceptionHandler acima não basta (só é consultado na hora de
+// tratar, depois do construtor do middleware). Sem isto a API morre no boot.
+builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddAuthentication(options =>
@@ -140,6 +145,26 @@ builder.Services
     .ValidateOnStart();
 builder.Services.Configure<CookiePolicyOptions>(options =>
     options.CheckConsentNeeded = _ => false);
+
+// ── Proxy reverso (ADR-022) ──────────────────────────────────────────────
+// A API só é alcançada pelo nginx (rede interna do compose), que envia
+// X-Forwarded-For/X-Forwarded-Proto/X-Forwarded-Host. Sem consumir, todo
+// request chega com o IP do container de front: o rate limit por IP (login
+// 5/60s) viraria limite global e Request.Scheme/Request.Host gerariam links
+// de e-mail como http://api:8080 em vez da origem do navegador.
+// X-Forwarded-Host porque `Host $host` do nginx descarta a porta: sem este
+// header o Request.Host perde :8445 e os links saem quebrados fora de 443.
+// KnownIPNetworks/KnownProxies são limpos porque a rede Docker não é fixa o
+// suficiente para a lista default (que só reconhece 127.0.0.0/4 ::1); em
+// produção atrás de LB público, restringir de novo.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+        | ForwardedHeaders.XForwardedProto
+        | ForwardedHeaders.XForwardedHost;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ── Rate limiting HTTP (ADR-011 / docs/08) ───────────────────────────────
 // Camada HTTP do ASP.NET Core Rate Limiter com estado distribuído no Redis
@@ -192,7 +217,13 @@ if (builder.Configuration.GetValue<bool>($"{BootstrapAdminOptions.SectionName}:E
 }
 
 // ── Pipeline ─────────────────────────────────────────────────────────────
-// F0-T023: exceções não tratadas → envelope ApiResponse (deve ser o primeiro).
+// ADR-022: tem de ser o primeiro — o restante do pipeline (log de requisição,
+// rate limit por IP, links gerados com Request.Scheme) lê o valor que ele
+// corrige a partir dos headers do nginx.
+app.UseForwardedHeaders();
+
+// F0-T023: exceções não tratadas → envelope ApiResponse (deve ser o primeiro
+// dos middlewares de aplicação; só o ForwardedHeaders vem antes).
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
@@ -200,7 +231,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// Sem UseHttpsRedirection: em produção o TLS termina no nginx (ADR-022) e a
+// API escuta só HTTP dentro da rede Docker — não há porta HTTPS para a qual
+// redirecionar. Em dev o proxy do Vite já encaminha para o perfil https.
 app.UseAuthentication();
 
 // F1-T015/ADR-017: escrita autenticada por cookie exige token de antiforgery.

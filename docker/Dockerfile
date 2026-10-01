@@ -60,8 +60,12 @@ COPY frontend/InfraControl.Web/ ./
 # VITE_). Sem isto o login Google não aparece em produção.
 ARG VITE_GOOGLE_CLIENT_ID=
 ARG VITE_API_BASE_URL=
+# URL da plataforma de logs (Seq) para o botão da LogsPage — em produção é o
+# host+porta publicados pelo nginx (SEQ_UI_PORT). Default = porta do dev.
+ARG VITE_LOGS_URL=http://localhost:5341
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
-    VITE_API_BASE_URL=$VITE_API_BASE_URL
+    VITE_API_BASE_URL=$VITE_API_BASE_URL \
+    VITE_LOGS_URL=$VITE_LOGS_URL
 
 RUN npm run build
 
@@ -78,7 +82,13 @@ RUN apk add --no-cache openssl apache2-utils \
     -subj "/CN=infracontrol.local"
 
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+# nginx.conf é TEMPLATE (não config final): o entrypoint do nginx oficial roda
+# envsubst em /etc/nginx/templates/*.template e grava em NGINX_ENVSUBST_OUTPUT_DIR,
+# injetando NGINX_HTTPS_PORT no redirect HTTP→HTTPS (a porta do host não é
+# deduzível dentro do container). Default 443 para o caso de subir sem compose.
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx \
+    NGINX_HTTPS_PORT=443
+COPY docker/nginx.conf /etc/nginx/templates/nginx.conf.template
 # Cria o .htpasswd do Seq a partir das envs SEQ_AUTH_USER/SEQ_AUTH_PASSWORD
 # antes do nginx subir (ADR-022: Seq atrás de basic auth, porta sem exposição
 # direta).
