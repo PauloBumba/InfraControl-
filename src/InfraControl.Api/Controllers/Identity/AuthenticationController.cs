@@ -3,6 +3,7 @@ using InfraControl.Api.Controllers;
 using InfraControl.Api.Middleware;
 using InfraControl.Api.RateLimiting;
 using InfraControl.Api.Security;
+using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -94,7 +95,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] RefreshSessionViewModel? model, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
+        if (User.GetSessionUserIdOrNull() is not { } userId)
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         await authenticationService.LogoutAsync(userId, model?.RefreshToken, cancellationToken);
@@ -125,7 +126,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
+        if (User.GetSessionUserIdOrNull() is not { } userId)
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         var result = await authenticationService.ChangePasswordAsync(new ChangePasswordRequest(userId, model.CurrentPassword, model.NewPassword), cancellationToken);
@@ -147,7 +148,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
 
         return Ok(ApiResponse.Ok(new
         {
-            userId = User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
+            userId = User.GetSessionUserId(),
             email = User.Identity?.Name,
             displayName = User.FindFirst("displayName")?.Value,
             roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray()

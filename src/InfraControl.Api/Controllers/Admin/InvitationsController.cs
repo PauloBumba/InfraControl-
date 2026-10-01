@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using InfraControl.Api.Authorization;
+using InfraControl.Api.Services;
 
 namespace InfraControl.Api.Controllers.Admin;
 
@@ -20,9 +21,7 @@ public sealed class InvitationsController(ISender sender) : BaseController
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateInvitationViewModel model, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(
-                User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
-                out var inviterId))
+        if (User.GetSessionUserIdOrNull() is not { } inviterId)
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um convidante autenticado."]));
 
         // F1-T017: origem do link do convite — mesma derivação do forgot-password.

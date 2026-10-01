@@ -47,6 +47,50 @@ public sealed class AuthenticationControllerTests
     }
 
     [Fact]
+    public async Task Logout_Should_Succeed_When_The_Claim_Is_The_Session_Identity_One()
+    {
+        // O cookie é emitido com ClaimTypes.NameIdentifier; Logout lia
+        // "sub"/"nameidentifier" e devolvia 401 — o usuário nunca saía da
+        // sessão (o cookie continuava válido até expirar).
+        var userId = Guid.NewGuid();
+        var authServiceMock = new Mock<IIdentityAuthenticationService>();
+        authServiceMock
+            .Setup(service => service.LogoutAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var signOutMock = new Mock<Microsoft.AspNetCore.Authentication.IAuthenticationService>();
+        signOutMock
+            .Setup(service => service.SignOutAsync(
+                It.IsAny<Microsoft.AspNetCore.Http.HttpContext>(), It.IsAny<string>(), It.IsAny<Microsoft.AspNetCore.Authentication.AuthenticationProperties>()))
+            .Returns(Task.CompletedTask);
+
+        var servicesMock = new Mock<IServiceProvider>();
+        servicesMock
+            .Setup(provider => provider.GetService(typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService)))
+            .Returns(signOutMock.Object);
+
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>())
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        [new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "TestScheme")),
+                    RequestServices = servicesMock.Object
+                }
+            }
+        };
+
+        var result = await controller.Logout(null, CancellationToken.None);
+
+        result.Should().BeOfType<NoContentResult>();
+        authServiceMock.Verify(
+            service => service.LogoutAsync(userId, null, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public void Me_ShouldReturnEmptyArraysWhenNoClaims()
     {
         // Arrange

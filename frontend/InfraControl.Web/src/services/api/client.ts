@@ -52,7 +52,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
 /** F1-T015/ADR-017: o backend exige o token de antiforgery em toda escrita. */
 const XSRF_COOKIE = "XSRF-TOKEN";
-const XSRF_HEADER = "X-XSRF-TOKEN";
+export const XSRF_HEADER = "X-XSRF-TOKEN";
 
 /**
  * Lê o cookie de antiforgery. O backend o emite em `GET /auth/me` (o boot do
@@ -60,8 +60,11 @@ const XSRF_HEADER = "X-XSRF-TOKEN";
  * double-submit: um site cross-site não lê o cookie, então não monta o header.
  *
  * O valor NÃO é logado nem entra em mensagem de erro: é credencial de sessão.
+ *
+ * Exportado porque o negotiate do SignalR é um POST autenticado pelo cookie e
+ * cai no MESMO AntiforgeryCookieMiddleware (ver `services/signalr/connection.ts`).
  */
-function antiforgeryToken(): string | undefined {
+export function antiforgeryToken(): string | undefined {
   const prefix = `${XSRF_COOKIE}=`;
   const found = document.cookie.split("; ").find((entry) => entry.startsWith(prefix));
   return found ? decodeURIComponent(found.slice(prefix.length)) : undefined;

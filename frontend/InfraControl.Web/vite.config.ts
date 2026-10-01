@@ -36,6 +36,13 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false, // aceita o certificado de dev self-signed
         },
+        // Health checks ficam na raiz da API (Program.cs); a página da SPA é
+        // /status. Mesmo caminho do nginx em produção — dev enxerga igual.
+        "/health": {
+          target: env.VITE_DEV_API_TARGET || "https://localhost:7237",
+          changeOrigin: true,
+          secure: false,
+        },
         "/hubs": {
           target: env.VITE_DEV_API_TARGET || "https://localhost:7237",
           changeOrigin: true,

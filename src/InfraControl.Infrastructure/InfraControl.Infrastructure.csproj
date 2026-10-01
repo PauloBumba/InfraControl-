@@ -15,7 +15,10 @@
   <ItemGroup>
     <PackageReference Include="Google.Apis.Auth" Version="1.72.0" />
     <PackageReference Include="Lextm.SharpSnmpLib" Version="12.5.7" />
-    <PackageReference Include="MassTransit.RabbitMQ" Version="9.2.2" />
+    <!-- 8.x = última linha com licença permissiva (MIT). A 9.x é comercial
+         (MT_LICENSE) e sem ela a API/Workers não passam do boot — ver TASKS
+         Fase P. Voltar para 9+ exige licença + revisão do changelog. -->
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.4.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.4" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.4" />

@@ -49,7 +49,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        // MassTransit só aceita UMA chamada de AddMassTransit por container de DI:
+        // consumers e observers do host (Workers) entram por aqui, na mesma
+        // chamada que configura o bus — uma segunda chamada no Program do host
+        // derruba o boot com MassTransit.ConfigurationException.
+        Action<IBusRegistrationConfigurator>? configureBus = null)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -153,6 +158,8 @@ public static class DependencyInjection
         // RabbitMQ via MassTransit
         services.AddMassTransit(x =>
         {
+            configureBus?.Invoke(x);
+
             x.UsingRabbitMq((context, cfg) =>
             {
                 cfg.Host(rabbitMqHost, "/", h =>

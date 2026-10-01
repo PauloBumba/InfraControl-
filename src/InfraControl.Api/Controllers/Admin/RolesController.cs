@@ -13,8 +13,11 @@ namespace InfraControl.Api.Controllers.Admin;
 /// F0-T023: erros (KeyNotFound/UnauthorizedAccess/InvalidOperation) são
 /// embrulhados pelo GlobalExceptionHandler — o controller só compõe sucesso.
 /// </summary>
+// api/v1/admin/user-roles e não api/v1/admin/users: o UsersController já
+// ocupa /admin/users/{userId}/roles/{role} e a rota idêntica aqui causaria
+// AmbiguousMatchException no roteamento.
 [Authorize(Policy = AuthorizationPolicies.Administer)]
-[Route("api/identity/users")]
+[Route("api/v1/admin/user-roles")]
 public sealed class RolesController(ISender sender) : BaseController
 {
     [HttpPut("{userId:guid}/roles")]

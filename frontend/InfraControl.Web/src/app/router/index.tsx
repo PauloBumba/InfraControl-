@@ -232,7 +232,7 @@ function AppContent() {
               <SettingsPage />
             </ProtectedRoute>
           } />
-          <Route path="/health" element={
+          <Route path="/status" element={
             <ProtectedRoute>
               <HealthPage />
             </ProtectedRoute>

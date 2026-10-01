@@ -4,6 +4,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.RemoteAccess;
@@ -40,6 +41,45 @@ public sealed class AuthenticationActivationTests
 
         domainUser.IsActive.Should().BeFalse(
             "self-registration must not activate the account; activation happens via invitation or admin enable");
+    }
+
+    [Fact]
+    public async Task Login_ShouldLoadTheAssignedRolesIntoTheSession()
+    {
+        // As roles moram em _roleAssignments (coleção mapeada por campo); EF
+        // não inclui por default. Sem o Include, domainUser.Roles vem vazia e o
+        // cookie nasce sem ClaimTypes.Role: /auth/me devolve roles:[],
+        // ICurrentUserContext.Roles fica vazio e TODA policy (Administer,
+        // permissões) nega — inclusive para o admin do bootstrap.
+        // Escopos distintos de propósito: no mesmo escopo o EF devolve a
+        // entidade já rastreada (com roles em memória) e o bug some. Cada
+        // request HTTP nasce um escopo novo — é lá que o Include importa.
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+
+        using (var registerScope = provider.CreateScope())
+        {
+            await registerScope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+            var register = registerScope.ServiceProvider.GetRequiredService<IIdentityAuthenticationService>();
+            await register.RegisterAsync(
+                new RegisterUserRequest("roles-login@example.com", "Roles", StrongPassword));
+        }
+
+        using (var activationScope = provider.CreateScope())
+            await SetActiveAsync(activationScope, "roles-login@example.com", active: true);
+
+        LoginOutcome login;
+        using (var loginScope = provider.CreateScope())
+        {
+            var service = loginScope.ServiceProvider.GetRequiredService<IIdentityAuthenticationService>();
+            login = await service.LoginAsync(
+                new LoginRequest("roles-login@example.com", StrongPassword));
+        }
+
+        login.Authentication.Should().NotBeNull();
+        login.Authentication!.User.Roles.Should()
+            .Contain(UserRole.Viewer.ToString());
     }
 
     [Fact]

@@ -44,7 +44,6 @@ public sealed class KnowledgeCategoryCommandTests : IDisposable
 
     private static DeleteKnowledgeCategoryCommandHandler DeleteHandler(AppDbContext context)
         => new(new KnowledgeCategoryRepository(context),
-            new KnowledgeArticleRepository(context),
             NullLogger<DeleteKnowledgeCategoryCommandHandler>.Instance);
 
     [Fact]

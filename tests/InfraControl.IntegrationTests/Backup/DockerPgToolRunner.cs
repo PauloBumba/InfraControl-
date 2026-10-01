@@ -30,6 +30,7 @@ public sealed class DockerPgToolRunner(string image = "postgres:17-alpine") : IP
 
         var translated = new List<string>(arguments.Count);
         var mounts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var needsHostGateway = false;
 
         for (var i = 0; i < arguments.Count; i++)
         {
@@ -41,6 +42,7 @@ public sealed class DockerPgToolRunner(string image = "postgres:17-alpine") : IP
             {
                 translated.Add("-h");
                 translated.Add("host.docker.internal");
+                needsHostGateway = true;
                 i++;
                 continue;
             }
@@ -61,6 +63,15 @@ public sealed class DockerPgToolRunner(string image = "postgres:17-alpine") : IP
         }
 
         var dockerArguments = new List<string> { "run", "--rm" };
+
+        // host.docker.internal só existe de fábrica no Docker Desktop; no
+        // Engine Linux (CI/dev) o nome tem de ser apontado para o gateway com
+        // host-gateway, senão o pg_dump sai com "could not translate host name".
+        if (needsHostGateway)
+        {
+            dockerArguments.Add("--add-host");
+            dockerArguments.Add("host.docker.internal:host-gateway");
+        }
 
         foreach (var directory in mounts)
         {
@@ -86,27 +97,36 @@ public sealed class DockerPgToolRunner(string image = "postgres:17-alpine") : IP
     }
 
     /// <summary>
-    /// docker.exe do PATH ou do install por-usuário do Docker Desktop
-    /// (não fica no PATH de sessões iniciadas antes da instalação).
+    /// <c>docker</c> no PATH (Windows: <c>docker.exe</c>) ou o install
+    /// por-usuário do Docker Desktop (não fica no PATH de sessões iniciadas
+    /// antes da instalação). O nome era só <c>docker.exe</c>, então em
+    /// Linux/macOS o teste falhava com "docker CLI não encontrado" mesmo com
+    /// o Docker instalado.
     /// </summary>
     private static string ResolveDockerCli()
     {
+        var executable = OperatingSystem.IsWindows() ? "docker.exe" : "docker";
         var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+
         foreach (var entry in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
-            var candidate = Path.Combine(entry.Trim(), "docker.exe");
+            var candidate = Path.Combine(entry.Trim(), executable);
             if (File.Exists(candidate))
                 return candidate;
         }
 
-        var userInstall = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Programs", "DockerDesktop", "resources", "bin", "docker.exe");
-        if (File.Exists(userInstall))
-            return userInstall;
+        if (OperatingSystem.IsWindows())
+        {
+            var userInstall = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Programs", "DockerDesktop", "resources", "bin", "docker.exe");
+            if (File.Exists(userInstall))
+                return userInstall;
+        }
 
         throw new InvalidOperationException(
-            "docker CLI não encontrado (nem no PATH nem no install por-usuário do " +
-            "Docker Desktop) — o round-trip de backup/restore precisa do Docker nesta máquina.");
+            $"CLI do Docker ('{executable}') não encontrada (nem no PATH nem no install " +
+            "por-usuário do Docker Desktop) — o round-trip de backup/restore precisa " +
+            "do Docker nesta máquina.");
     }
 }

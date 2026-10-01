@@ -65,7 +65,7 @@ services:
     image: adminer:latest
     container_name: infracontrol-adminer
     ports:
-      - "8080:8080"
+      - "${ADMINER_PORT:-8082}:8080"
     environment:
       ADMINER_DEFAULT_SERVER: postgres
       ADMINER_DESIGN: dracula
@@ -90,9 +90,23 @@ services:
       ConnectionStrings__RabbitMQ: rabbitmq
       RabbitMQ__User: ${RABBITMQ_USER:-infracontrol}
       RabbitMQ__Password: ${RABBITMQ_PASSWORD:-infracontrol_dev_2026}
-      Serilog__WriteTo__Seq__Args__serverUrl: http://seq:80
+      Serilog__WriteTo__0__Name: Console
+      # Formato de índice, não "WriteTo__Seq": a chave nomeada "Seq" sem o
+      # "Name" correspondente derruba o boot do Serilog.Settings.Configuration
+      # (exit 139 em loop). O índice 1 é o sink Seq do appsettings; só o
+      # serverUrl é trocado pelo nome interno do serviço.
+      Serilog__WriteTo__1__Name: Seq
+      Serilog__WriteTo__1__Args__serverUrl: http://seq:80
       OpenTelemetry__Endpoint: http://otel-collector:4317
       Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
+      # Bootstrap Admin (opt-in, idempotente; documentado em .env.example e
+      # docs/05). Sem repassar aqui a chave nunca chega na API e o primeiro
+      # deploy nasce sem usuário Admin — policy Administer fica 403 para
+      # sempre. Enabled=false é o padrão: sem senha, sem boot quebrado.
+      BootstrapAdmin__Enabled: ${BootstrapAdmin__Enabled:-false}
+      BootstrapAdmin__Email: ${BootstrapAdmin__Email:-admin@example.com}
+      BootstrapAdmin__DisplayName: ${BootstrapAdmin__DisplayName:-InfraControl Admin}
+      BootstrapAdmin__Password: ${BootstrapAdmin__Password:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -134,6 +148,9 @@ services:
       args:
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
         VITE_API_BASE_URL: ""
+        # Botão "plataforma de logs" da LogsPage; tem de bater com SEQ_UI_PORT
+        # publicado pelo nginx (em produção, o host real + essa porta).
+        VITE_LOGS_URL: ${VITE_LOGS_URL:-http://localhost:5341}
     image: infracontrol-frontend:dev
     profiles: ["app"]
     ports:
@@ -143,6 +160,9 @@ services:
       # não publica porta nenhuma (ADR-022).
       - "${SEQ_UI_PORT:-5341}:5341"
     environment:
+      # Porta HTTPS publicada no HOST — o redirect HTTP→HTTPS do nginx não tem
+      # como deduzi-la (80→443, 8080→8443, 8085→8445); entra via envsubst.
+      NGINX_HTTPS_PORT: ${HTTPS_PORT:-443}
       SEQ_AUTH_USER: ${SEQ_AUTH_USER:-admin}
       SEQ_AUTH_PASSWORD: ${SEQ_AUTH_PASSWORD:-admin}
     depends_on:
