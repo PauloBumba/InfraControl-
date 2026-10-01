@@ -434,7 +434,17 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     (1 pedido por switch, sem endpoint agregado). **`DeviceDetailPage`
     segue mock — task separada** (as tasks seguintes do grupo:
     Network/Inventário e Dashboard)
-  - [ ] Network · Dashboard
+  - [x] **F17-T008 `NetworkPage`** — `services/api/network.ts`
+    (`GET/POST /api/v1/network/vlans` → `PagedResult<VlanDto>` `{id,name,
+    vlanNumber,description}`; `POST` `{name,vlanNumber,description?}` → 201
+    com 409 pt-BR de nome/número únicos). Divergências do protótipo:
+    "VLAN {id}" → **VLAN {vlanNumber}** (número 802.1Q real); `color`,
+    `devices`, `subnet`, `gateway` e `dhcp` do card saíram (sem contrato).
+    **Abas DHCP, Rotas e Firewall removidas — não há endpoint no backend**
+    (nenhuma rota correspondente nos controllers); card ganhou a
+    `description` real, filtro operacional `term` documentado no serviço e
+    pager real de 100/página
+  - [ ] Dashboard
   - [ ] Notifications · Alerts · Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
