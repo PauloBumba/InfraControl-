@@ -1,0 +1,99 @@
+import { api } from "./client";
+
+/**
+ * F17-T005 — conexão da SlaPage ao backend (contrato real de
+ * `GET/POST /api/v1/sla/services`, `/sla/slos`, `/sla/policies` e
+ * orçamentos em `/sla/slos/{sloId}/budgets`). Espelha `ServiceDto`,
+ * `SloDto`, `SlaPolicyDto` e `SloBudgetDto`.
+ */
+export interface ServiceItem {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+export interface SloItem {
+  id: string;
+  name: string;
+  targetPercent: number;
+  windowDays: number;
+  serviceId: string;
+}
+
+export interface SlaPolicyItem {
+  id: string;
+  name: string;
+  responseMinutes: number;
+  resolutionMinutes: number;
+  serviceId: string | null;
+}
+
+export interface SloBudgetItem {
+  id: string;
+  sloId: string;
+  periodStart: string;
+  periodEnd: string | null;
+  consumedPercent: number;
+}
+
+/** `PagedResult<T>` — o campo `data` do envelope. */
+export interface Paged<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+async function pagedGet<T>(
+  path: string,
+  page: number,
+  pageSize: number,
+): Promise<Paged<T>> {
+  const data = await api.get<Paged<T>>(path);
+  return data ?? { items: [], totalCount: 0, page, pageSize };
+}
+
+export function listServices(filters: { term?: string; page?: number; pageSize?: number } = {}): Promise<Paged<ServiceItem>> {
+  const params = new URLSearchParams();
+  if (filters.term) params.set("term", filters.term);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+  return pagedGet<ServiceItem>(`/sla/services?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
+}
+
+export function listSlos(filters: { term?: string; serviceId?: string; page?: number; pageSize?: number } = {}): Promise<Paged<SloItem>> {
+  const params = new URLSearchParams();
+  if (filters.term) params.set("term", filters.term);
+  if (filters.serviceId) params.set("serviceId", filters.serviceId);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+  return pagedGet<SloItem>(`/sla/slos?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
+}
+
+export function listSlaPolicies(filters: { term?: string; serviceId?: string; page?: number; pageSize?: number } = {}): Promise<Paged<SlaPolicyItem>> {
+  const params = new URLSearchParams();
+  if (filters.term) params.set("term", filters.term);
+  if (filters.serviceId) params.set("serviceId", filters.serviceId);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+  return pagedGet<SlaPolicyItem>(`/sla/policies?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
+}
+
+/** Orçamento é por SLO — não existe endpoint agregado (um pedido por SLO). */
+export function listSloBudgets(sloId: string, filters: { page?: number; pageSize?: number } = {}): Promise<Paged<SloBudgetItem>> {
+  const params = new URLSearchParams();
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+  return pagedGet<SloBudgetItem>(`/sla/slos/${sloId}/budgets?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
+}
+
+/** Criação de serviço (Operate + antiforgery; validação pt-BR no envelope). */
+export function createService(input: {
+  name: string;
+  description?: string;
+}): Promise<ServiceItem | null> {
+  return api.post<ServiceItem>("/sla/services", {
+    name: input.name,
+    description: input.description || undefined,
+  });
+}

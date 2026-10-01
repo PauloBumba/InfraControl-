@@ -390,7 +390,17 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     `categoryId`, data e tags saíram, `status` entrou); busca `term` ligada
     ao parâmetro real (substring); rascunho já escondido pelo backend para
     quem não escreve
-  - [ ] SlaPage
+  - [x] **F17-T005 `SlaPage`** — `services/api/sla.ts` (`GET /sla/services`,
+    `/sla/slos`, `/sla/policies` com term/serviceId/page/pageSize e
+    orçamentos em `/sla/slos/{sloId}/budgets`; `POST /sla/services`
+    `{name,description?}`); colunas inventadas do protótipo sem contrato
+    (`status` operacional/degradado, `uptime`, `slaTarget`/`sloTarget` em %,
+    `openIncidents`, `owner`, `burnRate`) removidas — SLA virou a política
+    real (`responseMinutes`/`resolutionMinutes`), SLO os `SloDto`
+    (alvo % + janela) e Error Budget os `SloBudgetDto` (`consumedPercent`
+    por período, rótulo Esgotado/Atenção/Normal derivado do número real);
+    orçamento é 1 pedido por SLO (sem endpoint agregado — pendência se
+    crescer)
   - [ ] UsersPage (exige decisão da rota de roles duplicada: `RolesController`
     `api/identity/users` × `UsersController` `api/v1/admin/users`)
   - [ ] Devices/Inventário · Network · Dashboard
