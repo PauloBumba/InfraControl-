@@ -576,11 +576,22 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     calculadas sobre a primeira página truncada ganham `~` + rodapé
     explicando; nome do local do rack resolvido no cliente; sem mutations
     (mock já era somente leitura)
+  - [x] **F17-T019 `LogsPage`** — página **já era majoritariamente real**
+    (link + rastreador de Seq, ADR-021/ADR-022 com `VITE_LOGS_URL` e
+    filtro `CorrelationId` — permanecem). O que saiu: a tabela mock
+    "Últimos eventos (amostra local)" de `logsData` — **não existe
+    endpoint de logs da aplicação** na API (níveis/fontes/mensagens são
+    gravados no Seq junto com workers/outbox e a API não os expõe;
+    ações de usuário auditadas têm página própria em `/audit`,
+    `AuditPage` + `services/api/audit.ts`, já conectada). No lugar da
+    tabela, painel honesto apontando para a plataforma de logs e para a
+    Auditoria; comentários `uni-logs-table`/`uni-log-level` no CSS
+    ficaram sem uso (semântica preservada caso o painel volte)
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
     N/A + Insights esvaziado); o grupo permanece aberto pela decisão de
     produto do Insights (construir backend / apagar página / demo) e pelas
-    páginas restantes `LogsPage`, `SwitchesPage`, `TopologyPage`
-    (escopo autorizado pelo usuário em 01/10 — próximas tasks T019+).
+    páginas restantes `SwitchesPage`, `TopologyPage`
+    (escopo autorizado pelo usuário em 01/10 — próximas tasks T020+).
     Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
