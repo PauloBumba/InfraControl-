@@ -11,6 +11,7 @@ namespace InfraControl.Application.Discovery.Results.Queries;
 
 public sealed record SearchDiscoveryResultsQuery(
     Guid RunId,
+    string? Kind = null,
     int Page = 1,
     int PageSize = 20) : IQuery<PagedResult<DiscoveryResultDto>>, IAuthorizedRequest
 {
@@ -30,18 +31,41 @@ public sealed class SearchDiscoveryResultsQueryHandler(
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
 
+        // F18-T002: filtro opcional `kind` validado ANTES do 404 de run —
+        // entrada inválida é sempre 400 pt-BR listando os valores válidos.
+        var kind = ParseKind(request.Kind);
+
         _ = await runRepository.GetByIdAsync(request.RunId, cancellationToken)
             ?? throw new KeyNotFoundException(
                 $"Execução de discovery '{request.RunId}' não encontrada.");
 
         var result = await repository.SearchByRunAsync(
-            request.RunId, page, pageSize, cancellationToken);
+            request.RunId, kind, page, pageSize, cancellationToken);
 
         return new PagedResult<DiscoveryResultDto>(
             result.Items.Select(Map).ToArray(),
             result.TotalCount,
             result.Page,
             result.PageSize);
+    }
+
+    /// <summary>
+    /// F18-T002 — `null`/vazio = sem filtro; nome do enum case-insensitive;
+    /// `IsDefined` rejeita números que o `Enum.TryParse` aceitaria (ex.: "9").
+    /// </summary>
+    internal static DiscoveryResultKind? ParseKind(string? kind)
+    {
+        if (string.IsNullOrWhiteSpace(kind))
+            return null;
+
+        if (!Enum.TryParse(kind.Trim(), ignoreCase: true, out DiscoveryResultKind parsed) ||
+            !Enum.IsDefined(parsed))
+            throw new ArgumentException(
+                $"Filtro 'kind' de discovery inválido: '{kind}'. Valores válidos: " +
+                $"{string.Join(", ", Enum.GetNames<DiscoveryResultKind>())}.",
+                nameof(kind));
+
+        return parsed;
     }
 
     internal static DiscoveryResultDto Map(Domain.Entities.DiscoveryResult result) => new(

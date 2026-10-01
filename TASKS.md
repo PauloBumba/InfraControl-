@@ -674,13 +674,22 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   — data determinística do teste gravada em segunda passada (`Modified`
   não toca `CreateDateTime`). **Desbloqueia** a aba Feed da
   NotificationsPage (UI = task futura; F17-T010 documentou a remoção)
-- [ ] **F18-T002 Filtro `kind` em discovery results** — parâmetro opcional
-  `kind` em `GET /discovery/runs/{runId}/results` (enum
-  `DiscoveryResultKind`: `Neighbor|ArpEntry|MacTableEntry|DhcpLease|Host`;
-  valor inválido → 400 pt-BR listando os válidos, padrão do projeto).
-  Critério: filtro server-side paginado corretamente (totalCount
-  respeita o filtro); testes unit + integration. Desbloqueia o filtro
-  honesto da ClientsPage (pendência do F17-T015)
+- [x] **F18-T002 Filtro `kind` em discovery results** — parâmetro opcional
+  `kind` em `GET /discovery/runs/{runId}/results`. Implementação:
+  `SearchDiscoveryResultsQuery` ganhou `Kind` (`string?`), validado no
+  handler **antes** do 404 de run (`ParseKind`: case-insensitive +
+  `Enum.IsDefined` rejeitando números que o `TryParse` aceitaria; nome
+  inválido → `ArgumentException` → 400 pt-BR **listando os válidos**:
+  "Valores válidos: Neighbor, ArpEntry, MacTableEntry, DhcpLease,
+  Host"); porta/repositório `SearchByRunAsync` ganharam
+  `DiscoveryResultKind? kind` com filtro aplicado **antes do COUNT**
+  (totalCount respeita o filtro); action `Search` expõe `?kind=`.
+  Testes: +3 unit (filtro+paginação com totalCount filtrado,
+  case-insensitive, texto e número inválidos → 400 pt-BR) e +2
+  integração (filtro server-side no pipeline real + 400 pt-BR).
+  Validação: unit 1350, integração+E2E 171, arch 90 (todos verdes).
+  **Desbloqueia** o filtro honesto da ClientsPage (pendência do
+  F17-T015 — UI = task futura)
 - [ ] **F18-T003 Endpoint agregado de SLA budgets** — hoje são N pedidos
   (1 por SLO, `GET /sla/slos/{sloId}/budgets` — N+1 aceito no F17-T005);
   criar rota agregada (ex.: `GET /sla/budgets?serviceId=` — rota decidida

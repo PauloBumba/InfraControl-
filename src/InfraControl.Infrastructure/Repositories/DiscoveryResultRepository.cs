@@ -2,6 +2,7 @@ using InfraControl.BuildingBlocks.Domain;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Results.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,13 +24,17 @@ public sealed class DiscoveryResultRepository(AppDbContext dbContext) : IDiscove
 
     public async Task<PagedResult<DiscoveryResult>> SearchByRunAsync(
         Guid discoveryRunId,
+        DiscoveryResultKind? kind,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
+        // F18-T002: `kind` opcional — filtrado ANTES do COUNT, então o
+        // TotalCount do PagedResult respeita o filtro.
         var query = dbContext.DiscoveryResults
             .AsNoTracking()
-            .Where(result => result.DiscoveryRunId == discoveryRunId);
+            .Where(result => result.DiscoveryRunId == discoveryRunId &&
+                (kind == null || result.Kind == kind));
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
