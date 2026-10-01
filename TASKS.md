@@ -417,7 +417,24 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     aparece no banner), convite por e-mail+role. Aba Roles: catálogo
     canônico ADR-016 (enum, sem endpoint — contagem REAL por role derivada
     da lista)
-  - [ ] Devices/Inventário · Network · Dashboard
+  - [x] **F17-T007 `DevicesPage`** — `services/api/inventory.ts`
+    (`GET /inventory/devices` → `PagedResult<DeviceDto>` com parâmetros
+    reais `type`/`term`/`locationId`, teto 100/página; `GET
+    /inventory/locations` resolve o `locationId` = setor; `GET
+    /network/switches/{id}/ports` → `SwitchPortDto` com `linkUp`
+    tri-estado; `POST /inventory/devices` `{locationId,name,type,...}` →
+    201). Sem contrato (saíram): status online/atenção/offline (não há
+    endpoint de estado atual — histórico de polls é por device), uptime,
+    firmware, "VLAN n" (`vlanId` é Guid sem número), uplink/storage, PoE/
+    speed/VLAN por porta e a lista de clientes (domínio separado); entraram
+    vendor/serial e a contagem real "ativas/total" (`linkUp===true`). Filtro
+    de tipo client-side sobre a página carregada (os contadores por tipo
+    exigiriam N pedidos; o param `type` do endpoint fica documentado como
+    caminho de escala); portas buscadas só ao abrir a aba "Por Switch"
+    (1 pedido por switch, sem endpoint agregado). **`DeviceDetailPage`
+    segue mock — task separada** (as tasks seguintes do grupo:
+    Network/Inventário e Dashboard)
+  - [ ] Network · Dashboard
   - [ ] Notifications · Alerts · Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
