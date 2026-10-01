@@ -103,7 +103,7 @@ Regras:
 `RepositoryRegistrar.AddRepositoryRegistrations(interfaceAssembly, implementationAssembly)` (`InfraControl.Infrastructure.Services`) varre os assemblies e registra os pares automaticamente — no espírito do `RegisterServicesFromAssembly` do MediatR:
 
 - **Interface**: tipo `I*Repository` (não genérico) do assembly de contratos (`Application`).
-- **Implementação**: classe `*Repository` não abstrata do assembly de implementações (`Infrastructure`) que implemente a interface (casa por atribuição, não por nome — cobre casos como `IUserRoleRepository` → `IdentityUserRoleRepository`).
+- **Implementação**: classe `*Repository` não abstrata do assembly de implementações (`Infrastructure`) que implemente a interface (casa por **atribuição**, não por nome — um prefixo extra na classe não impede o par; o exemplo histórico `IUserRoleRepository` → `IdentityUserRoleRepository` saiu de cena com o slice de papéis removido no F18-T004).
 - **Lifetime**: `Scoped` (igual ao registro manual anterior).
 - **Fail-fast**: 0 ou mais de 1 implementações → `InvalidOperationException` **no startup**, nunca em runtime na primeira requisição.
 - **Escape hatch**: interface com registro manual existente é pulada (`TryAdd`) — o manual prevalece (lifetime especial, fábrica).

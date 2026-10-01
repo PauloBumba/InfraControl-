@@ -709,11 +709,32 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   ordem/clamp; serviço alheio fora; `serviceId` nulo = todos) e +1
   integração (2 serviços em 1 pedido). Validação: unit 1351,
   integração+E2E 172, arch 90, `tsc -b` 0 erros, `npm run build` ok
-- [ ] **F18-T004 Limpeza do `RolesController`** — `api/identity/users`
-  (fora do padrão `api/v1`, DELETE duplicado, sem consumidor no front
-  desde a decisão do F17-T006): remover ou alinhar ao padrão v1, com
-  migração dos testes que cobrirem. Critério: sem rota duplicada
-  publicada; suíte verde; decisão registrada
+- [x] **F18-T004 Limpeza do `RolesController`** — **decisão registrada:
+  remover o slice inteiro** (alinhar manteria a duplicação): rota
+  `api/identity/users` (fora do v1), o `RolesController` e o
+  `RoleViewModel`, os comandos `AssignUserRoleCommand`/
+  `RemoveUserRoleCommand`, a porta `IUserRoleRepository`, o adaptador
+  `IdentityUserRoleRepository` (sync do ASP.NET Identity não é lido por
+  nenhum pipeline de authz — o login monta as claims do cookie a partir
+  do domínio), os `using`s órfãos em `Program.cs`/
+  `DependencyInjection.cs` e as 2 entradas no allowlist do arch test.
+  **Achado grave na migração dos testes**: o caminho vivo
+  (`POST/DELETE /admin/users/{id}/roles/{role}` →
+  `IdentityAdministrationService`) estava **quebrado em runtime** —
+  `UserRoleAssignment.Id` era `ValueGeneratedOnAdd` (convenção Guid)
+  mas nasce preenchido no `Entity()`, então o `DetectChanges` anexava
+  a filha NOVA como `Modified` e o save estourava
+  `DbUpdateConcurrencyException` (500) — nunca houve teste de rota
+  (os comandos usavam repositório fake). Corrigido com
+  `ValueGeneratedNever` em `UserRoleAssignmentConfiguration` (esquema
+  intocado: EF confirmou "no pending model changes"). Migração dos
+  testes: `IdentityAdministrationServiceTests` (5 facts) cobre os 2
+  facts de `RoleCommandTests` + regressão do bug (atribuição persiste,
+  desconhecido → 404, último admin → 409, remoção comum persiste).
+  Docs (05/24/25) e comentários do front atualizados. Validação: unit
+  1354 (1351 − 2 + 5), integração+E2E 172, **arch 88** (90 − 2 casos de
+  theory por controller do `RolesController` removido — conferido no
+  TRX, nada escondido), `tsc -b` 0 erros, `npm run build` ok
 - [ ] **F18-T005 Domínio DHCP/Rotas/Firewall** — leitura dos serviços de
   rede prometidos pelas abas removidas no F17-T008 (leases DHCP, rotas,
   regras de firewall). **Exige ADR + questionário antes do plano**:

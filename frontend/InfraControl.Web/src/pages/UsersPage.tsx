@@ -32,7 +32,7 @@ import {
  * autoridade) — lista é Operate, então Viewer nem chega.
  *
  * Decisão de rota: só `api/v1/admin/users` (o `RolesController` em
- * `api/identity/users`, fora do padrão v1, fica de fora — ver TASKS).
+ * `api/identity/users` foi removido do backend no F18-T004).
  */
 
 const tabs = [

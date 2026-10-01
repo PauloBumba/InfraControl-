@@ -5,10 +5,11 @@ import type { UserRole } from "@/types/roles";
  * F17-T006 — conexão da UsersPage ao backend (contrato real de
  * `GET/PATCH /api/v1/admin/users`, atribuição de papéis e convites).
  *
- * Decisão de rota (achado na auditoria de 01/10): a página usa SOMENTE
- * `api/v1/admin/users` — `RolesController` (`api/identity/users`, fora do
- * prefixo v1) expõe um DELETE duplicado e fica fora do front; a operação
- * "trocar papéis" vira diff de add/remove nestas rotas.
+ * Decisão de rota (auditoria de 01/10, executada no F18-T004): a página
+ * usa SOMENTE `api/v1/admin/users` — o `RolesController`
+ * (`api/identity/users`, fora do prefixo v1, DELETE duplicado) foi
+ * REMOVIDO do backend; a operação "trocar papéis" vira diff de
+ * add/remove nestas rotas.
  *
  * Enums: na LISTAGEM `roles` vem NUMÉRICO (enum sem JsonStringEnumConverter
  * no MVC: 1=Viewer, 2=Operator, 3=Admin); no PATH da rota `{role}` vai o
