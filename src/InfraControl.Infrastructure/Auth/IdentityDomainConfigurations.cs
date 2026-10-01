@@ -24,6 +24,12 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne()
             .HasForeignKey(assignment => assignment.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // O login cria as claims de role do cookie a partir de uma consulta
+        // fresh de DomainUsers — sem AutoInclude a coleção vinha vazia e TODO
+        // usuário logava sem roles (403 em toda rota com policy). Bug real
+        // exposto pelo e2e de pipeline completo (WebApplicationFactory).
+        builder.Navigation(user => user.RoleAssignments).AutoInclude();
     }
 }
 

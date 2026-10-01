@@ -68,9 +68,11 @@ public sealed class NotificationWebhookWorkerTests : IDisposable
         context.NotificationDeliveries.Add(delivery);
         await context.SaveChangesAsync();
 
+        var dispatcher = new FakeDispatcher();
         var services = new ServiceCollection();
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<IWebhookNotificationDispatcher>(_ => dispatcher);
         var provider = services.BuildServiceProvider();
 
         var channels = new NotificationChannelsOptions
@@ -79,10 +81,8 @@ public sealed class NotificationWebhookWorkerTests : IDisposable
             Webhook = new WebhookChannelOptions { Url = url },
         };
 
-        var dispatcher = new FakeDispatcher();
         var worker = new NotificationWebhookWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            dispatcher,
             Options.Create(channels),
             NullLogger<NotificationWebhookWorker>.Instance);
 

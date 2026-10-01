@@ -1,3 +1,4 @@
+using InfraControl.Application;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Workers;
 using InfraControl.Workers.Consumers.Notifications;
@@ -25,8 +26,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(Log.Logger);
 
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddMediatR(configuration =>
-    configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
+builder.Services.AddApplicationMediatR();
 
 // Consumers do broker — combinados com o UsingRabbitMq do AddInfrastructure
 // (ADR-004/docs/06: OutboxWorker publica, aqui consome).

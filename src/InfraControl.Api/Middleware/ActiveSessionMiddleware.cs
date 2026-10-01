@@ -4,6 +4,7 @@ using InfraControl.Application.Identity.Sessions;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Api.Middleware;
@@ -26,8 +27,6 @@ namespace InfraControl.Api.Middleware;
 /// </summary>
 public sealed class ActiveSessionMiddleware(
     RequestDelegate next,
-    IActiveSessionReader sessionReader,
-    ICacheService cache,
     IOptions<SessionLifetimeOptions> options,
     ILogger<ActiveSessionMiddleware> logger)
 {
@@ -54,7 +53,7 @@ public sealed class ActiveSessionMiddleware(
             return;
         }
 
-        var check = await ResolveAsync(sessionId.Value, userId.Value, context.RequestAborted);
+        var check = await ResolveAsync(context, sessionId.Value, userId.Value, context.RequestAborted);
         if (!check.IsActive)
         {
             logger.LogWarning(
@@ -68,8 +67,18 @@ public sealed class ActiveSessionMiddleware(
     }
 
     private async Task<ActiveSessionCheck> ResolveAsync(
-        Guid sessionId, Guid userId, CancellationToken cancellationToken)
+        HttpContext context, Guid sessionId, Guid userId, CancellationToken cancellationToken)
     {
+        // Resolvido POR REQUEST (não no construtor): IActiveSessionReader e
+        // ICacheService são escopados — injetá-los no construtor do middleware
+        // (singleton) os capturaria no root provider: o host com ValidateScopes
+        // (Development) não sobe, e em produção o AppDbContext ficaria preso
+        // para sempre na instância do middleware (partilhado entre requests
+        // concorrentes). Descoberto pelo e2e de pipeline completo.
+        var services = context.RequestServices;
+        var cache = services.GetRequiredService<ICacheService>();
+        var sessionReader = services.GetRequiredService<IActiveSessionReader>();
+
         // ADR-020: o cache do check é o distribuído (Redis primário, fallback
         // local — ADR-010), não mais o IMemoryCache da instância. Quem revoga
         // grava "Revoked" na mesma chave, então a outra instância lê o estado

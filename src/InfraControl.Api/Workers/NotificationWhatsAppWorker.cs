@@ -3,6 +3,7 @@ using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Api.Workers;
@@ -16,7 +17,6 @@ namespace InfraControl.Api.Workers;
 /// </summary>
 public sealed class NotificationWhatsAppWorker(
     IServiceScopeFactory scopeFactory,
-    IWhatsAppNotificationDispatcher dispatcher,
     IOptions<NotificationChannelsOptions> channelsOptions,
     ILogger<NotificationWhatsAppWorker> logger)
     : NotificationChannelWorkerBase(scopeFactory, logger, NotificationChannel.WhatsApp)
@@ -24,6 +24,7 @@ public sealed class NotificationWhatsAppWorker(
     protected override Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
+        IServiceProvider services,
         CancellationToken cancellationToken)
     {
         var phone = channelsOptions.Value.WhatsApp.Phone;
@@ -31,7 +32,7 @@ public sealed class NotificationWhatsAppWorker(
             throw new InvalidOperationException(
                 "Canal WhatsApp sem Phone configurado (Notifications:Channels:WhatsApp:Phone).");
 
-        return dispatcher.SendAsync(
+        return services.GetRequiredService<IWhatsAppNotificationDispatcher>().SendAsync(
             new WhatsAppNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
                 phone, item.Title, item.Message, item.CreatedAt),

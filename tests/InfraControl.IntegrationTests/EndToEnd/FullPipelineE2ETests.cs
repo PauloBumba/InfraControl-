@@ -1,0 +1,297 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+
+namespace InfraControl.IntegrationTests.EndToEnd;
+
+/// <summary>
+/// Fase Q — e2e HTTP pelo pipeline completo (pendência de ADR-017/018):
+/// host real de <c>Program</c> + banco/Redis reais, validando o contrato EXATO
+/// do qual o frontend depende — envelope {isSuccess,data,errors}, cookie de
+/// sessão, XSRF-TOKEN no /auth/me, mensagens pt-BR e a matriz de papéis nas
+/// duas camadas de autorização (policy da API + AuthorizationBehavior do MediatR).
+/// </summary>
+public sealed class FullPipelineE2ETests(E2EHost host) : IClassFixture<E2EHost>
+{
+    // ── helpers ─────────────────────────────────────────────────────────────
+
+    private HttpClient NewClient() =>
+        host.Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            // CookieSecurePolicy.Always: sobre http o CookieContainer não
+            // devolve o cookie de sessão — https virtual resolve como no
+            // navegador real (o TestServer não liga para o scheme).
+            BaseAddress = new Uri("https://localhost")
+        });
+
+    private async Task<HttpClient> LoginAsync(string email, string password)
+    {
+        var client = NewClient();
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/login", new { email, password });
+        response.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"login de {email} deve passar: {await response.Content.ReadAsStringAsync()}");
+        return client;
+    }
+
+    private Task<HttpClient> LoginAsync(string email)
+        => LoginAsync(email, E2EHost.UserPassword);
+
+    /// <summary>Pega o XSRF-TOKEN como o front pega: lido do Set-Cookie do /auth/me.</summary>
+    private async Task<string> XsrfAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/api/v1/auth/me");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        response.Headers.TryGetValues("Set-Cookie", out var cookies)
+            .Should().BeTrue("o /auth/me emite o token de antiforgery ao JS");
+
+        var entry = cookies!.FirstOrDefault(c =>
+            c.StartsWith("XSRF-TOKEN=", StringComparison.OrdinalIgnoreCase));
+        entry.Should().NotBeNull("o cookie XSRF-TOKEN precisa existir antes da primeira escrita");
+
+        var value = entry!["XSRF-TOKEN=".Length..];
+        var semicolon = value.IndexOf(';');
+        return semicolon >= 0 ? value[..semicolon] : value;
+    }
+
+    private async Task<(bool IsSuccess, JsonElement Data, string[] Errors)>
+        EnvelopeAsync(HttpResponseMessage response)
+    {
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+        return (
+            root.GetProperty("isSuccess").GetBoolean(),
+            root.GetProperty("data").Clone(),
+            root.GetProperty("errors").EnumerateArray()
+                .Select(e => e.GetString() ?? string.Empty).ToArray());
+    }
+
+    private static HttpRequestMessage Write(
+        HttpMethod method, string url, object payload, string? xsrf = null)
+    {
+        var request = new HttpRequestMessage(method, url) { Content = JsonContent.Create(payload) };
+        if (xsrf is not null)
+            request.Headers.Add("X-XSRF-TOKEN", xsrf);
+        return request;
+    }
+
+    // ── contrato de sessão (o que o front consome no boot) ──────────────────
+
+    [Fact]
+    public async Task Login_e_me_devolvem_o_contrato_que_o_frontend_consome()
+    {
+        var client = NewClient();
+
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = E2EHost.AdminEmail, password = E2EHost.AdminPassword });
+        login.StatusCode.Should().Be(HttpStatusCode.OK);
+        var (loginOk, _, loginErrors) = await EnvelopeAsync(login);
+        loginOk.Should().BeTrue();
+        loginErrors.Should().BeEmpty();
+
+        var me = await client.GetAsync("/api/v1/auth/me");
+        me.StatusCode.Should().Be(HttpStatusCode.OK);
+        var (meOk, data, _) = await EnvelopeAsync(me);
+        meOk.Should().BeTrue();
+
+        data.GetProperty("email").GetString().Should().Be(E2EHost.AdminEmail);
+        data.GetProperty("userId").GetString().Should().NotBeNullOrWhiteSpace();
+        data.GetProperty("displayName").GetString().Should().NotBeNullOrWhiteSpace();
+        data.GetProperty("roles").EnumerateArray()
+            .Select(role => role.GetString()).Should().Contain("Admin");
+
+        // O boot do SessionGate depende do XSRF nascer no /auth/me.
+        (await XsrfAsync(client)).Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task Login_senha_errada_devolve_401_com_mensagem_ptbr_no_envelope()
+    {
+        var client = NewClient();
+        var response = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email = E2EHost.AdminEmail, password = "senha-errada" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var (ok, _, errors) = await EnvelopeAsync(response);
+        ok.Should().BeFalse();
+        errors.Should().ContainSingle().Which.Should().Be("Credenciais inválidas.");
+    }
+
+    [Fact]
+    public async Task Body_de_login_invalido_devolve_400_de_modelstate_no_envelope()
+    {
+        var client = NewClient();
+        // Tipo errado quebra o binding (F0-T023: ModelState também embrulhado).
+        var response = await client.PostAsync("/api/v1/auth/login",
+            new StringContent("""{"email":123,"password":true}""",
+                System.Text.Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var (ok, _, errors) = await EnvelopeAsync(response);
+        ok.Should().BeFalse();
+        errors.Should().NotBeEmpty();
+    }
+
+    // ── matriz de papéis (camada 1: policy da API) ──────────────────────────
+
+    [Fact]
+    public async Task Matriz_Operate_admin_e_operador_passam_viewer_nao_e_anonimo_vai_para_401()
+    {
+        var admin = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+        var operador = await LoginAsync(E2EHost.OperatorEmail);
+        var viewer = await LoginAsync(E2EHost.ViewerEmail);
+        var anonimo = NewClient();
+
+        (await admin.GetAsync("/api/v1/admin/users"))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await operador.GetAsync("/api/v1/admin/users"))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await viewer.GetAsync("/api/v1/admin/users"))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await anonimo.GetAsync("/api/v1/admin/users"))
+            .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    // ── matriz de papéis (camada 2: AuthorizationBehavior do MediatR) ───────
+
+    [Fact]
+    public async Task Segunda_camada_bloqueia_usuario_sem_papel_com_403_no_envelope()
+    {
+        // [Authorize] puro deixa passar; quem reprova é o RequiredRoles do
+        // handler — e essa reprovação precisa sair no envelope, não vazia.
+        var semPapel = await LoginAsync(E2EHost.NoRoleEmail);
+        var response = await semPapel.GetAsync("/api/v1/tasks");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var (ok, _, errors) = await EnvelopeAsync(response);
+        ok.Should().BeFalse();
+        errors.Should().NotBeEmpty();
+    }
+
+    // ── escrita: Administer + antiforgery (ADR-017) ─────────────────────────
+
+    [Fact]
+    public async Task Escrita_Administer_exige_papel_admin_e_token_antiforgery()
+    {
+        var admin = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+        var operador = await LoginAsync(E2EHost.OperatorEmail);
+        var viewer = await LoginAsync(E2EHost.ViewerEmail);
+
+        var me = await operador.GetAsync("/api/v1/auth/me");
+        var (meOk, data, _) = await EnvelopeAsync(me);
+        meOk.Should().BeTrue();
+        var operadorId = data.GetProperty("userId").GetString();
+        var url = $"/api/v1/admin/users/{operadorId}/status";
+        var payload = new { active = true };
+
+        // Sem o papel: reprova na policy mesmo com token válido.
+        var viewerXsrf = await XsrfAsync(viewer);
+        var viewerResponse = await viewer.SendAsync(
+            Write(HttpMethod.Patch, url, payload, viewerXsrf));
+        viewerResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var operadorXsrf = await XsrfAsync(operador);
+        var operadorResponse = await operador.SendAsync(
+            Write(HttpMethod.Patch, url, payload, operadorXsrf));
+        operadorResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        // Admin SEM o token: 400 de antiforgery no envelope (nunca 403/500).
+        var semToken = await admin.SendAsync(Write(HttpMethod.Patch, url, payload));
+        semToken.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var (semTokenOk, _, semTokenErrors) = await EnvelopeAsync(semToken);
+        semTokenOk.Should().BeFalse();
+        semTokenErrors.Should().NotBeEmpty();
+
+        // Admin COM o token: passa (idempotente — operador já está ativo).
+        var adminXsrf = await XsrfAsync(admin);
+        var comToken = await admin.SendAsync(
+            Write(HttpMethod.Patch, url, payload, adminXsrf));
+        comToken.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    // ── escrita Operate + leitura Read ──────────────────────────────────────
+
+    [Fact]
+    public async Task Operate_cria_task_para_operador_viewer_le_mas_nao_escreve()
+    {
+        var operador = await LoginAsync(E2EHost.OperatorEmail);
+        var viewer = await LoginAsync(E2EHost.ViewerEmail);
+
+        // Read: viewer lê.
+        (await viewer.GetAsync("/api/v1/tasks"))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Operate: viewer não escreve (mesmo com token antiforgery válido).
+        var viewerXsrf = await XsrfAsync(viewer);
+        var viewerCreate = await viewer.SendAsync(Write(HttpMethod.Post, "/api/v1/tasks",
+            new { title = "viewer não deve criar", kind = "Manual" }, viewerXsrf));
+        viewerCreate.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        // Operate: operador cria.
+        var operadorXsrf = await XsrfAsync(operador);
+        var criada = await operador.SendAsync(Write(HttpMethod.Post, "/api/v1/tasks",
+            new { title = $"e2e {Guid.NewGuid():N}", kind = "Manual" }, operadorXsrf));
+        ((int)criada.StatusCode).Should().BeInRange(200, 299);
+        var (ok, _, errors) = await EnvelopeAsync(criada);
+        ok.Should().BeTrue(string.Join("; ", errors));
+    }
+
+    // ── webhook público do Zabbix (ADR-023) ─────────────────────────────────
+
+    [Fact]
+    public async Task Webhook_do_zabbix_e_publico_e_confiavel_pelo_token()
+    {
+        var client = NewClient();
+        var payload = new
+        {
+            eventId = "1001",
+            host = "e2e-host",
+            ip = "10.0.0.9",
+            name = "CPU em 99%",
+            severity = 3,
+            status = "PROBLEM"
+        };
+
+        var semToken = await client.SendAsync(
+            Write(HttpMethod.Post, "/api/v1/integrations/zabbix/problems", payload));
+        semToken.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var (semTokenOk, _, semTokenErrors) = await EnvelopeAsync(semToken);
+        semTokenOk.Should().BeFalse();
+        semTokenErrors.Should().ContainSingle()
+            .Which.Should().Be("Token do Zabbix inválido.");
+
+        var comToken = new HttpRequestMessage(HttpMethod.Post,
+            "/api/v1/integrations/zabbix/problems") { Content = JsonContent.Create(payload) };
+        comToken.Headers.Add("X-Zabbix-Token", E2EHost.ZabbixToken);
+        var criado = await client.SendAsync(comToken);
+        criado.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await EnvelopeAsync(criado)).IsSuccess.Should().BeTrue();
+
+        // Reenvio do mesmo evento: contrato segue 200 (deduplicação é do handler).
+        // HttpRequestMessage é de uso único — o pedido é reconstruído.
+        var repetidoRequest = new HttpRequestMessage(HttpMethod.Post,
+            "/api/v1/integrations/zabbix/problems") { Content = JsonContent.Create(payload) };
+        repetidoRequest.Headers.Add("X-Zabbix-Token", E2EHost.ZabbixToken);
+        var repetido = await client.SendAsync(repetidoRequest);
+        repetido.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await EnvelopeAsync(repetido)).IsSuccess.Should().BeTrue();
+    }
+
+    // ── 404 embrulhado ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Recurso_inexistente_devolve_404_no_envelope()
+    {
+        var viewer = await LoginAsync(E2EHost.ViewerEmail);
+        var response = await viewer.GetAsync($"/api/v1/tasks/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var (ok, _, errors) = await EnvelopeAsync(response);
+        ok.Should().BeFalse();
+        errors.Should().NotBeEmpty();
+    }
+}

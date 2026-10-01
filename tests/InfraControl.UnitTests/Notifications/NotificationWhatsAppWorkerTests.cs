@@ -68,9 +68,11 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         context.NotificationDeliveries.Add(delivery);
         await context.SaveChangesAsync();
 
+        var dispatcher = new FakeDispatcher();
         var services = new ServiceCollection();
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<IWhatsAppNotificationDispatcher>(_ => dispatcher);
         var provider = services.BuildServiceProvider();
 
         var channels = new NotificationChannelsOptions
@@ -79,10 +81,8 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
             WhatsApp = new WhatsAppChannelOptions { Phone = phone },
         };
 
-        var dispatcher = new FakeDispatcher();
         var worker = new NotificationWhatsAppWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            dispatcher,
             Options.Create(channels),
             NullLogger<NotificationWhatsAppWorker>.Instance);
 

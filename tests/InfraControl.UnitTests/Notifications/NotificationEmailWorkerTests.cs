@@ -64,15 +64,15 @@ public sealed class NotificationEmailWorkerTests : IDisposable
         context.NotificationDeliveries.Add(delivery);
         await context.SaveChangesAsync();
 
+        var dispatcher = new FakeDispatcher();
         var services = new ServiceCollection();
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<IEmailNotificationDispatcher>(_ => dispatcher);
         var provider = services.BuildServiceProvider();
 
-        var dispatcher = new FakeDispatcher();
         var worker = new NotificationEmailWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            dispatcher,
             NullLogger<NotificationEmailWorker>.Instance);
 
         return (context, worker, dispatcher, delivery.Id);

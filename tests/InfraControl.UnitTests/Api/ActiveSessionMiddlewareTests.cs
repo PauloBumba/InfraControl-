@@ -72,26 +72,34 @@ public sealed class ActiveSessionMiddlewareTests
         }
     }
 
-    private static DefaultHttpContext Request(ClaimsPrincipal principal, StubAuthenticator? authenticator = null)
+    private static DefaultHttpContext Request(
+        ClaimsPrincipal principal,
+        IActiveSessionReader? reader = null,
+        ICacheService? cache = null,
+        StubAuthenticator? authenticator = null)
     {
         var context = new DefaultHttpContext { User = principal };
         context.Response.Body = new MemoryStream();
+
+        // O middleware resolve IActiveSessionReader e ICacheService POR REQUEST
+        // (escopados): injetá-los no construtor do singleton os capturaria no
+        // root provider e o host com ValidateScopes não sobe — bug real achado
+        // pelo e2e de pipeline completo. Os stubs vão no RequestServices, como
+        // os serviços de verdade ficam no host.
         context.RequestServices = new ServiceCollection()
             .AddSingleton<IAuthenticationService>(authenticator ?? new StubAuthenticator())
+            .AddSingleton<IActiveSessionReader>(reader ?? new StubReader((_, _) => ActiveSessionCheck.Active))
+            .AddSingleton<ICacheService>(cache ?? new FakeCacheService())
             .AddLogging()
             .BuildServiceProvider();
         return context;
     }
 
     private static ActiveSessionMiddleware Middleware(
-        IActiveSessionReader reader,
-        ICacheService? cache = null,
         TimeSpan? checkInterval = null,
         Action? onNext = null)
         => new(
             _ => { onNext?.Invoke(); return Task.CompletedTask; },
-            reader,
-            cache ?? new FakeCacheService(),
             Options.Create(new SessionLifetimeOptions
             {
                 SlidingLifetime = TimeSpan.FromDays(30),
@@ -106,10 +114,9 @@ public sealed class ActiveSessionMiddlewareTests
     public async Task Active_Session_Should_Pass()
     {
         var reached = false;
-        var context = Request(ActiveUser());
+        var context = Request(ActiveUser(), new StubReader((_, _) => ActiveSessionCheck.Active));
 
-        await Middleware(new StubReader((_, _) => ActiveSessionCheck.Active), onNext: () => reached = true)
-            .InvokeAsync(context);
+        await Middleware(onNext: () => reached = true).InvokeAsync(context);
 
         reached.Should().BeTrue();
         context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
@@ -125,10 +132,10 @@ public sealed class ActiveSessionMiddlewareTests
     {
         var reached = false;
         var authenticator = new StubAuthenticator();
-        var context = Request(ActiveUser(), authenticator);
+        var context = Request(ActiveUser(), new StubReader((_, _) => new ActiveSessionCheck(status)),
+            authenticator: authenticator);
 
-        await Middleware(new StubReader((_, _) => new ActiveSessionCheck(status)), onNext: () => reached = true)
-            .InvokeAsync(context);
+        await Middleware(onNext: () => reached = true).InvokeAsync(context);
 
         reached.Should().BeFalse("a sessão morreu antes do endpoint");
         context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -149,8 +156,8 @@ public sealed class ActiveSessionMiddlewareTests
                      ActiveSessionStatus.WrongUser
                  })
         {
-            var context = Request(ActiveUser());
-            await Middleware(new StubReader((_, _) => new ActiveSessionCheck(status))).InvokeAsync(context);
+            var context = Request(ActiveUser(), new StubReader((_, _) => new ActiveSessionCheck(status)));
+            await Middleware().InvokeAsync(context);
 
             context.Response.Body.Position = 0;
             messages.Add(await new StreamReader(context.Response.Body).ReadToEndAsync());
@@ -170,9 +177,9 @@ public sealed class ActiveSessionMiddlewareTests
         // cookie emitido antes da ADR-018: fail-closed, e sem consulta —
         // não há id para consultar
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
-        var context = Request(Principal(UserId, sessionId: null));
+        var context = Request(Principal(UserId, sessionId: null), reader);
 
-        await Middleware(reader).InvokeAsync(context);
+        await Middleware().InvokeAsync(context);
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         reader.Calls.Should().Be(0);
@@ -182,9 +189,9 @@ public sealed class ActiveSessionMiddlewareTests
     public async Task Malformed_Session_Claim_Should_Be_401_Without_Hitting_The_Database()
     {
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
-        var context = Request(MalformedSidPrincipal());
+        var context = Request(MalformedSidPrincipal(), reader);
 
-        await Middleware(reader).InvokeAsync(context);
+        await Middleware().InvokeAsync(context);
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized, "sid ilegível é fail-closed");
         reader.Calls.Should().Be(0);
@@ -196,8 +203,8 @@ public sealed class ActiveSessionMiddlewareTests
         var reader = new StubReader((_, _) => new ActiveSessionCheck(ActiveSessionStatus.Revoked));
         var reached = false;
 
-        await Middleware(reader, onNext: () => reached = true)
-            .InvokeAsync(Request(new ClaimsPrincipal(new ClaimsIdentity())));
+        await Middleware(onNext: () => reached = true)
+            .InvokeAsync(Request(new ClaimsPrincipal(new ClaimsIdentity()), reader));
 
         reached.Should().BeTrue();
         reader.Calls.Should().Be(0, "anônimo não tem sessão para conferir");
@@ -210,11 +217,11 @@ public sealed class ActiveSessionMiddlewareTests
         // consulta ao banco por request em toda a API
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
         var cache = new FakeCacheService();
-        var middleware = Middleware(reader, cache);
+        var middleware = Middleware();
 
-        await middleware.InvokeAsync(Request(ActiveUser()));
-        await middleware.InvokeAsync(Request(ActiveUser()));
-        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
 
         reader.Calls.Should().Be(1, "três requests dentro da janela, uma consulta");
     }
@@ -225,10 +232,11 @@ public sealed class ActiveSessionMiddlewareTests
         // sem isto, cookie morto vira uma consulta por request enquanto o
         // usuário navega na tela de erro
         var reader = new StubReader((_, _) => new ActiveSessionCheck(ActiveSessionStatus.Revoked));
-        var middleware = Middleware(reader);
+        var cache = new FakeCacheService();
+        var middleware = Middleware();
 
-        await middleware.InvokeAsync(Request(ActiveUser()));
-        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
 
         reader.Calls.Should().Be(1);
     }
@@ -238,11 +246,11 @@ public sealed class ActiveSessionMiddlewareTests
     {
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
         var cache = new FakeCacheService();
-        var middleware = Middleware(reader, cache, checkInterval: TimeSpan.FromMilliseconds(1));
+        var middleware = Middleware(checkInterval: TimeSpan.FromMilliseconds(1));
 
-        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
         await Task.Delay(30);
-        await middleware.InvokeAsync(Request(ActiveUser()));
+        await middleware.InvokeAsync(Request(ActiveUser(), reader, cache));
 
         reader.Calls.Should().Be(2, "passado o intervalo, a sessão é conferida de novo — é aí que a revogação passa a valer");
     }
@@ -257,9 +265,9 @@ public sealed class ActiveSessionMiddlewareTests
         var reader = new StubReader((_, _) => ActiveSessionCheck.Active);
         var cache = new FakeCacheService();
         await cache.SetAsync(ActiveSessionCache.Key(SessionId), new ActiveSessionCheck(ActiveSessionStatus.Revoked));
-        var context = Request(ActiveUser());
+        var context = Request(ActiveUser(), reader, cache);
 
-        await Middleware(reader, cache).InvokeAsync(context);
+        await Middleware().InvokeAsync(context);
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         reader.Calls.Should().Be(0, "o estado revogado já estava no cache compartilhado");
@@ -277,7 +285,7 @@ public sealed class ActiveSessionMiddlewareTests
             return new ActiveSessionCheck(ActiveSessionStatus.Active);
         });
 
-        await Middleware(reader).InvokeAsync(Request(Principal(attacker, SessionId)));
+        await Middleware().InvokeAsync(Request(Principal(attacker, SessionId), reader));
 
         seen.Should().Be(attacker, "a dona precisa travelsse até a consulta");
     }

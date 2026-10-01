@@ -68,9 +68,11 @@ public sealed class NotificationSlackWorkerTests : IDisposable
         context.NotificationDeliveries.Add(delivery);
         await context.SaveChangesAsync();
 
+        var dispatcher = new FakeDispatcher();
         var services = new ServiceCollection();
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<ISlackNotificationDispatcher>(_ => dispatcher);
         var provider = services.BuildServiceProvider();
 
         var channels = new NotificationChannelsOptions
@@ -79,10 +81,8 @@ public sealed class NotificationSlackWorkerTests : IDisposable
             Slack = new SlackChannelOptions { Channel = channel },
         };
 
-        var dispatcher = new FakeDispatcher();
         var worker = new NotificationSlackWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            dispatcher,
             Options.Create(channels),
             NullLogger<NotificationSlackWorker>.Instance);
 

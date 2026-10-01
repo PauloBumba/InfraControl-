@@ -26,6 +26,7 @@ public abstract class NotificationChannelWorkerBase(
     protected abstract Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
+        IServiceProvider services,
         CancellationToken cancellationToken);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -83,7 +84,7 @@ public abstract class NotificationChannelWorkerBase(
 
             try
             {
-                await DispatchAsync(item, delivery, cancellationToken);
+                await DispatchAsync(item, delivery, scope.ServiceProvider, cancellationToken);
                 delivery.MarkSent(AppTimeProvider.Current.GetUtcNow().UtcDateTime);
                 sent++;
             }

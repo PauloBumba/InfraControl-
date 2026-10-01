@@ -3,6 +3,7 @@ using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Application.Notifications.Telegram;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Api.Workers;
@@ -16,7 +17,6 @@ namespace InfraControl.Api.Workers;
 /// </summary>
 public sealed class NotificationTelegramWorker(
     IServiceScopeFactory scopeFactory,
-    ITelegramNotificationDispatcher dispatcher,
     IOptions<NotificationChannelsOptions> channelsOptions,
     ILogger<NotificationTelegramWorker> logger)
     : NotificationChannelWorkerBase(scopeFactory, logger, NotificationChannel.Telegram)
@@ -24,6 +24,7 @@ public sealed class NotificationTelegramWorker(
     protected override Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
+        IServiceProvider services,
         CancellationToken cancellationToken)
     {
         var chatId = channelsOptions.Value.Telegram.ChatId;
@@ -31,7 +32,7 @@ public sealed class NotificationTelegramWorker(
             throw new InvalidOperationException(
                 "Canal Telegram sem ChatId configurado (Notifications:Channels:Telegram:ChatId).");
 
-        return dispatcher.SendAsync(
+        return services.GetRequiredService<ITelegramNotificationDispatcher>().SendAsync(
             new TelegramNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
                 chatId, item.Title, item.Message, item.CreatedAt),

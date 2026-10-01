@@ -69,9 +69,11 @@ public sealed class NotificationTelegramWorkerTests : IDisposable
         context.NotificationDeliveries.Add(delivery);
         await context.SaveChangesAsync();
 
+        var dispatcher = new FakeDispatcher();
         var services = new ServiceCollection();
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<ITelegramNotificationDispatcher>(_ => dispatcher);
         var provider = services.BuildServiceProvider();
 
         var channels = new NotificationChannelsOptions
@@ -80,10 +82,8 @@ public sealed class NotificationTelegramWorkerTests : IDisposable
             Telegram = new TelegramChannelOptions { ChatId = chatId },
         };
 
-        var dispatcher = new FakeDispatcher();
         var worker = new NotificationTelegramWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            dispatcher,
             Options.Create(channels),
             NullLogger<NotificationTelegramWorker>.Instance);
 

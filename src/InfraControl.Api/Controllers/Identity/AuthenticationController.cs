@@ -94,7 +94,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] RefreshSessionViewModel? model, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
+        if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var userId))
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         await authenticationService.LogoutAsync(userId, model?.RefreshToken, cancellationToken);
@@ -125,7 +125,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value, out var userId))
+        if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var userId))
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         var result = await authenticationService.ChangePasswordAsync(new ChangePasswordRequest(userId, model.CurrentPassword, model.NewPassword), cancellationToken);
@@ -147,7 +147,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
 
         return Ok(ApiResponse.Ok(new
         {
-            userId = User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
+            userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value,
             email = User.Identity?.Name,
             displayName = User.FindFirst("displayName")?.Value,
             roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray()

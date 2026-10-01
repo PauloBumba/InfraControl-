@@ -304,6 +304,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   instalado no ciclo pós-F16-T002): **152/152 verdes** na primeira execução
   completa da suíte nesta máquina (13m12s; antes: 130/130 junto da F15 e
   149/152 na primeira rodada com 3 falhas já corrigidas e commitadas);
+  revalidada de novo no ciclo da Fase Q (30/09): **161/161** (152 + 9 e2e);
   pendência mantida para o caso de outras máquinas sem Docker
 - [ ] **`postgresql-client` na imagem dos Workers** (`docker/Dockerfile`) —
   `PostgresBackupService` faz spawn de `pg_dump`/`pg_restore`, mas a imagem
@@ -318,8 +319,18 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   escolha do usuário
 - [ ] **Página de aceite de convite no frontend** — o link e-maiado em F1-T017
   aponta para a API (`POST /auth/invitations/{id}/accept`) sem página GET
-- [ ] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — pendência
-  declarada nas ADR-017/ADR-018 (middleware/behavior testados com fakes)
+- [x] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — **FECHADA
+  em 30/09/2026** (Fase Q): `tests/InfraControl.IntegrationTests/EndToEnd/` =
+  `E2EHost` (PostgreSQL+Redis reais via Testcontainers, bootstrap real de
+  `Program`, seed de operador/viewer/sem-papel, XSRF lido do cookie) +
+  `FullPipelineE2ETests` com 9 cenários (contrato login/`/auth/me` que o
+  frontend consome, 401 pt-BR de senha errada, 400 de ModelState, matriz
+  Operate, 403 da segunda camada sem papel, matriz Administer + antiforgery,
+  criação/leitura de task por papel, webhook Zabbix público por token, 404 no
+  envelope) — fecha a pendência declarada nas ADR-017/ADR-018; na mesma
+  rodada a suíte de integração fechou **161/161** e os testes de e2e acharam
+  e corrigiram 6 bugs reais de boot/autorização (ver PROJECT_STATE, ciclo
+  Fase Q)
 - [ ] **Rate limit específico do login com código MFA** — pendência da ADR-019
   (o `HttpRateLimit` de login cobre o passo 1)
 - [ ] **Investigar flakiness** de `RdpRemoteProviderTests.ConnectAsync_NegotiationFailure_ShouldReturnNlaFailurePtBr`

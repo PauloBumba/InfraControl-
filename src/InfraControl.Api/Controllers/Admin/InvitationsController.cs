@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using InfraControl.Application.Identity.Invitations.Commands;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Admin;
@@ -21,7 +22,7 @@ public sealed class InvitationsController(ISender sender) : BaseController
     public async Task<IActionResult> Create([FromBody] CreateInvitationViewModel model, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(
-                User.FindFirst("sub")?.Value ?? User.FindFirst("nameidentifier")?.Value,
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value,
                 out var inviterId))
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um convidante autenticado."]));
 

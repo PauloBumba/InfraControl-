@@ -3,6 +3,7 @@ using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Application.Notifications.Slack;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Api.Workers;
@@ -16,7 +17,6 @@ namespace InfraControl.Api.Workers;
 /// </summary>
 public sealed class NotificationSlackWorker(
     IServiceScopeFactory scopeFactory,
-    ISlackNotificationDispatcher dispatcher,
     IOptions<NotificationChannelsOptions> channelsOptions,
     ILogger<NotificationSlackWorker> logger)
     : NotificationChannelWorkerBase(scopeFactory, logger, NotificationChannel.Slack)
@@ -24,6 +24,7 @@ public sealed class NotificationSlackWorker(
     protected override Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
+        IServiceProvider services,
         CancellationToken cancellationToken)
     {
         var channel = channelsOptions.Value.Slack.Channel;
@@ -31,7 +32,7 @@ public sealed class NotificationSlackWorker(
             throw new InvalidOperationException(
                 "Canal Slack sem Channel configurado (Notifications:Channels:Slack:Channel).");
 
-        return dispatcher.SendAsync(
+        return services.GetRequiredService<ISlackNotificationDispatcher>().SendAsync(
             new SlackNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
                 channel, item.Title, item.Message, item.CreatedAt),

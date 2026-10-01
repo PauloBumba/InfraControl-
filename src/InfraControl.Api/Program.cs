@@ -1,3 +1,4 @@
+using InfraControl.Application;
 using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Roles.Commands;
 using InfraControl.Application.Integrations.Zabbix;
@@ -40,8 +41,7 @@ builder.Host.UseSerilog();
 
 // ── Infrastructure ───────────────────────────────────────────────────────
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddMediatR(configuration =>
-    configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
+builder.Services.AddApplicationMediatR();
 builder.Services.AddSingleton(builder.Configuration
     .GetSection(BootstrapAdminOptions.SectionName)
     .Get<BootstrapAdminOptions>() ?? new BootstrapAdminOptions());
@@ -88,6 +88,12 @@ builder.Services
     .AddOptions<ZabbixIntegrationOptions>()
     .Bind(builder.Configuration.GetSection(ZabbixIntegrationOptions.SectionName));
 
+// F0-T023: o GlobalExceptionHandler é o único ponto de erro da API, mas o
+// middleware do ASP.NET (UseExceptionHandler sem path/delegate) só sobe se o
+// IProblemDetailsService existir — AddExceptionHandler<T> NÃO o registra.
+// Sem esta linha o pipeline falha em tempo de build ("ExceptionHandlingPath or
+// ExceptionHandler must be set") e a API não sobe em NENHUM ambiente.
+builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
@@ -260,3 +266,7 @@ app.MapControllers();
 app.MapHub<NotificationsHub>("/hubs/notifications");
 
 app.Run();
+
+// Exposto para os testes e2e (WebApplicationFactory<Program> roda o host
+// real — pipeline, policies, antiforgery e GlobalExceptionHandler intactos).
+public partial class Program;

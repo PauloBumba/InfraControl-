@@ -1,3 +1,4 @@
+using InfraControl.Application;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Incidents.Ports;
@@ -63,8 +64,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             options.UseNpgsql(_postgres.GetConnectionString()));
 
         // Pipeline MediatR do aplicativo — mesmo escopo do Program.cs
-        services.AddMediatR(configuration =>
-            configuration.RegisterServicesFromAssemblyContaining<RunCheckCommand>());
+        services.AddApplicationMediatR();
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
