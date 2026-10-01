@@ -533,7 +533,23 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     informativa em vez de sumir (remover quebraria a contagem da query).
     Subtítulo = contagem real + data/status da descoberta (errorMessage do
     run Failed aparece). Sem mutations
-  - [ ] Insights
+  - [x] **F17-T016 `InsightsPage`** — **N/A de contrato**: os três painéis
+    (DPI por aplicação, Tráfego por Cliente, Speed Test) não têm domínio
+    no backend (varredura: nenhum controller/entidade de DPI/tráfego/
+    speed test — os mesmos gráficos já saíram do Dashboard no T009). Sem o
+    que conectar e sem dado real para manter, a página foi **esvaziada com
+    estados vazios honestos** ("Não implementado no backend…") em vez de
+    exibir arrays fabricados como reais; rota/menu permanecem estáveis
+    (feature não é deletada sem decisão humana). **Escalado**: quando
+    houver produto de tráfego, decidir entre construir o backend, apagar a
+    página/rota ou manter como demo — decisão humana registrada aqui e no
+    PROJECT_STATE
+  - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
+    N/A + Insights esvaziado); o grupo permanece aberto por
+    `DeviceDetailPage` (task separada já prevista), pela decisão de
+    produto do Insights (construir backend / apagar página / demo) e pelas
+    páginas fora do checklist ainda em mock (`LocationsPage`, `LogsPage`,
+    `SwitchesPage`, `TopologyPage`) — escopo para decisão humana
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
