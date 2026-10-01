@@ -649,15 +649,31 @@ task que não cabe numa descrição clara está grande demais — dividir). Os
 domínios novos (T005–T008) exigem **ADR + questionário de escopo antes do
 plano** — não se implementa arquitetura de coleta sem decisão humana.
 
-- [ ] **F18-T001 Feed de notificações** — `GET` paginado das notificações
-  do usuário autenticado (join `NotificationRecipient` → `Notification`,
-  mais recentes primeiro; DTO `{id, eventType, title, message, createdAt}`
-  — a entidade hoje tem `EventId/EventType/Title/Message` e **não tem
-  flag de leitura**; decisão prévia: incluir `ReadAt` + `POST {id}/read`
-  ou entregar sem estado "não lidas"). Critérios: 200 com `PagedResult`,
-  401 anônimo, 404/400 conforme contrato; testes unit (handler) +
-  integration (contrato). Desbloqueia a aba Feed da NotificationsPage
-  (F17-T010 documentou a remoção)
+- [x] **F18-T001 Feed de notificações** — `GET /api/v1/notifications`
+  (raiz do controller, nova action `GetFeed`) com `page`/`pageSize`
+  (clamp 1..100). **Decisão prévia registrada: sem estado de
+  leitura** — DTO entregue `{id, eventType, title, message, createdAt}`
+  (`createdAt` = `CreateDateTime`), sem `ReadAt`/`POST {id}/read`
+  (a task autorizou "entregar sem não lidas"; evita migração de schema;
+  extensão futura documentada no DTO). Implementação: port
+  `INotificationFeedRepository` (novo pacote `Notifications/Feed/`) +
+  `NotificationFeedRepository` com predicado correlato `Any()` —
+  destinatário direto OU role (`IN` das roles do `ICurrentUserContext`),
+  **dedup por construção** (alvo direto + role = 1 linha), ordenação
+  `CreateDateTime` desc com desempate por `Id` (paginação estável);
+  handler `GetNotificationFeedQuery` (ADR-016 `RoleAccess.Read`, usuário
+  do contexto, não da query; sem usuário → `UnauthorizedAccessException`
+  pt-BR). Registrado no `BaseIntegrationTest` (a base não varre) e
+  auto-registrado na API via `RepositoryRegistrar`. Testes: 5 unit
+  (Sqlite — só os do feed entraram: ordenação/dedup/clamp/falha sem
+  usuário), 3 integração (PagedResult + gate ADR-016 + dedup) e 2 E2E
+  HTTP no `FullPipelineE2ETests` (401 anônimo + envelope
+  `{isSuccess,data:{items,totalCount,page,pageSize},errors}`).
+  Achado no caminho: `ApplyAuditFields` do `AppDbContext` sobrescreve
+  `CreateDateTime` de toda entrada `Added` com `AppTimeProvider.Current`
+  — data determinística do teste gravada em segunda passada (`Modified`
+  não toca `CreateDateTime`). **Desbloqueia** a aba Feed da
+  NotificationsPage (UI = task futura; F17-T010 documentou a remoção)
 - [ ] **F18-T002 Filtro `kind` em discovery results** — parâmetro opcional
   `kind` em `GET /discovery/runs/{runId}/results` (enum
   `DiscoveryResultKind`: `Neighbor|ArpEntry|MacTableEntry|DhcpLease|Host`;

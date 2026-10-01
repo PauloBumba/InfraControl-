@@ -155,6 +155,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             SloBudgetRepository>();
         services.AddScoped<InfraControl.Application.Notifications.Recipients.Ports.INotificationRecipientRepository,
             NotificationRecipientRepository>();
+        // F18-T001: feed do usuário (a base não faz varredura automática)
+        services.AddScoped<InfraControl.Application.Notifications.Feed.Ports.INotificationFeedRepository,
+            NotificationFeedRepository>();
         services.AddScoped<InfraControl.Application.Notifications.Preferences.Ports.INotificationPreferenceRepository,
             NotificationPreferenceRepository>();
         services.AddScoped<InfraControl.Application.Notifications.Deliveries.Ports.INotificationDeliveryRepository,

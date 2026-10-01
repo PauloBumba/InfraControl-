@@ -1,5 +1,6 @@
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Notifications;
+using InfraControl.Application.Notifications.Feed.Queries;
 using InfraControl.Application.Notifications.Preferences.Commands;
 using InfraControl.Application.Notifications.Preferences.Queries;
 using InfraControl.Application.Notifications.Recipients.Queries;
@@ -19,6 +20,20 @@ namespace InfraControl.Api.Controllers.Notifications;
 [Authorize]
 public sealed class NotificationsController(IMediator sender) : BaseController
 {
+    /// <summary>
+    /// F18-T001 — feed do usuário autenticado: destinatário direto ou de
+    /// role, mais recentes primeiro. DTO sem estado de leitura (decisão
+    /// da task — a entidade não tem flag de lida).
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetFeed(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetNotificationFeedQuery(page, pageSize),
+            cancellationToken)));
+
     [HttpGet("{notificationId:guid}/recipients")]
     public async Task<IActionResult> GetRecipients(
         Guid notificationId,

@@ -184,6 +184,36 @@ public sealed class FullPipelineE2ETests(E2EHost host) : IClassFixture<E2EHost>
         errors.Should().NotBeEmpty();
     }
 
+    // ── F18-T001: feed de notificações ──────────────────────────────────────
+
+    [Fact]
+    public async Task Feed_de_notificacoes_anonimo_vai_para_401()
+    {
+        var anonimo = NewClient();
+
+        (await anonimo.GetAsync("/api/v1/notifications"))
+            .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Feed_de_notificacoes_logado_devolve_o_envelope_paginado()
+    {
+        var admin = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+
+        var response = await admin.GetAsync("/api/v1/notifications?page=1&pageSize=20");
+        response.StatusCode.Should().Be(
+            HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        var (ok, data, errors) = await EnvelopeAsync(response);
+        ok.Should().BeTrue();
+        errors.Should().BeEmpty();
+
+        data.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+        data.GetProperty("totalCount").GetInt32().Should().BeGreaterThanOrEqualTo(0);
+        data.GetProperty("page").GetInt32().Should().Be(1);
+        data.GetProperty("pageSize").GetInt32().Should().Be(20);
+    }
+
     // ── escrita: Administer + antiforgery (ADR-017) ─────────────────────────
 
     [Fact]
