@@ -444,7 +444,22 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     (nenhuma rota correspondente nos controllers); card ganhou a
     `description` real, filtro operacional `term` documentado no serviço e
     pager real de 100/página
-  - [ ] Dashboard
+  - [x] **F17-T009 `DashboardPage`** — sem endpoint próprio: montada com
+    os serviços reais já criados + novo `services/api/alerts.ts`
+    (`GET /monitoring/alerts?status=open|resolved|suppressed` →
+    `PagedResult<AlertDto>`; `severity`/`status` em PascalCase via
+    `ToString()`). Mini-stats reais: Dispositivos (`totalCount` de
+    `/inventory/devices`), Alertas (`totalCount` com `status=open` +
+    críticos derivados de `severity`), Tarefas (abertas = fora de
+    Resolved/Cancelled/Closed, em progresso = `InProgress`). Painéis:
+    dispositivos (nome/modelo), alertas abertos (5: device·check +
+    mensagem), tarefas (6: título + chip de estado) e Eventos Recentes
+    (`GET /admin/audit` — policy Administer: sem nível o painel avisa
+    "acesso restrito" em vez de quebrar; 403 detectado por
+    `ApiError.isForbidden`). Removidos sem contrato: stats de
+    Clientes/Download/WiFi, Status do Sistema (subsystems), painel Gateway
+    (CPU/mem/tráfego/WAN), gráfico de tráfego, Top Clients e Speed Test;
+    "Ver todos" virou navegação real (/devices, /alerts, /tasks, /audit)
   - [ ] Notifications · Alerts · Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
