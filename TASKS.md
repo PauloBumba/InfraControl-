@@ -401,8 +401,22 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     por período, rótulo Esgotado/Atenção/Normal derivado do número real);
     orçamento é 1 pedido por SLO (sem endpoint agregado — pendência se
     crescer)
-  - [ ] UsersPage (exige decisão da rota de roles duplicada: `RolesController`
-    `api/identity/users` × `UsersController` `api/v1/admin/users`)
+  - [x] **F17-T006 `UsersPage`** — `services/api/adminUsers.ts`
+    (`GET /admin/users` coleção sem paginação, policy Operate; `PATCH
+    {id}/status` `{active}`, `POST/DELETE {id}/roles/{role}` e `POST
+    /admin/invitations` `{email,roles[num],expiresInDays}` — tudo
+    Administer). **Decisão de rota tomada**: a página usa SÓ
+    `api/v1/admin/users` (prefixo v1 + controller Admin); o `RolesController`
+    (`api/identity/users`, fora do padrão v1, com DELETE duplicado) fica de
+    fora do front — limpeza do backend segue como observação. Enums: `roles`
+    na listagem e no body do convite saem **numéricos** (1/2/3), no path da
+    rota vai o **nome**; colunas sem contrato do protótipo (sessões, último
+    login, status "Pendente", role única) removidas — `roles` vira chips
+    múltiplos e "Criado em" vira "Atualizado em" (`updatedAt`). Gestão real
+    na tela: ativar/desativar, remover/atribuir papel (409 do último admin
+    aparece no banner), convite por e-mail+role. Aba Roles: catálogo
+    canônico ADR-016 (enum, sem endpoint — contagem REAL por role derivada
+    da lista)
   - [ ] Devices/Inventário · Network · Dashboard
   - [ ] Notifications · Alerts · Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
