@@ -9,9 +9,12 @@ export function createHubConnection(hubUrl: string): signalR.HubConnection {
   // GET /auth/me no boot — sem ele (sessão ainda não aberta) conecta sem o
   // header e o backend responde com o erro padrão em vez de derrubar o build.
   const token = antiforgeryToken();
+  const options: signalR.IHttpConnectionOptions = token
+    ? { headers: { [XSRF_HEADER]: token } }
+    : {};
 
   return new signalR.HubConnectionBuilder()
-    .withUrl(hubUrl, token ? { headers: { [XSRF_HEADER]: token } } : undefined)
+    .withUrl(hubUrl, options)
     .withAutomaticReconnect()
     .build();
 }

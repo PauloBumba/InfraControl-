@@ -3,7 +3,6 @@ using InfraControl.Application.Notifications.Channels;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
-using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using InfraControl.Workers.Consumers.Notifications;
