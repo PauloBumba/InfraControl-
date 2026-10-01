@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import { logsData } from "@/data/dashboardData";
 
 // ADR-021/ADR-022: a plataforma de rastreio é o Seq, servido pelo nginx com
 // basic auth (SEQ_AUTH_USER/SEQ_AUTH_PASSWORD no .env, dev: admin/admin).
@@ -74,37 +73,21 @@ export function LogsPage() {
         </div>
       </div>
 
-      <div className="uni-panel">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Últimos eventos (amostra local)</span>
-          <span style={{ fontSize: 11, color: "#94a3b8" }}>
-            Pré-visualização de desenvolvimento — o histórico completo e filtrável está na plataforma de logs.
-          </span>
+      {/* F17-T019: a tabela "Últimos eventos (amostra local)" de `logsData`
+          saiu — não existe endpoint de logs da aplicação na API. Os logs
+          estruturados (nível/fonte/mensagem) são publicados no Seq
+          (ADR-021/ADR-022) e a API não os expõe; auditoria de ações de
+          usuário tem página própria em /audit. */}
+      <div className="uni-panel" style={{ padding: 20, display: "flex", alignItems: "center", gap: 12 }}>
+        <i className="pi pi-database" style={{ fontSize: 18, color: "#94a3b8" }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Eventos da aplicação ficam na plataforma de logs</div>
+          <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+            A API não expõe o histórico de logs (níveis, fontes, mensagens) — ele é gravado no Seq, junto com workers e
+            outbox. Use os botões acima para abrir a plataforma ou rastrear um <code style={{ fontSize: 11 }}>CorrelationId</code>.
+            Ações de usuário auditadas estão em <strong>Auditoria</strong>.
+          </div>
         </div>
-        <table className="uni-logs-table">
-          <thead>
-            <tr>
-              <th style={{ width: 140 }}>Data/Hora</th>
-              <th style={{ width: 80 }}>Nível</th>
-              <th>Mensagem</th>
-              <th style={{ width: 100 }}>Fonte</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logsData.map((log, i) => (
-              <tr key={i}>
-                <td style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>{log.time}</td>
-                <td>
-                  <span className={`uni-log-level ${log.level}`}>
-                    {log.level === "info" ? "INFO" : log.level === "warning" ? "WARN" : "ERR"}
-                  </span>
-                </td>
-                <td style={{ fontSize: 13 }}>{log.message}</td>
-                <td style={{ fontSize: 12, color: "#64748b" }}>{log.source}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );

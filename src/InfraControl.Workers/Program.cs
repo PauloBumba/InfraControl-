@@ -1,3 +1,4 @@
+using InfraControl.Application;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Workers;
 using InfraControl.Workers.Consumers.Notifications;
@@ -41,6 +42,8 @@ builder.Services.AddInfrastructure(
 
 builder.Services.AddMediatR(configuration =>
     configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplicationMediatR();
 
 // F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —
 // a MESMA seção que o host da Api lê para os workers de canal.

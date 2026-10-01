@@ -18,11 +18,12 @@ public sealed class DiscoveryResultsController(ISender sender) : BaseController
     [Authorize]
     public async Task<IActionResult> Search(
         Guid runId,
+        [FromQuery] string? kind = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new SearchDiscoveryResultsQuery(runId, page, pageSize), cancellationToken)));
+            new SearchDiscoveryResultsQuery(runId, kind, page, pageSize), cancellationToken)));
 
     [HttpGet("results/{id:guid}")]
     [Authorize]

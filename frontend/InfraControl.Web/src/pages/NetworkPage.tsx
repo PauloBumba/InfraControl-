@@ -1,159 +1,237 @@
-import { useState } from "react";
-import { vlans, dhcpLeases, routes, firewallRules } from "@/data/dashboardData";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Can } from "@/components/auth/Can";
+import { NETWORK_PAGE_SIZE, createVlan, listVlans, type Paged, type VlanItem } from "@/services/api/network";
 
-const tabs = ["VLANs", "DHCP", "Rotas", "Firewall"];
+/**
+ * F17-T008 — NetworkPage conectada ao backend (substitui `vlans`,
+ * `dhcpLeases`, `routes` e `firewallRules` de `data/dashboardData`).
+ *
+ * Contrato real: `GET/POST /api/v1/network/vlans` (`VlanDto` = nome,
+ * número 802.1Q e descrição). Divergências do protótipo: "VLAN {id}" vira
+ * **VLAN {vlanNumber}** (o número real); `color`, `devices`, `subnet`,
+ * `gateway` e `dhcp` do card não existem no DTO (saíram). As abas DHCP,
+ * Rotas e Firewall **foram removidas — não há endpoint no backend** (F3
+ * cobre switches/ports/VLANs/conexões/topologia; DHCP/rotas/firewall não
+ * têm slice). A vinculação N:N de portas (SwitchPortVlan) também não tem
+ * UI nesta task.
+ */
+
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
+}
 
 export function NetworkPage() {
-  const [activeTab, setActiveTab] = useState("VLANs");
+  const [pageData, setPageData] = useState<Paged<VlanItem> | null>(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [vlanNumber, setVlanNumber] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPageData(await listVlans(page));
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function submitCreate(event: FormEvent) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    const number = Number(vlanNumber);
+    if (!trimmedName) {
+      setFormError("Informe o nome da VLAN.");
+      return;
+    }
+    if (!Number.isInteger(number) || number < 1 || number > 4094) {
+      setFormError("O número da VLAN deve ser inteiro entre 1 e 4094.");
+      return;
+    }
+    setSaving(true);
+    setFormError(null);
+    try {
+      await createVlan({
+        name: trimmedName,
+        vlanNumber: number,
+        description: description.trim() || undefined,
+      });
+      setCreating(false);
+      setName("");
+      setVlanNumber("");
+      setDescription("");
+      setNotice(`VLAN "${trimmedName}" (${number}) criada.`);
+      await load();
+    } catch (caught) {
+      setFormError(messageFor(caught));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const vlans = pageData?.items ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Rede</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>VLANs, DHCP, rotas e firewall</p>
+          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+            {loading
+              ? "Carregando…"
+              : `${totalCount} ${totalCount === 1 ? "VLAN" : "VLANs"} cadastradas`}
+          </p>
         </div>
         <Can level="operate">
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+          <button
+            onClick={() => { setCreating((value) => !value); setFormError(null); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, border: "none" }}
+          >
             <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
           </button>
         </Can>
       </div>
 
-      <div style={{ display: "flex", gap: 2, background: "#f3f4f6", padding: 2, borderRadius: 6, width: "fit-content" }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              padding: "5px 14px", borderRadius: 5, fontSize: 12, fontWeight: 500,
-              background: activeTab === tab ? "white" : "transparent",
-              color: activeTab === tab ? "#1a1a1a" : "#6b7280",
-              boxShadow: activeTab === tab ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-            }}
-          >
-            {tab}
+      {notice && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
+          <i className="pi pi-check-circle" />
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
+            <i className="pi pi-times" />
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {activeTab === "VLANs" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-          {vlans.map((vlan) => (
-            <div key={vlan.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16, cursor: "pointer", transition: "all 0.12s" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: vlan.color }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{vlan.name}</div>
-                    <div style={{ fontSize: 10, color: "#9ca3af" }}>VLAN {vlan.vlanId}</div>
-                  </div>
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {creating && (
+        <form onSubmit={submitCreate} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b" }}>
+            Nome *
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Ex.: Voz"
+              autoFocus
+              maxLength={120}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: 180 }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b" }}>
+            Número (1–4094) *
+            <input
+              type="number"
+              min={1}
+              max={4094}
+              value={vlanNumber}
+              onChange={(event) => setVlanNumber(event.target.value)}
+              placeholder="100"
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: 130 }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b", flex: 1, minWidth: 200 }}>
+            Descrição
+            <input
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Opcional"
+              maxLength={500}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+          </label>
+          {formError && <div style={{ fontSize: 12, color: "#b91c1c", alignSelf: "center" }}>{formError}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => { setCreating(false); setFormError(null); }}
+              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "Salvando…" : "Criar VLAN"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+        {vlans.map((vlan) => (
+          <div key={vlan.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#3b82f6" }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{vlan.name}</div>
+                  <div style={{ fontSize: 10, color: "#9ca3af" }}>VLAN {vlan.vlanNumber}</div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280" }}>
-                  {vlan.devices} dispositivos
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "#6b7280" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Subnet</span><span style={{ fontFamily: "monospace", color: "#1a1a1a" }}>{vlan.subnet}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Gateway</span><span style={{ fontFamily: "monospace", color: "#1a1a1a" }}>{vlan.gateway}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>DHCP</span><span style={{ fontFamily: "monospace", color: "#1a1a1a" }}>{vlan.dhcp}</span></div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+            {vlan.description && (
+              <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4 }}>{vlan.description}</div>
+            )}
+          </div>
+        ))}
+        {!loading && vlans.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+            {error ? "—" : "Nenhuma VLAN cadastrada"}
+          </div>
+        )}
+        {loading && vlans.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+            Carregando…
+          </div>
+        )}
+      </div>
 
-      {activeTab === "DHCP" && (
-        <div className="uni-panel">
-          <table className="uni-clients-table">
-            <thead>
-              <tr>
-                <th>IP</th>
-                <th>MAC</th>
-                <th>Hostname</th>
-                <th>VLAN</th>
-                <th>Expira</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dhcpLeases.map((lease, i) => (
-                <tr key={i}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{lease.ip}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 11, color: "#6b7280" }}>{lease.mac}</td>
-                  <td style={{ fontWeight: 500 }}>{lease.hostname}</td>
-                  <td><span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280" }}>{lease.vlan}</span></td>
-                  <td style={{ fontSize: 12, color: lease.expires === "Reservado" ? "#3b82f6" : "#6b7280" }}>{lease.expires}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {activeTab === "Rotas" && (
-        <div className="uni-panel">
-          <table className="uni-clients-table">
-            <thead>
-              <tr>
-                <th>Destino</th>
-                <th>Gateway</th>
-                <th>Interface</th>
-                <th>Métrica</th>
-                <th>Tipo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {routes.map((route, i) => (
-                <tr key={i}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 500 }}>{route.destination}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{route.gateway}</td>
-                  <td>{route.interface}</td>
-                  <td>{route.metric}</td>
-                  <td><span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: route.type === "Conectada" ? "#f0fdf4" : "#eff6ff", color: route.type === "Conectada" ? "#16a34a" : "#3b82f6" }}>{route.type}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {activeTab === "Firewall" && (
-        <div className="uni-panel">
-          <table className="uni-clients-table">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Ação</th>
-                <th>Protocolo</th>
-                <th>Origem</th>
-                <th>Destino</th>
-                <th>Porta</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {firewallRules.map((rule) => (
-                <tr key={rule.id}>
-                  <td style={{ fontWeight: 500 }}>{rule.name}</td>
-                  <td>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: rule.action === "Permitir" ? "#f0fdf4" : "#fef2f2", color: rule.action === "Permitir" ? "#16a34a" : "#dc2626" }}>
-                      {rule.action}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: 12 }}>{rule.protocol}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 11 }}>{rule.source}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 11 }}>{rule.destination}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 11 }}>{rule.port}</td>
-                  <td>
-                    <div style={{ width: 32, height: 18, borderRadius: 9, background: rule.enabled ? "#3b82f6" : "#d1d5db", position: "relative", cursor: "pointer" }}>
-                      <div style={{ position: "absolute", top: 2, left: rule.enabled ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {totalCount > NETWORK_PAGE_SIZE && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, fontSize: 12, color: "#64748b" }}>
+          <span>
+            Página {page} de {Math.max(1, Math.ceil(totalCount / NETWORK_PAGE_SIZE))}
+          </span>
+          <button
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            disabled={page <= 1 || loading}
+            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => setPage((value) => value + 1)}
+            disabled={loading || vlans.length < NETWORK_PAGE_SIZE}
+            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: loading || vlans.length < NETWORK_PAGE_SIZE ? "default" : "pointer", opacity: loading || vlans.length < NETWORK_PAGE_SIZE ? 0.5 : 1 }}
+          >
+            Próxima
+          </button>
         </div>
       )}
     </div>

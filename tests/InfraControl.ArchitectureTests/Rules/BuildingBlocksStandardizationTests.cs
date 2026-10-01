@@ -37,8 +37,6 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
         {
             "InfraControl.Application.Identity.Invitations.Commands.CreateInvitationCommand",
             "InfraControl.Application.Identity.Invitations.Commands.CancelInvitationCommand",
-            "InfraControl.Application.Identity.Roles.Commands.AssignUserRoleCommand",
-            "InfraControl.Application.Identity.Roles.Commands.RemoveUserRoleCommand",
             "InfraControl.Application.Common.Audit.Queries.SearchAuditEntriesQuery",
             "InfraControl.Application.Inventory.Locations.Commands.CreateLocationCommand",
             "InfraControl.Application.Inventory.Locations.Commands.UpdateLocationCommand",

@@ -24,6 +24,12 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .WithOne()
             .HasForeignKey(assignment => assignment.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // O login cria as claims de role do cookie a partir de uma consulta
+        // fresh de DomainUsers — sem AutoInclude a coleção vinha vazia e TODO
+        // usuário logava sem roles (403 em toda rota com policy). Bug real
+        // exposto pelo e2e de pipeline completo (WebApplicationFactory).
+        builder.Navigation(user => user.RoleAssignments).AutoInclude();
     }
 }
 
@@ -33,6 +39,15 @@ public sealed class UserRoleAssignmentConfiguration : IEntityTypeConfiguration<U
     {
         builder.ToTable("DomainUserRoles");
         builder.HasKey(assignment => assignment.Id);
+        // F18-T004: o Id nasce preenchido no construtor do Entity, mas a
+        // convenção Guid marcava ValueGeneratedOnAdd. Com chave "de loja"
+        // já preenchida, o DetectChanges anexava a instância NOVA (filha
+        // descoberta via coleção em User.AssignRole/RemoveRole) como
+        // Modified em vez de Added — o UPDATE batia em 0 linhas e o
+        // POST/DELETE /admin/users/{id}/roles/{role} estourava 500
+        // (DbUpdateConcurrencyException). ValueGeneratedNever = o domínio
+        // sempre gera a chave, o banco nunca.
+        builder.Property(assignment => assignment.Id).ValueGeneratedNever();
         builder.Property(assignment => assignment.Role).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.HasIndex(assignment => new { assignment.UserId, assignment.Role }).IsUnique();
     }

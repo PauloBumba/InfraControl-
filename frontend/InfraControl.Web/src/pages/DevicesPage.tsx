@@ -1,269 +1,562 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { allDevices, switchPortMap, sectorMap } from "@/data/deviceData";
 import { Can } from "@/components/auth/Can";
+import {
+  INVENTORY_PAGE_SIZE,
+  createDevice,
+  listDevices,
+  listLocations,
+  listSwitchPorts,
+  type DeviceItem,
+  type LocationItem,
+  type Paged,
+  type SwitchPortItem,
+} from "@/services/api/inventory";
+
+/**
+ * F17-T007 — DevicesPage conectada ao backend (substitui `allDevices`,
+ * `sectorMap` e `switchPortMap` de `data/deviceData`). Contrato real:
+ * `GET /inventory/devices` (`DeviceDto`, filtro real `type`/`term`, teto de
+ * 100/página) + `GET /inventory/locations` (resolve o `locationId` = "setor")
+ * + `GET /network/switches/{id}/ports` (`SwitchPortDto`, `linkUp` tri-estado).
+ *
+ * Sem contrato (saíram): status online/atenção/offline (não existe endpoint
+ * de estado atual — histórico de polls é por device), uptime, firmware,
+ * "VLAN n" (o DTO traz `vlanId` Guid, sem número/nome), switch de uplink,
+ * storage, PoE/speed/VLAN por porta e a lista de clientes (domínio
+ * separado). Entraram: vendor/serial no card e contagem real "ativas/total"
+ * das portas (`linkUp === true`).
+ *
+ * Filtro por tipo é client-side sobre a página carregada (os contadores de
+ * cada tipo exigiriam N pedidos; o parâmetro `type` do endpoint fica
+ * documentado como caminho de escala). Portas dos switches só são buscadas
+ * quando a aba "Por Switch" é aberta (1 pedido por switch — sem endpoint
+ * agregado).
+ */
 
 const typeIcons: Record<string, string> = {
-  gateway: "pi pi-th-large", switch: "pi pi-server", ap: "pi pi-wifi",
-  printer: "pi pi-print", camera: "pi pi-video", phone: "pi pi-phone",
-  server: "pi pi-desktop", vm: "pi pi-box", nas: "pi pi-database",
-  ups: "pi pi-bolt", storage: "pi pi-database",
+  Server: "pi pi-desktop",
+  Workstation: "pi pi-desktop",
+  Switch: "pi pi-server",
+  Router: "pi pi-sitemap",
+  Firewall: "pi pi-shield",
+  AccessPoint: "pi pi-wifi",
+  Printer: "pi pi-print",
+  Camera: "pi pi-video",
+  Phone: "pi pi-phone",
+  UPS: "pi pi-bolt",
+  Other: "pi pi-circle",
 };
 const typeColors: Record<string, string> = {
-  gateway: "#3b82f6", switch: "#8b5cf6", ap: "#22c55e",
-  printer: "#f59e0b", camera: "#ec4899", phone: "#06b6d4",
-  server: "#3b82f6", vm: "#8b5cf6", nas: "#22c55e",
-  ups: "#f59e0b", storage: "#3b82f6",
+  Server: "#3b82f6",
+  Workstation: "#8b5cf6",
+  Switch: "#8b5cf6",
+  Router: "#3b82f6",
+  Firewall: "#ec4899",
+  AccessPoint: "#22c55e",
+  Printer: "#f59e0b",
+  Camera: "#ec4899",
+  Phone: "#06b6d4",
+  UPS: "#f59e0b",
+  Other: "#94a3b8",
 };
+/** Rótulos pt-BR para os nomes do enum `DeviceType` (PascalCase no JSON). */
 const typeNames: Record<string, string> = {
-  gateway: "Gateway", switch: "Switch", ap: "Access Point",
-  printer: "Impressora", camera: "Câmera", phone: "Telefone",
-  server: "Servidor", vm: "Máquina Virtual", nas: "NAS",
-  ups: "UPS", storage: "Armazenamento",
+  Server: "Servidor",
+  Workstation: "Estação de Trabalho",
+  Switch: "Switch",
+  Router: "Roteador",
+  Firewall: "Firewall",
+  AccessPoint: "Access Point",
+  Printer: "Impressora",
+  Camera: "Câmera",
+  Phone: "Telefone",
+  UPS: "UPS",
+  Other: "Outro",
 };
-const portTypeColors: Record<string, string> = {
-  gateway: "#3b82f6", switch: "#8b5cf6", ap: "#22c55e",
-  printer: "#f59e0b", camera: "#ec4899", phone: "#06b6d4",
-  server: "#3b82f6", nas: "#22c55e", ups: "#f59e0b", storage: "#3b82f6",
-  client: "#94a3b8", empty: "#e5e7eb",
-};
+const DEVICE_TYPES = Object.keys(typeNames);
 
-function TypeFilter({ types, active, onSelect }: { types: { key: string; label: string; count: number; color: string }[]; active: string; onSelect: (key: string) => void }) {
-  return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <button onClick={() => onSelect("all")} style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${active === "all" ? "#3b82f6" : "#e5e7eb"}`, background: active === "all" ? "#3b82f612" : "white", color: active === "all" ? "#3b82f6" : "#6b7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>
-        Todos ({allDevices.length})
-      </button>
-      {types.map(t => (
-        <button key={t.key} onClick={() => onSelect(t.key)} style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${active === t.key ? t.color : "#e5e7eb"}`, background: active === t.key ? `${t.color}12` : "white", color: active === t.key ? t.color : "#6b7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>
-          {t.label} ({t.count})
-        </button>
-      ))}
-    </div>
-  );
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
-// ============ INVENTÁRIO TAB ============
-function InventoryTab() {
+export function DevicesPage() {
   const navigate = useNavigate();
+  const [pageData, setPageData] = useState<Paged<DeviceItem> | null>(null);
+  const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [portsBySwitch, setPortsBySwitch] = useState<Map<string, SwitchPortItem[]>>(new Map());
+  const [portsLoading, setPortsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const [tab, setTab] = useState<"inventory" | "sector" | "switch">("inventory");
   const [filter, setFilter] = useState("all");
 
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [type, setType] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [ip, setIp] = useState("");
+  const [model, setModel] = useState("");
+  const [vendor, setVendor] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [devicePage, locationPage] = await Promise.all([
+        listDevices(),
+        listLocations(),
+      ]);
+      setPageData(devicePage);
+      setLocations(locationPage.items);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Portas por switch: só quando a aba "Por Switch" é aberta (1 pedido por
+  // switch; `cancelled` evita estado obsoleto se a aba mudar no meio).
+  useEffect(() => {
+    if (tab !== "switch") return;
+    const switches = (pageData?.items ?? []).filter((device) => device.type === "Switch");
+    if (switches.length === 0) {
+      setPortsBySwitch(new Map());
+      return;
+    }
+    let cancelled = false;
+    setPortsLoading(true);
+    Promise.all(
+      switches.map(
+        async (device) =>
+          [device.id, (await listSwitchPorts(device.id)).items] as const,
+      ),
+    )
+      .then((entries) => {
+        if (!cancelled) setPortsBySwitch(new Map(entries));
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) setError(messageFor(caught));
+      })
+      .finally(() => {
+        if (!cancelled) setPortsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, pageData]);
+
+  async function submitCreate(event: FormEvent) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setFormError("Informe o nome do dispositivo.");
+      return;
+    }
+    if (!type) {
+      setFormError("Selecione o tipo do dispositivo.");
+      return;
+    }
+    if (!locationId) {
+      setFormError("Selecione a localização do dispositivo.");
+      return;
+    }
+    setSaving(true);
+    setFormError(null);
+    try {
+      await createDevice({
+        locationId,
+        name: trimmedName,
+        type,
+        ip: ip.trim() || undefined,
+        model: model.trim() || undefined,
+        vendor: vendor.trim() || undefined,
+        description: description.trim() || undefined,
+      });
+      setCreating(false);
+      setName("");
+      setType("");
+      setLocationId("");
+      setIp("");
+      setModel("");
+      setVendor("");
+      setDescription("");
+      setNotice(`Dispositivo "${trimmedName}" criado.`);
+      await load();
+    } catch (caught) {
+      setFormError(messageFor(caught));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const items = pageData?.items ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
+  const locationName = (id: string): string =>
+    locations.find((location) => location.id === id)?.name ?? "Sem localização";
+
   const typeCounts: Record<string, number> = {};
-  allDevices.forEach(d => { typeCounts[d.type] = (typeCounts[d.type] || 0) + 1; });
-  const types = Object.entries(typeCounts).map(([key, count]) => ({ key, label: typeNames[key] || key, count, color: typeColors[key] || "#94a3b8" }));
+  items.forEach((device) => {
+    typeCounts[device.type] = (typeCounts[device.type] ?? 0) + 1;
+  });
+  const presentTypes = DEVICE_TYPES.filter((deviceType) => (typeCounts[deviceType] ?? 0) > 0);
 
-  const filtered = filter === "all" ? allDevices : allDevices.filter(d => d.type === filter);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <TypeFilter types={types} active={filter} onSelect={setFilter} />
-      <div className="uni-devices-grid">
-        {filtered.map(device => (
-          <div key={device.id} className="uni-device-card" onClick={() => navigate(`/devices/${device.id}`)}>
-            <div className="uni-device-top">
-              <div className={`uni-device-icon ${device.type}`} style={{ background: `${typeColors[device.type]}15`, color: typeColors[device.type] }}>
-                <i className={typeIcons[device.type] || "pi pi-circle"} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="uni-device-name">{device.name}</div>
-                <div className="uni-device-model">{device.model}</div>
-              </div>
-              <div className={`uni-device-status ${device.status}`}>
-                <span className={`uni-device-status-dot ${device.status}`} />
-                {device.status === "online" ? "Online" : device.status === "warning" ? "Atenção" : "Offline"}
-              </div>
-            </div>
-            <div className="uni-device-details">
-              <div className="uni-device-detail"><i className="pi pi-desktop" />{device.ip}</div>
-              <div className="uni-device-detail"><i className="pi pi-map-marker" />{device.sector}</div>
-              <div className="uni-device-detail"><i className="pi pi-clock" />{device.uptime}</div>
-              {"vlan" in device && device.vlan && <div className="uni-device-detail"><i className="pi pi-tag" />VLAN {device.vlan}</div>}
-            </div>
-            <div className="uni-device-bottom">
-              <div className="uni-device-stat"><i className="pi pi-code" />v{device.firmware}</div>
-              {"switchName" in device && device.switchName && <div className="uni-device-stat"><i className="pi pi-arrow-right" />{device.switchName} P{"switchPort" in device ? device.switchPort : ""}</div>}
-              {"storageName" in device && device.storageName && <div className="uni-device-stat"><i className="pi pi-database" />{device.storageName}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ============ POR SETOR TAB ============
-function SectorTab() {
-  const navigate = useNavigate();
-  const sectors = Object.entries(sectorMap);
-
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
-      {sectors.map(([name, data]) => (
-        <div key={name} className="uni-panel" style={{ overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid #f3f4f6", background: `${data.color}06` }}>
-            <div style={{ width: 32, height: 32, borderRadius: 6, background: `${data.color}15`, color: data.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <i className={data.icon} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{name}</div>
-              <div style={{ fontSize: 10, color: "#9ca3af" }}>{data.description}</div>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {data.online > 0 && <span style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: "#f0fdf4", color: "#16a34a" }}>{data.online} ●</span>}
-              {data.warning > 0 && <span style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: "#fefce8", color: "#ca8a04" }}>{data.warning} ◐</span>}
-              {data.offline > 0 && <span style={{ fontSize: 10, padding: "2px 5px", borderRadius: 4, background: "#fef2f2", color: "#dc2626" }}>{data.offline} ○</span>}
-            </div>
-          </div>
-          <div className="uni-panel-body" style={{ padding: "10px 16px" }}>
-            {data.devices.length > 0 && (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Dispositivos ({data.devices.length})</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {data.devices.map(d => (
-                    <div key={d.id} onClick={() => navigate(`/devices/${d.id}`)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 4, cursor: "pointer", background: "#f9fafb", border: "1px solid #f3f4f6" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: d.status === "online" ? "#22c55e" : d.status === "warning" ? "#f59e0b" : "#ef4444", flexShrink: 0 }} />
-                      <div style={{ width: 22, height: 22, borderRadius: 4, background: `${typeColors[d.type]}12`, color: typeColors[d.type], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0 }}>
-                        <i className={typeIcons[d.type]} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.name}</div>
-                        <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "monospace" }}>{d.ip}</div>
-                      </div>
-                      <span style={{ fontSize: 9, color: "#9ca3af" }}>{typeNames[d.type]}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {data.clients.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Clientes ({data.clients.length})</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {data.clients.map((c, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                      <i className={c.connection === "WiFi" ? "pi pi-wifi" : "pi pi-desktop"} style={{ fontSize: 9, color: c.connection === "WiFi" ? "#22c55e" : "#3b82f6" }} />
-                      <span style={{ fontWeight: 500 }}>{c.name}</span>
-                      <span style={{ color: "#9ca3af", fontFamily: "monospace", fontSize: 10 }}>{c.ip}</span>
-                      {c.signal && <span style={{ fontSize: 9, color: c.signal > -50 ? "#22c55e" : c.signal > -65 ? "#f59e0b" : "#ef4444" }}>{c.signal} dBm</span>}
-                      {c.port && <span style={{ fontSize: 9, color: "#9ca3af" }}>{c.port}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {data.totalClients > 0 && data.clients.length === 0 && (
-              <div style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", padding: 8 }}>{data.totalClients} clientes via AP</div>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ============ POR SWITCH TAB ============
-function SwitchTab() {
-  const switches = Object.entries(switchPortMap);
+  const filtered = filter === "all" ? items : items.filter((device) => device.type === filter);
+  const switches = items.filter((device) => device.type === "Switch");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {switches.map(([swId, sw]) => (
-        <div key={swId} className="uni-panel" style={{ overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: "#8b5cf612", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className="pi pi-server" />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{sw.name}</div>
-                <div style={{ fontSize: 11, color: "#9ca3af" }}>{sw.model} · {sw.location} · {sw.rack}</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 12, fontSize: 11 }}>
-              <span style={{ color: "#22c55e", fontWeight: 500 }}>{sw.activePorts} ativas</span>
-              <span style={{ color: "#6b7280" }}>/ {sw.totalPorts} total</span>
-              {sw.poePorts > 0 && <span style={{ color: "#f59e0b", fontWeight: 500 }}>⚡ {sw.poePorts} PoE</span>}
-            </div>
-          </div>
-          <div className="uni-panel-body">
-            <div className="uni-switch-grid">
-              {sw.ports.map(p => {
-                const isActive = p.status === "active";
-                const isDisabled = p.status === "disabled";
-                const hasPoe = p.poe;
-                const borderColor = isDisabled ? "#f59e0b" : isActive ? portTypeColors[p.type] || "#22c55e" : "#d1d5db";
-                const bgColor = isActive ? `${portTypeColors[p.type] || "#22c55e"}08` : isDisabled ? "#fefce8" : "#f9fafb";
-
-                return (
-                  <div key={p.port} className="uni-switch-port" style={{ borderColor, background: bgColor }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: isActive ? "#111827" : "#9ca3af" }}>P{p.port}</div>
-                    {isActive && (
-                      <>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", margin: "2px 0" }} />
-                        <div style={{ fontSize: 8, fontWeight: 600, color: "#374151", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{p.device}</div>
-                        <div style={{ fontSize: 7, color: "#9ca3af" }}>{p.speed}</div>
-                        {hasPoe && <div style={{ fontSize: 7, color: "#f59e0b", fontWeight: 600 }}>⚡ PoE</div>}
-                        <div style={{ fontSize: 7, color: "#6b7280" }}>VLAN {p.vlan}</div>
-                      </>
-                    )}
-                    {isDisabled && <div style={{ fontSize: 7, color: "#f59e0b" }}>Disabled</div>}
-                    {!isActive && !isDisabled && <div style={{ fontSize: 7, color: "#d1d5db" }}>Vazio</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ============ MAIN DEVICES PAGE ============
-export function DevicesPage() {
-  const [tab, setTab] = useState<"inventory" | "sector" | "switch">("inventory");
-
-  const online = allDevices.filter(d => d.status === "online").length;
-  const warning = allDevices.filter(d => d.status === "warning").length;
-  const offline = allDevices.filter(d => d.status === "offline").length;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Dispositivos</h1>
           <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-            <span>{allDevices.length} total</span>
-            <span style={{ color: "#16a34a" }}>{online} online</span>
-            {warning > 0 && <span style={{ color: "#ca8a04" }}>{warning} atenção</span>}
-            {offline > 0 && <span style={{ color: "#dc2626" }}>{offline} offline</span>}
+            {loading ? (
+              <span>Carregando…</span>
+            ) : (
+              <span>
+                {totalCount} {totalCount === 1 ? "dispositivo" : "dispositivos"}
+                {items.length < totalCount && ` · mostrando ${items.length} (refine por tipo)`}
+              </span>
+            )}
           </div>
         </div>
         <Can level="operate">
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+          <button
+            onClick={() => { setCreating((value) => !value); setFormError(null); }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, border: "none" }}
+          >
             <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
           </button>
         </Can>
       </div>
 
-      {/* Tabs */}
+      {notice && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
+          <i className="pi pi-check-circle" />
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
+            <i className="pi pi-times" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {creating && (
+        <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Novo dispositivo</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Nome *"
+              autoFocus
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+            <select
+              value={type}
+              onChange={(event) => setType(event.target.value)}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
+            >
+              <option value="">Tipo *</option>
+              {DEVICE_TYPES.map((deviceType) => (
+                <option key={deviceType} value={deviceType}>{typeNames[deviceType]}</option>
+              ))}
+            </select>
+            <select
+              value={locationId}
+              onChange={(event) => setLocationId(event.target.value)}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
+            >
+              <option value="">Localização *</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>{location.name}</option>
+              ))}
+            </select>
+            <input
+              value={ip}
+              onChange={(event) => setIp(event.target.value)}
+              placeholder="IP"
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+            <input
+              value={model}
+              onChange={(event) => setModel(event.target.value)}
+              placeholder="Modelo"
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+            <input
+              value={vendor}
+              onChange={(event) => setVendor(event.target.value)}
+              placeholder="Fabricante"
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+          </div>
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Descrição (opcional)"
+            rows={2}
+            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+          />
+          {formError && <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={() => { setCreating(false); setFormError(null); }}
+              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "Salvando…" : "Criar dispositivo"}
+            </button>
+          </div>
+        </form>
+      )}
+
       <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #f3f4f6", paddingBottom: 0 }}>
         {[
           { key: "inventory" as const, label: "Inventário", icon: "pi pi-list" },
           { key: "sector" as const, label: "Por Setor", icon: "pi pi-map" },
           { key: "switch" as const, label: "Por Switch", icon: "pi pi-server" },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "none", borderBottom: tab === t.key ? "2px solid #3b82f6" : "2px solid transparent", marginBottom: -2, background: "transparent", color: tab === t.key ? "#3b82f6" : "#6b7280", fontSize: 12, fontWeight: tab === t.key ? 600 : 400, cursor: "pointer" }}>
-            <i className={t.icon} style={{ fontSize: 12 }} /> {t.label}
+        ].map((entry) => (
+          <button
+            key={entry.key}
+            onClick={() => setTab(entry.key)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "none",
+              borderBottom: tab === entry.key ? "2px solid #3b82f6" : "2px solid transparent",
+              marginBottom: -2, background: "transparent",
+              color: tab === entry.key ? "#3b82f6" : "#6b7280",
+              fontSize: 12, fontWeight: tab === entry.key ? 600 : 400, cursor: "pointer",
+            }}
+          >
+            <i className={entry.icon} style={{ fontSize: 12 }} /> {entry.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
-      {tab === "inventory" && <InventoryTab />}
-      {tab === "sector" && <SectorTab />}
-      {tab === "switch" && <SwitchTab />}
+      {tab === "inventory" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button
+              onClick={() => setFilter("all")}
+              style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${filter === "all" ? "#3b82f6" : "#e5e7eb"}`, background: filter === "all" ? "#3b82f612" : "white", color: filter === "all" ? "#3b82f6" : "#6b7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}
+            >
+              Todos ({items.length})
+            </button>
+            {presentTypes.map((deviceType) => (
+              <button
+                key={deviceType}
+                onClick={() => setFilter(deviceType)}
+                style={{ padding: "5px 10px", borderRadius: 6, border: `1.5px solid ${filter === deviceType ? (typeColors[deviceType] ?? "#94a3b8") : "#e5e7eb"}`, background: filter === deviceType ? `${typeColors[deviceType] ?? "#94a3b8"}12` : "white", color: filter === deviceType ? (typeColors[deviceType] ?? "#94a3b8") : "#6b7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}
+              >
+                {typeNames[deviceType] ?? deviceType} ({typeCounts[deviceType]})
+              </button>
+            ))}
+          </div>
+          <div className="uni-devices-grid">
+            {filtered.map((device) => {
+              const color = typeColors[device.type] ?? "#94a3b8";
+              return (
+                <div key={device.id} className="uni-device-card" onClick={() => navigate(`/devices/${device.id}`)}>
+                  <div className="uni-device-top">
+                    <div className={`uni-device-icon ${device.type}`} style={{ background: `${color}15`, color }}>
+                      <i className={typeIcons[device.type] ?? "pi pi-circle"} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="uni-device-name">{device.name}</div>
+                      <div className="uni-device-model">{device.model ?? typeNames[device.type] ?? device.type}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: `${color}12`, color, whiteSpace: "nowrap" }}>
+                      {typeNames[device.type] ?? device.type}
+                    </span>
+                  </div>
+                  <div className="uni-device-details">
+                    <div className="uni-device-detail"><i className="pi pi-desktop" />{device.ip ?? "IP não informado"}</div>
+                    <div className="uni-device-detail"><i className="pi pi-map-marker" />{locationName(device.locationId)}</div>
+                    {device.vendor && <div className="uni-device-detail"><i className="pi pi-tag" />{device.vendor}</div>}
+                  </div>
+                  <div className="uni-device-bottom">
+                    {device.model && <div className="uni-device-stat"><i className="pi pi-server" />{device.model}</div>}
+                    {device.serial && <div className="uni-device-stat"><i className="pi pi-hashtag" />{device.serial}</div>}
+                  </div>
+                </div>
+              );
+            })}
+            {!loading && filtered.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+                {error ? "—" : "Nenhum dispositivo encontrado"}
+              </div>
+            )}
+            {loading && filtered.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+                Carregando…
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "sector" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
+          {locations.map((location) => {
+            const locationDevices = items.filter((device) => device.locationId === location.id);
+            return (
+              <div key={location.id} className="uni-panel" style={{ overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 6, background: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className="pi pi-map-marker" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{location.name}</div>
+                    <div style={{ fontSize: 10, color: "#9ca3af" }}>{location.description ?? "—"}</div>
+                  </div>
+                  <span style={{ fontSize: 11, color: "#64748b" }}>
+                    {locationDevices.length} {locationDevices.length === 1 ? "device" : "devices"}
+                  </span>
+                </div>
+                <div className="uni-panel-body" style={{ padding: "10px 16px" }}>
+                  {locationDevices.length === 0 && (
+                    <div style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", padding: 8 }}>
+                      Nenhum dispositivo neste setor
+                    </div>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {locationDevices.map((device) => {
+                      const color = typeColors[device.type] ?? "#94a3b8";
+                      return (
+                        <div
+                          key={device.id}
+                          onClick={() => navigate(`/devices/${device.id}`)}
+                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 4, cursor: "pointer", background: "#f9fafb", border: "1px solid #f3f4f6" }}
+                        >
+                          <div style={{ width: 22, height: 22, borderRadius: 4, background: `${color}12`, color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, flexShrink: 0 }}>
+                            <i className={typeIcons[device.type] ?? "pi pi-circle"} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{device.name}</div>
+                            <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "monospace" }}>{device.ip ?? "—"}</div>
+                          </div>
+                          <span style={{ fontSize: 9, color: "#9ca3af" }}>{typeNames[device.type] ?? device.type}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {!loading && locations.length === 0 && (
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              {error ? "—" : "Nenhuma localização cadastrada"}
+            </div>
+          )}
+          {loading && locations.length === 0 && (
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              Carregando…
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "switch" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {switches.map((device) => {
+            const ports = portsBySwitch.get(device.id) ?? [];
+            const activePorts = ports.filter((port) => port.linkUp === true).length;
+            return (
+              <div key={device.id} className="uni-panel" style={{ overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f3f4f6", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: "#8b5cf612", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <i className="pi pi-server" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{device.name}</div>
+                      <div style={{ fontSize: 11, color: "#9ca3af" }}>
+                        {[device.model, locationName(device.locationId)].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, fontSize: 11 }}>
+                    <span style={{ color: "#22c55e", fontWeight: 500 }}>{activePorts} ativas</span>
+                    <span style={{ color: "#6b7280" }}>/ {ports.length} portas</span>
+                  </div>
+                </div>
+                <div className="uni-panel-body">
+                  {portsLoading && ports.length === 0 && (
+                    <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>
+                      Carregando portas…
+                    </div>
+                  )}
+                  {!portsLoading && ports.length === 0 && (
+                    <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>
+                      Nenhuma porta cadastrada
+                    </div>
+                  )}
+                  <div className="uni-switch-grid">
+                    {ports.map((port) => {
+                      const borderColor = port.linkUp === true ? "#22c55e" : port.linkUp === false ? "#ef4444" : "#d1d5db";
+                      const bgColor = port.linkUp === true ? "#22c55e08" : port.linkUp === false ? "#fef2f2" : "#f9fafb";
+                      return (
+                        <div key={port.id} className="uni-switch-port" style={{ borderColor, background: bgColor }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: port.linkUp === null ? "#9ca3af" : "#111827" }}>{port.name}</div>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: borderColor, margin: "2px 0" }} />
+                          <div style={{ fontSize: 7, color: "#6b7280" }}>
+                            {port.linkUp === true ? "Cima" : port.linkUp === false ? "Baixo" : "Não testada"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {!loading && switches.length === 0 && (
+            <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              {error ? "—" : "Nenhum switch no inventário"}
+            </div>
+          )}
+          {loading && switches.length === 0 && (
+            <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              Carregando…
+            </div>
+          )}
+        </div>
+      )}
+
+      {totalCount > items.length && tab !== "switch" && (
+        <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center" }}>
+          Exibindo até {INVENTORY_PAGE_SIZE} dispositivos por página (o endpoint não expõe navegação além disso — use os filtros por tipo).
+        </div>
+      )}
     </div>
   );
 }

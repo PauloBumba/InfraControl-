@@ -96,6 +96,7 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     public async Task<IActionResult> Logout([FromBody] RefreshSessionViewModel? model, CancellationToken cancellationToken)
     {
         if (User.GetSessionUserIdOrNull() is not { } userId)
+        if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var userId))
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         await authenticationService.LogoutAsync(userId, model?.RefreshToken, cancellationToken);

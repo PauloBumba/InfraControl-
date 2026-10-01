@@ -306,7 +306,10 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   instalado no ciclo pós-F16-T002): **152/152 verdes** na primeira execução
   completa da suíte nesta máquina (13m12s; antes: 130/130 junto da F15 e
   149/152 na primeira rodada com 3 falhas já corrigidas e commitadas);
-  pendência mantida para o caso de outras máquinas sem Docker
+  revalidada de novo no ciclo da Fase Q (30/09): **161/161** (152 + 9 e2e);
+  e em 01/10 na auditoria de alinhamento front×back: **164/164** (161 + 3
+  facts de alinhamento); pendência mantida para o caso de outras máquinas sem
+  Docker
 - [ ] **`postgresql-client` na imagem dos Workers** (`docker/Dockerfile`) —
   `PostgresBackupService` faz spawn de `pg_dump`/`pg_restore`, mas a imagem
   multi-stage **não instala o cliente PostgreSQL**: no deploy "Servidor com
@@ -320,8 +323,30 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   escolha do usuário
 - [ ] **Página de aceite de convite no frontend** — o link e-maiado em F1-T017
   aponta para a API (`POST /auth/invitations/{id}/accept`) sem página GET
-- [ ] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — pendência
-  declarada nas ADR-017/ADR-018 (middleware/behavior testados com fakes)
+- [ ] **Página de redefinição de senha no frontend** — achado na auditoria de
+  alinhamento front×back de 01/10/2026: o link do e-mail de forgot-password
+  (`IdentityAuthenticationService` monta
+  `{baseUrl}/api/v1/auth/reset-password?email=...&token=...`) bate no GET da
+  API (rota só existe em POST → 405) e o front não tem rota pública
+  `/reset-password` (só `/login` e `/forgot-password`) — o fluxo nasce no
+  frontend e morre no e-mail. `POST /auth/reset-password` está alinhado
+  (body `{email, token, newPassword}`, 204/400 no envelope) mas sem
+  consumidor; resolve com página + origem do link (origin do frontend)
+  decidida
+- [x] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — **FECHADA
+  em 30/09/2026** (Fase Q): `tests/InfraControl.IntegrationTests/EndToEnd/` =
+  `E2EHost` (PostgreSQL+Redis reais via Testcontainers, bootstrap real de
+  `Program`, seed de operador/viewer/sem-papel, XSRF lido do cookie) +
+  `FullPipelineE2ETests` com **12 cenários** (contrato login/`/auth/me` que o
+  frontend consome, 401 pt-BR de senha errada, 400 de ModelState, matriz
+  Operate, 403 da segunda camada sem papel, matriz Administer + antiforgery,
+  criação/leitura de task por papel, webhook Zabbix público por token, 404 no
+  envelope, e mais 3 de alinhamento front×back em 01/10: logout sem body →
+  204+mata sessão, lista de sessões no formato exato da SessionsPage com
+  revoke-others/404/revoke-própria, forgot-password com `message`) — fecha a
+  pendência declarada nas ADR-017/ADR-018; os testes de e2e acharam e
+  corrigiram 6 bugs reais de boot/autorização (ver PROJECT_STATE, ciclo
+  Fase Q)
 - [ ] **Rate limit específico do login com código MFA** — pendência da ADR-019
   (o `HttpRateLimit` de login cobre o passo 1)
 - [ ] **Investigar flakiness** de `RdpRemoteProviderTests.ConnectAsync_NegotiationFailure_ShouldReturnNlaFailurePtBr`
@@ -330,7 +355,284 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   (F15/ADR-021 — `TaskCanceledException` de 24s sob carga da suíte completa;
   passa isolado 4/4; observado em 30/09 na validação da F10-T002)
 - [ ] **Conectar as páginas com mock ao backend** — F14 foi prototipação com dados
-  estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real
+  estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real. Frente
+  iniciada em 01/10/2026 (F17), uma página por vez:
+  - [x] **F17-T001 `TasksPage`** — quadro por estados REAIS de `TaskState`
+    (7 colunas; o mock usava `todo/in_progress/done`), chip de `TaskKind`,
+    contagens de responsáveis/dispositivos/incidentes, contagem por
+    `totalCount` e criação via `POST /tasks` atrás de `Can operate`
+    (`services/api/tasks.ts`); campos do mock sem contrato no backend
+    (`priority`, `dueDate`, `device`, `tags`) removidos — backend é a
+    autoridade. Pendências da própria página: transição de estado
+    (`PUT /tasks/{id}/state`) e filtros `term/kind/state` na UI
+  - [x] **F17-T002 `AuditPage`** — `services/api/audit.ts`
+    (`GET /admin/audit?action/outcome/page/pageSize`, policy Administer);
+    bug de contrato corrigido: o mock esperava `outcome` "Success"/"Failure"
+    mas o backend grava **"Succeeded"/"Failed"** (`AuditBehavior`) — a tela
+    exibiria tudo como "Falha"; filtro de `action` virou igualdade exata no
+    submit (contrato do reader), `from`/`to` existem na API sem seletor na
+    tela; paginated com `PagedResult`; mock sem endpoint ("Pesquisar"
+    substring em action/resource/ator e "Exportar") removido
+  - [x] **F17-T003 `IncidentsPage`** — `services/api/incidents.ts`
+    (`GET /incidents?deviceId/status/page/pageSize` → `PagedResult<IncidentDto>`,
+    `POST` `{title,severity,description?,deviceId?}` → 201); bugs de contrato
+    do protótipo: status **`Open`** (auto-abertura) inexistente no filtro,
+    enums são **PascalCase** (chaves do mock minúsculas caíam no fallback),
+    e `assignee`/`slaBreached`/`device` não existem no `IncidentDto`
+    (responsável e coluna SLA saíram; `resolvedAt` entrou; `device`/
+    `relatedAlerts` → `deviceId`/`alertCount`); criação atrás de
+    `Can operate`; paginação sobre o `PagedResult`
+  - [x] **F17-T004 `KnowledgePage`** — `services/api/knowledge.ts`
+    (`GET /knowledge/articles?term/page/pageSize` → `PagedResult<KnowledgeArticleDto>`;
+    `POST` `{title,content,categoryId?}` → 201 com validações DataAnnotations
+    pt-BR; categorias em `GET /knowledge/categories` para chip e select);
+    achado de contrato: `status` viaja como **número** (0/1/2 — o DTO expõe o
+    enum e o MVC não registra `JsonStringEnumConverter`), `category`/
+    `lastUpdate`/`tags` do mock não existem no DTO (nome resolvido pelo
+    `categoryId`, data e tags saíram, `status` entrou); busca `term` ligada
+    ao parâmetro real (substring); rascunho já escondido pelo backend para
+    quem não escreve
+  - [x] **F17-T005 `SlaPage`** — `services/api/sla.ts` (`GET /sla/services`,
+    `/sla/slos`, `/sla/policies` com term/serviceId/page/pageSize e
+    orçamentos em `/sla/slos/{sloId}/budgets`; `POST /sla/services`
+    `{name,description?}`); colunas inventadas do protótipo sem contrato
+    (`status` operacional/degradado, `uptime`, `slaTarget`/`sloTarget` em %,
+    `openIncidents`, `owner`, `burnRate`) removidas — SLA virou a política
+    real (`responseMinutes`/`resolutionMinutes`), SLO os `SloDto`
+    (alvo % + janela) e Error Budget os `SloBudgetDto` (`consumedPercent`
+    por período, rótulo Esgotado/Atenção/Normal derivado do número real);
+    orçamento é 1 pedido por SLO (sem endpoint agregado — pendência se
+    crescer)
+  - [x] **F17-T006 `UsersPage`** — `services/api/adminUsers.ts`
+    (`GET /admin/users` coleção sem paginação, policy Operate; `PATCH
+    {id}/status` `{active}`, `POST/DELETE {id}/roles/{role}` e `POST
+    /admin/invitations` `{email,roles[num],expiresInDays}` — tudo
+    Administer). **Decisão de rota tomada**: a página usa SÓ
+    `api/v1/admin/users` (prefixo v1 + controller Admin); o `RolesController`
+    (`api/identity/users`, fora do padrão v1, com DELETE duplicado) fica de
+    fora do front — limpeza do backend segue como observação. Enums: `roles`
+    na listagem e no body do convite saem **numéricos** (1/2/3), no path da
+    rota vai o **nome**; colunas sem contrato do protótipo (sessões, último
+    login, status "Pendente", role única) removidas — `roles` vira chips
+    múltiplos e "Criado em" vira "Atualizado em" (`updatedAt`). Gestão real
+    na tela: ativar/desativar, remover/atribuir papel (409 do último admin
+    aparece no banner), convite por e-mail+role. Aba Roles: catálogo
+    canônico ADR-016 (enum, sem endpoint — contagem REAL por role derivada
+    da lista)
+  - [x] **F17-T007 `DevicesPage`** — `services/api/inventory.ts`
+    (`GET /inventory/devices` → `PagedResult<DeviceDto>` com parâmetros
+    reais `type`/`term`/`locationId`, teto 100/página; `GET
+    /inventory/locations` resolve o `locationId` = setor; `GET
+    /network/switches/{id}/ports` → `SwitchPortDto` com `linkUp`
+    tri-estado; `POST /inventory/devices` `{locationId,name,type,...}` →
+    201). Sem contrato (saíram): status online/atenção/offline (não há
+    endpoint de estado atual — histórico de polls é por device), uptime,
+    firmware, "VLAN n" (`vlanId` é Guid sem número), uplink/storage, PoE/
+    speed/VLAN por porta e a lista de clientes (domínio separado); entraram
+    vendor/serial e a contagem real "ativas/total" (`linkUp===true`). Filtro
+    de tipo client-side sobre a página carregada (os contadores por tipo
+    exigiriam N pedidos; o param `type` do endpoint fica documentado como
+    caminho de escala); portas buscadas só ao abrir a aba "Por Switch"
+    (1 pedido por switch, sem endpoint agregado). **`DeviceDetailPage`
+    segue mock — task separada** (as tasks seguintes do grupo:
+    Network/Inventário e Dashboard)
+  - [x] **F17-T008 `NetworkPage`** — `services/api/network.ts`
+    (`GET/POST /api/v1/network/vlans` → `PagedResult<VlanDto>` `{id,name,
+    vlanNumber,description}`; `POST` `{name,vlanNumber,description?}` → 201
+    com 409 pt-BR de nome/número únicos). Divergências do protótipo:
+    "VLAN {id}" → **VLAN {vlanNumber}** (número 802.1Q real); `color`,
+    `devices`, `subnet`, `gateway` e `dhcp` do card saíram (sem contrato).
+    **Abas DHCP, Rotas e Firewall removidas — não há endpoint no backend**
+    (nenhuma rota correspondente nos controllers); card ganhou a
+    `description` real, filtro operacional `term` documentado no serviço e
+    pager real de 100/página
+  - [x] **F17-T009 `DashboardPage`** — sem endpoint próprio: montada com
+    os serviços reais já criados + novo `services/api/alerts.ts`
+    (`GET /monitoring/alerts?status=open|resolved|suppressed` →
+    `PagedResult<AlertDto>`; `severity`/`status` em PascalCase via
+    `ToString()`). Mini-stats reais: Dispositivos (`totalCount` de
+    `/inventory/devices`), Alertas (`totalCount` com `status=open` +
+    críticos derivados de `severity`), Tarefas (abertas = fora de
+    Resolved/Cancelled/Closed, em progresso = `InProgress`). Painéis:
+    dispositivos (nome/modelo), alertas abertos (5: device·check +
+    mensagem), tarefas (6: título + chip de estado) e Eventos Recentes
+    (`GET /admin/audit` — policy Administer: sem nível o painel avisa
+    "acesso restrito" em vez de quebrar; 403 detectado por
+    `ApiError.isForbidden`). Removidos sem contrato: stats de
+    Clientes/Download/WiFi, Status do Sistema (subsystems), painel Gateway
+    (CPU/mem/tráfego/WAN), gráfico de tráfego, Top Clients e Speed Test;
+    "Ver todos" virou navegação real (/devices, /alerts, /tasks, /audit)
+  - [x] **F17-T010 `NotificationsPage`** — `services/api/notifications.ts`
+    (`GET /notifications/preferences?userId=` → coleção de
+    `NotificationPreferenceDto`, `PUT` upsert `{userId,channel,enabled}`;
+    `channel` é enum → **numérico** (1=SignalR…6=Slack)). **Aba Feed
+    removida — não existe listagem de notificações** (só
+    `GET {id}/recipients`, que exige um notificationId inacessível sem
+    lista; pendência se F9 publicar a listagem). Semântica real de docs/07:
+    **default habilitado — desligar = sem delivery**, então o estado inicial
+    de cada canal é `true` e as linhas gravadas sobrescrevem. Escrita atrás
+    de `useCan("operate")` (PUT é Operate; sem nível o toggle vira chip
+    fixo Ativo/Desativado); coluna "Eventos" saiu (não existe no DTO)
+  - [x] **F17-T011 `AlertsPage`** — reusa `services/api/alerts.ts` (T009;
+    `GET /monitoring/alerts?deviceId/status/page/pageSize` →
+    `PagedResult<AlertDto>`). Botão "Filtrar" morto virou segmented control
+    do **parâmetro real `status`** (Todos/Abertos/Resolvidos/Suprimidos →
+    vazio|open|resolved|suppressed; só mandamos os três do contrato para
+    não cair no 400 pt-BR). Divergências: chip "Info" saiu (enum só tem
+    Warning/Critical), `title`/`detail` inexistentes → título real
+    `deviceName · check` + `message`; entraram status
+    (Aberto/Resolvido/Suprimido) e `openedAt`/`resolvedAt`. Sem mutation —
+    alerta nasce automático pós-check e resolve sozinho (F6), não há POST
+  - [x] **F17-T012 `RemotePage`** — novo `services/api/remoteSessions.ts`
+    (`GET/POST /inventory/devices/{id}/remote/sessions[?limit]`,
+    `POST .../rdp`, `DELETE .../{sessionId}`; F11/ADR-013). **Sessões são
+    por device — não há listagem global**, então as tabelas globais de
+    ativas/histórico do protótipo saíram: a página virou seletor de
+    dispositivo (reusa `listDevices` do T007; card = nome/type/ip/model,
+    "online" e "lastAccess" não existem) + histórico daquele device
+    (limit 50, mais recentes primeiro). Ações: Abrir SSH (credenciais do
+    device) / Abrir RDP (probe TCP sem credencial, NLA = F11-T006+) /
+    Encerrar — POST/DELETE são Operate (botões atrás de
+    `useCan("operate")`), falha de conexão = **409 pt-BR** no banner,
+    sem IP = 400 (botão desabilitado com explicação). Enums reais em
+    PascalCase: protocol `Ssh`/`Rdp` (exibido SSH/RDP), status
+    `Active`/`Closed`/`Failed` + `failureReason` no chip de Failed.
+    Divergências: "Nova Conexão" global, IP/`user`-nome/`bytes`/duração
+    pronta por linha não têm contrato (duração agora é calculada de
+    `startedAt`→`endedAt`, usuário = GUID curto)
+  - [x] **F17-T013 Discovery (N/A — página inexistente)** — o item do
+    checklist estava impreciso: não há `DiscoveryPage` nem rota
+    `/discovery` no protótipo F14 (o único "Discovery" no front é o
+    `TaskKind` do TasksPage). Sem página com mock não há o que conectar, e
+    criar tela nova estaria fora do escopo da F17 ("conectar páginas
+    EXISTENTES com mock") — se houver desejo de telar Discovery sobre
+    `DiscoveryRunsController` (GET runs, GET runs/{id}/results, POST
+    trigger), isso vira task nova. **Observação relacionada**: outras
+    páginas ainda em mock também ficam fora do checklist da F17
+    (`LocationsPage`, `LogsPage`, `SwitchesPage`, `TopologyPage`) —
+    pendência de decisão humana sobre escopo
+  - [x] **F17-T014 `WiFiPage`** — **o backend não tem domínio WiFi**
+    (sem entidade de rede SSID/segurança/banda/canal, sem telemetria de
+    AP — clientes/CPU/mem/canais/tx — e sem POST de rede); tudo isso saiu
+    (mesma decisão do T008 com as abas sem endpoint), incluindo o CTA
+    "Criar Rede" (o `<Can level="operate">` do F14-T009 ficava sem ação
+    por trás). Restou o que é real: a página lista os devices de
+    `DeviceType.AccessPoint` via `GET /inventory/devices?type=AccessPoint`
+    (parâmetro real, serviço do T007; `totalCount` com filtro + aviso de
+    truncamento em 100) com card = nome/modelo/ip/vendor/serial/descrição
+  - [x] **F17-T015 `ClientsPage`** — novo `services/api/discovery.ts`
+    (`GET /discovery/runs` ordenado StartedAt DESC, `GET
+    runs/{id}/results` CreatedAt DESC; F4-T001/T002). **Não existe
+    domínio de "clientes conectados"** (telemetria de controller AP —
+    sinal/velocidade/uso/SO — sem endpoint); o que existe de cliente de
+    rede são os achados ARP/DHCP/MAC, e só por execução → a página mostra
+    a **última execução** (`pageSize=1`) e pagina os resultados (20/pág).
+    Colunas do protótipo sem contrato saíram (Sinal/Velocidade/Uso/SO/
+    Conexão, botão "Filtrar" — a query não tem filtro por kind, pendência
+    server-side); "Tipo" WiFi/LAN virou o `kind` real (ARP/DHCP/MAC/
+    Vizinho/Host) e as chaves de `values` fornecem ip/mac/hostname/vlan/
+    `local_if`. Achados negativos ("Nenhuma entrada ARP.") viram linha
+    informativa em vez de sumir (remover quebraria a contagem da query).
+    Subtítulo = contagem real + data/status da descoberta (errorMessage do
+    run Failed aparece). Sem mutations
+  - [x] **F17-T016 `InsightsPage`** — **N/A de contrato**: os três painéis
+    (DPI por aplicação, Tráfego por Cliente, Speed Test) não têm domínio
+    no backend (varredura: nenhum controller/entidade de DPI/tráfego/
+    speed test — os mesmos gráficos já saíram do Dashboard no T009). Sem o
+    que conectar e sem dado real para manter, a página foi **esvaziada com
+    estados vazios honestos** ("Não implementado no backend…") em vez de
+    exibir arrays fabricados como reais; rota/menu permanecem estáveis
+    (feature não é deletada sem decisão humana). **Escalado**: quando
+    houver produto de tráfego, decidir entre construir o backend, apagar a
+    página/rota ou manter como demo — decisão humana registrada aqui e no
+    PROJECT_STATE
+  - [x] **F17-T017 `DeviceDetailPage`** — novo `services/api/monitoring.ts`
+    (`GET /monitoring/results/{id}?limit=` → `DeviceResultsDto`
+    `{check,succeeded,durationMs,error,values,checkedAt}`) + extensão de
+    `inventory.ts` (`GET /inventory/devices/{id}` com 404 → tela "não
+    encontrado"; `network-interfaces|ip-addresses|mac-addresses?deviceId=`
+    → coleções de 100) + `deviceId` exposto em `listAlerts` (parâmetro
+    real do endpoint, T011). **Todos os `*View` por tipo do protótipo
+    saíram** (toner/drum, linhas de telefone, CPU/mem/discos/serviços,
+    portas/volumes do NAS, bateria da UPS — telemetria de agente sem
+    backend; `vm`/`nas`/`gateway` nem existem no enum `DeviceType`). A
+    página virou 4 abas: **Geral** (identificação completa + checks do
+    perfil vindos no próprio `DeviceDto.monitoringChecks` + localização
+    resolvida por `listLocations`), **Monitoramento** (20 polls com
+    `values` exibidos tipo `roundtrip_ms` + 5 alertas do device com total
+    real), **Endereços** (interfaces/IPs/MACs com join local
+    interfaceId→nome e aviso de truncamento) e **Portas** (só
+    `DeviceType.Switch`, lazy ao abrir a aba, reusa o serviço do T007 com
+    `linkUp` tri-estado). Chip Online/Offline e `department`/`firmware`/
+    `uptime` saíram (sem contrato — mesma decisão do T007); abas carregam
+    uma vez (ref contra duplo-effect do StrictMode)
+  - [x] **F17-T018 `LocationsPage`** — `listRacks` novo em `inventory.ts`
+    (`GET /inventory/racks?locationId=` → `RackDto {id, locationId, name,
+    description}`); página usa 3 leituras de página única (100, clamp do
+    endpoint): `listLocations` + `listRacks` + `listDevices` (esta só
+    para as **contagens por local** — agrupamento local por `locationId`,
+    pois não existe endpoint agregado; header mostra os `totalCount`
+    reais). Saiu sem contrato: `type` do local; em racks a barra de uso
+    de U (`usedUnits`/`units`), potência, temperatura e a lista de
+    devices da rack (nenhuma métrica tem backend). Contagens por card
+    calculadas sobre a primeira página truncada ganham `~` + rodapé
+    explicando; nome do local do rack resolvido no cliente; sem mutations
+    (mock já era somente leitura)
+  - [x] **F17-T019 `LogsPage`** — página **já era majoritariamente real**
+    (link + rastreador de Seq, ADR-021/ADR-022 com `VITE_LOGS_URL` e
+    filtro `CorrelationId` — permanecem). O que saiu: a tabela mock
+    "Últimos eventos (amostra local)" de `logsData` — **não existe
+    endpoint de logs da aplicação** na API (níveis/fontes/mensagens são
+    gravados no Seq junto com workers/outbox e a API não os expõe;
+    ações de usuário auditadas têm página própria em `/audit`,
+    `AuditPage` + `services/api/audit.ts`, já conectada). No lugar da
+    tabela, painel honesto apontando para a plataforma de logs e para a
+    Auditoria; comentários `uni-logs-table`/`uni-log-level` no CSS
+    ficaram sem uso (semântica preservada caso o painel volte)
+  - [x] **F17-T020 `SwitchesPage`** — `listSwitches` adicionado ao
+    `services/api/network.ts` **existente** (T008, VLANs — na task o
+    arquivo foi reescrito por engano e restaurado do HEAD; diff final
+    verificado puramente aditivo). Fontes: `GET /network/switches`
+    (F3-T001 — switch é Device com type=Switch, devolve `DeviceDto`;
+    `term`/`locationId`/`rackId` reais) + localização resolvida via
+    `listLocations` + `GET /network/switches/{id}/ports` por seleção
+    (serviço do T007, `linkUp` tri-estado; guarda de ref anti
+    duplo-fetch do StrictMode; seleção por card OU pelo `select` do
+    cabeçalho, auto-seleciona o primeiro). Saiu sem contrato: chip
+    Online/Offline e "X online" (estado atual — decisão T007); por card
+    `activePorts/totalPorts`, `poePorts`, `firmware` (sem contagem
+    agregada sem 1 requisição por switch); na tabela Dispositivo/Tipo/
+    Velocidade/PoE/VLAN (`SwitchPortDto` só tem name/description/linkUp;
+    VLAN por porta = `GET /network/switch-ports/{id}/vlans`, 1 pedido
+    POR PORTA — futuro). Grade visual e contagens refeitas com `linkUp`
+    (Up/Down/—); sem mutations
+  - [x] **F17-T021 `TopologyPage`** (última página mock) — `getTopology`
+    novo em `network.ts`: `GET /network/topology` (F3-T006 — nodes =
+    **interfaces**, 1 device pode ter N; edges = Connections sem tipo/
+    label/cor no contrato; `status` = último Ping do device dono:
+    `"up"`/`"down"`/`null`). **API não devolve x/y** → grade calculada
+    no cliente: devices ordenados por tipo em 7 colunas, interfaces em
+    satélite (raio 30) ao redor do device, arestas neutras ligando
+    interfaces com as duas pontas visíveis; zoom/hover/tooltip
+    preservados (tooltip = deviceType · ip · interface · status · Local
+    resolvido via `listDevices`+`listLocations`). 4 leituras em paralelo
+    (topology/devices/locations/vlans). Stats e cards de categoria =
+    devices distintos por tipo e por status do ping. Saiu sem contrato:
+    tipos `wan`/`gateway`/`vm`/`nas`/`client` (enum real), status
+    "warning", arestas tipadas backbone/PoE/WiFi/storage, painel
+    Storage, badges de VLAN por device (fan-out 1 req/porta — sidebar
+    mostra só o inventário de VLANs do T008, sem contagem de devices) e
+    **vista por Rack** (DTO sem posição em U/rackId — racks vivem na
+    LocationsPage T018). Estado honesto: "Nenhuma interface mapeada —
+    a topologia nasce das Connections (F3-T005)"; sem mutations
+  - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
+    N/A + Insights esvaziado); **todas as páginas do protótipo estão
+    conectadas ao backend ou com estado honesto** (T016 Insights, T019
+    Logs, T021 Topologia). O grupo permanece aberto apenas pela decisão
+    de produto do Insights (construir backend / apagar página / manter
+    demo) — última pendência da F17.
+    Os gaps de backend identificados aqui viram a **frente
+    F18** (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
@@ -351,3 +653,121 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   com "docker CLI não encontrado" mesmo com `docker` no PATH e o daemon no ar
   (observado em 30/09 na validação do alinhamento de endpoints; pré-existente,
   não é flakiness)
+
+### Backend: gaps levantados na F17 — frente F18 (criada em 01/10/2026)
+
+Levantamento sistemático feito ao conectar as páginas (F17-T001…T016): o
+protótipo prometia domínios que o backend **não tem**. Cada item é uma
+task independente com objetivo/escopo/critérios/testes próprios (regra:
+task que não cabe numa descrição clara está grande demais — dividir). Os
+domínios novos (T005–T008) exigem **ADR + questionário de escopo antes do
+plano** — não se implementa arquitetura de coleta sem decisão humana.
+
+- [x] **F18-T001 Feed de notificações** — `GET /api/v1/notifications`
+  (raiz do controller, nova action `GetFeed`) com `page`/`pageSize`
+  (clamp 1..100). **Decisão prévia registrada: sem estado de
+  leitura** — DTO entregue `{id, eventType, title, message, createdAt}`
+  (`createdAt` = `CreateDateTime`), sem `ReadAt`/`POST {id}/read`
+  (a task autorizou "entregar sem não lidas"; evita migração de schema;
+  extensão futura documentada no DTO). Implementação: port
+  `INotificationFeedRepository` (novo pacote `Notifications/Feed/`) +
+  `NotificationFeedRepository` com predicado correlato `Any()` —
+  destinatário direto OU role (`IN` das roles do `ICurrentUserContext`),
+  **dedup por construção** (alvo direto + role = 1 linha), ordenação
+  `CreateDateTime` desc com desempate por `Id` (paginação estável);
+  handler `GetNotificationFeedQuery` (ADR-016 `RoleAccess.Read`, usuário
+  do contexto, não da query; sem usuário → `UnauthorizedAccessException`
+  pt-BR). Registrado no `BaseIntegrationTest` (a base não varre) e
+  auto-registrado na API via `RepositoryRegistrar`. Testes: 5 unit
+  (Sqlite — só os do feed entraram: ordenação/dedup/clamp/falha sem
+  usuário), 3 integração (PagedResult + gate ADR-016 + dedup) e 2 E2E
+  HTTP no `FullPipelineE2ETests` (401 anônimo + envelope
+  `{isSuccess,data:{items,totalCount,page,pageSize},errors}`).
+  Achado no caminho: `ApplyAuditFields` do `AppDbContext` sobrescreve
+  `CreateDateTime` de toda entrada `Added` com `AppTimeProvider.Current`
+  — data determinística do teste gravada em segunda passada (`Modified`
+  não toca `CreateDateTime`). **Desbloqueia** a aba Feed da
+  NotificationsPage (UI = task futura; F17-T010 documentou a remoção)
+- [x] **F18-T002 Filtro `kind` em discovery results** — parâmetro opcional
+  `kind` em `GET /discovery/runs/{runId}/results`. Implementação:
+  `SearchDiscoveryResultsQuery` ganhou `Kind` (`string?`), validado no
+  handler **antes** do 404 de run (`ParseKind`: case-insensitive +
+  `Enum.IsDefined` rejeitando números que o `TryParse` aceitaria; nome
+  inválido → `ArgumentException` → 400 pt-BR **listando os válidos**:
+  "Valores válidos: Neighbor, ArpEntry, MacTableEntry, DhcpLease,
+  Host"); porta/repositório `SearchByRunAsync` ganharam
+  `DiscoveryResultKind? kind` com filtro aplicado **antes do COUNT**
+  (totalCount respeita o filtro); action `Search` expõe `?kind=`.
+  Testes: +3 unit (filtro+paginação com totalCount filtrado,
+  case-insensitive, texto e número inválidos → 400 pt-BR) e +2
+  integração (filtro server-side no pipeline real + 400 pt-BR).
+  Validação: unit 1350, integração+E2E 171, arch 90 (todos verdes).
+  **Desbloqueia** o filtro honesto da ClientsPage (pendência do
+  F17-T015 — UI = task futura)
+- [x] **F18-T003 Endpoint agregado de SLA budgets** — nova rota
+  `GET /api/v1/sla/slos/budgets?serviceId=&page=&pageSize=` (action
+  `SearchBudgetsByService` no `SlosController`; rota literal `budgets`
+  sem guid não colide com `{sloId:guid}/budgets` nem
+  `budgets/{id:guid}`; decisão: não criar controller `api/v1/sla/budgets`
+  para não duplicar rota de budget único). Implementação:
+  `SearchSloBudgetsByServiceQuery` (`ServiceId?` nulo = todos) +
+  `SearchByServiceIdAsync` no port/repo (subquery nos SLOs do serviço,
+  filtro **antes do COUNT**, mesma ordenação `PeriodStart` desc e clamp
+  1..100 da busca por SLO; DTO idêntico `SloBudgetDto`). **Frontend**:
+  `sla.ts` ganhou `listServiceBudgets` (comentário do N+1 corrigido em
+  `listSloBudgets`, que fica para drill-down); `SlaPage.load` substituiu
+  o loop `Promise.all` por SLO por **1 pedido agregado** — 4 requests
+  fixos paralelos por visão, independentes do nº de SLOs — agrupando por
+  `sloId` no cliente. Critério atendido: UI passa de N pedidos a 1 por
+  visão. Testes: +1 unit (filtro por serviço com TotalCount/paginação/
+  ordem/clamp; serviço alheio fora; `serviceId` nulo = todos) e +1
+  integração (2 serviços em 1 pedido). Validação: unit 1351,
+  integração+E2E 172, arch 90, `tsc -b` 0 erros, `npm run build` ok
+- [x] **F18-T004 Limpeza do `RolesController`** — **decisão registrada:
+  remover o slice inteiro** (alinhar manteria a duplicação): rota
+  `api/identity/users` (fora do v1), o `RolesController` e o
+  `RoleViewModel`, os comandos `AssignUserRoleCommand`/
+  `RemoveUserRoleCommand`, a porta `IUserRoleRepository`, o adaptador
+  `IdentityUserRoleRepository` (sync do ASP.NET Identity não é lido por
+  nenhum pipeline de authz — o login monta as claims do cookie a partir
+  do domínio), os `using`s órfãos em `Program.cs`/
+  `DependencyInjection.cs` e as 2 entradas no allowlist do arch test.
+  **Achado grave na migração dos testes**: o caminho vivo
+  (`POST/DELETE /admin/users/{id}/roles/{role}` →
+  `IdentityAdministrationService`) estava **quebrado em runtime** —
+  `UserRoleAssignment.Id` era `ValueGeneratedOnAdd` (convenção Guid)
+  mas nasce preenchido no `Entity()`, então o `DetectChanges` anexava
+  a filha NOVA como `Modified` e o save estourava
+  `DbUpdateConcurrencyException` (500) — nunca houve teste de rota
+  (os comandos usavam repositório fake). Corrigido com
+  `ValueGeneratedNever` em `UserRoleAssignmentConfiguration` (esquema
+  intocado: EF confirmou "no pending model changes"). Migração dos
+  testes: `IdentityAdministrationServiceTests` (5 facts) cobre os 2
+  facts de `RoleCommandTests` + regressão do bug (atribuição persiste,
+  desconhecido → 404, último admin → 409, remoção comum persiste).
+  Docs (05/24/25) e comentários do front atualizados. Validação: unit
+  1354 (1351 − 2 + 5), integração+E2E 172, **arch 88** (90 − 2 casos de
+  theory por controller do `RolesController` removido — conferido no
+  TRX, nada escondido), `tsc -b` 0 erros, `npm run build` ok
+- [ ] **F18-T005 Domínio DHCP/Rotas/Firewall** — leitura dos serviços de
+  rede prometidos pelas abas removidas no F17-T008 (leases DHCP, rotas,
+  regras de firewall). **Exige ADR + questionário antes do plano**:
+  fonte de dados (SNMP/SSH por vendor/agent), escopo read-only vs
+  gestão, quais tabelas/vendor suportados. Critérios: definidos no ADR
+- [ ] **F18-T006 Domínio WiFi** — redes (SSID/segurança/banda/canal/
+  largura/VLAN) + telemetria de AP (clientes, CPU, mem, canais,
+  potência, tráfego) — tudo o que saiu da WiFiPage no F17-T014.
+  **Exige ADR + questionário**: fonte (controller de AP? SNMP? API de
+  vendor?), quais métricas e com que frequência. Critérios: definidos
+  no ADR; quando pronto, a WiFiPage deixa de ser só inventário
+- [ ] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
+  tráfego por cliente, speed test e painéis do Dashboard removidos no
+  F17-T009/T016. **Exige ADR + questionário + decisão sobre a página
+  Insights** (construir backend, apagar página/rota ou manter demo —
+  escalado no F17-T016). Critérios: definidos no ADR
+- [ ] **F18-T008 `GET /clients` (clientes ao vivo)** — lista agregada de
+  clientes da rede (IP/MAC/hostname/vlan) sem depender de "último run
+  de discovery" (decisão do F17-T015). **Decisão prévia**: servir
+  agregando ARP/DHCP já descobertos vs. nova tabela mantida por
+  ingestão contínua — pode nascer junto de F18-T005/T006. Critérios:
+  contrato paginado estável; testes unit + integration

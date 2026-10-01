@@ -2,6 +2,7 @@ using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Application.Notifications.Email;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace InfraControl.Api.Workers;
 
@@ -11,15 +12,15 @@ namespace InfraControl.Api.Workers;
 /// </summary>
 public sealed class NotificationEmailWorker(
     IServiceScopeFactory scopeFactory,
-    IEmailNotificationDispatcher dispatcher,
     ILogger<NotificationEmailWorker> logger)
     : NotificationChannelWorkerBase(scopeFactory, logger, NotificationChannel.Email)
 {
     protected override Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
+        IServiceProvider services,
         CancellationToken cancellationToken)
-        => dispatcher.SendAsync(
+        => services.GetRequiredService<IEmailNotificationDispatcher>().SendAsync(
             new EmailNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
                 item.RecipientEmail ?? string.Empty,

@@ -133,6 +133,65 @@ public sealed class DiscoveryResultQueryTests : IDisposable
     }
 
     [Fact]
+    public async Task Search_KindFilter_ShouldFilterAndPaginateWithFilteredTotalCount()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, "sw-01");
+        var runId = await SeedRunAsync(context, deviceId);
+        await SeedResultAsync(context, runId, DiscoveryResultKind.Host, "h1", At(12, 0));
+        await SeedResultAsync(context, runId, DiscoveryResultKind.Host, "h2", At(12, 1));
+        await SeedResultAsync(context, runId, DiscoveryResultKind.Neighbor, "n1", At(12, 2));
+
+        var result = await SearchHandler(context).Handle(
+            new SearchDiscoveryResultsQuery(runId, Kind: "Host", PageSize: 1),
+            CancellationToken.None);
+
+        result.TotalCount.Should().Be(2, "totalCount respeita o filtro kind");
+        result.Items.Should().ContainSingle();
+        result.Items.Should().OnlyContain(item => item.Kind == "Host");
+    }
+
+    [Fact]
+    public async Task Search_KindFilter_ShouldBeCaseInsensitive()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, "sw-01");
+        var runId = await SeedRunAsync(context, deviceId);
+        await SeedResultAsync(context, runId, DiscoveryResultKind.Neighbor, "n1", At(12, 0));
+        await SeedResultAsync(context, runId, DiscoveryResultKind.ArpEntry, "a1", At(12, 1));
+
+        var minusculas = await SearchHandler(context).Handle(
+            new SearchDiscoveryResultsQuery(runId, Kind: "neighbor"), CancellationToken.None);
+        var maiusculas = await SearchHandler(context).Handle(
+            new SearchDiscoveryResultsQuery(runId, Kind: "ARPENTRY"), CancellationToken.None);
+
+        minusculas.TotalCount.Should().Be(1);
+        minusculas.Items.Single().Kind.Should().Be(nameof(DiscoveryResultKind.Neighbor));
+        maiusculas.TotalCount.Should().Be(1);
+        maiusculas.Items.Single().Kind.Should().Be(nameof(DiscoveryResultKind.ArpEntry));
+    }
+
+    [Fact]
+    public async Task Search_InvalidKind_ShouldThrowPtBrListingValidValues()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context, "sw-01");
+        var runId = await SeedRunAsync(context, deviceId);
+
+        // Texto fora do enum E número fora do range (Enum.TryParse aceita
+        // dígitos — o guard IsDefined precisa rejeitar).
+        var actTexto = () => SearchHandler(context).Handle(
+            new SearchDiscoveryResultsQuery(runId, Kind: "banana"), CancellationToken.None);
+        var actNumero = () => SearchHandler(context).Handle(
+            new SearchDiscoveryResultsQuery(runId, Kind: "9"), CancellationToken.None);
+
+        (await actTexto.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*Valores válidos: Neighbor, ArpEntry, MacTableEntry, DhcpLease, Host*");
+        (await actNumero.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*Valores válidos: Neighbor, ArpEntry, MacTableEntry, DhcpLease, Host*");
+    }
+
+    [Fact]
     public async Task GetById_Existing_ShouldReturnKindAsStringAndValues()
     {
         await using var context = await CreateContextAsync();

@@ -51,6 +51,41 @@ public sealed class DiscoveryResultIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task List_InvalidKind_ShouldThrowPtBrListingValidValues()
+    {
+        using var scope = CreateScope();
+        UseRole(UserRole.Viewer);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var act = () => mediator.Send(
+            new SearchDiscoveryResultsQuery(Guid.NewGuid(), Kind: "banana"));
+
+        (await act.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*Valores válidos: Neighbor, ArpEntry, MacTableEntry, DhcpLease, Host*");
+    }
+
+    [Fact]
+    public async Task List_KindFilter_ShouldPaginateServerSideWithFilteredTotalCount()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.31");
+        var runId = await SeedRunWithResultsOfTwoKindsAsync(dbContext, device.Id);
+        UseRole(UserRole.Viewer);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var page = await mediator.Send(
+            new SearchDiscoveryResultsQuery(runId, Kind: "Host", PageSize: 1));
+
+        page.TotalCount.Should().Be(2, "totalCount respeita o filtro kind");
+        page.Items.Should().ContainSingle();
+        page.Items.Single().Kind.Should().Be(nameof(DiscoveryResultKind.Host));
+
+        var semFiltro = await mediator.Send(new SearchDiscoveryResultsQuery(runId));
+        semFiltro.TotalCount.Should().Be(3, "sem kind volta a lista completa");
+    }
+
+    [Fact]
     public async Task List_UnknownRun_ShouldThrowNotFoundPtBr()
     {
         using var scope = CreateScope();
@@ -80,5 +115,23 @@ public sealed class DiscoveryResultIntegrationTests : BaseIntegrationTest
         dbContext.DiscoveryResults.Add(result);
         await dbContext.SaveChangesAsync();
         return (run.Id, result.Id);
+    }
+
+    private static async Task<Guid> SeedRunWithResultsOfTwoKindsAsync(
+        AppDbContext dbContext,
+        Guid deviceId)
+    {
+        var run = DiscoveryRun.Start(deviceId);
+        run.Complete();
+        dbContext.DiscoveryRuns.Add(run);
+
+        dbContext.DiscoveryResults.Add(DiscoveryResult.Create(
+            run.Id, DiscoveryResultKind.Neighbor, "sw-core-01 via Gi0/1", null));
+        dbContext.DiscoveryResults.Add(DiscoveryResult.Create(
+            run.Id, DiscoveryResultKind.Host, "192.0.2.10 ativo", null));
+        dbContext.DiscoveryResults.Add(DiscoveryResult.Create(
+            run.Id, DiscoveryResultKind.Host, "192.0.2.11 ativo", null));
+        await dbContext.SaveChangesAsync();
+        return run.Id;
     }
 }

@@ -64,15 +64,15 @@ public sealed class NotificationSignalRWorkerTests : IDisposable
         context.NotificationDeliveries.Add(delivery);
         await context.SaveChangesAsync();
 
+        var dispatcher = new FakeDispatcher();
         var services = new ServiceCollection();
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<ISignalRNotificationDispatcher>(_ => dispatcher);
         var provider = services.BuildServiceProvider();
 
-        var dispatcher = new FakeDispatcher();
         var worker = new NotificationSignalRWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            dispatcher,
             NullLogger<NotificationSignalRWorker>.Instance);
 
         return (context, worker, dispatcher, delivery.Id);

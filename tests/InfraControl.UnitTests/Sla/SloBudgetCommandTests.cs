@@ -68,6 +68,60 @@ public sealed class SloBudgetCommandTests : IDisposable
         new(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
 
     [Fact]
+    public async Task SearchByService_ShouldFilterPaginatedAndOrderChronologically()
+    {
+        await using var context = await CreateContextAsync();
+
+        var serviceA = Service.Create("ERP");
+        context.Services.Add(serviceA);
+        var serviceB = Service.Create("Portal");
+        context.Services.Add(serviceB);
+        await context.SaveChangesAsync();
+
+        var sloA1 = Slo.Create("SLO A1", 99.9m, 30, serviceA.Id);
+        var sloA2 = Slo.Create("SLO A2", 99.5m, 30, serviceA.Id);
+        var sloB = Slo.Create("SLO B", 99.0m, 30, serviceB.Id);
+        context.Slos.AddRange(sloA1, sloA2, sloB);
+        await context.SaveChangesAsync();
+
+        await RecordHandler(context).Handle(
+            new RecordSloBudgetCommand(sloA1.Id, Start, null, 10m), CancellationToken.None);
+        await RecordHandler(context).Handle(
+            new RecordSloBudgetCommand(sloA2.Id, Start.AddDays(30), null, 20m), CancellationToken.None);
+        // O budget do serviço B é o mais recente de todos — se o filtro
+        // falhar, ele aparece na frente e o teste denuncia.
+        await RecordHandler(context).Handle(
+            new RecordSloBudgetCommand(sloB.Id, Start.AddDays(60), null, 30m), CancellationToken.None);
+
+        var handler = new SearchSloBudgetsByServiceQueryHandler(
+            new SloBudgetRepository(context));
+
+        var servicoA = await handler.Handle(
+            new SearchSloBudgetsByServiceQuery(serviceA.Id, PageSize: 1),
+            CancellationToken.None);
+        servicoA.TotalCount.Should().Be(2, "budgets do outro serviço ficam de fora");
+        servicoA.Items.Should().ContainSingle();
+        servicoA.Items.Single().SloId.Should().Be(
+            sloA2.Id, "ordenado por PeriodStart desc dentro do serviço");
+
+        var servicoB = await handler.Handle(
+            new SearchSloBudgetsByServiceQuery(serviceB.Id), CancellationToken.None);
+        servicoB.TotalCount.Should().Be(1);
+        servicoB.Items.Single().SloId.Should().Be(sloB.Id);
+
+        var todos = await handler.Handle(
+            new SearchSloBudgetsByServiceQuery(), CancellationToken.None);
+        todos.TotalCount.Should().Be(3, "sem serviceId lista todos os serviços");
+        todos.Items.Select(b => b.PeriodStart).Should().BeInDescendingOrder();
+
+        var clampado = await handler.Handle(
+            new SearchSloBudgetsByServiceQuery(serviceA.Id, Page: 0, PageSize: 500),
+            CancellationToken.None);
+        clampado.Page.Should().Be(1);
+        clampado.PageSize.Should().Be(100);
+    }
+
+    [Fact]
     public async Task Record_ShouldPersistAndReturnDto()
     {
         await using var context = await CreateContextAsync();
