@@ -549,7 +549,9 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     `DeviceDetailPage` (task separada já prevista), pela decisão de
     produto do Insights (construir backend / apagar página / demo) e pelas
     páginas fora do checklist ainda em mock (`LocationsPage`, `LogsPage`,
-    `SwitchesPage`, `TopologyPage`) — escopo para decisão humana
+    `SwitchesPage`, `TopologyPage`) — escopo para decisão humana.
+    Os gaps de backend identificados aqui viram a **frente F18**
+    (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
@@ -558,3 +560,61 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   próprio)
 - [ ] **Warnings `CS8601`/`CS8605`** em `RestoreRoundTripTests.cs` no build
   Release (pré-existentes, fora de escopo até aqui)
+
+### Backend: gaps levantados na F17 — frente F18 (criada em 01/10/2026)
+
+Levantamento sistemático feito ao conectar as páginas (F17-T001…T016): o
+protótipo prometia domínios que o backend **não tem**. Cada item é uma
+task independente com objetivo/escopo/critérios/testes próprios (regra:
+task que não cabe numa descrição clara está grande demais — dividir). Os
+domínios novos (T005–T008) exigem **ADR + questionário de escopo antes do
+plano** — não se implementa arquitetura de coleta sem decisão humana.
+
+- [ ] **F18-T001 Feed de notificações** — `GET` paginado das notificações
+  do usuário autenticado (join `NotificationRecipient` → `Notification`,
+  mais recentes primeiro; DTO `{id, eventType, title, message, createdAt}`
+  — a entidade hoje tem `EventId/EventType/Title/Message` e **não tem
+  flag de leitura**; decisão prévia: incluir `ReadAt` + `POST {id}/read`
+  ou entregar sem estado "não lidas"). Critérios: 200 com `PagedResult`,
+  401 anônimo, 404/400 conforme contrato; testes unit (handler) +
+  integration (contrato). Desbloqueia a aba Feed da NotificationsPage
+  (F17-T010 documentou a remoção)
+- [ ] **F18-T002 Filtro `kind` em discovery results** — parâmetro opcional
+  `kind` em `GET /discovery/runs/{runId}/results` (enum
+  `DiscoveryResultKind`: `Neighbor|ArpEntry|MacTableEntry|DhcpLease|Host`;
+  valor inválido → 400 pt-BR listando os válidos, padrão do projeto).
+  Critério: filtro server-side paginado corretamente (totalCount
+  respeita o filtro); testes unit + integration. Desbloqueia o filtro
+  honesto da ClientsPage (pendência do F17-T015)
+- [ ] **F18-T003 Endpoint agregado de SLA budgets** — hoje são N pedidos
+  (1 por SLO, `GET /sla/slos/{sloId}/budgets` — N+1 aceito no F17-T005);
+  criar rota agregada (ex.: `GET /sla/budgets?serviceId=` — rota decidida
+  no plano) devolvendo os `SloBudgetDto` do serviço/página. Critério: UI
+  do SlaPage passa a 1 pedido por visão; testes unit + integration
+- [ ] **F18-T004 Limpeza do `RolesController`** — `api/identity/users`
+  (fora do padrão `api/v1`, DELETE duplicado, sem consumidor no front
+  desde a decisão do F17-T006): remover ou alinhar ao padrão v1, com
+  migração dos testes que cobrirem. Critério: sem rota duplicada
+  publicada; suíte verde; decisão registrada
+- [ ] **F18-T005 Domínio DHCP/Rotas/Firewall** — leitura dos serviços de
+  rede prometidos pelas abas removidas no F17-T008 (leases DHCP, rotas,
+  regras de firewall). **Exige ADR + questionário antes do plano**:
+  fonte de dados (SNMP/SSH por vendor/agent), escopo read-only vs
+  gestão, quais tabelas/vendor suportados. Critérios: definidos no ADR
+- [ ] **F18-T006 Domínio WiFi** — redes (SSID/segurança/banda/canal/
+  largura/VLAN) + telemetria de AP (clientes, CPU, mem, canais,
+  potência, tráfego) — tudo o que saiu da WiFiPage no F17-T014.
+  **Exige ADR + questionário**: fonte (controller de AP? SNMP? API de
+  vendor?), quais métricas e com que frequência. Critérios: definidos
+  no ADR; quando pronto, a WiFiPage deixa de ser só inventário
+- [ ] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
+  tráfego por cliente, speed test e painéis do Dashboard removidos no
+  F17-T009/T016. **Exige ADR + questionário + decisão sobre a página
+  Insights** (construir backend, apagar página/rota ou manter demo —
+  escalado no F17-T016). Critérios: definidos no ADR
+- [ ] **F18-T008 `GET /clients` (clientes ao vivo)** — lista agregada de
+  clientes da rede (IP/MAC/hostname/vlan) sem depender de "último run
+  de discovery" (decisão do F17-T015). **Decisão prévia**: servir
+  agregando ARP/DHCP já descobertos vs. nova tabela mantida por
+  ingestão contínua — pode nascer junto de F18-T005/T006. Critérios:
+  contrato paginado estável; testes unit + integration
