@@ -498,7 +498,18 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     Divergências: "Nova Conexão" global, IP/`user`-nome/`bytes`/duração
     pronta por linha não têm contrato (duração agora é calculada de
     `startedAt`→`endedAt`, usuário = GUID curto)
-  - [ ] Discovery · WiFi · Clients · Insights
+  - [x] **F17-T013 Discovery (N/A — página inexistente)** — o item do
+    checklist estava impreciso: não há `DiscoveryPage` nem rota
+    `/discovery` no protótipo F14 (o único "Discovery" no front é o
+    `TaskKind` do TasksPage). Sem página com mock não há o que conectar, e
+    criar tela nova estaria fora do escopo da F17 ("conectar páginas
+    EXISTENTES com mock") — se houver desejo de telar Discovery sobre
+    `DiscoveryRunsController` (GET runs, GET runs/{id}/results, POST
+    trigger), isso vira task nova. **Observação relacionada**: outras
+    páginas ainda em mock também ficam fora do checklist da F17
+    (`LocationsPage`, `LogsPage`, `SwitchesPage`, `TopologyPage`) —
+    pendência de decisão humana sobre escopo
+  - [ ] WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
