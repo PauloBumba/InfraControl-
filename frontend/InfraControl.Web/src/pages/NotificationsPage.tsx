@@ -1,121 +1,177 @@
-import { useState } from "react";
-import { notifications, notificationPreferences } from "@/data/dashboardData";
+import { useCallback, useEffect, useState } from "react";
+import { useCan } from "@/app/router/access";
+import { useAppSelector } from "@/app/store/hooks";
+import {
+  CHANNELS,
+  CHANNEL_ICON,
+  CHANNEL_LABEL,
+  listPreferences,
+  setPreference,
+} from "@/services/api/notifications";
 
-const channelIcons: Record<string, string> = {
-  Email: "pi pi-envelope",
-  Telegram: "pi pi-send",
-  WhatsApp: "pi pi-comment",
-  Webhook: "pi pi-link",
-  SignalR: "pi pi-bolt",
-};
+/**
+ * F17-T010 — NotificationsPage conectada ao backend (substitui
+ * `notifications`/`notificationPreferences` de `data/dashboardData`).
+ *
+ * A aba "Feed" do protótipo foi REMOVIDA: não existe listagem de
+ * notificações no backend (só `GET {id}/recipients`, que exige um
+ * notificationId inacessível sem uma lista — pendência se/F9 publicar a
+ * listagem). Resta a aba Preferências: `GET /notifications/preferences?
+ * userId=` (Read) + `PUT` (Operate, upsert) sobre os 6 canais do enum
+ * `NotificationChannel`. `channel` viaja NUMÉRICO (enum sem
+ * JsonStringEnumConverter no MVC).
+ *
+ * Semântica real (docs/07): **default habilitado — desligar = sem
+ * delivery**; linha ausente = canal ativo, então o estado inicial de cada
+ * toggle é `true` e as linhas gravadas sobrescrevem. Coluna "Eventos" do
+ * protótipo saiu (não existe no `NotificationPreferenceDto`).
+ */
 
-const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
-  sent: { label: "Enviada", bg: "#dcfce7", color: "#16a34a" },
-  queued: { label: "Na fila", bg: "#fef3c7", color: "#d97706" },
-  failed: { label: "Falhou", bg: "#fee2e2", color: "#dc2626" },
-};
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
+}
 
 export function NotificationsPage() {
-  const [tab, setTab] = useState<"feed" | "prefs">("feed");
+  const user = useAppSelector((state) => state.auth.user);
+  const userId = user?.id;
+  // Escrita (PUT) é Operate no backend; sem nível o toggle vira chip fixo.
+  const canOperate = useCan("operate");
 
-  const unread = notifications.filter((n) => !n.read).length;
+  /** Estado por canal — default `true` (docs/07), sobrescrito pelas linhas. */
+  const [enabledByChannel, setEnabledByChannel] = useState<Record<number, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busyChannel, setBusyChannel] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const defaults: Record<number, boolean> = {};
+      CHANNELS.forEach((channel) => {
+        defaults[channel] = true;
+      });
+      const rows = await listPreferences(userId);
+      rows.forEach((row) => {
+        defaults[row.channel] = row.enabled;
+      });
+      setEnabledByChannel(defaults);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function toggle(channel: number) {
+    if (!userId) return;
+    const next = !enabledByChannel[channel];
+    setBusyChannel(channel);
+    setError(null);
+    try {
+      await setPreference(userId, channel, next);
+      setEnabledByChannel((current) => ({ ...current, [channel]: next }));
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setBusyChannel(null);
+    }
+  }
+
+  const activeCount = CHANNELS.filter((channel) => enabledByChannel[channel]).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Notificações</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {notifications.length} total · {unread} não lidas
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
-          {([
-            { id: "feed", label: "Feed" },
-            { id: "prefs", label: "Preferências" },
-          ] as const).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                color: tab === t.id ? "#3b82f6" : "#64748b",
-                background: "none",
-                border: "none",
-                borderBottom: tab === t.id ? "2px solid #3b82f6" : "2px solid transparent",
-                marginBottom: -1,
-                cursor: "pointer",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Notificações</h1>
+        <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
+          {loading
+            ? "Carregando…"
+            : `${activeCount} de ${CHANNELS.length} canais ativos · padrão: habilitado`}
+        </p>
       </div>
 
-      {tab === "feed" && (
-        <div className="uni-panel">
-          <div className="uni-alerts-list">
-            {notifications.map((n) => {
-              const st = statusConfig[n.status] ?? { label: n.status, bg: "#f1f5f9", color: "#64748b" };
-              return (
-                <div className="uni-alert-row" key={n.id} style={{ opacity: n.read ? 0.65 : 1 }}>
-                  <div className="uni-alert-icon info">
-                    <i className={channelIcons[n.channel] ?? "pi pi-bell"} />
-                  </div>
-                  <div className="uni-alert-body">
-                    <div className="uni-alert-title">
-                      {n.title}
-                      {!n.read && (
-                        <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "#3b82f6", marginLeft: 8 }} />
-                      )}
-                    </div>
-                    <div className="uni-alert-detail">{n.body} · {n.recipient}</div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: st.bg, color: st.color }}>
-                      {st.label}
-                    </span>
-                    <span style={{ fontSize: 11, color: "#94a3b8" }}>{n.channel} · {n.sentAt}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
+          </button>
         </div>
       )}
 
-      {tab === "prefs" && (
-        <div className="uni-panel">
-          <table className="uni-clients-table">
-            <thead>
-              <tr>
-                <th>Canal</th>
-                <th style={{ width: 100 }}>Ativo</th>
-                <th>Eventos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {notificationPreferences.map((p) => (
-                <tr key={p.channel}>
+      <div className="uni-panel">
+        <div className="uni-panel-header">
+          <h2>Preferências de entrega</h2>
+          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+            Desligar um canal = não receber por ele
+          </span>
+        </div>
+        <table className="uni-clients-table">
+          <thead>
+            <tr>
+              <th>Canal</th>
+              <th style={{ width: 120 }}>Ativo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CHANNELS.map((channel) => {
+              const enabled = enabledByChannel[channel] ?? true;
+              const busy = busyChannel === channel;
+              return (
+                <tr key={channel}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 500, fontSize: 13 }}>
-                      <i className={channelIcons[p.channel] ?? "pi pi-bell"} style={{ color: "#3b82f6", fontSize: 14 }} />
-                      {p.channel}
+                      <i className={CHANNEL_ICON[channel]} style={{ color: "#3b82f6", fontSize: 14 }} />
+                      {CHANNEL_LABEL[channel]}
                     </div>
                   </td>
                   <td>
-                    <div className={`uni-toggle-switch ${p.enabled ? "on" : ""}`} />
+                    {loading && enabledByChannel[channel] === undefined ? (
+                      <span style={{ fontSize: 11, color: "#94a3b8" }}>…</span>
+                    ) : canOperate ? (
+                      <div
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`${CHANNEL_LABEL[channel]}: ${enabled ? "ativo" : "inativo"}`}
+                        title={busy ? "Salvando…" : enabled ? "Clique para desligar" : "Clique para ligar"}
+                        onClick={() => { if (!busy) void toggle(channel); }}
+                        className={`uni-toggle-switch ${enabled ? "on" : ""}`}
+                        style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                          background: enabled ? "#f0fdf4" : "#f1f5f9",
+                          color: enabled ? "#15803d" : "#64748b",
+                        }}
+                      >
+                        {enabled ? "Ativo" : "Desativado"}
+                      </span>
+                    )}
                   </td>
-                  <td style={{ fontSize: 12, color: "#64748b" }}>{p.events}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              );
+            })}
+            {!loading && Object.keys(enabledByChannel).length === 0 && (
+              <tr>
+                <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                  {error ? "—" : "Nenhuma preferência registrada (todos os canais no padrão)"}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

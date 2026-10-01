@@ -460,7 +460,18 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     Clientes/Download/WiFi, Status do Sistema (subsystems), painel Gateway
     (CPU/mem/tráfego/WAN), gráfico de tráfego, Top Clients e Speed Test;
     "Ver todos" virou navegação real (/devices, /alerts, /tasks, /audit)
-  - [ ] Notifications · Alerts · Remote · Discovery · WiFi · Clients · Insights
+  - [x] **F17-T010 `NotificationsPage`** — `services/api/notifications.ts`
+    (`GET /notifications/preferences?userId=` → coleção de
+    `NotificationPreferenceDto`, `PUT` upsert `{userId,channel,enabled}`;
+    `channel` é enum → **numérico** (1=SignalR…6=Slack)). **Aba Feed
+    removida — não existe listagem de notificações** (só
+    `GET {id}/recipients`, que exige um notificationId inacessível sem
+    lista; pendência se F9 publicar a listagem). Semântica real de docs/07:
+    **default habilitado — desligar = sem delivery**, então o estado inicial
+    de cada canal é `true` e as linhas gravadas sobrescrevem. Escrita atrás
+    de `useCan("operate")` (PUT é Operate; sem nível o toggle vira chip
+    fixo Ativo/Desativado); coluna "Eventos" saiu (não existe no DTO)
+  - [ ] Alerts · Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
