@@ -305,7 +305,9 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   completa da suíte nesta máquina (13m12s; antes: 130/130 junto da F15 e
   149/152 na primeira rodada com 3 falhas já corrigidas e commitadas);
   revalidada de novo no ciclo da Fase Q (30/09): **161/161** (152 + 9 e2e);
-  pendência mantida para o caso de outras máquinas sem Docker
+  e em 01/10 na auditoria de alinhamento front×back: **164/164** (161 + 3
+  facts de alinhamento); pendência mantida para o caso de outras máquinas sem
+  Docker
 - [ ] **`postgresql-client` na imagem dos Workers** (`docker/Dockerfile`) —
   `PostgresBackupService` faz spawn de `pg_dump`/`pg_restore`, mas a imagem
   multi-stage **não instala o cliente PostgreSQL**: no deploy "Servidor com
@@ -319,17 +321,29 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   escolha do usuário
 - [ ] **Página de aceite de convite no frontend** — o link e-maiado em F1-T017
   aponta para a API (`POST /auth/invitations/{id}/accept`) sem página GET
+- [ ] **Página de redefinição de senha no frontend** — achado na auditoria de
+  alinhamento front×back de 01/10/2026: o link do e-mail de forgot-password
+  (`IdentityAuthenticationService` monta
+  `{baseUrl}/api/v1/auth/reset-password?email=...&token=...`) bate no GET da
+  API (rota só existe em POST → 405) e o front não tem rota pública
+  `/reset-password` (só `/login` e `/forgot-password`) — o fluxo nasce no
+  frontend e morre no e-mail. `POST /auth/reset-password` está alinhado
+  (body `{email, token, newPassword}`, 204/400 no envelope) mas sem
+  consumidor; resolve com página + origem do link (origin do frontend)
+  decidida
 - [x] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — **FECHADA
   em 30/09/2026** (Fase Q): `tests/InfraControl.IntegrationTests/EndToEnd/` =
   `E2EHost` (PostgreSQL+Redis reais via Testcontainers, bootstrap real de
   `Program`, seed de operador/viewer/sem-papel, XSRF lido do cookie) +
-  `FullPipelineE2ETests` com 9 cenários (contrato login/`/auth/me` que o
+  `FullPipelineE2ETests` com **12 cenários** (contrato login/`/auth/me` que o
   frontend consome, 401 pt-BR de senha errada, 400 de ModelState, matriz
   Operate, 403 da segunda camada sem papel, matriz Administer + antiforgery,
   criação/leitura de task por papel, webhook Zabbix público por token, 404 no
-  envelope) — fecha a pendência declarada nas ADR-017/ADR-018; na mesma
-  rodada a suíte de integração fechou **161/161** e os testes de e2e acharam
-  e corrigiram 6 bugs reais de boot/autorização (ver PROJECT_STATE, ciclo
+  envelope, e mais 3 de alinhamento front×back em 01/10: logout sem body →
+  204+mata sessão, lista de sessões no formato exato da SessionsPage com
+  revoke-others/404/revoke-própria, forgot-password com `message`) — fecha a
+  pendência declarada nas ADR-017/ADR-018; os testes de e2e acharam e
+  corrigiram 6 bugs reais de boot/autorização (ver PROJECT_STATE, ciclo
   Fase Q)
 - [ ] **Rate limit específico do login com código MFA** — pendência da ADR-019
   (o `HttpRateLimit` de login cobre o passo 1)

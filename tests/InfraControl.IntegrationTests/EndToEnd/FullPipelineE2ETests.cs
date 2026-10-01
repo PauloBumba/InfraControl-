@@ -79,6 +79,18 @@ public sealed class FullPipelineE2ETests(E2EHost host) : IClassFixture<E2EHost>
         return request;
     }
 
+    /// <summary>
+    /// Replica o <c>client.ts</c> numa escrita SEM body (api.delete /
+    /// api.post sem payload): só o header de antiforgery, sem Content-Type.
+    /// É o formato literal em que o navegador envia essas chamadas.
+    /// </summary>
+    private static HttpRequestMessage HeaderOnly(HttpMethod method, string url, string xsrf)
+    {
+        var request = new HttpRequestMessage(method, url);
+        request.Headers.Add("X-XSRF-TOKEN", xsrf);
+        return request;
+    }
+
     // ── contrato de sessão (o que o front consome no boot) ──────────────────
 
     [Fact]
@@ -293,5 +305,98 @@ public sealed class FullPipelineE2ETests(E2EHost host) : IClassFixture<E2EHost>
         var (ok, _, errors) = await EnvelopeAsync(response);
         ok.Should().BeFalse();
         errors.Should().NotBeEmpty();
+    }
+
+    // ── alinhamento front×back: o que o client.ts realmente envia ──────────
+
+    [Fact]
+    public async Task Logout_sem_body_envia_204_e_mata_a_sessao()
+    {
+        var client = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+        var xsrf = await XsrfAsync(client);
+
+        // auth.ts: api.post("/auth/logout") sem payload — logo SEM body e sem
+        // Content-Type, só o X-XSRF-TOKEN. Se o [FromBody] nullable do
+        // controller não aceitasse o vazio, a tela sairia com o cookie vivo.
+        var response = await client.SendAsync(
+            HeaderOnly(HttpMethod.Post, "/api/v1/auth/logout", xsrf));
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent,
+            $"o logout como o front envia deve passar: {await response.Content.ReadAsStringAsync()}");
+
+        // O cookie morreu junto: o próximo boot (/auth/me) é 401.
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode
+            .Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Sessoes_no_formato_da_SessionsPage_revogam_sem_vir_oraculo()
+    {
+        var a = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+        var b = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+        var xsrf = await XsrfAsync(a);
+
+        var list = await a.GetAsync("/api/v1/auth/sessions");
+        list.StatusCode.Should().Be(HttpStatusCode.OK);
+        var (ok, data, _) = await EnvelopeAsync(list);
+        ok.Should().BeTrue();
+        data.ValueKind.Should().Be(JsonValueKind.Array);
+
+        // As duas sessões desta tarefa convivem com as deixadas pelos outros
+        // facts (fixture compartilhada) — o mínimo é 2.
+        data.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
+
+        // Contrato exato de SessionItem (sessions.ts): estes 6 campos, no
+        // camelCase, e um isCurrent por cookie.
+        var items = data.EnumerateArray().ToList();
+        foreach (var item in items)
+        {
+            foreach (var prop in new[] { "id", "createdAt", "lastSeenAt", "expiresAt", "absoluteExpiresAt", "isCurrent" })
+                item.TryGetProperty(prop, out _).Should().BeTrue($"a sessão precisa expor {prop}");
+        }
+
+        items.Count(i => i.GetProperty("isCurrent").GetBoolean())
+            .Should().Be(1, "só a sessão do cookie atual é 'Este dispositivo'");
+
+        // "Sair de todos os outros dispositivos": a outra janela morre na hora.
+        var others = await a.SendAsync(
+            HeaderOnly(HttpMethod.Delete, "/api/v1/auth/sessions/others", xsrf));
+        others.StatusCode.Should().Be(HttpStatusCode.OK,
+            $"revoke-others deve passar: {await others.Content.ReadAsStringAsync()}");
+        (await b.GetAsync("/api/v1/auth/me")).StatusCode
+            .Should().Be(HttpStatusCode.Unauthorized);
+
+        // Sid aleatório: 404 no envelope (nunca 403 — não vira oráculo).
+        var inexistente = await a.SendAsync(HeaderOnly(HttpMethod.Delete,
+            $"/api/v1/auth/sessions/{Guid.NewGuid()}", xsrf));
+        inexistente.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var (naoOk, _, erros) = await EnvelopeAsync(inexistente);
+        naoOk.Should().BeFalse();
+        erros.Should().NotBeEmpty();
+
+        // Revogar a própria: 200 e o cookie morre (a tela trata como logout).
+        var currentId = items.Single(i => i.GetProperty("isCurrent").GetBoolean())
+            .GetProperty("id").GetString();
+        var propria = await a.SendAsync(HeaderOnly(HttpMethod.Delete,
+            $"/api/v1/auth/sessions/{currentId}", xsrf));
+        propria.StatusCode.Should().Be(HttpStatusCode.OK,
+            $"revoke da sessão atual deve passar: {await propria.Content.ReadAsStringAsync()}");
+        (await a.GetAsync("/api/v1/auth/me")).StatusCode
+            .Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Forgot_password_devolve_a_mensagem_generica_que_a_tela_exibe()
+    {
+        var client = NewClient();
+
+        // auth.ts: data?..message — anti-enumeração (a resposta é igual para
+        // e-mail inexistente) e a tela tem fallback pronto.
+        var response = await client.PostAsJsonAsync("/api/v1/auth/forgot-password",
+            new { email = "nao-cadastrado@e2e.test" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var (ok, data, _) = await EnvelopeAsync(response);
+        ok.Should().BeTrue();
+        data.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
     }
 }
