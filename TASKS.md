@@ -363,7 +363,14 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     (`priority`, `dueDate`, `device`, `tags`) removidos — backend é a
     autoridade. Pendências da própria página: transição de estado
     (`PUT /tasks/{id}/state`) e filtros `term/kind/state` na UI
-  - [ ] AuditPage (`GET /admin/audit`, só leitura/Administer)
+  - [x] **F17-T002 `AuditPage`** — `services/api/audit.ts`
+    (`GET /admin/audit?action/outcome/page/pageSize`, policy Administer);
+    bug de contrato corrigido: o mock esperava `outcome` "Success"/"Failure"
+    mas o backend grava **"Succeeded"/"Failed"** (`AuditBehavior`) — a tela
+    exibiria tudo como "Falha"; filtro de `action` virou igualdade exata no
+    submit (contrato do reader), `from`/`to` existem na API sem seletor na
+    tela; paginated com `PagedResult`; mock sem endpoint ("Pesquisar"
+    substring em action/resource/ator e "Exportar") removido
   - [ ] IncidentsPage · KnowledgePage · SlaPage
   - [ ] UsersPage (exige decisão da rota de roles duplicada: `RolesController`
     `api/identity/users` × `UsersController` `api/v1/admin/users`)

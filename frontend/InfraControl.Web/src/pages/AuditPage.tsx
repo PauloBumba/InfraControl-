@@ -1,20 +1,96 @@
-import { useState } from "react";
-import { auditEntries, auditActionOptions, auditOutcomeOptions } from "@/data/dashboardData";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { formatDateTime } from "@/utils/format";
+import {
+  AUDIT_OUTCOME_FAILED,
+  AUDIT_OUTCOME_SUCCEEDED,
+  listAuditEntries,
+  type PagedAudit,
+} from "@/services/api/audit";
+
+/**
+ * F17-T002 — AuditPage conectada ao backend (substitui o mock de
+ * `data/dashboardData`, policy Administer no controller). O que mudou em
+ * relação ao protótipo: `outcome` real é **Succeeded/Failed** (o mock
+ * esperava "Success"/"Failure" e exibiria tudo como "Falha"); `action` é
+ * igualdade EXATA no reader — por isso é um campo aplicado no submit, não
+ * busca por substring; o mock de "Pesquisar" varria action/resource/ator
+ * (parâmetro inexistente na API) e o "Exportar" não tem endpoint — os dois
+ * saíram. `from`/`to` existem na API mas a tela nunca teve seletor de data.
+ */
+
+const PAGE_SIZE = 20;
+
+const outcomeOptions = [
+  { value: "", label: "Todos os resultados" },
+  { value: AUDIT_OUTCOME_SUCCEEDED, label: "Sucesso" },
+  { value: AUDIT_OUTCOME_FAILED, label: "Falha" },
+];
+
+function outcomeChip(outcome: string): { label: string; background: string; color: string } {
+  if (outcome === AUDIT_OUTCOME_SUCCEEDED)
+    return { label: "Sucesso", background: "#dcfce7", color: "#16a34a" };
+  if (outcome === AUDIT_OUTCOME_FAILED)
+    return { label: "Falha", background: "#fee2e2", color: "#dc2626" };
+  // Valor fora do catálogo conhecido: mostra cru em vez de mentir.
+  return { label: outcome, background: "#f1f5f9", color: "#475569" };
+}
+
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
+}
 
 export function AuditPage() {
-  const [search, setSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState("all");
-  const [outcomeFilter, setOutcomeFilter] = useState("all");
+  const [pageData, setPageData] = useState<PagedAudit | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = auditEntries.filter((entry) => {
-    const matchesSearch =
-      entry.action.toLowerCase().includes(search.toLowerCase()) ||
-      entry.resource.toLowerCase().includes(search.toLowerCase()) ||
-      (entry.actorId ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchesAction = actionFilter === "all" || entry.action === actionFilter;
-    const matchesOutcome = outcomeFilter === "all" || entry.outcome === outcomeFilter;
-    return matchesSearch && matchesAction && matchesOutcome;
-  });
+  const [page, setPage] = useState(1);
+  const [outcome, setOutcome] = useState("");
+  const [action, setAction] = useState("");
+  const [actionInput, setActionInput] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPageData(
+        await listAuditEntries({
+          action: action || undefined,
+          outcome: outcome || undefined,
+          page,
+          pageSize: PAGE_SIZE,
+        }),
+      );
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [action, outcome, page]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function applyAction(event: FormEvent) {
+    event.preventDefault();
+    setAction(actionInput.trim());
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setActionInput("");
+    setAction("");
+    setOutcome("");
+    setPage(1);
+  }
+
+  const entries = pageData?.items ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const hasFilters = action !== "" || outcome !== "";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -22,59 +98,57 @@ export function AuditPage() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Auditoria</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {filtered.length} de {auditEntries.length} eventos
+            {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "evento" : "eventos"}`}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f1f5f9", borderRadius: 6, padding: "6px 12px" }}>
             <i className="pi pi-search" style={{ fontSize: 12, color: "#94a3b8" }} />
             <input
               type="text"
-              placeholder="Pesquisar auditoria..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ border: "none", background: "none", outline: "none", fontSize: 13, width: 180 }}
+              placeholder="Ação exata — ex.: LoginWithMfa"
+              title="Filtro de igualdade: nome do request MediatR ou evento de segurança"
+              value={actionInput}
+              onChange={(event) => setActionInput(event.target.value)}
+              style={{ border: "none", background: "none", outline: "none", fontSize: 13, width: 210 }}
             />
           </div>
           <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
+            value={outcome}
+            onChange={(event) => { setOutcome(event.target.value); setPage(1); }}
             style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
           >
-            {auditActionOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt === "all" ? "Todas as ações" : opt}
-              </option>
-            ))}
-          </select>
-          <select
-            value={outcomeFilter}
-            onChange={(e) => setOutcomeFilter(e.target.value)}
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-          >
-            {auditOutcomeOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt === "all" ? "Todos os resultados" : opt === "Success" ? "Sucesso" : "Falha"}
-              </option>
+            {outcomeOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
           <button
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: "1px solid #e2e8f0",
-              fontSize: 13,
-              color: "#64748b",
-              background: "white",
-            }}
+            type="submit"
+            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
           >
-            <i className="pi pi-download" style={{ fontSize: 12 }} /> Exportar
+            Filtrar
+          </button>
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
+            >
+              Limpar
+            </button>
+          )}
+        </form>
+      </div>
+
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
           </button>
         </div>
-      </div>
+      )}
 
       <div className="uni-panel">
         <table className="uni-logs-table">
@@ -89,44 +163,67 @@ export function AuditPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((entry) => (
-              <tr key={entry.id}>
-                <td style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>{entry.occurredAt}</td>
-                <td style={{ fontFamily: "monospace", fontSize: 12 }}>{entry.action}</td>
-                <td style={{ fontSize: 12, color: "#64748b" }}>{entry.resource}</td>
-                <td>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      background: entry.outcome === "Success" ? "#dcfce7" : "#fee2e2",
-                      color: entry.outcome === "Success" ? "#16a34a" : "#dc2626",
-                    }}
-                  >
-                    {entry.outcome === "Success" ? "Sucesso" : "Falha"}
-                  </span>
-                </td>
-                <td style={{ fontSize: 12 }}>
-                  {entry.actorId ?? <span style={{ color: "#94a3b8" }}>sistema</span>}
-                  {entry.error && (
-                    <div style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>{entry.error}</div>
-                  )}
-                </td>
-                <td style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{entry.correlationId}</td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+            {entries.map((entry) => {
+              const chip = outcomeChip(entry.outcome);
+              return (
+                <tr key={entry.id}>
+                  <td style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>
+                    {formatDateTime(new Date(entry.occurredAt))}
+                  </td>
+                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{entry.action}</td>
+                  <td style={{ fontSize: 12, color: "#64748b" }}>{entry.resource}</td>
+                  <td>
+                    <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: chip.background, color: chip.color }}>
+                      {chip.label}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12 }}>
+                    {entry.actorId ?? <span style={{ color: "#94a3b8" }}>sistema</span>}
+                    {entry.error && (
+                      <div style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>{entry.error}</div>
+                    )}
+                  </td>
+                  <td style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{entry.correlationId}</td>
+                </tr>
+              );
+            })}
+            {!loading && entries.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Nenhum evento encontrado
+                  {error ? "—" : "Nenhum evento encontrado"}
+                </td>
+              </tr>
+            )}
+            {loading && entries.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                  Carregando…
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {totalCount > PAGE_SIZE && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, fontSize: 12, color: "#64748b" }}>
+          <span>Página {page} de {totalPages}</span>
+          <button
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            disabled={page <= 1 || loading}
+            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+            disabled={page >= totalPages || loading}
+            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page >= totalPages ? "default" : "pointer", opacity: page >= totalPages ? 0.5 : 1 }}
+          >
+            Próxima
+          </button>
+        </div>
+      )}
     </div>
   );
 }
