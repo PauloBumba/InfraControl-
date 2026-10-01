@@ -84,6 +84,31 @@ export async function listLocations(): Promise<Paged<LocationItem>> {
 }
 
 /**
+ * F17-T018 — racks (`GET /inventory/racks`, F2-T002). `locationId` é
+ * parâmetro real do endpoint. Mesmo `RackDto` da API: **sem** units/
+ * usedUnits/power/temp/devices do mock de `dashboardData` (não existem
+ * no contrato).
+ */
+export interface RackItem {
+  id: string;
+  locationId: string;
+  name: string;
+  description: string | null;
+}
+
+export async function listRacks(
+  filters: { locationId?: string; page?: number; pageSize?: number } = {},
+): Promise<Paged<RackItem>> {
+  const params = new URLSearchParams();
+  if (filters.locationId) params.set("locationId", filters.locationId);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? INVENTORY_PAGE_SIZE));
+
+  const data = await api.get<Paged<RackItem>>(`/inventory/racks?${params}`);
+  return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
+}
+
+/**
  * Portas de um switch — coleção sob o device (`network/switches/{id}/ports`);
  * 1 pedido por switch (sem endpoint agregado).
  */

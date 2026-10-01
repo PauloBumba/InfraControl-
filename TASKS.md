@@ -564,12 +564,24 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     `linkUp` tri-estado). Chip Online/Offline e `department`/`firmware`/
     `uptime` saíram (sem contrato — mesma decisão do T007); abas carregam
     uma vez (ref contra duplo-effect do StrictMode)
+  - [x] **F17-T018 `LocationsPage`** — `listRacks` novo em `inventory.ts`
+    (`GET /inventory/racks?locationId=` → `RackDto {id, locationId, name,
+    description}`); página usa 3 leituras de página única (100, clamp do
+    endpoint): `listLocations` + `listRacks` + `listDevices` (esta só
+    para as **contagens por local** — agrupamento local por `locationId`,
+    pois não existe endpoint agregado; header mostra os `totalCount`
+    reais). Saiu sem contrato: `type` do local; em racks a barra de uso
+    de U (`usedUnits`/`units`), potência, temperatura e a lista de
+    devices da rack (nenhuma métrica tem backend). Contagens por card
+    calculadas sobre a primeira página truncada ganham `~` + rodapé
+    explicando; nome do local do rack resolvido no cliente; sem mutations
+    (mock já era somente leitura)
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
     N/A + Insights esvaziado); o grupo permanece aberto pela decisão de
     produto do Insights (construir backend / apagar página / demo) e pelas
-    páginas restantes `LocationsPage`, `LogsPage`, `SwitchesPage`,
-    `TopologyPage` (escopo autorizado pelo usuário em 01/10 — próximas
-    tasks T018+). Os gaps de backend identificados aqui viram a **frente
+    páginas restantes `LogsPage`, `SwitchesPage`, `TopologyPage`
+    (escopo autorizado pelo usuário em 01/10 — próximas tasks T019+).
+    Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na

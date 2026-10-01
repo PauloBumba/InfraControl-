@@ -1,10 +1,100 @@
-import { useState } from "react";
-import { locations, racks } from "@/data/dashboardData";
+import { useCallback, useEffect, useState } from "react";
+import {
+  listDevices,
+  listLocations,
+  listRacks,
+  type DeviceItem,
+  type LocationItem,
+  type RackItem,
+} from "@/services/api/inventory";
+
+/**
+ * F17-T018 — Locations & Racks conectada ao backend (substitui
+ * `locations`/`racks` de `data/dashboardData`).
+ *
+ * Fontes reais (3 pedidos de leitura, página única de 100 — clamp do
+ * endpoint, 1..100):
+ * - `GET /inventory/locations` (F2-T001) — `{id, name, description}`;
+ * - `GET /inventory/racks` (F2-T002) — `{id, locationId, name, description}`;
+ * - `GET /inventory/devices` — só para as **contagens por local**
+ *   (agrupamento local por `locationId`; não existe endpoint agregado).
+ *
+ * Divergências do protótipo: `type` do local (não existe no DTO); em racks
+ * saíram a barra de uso de U (`usedUnits`/`units`), potência, temperatura
+ * e a lista de devices da rack — **nenhuma dessas métricas tem backend**;
+ * o nome do local do rack é resolvido pelo agrupamento de `locationId`.
+ * Quando a contagem usa a primeira página truncada (total > 100), os
+ * valores por card ganham `~` e um rodapé explica. Sem mutations (o mock
+ * era somente leitura).
+ */
+
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
+}
 
 export function LocationsPage() {
   const [tab, setTab] = useState<"locations" | "racks">("locations");
 
-  const totalDevices = locations.reduce((s, l) => s + l.devices, 0);
+  const [locationItems, setLocationItems] = useState<LocationItem[]>([]);
+  const [locationTotal, setLocationTotal] = useState(0);
+  const [rackItems, setRackItems] = useState<RackItem[]>([]);
+  const [rackTotal, setRackTotal] = useState(0);
+  const [deviceItems, setDeviceItems] = useState<DeviceItem[]>([]);
+  const [deviceTotal, setDeviceTotal] = useState(0);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [locations, racks, devices] = await Promise.all([
+        listLocations(),
+        listRacks(),
+        listDevices(),
+      ]);
+      setLocationItems(locations.items);
+      setLocationTotal(locations.totalCount);
+      setRackItems(racks.items);
+      setRackTotal(racks.totalCount);
+      setDeviceItems(devices.items);
+      setDeviceTotal(devices.totalCount);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const racksTruncated = rackTotal > rackItems.length;
+  const devicesTruncated = deviceTotal > deviceItems.length;
+  const countsTruncated = racksTruncated || devicesTruncated;
+
+  const countFor = (list: Array<{ locationId: string }>, locationId: string): number =>
+    list.filter((entry) => entry.locationId === locationId).length;
+
+  if (loading) {
+    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+  }
+
+  if (!loading && locationItems.length === 0 && locationTotal === 0 && error) {
+    return (
+      <div className="uni-page-empty">
+        <i className="pi pi-exclamation-circle" />
+        <h2>{error}</h2>
+        <button onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+          Tentar de novo
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -12,7 +102,7 @@ export function LocationsPage() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Locations & Racks</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {locations.length} locais · {racks.length} racks · {totalDevices} dispositivos
+            {locationTotal} locais · {rackTotal} racks · {deviceTotal} dispositivos
           </p>
         </div>
         <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
@@ -41,71 +131,78 @@ export function LocationsPage() {
         </div>
       </div>
 
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {countsTruncated && (
+        <p style={{ fontSize: 11, color: "#94a3b8" }}>
+          Contagens por local calculadas sobre os primeiros {rackItems.length} racks e {deviceItems.length} dispositivos (marcados com ~)
+        </p>
+      )}
+
       {tab === "locations" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-          {locations.map((loc) => (
+          {locationItems.map((loc) => (
             <div key={loc.id} className="uni-panel" style={{ padding: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <i className="pi pi-map-marker" />
                 </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{loc.name}</div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>{loc.type}</div>
-                </div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{loc.name}</div>
               </div>
-              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>{loc.description}</p>
+              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>{loc.description ?? "—"}</p>
               <div style={{ display: "flex", gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 10, color: "#94a3b8" }}>Racks</div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{loc.racks}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>
+                    {racksTruncated ? "~" : ""}{countFor(rackItems, loc.id)}
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: "#94a3b8" }}>Dispositivos</div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>{loc.devices}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>
+                    {devicesTruncated ? "~" : ""}{countFor(deviceItems, loc.id)}
+                  </div>
                 </div>
               </div>
             </div>
           ))}
+          {locationItems.length === 0 && !error && (
+            <div className="uni-panel" style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+              Nenhum local cadastrado
+            </div>
+          )}
         </div>
       )}
 
       {tab === "racks" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-          {racks.map((rack) => {
-            const usage = Math.round((rack.usedUnits / rack.units) * 100);
-            return (
-              <div key={rack.id} className="uni-panel" style={{ padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <i className="pi pi-server" style={{ color: "#8b5cf6" }} />
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{rack.name}</span>
-                  </div>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{rack.location}</span>
+          {rackItems.map((rack) => (
+            <div key={rack.id} className="uni-panel" style={{ padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <i className="pi pi-server" style={{ color: "#8b5cf6" }} />
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{rack.name}</span>
                 </div>
-                <div style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b", marginBottom: 4 }}>
-                    <span>Uso de U</span>
-                    <span>{rack.usedUnits}/{rack.units} ({usage}%)</span>
-                  </div>
-                  <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${usage}%`, background: usage > 80 ? "#dc2626" : "#3b82f6", borderRadius: 3 }} />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 12 }}>
-                  <span style={{ color: "#64748b" }}><i className="pi pi-bolt" style={{ marginRight: 4, color: "#f59e0b" }} />{rack.power}</span>
-                  <span style={{ color: "#64748b" }}><i className="pi pi-thermometer" style={{ marginRight: 4, color: "#06b6d4" }} />{rack.temp}</span>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {rack.devices.map((d) => (
-                    <span key={d} style={{ fontSize: 10, fontFamily: "monospace", padding: "2px 6px", borderRadius: 4, background: "#f1f5f9", color: "#475569" }}>
-                      {d}
-                    </span>
-                  ))}
-                </div>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                  {locationItems.find((loc) => loc.id === rack.locationId)?.name ?? rack.locationId}
+                </span>
               </div>
-            );
-          })}
+              <p style={{ fontSize: 12, color: "#64748b" }}>{rack.description ?? "—"}</p>
+            </div>
+          ))}
+          {rackItems.length === 0 && !error && (
+            <div className="uni-panel" style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+              Nenhum rack cadastrado
+            </div>
+          )}
         </div>
       )}
     </div>
