@@ -380,7 +380,17 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     (responsável e coluna SLA saíram; `resolvedAt` entrou; `device`/
     `relatedAlerts` → `deviceId`/`alertCount`); criação atrás de
     `Can operate`; paginação sobre o `PagedResult`
-  - [ ] KnowledgePage · SlaPage
+  - [x] **F17-T004 `KnowledgePage`** — `services/api/knowledge.ts`
+    (`GET /knowledge/articles?term/page/pageSize` → `PagedResult<KnowledgeArticleDto>`;
+    `POST` `{title,content,categoryId?}` → 201 com validações DataAnnotations
+    pt-BR; categorias em `GET /knowledge/categories` para chip e select);
+    achado de contrato: `status` viaja como **número** (0/1/2 — o DTO expõe o
+    enum e o MVC não registra `JsonStringEnumConverter`), `category`/
+    `lastUpdate`/`tags` do mock não existem no DTO (nome resolvido pelo
+    `categoryId`, data e tags saíram, `status` entrou); busca `term` ligada
+    ao parâmetro real (substring); rascunho já escondido pelo backend para
+    quem não escreve
+  - [ ] SlaPage
   - [ ] UsersPage (exige decisão da rota de roles duplicada: `RolesController`
     `api/identity/users` × `UsersController` `api/v1/admin/users`)
   - [ ] Devices/Inventário · Network · Dashboard
