@@ -3,9 +3,9 @@ import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
 import {
   createService,
+  listServiceBudgets,
   listSlaPolicies,
   listServices,
-  listSloBudgets,
   listSlos,
   type ServiceItem,
   type SlaPolicyItem,
@@ -23,8 +23,9 @@ import {
  * de dias — a coluna SLO) e `SloBudgetDto` (orçamento consumido por período —
  * os cards de Error Budget, sem burn rate).
  *
- * Orçamento só existe por SLO (sem endpoint agregado): a seção faz um
- * pedido por SLO carregado — se a base crescer, pedir endpoint agregado.
+ * Orçamento: F18-T003 trouxe o endpoint agregado — a seção faz **1
+ * pedido por visão** (`/sla/slos/budgets`) e agrupa por `sloId` no
+ * cliente (antes era 1 pedido por SLO, N+1 aceito no F17-T005).
  */
 
 const PAGE_SIZE = 100;
@@ -54,22 +55,24 @@ export function SlaPage() {
     setLoading(true);
     setError(null);
     try {
-      const [servicePage, sloPage, policyPage] = await Promise.all([
+      const [servicePage, sloPage, policyPage, budgetPage] = await Promise.all([
         listServices({ pageSize: PAGE_SIZE }),
         listSlos({ pageSize: PAGE_SIZE }),
         listSlaPolicies({ pageSize: PAGE_SIZE }),
+        listServiceBudgets({ pageSize: PAGE_SIZE }),
       ]);
       setServices(servicePage.items);
       setSlos(sloPage.items);
       setPolicies(policyPage.items);
 
+      // F18-T003: 1 pedido agregado por visão (antes: 1 por SLO — N+1 do
+      // F17-T005); agrupa por sloId como o render já espera.
       const budgets = new Map<string, SloBudgetItem[]>();
-      await Promise.all(
-        sloPage.items.map(async (slo) => {
-          const budgetPage = await listSloBudgets(slo.id, { pageSize: PAGE_SIZE });
-          if (budgetPage.items.length > 0) budgets.set(slo.id, budgetPage.items);
-        }),
-      );
+      for (const budget of budgetPage.items) {
+        const list = budgets.get(budget.sloId) ?? [];
+        list.push(budget);
+        budgets.set(budget.sloId, list);
+      }
       setBudgetsBySlo(budgets);
     } catch (caught) {
       setError(messageFor(caught));

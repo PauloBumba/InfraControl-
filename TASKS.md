@@ -690,11 +690,25 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   Validação: unit 1350, integração+E2E 171, arch 90 (todos verdes).
   **Desbloqueia** o filtro honesto da ClientsPage (pendência do
   F17-T015 — UI = task futura)
-- [ ] **F18-T003 Endpoint agregado de SLA budgets** — hoje são N pedidos
-  (1 por SLO, `GET /sla/slos/{sloId}/budgets` — N+1 aceito no F17-T005);
-  criar rota agregada (ex.: `GET /sla/budgets?serviceId=` — rota decidida
-  no plano) devolvendo os `SloBudgetDto` do serviço/página. Critério: UI
-  do SlaPage passa a 1 pedido por visão; testes unit + integration
+- [x] **F18-T003 Endpoint agregado de SLA budgets** — nova rota
+  `GET /api/v1/sla/slos/budgets?serviceId=&page=&pageSize=` (action
+  `SearchBudgetsByService` no `SlosController`; rota literal `budgets`
+  sem guid não colide com `{sloId:guid}/budgets` nem
+  `budgets/{id:guid}`; decisão: não criar controller `api/v1/sla/budgets`
+  para não duplicar rota de budget único). Implementação:
+  `SearchSloBudgetsByServiceQuery` (`ServiceId?` nulo = todos) +
+  `SearchByServiceIdAsync` no port/repo (subquery nos SLOs do serviço,
+  filtro **antes do COUNT**, mesma ordenação `PeriodStart` desc e clamp
+  1..100 da busca por SLO; DTO idêntico `SloBudgetDto`). **Frontend**:
+  `sla.ts` ganhou `listServiceBudgets` (comentário do N+1 corrigido em
+  `listSloBudgets`, que fica para drill-down); `SlaPage.load` substituiu
+  o loop `Promise.all` por SLO por **1 pedido agregado** — 4 requests
+  fixos paralelos por visão, independentes do nº de SLOs — agrupando por
+  `sloId` no cliente. Critério atendido: UI passa de N pedidos a 1 por
+  visão. Testes: +1 unit (filtro por serviço com TotalCount/paginação/
+  ordem/clamp; serviço alheio fora; `serviceId` nulo = todos) e +1
+  integração (2 serviços em 1 pedido). Validação: unit 1351,
+  integração+E2E 172, arch 90, `tsc -b` 0 erros, `npm run build` ok
 - [ ] **F18-T004 Limpeza do `RolesController`** — `api/identity/users`
   (fora do padrão `api/v1`, DELETE duplicado, sem consumidor no front
   desde a decisão do F17-T006): remover ou alinhar ao padrão v1, com

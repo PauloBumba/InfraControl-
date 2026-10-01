@@ -129,6 +129,20 @@ public sealed class SlosController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new SearchSloBudgetsQuery(sloId, page, pageSize), cancellationToken)));
 
+    // F18-T003: agregado por serviço — rota literal `budgets` (sem guid)
+    // não colide com `{sloId:guid}/budgets` nem com `budgets/{id:guid}`;
+    // devolve os orçamentos de todos os SLOs de um serviço opcional em
+    // 1 pedido (a SlaPage deixou de fazer N+1).
+    [HttpGet("budgets")]
+    [Authorize]
+    public async Task<IActionResult> SearchBudgetsByService(
+        [FromQuery] Guid? serviceId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchSloBudgetsByServiceQuery(serviceId, page, pageSize), cancellationToken)));
+
     [HttpGet("budgets/{id:guid}")]
     [Authorize]
     public async Task<IActionResult> GetBudget(Guid id, CancellationToken cancellationToken)

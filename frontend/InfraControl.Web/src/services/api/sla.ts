@@ -79,12 +79,25 @@ export function listSlaPolicies(filters: { term?: string; serviceId?: string; pa
   return pagedGet<SlaPolicyItem>(`/sla/policies?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
 }
 
-/** Orçamento é por SLO — não existe endpoint agregado (um pedido por SLO). */
+/** Orçamento por SLO — útil p/ drill-down de um SLO; a visão geral usa o agregado. */
 export function listSloBudgets(sloId: string, filters: { page?: number; pageSize?: number } = {}): Promise<Paged<SloBudgetItem>> {
   const params = new URLSearchParams();
   params.set("page", String(filters.page ?? 1));
   params.set("pageSize", String(filters.pageSize ?? 20));
   return pagedGet<SloBudgetItem>(`/sla/slos/${sloId}/budgets?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
+}
+
+/**
+ * F18-T003 — agregado por serviço (`GET /sla/slos/budgets?serviceId=`):
+ * devolve os orçamentos de todos os SLOs em 1 pedido (a SlaPage deixou
+ * de fazer 1 por SLO). `serviceId` omitido = todos os serviços.
+ */
+export function listServiceBudgets(filters: { serviceId?: string; page?: number; pageSize?: number } = {}): Promise<Paged<SloBudgetItem>> {
+  const params = new URLSearchParams();
+  if (filters.serviceId) params.set("serviceId", filters.serviceId);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+  return pagedGet<SloBudgetItem>(`/sla/slos/budgets?${params}`, filters.page ?? 1, filters.pageSize ?? 20);
 }
 
 /** Criação de serviço (Operate + antiforgery; validação pt-BR no envelope). */

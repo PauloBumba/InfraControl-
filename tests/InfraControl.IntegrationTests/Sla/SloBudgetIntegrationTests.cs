@@ -96,6 +96,31 @@ public sealed class SloBudgetIntegrationTests : BaseIntegrationTest
     }
 
     [Fact]
+    public async Task SearchByService_ShouldReturnOnlyThatServiceBudgetsInOneQuery()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+
+        var serviceAId = (await mediator.Send(new CreateServiceCommand("F18A"))).Id;
+        var sloA = (await mediator.Send(
+            new CreateSloCommand("SLO F18A", 99.9m, 30, serviceAId))).Id;
+        var serviceBId = (await mediator.Send(new CreateServiceCommand("F18B"))).Id;
+        var sloB = (await mediator.Send(
+            new CreateSloCommand("SLO F18B", 99.8m, 30, serviceBId))).Id;
+        await mediator.Send(new RecordSloBudgetCommand(sloA, Start, null, 10m));
+        await mediator.Send(new RecordSloBudgetCommand(sloB, Start.AddDays(10), null, 20m));
+
+        var page = await mediator.Send(new SearchSloBudgetsByServiceQuery(serviceAId));
+
+        page.TotalCount.Should().Be(1, "budgets do serviço B ficam de fora em 1 pedido");
+        page.Items.Single().SloId.Should().Be(sloA);
+
+        var todos = await mediator.Send(new SearchSloBudgetsByServiceQuery());
+        todos.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Record_WithoutSlaManage_ShouldFailPtBr()
     {
         using var scope = CreateScope();

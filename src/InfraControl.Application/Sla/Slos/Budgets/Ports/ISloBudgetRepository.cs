@@ -12,6 +12,16 @@ public interface ISloBudgetRepository : IRepository<SloBudget>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F18-T003 — agregado por serviço (1 pedido da SlaPage em vez de 1
+    /// por SLO); `serviceId` nulo = todos os serviços.
+    /// </summary>
+    Task<PagedResult<SloBudget>> SearchByServiceIdAsync(
+        Guid? serviceId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Usado pelo DeleteSlo para bloquear exclusão com orçamentos (F8-T007 → 409).</summary>
     Task<bool> HasSloBudgetsAsync(Guid sloId, CancellationToken cancellationToken = default);
 
