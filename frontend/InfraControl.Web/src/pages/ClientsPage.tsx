@@ -1,31 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  listRuns,
-  listRunResults,
-  type DiscoveryResultItem,
-  type DiscoveryRunItem,
-} from "@/services/api/discovery";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { listClients, type ClientItem } from "@/services/api/clients";
 import { formatDateTime } from "@/utils/format";
 
 /**
- * F17-T015 — ClientsPage conectada ao backend (substitui `clients` de
- * `data/dashboardData`).
+ * F18-T008 — ClientsPage sobre `GET /api/v1/clients`: o backend agrega
+ * ARP/DHCP de **todas** as execuções de discovery e deduplica por MAC, então
+ * a página não consulta mais "último run" (F17-T015) e o header mostra a
+ * contagem real de clientes, não de achados de uma execução.
  *
- * Não existe domínio de "clientes conectados" (telemetria de controller AP
- * com sinal/velocidade/uso/SO — nada disso tem endpoint); o que existe de
- * cliente de rede são os **achados de discovery** (ARP/DHCP/MAC — F4), e
- * só por execução. A página mostra a última execução (`GET /discovery/runs`
- * ordenado StartedAt DESC, pageSize=1) e pagina os resultados dela (`GET
- * runs/{id}/results`, CreatedAt DESC).
- *
- * Divergências do protótipo: colunas Sinal/Velocidade/Uso/SO/Conexão
- * saíram (sem contrato), "Tipo" WiFi/LAN virou o `kind` real
- * (ARP/DHCP/MAC/Vizinho/Host), "Filtrar" saiu (a query não tem filtro por
- * kind — filtro honesto só server-side, documentado como pendência) e o
- * header "N clientes conectados" virou a contagem real de achados da
- * última descoberta. Achados negativos ("Nenhuma entrada ARP." sem ip/mac)
- * aparecem como linha informativa em vez de sumir (a query não pagina
- * por `succeeded` — remover quebraria a contagem). Sem mutations.
+ * O que mudou em relação à versão por execução: coluna "Registrado em" virou
+ * "Último visto" (`lastSeenAt` agregado), as linhas informativas de achado
+ * negativo saíram (o servidor descarta rows sem ip e sem MAC) e o estado
+ * vazio distingue "ainda não há discovery" de "busca sem resultado". Busca
+ * `term` casa ip/mac/hostname no servidor. Sem mutations.
  */
 
 const PAGE_SIZE = 20;
@@ -46,12 +33,6 @@ const kindStyle: Record<string, { bg: string; color: string }> = {
   Host: { bg: "#f1f5f9", color: "#475569" },
 };
 
-const runStatusLabel: Record<string, string> = {
-  Running: "em execução",
-  Completed: "concluída",
-  Failed: "falhou",
-};
-
 function messageFor(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -59,11 +40,10 @@ function messageFor(error: unknown): string {
 }
 
 export function ClientsPage() {
-  const [run, setRun] = useState<DiscoveryRunItem | null>(null);
-  const [runsChecked, setRunsChecked] = useState(false);
-  const [items, setItems] = useState<DiscoveryResultItem[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [pageData, setPageData] = useState<{ items: ClientItem[]; totalCount: number } | null>(null);
   const [page, setPage] = useState(1);
+  const [term, setTerm] = useState("");
+  const [termInput, setTermInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,49 +51,77 @@ export function ClientsPage() {
     setLoading(true);
     setError(null);
     try {
-      const latest = await listRuns(1, 1);
-      const found = latest.items[0] ?? null;
-      setRun(found);
-      setRunsChecked(true);
-      if (!found) {
-        setItems([]);
-        setTotalCount(0);
-        return;
-      }
-      const results = await listRunResults(found.id, page, PAGE_SIZE);
-      setItems(results.items);
-      setTotalCount(results.totalCount);
+      const data = await listClients(term, page, PAGE_SIZE);
+      setPageData({ items: data.items, totalCount: data.totalCount });
     } catch (caught) {
-      setItems([]);
-      setTotalCount(0);
+      setPageData(null);
       setError(messageFor(caught));
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [term, page]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  function applyTerm(event: FormEvent) {
+    event.preventDefault();
+    setTerm(termInput.trim());
+    setPage(1);
+  }
+
+  function clearTerm() {
+    setTermInput("");
+    setTerm("");
+    setPage(1);
+  }
+
+  const items = pageData?.items ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const hasTerm = term !== "";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Clientes</h1>
-        <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-          {loading
-            ? "Carregando…"
-            : run
-              ? `${totalCount} ${totalCount === 1 ? "achado" : "achados"} · última descoberta ${formatDateTime(new Date(run.startedAt))} (${runStatusLabel[run.status] ?? run.status})`
-              : "nenhuma descoberta executada ainda"}
-        </p>
-        {run?.status === "Failed" && run.errorMessage && (
-          <p style={{ fontSize: 12, color: "#b91c1c", marginTop: 4 }}>
-            {run.errorMessage}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Clientes</h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
+            {loading
+              ? "Carregando…"
+              : `${totalCount} ${totalCount === 1 ? "cliente" : "clientes"}${hasTerm ? ` · busca "${term}"` : ""}`}
           </p>
-        )}
+        </div>
+
+        <form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f1f5f9", borderRadius: 6, padding: "6px 12px" }}>
+            <i className="pi pi-search" style={{ fontSize: 12, color: "#94a3b8" }} />
+            <input
+              type="text"
+              placeholder="IP, MAC ou hostname"
+              title="Busca por ip, mac ou hostname — aplicada no servidor"
+              value={termInput}
+              onChange={(event) => setTermInput(event.target.value)}
+              style={{ border: "none", background: "none", outline: "none", fontSize: 13, width: 210 }}
+            />
+          </div>
+          <button
+            type="submit"
+            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
+          >
+            Filtrar
+          </button>
+          {hasTerm && (
+            <button
+              type="button"
+              onClick={clearTerm}
+              style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
+            >
+              Limpar
+            </button>
+          )}
+        </form>
       </div>
 
       {error && (
@@ -135,74 +143,47 @@ export function ClientsPage() {
               <th>Tipo</th>
               <th>VLAN</th>
               <th>Interface</th>
-              <th>Registrado em</th>
+              <th>Último visto</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((finding) => {
-              const values = finding.values ?? {};
-              const ip = values.ip;
-              const mac = values.mac;
-              const isClient = Boolean(ip || mac);
-              const style = kindStyle[finding.kind] ?? { bg: "#f1f5f9", color: "#64748b" };
-              if (!isClient) {
-                // Achado negativo ("Nenhuma entrada ARP.") — informativo,
-                // sem ip/mac; a query não filtra por succeeded.
-                return (
-                  <tr key={finding.id}>
-                    <td colSpan={6} style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>
-                      <span style={{ fontStyle: "normal", marginRight: 8 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: style.bg, color: style.color }}>
-                          {kindLabel[finding.kind] ?? finding.kind}
-                        </span>
-                      </span>
-                      {finding.summary}
-                    </td>
-                  </tr>
-                );
-              }
+            {items.map((client) => {
+              const style = kindStyle[client.kind] ?? { bg: "#f1f5f9", color: "#64748b" };
               return (
-                <tr key={finding.id}>
+                <tr key={`${client.mac ?? ""}|${client.ip ?? ""}`}>
                   <td>
                     <div className="uni-client-table-name">
                       <div className="uni-client-table-icon">
                         <i className="pi pi-desktop" />
                       </div>
                       <div>
-                        {ip ? (
-                          <div style={{ fontWeight: 500, fontFamily: "monospace", fontSize: 12 }}>{ip}</div>
-                        ) : (
-                          <div style={{ fontWeight: 500, fontFamily: "monospace", fontSize: 12 }}>{mac}</div>
-                        )}
-                        {ip && mac && (
-                          <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{mac}</div>
+                        <div style={{ fontWeight: 500, fontFamily: "monospace", fontSize: 12 }}>
+                          {client.ip ?? client.mac}
+                        </div>
+                        {client.ip && client.mac && (
+                          <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{client.mac}</div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td style={{ fontSize: 12, color: "#64748b" }}>{values.hostname ?? "—"}</td>
+                  <td style={{ fontSize: 12, color: "#64748b" }}>{client.hostname ?? "—"}</td>
                   <td>
                     <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 6px", borderRadius: 4, background: style.bg, color: style.color }}>
-                      {kindLabel[finding.kind] ?? finding.kind}
+                      {kindLabel[client.kind] ?? client.kind}
                     </span>
                   </td>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{values.vlan ?? "—"}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>{values.local_if ?? "—"}</td>
-                  <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(finding.createdAt))}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{client.vlan ?? "—"}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>{client.localIf ?? "—"}</td>
+                  <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(client.lastSeenAt))}</td>
                 </tr>
               );
             })}
-            {!loading && runsChecked && run === null && !error && (
+            {!loading && !error && totalCount === 0 && (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Nenhuma descoberta executada ainda — os clientes aparecem após o primeiro discovery
-                </td>
-              </tr>
-            )}
-            {!loading && run !== null && items.length === 0 && !error && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Nenhum achado nesta execução
+                  {hasTerm
+                    ? `Nenhum cliente corresponde à busca "${term}"`
+                    : "Nenhum cliente descoberto ainda — os clientes aparecem após o primeiro discovery"}
                 </td>
               </tr>
             )}
