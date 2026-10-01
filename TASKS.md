@@ -518,7 +518,22 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     `DeviceType.AccessPoint` via `GET /inventory/devices?type=AccessPoint`
     (parâmetro real, serviço do T007; `totalCount` com filtro + aviso de
     truncamento em 100) com card = nome/modelo/ip/vendor/serial/descrição
-  - [ ] Clients · Insights
+  - [x] **F17-T015 `ClientsPage`** — novo `services/api/discovery.ts`
+    (`GET /discovery/runs` ordenado StartedAt DESC, `GET
+    runs/{id}/results` CreatedAt DESC; F4-T001/T002). **Não existe
+    domínio de "clientes conectados"** (telemetria de controller AP —
+    sinal/velocidade/uso/SO — sem endpoint); o que existe de cliente de
+    rede são os achados ARP/DHCP/MAC, e só por execução → a página mostra
+    a **última execução** (`pageSize=1`) e pagina os resultados (20/pág).
+    Colunas do protótipo sem contrato saíram (Sinal/Velocidade/Uso/SO/
+    Conexão, botão "Filtrar" — a query não tem filtro por kind, pendência
+    server-side); "Tipo" WiFi/LAN virou o `kind` real (ARP/DHCP/MAC/
+    Vizinho/Host) e as chaves de `values` fornecem ip/mac/hostname/vlan/
+    `local_if`. Achados negativos ("Nenhuma entrada ARP.") viram linha
+    informativa em vez de sumir (remover quebraria a contagem da query).
+    Subtítulo = contagem real + data/status da descoberta (errorMessage do
+    run Failed aparece). Sem mutations
+  - [ ] Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
