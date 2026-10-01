@@ -471,7 +471,17 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     de cada canal é `true` e as linhas gravadas sobrescrevem. Escrita atrás
     de `useCan("operate")` (PUT é Operate; sem nível o toggle vira chip
     fixo Ativo/Desativado); coluna "Eventos" saiu (não existe no DTO)
-  - [ ] Alerts · Remote · Discovery · WiFi · Clients · Insights
+  - [x] **F17-T011 `AlertsPage`** — reusa `services/api/alerts.ts` (T009;
+    `GET /monitoring/alerts?deviceId/status/page/pageSize` →
+    `PagedResult<AlertDto>`). Botão "Filtrar" morto virou segmented control
+    do **parâmetro real `status`** (Todos/Abertos/Resolvidos/Suprimidos →
+    vazio|open|resolved|suppressed; só mandamos os três do contrato para
+    não cair no 400 pt-BR). Divergências: chip "Info" saiu (enum só tem
+    Warning/Critical), `title`/`detail` inexistentes → título real
+    `deviceName · check` + `message`; entraram status
+    (Aberto/Resolvido/Suprimido) e `openedAt`/`resolvedAt`. Sem mutation —
+    alerta nasce automático pós-check e resolve sozinho (F6), não há POST
+  - [ ] Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
