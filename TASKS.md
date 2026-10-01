@@ -353,7 +353,22 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   (F15/ADR-021 — `TaskCanceledException` de 24s sob carga da suíte completa;
   passa isolado 4/4; observado em 30/09 na validação da F10-T002)
 - [ ] **Conectar as páginas com mock ao backend** — F14 foi prototipação com dados
-  estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real
+  estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real. Frente
+  iniciada em 01/10/2026 (F17), uma página por vez:
+  - [x] **F17-T001 `TasksPage`** — quadro por estados REAIS de `TaskState`
+    (7 colunas; o mock usava `todo/in_progress/done`), chip de `TaskKind`,
+    contagens de responsáveis/dispositivos/incidentes, contagem por
+    `totalCount` e criação via `POST /tasks` atrás de `Can operate`
+    (`services/api/tasks.ts`); campos do mock sem contrato no backend
+    (`priority`, `dueDate`, `device`, `tags`) removidos — backend é a
+    autoridade. Pendências da própria página: transição de estado
+    (`PUT /tasks/{id}/state`) e filtros `term/kind/state` na UI
+  - [ ] AuditPage (`GET /admin/audit`, só leitura/Administer)
+  - [ ] IncidentsPage · KnowledgePage · SlaPage
+  - [ ] UsersPage (exige decisão da rota de roles duplicada: `RolesController`
+    `api/identity/users` × `UsersController` `api/v1/admin/users`)
+  - [ ] Devices/Inventário · Network · Dashboard
+  - [ ] Notifications · Alerts · Remote · Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
