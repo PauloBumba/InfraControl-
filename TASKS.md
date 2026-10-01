@@ -509,7 +509,16 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     páginas ainda em mock também ficam fora do checklist da F17
     (`LocationsPage`, `LogsPage`, `SwitchesPage`, `TopologyPage`) —
     pendência de decisão humana sobre escopo
-  - [ ] WiFi · Clients · Insights
+  - [x] **F17-T014 `WiFiPage`** — **o backend não tem domínio WiFi**
+    (sem entidade de rede SSID/segurança/banda/canal, sem telemetria de
+    AP — clientes/CPU/mem/canais/tx — e sem POST de rede); tudo isso saiu
+    (mesma decisão do T008 com as abas sem endpoint), incluindo o CTA
+    "Criar Rede" (o `<Can level="operate">` do F14-T009 ficava sem ação
+    por trás). Restou o que é real: a página lista os devices de
+    `DeviceType.AccessPoint` via `GET /inventory/devices?type=AccessPoint`
+    (parâmetro real, serviço do T007; `totalCount` com filtro + aviso de
+    truncamento em 100) com card = nome/modelo/ip/vendor/serial/descrição
+  - [ ] Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)

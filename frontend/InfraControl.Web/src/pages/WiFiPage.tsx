@@ -1,91 +1,118 @@
-import { wifiNetworks, apData } from "@/data/dashboardData";
-import { Can } from "@/components/auth/Can";
+import { useCallback, useEffect, useState } from "react";
+import { listDevices, type DeviceItem } from "@/services/api/inventory";
+
+/**
+ * F17-T014 — WiFiPage conectada ao backend (substitui
+ * `wifiNetworks`/`apData` de `data/dashboardData`).
+ *
+ * O backend NÃO tem domínio WiFi: não existem entidades de rede
+ * (SSID/segurança/banda/canal), nem telemetria de AP (clientes/CPU/mem/
+ * canais/tx) nem POST de rede — nada disso tem endpoint e tudo saiu
+ * (mesma decisão do T008 com as abas DHCP/Rotas/Firewall). O que é real:
+ * os APs são devices de `DeviceType.AccessPoint` no inventário, então a
+ * página vira a lista desses devices via `GET /inventory/devices?
+ * type=AccessPoint` (parâmetro real, do serviço do T007). O CTA "Criar
+ * Rede" saiu (sem endpoint — o gate `<Can level="operate">` do F14-T009
+ * ficava sem ação por trás).
+ */
+
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
+}
 
 export function WiFiPage() {
+  const [aps, setAps] = useState<DeviceItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listDevices({ type: "AccessPoint" });
+      setAps(result.items);
+      setTotalCount(result.totalCount);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const truncated = totalCount > aps.length;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>WiFi</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{wifiNetworks.length} redes · {apData.length} access points</p>
-        </div>
-        <Can level="operate">
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
-            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Criar Rede
+      <div>
+        <h1 style={{ fontSize: 20, fontWeight: 700 }}>WiFi</h1>
+        <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+          {loading
+            ? "Carregando…"
+            : `${totalCount} ${totalCount === 1 ? "access point" : "access points"} · inventário (DeviceType.AccessPoint)`}
+        </p>
+      </div>
+
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
           </button>
-        </Can>
-      </div>
-
-      {/* WiFi Networks */}
-      <div>
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Redes WiFi</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-          {wifiNetworks.map((net) => (
-            <div key={net.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, fontFamily: "monospace" }}>{net.ssid}</div>
-                  <div style={{ fontSize: 11, color: "#9ca3af" }}>{net.security}</div>
-                </div>
-                <div style={{ width: 32, height: 18, borderRadius: 9, background: "#3b82f6", position: "relative" }}>
-                  <div style={{ position: "absolute", top: 2, left: 16, width: 14, height: 14, borderRadius: "50%", background: "white" }} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11 }}>
-                <div><span style={{ color: "#9ca3af" }}>Banda:</span> <span style={{ fontWeight: 500 }}>{net.band}</span></div>
-                <div><span style={{ color: "#9ca3af" }}>Canal:</span> <span style={{ fontWeight: 500 }}>{net.channel}</span></div>
-                <div><span style={{ color: "#9ca3af" }}>Largura:</span> <span style={{ fontWeight: 500 }}>{net.width}</span></div>
-                <div><span style={{ color: "#9ca3af" }}>VLAN:</span> <span style={{ fontWeight: 500 }}>{net.vlan}</span></div>
-                <div><span style={{ color: "#9ca3af" }}>Clientes:</span> <span style={{ fontWeight: 500 }}>{net.clients}</span></div>
-                <div><span style={{ color: "#9ca3af" }}>APs:</span> <span style={{ fontWeight: 500 }}>{net.aps.length}</span></div>
-              </div>
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f3f4f6" }}>
-                <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>APs:</div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {net.aps.map((ap) => (
-                    <span key={ap} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280" }}>{ap}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
-      </div>
+      )}
 
-      {/* Access Points */}
       <div>
-        <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Access Points</h2>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600 }}>Access Points</h2>
+          {truncated && (
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+              mostrando {aps.length} de {totalCount} — página completa em Dispositivos
+            </span>
+          )}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-          {apData.map((ap) => (
+          {aps.map((ap) => (
             <div key={ap.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: ap.status === "online" ? "#f0fdf4" : "#fefce8", color: ap.status === "online" ? "#22c55e" : "#eab308", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <i className="pi pi-wifi" />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{ap.name}</div>
-                    <div style={{ fontSize: 10, color: "#9ca3af" }}>{ap.model} · {ap.ip}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f0fdf4", color: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="pi pi-wifi" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{ap.name}</div>
+                  <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                    {ap.model ?? ap.type} · {ap.ip ?? "sem IP"}
                   </div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: ap.status === "online" ? "#f0fdf4" : "#fefce8", color: ap.status === "online" ? "#16a34a" : "#ca8a04" }}>
-                  {ap.status === "online" ? "Online" : "Atenção"}
-                </span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}>
-                <div style={{ textAlign: "center" }}><div style={{ color: "#9ca3af" }}>Clientes</div><div style={{ fontWeight: 600, fontSize: 16 }}>{ap.clients}</div></div>
-                <div style={{ textAlign: "center" }}><div style={{ color: "#9ca3af" }}>CPU</div><div style={{ fontWeight: 600, fontSize: 16 }}>{ap.cpu}%</div></div>
-                <div style={{ textAlign: "center" }}><div style={{ color: "#9ca3af" }}>Mem</div><div style={{ fontWeight: 600, fontSize: 16 }}>{ap.mem}%</div></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 11, color: "#6b7280" }}>
+                <div><span style={{ color: "#9ca3af" }}>Vendor:</span> <span style={{ fontWeight: 500 }}>{ap.vendor ?? "—"}</span></div>
+                <div><span style={{ color: "#9ca3af" }}>Serial:</span> <span style={{ fontWeight: 500, fontFamily: "monospace" }}>{ap.serial ?? "—"}</span></div>
               </div>
-              <div style={{ fontSize: 11, color: "#6b7280", display: "flex", flexDirection: "column", gap: 4 }}>
-                {ap.channels.map((ch) => <div key={ch}><i className="pi pi-wifi" style={{ fontSize: 10, marginRight: 4 }} />{ch}</div>)}
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, paddingTop: 4, borderTop: "1px solid #f3f4f6" }}>
-                  <span>Tx: {ap.txPower}</span>
-                  <span>↑ {ap.txBytes} · ↓ {ap.rxBytes}</span>
+              {ap.description && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f3f4f6", fontSize: 11, color: "#6b7280" }}>
+                  {ap.description}
                 </div>
-              </div>
+              )}
             </div>
           ))}
+          {!loading && aps.length === 0 && !error && (
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+              Nenhum Access Point no inventário — cadastre devices do tipo AccessPoint em Dispositivos
+            </div>
+          )}
+          {loading && aps.length === 0 && (
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+              Carregando…
+            </div>
+          )}
         </div>
       </div>
     </div>
