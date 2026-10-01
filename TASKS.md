@@ -371,7 +371,16 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     submit (contrato do reader), `from`/`to` existem na API sem seletor na
     tela; paginated com `PagedResult`; mock sem endpoint ("Pesquisar"
     substring em action/resource/ator e "Exportar") removido
-  - [ ] IncidentsPage · KnowledgePage · SlaPage
+  - [x] **F17-T003 `IncidentsPage`** — `services/api/incidents.ts`
+    (`GET /incidents?deviceId/status/page/pageSize` → `PagedResult<IncidentDto>`,
+    `POST` `{title,severity,description?,deviceId?}` → 201); bugs de contrato
+    do protótipo: status **`Open`** (auto-abertura) inexistente no filtro,
+    enums são **PascalCase** (chaves do mock minúsculas caíam no fallback),
+    e `assignee`/`slaBreached`/`device` não existem no `IncidentDto`
+    (responsável e coluna SLA saíram; `resolvedAt` entrou; `device`/
+    `relatedAlerts` → `deviceId`/`alertCount`); criação atrás de
+    `Can operate`; paginação sobre o `PagedResult`
+  - [ ] KnowledgePage · SlaPage
   - [ ] UsersPage (exige decisão da rota de roles duplicada: `RolesController`
     `api/identity/users` × `UsersController` `api/v1/admin/users`)
   - [ ] Devices/Inventário · Network · Dashboard
