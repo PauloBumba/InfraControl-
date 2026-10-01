@@ -481,7 +481,24 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     `deviceName · check` + `message`; entraram status
     (Aberto/Resolvido/Suprimido) e `openedAt`/`resolvedAt`. Sem mutation —
     alerta nasce automático pós-check e resolve sozinho (F6), não há POST
-  - [ ] Remote · Discovery · WiFi · Clients · Insights
+  - [x] **F17-T012 `RemotePage`** — novo `services/api/remoteSessions.ts`
+    (`GET/POST /inventory/devices/{id}/remote/sessions[?limit]`,
+    `POST .../rdp`, `DELETE .../{sessionId}`; F11/ADR-013). **Sessões são
+    por device — não há listagem global**, então as tabelas globais de
+    ativas/histórico do protótipo saíram: a página virou seletor de
+    dispositivo (reusa `listDevices` do T007; card = nome/type/ip/model,
+    "online" e "lastAccess" não existem) + histórico daquele device
+    (limit 50, mais recentes primeiro). Ações: Abrir SSH (credenciais do
+    device) / Abrir RDP (probe TCP sem credencial, NLA = F11-T006+) /
+    Encerrar — POST/DELETE são Operate (botões atrás de
+    `useCan("operate")`), falha de conexão = **409 pt-BR** no banner,
+    sem IP = 400 (botão desabilitado com explicação). Enums reais em
+    PascalCase: protocol `Ssh`/`Rdp` (exibido SSH/RDP), status
+    `Active`/`Closed`/`Failed` + `failureReason` no chip de Failed.
+    Divergências: "Nova Conexão" global, IP/`user`-nome/`bytes`/duração
+    pronta por linha não têm contrato (duração agora é calculada de
+    `startedAt`→`endedAt`, usuário = GUID curto)
+  - [ ] Discovery · WiFi · Clients · Insights
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
