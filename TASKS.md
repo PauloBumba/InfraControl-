@@ -604,11 +604,31 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     VLAN por porta = `GET /network/switch-ports/{id}/vlans`, 1 pedido
     POR PORTA — futuro). Grade visual e contagens refeitas com `linkUp`
     (Up/Down/—); sem mutations
+  - [x] **F17-T021 `TopologyPage`** (última página mock) — `getTopology`
+    novo em `network.ts`: `GET /network/topology` (F3-T006 — nodes =
+    **interfaces**, 1 device pode ter N; edges = Connections sem tipo/
+    label/cor no contrato; `status` = último Ping do device dono:
+    `"up"`/`"down"`/`null`). **API não devolve x/y** → grade calculada
+    no cliente: devices ordenados por tipo em 7 colunas, interfaces em
+    satélite (raio 30) ao redor do device, arestas neutras ligando
+    interfaces com as duas pontas visíveis; zoom/hover/tooltip
+    preservados (tooltip = deviceType · ip · interface · status · Local
+    resolvido via `listDevices`+`listLocations`). 4 leituras em paralelo
+    (topology/devices/locations/vlans). Stats e cards de categoria =
+    devices distintos por tipo e por status do ping. Saiu sem contrato:
+    tipos `wan`/`gateway`/`vm`/`nas`/`client` (enum real), status
+    "warning", arestas tipadas backbone/PoE/WiFi/storage, painel
+    Storage, badges de VLAN por device (fan-out 1 req/porta — sidebar
+    mostra só o inventário de VLANs do T008, sem contagem de devices) e
+    **vista por Rack** (DTO sem posição em U/rackId — racks vivem na
+    LocationsPage T018). Estado honesto: "Nenhuma interface mapeada —
+    a topologia nasce das Connections (F3-T005)"; sem mutations
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
-    N/A + Insights esvaziado); o grupo permanece aberto pela decisão de
-    produto do Insights (construir backend / apagar página / demo) e pela
-    página restante `TopologyPage`
-    (escopo autorizado pelo usuário em 01/10 — próxima task T021).
+    N/A + Insights esvaziado); **todas as páginas do protótipo estão
+    conectadas ao backend ou com estado honesto** (T016 Insights, T019
+    Logs, T021 Topologia). O grupo permanece aberto apenas pela decisão
+    de produto do Insights (construir backend / apagar página / manter
+    demo) — última pendência da F17.
     Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
 - [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)

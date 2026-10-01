@@ -1,24 +1,85 @@
-import { useState } from "react";
-import { topologyNodes, topologyEdges, deviceSummary, rackLayout, storageConnections, vlanBadges } from "@/data/topologyData";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  listDevices,
+  listLocations,
+  type DeviceItem,
+} from "@/services/api/inventory";
+import {
+  getTopology,
+  listVlans,
+  type TopologyGraph,
+  type TopologyNodeItem,
+  type VlanItem,
+} from "@/services/api/network";
 
-const nodeIcons: Record<string, string> = {
-  wan: "🌐", gateway: "🏠", switch: "🔌", ap: "📡", camera: "📷", phone: "📞",
-  server: "🖥️", vm: "📦", nas: "💾", ups: "🔋", printer: "🖨️", client: "👤",
+/**
+ * F17-T021 — Topologia de Rede conectada ao backend (substitui
+ * `topologyNodes`/`topologyEdges`/`deviceSummary`/`rackLayout`/
+ * `storageConnections`/`vlanBadges` de `data/topologyData`).
+ *
+ * Fontes reais (4 leituras em paralelo):
+ * - `GET /network/topology` (F3-T006) — nodes = **interfaces** (1 device
+ *   pode ter N), edges = Connections dirigidas; `status` = último Ping do
+ *   device dono (`"up"`/`"down"`/`null`); **sem coordenadas x/y** → o
+ *   layout do mapa é grade calculada no cliente (devices ordenados por
+ *   tipo, interfaces em satélite ao redor do device);
+ * - `GET /inventory/devices` — junção para o "Local" do tooltip
+ *   (device.locationId → `GET /inventory/locations`);
+ * - `GET /network/vlans` (serviço do T008) — lista lateral.
+ *
+ * Divergências do protótipo: tipos `wan`/`gateway`/`vm`/`nas`/`client`
+ * (não existem no enum `DeviceType` — Router/Firewall são o análogo);
+ * status "Atenção"/"warning" (não existe — só up/down/nunca verificado);
+ * arestas tipadas (backbone/PoE/WiFi/virtual — `TopologyEdgeDto` não tem
+ * tipo, cor nem label; todas são traços neutros); painel "Storage"
+ * (sem contrato); badges de VLAN por device (VLAN↔porta exige
+ * `GET /network/switch-ports/{id}/vlans` = 1 requisição POR PORTA — a
+ * sidebar mostra só o inventário de VLANs, sem contagem de devices);
+ * **vista por Rack removida** (o DTO não tem posição em U nem rackId —
+ * racks e contagens vivem na LocationsPage, T018). Sem mutations.
+ */
+
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
+}
+
+const typeMeta: Record<string, { color: string; icon: string; emoji: string }> = {
+  Router: { color: "#3b82f6", icon: "pi pi-compass", emoji: "🌐" },
+  Firewall: { color: "#ef4444", icon: "pi pi-shield", emoji: "🛡️" },
+  Switch: { color: "#8b5cf6", icon: "pi pi-clone", emoji: "🔌" },
+  AccessPoint: { color: "#22c55e", icon: "pi pi-wifi", emoji: "📡" },
+  Server: { color: "#3b82f6", icon: "pi pi-server", emoji: "🖥️" },
+  Workstation: { color: "#06b6d4", icon: "pi pi-desktop", emoji: "💻" },
+  Printer: { color: "#f59e0b", icon: "pi pi-print", emoji: "🖨️" },
+  Camera: { color: "#ec4899", icon: "pi pi-video", emoji: "📷" },
+  Phone: { color: "#06b6d4", icon: "pi pi-phone", emoji: "📞" },
+  UPS: { color: "#f59e0b", icon: "pi pi-bolt", emoji: "🔋" },
+  Other: { color: "#94a3b8", icon: "pi pi-question", emoji: "❓" },
 };
-const nodeColors: Record<string, string> = {
-  wan: "#64748b", gateway: "#3b82f6", switch: "#8b5cf6", ap: "#22c55e",
-  camera: "#ec4899", phone: "#06b6d4", server: "#3b82f6", vm: "#8b5cf6",
-  nas: "#22c55e", ups: "#f59e0b", printer: "#f59e0b", client: "#94a3b8",
-};
-const edgeColors: Record<string, string> = {
-  wan: "#64748b", backbone: "#3b82f6", poe: "#f59e0b", access: "#94a3b8",
-  server: "#3b82f6", virtual: "#8b5cf6", wifi: "#22c55e",
-};
-const rackTypeColors: Record<string, string> = {
-  gateway: "#3b82f6", switch: "#8b5cf6", ap: "#22c55e", camera: "#ec4899",
-  phone: "#06b6d4", server: "#3b82f6", vm: "#8b5cf6", nas: "#22c55e",
-  ups: "#f59e0b", printer: "#f59e0b", storage: "#3b82f6", client: "#94a3b8",
-};
+
+const typeOrder = [
+  "Router", "Firewall", "Switch", "AccessPoint", "Server", "Workstation",
+  "Printer", "Camera", "Phone", "UPS", "Other",
+];
+
+const statusColor = (status: "up" | "down" | null): string =>
+  status === "up" ? "#22c55e" : status === "down" ? "#ef4444" : "#cbd5e1";
+
+const statusLabel = (status: "up" | "down" | null): string =>
+  status === "up" ? "Up" : status === "down" ? "Down" : "Nunca verificado";
+
+/** Device agrupado a partir dos nodes (interfaces) do grafo. */
+interface DeviceGroup {
+  deviceId: string;
+  deviceName: string;
+  deviceType: string;
+  ip: string | null;
+  status: "up" | "down" | null;
+  locationId: string | null;
+  nodes: TopologyNodeItem[];
+}
 
 function CategoryCard({ label, count, icon, color, onClick, active }: { label: string; count: number; icon: string; color: string; onClick: () => void; active: boolean }) {
   return (
@@ -34,47 +95,154 @@ function CategoryCard({ label, count, icon, color, onClick, active }: { label: s
   );
 }
 
-function RackVisual({ rackId, rack }: { rackId: string; rack: typeof rackLayout[string] }) {
-  return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
-      <div style={{ padding: "10px 14px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600 }}>{rackId} — {rack.label}</div>
-          <div style={{ fontSize: 10, color: "#9ca3af" }}>{rack.location}</div>
-        </div>
-        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280" }}>{rack.units.length} devices</span>
-      </div>
-      <div style={{ padding: 8 }}>
-        {Array.from({ length: rack.totalUnits }, (_, i) => {
-          const unit = rack.units.find(u => u.u === i);
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginBottom: 2, borderRadius: 4, background: unit ? `${rackTypeColors[unit.type]}08` : "#fafafa", border: unit ? `1px solid ${rackTypeColors[unit.type]}30` : "1px solid #f3f4f6" }}>
-              <span style={{ fontSize: 9, color: "#9ca3af", minWidth: 20, fontFamily: "monospace" }}>U{i}</span>
-              {unit ? (
-                <>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: unit.status === "online" ? "#22c55e" : unit.status === "warning" ? "#f59e0b" : "#ef4444", flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, fontWeight: 500, flex: 1 }}>{unit.name}</span>
-                  <span style={{ fontSize: 8, color: "#9ca3af" }}>{unit.type}</span>
-                </>
-              ) : (
-                <span style={{ fontSize: 9, color: "#d1d5db" }}>vazio</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function TopologyPage() {
+  const [graph, setGraph] = useState<TopologyGraph | null>(null);
+  const [deviceItems, setDeviceItems] = useState<DeviceItem[]>([]);
+  const [locations, setLocations] = useState<Record<string, string>>({});
+  const [vlans, setVlans] = useState<VlanItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [filter, setFilter] = useState<string>("all");
   const [zoom, setZoom] = useState(100);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [showRacks, setShowRacks] = useState(true);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const summary = deviceSummary;
-  const racks = Object.entries(rackLayout);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [topology, devices, locationPage, vlanPage] = await Promise.all([
+        getTopology(),
+        listDevices(),
+        listLocations(),
+        listVlans(),
+      ]);
+      setGraph(topology ?? { nodes: [], edges: [] });
+      setDeviceItems(devices.items);
+      const map: Record<string, string> = {};
+      locationPage.items.forEach((entry) => { map[entry.id] = entry.name; });
+      setLocations(map);
+      setVlans(vlanPage.items);
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  /** Agrupa as interfaces por device e ordena por tipo (tipo → nome). */
+  const groups = useMemo<DeviceGroup[]>(() => {
+    if (!graph) return [];
+    const byDevice = new Map<string, DeviceGroup>();
+    graph.nodes.forEach((node) => {
+      const existing = byDevice.get(node.deviceId);
+      if (existing) existing.nodes.push(node);
+      else {
+        const device = deviceItems.find((entry) => entry.id === node.deviceId);
+        byDevice.set(node.deviceId, {
+          deviceId: node.deviceId,
+          deviceName: node.deviceName,
+          deviceType: node.deviceType,
+          ip: node.ip,
+          status: null,
+          locationId: device?.locationId ?? null,
+          nodes: [node],
+        });
+      }
+    });
+    byDevice.forEach((group) => {
+      const statuses = group.nodes.map((node) => node.status);
+      group.status = statuses.includes("up")
+        ? "up"
+        : statuses.includes("down")
+          ? "down"
+          : null;
+    });
+    const orderIndex = (type: string): number => {
+      const index = typeOrder.indexOf(type);
+      return index === -1 ? typeOrder.length : index;
+    };
+    return [...byDevice.values()].sort(
+      (a, b) =>
+        orderIndex(a.deviceType) - orderIndex(b.deviceType) ||
+        a.deviceName.localeCompare(b.deviceName),
+    );
+  }, [graph, deviceItems]);
+
+  /** Grade do mapa: 7 colunas; interfaces em satélite ao redor do device. */
+  const layout = useMemo(() => {
+    const cols = 7;
+    const slotW = 148;
+    const slotH = 116;
+    const padX = 74;
+    const padY = 56;
+    const rows = Math.max(1, Math.ceil(groups.length / cols));
+    const height = Math.max(760, rows * slotH + 80);
+    const nodePos = new Map<string, { x: number; y: number }>();
+    const nodeDevice = new Map<string, string>();
+    const slots = groups.map((group, index) => {
+      const cx = padX + (index % cols) * slotW;
+      const cy = padY + Math.floor(index / cols) * slotH;
+      group.nodes.forEach((node, nodeIndex) => {
+        nodeDevice.set(node.id, group.deviceId);
+        if (group.nodes.length === 1) {
+          nodePos.set(node.id, { x: cx, y: cy });
+        } else {
+          const angle = -Math.PI / 2 + (nodeIndex * 2 * Math.PI) / group.nodes.length;
+          nodePos.set(node.id, {
+            x: cx + Math.cos(angle) * 30,
+            y: cy + Math.sin(angle) * 30,
+          });
+        }
+      });
+      return { group, cx, cy };
+    });
+    return { slots, nodePos, nodeDevice, height };
+  }, [groups]);
+
+  const visibleDeviceIds = useMemo(() => {
+    if (filter === "all") return new Set(groups.map((group) => group.deviceId));
+    return new Set(
+      groups.filter((group) => group.deviceType === filter).map((group) => group.deviceId),
+    );
+  }, [groups, filter]);
+
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    groups.forEach((group) => {
+      counts.set(group.deviceType, (counts.get(group.deviceType) ?? 0) + 1);
+    });
+    return counts;
+  }, [groups]);
+
+  const presentTypes = useMemo(
+    () => typeOrder.filter((type) => typeCounts.has(type)),
+    [typeCounts],
+  );
+
+  const upCount = groups.filter((group) => group.status === "up").length;
+  const downCount = groups.filter((group) => group.status === "down").length;
+  const unknownCount = groups.filter((group) => group.status === null).length;
+
+  if (loading) {
+    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+  }
+
+  if (error && !graph) {
+    return (
+      <div className="uni-page-empty">
+        <i className="pi pi-exclamation-circle" />
+        <h2>{error}</h2>
+        <button onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+          Tentar de novo
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -82,36 +250,51 @@ export function TopologyPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>Topologia de Rede</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{summary.total} dispositivos mapeados · {storageConnections.length} conexões de storage</p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowRacks(!showRacks)} style={{ padding: "6px 12px", borderRadius: 6, border: `1px solid ${showRacks ? "#8b5cf6" : "#e5e7eb"}`, fontSize: 12, color: showRacks ? "#8b5cf6" : "#6b7280", background: showRacks ? "#f5f3ff" : "white", cursor: "pointer" }}>
-            <i className="pi pi-th-large" style={{ marginRight: 4 }} /> Racks
-          </button>
+          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+            {groups.length} dispositivos · {graph?.nodes.length ?? 0} interfaces · {graph?.edges.length ?? 0} conexões
+          </p>
         </div>
       </div>
 
-      {/* Stats */}
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{error}</span>
+          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {/* Stats — estado do device = último Ping (up/down/nunca verificado) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
         <div className="uni-panel" style={{ padding: 14, display: "flex", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f0fdf4", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-check-circle" /></div>
-          <div><div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{summary.byStatus.online}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Online</div></div>
-        </div>
-        <div className="uni-panel" style={{ padding: 14, display: "flex", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 6, background: "#fefce8", color: "#ca8a04", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-exclamation-triangle" /></div>
-          <div><div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{summary.byStatus.warning}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Atenção</div></div>
+          <div><div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{upCount}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Up</div></div>
         </div>
         <div className="uni-panel" style={{ padding: 14, display: "flex", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 6, background: "#fef2f2", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-times-circle" /></div>
-          <div><div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{summary.byStatus.offline}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Offline</div></div>
+          <div><div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{downCount}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Down</div></div>
+        </div>
+        <div className="uni-panel" style={{ padding: 14, display: "flex", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f1f5f9", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-question-circle" /></div>
+          <div><div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{unknownCount}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Nunca verificado</div></div>
         </div>
       </div>
 
-      {/* Category Filters */}
+      {/* Category filters */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <CategoryCard label="Todos" count={summary.total} icon="pi pi-th-large" color="#3b82f6" onClick={() => setFilter("all")} active={filter === "all"} />
-        {summary.byType.map(t => (
-          <CategoryCard key={t.type} label={t.label} count={t.count} icon={t.icon} color={t.color} onClick={() => setFilter(t.type)} active={filter === t.type} />
+        <CategoryCard label="Todos" count={groups.length} icon="pi pi-th-large" color="#3b82f6" onClick={() => setFilter("all")} active={filter === "all"} />
+        {presentTypes.map((type) => (
+          <CategoryCard
+            key={type}
+            label={type}
+            count={typeCounts.get(type) ?? 0}
+            icon={typeMeta[type]?.icon ?? "pi pi-question"}
+            color={typeMeta[type]?.color ?? "#94a3b8"}
+            onClick={() => setFilter(type)}
+            active={filter === type}
+          />
         ))}
       </div>
 
@@ -127,160 +310,123 @@ export function TopologyPage() {
               <button onClick={() => setZoom(z => Math.min(z + 10, 150))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-plus" style={{ fontSize: 9 }} /></button>
             </div>
           </div>
-          <div style={{ padding: 10, overflow: "auto", height: "calc(100% - 40px)", position: "relative" }}>
-            <svg style={{ width: "100%", height: "100%", transform: `scale(${zoom / 100})`, transformOrigin: "top left" }} viewBox="0 0 1100 760">
-              <defs>
-                <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-                <marker id="arrow" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#94a3b8" /></marker>
-              </defs>
 
-              {/* Storage connections (dashed) */}
-              {storageConnections.map((conn, i) => {
-                const from = topologyNodes.find(n => n.id === conn.from);
-                const to = topologyNodes.find(n => n.id === conn.to);
-                if (!from || !to) return null;
-                return (
-                  <g key={`storage-${i}`}>
-                    <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={conn.color} strokeWidth="1.5" strokeDasharray="4,4" opacity="0.5" />
-                    <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 4} textAnchor="middle" fill={conn.color} fontSize="7" fontFamily="Inter, sans-serif" opacity="0.7">{conn.label}</text>
-                  </g>
-                );
-              })}
+          {graph && graph.nodes.length === 0 && (
+            <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+              Nenhuma interface mapeada — a topologia nasce das Connections cadastradas entre interfaces (F3-T005)
+            </div>
+          )}
 
-              {/* Edges */}
-              {topologyEdges.map((edge, i) => {
-                const from = topologyNodes.find(n => n.id === edge.from);
-                const to = topologyNodes.find(n => n.id === edge.to);
-                if (!from || !to) return null;
-                const show = filter === "all" || from.type === filter || to.type === filter || from.type === "wan" || to.type === "wan" || from.type === "gateway" || to.type === "gateway";
-                if (!show) return null;
-                const color = edgeColors[edge.type] || "#e2e8f0";
-                return (
-                  <g key={i}>
-                    <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={color} strokeWidth={edge.type === "backbone" ? 2.5 : 1.2} strokeDasharray={edge.type === "wifi" ? "4,3" : edge.type === "virtual" ? "2,2" : "none"} opacity={0.5} />
-                    {edge.type !== "wifi" && edge.type !== "virtual" && (
-                      <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 4} textAnchor="middle" fill="#9ca3af" fontSize="7" fontFamily="Inter, sans-serif">{edge.label}</text>
-                    )}
-                  </g>
-                );
-              })}
+          {graph && graph.nodes.length > 0 && (
+            <div style={{ padding: 10, overflow: "auto", height: "calc(100% - 40px)", position: "relative" }}>
+              <svg style={{ width: "100%", height: "100%", transform: `scale(${zoom / 100})`, transformOrigin: "top left" }} viewBox={`0 0 1100 ${layout.height}`}>
+                <defs>
+                  <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                </defs>
 
-              {/* Nodes */}
-              {topologyNodes.filter(n => filter === "all" || n.type === filter || n.type === "wan" || n.type === "gateway").map((node) => {
-                const color = nodeColors[node.type] || "#94a3b8";
-                const isSmall = node.type === "client";
-                const r = isSmall ? 12 : node.type === "wan" ? 16 : 20;
-                const vlan = vlanBadges.find(v => v.deviceIds.includes(node.id));
+                {/* Edges — Connections sem tipo no contrato: traço neutro */}
+                {graph.edges.map((edge) => {
+                  const from = layout.nodePos.get(edge.sourceInterfaceId);
+                  const to = layout.nodePos.get(edge.targetInterfaceId);
+                  if (!from || !to) return null;
+                  const sourceDevice = layout.nodeDevice.get(edge.sourceInterfaceId);
+                  const targetDevice = layout.nodeDevice.get(edge.targetInterfaceId);
+                  if (!sourceDevice || !targetDevice) return null;
+                  if (!visibleDeviceIds.has(sourceDevice) || !visibleDeviceIds.has(targetDevice)) return null;
+                  return (
+                    <line key={edge.id} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#94a3b8" strokeWidth={1.2} opacity={0.5} />
+                  );
+                })}
 
-                return (
-                  <g key={node.id} style={{ cursor: "pointer" }} onMouseEnter={() => setHoveredNode(node.id)} onMouseLeave={() => setHoveredNode(null)}>
-                    {node.status === "online" && (
-                      <circle cx={node.x} cy={node.y} r={r + 5} fill={color} opacity="0.08">
-                        <animate attributeName="r" values={`${r + 3};${r + 8};${r + 3}`} dur="3s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.1;0.03;0.1" dur="3s" repeatCount="indefinite" />
-                      </circle>
-                    )}
-                    <circle cx={node.x} cy={node.y} r={r} fill="white" stroke={node.status === "offline" ? "#ef4444" : color} strokeWidth={node.status === "warning" ? 2.5 : 1.5} filter={node.status === "online" ? "url(#glow)" : undefined} />
-                    <text x={node.x} y={node.y + 1} textAnchor="middle" dominantBaseline="central" fill={color} fontSize={isSmall ? 9 : 13}>{nodeIcons[node.type] || "❓"}</text>
-                    <text x={node.x} y={node.y + r + 10} textAnchor="middle" fill="#374151" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">{node.label}</text>
-                    {"model" in node && node.model && <text x={node.x} y={node.y + r + 19} textAnchor="middle" fill="#9ca3af" fontSize="7" fontFamily="Inter, sans-serif">{node.model}</text>}
-                    {"ip" in node && node.ip && <text x={node.x} y={node.y + r + 28} textAnchor="middle" fill="#6b7280" fontSize="7" fontFamily="monospace">{node.ip}</text>}
+                {/* Nodes = interfaces */}
+                {layout.slots
+                  .filter((slot) => visibleDeviceIds.has(slot.group.deviceId))
+                  .map((slot) => {
+                    const { group } = slot;
+                    const meta = typeMeta[group.deviceType] ?? { color: "#94a3b8", icon: "pi pi-question", emoji: "❓" };
+                    return (
+                      <g key={group.deviceId}>
+                        {/* nome do device sob o cluster */}
+                        <text x={slot.cx} y={slot.cy + 52} textAnchor="middle" fill="#374151" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">
+                          {group.deviceName}
+                        </text>
 
-                    {/* VLAN badge */}
-                    {vlan && (
-                      <g>
-                        <rect x={node.x + r - 2} y={node.y - r - 4} width={22} height={12} rx={3} fill={vlan.color} opacity="0.9" />
-                        <text x={node.x + r + 9} y={node.y - r + 4} textAnchor="middle" fill="white" fontSize="6" fontWeight="600">V{vlan.id}</text>
+                        {group.nodes.map((node) => {
+                          const pos = layout.nodePos.get(node.id);
+                          if (!pos) return null;
+                          const color = statusColor(group.status);
+                          return (
+                            <g
+                              key={node.id}
+                              style={{ cursor: "pointer" }}
+                              onMouseEnter={() => setHoveredId(node.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                            >
+                              <circle cx={pos.x} cy={pos.y} r={13} fill="white" stroke={color} strokeWidth={group.status === "up" ? 2 : 1.5} filter={group.status === "up" ? "url(#glow)" : undefined} />
+                              <text x={pos.x} y={pos.y + 1} textAnchor="middle" dominantBaseline="central" fontSize="10">{meta.emoji}</text>
+
+                              {hoveredId === node.id && (
+                                <g>
+                                  <rect x={pos.x + 16} y={pos.y - 46} width={168} height={84} rx={6} fill="white" stroke="#e5e7eb" strokeWidth="1" filter="url(#glow)" />
+                                  <text x={pos.x + 24} y={pos.y - 30} fill="#111827" fontSize="9" fontWeight="600">{group.deviceName}</text>
+                                  <text x={pos.x + 24} y={pos.y - 18} fill="#6b7280" fontSize="7">{group.deviceType} · {group.ip ?? "sem IP"}</text>
+                                  <line x1={pos.x + 20} y1={pos.y - 12} x2={pos.x + 180} y2={pos.y - 12} stroke="#f3f4f6" />
+                                  <text x={pos.x + 24} y={pos.y} fill="#6b7280" fontSize="7">Interface: {node.name}</text>
+                                  <text x={pos.x + 24} y={pos.y + 12} fill={color} fontSize="7" fontWeight="600">{statusLabel(group.status)}</text>
+                                  <text x={pos.x + 24} y={pos.y + 24} fill="#6b7280" fontSize="7">
+                                    Local: {group.locationId ? locations[group.locationId] ?? "—" : "—"}
+                                  </text>
+                                </g>
+                              )}
+                            </g>
+                          );
+                        })}
                       </g>
-                    )}
-
-                    {/* Tooltip */}
-                    {hoveredNode === node.id && (
-                      <g>
-                        <rect x={node.x + r + 8} y={node.y - 40} width={160} height={72} rx={6} fill="white" stroke="#e5e7eb" strokeWidth="1" filter="url(#glow)" />
-                        <text x={node.x + r + 16} y={node.y - 24} fill="#111827" fontSize="9" fontWeight="600">{node.label}</text>
-                        <text x={node.x + r + 16} y={node.y - 12} fill="#6b7280" fontSize="7">{"model" in node ? node.model : ""} · {node.ip || ""}</text>
-                        <line x1={node.x + r + 12} y1={node.y - 6} x2={node.x + r + 156} y2={node.y - 6} stroke="#f3f4f6" />
-                        <text x={node.x + r + 16} y={node.y + 6} fill="#6b7280" fontSize="7">Local: {"location" in node ? node.location : ""}</text>
-                        <text x={node.x + r + 16} y={node.y + 16} fill="#6b7280" fontSize="7">Rack: {"rack" in node ? node.rack : ""}</text>
-                        {vlan && <text x={node.x + r + 16} y={node.y + 26} fill={vlan.color} fontSize="7" fontWeight="500">VLAN {vlan.id} ({vlan.name})</text>}
-                      </g>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
+                    );
+                  })}
+              </svg>
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Legend */}
           <div className="uni-panel" style={{ padding: 12 }}>
             <h3 style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Legenda</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-              {Object.entries(nodeColors).map(([type, color]) => (
+              {presentTypes.map((type) => (
                 <div key={type} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                  <span style={{ textTransform: "capitalize" }}>{type}</span>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: typeMeta[type]?.color ?? "#94a3b8", flexShrink: 0 }} />
+                  <span>{type}</span>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6" }}>
-              <div style={{ fontSize: 9, fontWeight: 600, color: "#9ca3af", marginBottom: 4 }}>Conexões</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 3 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}><span style={{ width: 12, height: 2, background: "#3b82f6", flexShrink: 0 }} /> Backbone</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}><span style={{ width: 12, height: 2, background: "#f59e0b", flexShrink: 0 }} /> PoE</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}><span style={{ width: 12, height: 2, background: "#22c55e", flexShrink: 0 }} /> WiFi</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}><span style={{ width: 12, height: 2, background: "#ec4899", flexShrink: 0, borderTop: "2px dashed #ec4899" }} /> Storage</div>
-              </div>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}>
+              <span style={{ width: 12, height: 2, background: "#94a3b8", flexShrink: 0 }} /> Connection (interface → interface)
+            </div>
+            <div style={{ marginTop: 4, display: "flex", gap: 8, fontSize: 9 }}>
+              <span style={{ color: "#22c55e", fontWeight: 600 }}>● Up</span>
+              <span style={{ color: "#ef4444", fontWeight: 600 }}>● Down</span>
+              <span style={{ color: "#94a3b8" }}>● Nunca verificado</span>
             </div>
           </div>
 
-          {/* VLANs */}
           <div className="uni-panel" style={{ padding: 12 }}>
             <h3 style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>VLANs</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {vlanBadges.map(v => (
-                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: v.color, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 500 }}>VLAN {v.id}</span>
-                  <span style={{ color: "#9ca3af" }}>{v.name}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 9, color: "#9ca3af" }}>{v.deviceIds.length} devs</span>
+              {vlans.map((vlan) => (
+                <div key={vlan.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
+                  <span style={{ fontWeight: 500 }}>VLAN {vlan.vlanNumber}</span>
+                  <span style={{ color: "#94a3b8" }}>{vlan.name}</span>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Storage */}
-          <div className="uni-panel" style={{ padding: 12 }}>
-            <h3 style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Storage</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {storageConnections.map((c, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                  <span style={{ fontWeight: 500 }}>{topologyNodes.find(n => n.id === c.from)?.label}</span>
-                  <i className="pi pi-arrow-right" style={{ fontSize: 7, color: "#9ca3af" }} />
-                  <span style={{ fontWeight: 500 }}>{topologyNodes.find(n => n.id === c.to)?.label}</span>
-                  <span style={{ marginLeft: "auto", color: "#9ca3af" }}>{c.label}</span>
-                </div>
-              ))}
+              {vlans.length === 0 && (
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>Nenhuma VLAN cadastrada</div>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Rack View */}
-      {showRacks && (
-        <div>
-          <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Visualização por Rack</h2>
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${racks.length}, 1fr)`, gap: 12 }}>
-            {racks.map(([id, rack]) => (
-              <RackVisual key={id} rackId={id} rack={rack} />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

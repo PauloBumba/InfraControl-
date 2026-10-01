@@ -80,3 +80,38 @@ export async function listSwitches(
   const data = await api.get<Paged<DeviceItem>>(`/network/switches?${params}`);
   return data ?? { items: [], totalCount: 0, page: 1, pageSize: PAGE_SIZE };
 }
+
+// ============ F17-T021 — TopologyPage ============
+
+/**
+ * `GET /api/v1/network/topology` (F3-T006). Nodes = **interfaces**
+ * (1 device pode ter N nodes), edges = Connections dirigidas. `status`
+ * é o último Ping do device dono do node: `"up"`/`"down"`/`null` (nunca
+ * verificado) — não existe "warning" nem estado atual de switch (T007).
+ * A API **não devolve coordenadas** x/y (o mock tinha posições
+ * manuais): o layout do mapa é calculado no cliente.
+ */
+export interface TopologyNodeItem {
+  id: string;
+  deviceId: string;
+  name: string;
+  deviceName: string;
+  deviceType: string;
+  ip: string | null;
+  status: "up" | "down" | null;
+}
+
+export interface TopologyEdgeItem {
+  id: string;
+  sourceInterfaceId: string;
+  targetInterfaceId: string;
+}
+
+export interface TopologyGraph {
+  nodes: TopologyNodeItem[];
+  edges: TopologyEdgeItem[];
+}
+
+export async function getTopology(): Promise<TopologyGraph | null> {
+  return api.get<TopologyGraph>("/network/topology");
+}
