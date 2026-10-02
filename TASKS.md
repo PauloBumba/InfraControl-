@@ -377,8 +377,28 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   de logging (`LoggingIdentityEmailSender` + `LoggingEmailNotificationDispatcher`);
   cobre forgot-password, convite (F1-T017) e canal Email (F9-T005). Requer
   escolha do usuário
-- [ ] **Página de aceite de convite no frontend** — o link e-maiado em F1-T017
-  aponta para a API (`POST /auth/invitations/{id}/accept`) sem página GET
+- [x] **Página de aceite de convite no frontend** (pendência da F1-T017, fechada
+  em 02/10/2026) — o link e-maiado agora aponta para a página pública
+  `/invitations/{id}?token=` (antes era `{origem}/api/v1/auth/invitations/{id}/accept`
+  na API: GET em rota só-POST respondia 405 e não havia página). Origem do
+  link pela config `Frontend:BaseUrl` (decisão do usuário em 02/10/2026 —
+  origem vem de config do servidor, nunca do cliente: origin vindo do request
+  de um anônimo seria vetor de phishing apontando token para outro site), com
+  fallback à origem da própria request quando vazia (produção com nginx
+  same-origin serve SPA e API no mesmo host); `appsettings.Development.json`
+  preenche `http://localhost:3000` (a API vista pelo proxy do vite é
+  `localhost:7237`, que não serve o SPA). Front: rota pública no bloco de
+  rotas sem layout do router + `InvitationAcceptancePage` com o fluxo
+  espelho do backend — aceitar (revela e-mail/papéis do convidado) →
+  definir senha e ativar (single-use, sem caminho de volta — um re-aceite
+  cairia em 409) | recusar — e `acceptInvitation`/`setInvitationPassword`/
+  `rejectInvitation` em `services/api/auth.ts` com `anonymousExpected`
+  (a escrita anônima não exige antiforgery — ADR-017). Testes TDD: 2 de URL
+  em `InvitationTests` (path novo relativo e absoluto) + 2 de origem em
+  `InvitationsControllerTests` (config com trailing slash cortado / fallback
+  para a request). Pendências que restam desta frente: provider real de
+  e-mail; página `/reset-password` (a decisão de origem já existe e é a
+  mesma — `Frontend:BaseUrl`; faltam a página e o path do link).
 - [ ] **Página de redefinição de senha no frontend** — achado na auditoria de
   alinhamento front×back de 01/10/2026: o link do e-mail de forgot-password
   (`IdentityAuthenticationService` monta
@@ -387,8 +407,10 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   `/reset-password` (só `/login` e `/forgot-password`) — o fluxo nasce no
   frontend e morre no e-mail. `POST /auth/reset-password` está alinhado
   (body `{email, token, newPassword}`, 204/400 no envelope) mas sem
-  consumidor; resolve com página + origem do link (origin do frontend)
-  decidida
+  consumidor; a origem do link JÁ está decidida (config `Frontend:BaseUrl`
+  com fallback à request — mesma da página de aceite, decisão do usuário em
+  02/10/2026) e implementada no `InvitationsController`; restam a página
+  pública `/reset-password` e apontar o link do forgot-password para ela
 - [x] **Aba Feed na NotificationsPage** (pendência da F18-T001, fechada
   em 01/10/2026 no ciclo de integração front×back pós-auditoria) — a aba
   tinha saído no F17-T010 por não existir listagem; a F18-T001 entregou

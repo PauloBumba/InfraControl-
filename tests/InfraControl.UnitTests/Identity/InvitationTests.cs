@@ -160,8 +160,8 @@ public sealed class InvitationTests
         var sent = sender.Invitations.Should().ContainSingle().Which;
         sent.To.Should().Be("mail-me@example.com");
         sent.Url.Should().Be(
-            $"https://portal.example/api/v1/auth/invitations/{result.InvitationId}/accept?token={result.Token}",
-            "trailing slash do origem é cortado e o link aponta para o aceite com o token");
+            $"https://portal.example/invitations/{result.InvitationId}?token={result.Token}",
+            "trailing slash da origem é cortado e o link aponta para a página pública de aceite com o token");
     }
 
     [Fact]
@@ -184,8 +184,8 @@ public sealed class InvitationTests
         var sent = sender.Invitations.Should().ContainSingle().Which;
         sent.To.Should().Be("no-base@example.com");
         sent.Url.Should().Be(
-            $"/api/v1/auth/invitations/{result.InvitationId}/accept?token={result.Token}",
-            "sem origem o link sai relativo — mesmo comportamento do forgot-password");
+            $"/invitations/{result.InvitationId}?token={result.Token}",
+            "sem origem o link sai relativo — a página pública de aceite é /invitations/{id}");
     }
 
     [Fact]
