@@ -277,6 +277,42 @@ destinatários Operator + Admin). Arquitetura em ADR-023, runbook em docs/27.
 - [x] F16-T001 Zabbix Webhook  <!-- ADR-023: POST api/v1/integrations/zabbix/problems — primeiro endpoint público ([AllowAnonymous] explícito + entrada nova na allowlist de Public_Endpoints_Should_Be_The_Explicit_Allowlist); auth header X-Zabbix-Token vs Integrations:Zabbix:Token (vazio→404 desligado, ausente/errado→401 envelope; comparação ordinal; binding AddOptions+Bind no Program.cs); contrato {eventId?, host?, ip?, name, severity 0..5, status PROBLEM|OK} com validação no handler (name→severity→status, ArgumentException 400 pt-BR); PROBLEM → device por IP com fallback hostname (GetByIpAsync/GetByNameAsync) → Incident.Create (sem match → deviceId nulo com host/ip/eventId na descrição — decisão do usuário), dedup anti-storm título+device não-Resolved idempotente "duplicate"; OK → resolve correspondente "resolved" senão "none"; severidade Zabbix 0/1→Low, 2→Medium, 3→High, 4/5→Critical; comando BaseCommand sem IAuthorizedRequest (guard = token; Admin_Slices não muda); port nova GetOpenByTitleAndDeviceAsync em IIncidentRepository+IncidentRepository; sem migration; slice Application/Integrations/Zabbix + controller Integrations + VM; testes unit (handler + controller com Moq) + integration + allowlist arch -->
 - [x] F16-T002 Notificação de incidente  <!-- IncidentCreatedDomainEvent (Domain/Events/IncidentDomainEvents.cs) levantado em Incident.Create — um único ponto cobre manual F6, auto-abertura F6 e webhook F16-T001; caminho outbox via AppDbContext → MediatR → OutboxDispatchHandler → DomainEventService (mesma transação, ADR-005 — sem migration e sem IEventBus direto); NotificationEventConsumer ganhou IConsumer<IncidentCreatedDomainEvent> (registro automático: AddConsumers assembly scan dos Workers); HandleAsync generalizado de recipientRole (string?) para recipientRoles (string[], dedup OrdinalIgnoreCase, usuário OU 1..N roles) — 32 call sites migrados; destinatários por role Operator e Admin (decisão do usuário 2026-09-30); msg pt-BR título "Incidente aberto", corpo "O incidente '{title}' foi aberto ({severity})."; fanout resolve roles → usuários ativos (NotificationRecipientRepository) nos canais default Email+SignalR; idempotência via inbox (1 notification, 2 recipients, 1 ProcessedMessage); unit +6 (IncidentTests +3, IncidentCreatedNotificationTests +3), integration +2 (outbox manual e via webhook) -->
 
+## Fase 18 — Infraestrutura de Integração Zabbix
+
+- [x] **F18-T001 Implantação do Zabbix 8.0 em Docker Compose** <!-- Implantação do Zabbix 8.0 no Docker Compose sob o perfil 'zabbix'. Componentes: zabbix-db (PostgreSQL 17 dedicado na porta 5433), zabbix-server (versão alpine-8.0-latest na porta 10051), zabbix-web (Nginx na porta 8085 com credenciais Admin/zabbix) e zabbix-agent (Agent 2 na porta 10050). Volumes zabbix_db_data, zabbix_server_snmptraps, zabbix_server_mibs. Validação com docker compose config e documentação completa em docs/27. -->
+
+## Fase 19 — Integrações Avançadas e Eventos Externos (Zabbix & MonitoringEvent)
+
+- [x] **F19-T000 Arquitetura da Camada de Integrações (ADR-028)** <!-- ADR-028 especificando padrões de autenticação, health, segredos, resiliência (Polly), sincronização e o modelo unificado de integração (Zabbix, UniFi, n8n) em docs/adr/ADR-028-INTEGRATION-LAYER-ARCHITECTURE.md. -->
+- [ ] **F19-T001 Persistência do Agregado `MonitoringEvent`** <!-- Mapeamento EF Core, DbSet no AppDbContext, repositório IMonitoringEventRepository/MonitoringEventRepository, migration AddMonitoringEventsTable para a tabela monitoring_events com índice único de evento (source, external_event_id). Testes unitários e de integração de persistência. -->
+
+- [ ] **F19-T002 Atualização da Tabela `Alerts` para Suporte a Eventos Externos** <!-- Mapeamento EF Core AlertConfiguration com DeviceId e Kind nullable, adição das colunas source, monitoring_event_id e external_problem_id com índice único de ciclo em (source, external_problem_id). Migration UpdateAlertsTableForExternalEvents. -->
+- [ ] **F19-T003 Motor `AlertEvaluator.EvaluateExternalAsync` (Sem Re-aplicar Streaks)** <!-- Ampliar AlertEvaluator para eventos externos sem duplicar streaks de falhas (trigger Zabbix é a autoridade da falha). Pipeline: MonitoringEvent -> Idempotência -> ResolveDevice -> Correlação BFS -> Supressão -> Alert -> Incident (se Critical e não for duplicado para o mesmo problema). -->
+- [ ] **F19-T004 Refatoração do `IngestZabbixProblemCommandHandler` (PROBLEM)** <!-- Conectar a ingestão do Zabbix status PROBLEM ao pipeline de MonitoringEvent -> AlertEvaluator. Manter o contrato HTTP (ADR-023) e token X-Zabbix-Token intactos. Garantir idempotência anti-storm (Problem duplicado não cria novo Alert nem novo Incident). -->
+- [ ] **F19-T005 Ingestão Zabbix RECOVERY via `ExternalProblemId`** <!-- Processamento de Zabbix status OK (RECOVERY) mapeando r_eventid -> ExternalProblemId (jamais por Title+Device). Localiza Alert via ExternalProblemId -> Resolve Alert -> Se Incident.Status != Resolved e todos alertas relevantes resolvidos -> Resolve Incident. -->
+- [ ] **F19-T006 Tabela de Identidade Externa `ExternalDeviceReference`** <!-- Entidade ExternalDeviceReference, mapeamento EF Core, migration AddExternalDeviceReferencesTable (1:N com Device). Preservar resolução do Zabbix por IP/Hostname e aplicar ExternalDeviceReference para identificadores estáveis (MAC / Device ID). -->
+- [ ] **F19-T007 Dispatcher HTTP Real de Notificações Webhook para n8n** <!-- Substituir o LoggingWebhookNotificationDispatcher por HttpWebhookNotificationDispatcher usando IHttpClientFactory com resiliência Polly para HTTP POST real para a URL do n8n. Regra: n8n executa automações/notificações, mas o InfraControl é o único dono do estado do Incidente. -->
+
+## Fase 20 — Integração UniFi SDN
+
+- [ ] **F20-T001 Cliente API REST UniFi Controller & Descoberta (Telemetria Leve)** <!-- Cliente de integração UniFi API (autenticação, listagem de dispositivos Gateway/Switch/AP, mapeamento para Device e registro em external_device_references por MAC). Regra: não persistir telemetria de massa em PostgreSQL; persistir apenas cadastros e eventos operacionais. -->
+- [ ] **F20-T002 Receiver de Webhooks e Ingestão de Eventos UniFi** <!-- Controller e handler para receber webhooks/eventos de estado do UniFi Controller, gerando MonitoringEvent (Source = Unifi) e injetando no AlertEvaluator. -->
+- [ ] **F20-T003 Consultas Sob Demanda e Cache Redis para Telemetria UniFi** <!-- Endpoints de leitura sob demanda para portas PoE, tráfego instantâneo e lista de clientes Wi-Fi diretamente da API UniFi com cache temporário em Redis (com TTL curto e invalidação, sem virar fonte da verdade). -->
+
+## Fase 21 — Orquestração Operacional e Hardening
+
+- [ ] **F21-T001 Automação do Ciclo de Atendimento Incidente → Task → SLA / SLO** <!-- Avaliar e implementar, respeitando os modelos existentes (TaskItem, TaskIncident, TaskDevice, TaskSla, Slo), a automação Incident -> Task -> SLA/SLO para incidentes elegíveis, sem duplicação de Tasks e preservando o fluxo manual. -->
+- [ ] **F21-T002 Hardening, Observabilidade OpenTelemetry e Testes E2E de Carga** <!-- Adição de métricas OpenTelemetry para taxa de ingestão de webhooks e testes end-to-end de carga simulando alta volumetria. Regra: se o agente encontrar contradição entre código e documentação, parar e registrar a divergência. -->
+
+## Fase 22 — Governança e Diretrizes de Alinhamento Arquitetural
+
+- [ ] **F22-T001 Diretriz de Alinhamento Arquitetural & Verificação do Código Real** <!-- Antes de implementar cada Task, confrontar a instrução com o código real. Se houver divergência: 1. identificar; 2. avaliar se pode implementar sem alterar arquitetura; 3. implementar respeitando o código; 4. se não puder, PARAR e reportar a divergência. Proibido antecipar tasks futuras. -->
+- [ ] **F22-T002 Diretriz do Sistema de Registro Operacional (System of Record)** <!-- InfraControl é o sistema de registro operacional para Device, Alert, Incident, Task, SLA/SLO e auditoria. Sistemas externos mantidos em suas especialidades (Zabbix -> triggers, UniFi -> estado infra, n8n -> automações). -->
+- [ ] **F22-T003 Diretriz de Idempotência em Eventos Externos** <!-- Garantir reprocessamento seguro. Eventos duplicados não podem gerar Alerts, Incidents, Tasks ou Notificações duplicadas. -->
+- [ ] **F22-T004 Diretriz do Ciclo de Recuperação Problem / Recovery** <!-- Problem e Recovery são eventos distintos vinculados exclusivamente por ExternalProblemId. NUNCA utilizar busca por Título + Device no Recovery quando houver identificador externo. -->
+- [ ] **F22-T005 Diretriz de Não Duplicação de Telemetria** <!-- Persistir no PostgreSQL somente o estado, eventos, identidade e informações operacionais. Telemetria detalhada de massa é consultada sob demanda ou mantida em cache Redis com TTL curto. -->
+
+
 ## Fase P — Pendências (tudo que não foi concluído)
 
 Consolidado único (decisão do usuário, 2026-09-29) de todo item em aberto até aqui:
@@ -299,6 +335,25 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F10-T004 Relationships
 - [x] F16-T001 Zabbix Webhook
 - [x] F16-T002 Notificação de incidente
+- [ ] F19-T001 Persistência do Agregado `MonitoringEvent`
+- [ ] F19-T002 Atualização da Tabela `Alerts` para Suporte a Eventos Externos
+- [ ] F19-T003 Motor `AlertEvaluator.EvaluateExternalAsync` (Sem Re-aplicar Streaks)
+- [ ] F19-T004 Refatoração do `IngestZabbixProblemCommandHandler` (PROBLEM)
+- [ ] F19-T005 Ingestão Zabbix RECOVERY via `ExternalProblemId`
+- [ ] F19-T006 Tabela de Identidade Externa `ExternalDeviceReference`
+- [ ] F19-T007 Dispatcher HTTP Real de Notificações Webhook para n8n
+- [ ] F20-T001 Cliente API REST UniFi Controller & Descoberta (Telemetria Leve)
+- [ ] F20-T002 Receiver de Webhooks e Ingestão de Eventos UniFi
+- [ ] F20-T003 Consultas Sob Demanda e Cache Redis para Telemetria UniFi
+- [ ] F21-T001 Automação do Ciclo de Atendimento Incidente → Task → SLA / SLO
+- [ ] F21-T002 Hardening, Observabilidade OpenTelemetry e Testes E2E de Carga
+- [ ] F22-T001 Diretriz de Alinhamento Arquitetural & Verificação do Código Real
+- [ ] F22-T002 Diretriz do Sistema de Registro Operacional (System of Record)
+- [ ] F22-T003 Diretriz de Idempotência em Eventos Externos
+- [ ] F22-T004 Diretriz do Ciclo de Recuperação Problem / Recovery
+- [ ] F22-T005 Diretriz de Não Duplicação de Telemetria
+
+
 
 ### Pendências soltas (de tasks concluídas e decisões registradas)
 
@@ -365,15 +420,17 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     (`services/api/tasks.ts`); campos do mock sem contrato no backend
     (`priority`, `dueDate`, `device`, `tags`) removidos — backend é a
     autoridade. Pendências da própria página: transição de estado
-    (`PUT /tasks/{id}/state`) e filtros `term/kind/state` na UI
+    (`PUT /tasks/{id}/state`) e filtros `term/kind/state` na UI —
+    **fechadas em 01/10/2026** no ciclo de ajuste front↔back (abaixo)
   - [x] **F17-T002 `AuditPage`** — `services/api/audit.ts`
     (`GET /admin/audit?action/outcome/page/pageSize`, policy Administer);
     bug de contrato corrigido: o mock esperava `outcome` "Success"/"Failure"
     mas o backend grava **"Succeeded"/"Failed"** (`AuditBehavior`) — a tela
     exibiria tudo como "Falha"; filtro de `action` virou igualdade exata no
-    submit (contrato do reader), `from`/`to` existem na API sem seletor na
-    tela; paginated com `PagedResult`; mock sem endpoint ("Pesquisar"
-    substring em action/resource/ator e "Exportar") removido
+    submit (contrato do reader), `from`/`to` existiam na API sem seletor
+    na tela — **seletor ligado em 01/10/2026** no ciclo de ajuste
+    front↔back (abaixo); paginated com `PagedResult`; mock sem endpoint
+    ("Pesquisar" substring em action/resource/ator e "Exportar") removido
   - [x] **F17-T003 `IncidentsPage`** — `services/api/incidents.ts`
     (`GET /incidents?deviceId/status/page/pageSize` → `PagedResult<IncidentDto>`,
     `POST` `{title,severity,description?,deviceId?}` → 201); bugs de contrato
@@ -469,7 +526,9 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     `channel` é enum → **numérico** (1=SignalR…6=Slack)). **Aba Feed
     removida — não existe listagem de notificações** (só
     `GET {id}/recipients`, que exige um notificationId inacessível sem
-    lista; pendência se F9 publicar a listagem). Semântica real de docs/07:
+    lista; pendência se F9 publicar a listagem) — **fechada em
+    01/10/2026**: o F18-T001 publicou `GET /notifications` e o ciclo de
+    ajuste front↔back restaurou a aba (abaixo). Semântica real de docs/07:
     **default habilitado — desligar = sem delivery**, então o estado inicial
     de cada canal é `true` e as linhas gravadas sobrescrevem. Escrita atrás
     de `useCan("operate")` (PUT é Operate; sem nível o toggle vira chip
@@ -529,8 +588,11 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     rede são os achados ARP/DHCP/MAC, e só por execução → a página mostra
     a **última execução** (`pageSize=1`) e pagina os resultados (20/pág).
     Colunas do protótipo sem contrato saíram (Sinal/Velocidade/Uso/SO/
-    Conexão, botão "Filtrar" — a query não tem filtro por kind, pendência
-    server-side); "Tipo" WiFi/LAN virou o `kind` real (ARP/DHCP/MAC/
+    Conexão, botão "Filtrar" — a query não tinha filtro por kind; o
+    backend veio na F18-T002 e a **UI de kind foi cancelada como obsoleta**
+    no ciclo front↔back de 01/10/2026: no F18-T008 a página migrou de
+    `runs/{id}/results` para `GET /clients`, que filtra por `term` e não
+    tem `kind` — o `?kind=` segue na API para páginas futuras de discovery); "Tipo" WiFi/LAN virou o `kind` real (ARP/DHCP/MAC/
     Vizinho/Host) e as chaves de `values` fornecem ip/mac/hostname/vlan/
     `local_if`. Achados negativos ("Nenhuma entrada ARP.") viram linha
     informativa em vez de sumir (remover quebraria a contagem da query).
@@ -626,6 +688,45 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     **vista por Rack** (DTO sem posição em U/rackId — racks vivem na
     LocationsPage T018). Estado honesto: "Nenhuma interface mapeada —
     a topologia nasce das Connections (F3-T005)"; sem mutations
+  - [x] **Ciclo de ajuste front↔back (01/10/2026 — "backend criado, front
+    pendente")** — direção do usuário: "foca em ajustar os endpoint do
+    front com backend conforme foi criado e não concluído" + "tudo que
+    está pendente executar por task, ou segue dividir para conquistar";
+    5 itens já registrados como pendência, cada um fechado aqui:
+    - **TasksPage filtros + transição de estado** (fecha as pendências da
+      F17-T001): barra de filtros `term`/`kind`/`state` sobre os params
+      reais de `GET /tasks` (o serviço já os aceitava, faltava a UI) +
+      `changeTaskState` em `services/api/tasks.ts` (`PUT /tasks/{id}/state`
+      com body `{state}` case-insensitive) e select "mover" no card atrás
+      de `Can operate` — select controlado por `task.state`, então um
+      **409** do mapa de transições do domínio (banner pt-BR "Transição
+      inválida…") restaura o valor anterior sem a UI mentir;
+    - **AuditPage filtro de período** (fecha a pendência da F17-T002):
+      `from`/`to` no `audit.ts` com conversão local→UTC no serviço
+      (`OccurredAt` é UTC `timestamp with time zone` — sem a conversão o
+      corte sairia deslocado pelo fuso; "Até" inclusivo até o fim do
+      minuto porque o reader compara `<= to`) + dois `datetime-local` no
+      form com guarda pt-BR "De posterior ao Até";
+    - **NotificationsPage aba Feed** (fecha a pendência pós F18-T001):
+      `listFeed` em `notifications.ts` (`GET /notifications`,
+      `PagedResult<NotificationFeedItemDto>`, Read) e abas Feed |
+      Preferências — feed com pager de 20/página e estados
+      vazio/carregando/erro próprios; sem estado de leitura (decisão da
+      própria F18-T001);
+    - **Busca global no topbar** (fecha a task aberta F2-T007):
+      `globalSearch` em `inventory.ts` (`GET /inventory/search`, 6
+      fontes, `limit` por fonte) ligado ao input "Pesquisar…" que era
+      UI morta no AppLayout — debounce 300ms, seq de requisição descarta
+      resposta velha, dropdown com chip do tipo (Local/Rack/Device/
+      Interface/MAC/IP) e "N de M resultados"; navegação device →
+      `/devices/{id}` e local/rack → `/locations`; interface/MAC/IP só
+      listados (o DTO não traz deviceId — decisão da rodada: não inventar
+      rota);
+    - **UI do filtro `kind` da ClientsPage CANCELADA como obsoleta**
+      (fecha a pendência da F17-T015/F18-T002 — detalhe no T015).
+    Validação: `npx tsc -b` 0 erros, `npm run lint` 0 problemas (68
+    arquivos), `npm run build` ok; `src/` intocado (mudanças só de
+    frontend + docs — unit/arch/backend sem alteração)
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
     N/A + Insights esvaziado); **todas as páginas do protótipo estão
     conectadas ao backend ou com estado honesto** (T016 Insights, T019
@@ -634,7 +735,9 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
     demo) — última pendência da F17.
     Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
-- [ ] **Busca global no frontend** (F2-T007, task futura declarada na própria task)
+- [x] **Busca global no frontend** (F2-T007) — fechada em 01/10/2026 no
+  ciclo de ajuste front↔back: `globalSearch` (`GET /inventory/search`)
+  + dropdown no input do topbar (ver sub-checklist da F17 acima)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
 - [ ] **Limpar `frontend/InfraControl.Web/tsconfig.tsbuildinfo` do versionamento**

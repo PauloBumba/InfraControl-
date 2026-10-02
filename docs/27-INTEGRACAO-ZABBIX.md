@@ -149,21 +149,49 @@ curl -X POST https://<seu-host>/api/v1/integrations/zabbix/problems \
 - Direção B (sair consumindo a API JSON-RPC do Zabbix) ficou como alternativa
   descartada no ADR-023 — possível num futuro se precisarmos de inventário/acks.
 
-## 6. Evidências (F16-T001, F16-T002)
-
-- Unit: `tests/InfraControl.UnitTests/Integrations/ZabbixIngestTests.cs` (19)
-  + `ZabbixIntegrationControllerTests.cs` (5) — criação, sem device, fallback
-  por host, dedup, same-title/devices diferentes, OK resolve/nada, reabertura,
-  tabela de severidade, 400 pt-BR, 404 desligado, 401 token, 200 envelope,
-  case-sensitivity do token.
-- Integration: `tests/InfraControl.IntegrationTests/Integrations/
-  ZabbixIngestIntegrationTests.cs` (4 — ponta-a-ponta pelo MediatR, incl.
-  outbox `IncidentCreatedDomainEvent` do F16-T002; exige Docker para
-  executar).
-- Arch: allowlist de endpoints públicos com `ZabbixIntegrationController.
-  Problems`.
 - F16-T002 (notificação): unit `IncidentTests` (+3, evento levantado em
   `Incident.Create`) e `IncidentCreatedNotificationTests` (3 — roles
   Operator+Admin, deliveries para usuários dessas roles, idempotência);
   integration `IncidentIntegrationTests.ManualCreate_ShouldWrite
   IncidentCreatedEventToOutbox`.
+
+## 7. Infraestrutura Docker Compose (Zabbix 8.0 — F18-T001)
+
+A infraestrutura do Zabbix 8.0 é executada via Docker Compose sob o perfil dedicado `zabbix` (`profiles: ["zabbix"]`).
+
+### Imagens Oficiais & Serviços
+
+| Serviço | Container | Imagem Oficial | Porta Host / Container | Volume / Persistência |
+|:---|:---|:---|:---|:---|
+| **`zabbix-db`** | `infracontrol-zabbix-db` | `postgres:17-alpine` | `5433:5432` | `zabbix_db_data` |
+| **`zabbix-server`** | `infracontrol-zabbix-server` | `zabbix/zabbix-server-pgsql:alpine-8.0-latest` | `10051:10051` | `zabbix_server_snmptraps`, `zabbix_server_mibs` |
+| **`zabbix-web`** | `infracontrol-zabbix-web` | `zabbix/zabbix-web-nginx-pgsql:alpine-8.0-latest` | `8085:8080` | *(Web em memória + conexão DB)* |
+| **`zabbix-agent`** | `infracontrol-zabbix-agent` | `zabbix/zabbix-agent2:alpine-8.0-latest` | `10050:10050` | *(Métricas locais de teste)* |
+
+### Credenciais e Acesso de Desenvolvimento
+
+- **Zabbix Web UI:** `http://localhost:8085` (Usuário: `Admin`, Senha padrão: `zabbix`).
+- **PostgreSQL Dedicado:** Host `zabbix-db` (porta interna `5432`, publicada no host como `5433`), BD `zabbix`, Usuário `zabbix`, Senha `${ZABBIX_DB_PASSWORD:-zabbix_dev_password_2026}`.
+
+### Comandos de Operação
+
+```bash
+# Subir apenas o ambiente infra + Zabbix
+docker compose --profile zabbix up -d
+
+# Subir a aplicação InfraControl completa + Zabbix
+docker compose --profile app --profile zabbix up -d
+
+# Verificar logs dos serviços Zabbix
+docker compose logs -f zabbix-server zabbix-web zabbix-db zabbix-agent
+
+# Parar os serviços Zabbix sem apagar dados
+docker compose --profile zabbix stop
+
+# Resetar completamente os dados do Zabbix (destrói volumes)
+docker compose --profile zabbix down -v
+
+# Atualizar imagens oficiais Zabbix 8.0
+docker compose pull zabbix-server zabbix-web zabbix-agent zabbix-db
+```
+

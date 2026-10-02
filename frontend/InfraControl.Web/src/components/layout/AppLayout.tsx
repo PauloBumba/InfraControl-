@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, type ReactNode } from "react";
+import { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { navigation, secondaryNavigation } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
@@ -6,10 +6,21 @@ import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
 import { signedOut } from "@/app/store/slices/authSlice";
 import { logout } from "@/services/api/auth";
+import { globalSearch, type GlobalSearchItem } from "@/services/api/inventory";
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 import { canReach, routeLevel } from "@/app/router/access";
 
 type AppLayoutProps = { children: ReactNode; activeItem: string; onNavigate: (item: string) => void };
+
+/** Rótulos pt-BR dos tipos de `GlobalSearchItemDto` (F2-T007). */
+const SEARCH_TYPE_LABEL: Record<GlobalSearchItem["type"], string> = {
+  location: "Local",
+  rack: "Rack",
+  device: "Device",
+  interface: "Interface",
+  mac: "MAC",
+  ip: "IP",
+};
 
 export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) {
   const dispatch = useAppDispatch();
@@ -72,6 +83,72 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
   const allNavItems = [...navigation, ...secondaryNavigation];
   const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
+
+  // Busca global (fecha a task aberta "Busca global no frontend", F2-T007):
+  // o input do topbar era UI morta — agora com debounce de 300ms sobre
+  // GET /inventory/search (6 fontes; term obrigatório, então só busca com
+  // termo trimmed não vazio). Seq de requisição descarta resposta velha.
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<GlobalSearchItem[]>([]);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
+
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
+      searchSeq.current += 1; // invalida resposta em voo
+      setSearchResults([]);
+      setSearchTotal(0);
+      setSearchOpen(false);
+      setSearchError(null);
+      setSearching(false);
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      const seq = ++searchSeq.current;
+      setSearching(true);
+      setSearchError(null);
+      globalSearch(trimmed)
+        .then((result) => {
+          if (seq !== searchSeq.current) return;
+          setSearchResults(result.items);
+          setSearchTotal(result.totalCount);
+          setSearchOpen(true);
+        })
+        .catch((caught: unknown) => {
+          if (seq !== searchSeq.current) return;
+          setSearchError(
+            caught instanceof Error
+              ? caught.message
+              : "Não foi possível buscar agora.",
+          );
+          setSearchResults([]);
+          setSearchTotal(0);
+          setSearchOpen(true);
+        })
+        .finally(() => {
+          if (seq === searchSeq.current) setSearching(false);
+        });
+    }, 300);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [searchTerm]);
+
+  const goToSearchResult = useCallback((item: GlobalSearchItem) => {
+    setSearchOpen(false);
+    setSearchTerm("");
+    // Device vai pro detalhe; localização/rack caem na lista (não existe
+    // rota de rack); interface/MAC/IP não têm deviceId no DTO — ficam só
+    // listados (decisão da rodada: não inventar rota).
+    if (item.type === "device") routerNavigate(`/devices/${item.id}`);
+    else if (item.type === "location" || item.type === "rack") routerNavigate("/locations");
+  }, [routerNavigate]);
 
   // F14-T009 — menu e abas acompanham o nível da rota (ADR-016): o Admin
   // (administer) vê tudo; Operator/Viewer não enxergam as rotas administer
@@ -184,9 +261,89 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           </div>
 
           <div className="uni-topbar-right">
-            <div className="uni-topbar-search">
+            <div className="uni-topbar-search" style={{ position: "relative" }}>
               <i className="pi pi-search" />
-              <input type="text" placeholder="Pesquisar..." />
+              <input
+                type="text"
+                placeholder="Pesquisar…"
+                aria-label="Busca global do inventário"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                onFocus={() => {
+                  if (searchResults.length > 0 || searchError) setSearchOpen(true);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setSearchOpen(false);
+                }}
+                onBlur={() => setSearchOpen(false)}
+              />
+              {searchOpen && searchTerm.trim() !== "" && (
+                <div
+                  // onMouseDown.prevent: sem isso o blur fecha o dropdown
+                  // antes do clique navegar.
+                  onMouseDown={(event) => event.preventDefault()}
+                  style={{
+                    position: "absolute", top: "calc(100% + 6px)", right: 0,
+                    width: 340, maxHeight: 380, overflowY: "auto",
+                    background: "white", border: "1px solid #e5e7eb",
+                    borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    zIndex: 60, padding: 6,
+                  }}
+                >
+                  {searching && (
+                    <div style={{ padding: "10px 10px", fontSize: 12, color: "#6b7280" }}>
+                      Buscando…
+                    </div>
+                  )}
+                  {!searching && searchError && (
+                    <div style={{ padding: "10px 10px", fontSize: 12, color: "#b91c1c" }}>
+                      {searchError}
+                    </div>
+                  )}
+                  {!searching && !searchError && searchResults.length === 0 && (
+                    <div style={{ padding: "10px 10px", fontSize: 12, color: "#9ca3af" }}>
+                      Nada encontrado para "{searchTerm.trim()}".
+                    </div>
+                  )}
+                  {!searching && !searchError && searchResults.map((item) => {
+                    const navigable = item.type === "device" || item.type === "location" || item.type === "rack";
+                    return (
+                      <button
+                        key={`${item.type}-${item.id}`}
+                        type="button"
+                        onClick={() => { if (navigable) goToSearchResult(item); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8, width: "100%",
+                          padding: "7px 8px", border: "none", borderRadius: 6,
+                          background: "transparent", textAlign: "left",
+                          cursor: navigable ? "pointer" : "default",
+                        }}
+                        onMouseEnter={(event) => {
+                          if (navigable) event.currentTarget.style.background = "#f3f4f6";
+                        }}
+                        onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
+                      >
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "#f1f5f9", color: "#475569", flexShrink: 0 }}>
+                          {SEARCH_TYPE_LABEL[item.type] ?? item.type}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.name}
+                        </span>
+                        {item.subtitle && (
+                          <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: "auto", flexShrink: 0 }}>
+                            {item.subtitle}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {!searching && !searchError && searchTotal > searchResults.length && (
+                    <div style={{ padding: "6px 8px", fontSize: 10, color: "#9ca3af", borderTop: "1px solid #f3f4f6", marginTop: 4 }}>
+                      {searchResults.length} de {searchTotal} resultados — refine a busca
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <button className="uni-topbar-icon" title="Adicionar">
               <i className="pi pi-plus" />

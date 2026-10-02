@@ -4,9 +4,9 @@ import { api } from "./client";
  * F17-T010 — contrato real de `/api/v1/notifications` (F9-T002/T003).
  *
  * O que existe: preferências de entrega por usuário/canal
- * (GET/PUT /notifications/preferences). O que NÃO existe: listagem de
- * notificações — só `GET {id}/recipients`, que exige um `notificationId`
- * inacessível sem uma lista; a aba "Feed" do protótipo saiu por isso.
+ * (GET/PUT /notifications/preferences) e o feed paginado do usuário
+ * (GET /notifications — F18-T001: destinatário direto OU por role,
+ * mais recentes primeiro, SEM estado de leitura).
  *
  * Semântica (docs/07): **default habilitado — preferência desligada =
  * sem delivery** (opt-out); linha ausente = canal ativo.
@@ -64,4 +64,32 @@ export function setPreference(
     channel,
     enabled,
   });
+}
+
+/** Item do feed (F18-T001 — `NotificationFeedItemDto`, sem flag de lida). */
+export interface NotificationFeedItem {
+  id: string;
+  eventType: string;
+  title: string;
+  message: string;
+  createdAt: string;
+}
+
+/** `PagedResult<NotificationFeedItemDto>` — o campo `data` do envelope. */
+export interface PagedFeed {
+  items: NotificationFeedItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Feed do usuário autenticado (`GET /notifications`, Read): destinatário
+ * direto OU de role, mais recentes primeiro; clamp 1..100 no handler.
+ */
+export async function listFeed(page = 1, pageSize = 20): Promise<PagedFeed> {
+  const data = await api.get<PagedFeed>(
+    `/notifications?page=${page}&pageSize=${pageSize}`,
+  );
+  return data ?? { items: [], totalCount: 0, page: 1, pageSize };
 }

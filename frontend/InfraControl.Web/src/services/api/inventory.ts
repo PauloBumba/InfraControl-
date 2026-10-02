@@ -202,3 +202,32 @@ export async function listDeviceMacs(
   );
   return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
 }
+
+/** Item da busca global (F2-T007 — `GlobalSearchItemDto`). */
+export interface GlobalSearchItem {
+  type: "location" | "rack" | "device" | "interface" | "mac" | "ip";
+  id: string;
+  name: string;
+  subtitle: string | null;
+}
+
+export interface GlobalSearchResult {
+  items: GlobalSearchItem[];
+  totalCount: number;
+}
+
+/**
+ * Busca global das 6 fontes do inventário (`GET /inventory/search`,
+ * F2-T007, Read). `term` é obrigatório (400 pt-BR se vazio — por isso a
+ * página só chama com termo trimmed não vazio); `limit` vale POR fonte,
+ * clamp 1..50 no handler (default 5 → até 30 itens, `totalCount` = total
+ * real agregado). Ordem fixa: location → rack → device → interface → mac → ip.
+ */
+export async function globalSearch(
+  term: string,
+  limit = 5,
+): Promise<GlobalSearchResult> {
+  const params = new URLSearchParams({ term, limit: String(limit) });
+  const data = await api.get<GlobalSearchResult>(`/inventory/search?${params}`);
+  return data ?? { items: [], totalCount: 0 };
+}

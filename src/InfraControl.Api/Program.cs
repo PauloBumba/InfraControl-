@@ -89,16 +89,13 @@ builder.Services
     .Bind(builder.Configuration.GetSection(ZabbixIntegrationOptions.SectionName));
 
 // F0-T023: o GlobalExceptionHandler é o único ponto de erro da API, mas o
-// middleware do ASP.NET (UseExceptionHandler sem path/delegate) só sobe se o
-// IProblemDetailsService existir — AddExceptionHandler<T> NÃO o registra.
-// Sem esta linha o pipeline falha em tempo de build ("ExceptionHandlingPath or
-// ExceptionHandler must be set") e a API não sobe em NENHUM ambiente.
+// IProblemDetailsService único (chamada idempotente): AddExceptionHandler<T> NÃO
+// o registra e o .NET 10 exige IProblemDetailsService quando UseExceptionHandler()
+// vem sem delegate — o IExceptionHandler abaixo não basta (só é consultado na
+// hora de tratar, depois do construtor do middleware). Sem isto a API morre no
+// build/boot ("ExceptionHandlingPath or ExceptionHandler must be set").
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-// O .NET 10 exige IProblemDetailsService quando UseExceptionHandler() vem sem
-// delegate — o IExceptionHandler acima não basta (só é consultado na hora de
-// tratar, depois do construtor do middleware). Sem isto a API morre no boot.
-builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 builder.Services.AddAuthentication(options =>

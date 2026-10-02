@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
 import {
+  changeTaskState,
   createTask,
   listTasks,
   type PagedTasks,
@@ -15,6 +16,10 @@ import {
  * (catálogo fechado de docs/04). Campos do mock que não existem no contrato
  * (priority, dueDate, tags) saíram — o backend é a autoridade. Escrita fica
  * atrás de `Can operate` (exibição; o 403 volta no envelope se escapar).
+ * Pendências da F17-T001 fechadas: filtros `term/kind/state` na UI (params
+ * reais de `GET /tasks`) e transição de estado via `PUT /tasks/{id}/state`
+ * (o mapa de transições continua no domínio — fora dele o 409 pt-BR do
+ * envelope vira banner).
  */
 
 const stateColumns = [
@@ -26,6 +31,9 @@ const stateColumns = [
   { id: "Cancelled", label: "Canceladas", color: "#94a3b8" },
   { id: "Closed", label: "Fechadas", color: "#374151" },
 ];
+
+const stateLabel = (state: string): string =>
+  stateColumns.find((column) => column.id === state)?.label ?? state;
 
 /** Rótulos pt-BR dos valores enviados no body (`CreateTaskCommand`). */
 const kindOptions = [
@@ -64,21 +72,59 @@ export function TasksPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Filtros: o input é aplicado no submit (mesmo padrão da ClientsPage) e os
+  // valores aplicados é que disparam a recarga.
+  const [termInput, setTermInput] = useState("");
+  const [term, setTerm] = useState("");
+  const [kindFilter, setKindFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       // pageSize no clamp máximo do handler (1..100) — o quadro não pagina.
-      setPage(await listTasks({ pageSize: 100 }));
+      setPage(await listTasks({
+        pageSize: 100,
+        term: term || undefined,
+        kind: kindFilter || undefined,
+        state: stateFilter || undefined,
+      }));
     } catch (caught) {
       setError(messageFor(caught));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [term, kindFilter, stateFilter]);
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  function applyFilters(event: FormEvent) {
+    event.preventDefault();
+    setTerm(termInput.trim());
+  }
+
+  function clearFilters(event: FormEvent) {
+    event.preventDefault();
+    setTermInput("");
+    setTerm("");
+    setKindFilter("");
+    setStateFilter("");
+  }
+
+  /** Transição de estado — 409/400 pt-BR do envelope vira o banner de erro. */
+  const move = useCallback(async (task: TaskItem, target: string) => {
+    setNotice(null);
+    setError(null);
+    try {
+      await changeTaskState(task.id, target);
+      setNotice(`"${task.title}" movida para ${stateLabel(target)}.`);
+      await load();
+    } catch (caught) {
+      setError(messageFor(caught));
+    }
   }, [load]);
 
   async function submitCreate(event: FormEvent) {
@@ -112,6 +158,7 @@ export function TasksPage() {
   const items = page?.items ?? [];
   const totalCount = page?.totalCount ?? 0;
   const truncated = totalCount > items.length;
+  const hasFilters = term !== "" || kindFilter !== "" || stateFilter !== "";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -121,6 +168,7 @@ export function TasksPage() {
           <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
             {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "tarefa" : "tarefas"}`}
             {truncated && ` — exibindo as ${items.length} primeiras`}
+            {!loading && hasFilters && " · filtros ativos"}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -141,6 +189,50 @@ export function TasksPage() {
           </Can>
         </div>
       </div>
+
+      <form onSubmit={applyFilters} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          value={termInput}
+          onChange={(event) => setTermInput(event.target.value)}
+          placeholder="Buscar por título…"
+          style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, minWidth: 220 }}
+        />
+        <select
+          value={kindFilter}
+          onChange={(event) => setKindFilter(event.target.value)}
+          style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
+        >
+          <option value="">Todos os tipos</option>
+          {kindOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <select
+          value={stateFilter}
+          onChange={(event) => setStateFilter(event.target.value)}
+          style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
+        >
+          <option value="">Todos os estados</option>
+          {stateColumns.map((column) => (
+            <option key={column.id} value={column.id}>{column.label}</option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          style={{ padding: "7px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
+        >
+          Filtrar
+        </button>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            style={{ padding: "7px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+          >
+            Limpar
+          </button>
+        )}
+      </form>
 
       {notice && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
@@ -230,7 +322,7 @@ export function TasksPage() {
                   <div style={{ fontSize: 11, color: "#9ca3af", padding: "6px 2px" }}>Sem tarefas</div>
                 )}
                 {colTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <TaskCard key={task.id} task={task} onMove={move} />
                 ))}
               </div>
             </div>
@@ -241,7 +333,14 @@ export function TasksPage() {
   );
 }
 
-function TaskCard({ task }: { task: TaskItem }) {
+function TaskCard({
+  task,
+  onMove,
+}: {
+  task: TaskItem;
+  onMove: (task: TaskItem, target: string) => Promise<void>;
+}) {
+  const [moving, setMoving] = useState(false);
   return (
     <div style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 12, transition: "all 0.12s" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 8 }}>
@@ -280,6 +379,29 @@ function TaskCard({ task }: { task: TaskItem }) {
           )}
         </div>
       )}
+      <Can level="operate">
+        <div style={{ marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
+          {/* Select controlado por task.state: se a transição falhar (409 do
+              mapa do domínio), o re-render restaura o valor anterior — a UI
+              nunca mostra um estado que o backend não gravou. */}
+          <select
+            value={task.state}
+            disabled={moving}
+            aria-label={`Mover "${task.title}" para outro estado`}
+            onChange={(event) => {
+              const target = event.target.value;
+              if (target === task.state) return;
+              setMoving(true);
+              void onMove(task, target).finally(() => setMoving(false));
+            }}
+            style={{ width: "100%", padding: "5px 8px", fontSize: 11, border: "1px solid #e5e7eb", borderRadius: 6, background: "white", color: "#374151", cursor: "pointer" }}
+          >
+            {stateColumns.map((column) => (
+              <option key={column.id} value={column.id}>{column.label}</option>
+            ))}
+          </select>
+        </div>
+      </Can>
     </div>
   );
 }

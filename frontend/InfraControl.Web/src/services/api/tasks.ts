@@ -70,3 +70,13 @@ export function createTask(input: {
     description: input.description || undefined,
   });
 }
+
+/**
+ * Transição de estado (F7-T007 → `PUT /api/v1/tasks/{id}/state`, Operate).
+ * Body `{state}` aceita case-insensitive; estado desconhecido = 400 pt-BR e
+ * transição fora do mapa do domínio = 409 pt-BR ("Transição inválida…") —
+ * ambos chegam como ApiError com a mensagem do envelope.
+ */
+export function changeTaskState(id: string, state: string): Promise<TaskItem | null> {
+  return api.put<TaskItem>(`/tasks/${id}/state`, { state });
+}

@@ -15,7 +15,9 @@ import {
  * igualdade EXATA no reader — por isso é um campo aplicado no submit, não
  * busca por substring; o mock de "Pesquisar" varria action/resource/ator
  * (parâmetro inexistente na API) e o "Exportar" não tem endpoint — os dois
- * saíram. `from`/`to` existem na API mas a tela nunca teve seletor de data.
+ * saíram. Período: `from`/`to` existem na API desde o reader e esta task
+ * liga o seletor (`datetime-local` no fuso local → instante UTC no serviço;
+ * "Até" inclusivo até o fim do minuto).
  */
 
 const PAGE_SIZE = 20;
@@ -50,6 +52,13 @@ export function AuditPage() {
   const [outcome, setOutcome] = useState("");
   const [action, setAction] = useState("");
   const [actionInput, setActionInput] = useState("");
+  // Filtro de período (params `from`/`to` da API) — aplicado no submit, como
+  // o campo de ação; a conversão para UTC acontece no serviço.
+  const [fromInput, setFromInput] = useState("");
+  const [toInput, setToInput] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +68,8 @@ export function AuditPage() {
         await listAuditEntries({
           action: action || undefined,
           outcome: outcome || undefined,
+          from: from || undefined,
+          to: to || undefined,
           page,
           pageSize: PAGE_SIZE,
         }),
@@ -68,7 +79,7 @@ export function AuditPage() {
     } finally {
       setLoading(false);
     }
-  }, [action, outcome, page]);
+  }, [action, outcome, from, to, page]);
 
   useEffect(() => {
     void load();
@@ -76,6 +87,13 @@ export function AuditPage() {
 
   function applyAction(event: FormEvent) {
     event.preventDefault();
+    if (fromInput && toInput && fromInput > toInput) {
+      setFormError("O período \"De\" é posterior ao \"Até\".");
+      return;
+    }
+    setFormError(null);
+    setFrom(fromInput);
+    setTo(toInput);
     setAction(actionInput.trim());
     setPage(1);
   }
@@ -84,13 +102,19 @@ export function AuditPage() {
     setActionInput("");
     setAction("");
     setOutcome("");
+    setFromInput("");
+    setToInput("");
+    setFrom("");
+    setTo("");
+    setFormError(null);
     setPage(1);
   }
 
   const entries = pageData?.items ?? [];
   const totalCount = pageData?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasFilters = action !== "" || outcome !== "";
+  const hasFilters =
+    action !== "" || outcome !== "" || from !== "" || to !== "";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -122,6 +146,20 @@ export function AuditPage() {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+          <input
+            type="datetime-local"
+            title="De — início do período (relógio local)"
+            value={fromInput}
+            onChange={(event) => setFromInput(event.target.value)}
+            style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
+          />
+          <input
+            type="datetime-local"
+            title="Até — fim do período, inclusivo até o fim do minuto"
+            value={toInput}
+            onChange={(event) => setToInput(event.target.value)}
+            style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
+          />
           <button
             type="submit"
             style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
@@ -139,6 +177,13 @@ export function AuditPage() {
           )}
         </form>
       </div>
+
+      {formError && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
+          <i className="pi pi-exclamation-circle" />
+          <span>{formError}</span>
+        </div>
+      )}
 
       {error && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>

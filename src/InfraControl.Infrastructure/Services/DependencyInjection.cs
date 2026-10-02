@@ -198,6 +198,7 @@ public static class DependencyInjection
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpSystemMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
