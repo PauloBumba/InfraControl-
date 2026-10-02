@@ -46,6 +46,19 @@ public sealed class DiscoveryResultRepository(AppDbContext dbContext) : IDiscove
         return new PagedResult<DiscoveryResult>(items, totalCount, page, pageSize);
     }
 
+    public async Task<IReadOnlyList<DiscoveryResult>> ListByKindsAsync(
+        IReadOnlyCollection<DiscoveryResultKind> kinds,
+        CancellationToken cancellationToken = default)
+    {
+        // F18-T008: filtro de kind traduzido para SQL (coluna enum-string);
+        // tudo o mais (dedupe por MAC, merge de campos) é feito no handler.
+        return await dbContext.DiscoveryResults
+            .AsNoTracking()
+            .Where(result => kinds.Contains(result.Kind))
+            .OrderByDescending(result => result.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

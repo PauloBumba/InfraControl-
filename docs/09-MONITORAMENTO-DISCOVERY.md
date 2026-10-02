@@ -64,6 +64,24 @@ GET api/v1/discovery/results/{id}
 
 Run desconhecido → 404 (`KeyNotFoundException`).
 
+### Clientes ao vivo (F18-T008)
+
+```text
+GET api/v1/clients?term&page&pageSize
+Roles: Read (todas) — IAuthorizedRequest/RoleAccess.Read
+```
+
+Lista de clientes da rede **agregada de todas as execuções** (não depende do
+último run): linhas com `Kind ∈ {ArpEntry, DhcpLease}` deduplicadas **por MAC
+normalizado (fallback = IP)**; `lastSeenAt` é o achado mais recente do grupo e
+campos vazios da linha nova são completados pelas antigas (hostname/vlan do
+DHCP, `local_if` do ARP). Achados sem ip e sem MAC ficam de fora. `term` casa
+ip/mac/hostname (case-insensitive) antes da paginação (clamp 1..100);
+`totalCount` = clientes distintos. Contrato do item: `{ip?, mac?, hostname?,
+vlan?, localIf?, kind, lastSeenAt}`. A agregação é feita no handler (Values é
+JSON em coluna de texto — sem dedupe por MAC portável em SQL); a porta só
+devolve os rows candidatos (`ListByKindsAsync`). Consumidor: `ClientsPage`.
+
 ## Provider ICMP e gatilho (F4-T003)
 
 ```text

@@ -785,9 +785,39 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   F17-T009/T016. **Exige ADR + questionário + decisão sobre a página
   Insights** (construir backend, apagar página/rota ou manter demo —
   escalado no F17-T016). Critérios: definidos no ADR
-- [ ] **F18-T008 `GET /clients` (clientes ao vivo)** — lista agregada de
-  clientes da rede (IP/MAC/hostname/vlan) sem depender de "último run
-  de discovery" (decisão do F17-T015). **Decisão prévia**: servir
-  agregando ARP/DHCP já descobertos vs. nova tabela mantida por
-  ingestão contínua — pode nascer junto de F18-T005/T006. Critérios:
-  contrato paginado estável; testes unit + integration
+- [x] **F18-T008 `GET /clients` (clientes ao vivo)** — **decisão prévia
+  executada: servir agregando ARP/DHCP já descobertos** (a alternativa
+  "nova tabela mantida por ingestão contínua" fica para quando F18-T005/T006
+  trouxerem ingestão de verdade). Nova rota **`GET /api/v1/clients?term=&page=&pageSize=`**
+  (`ClientsController`, `SearchClientsQuery` com `RoleAccess.Read`): agrega
+  os `DiscoveryResult` de **todas** as execuções com `Kind ∈ {ArpEntry,
+  DhcpLease}` — Neighbor/Host/MacTableEntry não são clientes — e deduplica
+  **por MAC normalizado (fallback = IP quando a linha não tem MAC)**, com
+  `lastSeenAt` = `CreatedAt` mais recente do grupo e campos vazios da linha
+  mais nova completados pelas linhas antigas (hostname/vlan vêm do DHCP,
+  `local_if` do ARP). Linhas sem ip E sem MAC (achados negativos, ex.:
+  "Nenhuma entrada ARP.") são descartadas. **Decisão de implementação
+  registrada**: a agregação vive no handler e a porta só devolve rows
+  (`IDiscoveryResultRepository.ListByKindsAsync`) — `Values` é JSON
+  serializado numa coluna de texto e não há dedupe por MAC portável entre
+  Sqlite (unit) e Postgres (integração); filtro de kind vai para SQL.
+  `term` casa ip/mac/hostname sem diferenciar maiúsculas **antes** da
+  paginação; clamp 1..100; `totalCount` = clientes distintos; ordenação
+  `lastSeenAt` DESC. **Contrato**: `{ip?, mac?, hostname?, vlan?, localIf?,
+  kind, lastSeenAt}` (ao menos ip ou mac). **Front**: novo
+  `services/api/clients.ts` + `ClientsPage` reescrita sem o estado de "último
+  run" (busca por term no padrão da AuditPage, coluna "Último visto",
+  estados vazios distintos para base vazia vs. busca sem resultado);
+  `services/api/discovery.ts` **removido** (só a ClientsPage o consumia).
+  Testes antes do GREEN: **+7 unit** (`ClientsQueryTests`: agregação entre
+  runs com dedupe por MAC, preenchimento de campos da linha nova por linhas
+  antigas, exclusão de kinds não-cliente/achados sem ip-mac, term em
+  ip/mac/hostname case-insensitive, paginação com totalCount de distintos +
+  clamp + ordem, dedupe por IP sem MAC, base vazia), **+3 integração**
+  (pipeline com Viewer, term round-trip no Postgres, sem role → 401 pt-BR)
+  e **+2 E2E HTTP** no `FullPipelineE2ETests` (anônimo 401; logado 200 com o
+  contrato paginado e todo item com ip/mac + lastSeenAt). Validação: unit
+  **1343** (1336 + 7), arch **104** (102 + 2 theory cases do ClientsController,
+  ambas verdes), integração+E2E **169** (164 + 3 + 2), build Release 0 erros
+  (16 avisos, todos pré-existentes), front `tsc -b` 0 erros + lint 0 +
+  build ok. Docs: docs/09 §DiscoveryResult ganhou o endpoint.

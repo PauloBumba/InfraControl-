@@ -214,6 +214,43 @@ public sealed class FullPipelineE2ETests(E2EHost host) : IClassFixture<E2EHost>
         data.GetProperty("pageSize").GetInt32().Should().Be(20);
     }
 
+    // ── F18-T008: clientes ao vivo ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Clients_anonimo_vai_para_401()
+    {
+        var anonimo = NewClient();
+
+        (await anonimo.GetAsync("/api/v1/clients"))
+            .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Clients_logado_devolve_o_contrato_paginado_agregado()
+    {
+        var admin = await LoginAsync(E2EHost.AdminEmail, E2EHost.AdminPassword);
+
+        var response = await admin.GetAsync("/api/v1/clients?page=1&pageSize=20");
+        response.StatusCode.Should().Be(
+            HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+
+        var (ok, data, errors) = await EnvelopeAsync(response);
+        ok.Should().BeTrue();
+        errors.Should().BeEmpty();
+
+        data.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+        data.GetProperty("totalCount").GetInt32().Should().BeGreaterThanOrEqualTo(0);
+        data.GetProperty("page").GetInt32().Should().Be(1);
+        foreach (var item in data.GetProperty("items").EnumerateArray())
+        {
+            // Contrato do F18-T008: ao menos um identificador e o visto-vez.
+            (item.GetProperty("ip").ValueKind != JsonValueKind.Null ||
+             item.GetProperty("mac").ValueKind != JsonValueKind.Null)
+                .Should().BeTrue("um cliente precisa de ip ou mac");
+            item.GetProperty("lastSeenAt").GetDateTime().Should().NotBe(default);
+        }
+    }
+
     // ── escrita: Administer + antiforgery (ADR-017) ─────────────────────────
 
     [Fact]
