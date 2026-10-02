@@ -100,30 +100,3 @@ export function setPreference(
   });
 }
 
-/** Item do feed (F18-T001 — `NotificationFeedItemDto`, sem flag de lida). */
-export interface NotificationFeedItem {
-  id: string;
-  eventType: string;
-  title: string;
-  message: string;
-  createdAt: string;
-}
-
-/** `PagedResult<NotificationFeedItemDto>` — o campo `data` do envelope. */
-export interface PagedFeed {
-  items: NotificationFeedItem[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
-/**
- * Feed do usuário autenticado (`GET /notifications`, Read): destinatário
- * direto OU de role, mais recentes primeiro; clamp 1..100 no handler.
- */
-export async function listFeed(page = 1, pageSize = 20): Promise<PagedFeed> {
-  const data = await api.get<PagedFeed>(
-    `/notifications?page=${page}&pageSize=${pageSize}`,
-  );
-  return data ?? { items: [], totalCount: 0, page: 1, pageSize };
-}

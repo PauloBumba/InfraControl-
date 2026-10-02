@@ -11,7 +11,6 @@ import {
   setPreference,
   type NotificationFeedItem,
 } from "@/services/api/notifications";
-import { formatDateTime } from "@/utils/format";
 
 /**
  * F17-T010 + pendência da F18-T001 — NotificationsPage com as duas abas

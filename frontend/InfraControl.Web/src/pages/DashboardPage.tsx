@@ -1,34 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
 import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import { listTasks, type TaskItem } from "@/services/api/tasks";
+import { listIncidents, type IncidentItem } from "@/services/api/incidents";
+import { listClients, type ClientItem } from "@/services/api/clients";
 import {
   AUDIT_OUTCOME_SUCCEEDED,
   listAuditEntries,
   type AuditEntry,
 } from "@/services/api/audit";
 import { formatDateTime } from "@/utils/format";
-
-/**
- * F17-T009 — DashboardPage conectada ao backend (substitui todos os mocks
- * de `data/dashboardData`). Alimentação real:
- *
- * - Dispositivos: `GET /inventory/devices` (total + painel; sem status
- *   online — não existe endpoint de estado atual)
- * - Alertas: `GET /monitoring/alerts?status=open` (contagem do servidor +
- *   críticos derivados de `severity`; painel dos 5 mais recentes)
- * - Tarefas: `GET /tasks` (abertas = fora de Resolved/Cancelled/Closed,
- *   em progresso = InProgress)
- * - Eventos: `GET /admin/audit` (policy Administer — sem nível, o painel
- *   mostra "acesso restrito" em vez de quebrar a tela)
- *
- * Removidos por não ter contrato: mini-stats de Clientes/Download/WiFi,
- * "Status do Sistema" (subsystems), painel Gateway (CPU/mem/tráfego/WAN),
- * gráfico de tráfego, Top Clientes e Speed Test — nenhum endpoint
- * correspondente existe no backend.
- */
 
 const taskStateLabels: Record<string, string> = {
   Open: "Aberta",
@@ -51,10 +34,69 @@ const taskStateColors: Record<string, { bg: string; color: string }> = {
   Closed: { bg: "#f1f5f9", color: "#64748b" },
 };
 
-function MiniStat({ icon, label, value, color, sub }: { icon: string; label: string; value: string; color: string; sub?: string }) {
+const incidentSeverityColors: Record<string, { bg: string; color: string }> = {
+  Critical: { bg: "#fef2f2", color: "#dc2626" },
+  High: { bg: "#fff7ed", color: "#ea580c" },
+  Medium: { bg: "#fefce8", color: "#ca8a04" },
+  Low: { bg: "#f0fdf4", color: "#16a34a" },
+};
+
+function MiniStat({
+  icon,
+  label,
+  value,
+  color,
+  sub,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  color: string;
+  sub?: string;
+  onClick?: () => void;
+}) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-      <div style={{ width: 40, height: 40, borderRadius: 8, background: `${color}12`, color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 16px",
+        background: "white",
+        borderRadius: 8,
+        border: "1px solid #e5e7eb",
+        cursor: onClick ? "pointer" : "default",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+      }}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = "translateY(-2px)";
+          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = "none";
+          e.currentTarget.style.boxShadow = "none";
+        }
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+          background: `${color}12`,
+          color,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 16,
+          flexShrink: 0,
+        }}
+      >
         <i className={`pi ${icon}`} />
       </div>
       <div style={{ minWidth: 0 }}>
@@ -79,10 +121,15 @@ function ViewAll({ to, label }: { to: string; label: string }) {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [deviceTotal, setDeviceTotal] = useState(0);
   const [openAlerts, setOpenAlerts] = useState<AlertItem[]>([]);
   const [openAlertTotal, setOpenAlertTotal] = useState(0);
+  const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [incidentTotal, setIncidentTotal] = useState(0);
+  const [clients, setClients] = useState<ClientItem[]>([]);
+  const [clientTotal, setClientTotal] = useState(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [events, setEvents] = useState<AuditEntry[] | null>(null);
   const [eventsForbidden, setEventsForbidden] = useState(false);
@@ -90,42 +137,49 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [devicePage, alertPage, taskPage] = await Promise.all([
-          listDevices({ pageSize: 20 }),
-          listAlerts({ status: "open", pageSize: 100 }),
-          listTasks({ pageSize: 100 }),
-        ]);
-        if (cancelled) return;
-        setDevices(devicePage.items);
-        setDeviceTotal(devicePage.totalCount);
-        setOpenAlerts(alertPage.items);
-        setOpenAlertTotal(alertPage.totalCount);
-        setTasks(taskPage.items);
-      } catch (caught) {
-        if (!cancelled) {
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Não foi possível falar com o servidor. Tente novamente.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [devicePage, alertPage, incidentPage, clientPage, taskPage] = await Promise.all([
+        listDevices({ pageSize: 6 }),
+        listAlerts({ status: "open", pageSize: 100 }),
+        listIncidents({ pageSize: 5 }),
+        listClients("", 1, 5),
+        listTasks({ pageSize: 100 }),
+      ]);
+      setDevices(devicePage.items);
+      setDeviceTotal(devicePage.totalCount);
+      setOpenAlerts(alertPage.items);
+      setOpenAlertTotal(alertPage.totalCount);
+      setIncidents(incidentPage.items);
+      setIncidentTotal(incidentPage.totalCount);
+      setClients(clientPage.items);
+      setClientTotal(clientPage.totalCount);
+      setTasks(taskPage.items);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível falar com o servidor. Tente novamente.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Auditoria exige Administer (policy da classe): sem nível o painel some
-  // com aviso em vez de derrubar o dashboard com 403.
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchDashboardData();
+    };
+    window.addEventListener("infracontrol:refresh", handleRefresh);
+    return () => window.removeEventListener("infracontrol:refresh", handleRefresh);
+  }, [fetchDashboardData]);
+
   useEffect(() => {
     let cancelled = false;
     listAuditEntries({ pageSize: 6 })
@@ -148,6 +202,7 @@ export function DashboardPage() {
   const openTasks = tasks.filter((task) => !TERMINAL_TASK_STATES.includes(task.state));
   const inProgressTasks = openTasks.filter((task) => task.state === "InProgress");
   const criticalOpenAlerts = openAlerts.filter((alert) => alert.severity === "Critical");
+  const openIncidents = incidents.filter((inc) => inc.status !== "Resolved");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -158,11 +213,149 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ============ QUICK STATS (reais) ============ */}
+      {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-        <MiniStat icon="pi-server" label="Dispositivos" value={loading ? "…" : String(deviceTotal)} color="#3b82f6" sub="no inventário" />
-        <MiniStat icon="pi-bell" label="Alertas" value={loading ? "…" : String(openAlertTotal)} color="#f59e0b" sub={criticalOpenAlerts.length > 0 ? `${criticalOpenAlerts.length} críticos abertos` : "abertos"} />
-        <MiniStat icon="pi-check-square" label="Tarefas" value={loading ? "…" : String(openTasks.length)} color="#06b6d4" sub={`${inProgressTasks.length} em progresso`} />
+        <MiniStat
+          icon="pi-server"
+          label="Dispositivos"
+          value={loading ? "…" : String(deviceTotal)}
+          color="#3b82f6"
+          sub="no inventário"
+          onClick={() => navigate("/devices")}
+        />
+        <MiniStat
+          icon="pi-bell"
+          label="Alertas"
+          value={loading ? "…" : String(openAlertTotal)}
+          color="#f59e0b"
+          sub={criticalOpenAlerts.length > 0 ? `${criticalOpenAlerts.length} críticos abertos` : "abertos"}
+          onClick={() => navigate("/alerts")}
+        />
+        <MiniStat
+          icon="pi-exclamation-triangle"
+          label="Incidentes"
+          value={loading ? "…" : String(incidentTotal)}
+          color="#ef4444"
+          sub={`${openIncidents.length} em aberto`}
+          onClick={() => navigate("/incidents")}
+        />
+        <MiniStat
+          icon="pi-users"
+          label="Clientes"
+          value={loading ? "…" : String(clientTotal)}
+          color="#8b5cf6"
+          sub="descobertos"
+          onClick={() => navigate("/clients")}
+        />
+        <MiniStat
+          icon="pi-check-square"
+          label="Tarefas"
+          value={loading ? "…" : String(openTasks.length)}
+          color="#06b6d4"
+          sub={`${inProgressTasks.length} em progresso`}
+          onClick={() => navigate("/tasks")}
+        />
+      </div>
+
+      {/* ============ INCIDENTES + CLIENTES ============ */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Incidentes Recentes</h2>
+            <ViewAll to="/incidents" label="Ver todos" />
+          </div>
+          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {incidents.slice(0, 5).map((inc) => {
+              const sevColor = incidentSeverityColors[inc.severity] ?? { bg: "#f1f5f9", color: "#64748b" };
+              return (
+                <div
+                  key={inc.id}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid #f3f4f6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {inc.title}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                      {formatDateTime(new Date(inc.openedAt))} · {inc.status}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: sevColor.bg,
+                      color: sevColor.color,
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {inc.severity}
+                  </span>
+                </div>
+              );
+            })}
+            {!loading && incidents.length === 0 && (
+              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum incidente cadastrado</div>
+            )}
+            {loading && incidents.length === 0 && (
+              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+            )}
+          </div>
+        </div>
+
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Clientes Descobertos</h2>
+            <ViewAll to="/clients" label="Ver todos" />
+          </div>
+          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {clients.slice(0, 5).map((cli, idx) => (
+              <div
+                key={cli.mac ?? cli.ip ?? idx}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  background: "#f9fafb",
+                  border: "1px solid #f3f4f6",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <i className="pi pi-desktop" style={{ fontSize: 12, color: "#8b5cf6", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {cli.hostname || cli.ip || "Cliente sem nome"}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                    {cli.ip && <span>IP: {cli.ip} </span>}
+                    {cli.mac && <span>· MAC: {cli.mac} </span>}
+                    {cli.vlan && <span>· VLAN: {cli.vlan}</span>}
+                  </div>
+                </div>
+                <span style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "#f1f5f9", color: "#475569", flexShrink: 0 }}>
+                  {cli.kind}
+                </span>
+              </div>
+            ))}
+            {!loading && clients.length === 0 && (
+              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum cliente descoberto</div>
+            )}
+            {loading && clients.length === 0 && (
+              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ============ DEVICES + ALERTS + TASKS ============ */}

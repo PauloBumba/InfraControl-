@@ -6,7 +6,11 @@ import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
 import { signedOut } from "@/app/store/slices/authSlice";
 import { logout } from "@/services/api/auth";
-import { globalSearch, type GlobalSearchItem } from "@/services/api/inventory";
+import { globalSearch, listDevices, type GlobalSearchItem } from "@/services/api/inventory";
+import { listAlerts } from "@/services/api/alerts";
+import { listIncidents } from "@/services/api/incidents";
+import { listTasks } from "@/services/api/tasks";
+import { listFeed } from "@/services/api/notifications";
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 import { canReach, routeLevel } from "@/app/router/access";
 
@@ -80,6 +84,61 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
       setSigningOut(false);
     }
   }, [dispatch, routerNavigate]);
+
+  // Real dynamic badges (F18-T008 / F17-T009)
+  const [sidebarBadges, setSidebarBadges] = useState<{
+    devices?: number;
+    alerts?: number;
+    incidents?: number;
+    tasks?: number;
+    notifications?: number;
+  }>({});
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadBadges = useCallback(async () => {
+    try {
+      const [devs, alrts, incs, tsks, feed] = await Promise.all([
+        listDevices({ pageSize: 1 }).catch(() => null),
+        listAlerts({ status: "open", pageSize: 1 }).catch(() => null),
+        listIncidents({ status: "open", pageSize: 1 }).catch(() => null),
+        listTasks({ pageSize: 100 }).catch(() => null),
+        listFeed(1, 1).catch(() => null),
+      ]);
+      const openTasksCount = tsks
+        ? tsks.items.filter((t) => !["Resolved", "Cancelled", "Closed"].includes(t.state)).length
+        : undefined;
+      setSidebarBadges({
+        devices: devs?.totalCount,
+        alerts: alrts?.totalCount,
+        incidents: incs?.totalCount,
+        tasks: openTasksCount,
+        notifications: feed?.totalCount,
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBadges();
+  }, [loadBadges]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadBadges().finally(() => {
+      setTimeout(() => setRefreshing(false), 400);
+    });
+    window.dispatchEvent(new Event("infracontrol:refresh"));
+  }, [loadBadges]);
+
+  const getItemBadge = (label: string, defaultBadge?: string) => {
+    if (label === "Dispositivos" && sidebarBadges.devices !== undefined) return String(sidebarBadges.devices);
+    if (label === "Alertas" && sidebarBadges.alerts !== undefined) return String(sidebarBadges.alerts);
+    if (label === "Incidentes" && sidebarBadges.incidents !== undefined) return String(sidebarBadges.incidents);
+    if (label === "Tarefas" && sidebarBadges.tasks !== undefined) return String(sidebarBadges.tasks);
+    return defaultBadge;
+  };
 
   const allNavItems = [...navigation, ...secondaryNavigation];
   const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
@@ -184,37 +243,43 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
         <nav className="uni-nav" aria-label="Navegação principal">
           <ul className="uni-nav-list">
-            {visibleNavigation.map((item) => (
-              <li key={item.label}>
-                <button
-                  className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                  onClick={() => navigate(item.label)}
-                  title={item.label}
-                >
-                  <i className={item.icon} />
-                  <span>{item.label}</span>
-                  {item.badge && <span className="uni-nav-badge">{item.badge}</span>}
-                </button>
-              </li>
-            ))}
+            {visibleNavigation.map((item) => {
+              const badge = getItemBadge(item.label, item.badge);
+              return (
+                <li key={item.label}>
+                  <button
+                    className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                    onClick={() => navigate(item.label)}
+                    title={item.label}
+                  >
+                    <i className={item.icon} />
+                    <span>{item.label}</span>
+                    {badge && <span className="uni-nav-badge">{badge}</span>}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
 
           <div className="uni-nav-divider" />
 
           <ul className="uni-nav-list">
-            {visibleSecondaryNavigation.map((item) => (
-              <li key={item.label}>
-                <button
-                  className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                  onClick={() => navigate(item.label)}
-                  title={item.label}
-                >
-                  <i className={item.icon} />
-                  <span>{item.label}</span>
-                  {item.badge && <span className="uni-nav-badge">{item.badge}</span>}
-                </button>
-              </li>
-            ))}
+            {visibleSecondaryNavigation.map((item) => {
+              const badge = getItemBadge(item.label, item.badge);
+              return (
+                <li key={item.label}>
+                  <button
+                    className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                    onClick={() => navigate(item.label)}
+                    title={item.label}
+                  >
+                    <i className={item.icon} />
+                    <span>{item.label}</span>
+                    {badge && <span className="uni-nav-badge">{badge}</span>}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -345,15 +410,120 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                 </div>
               )}
             </div>
-            <button className="uni-topbar-icon" title="Adicionar">
-              <i className="pi pi-plus" />
+            <div style={{ position: "relative" }}>
+              <button
+                className="uni-topbar-icon"
+                title="Adicionar"
+                onClick={() => setAddMenuOpen((prev) => !prev)}
+              >
+                <i className="pi pi-plus" />
+              </button>
+              {addMenuOpen && (
+                <div
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    right: 0,
+                    width: 180,
+                    background: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    zIndex: 60,
+                    padding: 4,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddMenuOpen(false);
+                      routerNavigate("/devices");
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 6,
+                      background: "transparent",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <i className="pi pi-server" style={{ color: "#3b82f6" }} />
+                    <span>Novo Dispositivo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddMenuOpen(false);
+                      routerNavigate("/incidents");
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 6,
+                      background: "transparent",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <i className="pi pi-exclamation-triangle" style={{ color: "#ef4444" }} />
+                    <span>Novo Incidente</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddMenuOpen(false);
+                      routerNavigate("/tasks");
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 6,
+                      background: "transparent",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <i className="pi pi-check-square" style={{ color: "#06b6d4" }} />
+                    <span>Nova Tarefa</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            <button className="uni-topbar-icon" title="Atualizar" onClick={handleRefresh}>
+              <i className={`pi ${refreshing ? "pi-spin pi-refresh" : "pi-refresh"}`} />
             </button>
-            <button className="uni-topbar-icon" title="Atualizar">
-              <i className="pi pi-refresh" />
-            </button>
-            <button className="uni-topbar-icon" title="Notificações">
+            <button
+              className="uni-topbar-icon"
+              title="Notificações"
+              onClick={() => routerNavigate("/notifications")}
+            >
               <i className="pi pi-bell" />
-              <span className="uni-notif-badge">3</span>
+              {sidebarBadges.notifications !== undefined && sidebarBadges.notifications > 0 && (
+                <span className="uni-notif-badge">{sidebarBadges.notifications}</span>
+              )}
             </button>
             <div className="uni-topbar-avatar" title={displayName}>{initials}</div>
           </div>

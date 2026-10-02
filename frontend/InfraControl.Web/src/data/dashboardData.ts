@@ -4,7 +4,7 @@ export const navigation: NavItem[] = [
   { label: "Visão Geral", icon: "pi pi-th-large", route: "/" },
   { label: "Topologia", icon: "pi pi-directions", route: "/topology" },
   { label: "WiFi", icon: "pi pi-wifi", route: "/wifi" },
-  { label: "Dispositivos", icon: "pi pi-server", badge: "128", route: "/devices" },
+  { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
   { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
   { label: "Clientes", icon: "pi pi-users", route: "/clients" },
   { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
@@ -13,9 +13,9 @@ export const navigation: NavItem[] = [
 
 export const secondaryNavigation: NavItem[] = [
   { label: "Insights", icon: "pi pi-chart-bar", route: "/insights" },
-  { label: "Alertas", icon: "pi pi-bell", badge: "7", route: "/alerts" },
-  { label: "Incidentes", icon: "pi pi-exclamation-triangle", badge: "3", route: "/incidents" },
-  { label: "Tarefas", icon: "pi pi-check-square", badge: "12", route: "/tasks" },
+  { label: "Alertas", icon: "pi pi-bell", route: "/alerts" },
+  { label: "Incidentes", icon: "pi pi-exclamation-triangle", route: "/incidents" },
+  { label: "Tarefas", icon: "pi pi-check-square", route: "/tasks" },
   { label: "SLA/SLO", icon: "pi pi-chart-line", route: "/sla" },
   { label: "Notificações", icon: "pi pi-envelope", route: "/notifications" },
   { label: "Acesso Remoto", icon: "pi pi-external-link", route: "/remote" },
