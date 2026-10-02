@@ -389,6 +389,26 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   (body `{email, token, newPassword}`, 204/400 no envelope) mas sem
   consumidor; resolve com página + origem do link (origin do frontend)
   decidida
+- [x] **Aba Feed na NotificationsPage** (pendência da F18-T001, fechada
+  em 01/10/2026 no ciclo de integração front×back pós-auditoria) — a aba
+  tinha saído no F17-T010 por não existir listagem; a F18-T001 entregou
+  `GET /api/v1/notifications` e esta task entrega a UI.
+  `services/api/notifications.ts` ganhou `listFeed(page, pageSize)` →
+  `PagedResult<NotificationFeedItemDto>` =
+  `{id, eventType, title, message, createdAt}` (cabeçalho do serviço
+  corrigido: a listagem existe desde a F18-T001). Página com abas Feed |
+  Preferências (restaurando o layout de sublinhado do protótipo): feed
+  20/página com pager (padrão AlertsPage), chip com `eventType` cru
+  (string livre — não enum, sem rótulo inventado), data via
+  `formatDateTime`, estados de loading/vazio/erro honestos com retry;
+  **sem mutations** (decisão registrada da T001: sem estado de leitura —
+  `read`/`status`/`recipient`/`channel` do protótipo não têm contrato e
+  ficaram de fora); preferências intactas e banner de erro movido para
+  dentro da aba ativa. Validação: `npx tsc -b` 0 erros + `npm run build`
+  ok (front sem runner; `src/` intocado — o contrato do feed já é coberto
+  pelos 2 e2e da F18-T001). Próximas integrações front×back na fila:
+  filtro `kind` da ClientsPage (F18-T002) e transição de estado da
+  TasksPage (pendência do F17-T001).
 - [x] **e2e HTTP pelo pipeline completo** (`WebApplicationFactory`) — **FECHADA
   em 30/09/2026** (Fase Q): `tests/InfraControl.IntegrationTests/EndToEnd/` =
   `E2EHost` (PostgreSQL+Redis reais via Testcontainers, bootstrap real de
