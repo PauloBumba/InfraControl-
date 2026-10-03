@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Can } from "@/components/auth/Can";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FormField, FormError } from "@/components/ui/FormField";
 import { formatDateTime } from "@/utils/format";
 import {
   changeTaskState,
@@ -164,40 +167,44 @@ export function TasksPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Tarefas</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+      <PageHeader
+        title="Tarefas"
+        subtitle={
+          <>
             {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "tarefa" : "tarefas"}`}
             {truncated && ` — exibindo as ${items.length} primeiras`}
             {!loading && hasFilters && " · filtros ativos"}
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151", cursor: loading ? "default" : "pointer" }}
-          >
-            <i className="pi pi-refresh" style={{ fontSize: 11 }} /> Atualizar
-          </button>
-          <Can level="operate">
+          </>
+        }
+        actions={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
-              onClick={() => { setCreating((value) => !value); setFormError(null); }}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
+              onClick={() => void load()}
+              disabled={loading}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151", cursor: loading ? "default" : "pointer" }}
             >
-              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
+              <i className="pi pi-refresh" style={{ fontSize: 11 }} /> Atualizar
             </button>
-          </Can>
-        </div>
-      </div>
+            <Can level="operate">
+              <button
+                onClick={() => { setCreating((value) => !value); setFormError(null); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
+              >
+                <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
+              </button>
+            </Can>
+          </div>
+        }
+      />
 
       <form onSubmit={applyFilters} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input
+        <SearchInput
           value={termInput}
-          onChange={(event) => setTermInput(event.target.value)}
+          onChange={setTermInput}
           placeholder="Buscar por título…"
-          style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, minWidth: 220 }}
+          variant="outlined"
+          width={220}
+          onEnter={() => { setTerm(termInput.trim()); }}
         />
         <select
           value={kindFilter}
@@ -236,15 +243,7 @@ export function TasksPage() {
         )}
       </form>
 
-      {notice && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
@@ -252,33 +251,37 @@ export function TasksPage() {
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Nova tarefa</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10 }}>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Título *"
-              autoFocus
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-            <select
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-            >
-              {kindOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+            <FormField label="Título" error={formError ? "Informe o título da tarefa." : null}>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Título *"
+                autoFocus
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              />
+            </FormField>
+            <FormField label="Tipo">
+              <select
+                value={kind}
+                onChange={(event) => setKind(event.target.value)}
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
+              >
+                {kindOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </FormField>
           </div>
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descrição (opcional)"
-            rows={3}
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
-          />
-          {formError && (
-            <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>
-          )}
+          <FormField label="Descrição (opcional)">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={3}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </FormField>
+          {formError && <FormError message={formError} />}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button
               type="button"

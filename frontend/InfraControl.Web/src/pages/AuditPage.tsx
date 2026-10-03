@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { CopyableId } from "@/components/ui/CopyableId";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 /**
  * F17-T002 — AuditPage conectada ao backend (substitui o mock de
@@ -182,17 +183,14 @@ export function AuditPage() {
         }
         actions={
         <form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f1f5f9", borderRadius: 6, padding: "6px 12px" }}>
-            <i className="pi pi-search" style={{ fontSize: 12, color: "#94a3b8" }} />
-            <input
-              type="text"
-              placeholder="Ação exata — ex.: LoginWithMfa"
-              title="Filtro de igualdade: nome do request MediatR ou evento de segurança"
-              value={actionInput}
-              onChange={(event) => setActionInput(event.target.value)}
-              style={{ border: "none", background: "none", outline: "none", fontSize: 13, width: 210 }}
-            />
-          </div>
+          <SearchInput
+            value={actionInput}
+            onChange={setActionInput}
+            placeholder="Ação exata — ex.: LoginWithMfa"
+            title="Filtro de igualdade: nome do request MediatR ou evento de segurança"
+            variant="muted"
+            onEnter={() => { setAction(actionInput.trim()); setPage(1); }}
+          />
           <select
             value={outcome}
             onChange={(event) => { setOutcome(event.target.value); setPage(1); }}

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Can } from "@/components/auth/Can";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { FormError } from "@/components/ui/FormField";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { StatusChip } from "@/components/ui/StatusChip";
 import {
   ARTICLE_STATUS_ARCHIVED,
   ARTICLE_STATUS_DRAFT,
@@ -136,51 +138,47 @@ export function KnowledgePage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Base de Conhecimento</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-            {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "artigo" : "artigos"}`}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <form onSubmit={applyTerm} style={{ display: "flex", gap: 6 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f3f4f6", borderRadius: 6, padding: "5px 10px" }}>
-              <i className="pi pi-search" style={{ fontSize: 12, color: "#9ca3af" }} />
-              <input
-                type="text"
-                placeholder="Buscar artigos..."
+      <PageHeader
+        title="Base de Conhecimento"
+        subtitle={loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "artigo" : "artigos"}`}
+        actions={
+          <div style={{ display: "flex", gap: 8 }}>
+            <form onSubmit={applyTerm} style={{ display: "flex", gap: 6 }}>
+              <SearchInput
                 value={termInput}
-                onChange={(event) => setTermInput(event.target.value)}
-                style={{ border: "none", background: "none", outline: "none", fontSize: 12, width: 160 }}
+                onChange={setTermInput}
+                placeholder="Buscar artigos..."
+                variant="muted"
+                width={160}
+                onEnter={() => { setTerm(termInput.trim()); setPage(1); }}
               />
-            </div>
-            <button
-              type="submit"
-              style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", fontSize: 12, color: "#374151" }}
-            >
-              Filtrar
-            </button>
-            {term && (
               <button
-                type="button"
-                onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
+                type="submit"
                 style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", fontSize: 12, color: "#374151" }}
               >
-                Limpar
+                Filtrar
               </button>
-            )}
-          </form>
-          <Can level="operate">
-            <button
-              onClick={() => { setCreating((value) => !value); setFormError(null); }}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
-            >
-              <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
-            </button>
-          </Can>
-        </div>
-      </div>
+              {term && (
+                <button
+                  type="button"
+                  onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
+                  style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", fontSize: 12, color: "#374151" }}
+                >
+                  Limpar
+                </button>
+              )}
+            </form>
+            <Can level="operate">
+              <button
+                onClick={() => { setCreating((value) => !value); setFormError(null); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
+              >
+                <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
+              </button>
+            </Can>
+          </div>
+        }
+      />
 
       {notice && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
@@ -224,7 +222,7 @@ export function KnowledgePage() {
             rows={6}
             style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
           />
-          {formError && <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>}
+          {formError && <FormError message={formError} />}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button
               type="button"
@@ -252,12 +250,20 @@ export function KnowledgePage() {
           return (
             <div key={article.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#eff6ff", color: "#3b82f6", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60%" }}>
-                  {categoryName(article.categoryId)}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: status.bg, color: status.color }}>
-                  {status.label}
-                </span>
+                <StatusChip
+                  label={categoryName(article.categoryId)}
+                  background="#eff6ff"
+                  color="#3b82f6"
+                  fontSize={10}
+                  fontWeight={600}
+                />
+                <StatusChip
+                  label={status.label}
+                  background={status.bg}
+                  color={status.color}
+                  fontSize={10}
+                  fontWeight={600}
+                />
               </div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{article.title}</div>
               <div style={{

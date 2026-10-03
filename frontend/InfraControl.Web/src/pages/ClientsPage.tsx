@@ -3,6 +3,8 @@ import { listClients, type ClientItem } from "@/services/api/clients";
 import { formatDateTime } from "@/utils/format";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 /**
  * F18-T008 — ClientsPage sobre `GET /api/v1/clients`: o backend agrega
@@ -86,45 +88,41 @@ export function ClientsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Clientes</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {loading
-              ? "Carregando…"
-              : `${totalCount} ${totalCount === 1 ? "cliente" : "clientes"}${hasTerm ? ` · busca "${term}"` : ""}`}
-          </p>
-        </div>
-
-        <form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f1f5f9", borderRadius: 6, padding: "6px 12px" }}>
-            <i className="pi pi-search" style={{ fontSize: 12, color: "#94a3b8" }} />
-            <input
-              type="text"
+      <PageHeader
+        title="Clientes"
+        subtitle={
+          loading
+            ? "Carregando…"
+            : `${totalCount} ${totalCount === 1 ? "cliente" : "clientes"}${hasTerm ? ` · busca "${term}"` : ""}`
+        }
+        actions={
+          <form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <SearchInput
+              value={termInput}
+              onChange={setTermInput}
               placeholder="IP, MAC ou hostname"
               title="Busca por ip, mac ou hostname — aplicada no servidor"
-              value={termInput}
-              onChange={(event) => setTermInput(event.target.value)}
-              style={{ border: "none", background: "none", outline: "none", fontSize: 13, width: 210 }}
+              variant="muted"
+              onEnter={() => { setTerm(termInput.trim()); setPage(1); }}
             />
-          </div>
-          <button
-            type="submit"
-            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-          >
-            Filtrar
-          </button>
-          {hasTerm && (
             <button
-              type="button"
-              onClick={clearTerm}
+              type="submit"
               style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
             >
-              Limpar
+              Filtrar
             </button>
-          )}
-        </form>
-      </div>
+            {hasTerm && (
+              <button
+                type="button"
+                onClick={clearTerm}
+                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
+              >
+                Limpar
+              </button>
+            )}
+          </form>
+        }
+      />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
