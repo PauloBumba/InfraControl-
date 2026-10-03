@@ -42,6 +42,12 @@ public sealed class WhatsAppChannelOptions
 public sealed class WebhookChannelOptions
 {
     public string Url { get; set; } = string.Empty;
+
+    /// <summary>
+    /// F19-T007/ADR-028 §2: token de assinatura enviado no header
+    /// <c>X-InfraControl-Secret</c> (vazio = sem header).
+    /// </summary>
+    public string Secret { get; set; } = string.Empty;
 }
 
 /// <summary>Destino global do canal Slack (canal que recebe as mensagens).</summary>

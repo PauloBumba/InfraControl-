@@ -6,7 +6,11 @@ import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { store, persistor } from "./app/store";
 import { AppRouter } from "./app/router";
-import "primereact/resources/themes/lara-dark-blue/theme.css";
+// Tema claro do PrimeReact (decisão do levantamento docs/28): o app é
+// claro (painéis brancos uni-*) e o tema anterior `lara-dark-blue` não
+// tinha consumo — nenhum componente PrimeReact existia; agora com o
+// piloto do DataTable na AuditPage o tema precisa combinar com a UI.
+import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeflex/primeflex.css";
 import "primeicons/primeicons.css";

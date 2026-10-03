@@ -57,6 +57,8 @@ O `NotificationEventConsumer` anexa os destinatários junto da notificação
 | `UserRoleAssigned` / `UserRoleRemoved` | role (`role`) |
 | `InvitationAccepted` | usuário resolvido por e-mail (sem correspondência: notificação sem destinatário + log Warning) |
 | `IncidentCreated` (F16-T002) | roles `Operator` e `Admin` — cobre webhook Zabbix (F16-T001), criação manual e auto-abertura (F6) |
+| `IncidentResolved` (F19-T007) | roles `Operator` e `Admin` — levantado por `Incident.ChangeStatus(Resolved)`; só o InfraControl decide a resolução (regra 7 da revisão F19) |
+| `AlertResolved` (F19-T007) | roles `Operator` e `Admin` — levantado por `Alert.Resolve` (OK do Zabbix, comando da API) |
 
 `GET /api/v1/notifications/{id}/recipients` lista os destinatários;
 `GET /api/v1/notifications/{id}/recipients/users` resolve os **usuários
@@ -189,11 +191,15 @@ Espelho do WhatsApp (F9-T007): o consumer enfileira `NotificationDelivery`
 `Webhook:Url` está preenchida (sem Url = Warning, sem delivery). O
 `NotificationWebhookWorker` (mesmo loop base, 2s) despacha via porta
 `IWebhookNotificationDispatcher` (`Url` global + `Title`/`Message`) e
-marca `Sent`/`Failed`. O adaptador é `LoggingWebhookNotificationDispatcher`
-(Infrastructure) — nenhum POST real; um adaptador com HTTP
-(`IHttpClientFactory`) troca a implementação sem tocar em Application
-(endpoint real = pendência, junto do SMTP e das credenciais dos demais
-canais). Url esvaziada entre enfileirar e despachar vira `Failed` com
+marca `Sent`/`Failed`. Desde a **F19-T007/ADR-028** o adaptador é o
+`HttpWebhookNotificationDispatcher` (Infrastructure): POST JSON real no
+n8n via `IHttpClientFactory` com resiliência Polly no handler — retry 3×
+backoff exponencial (1s, 2s, 4s) com jitter + circuit breaker (5 falhas
+em 30s → aberto 60s) — e header `X-InfraControl-Secret` quando
+`Notifications:Channels:Webhook:Secret` está preenchido (o adaptador de
+log foi removido). REGRA (regra 7 da revisão F19/F20/F21): o n8n só
+recebe a notificação — o estado do Incidente é 100% do InfraControl.
+Url esvaziada entre enfileirar e despachar vira `Failed` com
 erro pt-BR apontando a seção (`Notifications:Channels:Webhook:Url`).
 
 ## Canal Slack (F9-T010)

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -178,15 +180,7 @@ export function UsersPage() {
         </div>
       )}
 
-      {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       {inviting && (
         <form onSubmit={submitInvite} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, flexWrap: "wrap" }}>

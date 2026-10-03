@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Can } from "@/components/auth/Can";
 import { NETWORK_PAGE_SIZE, createVlan, listVlans, type Paged, type VlanItem } from "@/services/api/network";
+import { Pagination } from "@/components/ui/Pagination";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { FormError } from "@/components/ui/FormField";
 
 /**
  * F17-T008 — NetworkPage conectada ao backend (substitui `vlans`,
@@ -119,15 +123,7 @@ export function NetworkPage() {
         </div>
       )}
 
-      {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       {creating && (
         <form onSubmit={submitCreate} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, flexWrap: "wrap" }}>
@@ -214,25 +210,12 @@ export function NetworkPage() {
       </div>
 
       {totalCount > NETWORK_PAGE_SIZE && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, fontSize: 12, color: "#64748b" }}>
-          <span>
-            Página {page} de {Math.max(1, Math.ceil(totalCount / NETWORK_PAGE_SIZE))}
-          </span>
-          <button
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            disabled={page <= 1 || loading}
-            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
-          >
-            Anterior
-          </button>
-          <button
-            onClick={() => setPage((value) => value + 1)}
-            disabled={loading || vlans.length < NETWORK_PAGE_SIZE}
-            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: loading || vlans.length < NETWORK_PAGE_SIZE ? "default" : "pointer", opacity: loading || vlans.length < NETWORK_PAGE_SIZE ? 0.5 : 1 }}
-          >
-            Próxima
-          </button>
-        </div>
+        <Pagination
+          page={page}
+          totalPages={Math.max(1, Math.ceil(totalCount / NETWORK_PAGE_SIZE))}
+          disabled={loading}
+          onPage={setPage}
+        />
       )}
     </div>
   );

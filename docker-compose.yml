@@ -119,6 +119,7 @@ services:
       Notifications__Channels__Telegram__ChatId: ${TELEGRAM_CHAT_ID:-}
       Notifications__Channels__WhatsApp__Phone: ${WHATSAPP_PHONE:-}
       Notifications__Channels__Webhook__Url: ${WEBHOOK_URL:-}
+      Notifications__Channels__Webhook__Secret: ${WEBHOOK_SECRET:-}
       Notifications__Channels__Slack__Channel: ${SLACK_CHANNEL:-}
     # Imagem aspnet não traz curl/wget e /bin/sh é o dash (sem /dev/tcp):
     # healthcheck HTTP real passa por `bash -c` (bate em GET /health e espera
@@ -262,7 +263,9 @@ services:
       - infracontrol
 
   zabbix-server:
-    image: zabbix/zabbix-server-pgsql:alpine-7.0-latest
+    image: # F18-T001 (decisão do usuário 2026-10-02): 7.0 → 7.4.15 — 8.0 é devel e
+    # não tem tag publicada; pin de patch estável (não latest).
+    image: zabbix/zabbix-server-pgsql:alpine-7.4.15
     container_name: infracontrol-zabbix-server
     profiles: ["zabbix"]
     environment:
@@ -289,7 +292,7 @@ services:
       - infracontrol
 
   zabbix-web:
-    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.0-latest
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.4.15
     container_name: infracontrol-zabbix-web
     profiles: ["zabbix"]
     environment:
@@ -300,7 +303,8 @@ services:
       ZBX_SERVER_HOST: zabbix-server
       PHP_TZ: America/Sao_Paulo
     ports:
-      - "${ZABBIX_WEB_PORT:-8085}:8080"
+      # 8086 (não 8085): 8085 é o HTTP_PORT do frontend do InfraControl
+      - "${ZABBIX_WEB_PORT:-8086}:8080"
     depends_on:
       zabbix-db:
         condition: service_healthy
@@ -319,7 +323,7 @@ services:
       - infracontrol
 
   zabbix-agent:
-    image: zabbix/zabbix-agent2:alpine-7.0-latest
+    image: zabbix/zabbix-agent2:alpine-7.4.15
     container_name: infracontrol-zabbix-agent
     profiles: ["zabbix"]
     environment:

@@ -1,3 +1,4 @@
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Incidents.Ports;
@@ -55,12 +56,15 @@ public interface IMonitoringEventIngestor
 /// Um SaveChanges único por ingestão (evento + alerta + incidente + vínculo
 /// são atômicos); corrida de duplicata simultânea estoura o índice único e o
 /// retry do Zabbix cai no caminho duplicate (notificações do mesmo trigger são
-/// sequenciais na fonte — doc do webhook).
+/// sequenciais na fonte — doc do webhook). F19-T003: Alert/Incident vêm do
+/// AlertEvaluator.EvaluateExternalAsync (sem streaks, correlação BFS,
+/// supressão; incidente SOMENTE se Critical).
 /// </summary>
 public sealed class MonitoringEventIngestor(
     IMonitoringEventRepository eventRepository,
     IAlertRepository alertRepository,
     IIncidentRepository incidentRepository,
+    IAlertEvaluator alertEvaluator,
     IUnitOfWork unitOfWork,
     ILogger<MonitoringEventIngestor> logger) : IMonitoringEventIngestor
 {
@@ -96,36 +100,33 @@ public sealed class MonitoringEventIngestor(
             input.RawPayload);
         await eventRepository.AddAsync(monitoringEvent, cancellationToken);
 
-        // Alert externo: device/check nullable (host não mapeado não tem
-        // CheckKind nativo). Severidade 0..2 Warning, 3..5 Critical.
-        var alert = Alert.CreateExternal(
-            monitoringEvent.Id,
-            eventId,
-            input.DeviceId,
-            kind: null,
-            MapAlertSeverity(input.Severity),
-            input.Name,
-            MonitoringSource.Zabbix);
-        await alertRepository.AddAsync(alert, cancellationToken);
-
-        // Decisão ADR-027: TODO problem externo gera 1 incidente próprio
-        // (1 por alert/problema — NÃO compartilha por device como o nativo).
-        var incident = Incident.Create(
-            input.Name,
-            MapIncidentSeverity(input.Severity),
-            input.DeviceId,
-            BuildDescription(eventId, input.Host, input.Ip));
-        await incidentRepository.AddAsync(incident, cancellationToken);
-        await incidentRepository.AddLinkAsync(
-            IncidentAlert.Create(incident.Id, alert.Id), cancellationToken);
+        // F19-T003: o avaliador decide Alert (sempre), supressão (BFS) e
+        // Incident (somente Critical) — idempotência por identidade.
+        var evaluation = await alertEvaluator.EvaluateExternalAsync(
+            monitoringEvent, input.Host, input.Ip, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation(
-            "Incident {IncidentId} criado a partir do Zabbix (evento {EventId}, status PROBLEM).",
-            incident.Id, eventId);
+        if (evaluation.Suppressed)
+        {
+            logger.LogInformation(
+                "Alert {AlertId} do Zabbix (evento {EventId}) suprimido — vinculado ao incidente upstream {IncidentId}.",
+                evaluation.AlertId, eventId, evaluation.IncidentId);
+        }
+        else if (evaluation.IncidentId is { } incidentId)
+        {
+            logger.LogInformation(
+                "Incident {IncidentId} criado a partir do Zabbix (evento {EventId}, status PROBLEM).",
+                incidentId, eventId);
+        }
+        else
+        {
+            logger.LogInformation(
+                "Alert {AlertId} criado a partir do Zabbix (evento {EventId}) sem incidente (severidade não-Critical).",
+                evaluation.AlertId, eventId);
+        }
 
-        return new(alert.Id, incident.Id, IngestOutcome.Created);
+        return new(evaluation.AlertId, evaluation.IncidentId, IngestOutcome.Created);
     }
 
     private async Task<MonitoringIngestResult> IngestRecoveryAsync(
@@ -203,7 +204,20 @@ public sealed class MonitoringEventIngestor(
             var incident = await incidentRepository.GetByIdAsync(id, cancellationToken);
             if (incident is null || incident.Status == IncidentStatus.Resolved)
                 continue;
-            incident.ChangeStatus(IncidentStatus.Resolved);
+
+            // Regra 5 (revisão F19): fecha só quando TODOS os alerts
+            // vinculados normalizaram — cobre o alert Suppressed (vítima)
+            // cujo incidente upstream tem irmãos ainda abertos. O alert
+            // resolvido agora conta como resolvido (GetAlertsAsync é
+            // AsNoTracking e pode vir com o status antigo do banco).
+            var linkedAlerts = await incidentRepository.GetAlertsAsync(
+                incident.Id, cancellationToken);
+            var allResolved = linkedAlerts.Count > 0
+                && linkedAlerts.All(linked =>
+                    linked.Id == alert.Id || linked.Status == AlertStatus.Resolved);
+
+            if (allResolved)
+                incident.ChangeStatus(IncidentStatus.Resolved);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -294,30 +308,5 @@ public sealed class MonitoringEventIngestor(
                 alert.Id, cancellationToken)).FirstOrDefault();
 
         return new(alert.Id, incidentId, IngestOutcome.Resolved);
-    }
-
-    /// <summary>Severidade Zabbix (6 níveis) → IncidentSeverity (4 da UI).</summary>
-    internal static IncidentSeverity MapIncidentSeverity(int severity) => severity switch
-    {
-        0 or 1 => IncidentSeverity.Low,
-        2 => IncidentSeverity.Medium,
-        3 => IncidentSeverity.High,
-        _ => IncidentSeverity.Critical
-    };
-
-    /// <summary>Severidade Zabbix → AlertSeverity (0..2 Warning, 3..5 Critical).</summary>
-    internal static AlertSeverity MapAlertSeverity(int severity)
-        => severity >= 3 ? AlertSeverity.Critical : AlertSeverity.Warning;
-
-    /// <summary>Origem do evento para auditoria humana (partes presentes).</summary>
-    private static string? BuildDescription(string eventId, string? host, string? ip)
-    {
-        var parts = new List<string>(3) { $"evento {eventId}" };
-        if (!string.IsNullOrWhiteSpace(host))
-            parts.Add($"host {host.Trim()}");
-        if (!string.IsNullOrWhiteSpace(ip))
-            parts.Add($"ip {ip.Trim()}");
-
-        return $"Recebido do Zabbix — {string.Join(", ", parts)}.";
     }
 }

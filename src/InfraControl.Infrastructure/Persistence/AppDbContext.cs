@@ -31,6 +31,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Rack> Racks => Set<Rack>();
     public DbSet<Device> Devices => Set<Device>();
+    public DbSet<ExternalDeviceReference> ExternalDeviceReferences => Set<ExternalDeviceReference>();
     public DbSet<NetworkInterface> NetworkInterfaces => Set<NetworkInterface>();
     public DbSet<MacAddress> MacAddresses => Set<MacAddress>();
     public DbSet<IpAddress> IpAddresses => Set<IpAddress>();

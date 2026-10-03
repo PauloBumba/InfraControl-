@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/app/store/hooks";
 import { signedOut } from "@/app/store/slices/authSlice";
@@ -13,17 +15,6 @@ import { formatDateTime } from "@/utils/format";
 function messageFor(error: unknown): string {
   return error instanceof Error ? error.message : "Não foi possível falar com o servidor. Tente novamente.";
 }
-
-const bannerStyle = (background: string, color: string) => ({
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "10px 12px",
-  borderRadius: 6,
-  fontSize: 13,
-  background,
-  color,
-});
 
 /**
  * F1-T016d (ADR-020): tela de sessões — quem mexe é o próprio usuário, sem
@@ -145,19 +136,9 @@ export function SessionsPage() {
         </div>
       </div>
 
-      {error && (
-        <div role="alert" style={bannerStyle("#fef2f2", "#dc2626")}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} color="#dc2626" />}
 
-      {notice && (
-        <div role="status" style={bannerStyle("#dcfce7", "#166534")}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} background="#dcfce7" color="#166534" />}
 
       <div className="uni-panel">
         {loading ? (

@@ -197,15 +197,22 @@ A infraestrutura do Zabbix 8.0 é executada via Docker Compose sob o perfil dedi
 
 | Serviço | Container | Imagem Oficial | Porta Host / Container | Volume / Persistência |
 |:---|:---|:---|:---|:---|
-| **`zabbix-db`** | `infracontrol-zabbix-db` | `postgres:17-alpine` | `5433:5432` | `zabbix_db_data` |
-| **`zabbix-server`** | `infracontrol-zabbix-server` | `zabbix/zabbix-server-pgsql:alpine-8.0-latest` | `10051:10051` | `zabbix_server_snmptraps`, `zabbix_server_mibs` |
-| **`zabbix-web`** | `infracontrol-zabbix-web` | `zabbix/zabbix-web-nginx-pgsql:alpine-8.0-latest` | `8085:8080` | *(Web em memória + conexão DB)* |
-| **`zabbix-agent`** | `infracontrol-zabbix-agent` | `zabbix/zabbix-agent2:alpine-8.0-latest` | `10050:10050` | *(Métricas locais de teste)* |
+| **`zabbix-db`** | `infracontrol-zabbix-db` | `postgres:17-alpine` | `5434:5432` (`ZABBIX_DB_PORT`) | `zabbix_db_data` |
+| **`zabbix-server`** | `infracontrol-zabbix-server` | `zabbix/zabbix-server-pgsql:alpine-7.0-latest` | `10052:10051` (`ZABBIX_SERVER_PORT`) | `zabbix_server_snmptraps`, `zabbix_server_mibs` |
+| **`zabbix-web`** | `infracontrol-zabbix-web` | `zabbix/zabbix-web-nginx-pgsql:alpine-7.0-latest` | `8086:8080` (`ZABBIX_WEB_PORT`) | *(Web em memória + conexão DB)* |
+| **`zabbix-agent`** | `infracontrol-zabbix-agent` | `zabbix/zabbix-agent2:alpine-7.0-latest` | `10053:10050` (`ZABBIX_AGENT_PORT`) | *(Métricas locais de teste)* |
+
+> **Nota F18-T001 (2026-10-02):** a diretriz do usuário é Zabbix **8.0**, mas
+> o registro oficial ainda marca 8.0 como *devel* e o Docker Hub **não
+> publica tags 8.0** nas 3 imagens (mais nova = 7.4.15). As imagens ficam
+> em `alpine-7.0-latest` até a decisão de upgrade (pendência registrada no
+> TASKS F18-T001). Portas vindas do `.env` — **8086** para o web porque
+> `8085` é do `HTTP_PORT` do frontend (decisão registrada).
 
 ### Credenciais e Acesso de Desenvolvimento
 
-- **Zabbix Web UI:** `http://localhost:8085` (Usuário: `Admin`, Senha padrão: `zabbix`).
-- **PostgreSQL Dedicado:** Host `zabbix-db` (porta interna `5432`, publicada no host como `5433`), BD `zabbix`, Usuário `zabbix`, Senha `${ZABBIX_DB_PASSWORD:-zabbix_dev_password_2026}`.
+- **Zabbix Web UI:** `http://localhost:8086` (Usuário: `Admin`, Senha padrão: `zabbix`).
+- **PostgreSQL Dedicado:** Host `zabbix-db` (porta interna `5432`, publicada no host como `5433`), BD `zabbix`, Usuário `zabbix`, Senha `${ZABBIX_DB_PASSWORD:-zabbix_dev_password_2026}` — host `5434` (`ZABBIX_DB_PORT`).
 
 ### Comandos de Operação
 

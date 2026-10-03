@@ -21,6 +21,14 @@ public static class AlertThresholds
 }
 
 /// <summary>
+/// Resultado da avaliação de um evento externo (F19-T003). <see cref="Suppressed"/>
+/// = nasceu ligado a um incidente upstream (correlação BFS); <see cref="IncidentId"/>
+/// nulo = severidade não-Critical (Warning não abre incidente).
+/// </summary>
+public sealed record ExternalEvaluationResult(
+    Guid AlertId, Guid? IncidentId, bool Suppressed);
+
+/// <summary>
 /// Avalia o resultado de um check e cria/resolve o Alert correspondente
 /// (pós-check, mesmo SaveChanges do MonitoringResult).
 /// </summary>
@@ -30,6 +38,18 @@ public interface IAlertEvaluator
         Device device,
         CheckKind kind,
         MonitoringResult result,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F19-T003 — evento externo (Zabbix) sem re-aplicar streaks: o Zabbix é
+    /// a autoridade da falha. Pipeline: identidade/idempotência → Device →
+    /// correlação BFS → supressão → Alert → Incident SOMENTE se Critical
+    /// (regras 1 e 4 da revisão arquitetural das F19/F20/F21).
+    /// </summary>
+    Task<ExternalEvaluationResult> EvaluateExternalAsync(
+        MonitoringEvent monitoringEvent,
+        string? host,
+        string? ip,
         CancellationToken cancellationToken = default);
 }
 
@@ -97,6 +117,108 @@ public sealed class AlertEvaluator(
         // (cobre a corrida: upstream/vizinho abriram depois; incidente
         // recém-criado ganhou causa direto no EnsureIncidentAsync).
         await rootCauseResolver.RefreshAsync(device.Id, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ExternalEvaluationResult> EvaluateExternalAsync(
+        MonitoringEvent monitoringEvent,
+        string? host,
+        string? ip,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Identidade/idempotência (regra 4): Alert já existe para
+        // (Source, ExternalProblemId) = replay do mesmo problem — devolve o
+        // estado atual sem criar Alert nem Incident novos.
+        var existing = await repository.GetByExternalAsync(
+            monitoringEvent.Source,
+            monitoringEvent.ExternalProblemId,
+            cancellationToken);
+        if (existing is not null)
+        {
+            var linked = await incidentRepository
+                .GetUnresolvedIdsLinkedToAlertAsync(existing.Id, cancellationToken);
+            return new(
+                existing.Id,
+                linked.Count > 0 ? linked[0] : null,
+                existing.Status == AlertStatus.Suppressed);
+        }
+
+        // 2. Alert — SEM reaplicar streak (regra 1): a severidade vem da
+        // fonte, o Zabbix é a autoridade da falha.
+        var alert = Alert.CreateExternal(
+            monitoringEvent.Id,
+            monitoringEvent.ExternalProblemId,
+            monitoringEvent.DeviceId,
+            kind: null,
+            MapAlertSeverity(monitoringEvent.Severity),
+            monitoringEvent.Message,
+            monitoringEvent.Source);
+
+        // 3. Correlação/topologia (BFS) → supressão: device alcançável com
+        // incidente aberto = vítima; o alerta nasce Suppressed e entra no
+        // incidente upstream — sem incidente próprio.
+        if (monitoringEvent.DeviceId is { } deviceId)
+        {
+            var upstream = await correlationRepository
+                .FindOpenIncidentUpstreamAsync(deviceId, cancellationToken);
+            if (upstream is not null)
+            {
+                alert.Suppress();
+                await repository.AddAsync(alert, cancellationToken);
+                await incidentRepository.AddLinkAsync(
+                    IncidentAlert.Create(upstream.IncidentId, alert.Id),
+                    cancellationToken);
+                return new(alert.Id, upstream.IncidentId, Suppressed: true);
+            }
+        }
+
+        await repository.AddAsync(alert, cancellationToken);
+
+        // 4. Incident SOMENTE se Critical (regra 1; Warning fica só Alert).
+        if (alert.Severity != AlertSeverity.Critical)
+            return new(alert.Id, null, Suppressed: false);
+
+        // 1 incidente por alert/problema (ADR-027 §3 — não reutiliza o
+        // GetOpenByDeviceAsync do nativo).
+        var incident = Incident.Create(
+            alert.Message,
+            MapIncidentSeverity(monitoringEvent.Severity),
+            monitoringEvent.DeviceId,
+            BuildExternalDescription(monitoringEvent, host, ip));
+        await incidentRepository.AddAsync(incident, cancellationToken);
+        await incidentRepository.AddLinkAsync(
+            IncidentAlert.Create(incident.Id, alert.Id), cancellationToken);
+
+        return new(alert.Id, incident.Id, Suppressed: false);
+    }
+
+    /// <summary>Severidade Zabbix (6 níveis) → IncidentSeverity (4 da UI).</summary>
+    internal static IncidentSeverity MapIncidentSeverity(int severity) => severity switch
+    {
+        0 or 1 => IncidentSeverity.Low,
+        2 => IncidentSeverity.Medium,
+        3 => IncidentSeverity.High,
+        _ => IncidentSeverity.Critical
+    };
+
+    /// <summary>Severidade Zabbix → AlertSeverity (0..2 Warning, 3..5 Critical).</summary>
+    internal static AlertSeverity MapAlertSeverity(int severity)
+        => severity >= 3 ? AlertSeverity.Critical : AlertSeverity.Warning;
+
+    /// <summary>Origem do evento para auditoria humana (partes presentes).</summary>
+    private static string BuildExternalDescription(
+        MonitoringEvent monitoringEvent, string? host, string? ip)
+    {
+        var parts = new List<string>(3)
+        {
+            $"evento {monitoringEvent.ExternalEventId}"
+        };
+        if (!string.IsNullOrWhiteSpace(host))
+            parts.Add($"host {host.Trim()}");
+        if (!string.IsNullOrWhiteSpace(ip))
+            parts.Add($"ip {ip.Trim()}");
+
+        return $"Recebido de {monitoringEvent.Source} — {string.Join(", ", parts)}.";
     }
 
     private async Task EvaluateSupplyAsync(

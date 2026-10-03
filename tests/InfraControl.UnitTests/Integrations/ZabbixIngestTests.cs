@@ -1,10 +1,12 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
+using InfraControl.Infrastructure.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -45,10 +47,34 @@ public sealed class ZabbixIngestTests : IDisposable
                 new MonitoringEventRepository(context),
                 new AlertRepository(context),
                 new IncidentRepository(context),
+                Evaluator(context),
                 context,
                 NullLogger<MonitoringEventIngestor>.Instance),
             new DeviceRepository(context),
             NullLogger<IngestZabbixProblemCommandHandler>.Instance);
+
+    // F19-T003: o ingestor delega Alert/Incident ao avaliador (mesma seam
+    // usada pelo AlertEvaluatorTests — repos reais em Sqlite).
+    private static AlertEvaluator Evaluator(AppDbContext context)
+        => new(new AlertRepository(context), new MonitoringResultRepository(context),
+            new IncidentRepository(context), new UpstreamCorrelationRepository(context),
+            new RootCauseResolver(new ConnectionRepository(context),
+                new AlertRepository(context), new DeviceRepository(context),
+                new UpstreamCorrelationRepository(context),
+                new IncidentRepository(context)));
+
+    // F6-T004/F19-T003: aresta de topologia para a correlação BFS.
+    private static async Task ConnectAsync(
+        AppDbContext context, Device from, Device to)
+    {
+        var nicFrom = NetworkInterface.Create(from.Id, $"eth-{from.Name}");
+        var nicTo = NetworkInterface.Create(to.Id, $"eth-{to.Name}");
+        context.NetworkInterfaces.AddRange(nicFrom, nicTo);
+        await context.SaveChangesAsync();
+        context.Connections.Add(Connection.Create(nicFrom.Id, nicTo.Id));
+        await context.SaveChangesAsync();
+    }
+
 
     private static IngestZabbixProblemCommand Problem(
         string eventId,
@@ -193,6 +219,139 @@ public sealed class ZabbixIngestTests : IDisposable
         (await context.Alerts.CountAsync()).Should().Be(1);
         (await context.Incidents.CountAsync()).Should().Be(1);
     }
+
+    /// <summary>
+    /// F19-T003/regra 4 (handoff): Problem 100 → Alert 100 → Incident 50;
+    /// o REENVIO do mesmo problem é no-op — não cria Alert novo nem Incident
+    /// novo (idempotência anti-storm por identidade, nunca por título).
+    /// </summary>
+    [Fact]
+    public async Task Problem_Resend_ShouldNotCreateNewAlertNorNewIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var handler = Handler(context);
+        var problem = Problem("100", name: "Ping down", severity: 5);
+
+        var first = await handler.Handle(problem, CancellationToken.None);
+        var resend = await handler.Handle(problem, CancellationToken.None);
+
+        first.Outcome.Should().Be("created");
+        first.IncidentId.Should().NotBeNull();
+
+        // Alert 100: mesma row antes e depois do reenvio (o DTO público
+        // expõe só incidentId/outcome — contrato docs/27 — então a prova do
+        // "mesmo alert" é a row no banco).
+        var alertId = (await context.Alerts.AsNoTracking().SingleAsync()).Id;
+        var incidentId = first.IncidentId;
+
+        resend.Outcome.Should().Be("duplicate");
+        resend.IncidentId.Should().Be(incidentId);
+
+        (await context.MonitoringEvents.CountAsync()).Should().Be(1);
+        (await context.Alerts.AsNoTracking().SingleAsync()).Id.Should().Be(alertId);
+        (await context.Incidents.CountAsync()).Should().Be(1);
+    }
+
+    // ── F19-T003: Incident SOMENTE se Critical ─────────────────────────────
+
+    [Fact]
+    public async Task Problem_WarningSeverity_ShouldCreateAlertWithoutIncident()
+    {
+        await using var context = await CreateContextAsync();
+        await SeedDeviceAsync(context);
+
+        var result = await Handler(context).Handle(
+            Problem("910", name: "CPU alta", severity: 2), CancellationToken.None);
+
+        result.Outcome.Should().Be("created");
+        result.IncidentId.Should().BeNull();
+
+        var alert = await context.Alerts.AsNoTracking().SingleAsync();
+        alert.Severity.Should().Be(AlertSeverity.Warning);
+        alert.Status.Should().Be(AlertStatus.Open);
+
+        (await context.Incidents.CountAsync()).Should().Be(0);
+    }
+
+    // ── F19-T003: correlação BFS + supressão topológica ────────────────────
+
+    [Fact]
+    public async Task Problem_DownstreamWithUpstreamIncident_ShouldSuppressAndLinkWithoutOwnIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, ip: "192.0.2.71", name: "sw-core");
+        var down = await SeedDeviceAsync(context, ip: "192.0.2.72", name: "sw-edge");
+        await ConnectAsync(context, up, down);
+
+        var rootIncident = Incident.Create(
+            "core fora do ar", IncidentSeverity.Critical, deviceId: up.Id);
+        context.Incidents.Add(rootIncident);
+        await context.SaveChangesAsync();
+
+        var result = await Handler(context).Handle(
+            Problem("920", host: "sw-edge", ip: "192.0.2.72",
+                name: "Link down", severity: 5),
+            CancellationToken.None);
+
+        // Alert externo nasce Suppressed e entra no incidente do upstream —
+        // sem incidente próprio (regra 1 do handoff: supressão antes do Incident).
+        result.Outcome.Should().Be("created");
+        result.IncidentId.Should().Be(rootIncident.Id);
+
+        var alert = await context.Alerts.AsNoTracking().SingleAsync();
+        alert.Status.Should().Be(AlertStatus.Suppressed);
+        alert.DeviceId.Should().Be(down.Id);
+
+        var link = await context.IncidentAlerts.AsNoTracking()
+            .SingleAsync(row => row.AlertId == alert.Id);
+        link.IncidentId.Should().Be(rootIncident.Id);
+
+        (await context.Incidents.CountAsync()).Should().Be(1);
+    }
+
+    /// <summary>
+    /// F19-T003 + regra 5: o recovery de um alerta Suppressed (vítima)
+    /// NÃO pode fechar o incidente upstream enquanto os demais alerts
+    /// vinculados ainda estiverem abertos.
+    /// </summary>
+    [Fact]
+    public async Task Ok_OnSuppressedAlert_ShouldKeepUpstreamIncidentWhileSiblingOpen()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, ip: "192.0.2.71", name: "sw-core");
+        var down = await SeedDeviceAsync(context, ip: "192.0.2.72", name: "sw-edge");
+        await ConnectAsync(context, up, down);
+        var handler = Handler(context);
+
+        // Incidente do upstream + alert dele ainda Open (a causa persiste).
+        var upstreamProblem = await handler.Handle(
+            Problem("1000", host: "sw-core", ip: "192.0.2.71",
+                name: "Core fora do ar", severity: 5), CancellationToken.None);
+        upstreamProblem.IncidentId.Should().NotBeNull();
+
+        // Vítima: filho suprimido pelo incidente do pai.
+        var suppressed = await handler.Handle(
+            Problem("1010", host: "sw-edge", ip: "192.0.2.72",
+                name: "Link down", severity: 5), CancellationToken.None);
+        suppressed.IncidentId.Should().Be(upstreamProblem.IncidentId);
+
+        // Recovery só do filho: alert do pai continua Open → incidente
+        // upstream deve permanecer não-Resolved (regra 5).
+        var resolved = await handler.Handle(
+            Ok("1010", recoveryEventId: "1011", host: "sw-edge",
+                ip: "192.0.2.72", name: "Link down", severity: 5),
+            CancellationToken.None);
+        resolved.Outcome.Should().Be("resolved");
+
+        var upstreamIncident = await context.Incidents.AsNoTracking()
+            .SingleAsync(row => row.Id == upstreamProblem.IncidentId);
+        upstreamIncident.Status.Should().NotBe(IncidentStatus.Resolved);
+
+        var siblingAlert = await context.Alerts.AsNoTracking()
+            .SingleAsync(row => row.ExternalProblemId == "1000");
+        siblingAlert.Status.Should().Be(AlertStatus.Open);
+    }
+
 
     [Fact]
     public async Task Problem_SameTitleDifferentEvents_ShouldCreateBoth()
@@ -394,15 +553,17 @@ public sealed class ZabbixIngestTests : IDisposable
             DateTimeOffset.FromUnixTimeSeconds(1790865600).UtcDateTime);
     }
 
+    // F19-T003/regra 1: severidade mapeada no Alert sempre; Incidente
+    // SOMENTE se Critical (0..2 = Warning → sem incidente).
     [Theory]
-    [InlineData(0, IncidentSeverity.Low, AlertSeverity.Warning)]
-    [InlineData(1, IncidentSeverity.Low, AlertSeverity.Warning)]
-    [InlineData(2, IncidentSeverity.Medium, AlertSeverity.Warning)]
+    [InlineData(0, null, AlertSeverity.Warning)]
+    [InlineData(1, null, AlertSeverity.Warning)]
+    [InlineData(2, null, AlertSeverity.Warning)]
     [InlineData(3, IncidentSeverity.High, AlertSeverity.Critical)]
     [InlineData(4, IncidentSeverity.Critical, AlertSeverity.Critical)]
     [InlineData(5, IncidentSeverity.Critical, AlertSeverity.Critical)]
-    public async Task Severity_ZabbixLevels_ShouldMapToIncidentAndAlert(
-        int zabbixLevel, IncidentSeverity expectedIncident, AlertSeverity expectedAlert)
+    public async Task Severity_ZabbixLevels_ShouldMapAlertAndIncidentOnlyWhenCritical(
+        int zabbixLevel, IncidentSeverity? expectedIncident, AlertSeverity expectedAlert)
     {
         await using var context = await CreateContextAsync();
 
@@ -411,11 +572,19 @@ public sealed class ZabbixIngestTests : IDisposable
                 name: $"Problema nível {zabbixLevel}", severity: zabbixLevel),
             CancellationToken.None);
 
-        var incident = await context.Incidents.AsNoTracking().SingleAsync();
-        incident.Severity.Should().Be(expectedIncident);
-
         var alert = await context.Alerts.AsNoTracking().SingleAsync();
         alert.Severity.Should().Be(expectedAlert);
+
+        var incident = await context.Incidents.AsNoTracking().FirstOrDefaultAsync();
+        if (expectedIncident is null)
+        {
+            incident.Should().BeNull();
+        }
+        else
+        {
+            incident.Should().NotBeNull();
+            incident!.Severity.Should().Be(expectedIncident);
+        }
     }
 
     // ── Validações pt-BR ───────────────────────────────────────────────────

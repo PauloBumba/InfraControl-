@@ -71,6 +71,23 @@ public sealed class IncidentTests
 
         incident.ChangeStatus(IncidentStatus.Resolved);
 
+        incident.DomainEvents.OfType<IncidentCreatedDomainEvent>().Should().BeEmpty();
+
+        // F19-T007: a resolução levanta IncidentResolvedDomainEvent
+        // (notificação Operator + Admin); outros status não levantam nada.
+        var resolved = incident.DomainEvents.OfType<IncidentResolvedDomainEvent>().Single();
+        resolved.IncidentId.Should().Be(incident.Id);
+        resolved.Title.Should().Be("Para resolver");
+    }
+
+    [Fact]
+    public void ChangeStatus_NonResolvedStatus_ShouldNotRaiseResolvedEvent()
+    {
+        var incident = Incident.Create("Investigar", IncidentSeverity.Low);
+        incident.ClearDomainEvents();
+
+        incident.ChangeStatus(IncidentStatus.Investigating);
+
         incident.DomainEvents.Should().BeEmpty();
     }
 

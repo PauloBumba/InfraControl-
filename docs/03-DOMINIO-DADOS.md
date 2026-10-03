@@ -61,6 +61,16 @@ Tipos:
 - UPS
 - Other
 
+### ExternalDeviceReference (F19-T006)
+
+Identidade externa estável do device (`external_device_references`):
+`1 Device → N referências`, unicidade física em `(source, external_id)`
+— a ponte **"MAC/Device ID → Device"** das integrações (UniFi na F20).
+`source` ∈ `UniFi | Zabbix`; o identificador é normalizado (trim +
+minúsculas) no domínio e no lookup. **A resolução do Zabbix por
+IP/hostname não muda** (regra 6 da revisão F19/F20/F21): esta tabela só
+é consultada quando a fonte manda um identificador estável.
+
 ## Relacionamentos
 
 ```text

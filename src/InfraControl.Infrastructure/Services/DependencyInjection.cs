@@ -3,6 +3,7 @@ using InfraControl.Application.Notifications.Webhook;
 using InfraControl.Application.Notifications.Slack;
 using InfraControl.Application.Notifications.Telegram;
 using InfraControl.Application.Notifications.WhatsApp;
+using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
@@ -100,7 +101,19 @@ public static class DependencyInjection
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
         services.AddScoped<IEmailNotificationDispatcher, LoggingEmailNotificationDispatcher>();
-        services.AddScoped<IWebhookNotificationDispatcher, LoggingWebhookNotificationDispatcher>();
+
+        // F19-T007/ADR-028 §6: POST real no n8n (substitui o adaptador de
+        // log). Resiliência Polly no handler do IHttpClientFactory — retry
+        // 3× backoff exponencial (1s, 2s, 4s) com jitter + circuit breaker
+        // (5 falhas em 30s → circuito aberto por 60s). REGRA (regra 7): o
+        // n8n só recebe a notificação; o estado do Incidente é 100% do
+        // InfraControl — n8n nunca decide Incident = Resolved.
+        services.AddScoped<IWebhookNotificationDispatcher, HttpWebhookNotificationDispatcher>();
+        services.AddHttpClient(HttpWebhookNotificationDispatcher.HttpClientName)
+            .AddResilienceHandler(
+                "n8n-webhook",
+                static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
+
         services.AddScoped<ISlackNotificationDispatcher, LoggingSlackNotificationDispatcher>();
         services.AddScoped<ITelegramNotificationDispatcher, LoggingTelegramNotificationDispatcher>();
         services.AddScoped<IWhatsAppNotificationDispatcher, LoggingWhatsAppNotificationDispatcher>();

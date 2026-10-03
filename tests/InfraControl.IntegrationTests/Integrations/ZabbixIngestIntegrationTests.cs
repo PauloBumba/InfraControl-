@@ -66,8 +66,10 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
 
+        // F19-T003: incidente só Critical — severity 3 (High) mantém a
+        // intenção do teste (host fora do inventário → incidente sem device).
         var created = await mediator.Send(new IngestZabbixProblemCommand(
-            "evt-3", null, "host-fora-do-inventario", "203.0.113.50", "Backup falhou", 2, "PROBLEM", null));
+            "evt-3", null, "host-fora-do-inventario", "203.0.113.50", "Backup falhou", 3, "PROBLEM", null));
         created.Outcome.Should().Be("created");
 
         var incident = await mediator.Send(

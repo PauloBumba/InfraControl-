@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.UnitTests.Alerts;
 
@@ -46,6 +47,12 @@ public sealed class AlertTests
 
         alert.Status.Should().Be(AlertStatus.Resolved);
         alert.ResolvedAt.Should().NotBeNull();
+
+        // F19-T007: resolução levanta AlertResolvedDomainEvent (notificação
+        // Operator + Admin pelo NotificationEventConsumer).
+        var resolved = alert.DomainEvents.OfType<AlertResolvedDomainEvent>().Single();
+        resolved.AlertId.Should().Be(alert.Id);
+        resolved.Message.Should().Be("toner 18%");
     }
 
     [Fact]
@@ -59,6 +66,7 @@ public sealed class AlertTests
         alert.Resolve();
 
         alert.ResolvedAt.Should().Be(first);
+        alert.DomainEvents.OfType<AlertResolvedDomainEvent>().Should().HaveCount(1);
     }
 
     // ── F6-T004: Suppressed (supressão topológica) ─────────────────────
@@ -124,6 +132,12 @@ public sealed class AlertTests
 
         alert.Status.Should().Be(AlertStatus.Resolved);
         alert.ResolvedAt.Should().NotBeNull();
+
+        // F19-T007: resolução levanta AlertResolvedDomainEvent (notificação
+        // Operator + Admin pelo NotificationEventConsumer).
+        var resolved = alert.DomainEvents.OfType<AlertResolvedDomainEvent>().Single();
+        resolved.AlertId.Should().Be(alert.Id);
+        resolved.Message.Should().Be("toner 18%");
     }
 
     [Fact]

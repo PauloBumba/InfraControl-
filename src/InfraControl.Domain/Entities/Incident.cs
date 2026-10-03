@@ -67,9 +67,18 @@ public sealed class Incident : AggregateRoot
 
         Status = status;
         if (status == IncidentStatus.Resolved)
+        {
             ResolvedAt ??= AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+
+            // F19-T007: resolução → notificação Operator + Admin (só o
+            // InfraControl decide Incident = Resolved — regra 7).
+            RaiseDomainEvent(new IncidentResolvedDomainEvent(
+                Id, Title, Severity, DeviceId));
+        }
         else
+        {
             ResolvedAt = null;
+        }
     }
 
     public void Acknowledge()

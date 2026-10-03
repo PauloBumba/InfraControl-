@@ -98,12 +98,15 @@ transições livres já cobre o ack (a operação "Acknowledge" mapeia
 `Open → Investigating`). Um estado `Acknowledged` adicional seria
 redundante — **o plano original que previa esse estado foi corrigido aqui**.
 
-### 6. Notificação: sem novos domain events nesta fase
+### 6. Notificação: domain events (amend F19-T007)
 
-Só `IncidentCreatedDomainEvent` continua sendo levantado (1 notificação por
-incidente, F16-T002). `AlertCreated/AlertResolved/IncidentResolved` ficam
-para a etapa de "Notificações de alerta/incidente" do roadmap — política
-registrada, não implementada aqui.
+Nesta fase só `IncidentCreatedDomainEvent` era levantado (1 notificação por
+incidente, F16-T002). **Amend (F19-T007, HANDOFF da sessão paralela)**:
+`AlertResolvedDomainEvent` (`Alert.Resolve`) e `IncidentResolvedDomainEvent`
+(`Incident.ChangeStatus → Resolved`) passaram a ser levantados — o
+`NotificationEventConsumer` notifica as roles `Operator` e `Admin`
+(mesmo padrão do `IncidentCreated`). `AlertCreated` continua fora (alerta
+sem resolução não gera notificação).
 
 ## Consequências
 

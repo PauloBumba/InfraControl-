@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
@@ -206,12 +207,7 @@ export function DashboardPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} />}
 
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>

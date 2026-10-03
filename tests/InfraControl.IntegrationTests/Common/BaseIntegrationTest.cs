@@ -85,6 +85,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
+        // F19-T006: identidade externa estável do device (MAC/Device ID)
+        services.AddScoped<IExternalDeviceReferenceRepository, ExternalDeviceReferenceRepository>();
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
         services.AddScoped<IAlertRepository, AlertRepository>();

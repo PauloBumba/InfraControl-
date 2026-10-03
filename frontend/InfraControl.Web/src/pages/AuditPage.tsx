@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { DataTable, type DataTablePageEvent } from "primereact/datatable";
+import { Column } from "primereact/column";
 import { formatDateTime } from "@/utils/format";
 import {
   AUDIT_OUTCOME_FAILED,
   AUDIT_OUTCOME_SUCCEEDED,
   listAuditEntries,
+  type AuditEntry,
   type PagedAudit,
 } from "@/services/api/audit";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { CopyableId } from "@/components/ui/CopyableId";
 
 /**
  * F17-T002 — AuditPage conectada ao backend (substitui o mock de
@@ -18,6 +26,16 @@ import {
  * saíram. Período: `from`/`to` existem na API desde o reader e esta task
  * liga o seletor (`datetime-local` no fuso local → instante UTC no serviço;
  * "Até" inclusivo até o fim do minuto).
+ *
+ * Legibilidade (2026-10-02, pedido: "sem id cru, nome para facilitar;
+ * fácil de ler/achar"): Ator exibe `displayName` + e-mail resolvidos via
+ * `listUsers()` — o contrato traz em `actorId` o `CurrentUser.UserName`
+ * (= e-mail do Identity), então o mapa indexa por userId e por e-mail; o
+ * valor original fica no `title` da célula e é o fallback quando não há
+ * correspondência (usuário removido). Ação em PascalCase humanizada com o
+ * valor cru no `title` (o filtro é igualdade exata). Correlation truncada
+ * com clique para copiar (pi-copy → pi-check), pronta para colar no
+ * rastreador da LogsPage.
  */
 
 const PAGE_SIZE = 20;
@@ -43,10 +61,26 @@ function messageFor(error: unknown): string {
     : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
+/**
+ * "LoginWithMfa" → "Login With Mfa". O valor cru continua no `title` da
+ * célula (filtro de ação é igualdade exata — o operador copia de lá).
+ */
+function humanizeAction(action: string): string {
+  return action
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
+}
+
 export function AuditPage() {
   const [pageData, setPageData] = useState<PagedAudit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Mapa de resolução do ATOR: o backend grava em `actorId` o
+  // `CurrentUser.UserName` (= e-mail do Identity), NÃO o GUID — o mapa é
+  // indexado por userId e por e-mail (minúsculas) para achar nos dois
+  // sentidos. Falha silenciosa: sem mapa, a célula exibe o valor cru (um
+  // e-mail, que já é legível).
+  const [usersById, setUsersById] = useState<Map<string, AdminUser>>(new Map());
 
   const [page, setPage] = useState(1);
   const [outcome, setOutcome] = useState("");
@@ -85,6 +119,24 @@ export function AuditPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void listUsers()
+      .then((users) => {
+        if (cancelled) return;
+        const map = new Map<string, AdminUser>();
+        for (const user of users) {
+          map.set(user.userId, user);
+          map.set(user.email.toLowerCase(), user);
+        }
+        setUsersById(map);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function applyAction(event: FormEvent) {
     event.preventDefault();
     if (fromInput && toInput && fromInput > toInput) {
@@ -112,19 +164,23 @@ export function AuditPage() {
 
   const entries = pageData?.items ?? [];
   const totalCount = pageData?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilters =
     action !== "" || outcome !== "" || from !== "" || to !== "";
 
+  // Paginator do DataTable é controlado: o evento `first` vira a página
+  // server-side (mesma semântica do bloco manual "Anterior/Próxima").
+  function handlePageChange(event: DataTablePageEvent) {
+    setPage(Math.floor(event.first / PAGE_SIZE) + 1);
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Auditoria</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "evento" : "eventos"}`}
-          </p>
-        </div>
+      <PageHeader
+        title="Auditoria"
+        subtitle={
+          loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "evento" : "eventos"}`
+        }
+        actions={
         <form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f1f5f9", borderRadius: 6, padding: "6px 12px" }}>
             <i className="pi pi-search" style={{ fontSize: 12, color: "#94a3b8" }} />
@@ -176,99 +232,106 @@ export function AuditPage() {
             </button>
           )}
         </form>
-      </div>
+        }
+      />
 
-      {formError && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{formError}</span>
-        </div>
-      )}
+      {formError && <ErrorBanner message={formError} />}
 
-      {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       <div className="uni-panel">
-        <table className="uni-logs-table">
-          <thead>
-            <tr>
-              <th style={{ width: 150 }}>Data/Hora</th>
-              <th style={{ width: 200 }}>Ação</th>
-              <th style={{ width: 180 }}>Recurso</th>
-              <th style={{ width: 90 }}>Resultado</th>
-              <th>Ator</th>
-              <th style={{ width: 130 }}>Correlation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => {
-              const chip = outcomeChip(entry.outcome);
+        <DataTable
+          value={entries}
+          loading={loading}
+          size="small"
+          paginator
+          rows={PAGE_SIZE}
+          first={(page - 1) * PAGE_SIZE}
+          totalRecords={totalCount}
+          onPage={handlePageChange}
+          lazy
+          alwaysShowPaginator={totalCount > PAGE_SIZE}
+          paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+          currentPageReportTemplate="Página {currentPage} de {totalPages} ({totalRecords} eventos)"
+          emptyMessage={error ? "—" : "Nenhum evento encontrado"}
+          tableStyle={{ width: "100%" }}
+        >
+          <Column
+            header="Data/Hora"
+            body={(row: AuditEntry) => formatDateTime(new Date(row.occurredAt))}
+            style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b", width: 150 }}
+          />
+          <Column
+            header="Ação"
+            body={(row: AuditEntry) => (
+              <span
+                style={{ fontSize: 12, fontWeight: 500, cursor: "help" }}
+                title={`${row.action} — copie este valor para o filtro "Ação exata"`}
+              >
+                {humanizeAction(row.action)}
+              </span>
+            )}
+            style={{ width: 200 }}
+          />
+          <Column
+            field="resource"
+            header="Recurso"
+            style={{ fontSize: 12, color: "#64748b", width: 180 }}
+          />
+          <Column
+            header="Resultado"
+            body={(row: AuditEntry) => {
+              const chip = outcomeChip(row.outcome);
               return (
-                <tr key={entry.id}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>
-                    {formatDateTime(new Date(entry.occurredAt))}
-                  </td>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{entry.action}</td>
-                  <td style={{ fontSize: 12, color: "#64748b" }}>{entry.resource}</td>
-                  <td>
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: chip.background, color: chip.color }}>
-                      {chip.label}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: 12 }}>
-                    {entry.actorId ?? <span style={{ color: "#94a3b8" }}>sistema</span>}
-                    {entry.error && (
-                      <div style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>{entry.error}</div>
-                    )}
-                  </td>
-                  <td style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{entry.correlationId}</td>
-                </tr>
+                <StatusChip
+                  label={chip.label}
+                  background={chip.background}
+                  color={chip.color}
+                />
               );
-            })}
-            {!loading && entries.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  {error ? "—" : "Nenhum evento encontrado"}
-                </td>
-              </tr>
-            )}
-            {loading && entries.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Carregando…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            }}
+            style={{ width: 90 }}
+          />
+          <Column
+            header="Ator"
+            body={(row: AuditEntry) => {
+              if (!row.actorId)
+                return <span style={{ color: "#94a3b8" }}>sistema</span>;
+              const user =
+                usersById.get(row.actorId) ??
+                usersById.get(row.actorId.toLowerCase());
+              return (
+                <span title={row.actorId}>
+                  {user ? (
+                    <>
+                      <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                        <i className="pi pi-user" style={{ fontSize: 11, color: "#94a3b8" }} />
+                        {user.displayName}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{user.email}</div>
+                    </>
+                  ) : (
+                    // Sem correspondência (usuário removido): o valor gravado
+                    // é o UserName/e-mail — exibe cru, legível.
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <i className="pi pi-user" style={{ fontSize: 11, color: "#94a3b8" }} />
+                      {row.actorId}
+                    </span>
+                  )}
+                  {row.error && (
+                    <div style={{ fontSize: 11, color: "#dc2626", marginTop: 2 }}>{row.error}</div>
+                  )}
+                </span>
+              );
+            }}
+          />
+          <Column
+            header="Correlation"
+            body={(row: AuditEntry) => <CopyableId value={row.correlationId} />}
+            style={{ width: 130 }}
+          />
+        </DataTable>
       </div>
-
-      {totalCount > PAGE_SIZE && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, fontSize: 12, color: "#64748b" }}>
-          <span>Página {page} de {totalPages}</span>
-          <button
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            disabled={page <= 1 || loading}
-            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
-          >
-            Anterior
-          </button>
-          <button
-            onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-            disabled={page >= totalPages || loading}
-            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page >= totalPages ? "default" : "pointer", opacity: page >= totalPages ? 0.5 : 1 }}
-          >
-            Próxima
-          </button>
-        </div>
-      )}
     </div>
   );
 }

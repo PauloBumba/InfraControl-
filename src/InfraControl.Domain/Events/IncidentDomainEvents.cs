@@ -29,3 +29,30 @@ public sealed class IncidentCreatedDomainEvent : DomainEvent
     public Guid? DeviceId { get; }
     public override string EventType => nameof(IncidentCreatedDomainEvent);
 }
+
+/// <summary>
+/// F19-T007: incidente resolvido (ChangeStatus → Resolved — comandos da
+/// API, recuperação Zabbix ou outra fonte). O NotificationEventConsumer
+/// avisa as roles Operator e Admin (regra 7 da revisão: só o InfraControl
+/// decide a resolução; o n8n nunca manda nesse estado).
+/// </summary>
+public sealed class IncidentResolvedDomainEvent : DomainEvent
+{
+    public IncidentResolvedDomainEvent(
+        Guid incidentId,
+        string title,
+        IncidentSeverity severity,
+        Guid? deviceId)
+    {
+        IncidentId = incidentId;
+        Title = title;
+        Severity = severity;
+        DeviceId = deviceId;
+    }
+
+    public Guid IncidentId { get; }
+    public string Title { get; }
+    public IncidentSeverity Severity { get; }
+    public Guid? DeviceId { get; }
+    public override string EventType => nameof(IncidentResolvedDomainEvent);
+}

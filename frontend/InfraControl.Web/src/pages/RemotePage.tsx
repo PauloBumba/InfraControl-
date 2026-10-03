@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { useCan } from "@/app/router/access";
 import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import {
@@ -167,13 +169,10 @@ export function RemotePage() {
       </div>
 
       {devicesError && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{devicesError}</span>
-          <button onClick={() => void loadDevices()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
+        <ErrorBanner
+          message={devicesError}
+          onRetry={() => void loadDevices()}
+        />
       )}
 
       {/* Dispositivos (seletor — reusa o inventário do T007) */}
@@ -267,20 +266,15 @@ export function RemotePage() {
           </div>
 
           {notice && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d", marginBottom: 10 }}>
-              <i className="pi pi-check-circle" />
-              <span>{notice}</span>
-            </div>
+            <NoticeBanner message={notice} style={{ marginBottom: 10 }} />
           )}
 
           {error && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c", marginBottom: 10 }}>
-              <i className="pi pi-exclamation-circle" />
-              <span>{error}</span>
-              <button onClick={() => void loadSessions(selected.id)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-                Tentar de novo
-              </button>
-            </div>
+            <ErrorBanner
+              message={error}
+              onRetry={() => void loadSessions(selected.id)}
+              style={{ marginBottom: 10 }}
+            />
           )}
 
           <div className="uni-panel">

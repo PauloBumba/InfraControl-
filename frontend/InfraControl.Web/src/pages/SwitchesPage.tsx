@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import {
   listLocations,
   listSwitchPorts,
@@ -149,15 +150,7 @@ export function SwitchesPage() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
         {switches.map((sw) => (
@@ -198,13 +191,11 @@ export function SwitchesPage() {
         </div>
 
         {portsError && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-            <i className="pi pi-exclamation-circle" />
-            <span>{portsError}</span>
-            <button onClick={retryPorts} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-              Tentar de novo
-            </button>
-          </div>
+          <ErrorBanner
+            message={portsError}
+            onRetry={retryPorts}
+            style={{ padding: "10px 16px", borderRadius: 0 }}
+          />
         )}
 
         {portsLoading && (

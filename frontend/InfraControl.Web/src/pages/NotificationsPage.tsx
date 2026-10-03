@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useCan } from "@/app/router/access";
 import { useAppSelector } from "@/app/store/hooks";
 import { formatDateTime } from "@/utils/format";
+import { Pagination } from "@/components/ui/Pagination";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import {
   CHANNELS,
   CHANNEL_ICON,
@@ -43,18 +45,6 @@ function messageFor(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
-function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-      <i className="pi pi-exclamation-circle" />
-      <span>{message}</span>
-      <button onClick={onRetry} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-        Tentar de novo
-      </button>
-    </div>
-  );
 }
 
 export function NotificationsPage() {
@@ -234,23 +224,12 @@ export function NotificationsPage() {
           </div>
 
           {feedTotal > PAGE_SIZE && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, fontSize: 12, color: "#64748b" }}>
-              <span>Página {feedPage} de {feedTotalPages}</span>
-              <button
-                onClick={() => setFeedPage((value) => Math.max(1, value - 1))}
-                disabled={feedPage <= 1 || feedLoading}
-                style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: feedPage <= 1 ? "default" : "pointer", opacity: feedPage <= 1 ? 0.5 : 1 }}
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => setFeedPage((value) => Math.min(feedTotalPages, value + 1))}
-                disabled={feedPage >= feedTotalPages || feedLoading}
-                style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: feedPage >= feedTotalPages ? "default" : "pointer", opacity: feedPage >= feedTotalPages ? 0.5 : 1 }}
-              >
-                Próxima
-              </button>
-            </div>
+            <Pagination
+              page={feedPage}
+              totalPages={feedTotalPages}
+              disabled={feedLoading}
+              onPage={setFeedPage}
+            />
           )}
         </>
       )}

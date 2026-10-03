@@ -29,7 +29,9 @@ public sealed class NotificationEventConsumer(
       IConsumer<UserRoleAssignedDomainEvent>,
       IConsumer<UserRoleRemovedDomainEvent>,
       IConsumer<InvitationAcceptedDomainEvent>,
-      IConsumer<IncidentCreatedDomainEvent>
+      IConsumer<IncidentCreatedDomainEvent>,
+      IConsumer<IncidentResolvedDomainEvent>,
+      IConsumer<AlertResolvedDomainEvent>
 {
     public const string ConsumerName = "NotificationConsumer";
 
@@ -44,6 +46,31 @@ public sealed class NotificationEventConsumer(
             context.Message.EventType,
             "Incidente aberto",
             $"O incidente '{context.Message.Title}' foi aberto ({context.Message.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            context.CancellationToken);
+
+    /// <summary>
+    /// F19-T007: resolução do incidente (regra 7: só o InfraControl decide)
+    /// → Operator + Admin.
+    /// </summary>
+    public Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Incidente resolvido",
+            $"O incidente '{context.Message.Title}' foi resolvido ({context.Message.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            context.CancellationToken);
+
+    /// <summary>F19-T007: alerta resolvido → Operator + Admin.</summary>
+    public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Alerta resolvido",
+            $"O alerta '{context.Message.Message}' foi resolvido.",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken);

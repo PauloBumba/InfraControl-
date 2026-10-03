@@ -1,6 +1,7 @@
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -98,6 +99,9 @@ public sealed class Alert : AggregateRoot
 
         Status = AlertStatus.Resolved;
         ResolvedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+
+        // F19-T007: resolução → notificação Operator + Admin.
+        RaiseDomainEvent(new AlertResolvedDomainEvent(Id, Message, DeviceId));
     }
 
     /// <summary>F6-T004: Open → Suppressed (upstream com incidente aberto).</summary>

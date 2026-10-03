@@ -356,6 +356,46 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("discovery_runs", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.ExternalDeviceReference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("Source", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_external_device_references_source_external_id");
+
+                    b.ToTable("external_device_references", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Incident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2343,6 +2383,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.DiscoveryRun", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.ExternalDeviceReference", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.Device", null)
                         .WithMany()

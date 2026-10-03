@@ -5,6 +5,8 @@ import {
   type AlertStatusFilter,
 } from "@/services/api/alerts";
 import { formatDateTime } from "@/utils/format";
+import { Pagination } from "@/components/ui/Pagination";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 /**
  * F17-T011 — AlertsPage conectada ao backend (substitui `alertsData` de
@@ -108,15 +110,7 @@ export function AlertsPage() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-          <button onClick={() => void load()} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       <div className="uni-panel">
         <div className="uni-alerts-list">
@@ -165,23 +159,12 @@ export function AlertsPage() {
       </div>
 
       {totalCount > PAGE_SIZE && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, fontSize: 12, color: "#64748b" }}>
-          <span>Página {page} de {totalPages}</span>
-          <button
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-            disabled={page <= 1 || loading}
-            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1 }}
-          >
-            Anterior
-          </button>
-          <button
-            onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-            disabled={page >= totalPages || loading}
-            style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, color: "#374151", cursor: page >= totalPages ? "default" : "pointer", opacity: page >= totalPages ? 0.5 : 1 }}
-          >
-            Próxima
-          </button>
-        </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          disabled={loading}
+          onPage={setPage}
+        />
       )}
     </div>
   );

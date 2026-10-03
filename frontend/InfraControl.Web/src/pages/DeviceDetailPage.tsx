@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import {
@@ -316,13 +317,13 @@ export function DeviceDetailPage() {
       </div>
 
       {error && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#fef2f2", color: "#b91c1c" }}>
-          <i className="pi pi-exclamation-circle" />
-          <span>{error}</span>
-          <button onClick={() => { setError(null); requestTab(tab, true); }} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>
-            Tentar de novo
-          </button>
-        </div>
+        <ErrorBanner
+          message={error}
+          onRetry={() => {
+            setError(null);
+            requestTab(tab, true);
+          }}
+        />
       )}
 
       {/* Abas */}
