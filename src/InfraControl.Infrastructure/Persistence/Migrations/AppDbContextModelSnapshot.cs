@@ -32,12 +32,16 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("DeviceId")
+                    b.Property<Guid?>("DeviceId")
                         .HasColumnType("uuid")
                         .HasColumnName("device_id");
 
+                    b.Property<string>("ExternalProblemId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_problem_id");
+
                     b.Property<string>("Kind")
-                        .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("kind");
@@ -48,6 +52,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("message");
 
+                    b.Property<Guid?>("MonitoringEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("monitoring_event_id");
+
                     b.Property<DateTime?>("ResolvedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("resolved_at");
@@ -57,6 +65,12 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("severity");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -69,8 +83,13 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MonitoringEventId");
+
                     b.HasIndex("DeviceId", "Kind")
                         .HasDatabaseName("IX_alerts_device_id_kind");
+
+                    b.HasIndex("Source", "ExternalProblemId")
+                        .HasDatabaseName("IX_alerts_source_external_problem_id");
 
                     b.ToTable("alerts", (string)null);
                 });
@@ -765,6 +784,93 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_monitoring_checks_device_id_kind");
 
                     b.ToTable("monitoring_checks", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CheckType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("check_type");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("ExternalEventId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_event_id");
+
+                    b.Property<string>("ExternalProblemId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_problem_id");
+
+                    b.Property<string>("ExternalRecoveryId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("external_recovery_id");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("message");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("RawPayload")
+                        .HasColumnType("text")
+                        .HasColumnName("raw_payload");
+
+                    b.Property<DateTime?>("RecoveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recovered_at");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("Source", "ExternalEventId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_monitoring_events_source_external_event_id");
+
+                    b.HasIndex("Source", "ExternalProblemId")
+                        .HasDatabaseName("IX_monitoring_events_source_external_problem_id");
+
+                    b.ToTable("monitoring_events", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringResult", b =>
@@ -1780,7 +1886,6 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("InfraControl.Domain.Entities.UserRoleAssignment", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreateDateTime")
@@ -2186,8 +2291,12 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Device", null)
                         .WithMany()
                         .HasForeignKey("DeviceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("InfraControl.Domain.Entities.MonitoringEvent", null)
+                        .WithMany()
+                        .HasForeignKey("MonitoringEventId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.Connection", b =>
@@ -2352,6 +2461,14 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringEvent", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringResult", b =>

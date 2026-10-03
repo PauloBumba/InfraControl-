@@ -803,6 +803,64 @@ public sealed class AlertEvaluatorTests : IDisposable
             "sem vínculos (manual) — fecha só por comando, não por recovery");
     }
 
+    // ── ADR-027: incidente não-Resolved (bugfix do ciclo) ────────────────
+
+    [Fact]
+    public async Task FailingCheck_WithIncidentInvestigating_ShouldReuseInsteadOfCreatingSecond()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        var incident = Incident.Create(
+            "fora do ar", IncidentSeverity.Critical, deviceId: device.Id);
+        context.Incidents.Add(incident);
+        await context.SaveChangesAsync();
+        incident.ChangeStatus(IncidentStatus.Investigating);
+        await context.SaveChangesAsync();
+
+        // check continua falhando: streak completo + falha atual
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(2));
+        await SeedHistoryAsync(context, device.Id, succeeded: false, At(1));
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await context.Incidents.CountAsync()).Should().Be(1,
+            "incidente em Investigating é não-Resolved — reutiliza, não abre o 2º");
+        (await context.Alerts.AsNoTracking().CountAsync()).Should().Be(1);
+        (await context.IncidentAlerts.AsNoTracking().CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PingUp_ShouldCloseIncidentEvenWhenInvestigating()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        var alert = Alert.Create(
+            device.Id, CheckKind.Ping, AlertSeverity.Critical, "down");
+        context.Alerts.Add(alert);
+        var incident = Incident.Create(
+            "fora do ar", IncidentSeverity.Critical, deviceId: device.Id);
+        context.Incidents.Add(incident);
+        await context.SaveChangesAsync();
+        incident.ChangeStatus(IncidentStatus.Investigating);
+        await context.SaveChangesAsync();
+        context.IncidentAlerts.Add(IncidentAlert.Create(incident.Id, alert.Id));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            device, CheckKind.Ping, Result(CheckKind.Ping, succeeded: true),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var closed = await context.Incidents.AsNoTracking()
+            .FirstAsync(i => i.Id == incident.Id);
+        closed.Status.Should().Be(IncidentStatus.Resolved,
+            "recovery fecha qualquer estado != Resolved, não só Open");
+        closed.ResolvedAt.Should().NotBeNull();
+    }
+
     // ── casos que NÃO avaliam ────────────────────────────────────────────
 
     [Fact]

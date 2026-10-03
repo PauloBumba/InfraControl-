@@ -133,7 +133,7 @@ export function AlertsPage() {
                   <i className={severity.icon} />
                 </div>
                 <div className="uni-alert-body">
-                  <div className="uni-alert-title">{alert.deviceName} · {alert.check}</div>
+                  <div className="uni-alert-title">{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</div>
                   <div className="uni-alert-detail">{alert.message}</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>

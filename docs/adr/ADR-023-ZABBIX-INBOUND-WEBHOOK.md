@@ -1,10 +1,17 @@
 # ADR-023 — Webhook de entrada do Zabbix
 
-- **Status**: aceito
+- **Status**: aceito (amendado pelo [ADR-027](ADR-027-MONITORING-EVENT-INGESTION.md) em 2026-10-02)
 - **Data**: 2026-09-30
 - **Contexto**: F16-T001 (decisões do usuário 2026-09-30: direção "Zabbix →
   InfraControl", incidente como destino, sem device conhecido cria sem device,
   recuperação OK fecha automático)
+
+> **Amenda ADR-027**: endpoint/token/comportamento acima continuam válidos; o
+> payload ganhou `recoveryEventId`/`occurredAt` e `eventId` ficou obrigatório
+> (chave de dedup por `(source, external_event_id)` no lugar do título+device).
+> O webhook agora cria `MonitoringEvent` + `Alert` + `Incident` (pipeline do
+> ADR-027) — a seção "Alternativas descartadas → Criar `Alert`" abaixo foi
+> superada por essa decisão. Contrato atualizado em `docs/27`.
 
 ## Problema
 

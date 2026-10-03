@@ -20,6 +20,7 @@ using InfraControl.Application.Inventory.MacAddresses.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
+using InfraControl.Application.Monitoring.Events;
 using InfraControl.Application.Monitoring.Polling;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
@@ -193,6 +194,10 @@ public static class DependencyInjection
         services.AddScoped<INeighborConnectionImporter, NeighborConnectionImporter>();
         services.AddScoped<IMonitoringProvider, PingMonitoringProvider>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
+        // ADR-027: pipeline externo Zabbix → MonitoringEvent → Alert → Incident
+        // (o par IMonitoringEventRepository ↔ MonitoringEventRepository nasce
+        // no AddRepositoryRegistrations, lá embaixo).
+        services.AddScoped<IMonitoringEventIngestor, MonitoringEventIngestor>();
         services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.Configure<SnmpOptions>(configuration.GetSection(SnmpOptions.SectionName));
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();

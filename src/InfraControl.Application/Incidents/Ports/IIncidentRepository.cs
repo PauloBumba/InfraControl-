@@ -12,11 +12,13 @@ public interface IIncidentRepository : IRepository<Incident>
         Guid deviceId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Incident não-Resolved com mesmo título e device (null incluso) —
-    /// dedup/fechamento do webhook Zabbix (F16-T001/ADR-023).
+    /// ADR-027: incident não-Resolved do device (Status != Resolved) — usado
+    /// pelo avaliador (F6-T003/F6-T006) para o ciclo com incidente em
+    /// Investigating/Identified/Monitoring: sem isto cada falha reabria um
+    /// novo incidente e o recovery não fechava o existente.
     /// </summary>
-    Task<Incident?> GetOpenByTitleAndDeviceAsync(
-        string title, Guid? deviceId, CancellationToken cancellationToken = default);
+    Task<Incident?> GetUnresolvedByDeviceAsync(
+        Guid deviceId, CancellationToken cancellationToken = default);
 
     /// <summary>Alert já vinculado ao incidente?</summary>
     Task<bool> IsAlertLinkedAsync(
@@ -29,10 +31,18 @@ public interface IIncidentRepository : IRepository<Incident>
         Guid incidentId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Ids de Incident Open vinculados ao alerta (F6-T006 — fechamento
-    /// por recovery).
+    /// Ids de Incident não-Resolved (Status != Resolved) vinculados ao
+    /// alerta (F6-T006/ADR-027 — fechamento por recovery em qualquer estado
+    /// não-Resolved, não só Open).
     /// </summary>
-    Task<IReadOnlyList<Guid>> GetOpenIdsLinkedToAlertAsync(
+    Task<IReadOnlyList<Guid>> GetUnresolvedIdsLinkedToAlertAsync(
+        Guid alertId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ids de Incident vinculados ao alerta em qualquer status (contrato de
+    /// resposta do webhook Zabbix: devolve o incidente mesmo já resolvido).
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetLinkedIdsToAlertAsync(
         Guid alertId, CancellationToken cancellationToken = default);
 
     /// <summary>Paginado, mais recente primeiro — filtros device/status.</summary>

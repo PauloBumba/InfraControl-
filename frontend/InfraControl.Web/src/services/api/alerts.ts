@@ -14,9 +14,13 @@ import { api } from "./client";
  */
 export interface AlertItem {
   id: string;
-  deviceId: string;
-  deviceName: string;
-  check: string;
+  /** ADR-027: nulo em alerta externo de host não mapeado. */
+  deviceId: string | null;
+  deviceName: string | null;
+  /** ADR-027: nulo em alerta externo (sem CheckKind nativo). */
+  check: string | null;
+  /** ADR-027: origem — `Native` | `Zabbix`. */
+  source: string;
   severity: string;
   status: string;
   message: string;

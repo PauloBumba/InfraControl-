@@ -204,11 +204,13 @@ public sealed class AlertEvaluator(
     private async Task CloseRecoveredIncidentsAsync(
         Alert resolved, Guid deviceId, CancellationToken cancellationToken)
     {
+        // ADR-027: não-Resolved (não só Open) — incidente em Investigating/
+        // Identified/Monitoring também fecha quando a condição normaliza.
         var ids = new HashSet<Guid>(await incidentRepository
-            .GetOpenIdsLinkedToAlertAsync(resolved.Id, cancellationToken));
+            .GetUnresolvedIdsLinkedToAlertAsync(resolved.Id, cancellationToken));
 
         var own = await incidentRepository
-            .GetOpenByDeviceAsync(deviceId, cancellationToken);
+            .GetUnresolvedByDeviceAsync(deviceId, cancellationToken);
         if (own is not null)
             ids.Add(own.Id);
 
@@ -216,7 +218,7 @@ public sealed class AlertEvaluator(
         {
             var incident = await incidentRepository
                 .GetByIdAsync(id, cancellationToken);
-            if (incident is null || incident.Status != IncidentStatus.Open)
+            if (incident is null || incident.Status == IncidentStatus.Resolved)
                 continue;
 
             var alerts = await incidentRepository
@@ -235,14 +237,16 @@ public sealed class AlertEvaluator(
     }
 
     /// <summary>
-    /// F6-T003: Alert Critical garante 1 Incident Open por device e
+    /// F6-T003: Alert Critical garante 1 Incident não-Resolved por device e
     /// vincula o alerta (N:N); alerta órfão (criado antes do T003) ganha
-    /// vínculo na próxima avaliação.
+    /// vínculo na próxima avaliação. ADR-027: busca Status != Resolved —
+    /// com Open-only, enquanto o incidente ficava em Investigating e o check
+    /// continuava falhando, cada ciclo abria um novo incidente.
     /// </summary>
     private async Task EnsureIncidentAsync(
         Device device, Alert alert, CancellationToken cancellationToken)
     {
-        var incident = await incidentRepository.GetOpenByDeviceAsync(
+        var incident = await incidentRepository.GetUnresolvedByDeviceAsync(
             device.Id, cancellationToken);
 
         if (incident is null)

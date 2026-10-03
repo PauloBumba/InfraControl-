@@ -28,12 +28,12 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         UseRole(UserRole.Admin);
 
         var created = await mediator.Send(new IngestZabbixProblemCommand(
-            "evt-1", "host-zbx", "192.0.2.88", "CPU load alta", 4, "PROBLEM"));
+            "evt-1", null, "host-zbx", "192.0.2.88", "CPU load alta", 4, "PROBLEM", null));
         created.Outcome.Should().Be("created");
         created.IncidentId.Should().NotBeNull();
 
         var resolved = await mediator.Send(new IngestZabbixProblemCommand(
-            "evt-1", "host-zbx", "192.0.2.88", "CPU load alta", 4, "OK"));
+            "evt-1", "evt-1-r", "host-zbx", "192.0.2.88", "CPU load alta", 4, "OK", null));
         resolved.Outcome.Should().Be("resolved");
         resolved.IncidentId.Should().Be(created.IncidentId);
 
@@ -50,7 +50,7 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var command = new IngestZabbixProblemCommand(
-            "evt-2", "host-zbx", "192.0.2.88", "Disco cheio", 3, "PROBLEM");
+            "evt-2", null, "host-zbx", "192.0.2.88", "Disco cheio", 3, "PROBLEM", null);
         var first = await mediator.Send(command);
         var second = await mediator.Send(command);
 
@@ -67,7 +67,7 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         UseRole(UserRole.Admin);
 
         var created = await mediator.Send(new IngestZabbixProblemCommand(
-            "evt-3", "host-fora-do-inventario", "203.0.113.50", "Backup falhou", 2, "PROBLEM"));
+            "evt-3", null, "host-fora-do-inventario", "203.0.113.50", "Backup falhou", 2, "PROBLEM", null));
         created.Outcome.Should().Be("created");
 
         var incident = await mediator.Send(
@@ -90,7 +90,7 @@ public sealed class ZabbixIngestIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
         var created = await mediator.Send(new IngestZabbixProblemCommand(
-            "evt-ob-1", "host-zbx", "192.0.2.89", "Memória no limite", 3, "PROBLEM"));
+            "evt-ob-1", null, "host-zbx", "192.0.2.89", "Memória no limite", 3, "PROBLEM", null));
 
         created.Outcome.Should().Be("created");
         var outboxEvents = await context.OutboxMessages.AsNoTracking()

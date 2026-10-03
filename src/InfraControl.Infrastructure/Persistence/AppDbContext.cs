@@ -58,6 +58,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<DiscoveryResult> DiscoveryResults => Set<DiscoveryResult>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
     public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
+    public DbSet<MonitoringEvent> MonitoringEvents => Set<MonitoringEvent>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationRecipient> NotificationRecipients => Set<NotificationRecipient>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();

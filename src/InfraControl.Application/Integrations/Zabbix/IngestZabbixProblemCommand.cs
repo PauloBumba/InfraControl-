@@ -1,18 +1,20 @@
-using InfraControl.Application.Incidents.Ports;
+using System.Text.Json;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Monitoring.Events;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
-using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Integrations.Zabbix;
 
-// F16-T001/ADR-023: ingestão do webhook do Zabbix. O comando NÃO implementa
-// IAuthorizedRequest de propósito — o guard é o token X-Zabbix-Token no
-// controller (AuthorizationBehavior pula requests não-autorizados) e a
+// F16-T001/ADR-023/ADR-027: ingestão do webhook do Zabbix. O comando NÃO
+// implementa IAuthorizedRequest de propósito — o guard é o token X-Zabbix-Token
+// no controller (AuthorizationBehavior pula requests não-autorizados) e a
 // allowlist Admin_Slices do arch test continua intacta. Erros de validação
 // nascem aqui em pt-BR (ArgumentException → 400 pelo GlobalExceptionHandler).
+// ADR-027: o handler valida/normaliza (contrato docs/27) e delega o ciclo
+// Event→Alert→Incident ao MonitoringEventIngestor — sem dedup por título.
 
 /// <summary>
 /// Resultado da ingestão: incidente afetado (ou null) + outcome em token
@@ -28,20 +30,23 @@ public sealed record ZabbixProblemResultDto(Guid? IncidentId, string Outcome)
 
 /// <summary>
 /// Evento do Zabbix montado no action (macros em docs/27):
-/// PROBLEM cria incidente (device opcional — decisão do usuário), OK resolve
-/// o correspondente; dedup anti-storm por título+device (heurística F6).
-/// Severity 0..5 (Not classified..Disaster); status PROBLEM|OK.
+/// PROBLEM cria MonitoringEvent+Alert+Incident (device opcional — decisão do
+/// usuário), OK recupera o problem original. Chave = eventId (eventid do
+/// Zabbix); recoveryEventId ({EVENT.RECOVERY.ID}) habilita a linha própria de
+/// recovery. Severity 0..5 (Not classified..Disaster); status PROBLEM|OK.
 /// </summary>
 public sealed record IngestZabbixProblemCommand(
     string? EventId,
+    string? RecoveryEventId,
     string? Host,
     string? Ip,
     string Name,
     int? Severity,
-    string Status) : BaseCommand<ZabbixProblemResultDto>;
+    string Status,
+    long? OccurredAt) : BaseCommand<ZabbixProblemResultDto>;
 
 public sealed class IngestZabbixProblemCommandHandler(
-    IIncidentRepository incidentRepository,
+    IMonitoringEventIngestor ingestor,
     IDeviceRepository deviceRepository,
     ILogger<IngestZabbixProblemCommandHandler> logger)
     : IRequestHandler<IngestZabbixProblemCommand, ZabbixProblemResultDto>
@@ -70,59 +75,78 @@ public sealed class IngestZabbixProblemCommandHandler(
                 $"Status inválido: '{request.Status}'. Use 'PROBLEM' ou 'OK'.",
                 nameof(status));
 
+        // eventId = chave de dedup (Source, ExternalEventId) — obrigatório nos
+        // dois status (no OK é o eventid do problem original: {EVENT.ID}).
+        var eventId = request.EventId?.Trim();
+        if (string.IsNullOrWhiteSpace(eventId))
+            throw new ArgumentException(
+                "O eventId é obrigatório (eventid do Zabbix — dedup e correlação).",
+                nameof(request.EventId));
+        if (eventId.Length > MonitoringEvent.ExternalIdMaxLength)
+            throw new ArgumentException(
+                $"O eventId excede {MonitoringEvent.ExternalIdMaxLength} caracteres.",
+                nameof(request.EventId));
+
+        var recoveryId = request.RecoveryEventId?.Trim();
+        if (string.IsNullOrEmpty(recoveryId))
+            recoveryId = null;
+        else if (recoveryId.Length > MonitoringEvent.ExternalIdMaxLength)
+            throw new ArgumentException(
+                $"O recoveryEventId excede {MonitoringEvent.ExternalIdMaxLength} caracteres.",
+                nameof(request.RecoveryEventId));
+
         var title = name.Trim();
         var device = await ResolveDeviceAsync(
             request.Ip, request.Host, cancellationToken);
 
-        if (status == "OK")
-        {
-            var open = await incidentRepository.GetOpenByTitleAndDeviceAsync(
-                title, device?.Id, cancellationToken);
-            if (open is null)
-            {
-                logger.LogInformation(
-                    "Zabbix OK sem incidente aberto (evento {EventId}, título {Title}).",
-                    request.EventId, title);
-                return new(null, ZabbixProblemResultDto.None);
-            }
-
-            open.ChangeStatus(IncidentStatus.Resolved);
-            await incidentRepository.SaveChangesAsync(cancellationToken);
-            logger.LogInformation(
-                "Zabbix OK resolveu o incidente {IncidentId} (evento {EventId}).",
-                open.Id, request.EventId);
-            return new(open.Id, ZabbixProblemResultDto.Resolved);
-        }
-
-        // PROBLEM: mesmo título + mesmo device aberto = idempotente (anti-storm)
-        var existing = await incidentRepository.GetOpenByTitleAndDeviceAsync(
-            title, device?.Id, cancellationToken);
-        if (existing is not null)
-        {
-            logger.LogInformation(
-                "Zabbix PROBLEM duplicado (evento {EventId}) — incidente {IncidentId} já aberto.",
-                request.EventId, existing.Id);
-            return new(existing.Id, ZabbixProblemResultDto.Duplicate);
-        }
-
-        var incident = Incident.Create(
-            title,
-            MapSeverity(severity.Value),
+        var input = new ZabbixIngestInput(
+            eventId,
+            recoveryId,
             device?.Id,
-            BuildDescription(request.EventId, request.Host, request.Ip));
+            request.Host,
+            request.Ip,
+            title,
+            severity.Value,
+            IsRecovery: status == "OK",
+            ToUtcDateTime(request.OccurredAt),
+            BuildRawPayload(request));
 
-        await incidentRepository.AddAsync(incident, cancellationToken);
-        await incidentRepository.SaveChangesAsync(cancellationToken);
-        logger.LogInformation(
-            "Incident {IncidentId} criado a partir do Zabbix (evento {EventId}, status {Status}).",
-            incident.Id, request.EventId, status);
+        var result = await ingestor.IngestAsync(input, cancellationToken);
 
-        return new(incident.Id, ZabbixProblemResultDto.Created);
+        switch (result.Outcome)
+        {
+            case IngestOutcome.Duplicate:
+                logger.LogInformation(
+                    "Zabbix PROBLEM duplicado (evento {EventId}) — incidente {IncidentId} já existe.",
+                    eventId, result.IncidentId);
+                break;
+            case IngestOutcome.Resolved:
+                logger.LogInformation(
+                    "Zabbix OK resolveu o incidente {IncidentId} (evento {EventId}).",
+                    result.IncidentId, eventId);
+                break;
+            case IngestOutcome.None:
+                logger.LogInformation(
+                    "Zabbix OK sem correspondência (evento {EventId}, título {Title}).",
+                    eventId, title);
+                break;
+        }
+
+        return new(result.IncidentId, MapOutcome(result.Outcome));
     }
+
+    private static string MapOutcome(IngestOutcome outcome) => outcome switch
+    {
+        IngestOutcome.Created => ZabbixProblemResultDto.Created,
+        IngestOutcome.Duplicate => ZabbixProblemResultDto.Duplicate,
+        IngestOutcome.Resolved => ZabbixProblemResultDto.Resolved,
+        _ => ZabbixProblemResultDto.None
+    };
 
     /// <summary>
     /// Device por IP exato (F4-T010) com fallback por hostname; null = sem
-    /// match no inventário (incidente nasce sem device — decisão do usuário).
+    /// match no inventário (alerta/incidente nascem sem device — decisão do
+    /// usuário).
     /// </summary>
     private async Task<Device?> ResolveDeviceAsync(
         string? ip, string? host, CancellationToken cancellationToken)
@@ -142,28 +166,29 @@ public sealed class IngestZabbixProblemCommandHandler(
         return null;
     }
 
-    /// <summary>Severidade Zabbix (6 níveis) → IncidentSeverity (4 da UI).</summary>
-    internal static IncidentSeverity MapSeverity(int severity) => severity switch
+    /// <summary>
+    /// {EVENT.TIMESTAMP} (unix seconds) → UTC; ausente/zero/absurdo
+    /// (&gt; 2100-01-01) = null (o ingestor usa o relógio da plataforma).
+    /// </summary>
+    private static DateTime? ToUtcDateTime(long? unixSeconds)
     {
-        0 or 1 => IncidentSeverity.Low,
-        2 => IncidentSeverity.Medium,
-        3 => IncidentSeverity.High,
-        _ => IncidentSeverity.Critical
-    };
+        if (unixSeconds is null or <= 0 or > 4102444800L)
+            return null;
 
-    /// <summary>Origem do evento para auditoria humana (partes presentes).</summary>
-    private static string? BuildDescription(string? eventId, string? host, string? ip)
-    {
-        var parts = new List<string>(3);
-        if (!string.IsNullOrWhiteSpace(eventId))
-            parts.Add($"evento {eventId.Trim()}");
-        if (!string.IsNullOrWhiteSpace(host))
-            parts.Add($"host {host.Trim()}");
-        if (!string.IsNullOrWhiteSpace(ip))
-            parts.Add($"ip {ip.Trim()}");
-
-        return parts.Count == 0
-            ? null
-            : $"Recebido do Zabbix — {string.Join(", ", parts)}.";
+        return DateTimeOffset.FromUnixTimeSeconds(unixSeconds.Value).UtcDateTime;
     }
+
+    /// <summary>Payload reconstruído (RawPayload do MonitoringEvent).</summary>
+    private static string BuildRawPayload(IngestZabbixProblemCommand request)
+        => JsonSerializer.Serialize(new
+        {
+            eventId = request.EventId,
+            recoveryEventId = request.RecoveryEventId,
+            host = request.Host,
+            ip = request.Ip,
+            name = request.Name,
+            severity = request.Severity,
+            status = request.Status,
+            occurredAt = request.OccurredAt
+        });
 }

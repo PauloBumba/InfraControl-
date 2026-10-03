@@ -450,7 +450,7 @@ export function DeviceDetailPage() {
                         {alert.severity === "Critical" ? "Crítico" : "Atenção"}
                       </span>
                     </td>
-                    <td style={{ fontSize: 12, fontWeight: 500 }}>{alert.check}</td>
+                    <td style={{ fontSize: 12, fontWeight: 500 }}>{alert.check ?? alert.source}</td>
                     <td style={{ fontSize: 12, color: "#64748b" }}>{alert.message}</td>
                     <td style={{ fontSize: 12 }}>{alert.status === "Open" ? "Aberto" : alert.status === "Resolved" ? "Resolvido" : "Suprimido"}</td>
                     <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(alert.openedAt))}</td>

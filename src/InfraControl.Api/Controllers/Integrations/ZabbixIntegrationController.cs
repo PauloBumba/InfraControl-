@@ -41,8 +41,8 @@ public sealed class ZabbixIntegrationController(
 
         var result = await sender.Send(
             new IngestZabbixProblemCommand(
-                model.EventId, model.Host, model.Ip,
-                model.Name, model.Severity, model.Status),
+                model.EventId, model.RecoveryEventId, model.Host, model.Ip,
+                model.Name, model.Severity, model.Status, model.OccurredAt),
             cancellationToken);
 
         return Ok(ApiResponse.Ok(result));

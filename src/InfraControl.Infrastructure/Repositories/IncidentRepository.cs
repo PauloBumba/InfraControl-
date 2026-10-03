@@ -32,14 +32,14 @@ public sealed class IncidentRepository(AppDbContext dbContext)
                 && incident.Status == IncidentStatus.Open,
                 cancellationToken);
 
-    // F16-T001: chave título+device (null incluso) de qualquer status não-
-    // Resolved — EF compensa o parâmetro nulo (device_id IS NULL).
-    public Task<Incident?> GetOpenByTitleAndDeviceAsync(
-        string title, Guid? deviceId, CancellationToken cancellationToken = default)
+    // ADR-027: não-Resolved (Open/Investigating/Identified/Monitoring) —
+    // usado pelo avaliador para não abrir incidente novo enquanto o atual
+    // está em investigação e para fechar o existente no recovery.
+    public Task<Incident?> GetUnresolvedByDeviceAsync(
+        Guid deviceId, CancellationToken cancellationToken = default)
         => dbContext.Incidents
             .FirstOrDefaultAsync(incident =>
-                incident.Title == title
-                && incident.DeviceId == deviceId
+                incident.DeviceId == deviceId
                 && incident.Status != IncidentStatus.Resolved,
                 cancellationToken);
 
@@ -105,7 +105,7 @@ public sealed class IncidentRepository(AppDbContext dbContext)
             total, page, pageSize);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetOpenIdsLinkedToAlertAsync(
+    public async Task<IReadOnlyList<Guid>> GetUnresolvedIdsLinkedToAlertAsync(
         Guid alertId, CancellationToken cancellationToken = default)
         => await dbContext.IncidentAlerts.AsNoTracking()
             .Where(link => link.AlertId == alertId)
@@ -113,7 +113,20 @@ public sealed class IncidentRepository(AppDbContext dbContext)
                 link => link.IncidentId,
                 incident => incident.Id,
                 (link, incident) => incident)
-            .Where(incident => incident.Status == IncidentStatus.Open)
+            .Where(incident => incident.Status != IncidentStatus.Resolved)
+            .Select(incident => incident.Id)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> GetLinkedIdsToAlertAsync(
+        Guid alertId, CancellationToken cancellationToken = default)
+        => await dbContext.IncidentAlerts.AsNoTracking()
+            .Where(link => link.AlertId == alertId)
+            .Join(dbContext.Incidents.AsNoTracking(),
+                link => link.IncidentId,
+                incident => incident.Id,
+                (link, incident) => incident)
+            .OrderByDescending(incident => incident.Status != IncidentStatus.Resolved)
+            .ThenByDescending(incident => incident.CreateDateTime)
             .Select(incident => incident.Id)
             .ToListAsync(cancellationToken);
 

@@ -396,7 +396,7 @@ export function DashboardPage() {
                 <div key={alert.id} style={{ padding: "10px 12px", borderRadius: 6, border: "1px solid #f3f4f6", borderLeft: `3px solid ${critical ? "#ef4444" : "#f59e0b"}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <i className={`pi ${critical ? "pi-exclamation-triangle" : "pi-exclamation-circle"}`} style={{ fontSize: 11, color: critical ? "#ef4444" : "#f59e0b" }} />
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{alert.deviceName} · {alert.check}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</span>
                   </div>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>{alert.message}</div>
                 </div>

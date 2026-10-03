@@ -9,6 +9,8 @@ using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Monitoring.Checks;
+using InfraControl.Application.Monitoring.Events;
+using InfraControl.Application.Monitoring.Events.Ports;
 using InfraControl.Application.Network.Connections.Ports;
 using InfraControl.Application.Operations.Retention.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
@@ -87,6 +89,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
         services.AddScoped<IAlertRepository, AlertRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
+        // ADR-027: pipeline Zabbix → MonitoringEvent → Alert → Incident
+        services.AddScoped<IMonitoringEventRepository, MonitoringEventRepository>();
+        services.AddScoped<IMonitoringEventIngestor, MonitoringEventIngestor>();
         services.AddScoped<IUpstreamCorrelationRepository, UpstreamCorrelationRepository>();
         services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
