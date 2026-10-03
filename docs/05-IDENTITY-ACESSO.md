@@ -199,17 +199,26 @@ Admin
 
 F1-T017 (decisão do usuário, 2026-09-29): o convite é enviado por e-mail
 pelo MESMO canal do forgot-password — o handler chama
-`IIdentityEmailSender.SendInvitationAsync` após salvar, com a origem derivada
-de `Request.Scheme://Request.Host` (sem mudar o frontend). O adaptador atual é
-o de logging (`LoggingIdentityEmailSender`); trocar por um provider real
-(SMTP/API) é pendência separada que não toca Application. O link é
-`{origem}/api/v1/auth/invitations/{id}/accept?token=` — token URL-safe
+`IIdentityEmailSender.SendInvitationAsync` após salvar. A origem do link vem
+da config `Frontend:BaseUrl` (decisão do usuário, 2026-10-02): é o servidor
+que declara a origem, nunca o cliente — um `BaseUrl` vindo do request de um
+anônimo permitiria apontar o token para um site atacante. Vazia, a origem
+cai para `Request.Scheme://Request.Host` (produção: o nginx serve SPA e API
+no mesmo host, então a origem da request é também a do frontend); preenchida
+em `appsettings.Development.json` para `http://localhost:3000`, porque a API
+vista pelo proxy do vite é `localhost:7237`, que não serve o SPA. O
+adaptador atual é o de logging (`LoggingIdentityEmailSender`); trocar por um
+provider real (SMTP/API) é pendência separada que não toca Application. O
+link é `{origem}/invitations/{id}?token=` — a página pública
+`/invitations/{id}` do dashboard (`InvitationAcceptancePage`) lê o token da
+query e executa accept → set-password | reject (o link antigo batia na API:
+GET em rota só-POST respondia 405 e não existia página). Token URL-safe
 (base64url), o mesmo que continua na resposta da API (copy-link). Falha de
-envio desfaz a linha (TransactionBehavior) e o admin pode recriar sem esbarrar
-em "convite pendente". O caminho Outbox → RabbitMQ → Notification Worker
-segue sendo o das notificações (F9): o convidado ainda não é usuário, então o
-convite não passa por lá. Pendências: página de aceite no frontend (a link
-chegando hoje cai na API) e o provider real de e-mail.
+envio desfaz a linha (TransactionBehavior) e o admin pode recriar sem
+esbarrar em "convite pendente". O caminho Outbox → RabbitMQ → Notification
+Worker segue sendo o das notificações (F9): o convidado ainda não é usuário,
+então o convite não passa por lá. Pendência restante desta frente: o
+provider real de e-mail.
 
 Status:
 

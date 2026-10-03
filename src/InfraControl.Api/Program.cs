@@ -88,6 +88,15 @@ builder.Services
     .AddOptions<ZabbixIntegrationOptions>()
     .Bind(builder.Configuration.GetSection(ZabbixIntegrationOptions.SectionName));
 
+// Decisão do usuário 01/10/2026: a origem dos links de e-mail (convite
+// F1-T017; reset quando a página /reset-password nascer) vem da config
+// Frontend:BaseUrl — vazio = origem da própria request (nginx same-origin em
+// produção); preenchido em dev, onde a API vista pelo proxy do vite
+// (localhost:7237) não é a origem do SPA (localhost:3000).
+builder.Services
+    .AddOptions<FrontendOptions>()
+    .Bind(builder.Configuration.GetSection(FrontendOptions.SectionName));
+
 // F0-T023: o GlobalExceptionHandler é o único ponto de erro da API, mas o
 // IProblemDetailsService único (chamada idempotente): AddExceptionHandler<T> NÃO
 // o registra e o .NET 10 exige IProblemDetailsService quando UseExceptionHandler()

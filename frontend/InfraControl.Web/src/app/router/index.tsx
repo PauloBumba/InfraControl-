@@ -38,6 +38,7 @@ const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.Sla
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const InvitationAcceptancePage = lazy(() => import("@/pages/InvitationAcceptancePage").then(m => ({ default: m.InvitationAcceptancePage })));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
@@ -159,10 +160,17 @@ function AppContent() {
     navigate(route);
   };
 
-  // Login e recuperação de senha não têm layout — e não redirecionam: quem
-  // já tem sessão confirmada vai direto para o app.
-  if (location.pathname === "/login" || location.pathname === "/forgot-password") {
-    const isPublicPage = location.pathname === "/forgot-password";
+  // Login, recuperação de senha e aceite de convite não têm layout — e não
+  // redirecionam: quem já tem sessão confirmada vai direto para o app, mas o
+  // convite continua público (é o destino do link e-maiado).
+  if (
+    location.pathname === "/login" ||
+    location.pathname === "/forgot-password" ||
+    location.pathname.startsWith("/invitations/")
+  ) {
+    const isPublicPage =
+      location.pathname === "/forgot-password" ||
+      location.pathname.startsWith("/invitations/");
 
     if (authStatus === "authenticated" && !isPublicPage) {
       return <Navigate to="/" replace />;
@@ -173,6 +181,7 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
         </Routes>
       </Suspense>
     );

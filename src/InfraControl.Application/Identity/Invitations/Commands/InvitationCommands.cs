@@ -65,7 +65,9 @@ public sealed class CreateInvitationCommandHandler(
         // uma falha de envio desfaz a linha e o admin pode recriar sem esbarrar
         // no "convite pendente". Token é URL-safe (base64url), igual ao reset.
         var baseUrl = request.BaseUrl ?? string.Empty;
-        var acceptUrl = $"{baseUrl.TrimEnd('/')}/api/v1/auth/invitations/{invitation.Id}/accept?token={token}";
+        // Página pública de aceite no frontend (pendência F1-T017 fechada) —
+        // o link não bate mais na API (GET era 405): /invitations/{id}?token=.
+        var acceptUrl = $"{baseUrl.TrimEnd('/')}/invitations/{invitation.Id}?token={token}";
         await emailSender.SendInvitationAsync(normalizedEmail, acceptUrl, cancellationToken);
 
         logger.LogInformation("Invitation {InvitationId} created for {Email}.", invitation.Id, normalizedEmail);

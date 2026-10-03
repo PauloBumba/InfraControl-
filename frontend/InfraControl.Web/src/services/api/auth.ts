@@ -99,3 +99,47 @@ export async function requestPasswordReset(email: string): Promise<string> {
 
   return data?.message ?? "Se o e-mail estiver cadastrado, enviaremos as instruções de redefinição.";
 }
+
+/**
+ * Página pública de aceite de convite (pendência da F1-T017 fechada): o link
+ * e-maiado é `/invitations/{id}?token=...` e a página roda o fluxo do
+ * backend — `accept` provisiona a conta INATIVA e revela quem foi convidado,
+ * `set-password` é o único passo que ativa, `reject` recusa. Os três são
+ * AllowAnonymous; `anonymousExpected` impede que um erro da operação seja
+ * confundido com sessão morta pelo interceptor global de 401.
+ */
+export interface InvitationAcceptance {
+  invitationId: string;
+  email: string;
+  roles: string[];
+}
+
+export async function acceptInvitation(invitationId: string, token: string): Promise<InvitationAcceptance> {
+  const data = await api.post<InvitationAcceptance>(
+    `/auth/invitations/${encodeURIComponent(invitationId)}/accept`,
+    { token },
+    { anonymousExpected: true },
+  );
+
+  if (!data) {
+    throw new ApiError("Resposta inesperada do servidor. Tente novamente em instantes.", 500);
+  }
+
+  return data;
+}
+
+export async function setInvitationPassword(invitationId: string, token: string, password: string): Promise<void> {
+  await api.post(
+    `/auth/invitations/${encodeURIComponent(invitationId)}/set-password`,
+    { token, password },
+    { anonymousExpected: true },
+  );
+}
+
+export async function rejectInvitation(invitationId: string, token: string): Promise<void> {
+  await api.post(
+    `/auth/invitations/${encodeURIComponent(invitationId)}/reject`,
+    { token },
+    { anonymousExpected: true },
+  );
+}
