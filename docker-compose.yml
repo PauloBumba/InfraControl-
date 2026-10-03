@@ -120,6 +120,15 @@ services:
       Notifications__Channels__WhatsApp__Phone: ${WHATSAPP_PHONE:-}
       Notifications__Channels__Webhook__Url: ${WEBHOOK_URL:-}
       Notifications__Channels__Slack__Channel: ${SLACK_CHANNEL:-}
+    # Imagem aspnet não traz curl/wget e /bin/sh é o dash (sem /dev/tcp):
+    # healthcheck HTTP real passa por `bash -c` (bate em GET /health e espera
+    # 200) — porta aberta sozinha não prova boot.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,6 +149,13 @@ services:
     profiles: ["app"]
     environment:
       <<: *app-env
+    # Worker não escuta porta; o sinal de saúde é a presença do processo.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f InfraControl.Workers >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -178,6 +194,13 @@ services:
       NGINX_HTTPS_PORT: ${HTTPS_PORT:-443}
       SEQ_AUTH_USER: ${SEQ_AUTH_USER:-admin}
       SEQ_AUTH_PASSWORD: ${SEQ_AUTH_PASSWORD:-admin}
+    healthcheck:
+      # nginx responde 301 (HTTP→HTTPS) na raiz; curl -f só falha em >=400.
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       api:
         condition: service_started
@@ -191,6 +214,13 @@ services:
     profiles: ["obs"]
     environment:
       ACCEPT_EULA: Y
+      # Seq 2026.1 (datalust/seq:latest) aborta o boot sem senha de admin:
+      # FTL "No default admin password was supplied" em crash-loop. Opt-out
+      # oficial SEQ_FIRSTRUN_NOAUTHENTICATION (docs.datalust.co/docs/
+      # environment-variables) preserva o comportamento anterior (Seq sem
+      # login próprio) — a rota continua protegida pelo basic auth do nginx
+      # (ADR-021/022, SEQ_AUTH_USER/PASSWORD). Só vale na 1ª inicialização.
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
     volumes:
       - seq_data:/data
     restart: unless-stopped
@@ -276,6 +306,14 @@ services:
         condition: service_healthy
       zabbix-server:
         condition: service_started
+    # Healthcheck do frontend oficial do Zabbix (zabbix-docker
+    # compose_zabbix_components.yaml): GET /ping.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
     restart: unless-stopped
     networks:
       - infracontrol
@@ -292,6 +330,14 @@ services:
     depends_on:
       zabbix-server:
         condition: service_started
+    # compose oficial do Zabbix não define healthcheck para o agent; usa-se o
+    # mesmo padrão de TCP do zabbix-server (agent2 alpine traz nc).
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 10050 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     networks:
       - infracontrol
