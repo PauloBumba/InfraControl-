@@ -32,14 +32,23 @@ public sealed class PdiRepository(AppDbContext dbContext)
             from plan in dbContext.IndividualDevelopmentPlans.AsNoTracking()
             join owner in dbContext.DomainUsers.AsNoTracking()
                 on plan.UserId equals owner.Id
+            join manager in dbContext.DomainUsers.AsNoTracking()
+                on plan.ManagerId equals manager.Id into managerJoin
             where onlyUserId == null || plan.UserId == onlyUserId
             orderby owner.DisplayName
-            select new { Plan = plan, owner.DisplayName, owner.Email };
+            select new
+            {
+                Plan = plan,
+                owner.DisplayName,
+                owner.Email,
+                ManagerName = managerJoin.Select(m => m.DisplayName).FirstOrDefault()
+            };
 
         var rows = await query.ToListAsync(cancellationToken);
 
         return rows
-            .Select(row => new PdiWithOwner(row.Plan, row.DisplayName, row.Email))
+            .Select(row => new PdiWithOwner(
+                row.Plan, row.DisplayName, row.Email, row.ManagerName))
             .ToArray();
     }
 
@@ -50,6 +59,39 @@ public sealed class PdiRepository(AppDbContext dbContext)
             .Where(user => user.Id == userId)
             .Select(user => new PlanOwner(user.DisplayName, user.Email))
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<string?> GetUserNameAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => await dbContext.DomainUsers
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.DisplayName)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyCollection<PdiHistoryWithActor>> ListHistoryAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+    {
+        var query =
+            from entry in dbContext.PdiHistoryEntries.AsNoTracking()
+            where entry.UserId == userId
+            orderby entry.CreateDateTime descending, entry.Id descending
+            join actor in dbContext.DomainUsers.AsNoTracking()
+                on entry.ActorId equals actor.Id into actorJoin
+            select new
+            {
+                Entry = entry,
+                ActorName = actorJoin.Select(a => a.DisplayName).FirstOrDefault()
+            };
+
+        var rows = await query.ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new PdiHistoryWithActor(row.Entry, row.ActorName))
+            .ToArray();
+    }
+
+    public void AddHistoryRange(IReadOnlyCollection<PdiHistoryEntry> entries)
+        => dbContext.PdiHistoryEntries.AddRange(entries);
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await dbContext.SaveChangesAsync(cancellationToken);

@@ -40,5 +40,23 @@ public sealed class IndividualDevelopmentPlanConfiguration
             .HasConversion<string>()
             .HasMaxLength(32)
             .IsRequired();
+
+        // Gestor/liderança e período do ciclo (docs/30 §2/§20, ADR-029 §3)
+        // — ambos opcionais; gestor definido só pelo Admin.
+        builder.Property(x => x.ManagerId)
+            .HasColumnName("manager_id");
+
+        builder.Property(x => x.PeriodStart)
+            .HasColumnName("period_start")
+            .HasColumnType("date");
+
+        builder.Property(x => x.PeriodEnd)
+            .HasColumnName("period_end")
+            .HasColumnType("date");
+
+        // Buffer de domínio (drain no save) — não é navegação/relação;
+        // a timeline morre em individual_development_plan_history via
+        // user_id (ADR-029 §4), sem FK para o plano.
+        builder.Ignore(x => x.PendingHistory);
     }
 }

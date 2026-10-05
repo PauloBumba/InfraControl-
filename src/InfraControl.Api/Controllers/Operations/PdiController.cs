@@ -36,6 +36,19 @@ public sealed class PdiController(ISender sender) : BaseController
         [FromBody] UpsertPdiViewModel model,
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new UpsertPdiCommand(userId, model.Strategy, model.TargetDate, model.Status),
+            new UpsertPdiCommand(
+                userId, model.Strategy, model.TargetDate, model.Status,
+                model.ManagerId, model.PeriodStart, model.PeriodEnd, model.Reason),
             cancellationToken)));
+
+    /// <summary>
+    /// Timeline do PDI (docs/30 §17, ADR-029) — mais recente primeiro.
+    /// Admin: qualquer usuário; Operador: só o próprio (403).
+    /// </summary>
+    [HttpGet("{userId:guid}/history")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> GetHistory(
+        Guid userId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetPdiHistoryQuery(userId), cancellationToken)));
 }

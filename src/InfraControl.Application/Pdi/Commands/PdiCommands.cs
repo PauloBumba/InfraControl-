@@ -1,20 +1,28 @@
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Pdi.Commands;
 
-// PDI (docs/29 §8) — CRUD apenas: upsert por usuário (1 plano vigente),
-// sem remoção (encerrar = Cancelled). Erros: 403 (operador em PDI de
-// outro), 404 (usuário inexistente), 400 (estratégia/prazo/status).
+// PDI (docs/29 §8, docs/30, ADR-029) — CRUD apenas: upsert por usuário
+// (1 plano vigente), sem remoção (encerrar = Cancelled). Erros: 403
+// (operador em PDI de outro / transição que não é o aceite), 404
+// (usuário inexistente), 400 (estratégia/prazo/status/período/transição
+// inválidos — 400 do domínio). Gestor e período: só o Admin define
+// (entrada do Operador é ignorada, ADR-029 §3).
 
 public sealed record UpsertPdiCommand(
     Guid UserId,
     string Strategy,
     DateOnly TargetDate,
-    string Status) : BaseCommand<PdiDto>, IAuthorizedRequest
+    string Status,
+    Guid? ManagerId = null,
+    DateOnly? PeriodStart = null,
+    DateOnly? PeriodEnd = null,
+    string? Reason = null) : BaseCommand<PdiDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -43,7 +51,8 @@ public sealed class UpsertPdiCommandHandler(
         if (!Enum.TryParse<PdiStatus>(request.Status, ignoreCase: true, out var status)
             || !Enum.IsDefined(status))
             throw new ArgumentException(
-                "Status do PDI inválido (use InProgress, Completed ou Cancelled).",
+                "Status do PDI inválido (use Draft, Planned, AwaitingAcceptance, " +
+                "Active, InProgress, UnderEvaluation, Completed, Replanned ou Cancelled).",
                 nameof(request.Status));
 
         var owner = await repository.GetOwnerAsync(request.UserId, cancellationToken)
@@ -64,21 +73,49 @@ public sealed class UpsertPdiCommandHandler(
                 throw new UnauthorizedAccessException(
                     "Apenas o administrador pode criar um PDI.");
 
-            plan = Domain.Entities.IndividualDevelopmentPlan.Create(
-                request.UserId, request.Strategy, request.TargetDate, status, actor);
+            plan = IndividualDevelopmentPlan.Create(
+                request.UserId, request.Strategy, request.TargetDate, status,
+                request.ManagerId, request.PeriodStart, request.PeriodEnd, actor);
             await repository.AddAsync(plan, cancellationToken);
         }
         else
         {
-            plan.Update(request.Strategy, request.TargetDate, status, actor);
+            // Operador: só o aceite (AwaitingAcceptance → Active) muda o
+            // status; qualquer outra transição é privativa do Admin.
+            if (!isAdmin && status != plan.Status
+                && !(plan.Status == PdiStatus.AwaitingAcceptance
+                     && status == PdiStatus.Active))
+                throw new UnauthorizedAccessException(
+                    "Apenas o administrador pode alterar o status do PDI " +
+                    "(exceto o aceite quando Aguardando aceite).");
+
+            // Gestor/período: Admin define; entrada do Operador é ignorada
+            // (mantém o valor vigente — ADR-029 §3).
+            var managerId = isAdmin ? request.ManagerId : plan.ManagerId;
+            var periodStart = isAdmin ? request.PeriodStart : plan.PeriodStart;
+            var periodEnd = isAdmin ? request.PeriodEnd : plan.PeriodEnd;
+
+            plan.Update(
+                new PdiChanges(
+                    request.Strategy, request.TargetDate, status,
+                    managerId, periodStart, periodEnd, request.Reason),
+                actor);
         }
 
+        var history = plan.DrainPendingHistory();
+        if (history.Count > 0)
+            repository.AddHistoryRange(history);
+
         await repository.SaveChangesAsync(cancellationToken);
+
+        string? managerName = plan.ManagerId is { } manager
+            ? await repository.GetUserNameAsync(manager, cancellationToken)
+            : null;
 
         logger.LogInformation(
             "PDI for {UserId} saved ({Status}, target {TargetDate}) by {ActorId}.",
             request.UserId, status, request.TargetDate, actorId);
 
-        return PdiDto.From(plan, owner.Name, owner.Email);
+        return PdiDto.From(plan, owner.Name, owner.Email, managerName);
     }
 }

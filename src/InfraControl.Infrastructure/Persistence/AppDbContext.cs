@@ -77,6 +77,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();
     public DbSet<DomainIdentity.UserMfa> UserMfas => Set<DomainIdentity.UserMfa>();
     public DbSet<IndividualDevelopmentPlan> IndividualDevelopmentPlans => Set<IndividualDevelopmentPlan>();
+    public DbSet<PdiHistoryEntry> PdiHistoryEntries => Set<PdiHistoryEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

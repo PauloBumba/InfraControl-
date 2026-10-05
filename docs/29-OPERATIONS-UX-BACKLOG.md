@@ -89,6 +89,21 @@ documentada antes da tela.
      produto integral em **`docs/30-PLANO-MODULO-PDI.md`** (colado pelo
      usuário em 2026-10-04) — execução por fases (Fase 1…8), **uma task
      por fase**, nunca tudo de uma vez.
+   - **Fase 1 — Fundamento executada em 2026-10-04** (ADR-029): ciclo de
+     vida de **9 status** com transições validadas (tabela da §3 do
+     docs/30, `PdiTransitions`, inválida = 400 pt-BR), **gestor**
+     (`manager_id`, só Admin define) e **período**
+     (`period_start/period_end`, fim ≥ início), **histórico/timeline**
+     append-only (`individual_development_plan_history` —
+     Created/Updated/StatusChanged + motivo, endpoint
+     `GET /pdi/{userId}/history`, append-only, "não apagar histórico" da
+     §3), permissões — Operador só edita o próprio e **só o aceite
+     (Aguardando aceite → Ativo)** muda status; criação continua só do
+     Admin e começa em **Rascunho**. Migração
+     `20261005011124_PdiLifecycleManagerPeriodHistory` aplicada no dev
+     (remapeamento de dados `InProgress` → `Active`); front com seletor
+     dos próximos estados válidos, gestor/período/motivo e timeline;
+     testes `PdiCommandTests` 15 + `PdiTransitionsTests` 20.
 
 ## Ordem de execução
 

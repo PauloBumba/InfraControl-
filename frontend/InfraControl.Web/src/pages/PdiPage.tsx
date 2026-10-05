@@ -6,9 +6,14 @@ import { formatDateTime } from "@/utils/format";
 import {
   listPdis,
   upsertPdi,
+  getPdiHistory,
+  PDI_HISTORY_TYPE_LABEL,
+  PDI_NEXT_STATUS,
+  PDI_STATUS_LABEL,
   PDI_STATUS_OPTIONS,
   PDI_STATUS_STYLE,
   type Pdi,
+  type PdiHistoryEntry,
   type PdiStatus,
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
@@ -23,13 +28,14 @@ import { FormField, FormError } from "@/components/ui/FormField";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 
 /**
- * PDI — Plano de Desenvolvimento Individual (docs/29 §8, decisão
- * 2026-10-03). "Admin gerencia todo o CRUD, Operador edita o próprio":
- * admin vê a lista de planos e cria/edita qualquer um (dialog com seletor
- * de usuário); o operador vê o SEU plano (card) e edita pelo mesmo dialog
- * sem seletor — sem plano, aviso para procurar o administrador (criação é
- * exclusiva do Admin, 403 no backend). Rota nível `operate` (Viewer não
- * alcança). Prazo em `yyyy-MM-dd` (DateOnly) formatado à mão para não
+ * PDI — Plano de Desenvolvimento Individual (docs/29 §8, docs/30,
+ * ADR-029). Ciclo de 9 estados: o seletor de status mostra só os
+ * próximos estados válidos (tabela docs/30 §3 — backend revalida);
+ * Admin define gestor/período e transiciona tudo, Operador só edita
+ * campos e o aceite (AwaitingAcceptance → Active); motivo opcional vira
+ * entrada do timeline (histórico por plano). Criação é exclusiva do
+ * Admin e começa em Rascunho. Rota nível `operate` (Viewer não
+ * alcança). Datas em `yyyy-MM-dd` (DateOnly) formatadas à mão para não
  * sofrer deslocamento de fuso do `Date`.
  */
 function messageFor(error: unknown): string {
@@ -43,6 +49,22 @@ function formatDateOnly(value: string): string {
   return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
+function formatPeriod(plan: Pdi): string {
+  if (plan.periodStart && plan.periodEnd)
+    return `${formatDateOnly(plan.periodStart)} a ${formatDateOnly(plan.periodEnd)}`;
+  if (plan.periodStart) return `a partir de ${formatDateOnly(plan.periodStart)}`;
+  if (plan.periodEnd) return `até ${formatDateOnly(plan.periodEnd)}`;
+  return "—";
+}
+
+const dateInputStyle: React.CSSProperties = {
+  padding: "7px 10px",
+  fontSize: 13,
+  border: "1px solid #e5e7eb",
+  borderRadius: 6,
+  width: "100%",
+};
+
 export function PdiPage() {
   const user = useAppSelector((state) => state.auth.user);
   const isAdmin = (user?.roles ?? []).includes("Admin");
@@ -54,13 +76,25 @@ export function PdiPage() {
   // Dialog unificado: criar (admin, com dono) e editar (admin ou dono).
   const [dialogVisible, setDialogVisible] = useState(false);
   const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [originalStatus, setOriginalStatus] = useState<PdiStatus | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [ownerId, setOwnerId] = useState("");
   const [strategy, setStrategy] = useState("");
   const [targetDate, setTargetDate] = useState("");
-  const [status, setStatus] = useState<PdiStatus>("InProgress");
+  const [status, setStatus] = useState<PdiStatus>("Draft");
+  const [managerId, setManagerId] = useState("");
+  const [periodStart, setPeriodStart] = useState("");
+  const [periodEnd, setPeriodEnd] = useState("");
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Timeline do plano (docs/30 §17).
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [historyOwnerName, setHistoryOwnerName] = useState("");
+  const [historyEntries, setHistoryEntries] = useState<PdiHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,31 +112,74 @@ export function PdiPage() {
     void load();
   }, [load]);
 
-  const openCreate = async () => {
+  const resetDialog = () => {
     setEditUserId(null);
+    setOriginalStatus(null);
     setStrategy("");
     setTargetDate("");
-    setStatus("InProgress");
+    setStatus("Draft");
     setOwnerId("");
+    setManagerId("");
+    setPeriodStart("");
+    setPeriodEnd("");
+    setReason("");
     setFormError(null);
+  };
+
+  const openCreate = async () => {
+    resetDialog();
     setDialogVisible(true);
     try {
-      const all = await listUsers();
-      setUsers(all.filter((candidate) => !items.some((plan) => plan.userId === candidate.userId)));
+      setUsers(await listUsers());
     } catch {
       setUsers([]);
     }
   };
 
-  const openEdit = (plan: Pdi) => {
+  const openEdit = async (plan: Pdi) => {
+    resetDialog();
     setEditUserId(plan.userId);
+    setOriginalStatus(plan.status);
     setStrategy(plan.strategy);
     setTargetDate(plan.targetDate);
     setStatus(plan.status);
-    setOwnerId("");
-    setFormError(null);
+    setManagerId(plan.managerId ?? "");
+    setPeriodStart(plan.periodStart ?? "");
+    setPeriodEnd(plan.periodEnd ?? "");
     setDialogVisible(true);
+    if (isAdmin) {
+      try {
+        setUsers(await listUsers());
+      } catch {
+        setUsers([]);
+      }
+    }
   };
+
+  const openHistory = async (plan: Pdi) => {
+    setHistoryOwnerName(plan.ownerName);
+    setHistoryEntries([]);
+    setHistoryError(null);
+    setHistoryLoading(true);
+    setHistoryVisible(true);
+    try {
+      setHistoryEntries(await getPdiHistory(plan.userId));
+    } catch (caught) {
+      setHistoryError(messageFor(caught));
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const statusOptions = originalStatus
+    ? PDI_STATUS_OPTIONS.filter(
+        (option) =>
+          option.value === originalStatus ||
+          PDI_NEXT_STATUS[originalStatus].includes(option.value),
+      )
+    : PDI_STATUS_OPTIONS;
+
+  const showReason = originalStatus !== null && status !== originalStatus;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -115,10 +192,27 @@ export function PdiPage() {
       setFormError("Informe o prazo do PDI.");
       return;
     }
+    if (periodStart && periodEnd && periodEnd < periodStart) {
+      setFormError("O fim do período não pode ser anterior ao início.");
+      return;
+    }
     setSaving(true);
     setFormError(null);
     try {
-      await upsertPdi(targetUserId, { strategy, targetDate, status });
+      const payload: Parameters<typeof upsertPdi>[1] = {
+        strategy,
+        targetDate,
+        status,
+      };
+      if (isAdmin) {
+        // Gestor/período: só o Admin define (ADR-029 §3) — o Operador
+        // nem envia, o backend manteria os valores vigentes.
+        payload.managerId = managerId || null;
+        payload.periodStart = periodStart || null;
+        payload.periodEnd = periodEnd || null;
+      }
+      if (showReason && reason.trim()) payload.reason = reason.trim();
+      await upsertPdi(targetUserId, payload);
       setDialogVisible(false);
       await load();
     } catch (caught) {
@@ -132,9 +226,9 @@ export function PdiPage() {
 
   const statusChip = (value: PdiStatus) => (
     <StatusChip
-      label={PDI_STATUS_OPTIONS.find((option) => option.value === value)?.label ?? value}
-      background={PDI_STATUS_STYLE[value].background}
-      color={PDI_STATUS_STYLE[value].color}
+      label={PDI_STATUS_LABEL[value] ?? value}
+      background={PDI_STATUS_STYLE[value]?.background ?? "#f1f5f9"}
+      color={PDI_STATUS_STYLE[value]?.color ?? "#64748b"}
     />
   );
 
@@ -148,10 +242,15 @@ export function PdiPage() {
     </div>
   );
 
-  const editCell = (plan: Pdi) => (
-    <Button variant="ghost" onClick={() => openEdit(plan)}>
-      Editar
-    </Button>
+  const actionsCell = (plan: Pdi) => (
+    <div style={{ display: "flex", gap: 6 }}>
+      <Button variant="ghost" onClick={() => void openHistory(plan)}>
+        Histórico
+      </Button>
+      <Button variant="ghost" onClick={() => void openEdit(plan)}>
+        Editar
+      </Button>
+    </div>
   );
 
   return (
@@ -188,20 +287,25 @@ export function PdiPage() {
           emptyMessage={'Nenhum PDI cadastrado — use "Novo PDI".'}
           size="small"
         >
-          <Column header="Usuário" body={userCell} style={{ minWidth: 220 }} />
+          <Column header="Usuário" body={userCell} style={{ minWidth: 200 }} />
           <Column
             header="Estratégia"
             body={(plan: Pdi) => (
-              <span title={plan.strategy} style={{ display: "block", maxWidth: 380, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span title={plan.strategy} style={{ display: "block", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {plan.strategy}
               </span>
             )}
-            style={{ minWidth: 260 }}
+            style={{ minWidth: 220 }}
           />
-          <Column header="Prazo" body={(plan: Pdi) => formatDateOnly(plan.targetDate)} style={{ width: 110 }} />
-          <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} style={{ width: 140 }} />
-          <Column header="Atualizado" body={(plan: Pdi) => formatDateTime(new Date(plan.updateDateTime))} style={{ width: 160 }} />
-          <Column body={editCell} style={{ width: 110 }} />
+          <Column header="Prazo" body={(plan: Pdi) => formatDateOnly(plan.targetDate)} style={{ width: 105 }} />
+          <Column
+            header="Gestor"
+            body={(plan: Pdi) => plan.managerName ?? "—"}
+            style={{ width: 140 }}
+          />
+          <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} style={{ width: 155 }} />
+          <Column header="Atualizado" body={(plan: Pdi) => formatDateTime(new Date(plan.updateDateTime))} style={{ width: 155 }} />
+          <Column body={actionsCell} style={{ width: 190 }} />
         </DataTable>
       ) : ownPdi ? (
         <div
@@ -220,14 +324,20 @@ export function PdiPage() {
             <div style={{ fontWeight: 600 }}>Meu plano</div>
             <div className="flex align-items-center gap-2">
               {statusChip(ownPdi.status)}
-              <Button variant="primary" onClick={() => openEdit(ownPdi)}>
+              <Button variant="ghost" onClick={() => void openHistory(ownPdi)}>
+                Histórico
+              </Button>
+              <Button variant="primary" onClick={() => void openEdit(ownPdi)}>
                 Editar
               </Button>
             </div>
           </div>
           <div style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>{ownPdi.strategy}</div>
           <div style={{ fontSize: 12, color: "#64748b" }}>
-            Prazo: {formatDateOnly(ownPdi.targetDate)} · Atualizado em {formatDateTime(new Date(ownPdi.updateDateTime))}
+            Prazo: {formatDateOnly(ownPdi.targetDate)} · Gestor: {ownPdi.managerName ?? "—"} · Período: {formatPeriod(ownPdi)}
+          </div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            Atualizado em {formatDateTime(new Date(ownPdi.updateDateTime))}
           </div>
         </div>
       ) : (
@@ -242,7 +352,7 @@ export function PdiPage() {
         visible={dialogVisible}
         onHide={() => setDialogVisible(false)}
         header={editUserId ? "Editar PDI" : "Novo PDI"}
-        width={520}
+        width={560}
       >
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {!editUserId && (
@@ -250,10 +360,12 @@ export function PdiPage() {
               <SelectField
                 value={ownerId}
                 onChange={setOwnerId}
-                options={users.map((candidate) => ({
-                  value: candidate.userId,
-                  label: `${candidate.displayName} · ${candidate.email}`,
-                }))}
+                options={users
+                  .filter((candidate) => !items.some((plan) => plan.userId === candidate.userId))
+                  .map((candidate) => ({
+                    value: candidate.userId,
+                    label: `${candidate.displayName} · ${candidate.email}`,
+                  }))}
                 placeholder="Selecione o usuário"
                 aria-label="Usuário do PDI"
               />
@@ -284,13 +396,7 @@ export function PdiPage() {
                 type="date"
                 value={targetDate}
                 onChange={(event) => setTargetDate(event.target.value)}
-                style={{
-                  padding: "7px 10px",
-                  fontSize: 13,
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 6,
-                  width: "100%",
-                }}
+                style={dateInputStyle}
               />
             </FormField>
 
@@ -298,11 +404,60 @@ export function PdiPage() {
               <SelectField
                 value={status}
                 onChange={(value) => setStatus(value as PdiStatus)}
-                options={[...PDI_STATUS_OPTIONS]}
+                options={[...statusOptions]}
                 aria-label="Status do PDI"
               />
             </FormField>
           </div>
+
+          {showReason && (
+            <FormField label="Motivo da transição (opcional)">
+              <input
+                type="text"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={500}
+                placeholder="Ex.: aprovado pelo gestor no ciclo semestral."
+                style={dateInputStyle}
+              />
+            </FormField>
+          )}
+
+          {isAdmin && (
+            <FormField label="Gestor responsável">
+              <SelectField
+                value={managerId}
+                onChange={setManagerId}
+                options={users.map((candidate) => ({
+                  value: candidate.userId,
+                  label: `${candidate.displayName} · ${candidate.email}`,
+                }))}
+                placeholder="Sem gestor"
+                aria-label="Gestor do PDI"
+              />
+            </FormField>
+          )}
+
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 12 }}>
+              <FormField label="Início do período" width={180}>
+                <input
+                  type="date"
+                  value={periodStart}
+                  onChange={(event) => setPeriodStart(event.target.value)}
+                  style={dateInputStyle}
+                />
+              </FormField>
+              <FormField label="Fim do período" width={180}>
+                <input
+                  type="date"
+                  value={periodEnd}
+                  onChange={(event) => setPeriodEnd(event.target.value)}
+                  style={dateInputStyle}
+                />
+              </FormField>
+            </div>
+          )}
 
           {formError && <FormError message={formError} />}
 
@@ -315,6 +470,57 @@ export function PdiPage() {
             </Button>
           </div>
         </form>
+      </Dialog>
+
+      <Dialog
+        visible={historyVisible}
+        onHide={() => setHistoryVisible(false)}
+        header={`Histórico · ${historyOwnerName}`}
+        width={560}
+      >
+        {historyLoading ? (
+          <LoadingBlock />
+        ) : historyError ? (
+          <ErrorBanner message={historyError} />
+        ) : historyEntries.length === 0 ? (
+          <NoticeBanner
+            message="Nenhum evento registrado neste plano."
+            background="#f8fafc"
+            color="#475569"
+          />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {historyEntries.map((entry) => (
+              <div
+                key={entry.id}
+                style={{ borderLeft: "3px solid #e5e7eb", paddingLeft: 12 }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 13 }}>
+                  {PDI_HISTORY_TYPE_LABEL[entry.type] ?? entry.type}
+                  {entry.type === "StatusChanged" &&
+                    entry.fromStatus &&
+                    entry.toStatus && (
+                      <>
+                        {" · "}
+                        {PDI_STATUS_LABEL[entry.fromStatus] ?? entry.fromStatus}
+                        {" → "}
+                        {PDI_STATUS_LABEL[entry.toStatus] ?? entry.toStatus}
+                      </>
+                    )}
+                </div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+                  {entry.actorName ?? "Usuário removido"} · {formatDateTime(new Date(entry.occurredAt))}
+                </div>
+                {entry.detail && (
+                  <div style={{ fontSize: 12, color: "#334155" }}>Campos: {entry.detail}</div>
+                )}
+                {entry.reason && (
+                  <div style={{ fontSize: 12, color: "#334155" }}>Motivo: {entry.reason}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Dialog>
     </div>
   );

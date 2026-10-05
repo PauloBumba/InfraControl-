@@ -119,8 +119,14 @@ public sealed class NotificationEventConsumer(
 
     private static string StatusLabel(PdiStatus status) => status switch
     {
-        PdiStatus.InProgress => "Em andamento",
+        PdiStatus.Draft => "Rascunho",
+        PdiStatus.Planned => "Planejado",
+        PdiStatus.AwaitingAcceptance => "Aguardando aceite",
+        PdiStatus.Active => "Ativo",
+        PdiStatus.InProgress => "Em acompanhamento",
+        PdiStatus.UnderEvaluation => "Em avaliação",
         PdiStatus.Completed => "Concluído",
+        PdiStatus.Replanned => "Replanejado",
         PdiStatus.Cancelled => "Cancelado",
         _ => status.ToString()
     };

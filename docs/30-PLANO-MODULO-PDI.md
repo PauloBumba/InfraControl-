@@ -9,18 +9,31 @@
 > ## Situação atual (2026-10-04) — o que já existe
 >
 > - `IndividualDevelopmentPlan` (1 por usuário): estratégia, prazo,
->   status (InProgress/Completed/Cancelled), ator do change;
-> - permissões: Admin cria/edita/lista tudo, Operador edita só o próprio,
->   Viewer sem acesso (rota `operate`);
-> - `GET/PUT /api/v1/pdi` + `PdiPage` (`/pdi`);
+>   status, **gestor (`ManagerId`), período (`PeriodStart/End`)**, ator
+>   do change;
+> - **ciclo de vida de 9 estados com transições validadas** (tabela da
+>   §3, ADR-029): Rascunho→Planejado→Aguardando aceite→Ativo→Em
+>   acompanhamento→Em avaliação→Concluído; Ativo→Replanejado→Ativo;
+>   Ativo→Cancelado; Completed/Cancelled terminais;
+> - **histórico/timeline** da §17: `individual_development_plan_history`
+>   (append-only, Created/Updated/StatusChanged + motivo), endpoint
+>   `GET /pdi/{userId}/history`;
+> - permissões: Admin cria/edita/transiciona/lista tudo (gestor/período
+>   só o Admin define), Operador edita só o próprio e **só o aceite
+>   (Aguardando aceite → Ativo)** muda status, Viewer sem acesso (rota
+>   `operate`);
+> - `GET/PUT /api/v1/pdi` + `PdiPage` (`/pdi`, seletor de status com os
+>   próximos estados válidos, gestor, período, motivo, timeline);
 > - eventos `PdiCreated/Updated` → outbox → RabbitMQ → notificações
 >   (criação: dono Email+SignalR; edição: dono ou Admin por role, só
 >   SignalR);
-> - testes `PdiCommandTests` (7) + suítes verdes; containers/ smoke/ E2E.
+> - testes `PdiCommandTests` (15) + `PdiTransitionsTests` (20) + suítes
+>   verdes; migração `20261005011124_PdiLifecycleManagerPeriodHistory`
+>   aplicada no dev; containers/ smoke/ E2E.
 >
-> **Gap mínimo → plano:** ciclo de vida completo (RASCUNHO…CONCLUÍDO,
-> REPLANEJADO, CANCELADO), diagnóstico, período, histórico/timeline,
-> gestor como participante — é a **Fase 1** da §25.
+> **Fase 1 (§25) executada em 2026-10-04** — ver ADR-029. Gap para a
+> **Fase 2**: diagnóstico inicial (§4), objetivos, competências, fases,
+> atividades.
 
 ---
 
@@ -401,7 +414,7 @@ DIAGNÓSTICO → PLANEJAMENTO (objetivos + estratégia) → FASES → EXECUÇÃO
 
 > "Como você já possui um PDI básico, eu não reescreveria tudo. Faria em etapas:"
 
-- **Fase 1 — Fundamento:** revisar entidade PDI atual; pessoa/gestor; período; status; permissões; histórico.
+- **Fase 1 — Fundamento:** revisar entidade PDI atual; pessoa/gestor; período; status; permissões; histórico. <!-- [x] Executada 2026-10-04 — ADR-029: 9 status + tabela de transições (§3), ManagerId/PeriodStart/PeriodEnd, histórico append-only (17), permissões (Operador só aceite), migração `20261005011124` com remapeamento InProgress→Active, front (transições/gestor/período/motivo/timeline), testes 35 PDI. -->
 - **Fase 2 — Estrutura do desenvolvimento:** objetivos; competências; estratégias; fases; atividades; prazos.
 - **Fase 3 — Acompanhamento:** check-ins; progresso; comentários; feedback; dificuldades; impedimentos.
 - **Fase 4 — Evidências:** upload; tipos; validação; rejeição; histórico.
@@ -430,7 +443,9 @@ InfraControl
 └── Monitoring
 ```
 
-> Nota (agente, 2026-10-04): a mudança de status para os 7 estados do §3 e
-> a separação de sub-agregados exigem ADR + migração de dados (o enum atual
-> é string; histórico de valores antigos). Nada disso é executado sem task
-> autorizada — ver AGENTS.md.
+> Nota (agente, 2026-10-04): a mudança de status para os 9 estados do
+> §3 e a separação de sub-agregados exigem ADR + migração de dados (o
+> enum atual é string; histórico de valores antigos). **Ciclo de vida
+> executado na Fase 1 (ADR-029, migração `20261005011124`)**; a
+> separação de sub-agregados (evidência/feedback/check-in…) continua
+> exigindo ADR próprio na fase correspondente — ver AGENTS.md.
