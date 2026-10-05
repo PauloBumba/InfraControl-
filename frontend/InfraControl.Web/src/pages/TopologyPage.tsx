@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { StatusChip } from "@/components/ui/StatusChip";
 import {
   listDevices,
   listLocations,
@@ -97,6 +101,7 @@ function CategoryCard({ label, count, icon, color, onClick, active }: { label: s
 }
 
 export function TopologyPage() {
+  const navigate = useNavigate();
   const [graph, setGraph] = useState<TopologyGraph | null>(null);
   const [deviceItems, setDeviceItems] = useState<DeviceItem[]>([]);
   const [locations, setLocations] = useState<Record<string, string>>({});
@@ -107,6 +112,8 @@ export function TopologyPage() {
   const [filter, setFilter] = useState<string>("all");
   const [zoom, setZoom] = useState(100);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,12 +232,77 @@ export function TopologyPage() {
     [typeCounts],
   );
 
+  const clearSelection = useCallback(() => {
+    setSelectedDeviceId(null);
+    setSelectedEdgeId(null);
+  }, []);
+
+  // Esc limpa a seleção (nó ou conexão) — a mesma saída do tooltip de hover.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") clearSelection();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [clearSelection]);
+
+  const nodeById = useMemo(
+    () => new Map(graph?.nodes.map((node) => [node.id, node]) ?? []),
+    [graph],
+  );
+
+  /** Devices vizinhos do selecionado (ponta de alguma Connection). */
+  const neighborDeviceIds = useMemo(() => {
+    const neighbors = new Set<string>();
+    if (!selectedDeviceId) return neighbors;
+    graph?.edges.forEach((edge) => {
+      const sourceDevice = layout.nodeDevice.get(edge.sourceInterfaceId);
+      const targetDevice = layout.nodeDevice.get(edge.targetInterfaceId);
+      if (!sourceDevice || !targetDevice) return;
+      if (sourceDevice === selectedDeviceId) neighbors.add(targetDevice);
+      if (targetDevice === selectedDeviceId) neighbors.add(sourceDevice);
+    });
+    return neighbors;
+  }, [selectedDeviceId, graph, layout]);
+
+  const selectedEdge = useMemo(() => {
+    if (!selectedEdgeId) return null;
+    const edge = graph?.edges.find((entry) => entry.id === selectedEdgeId);
+    if (!edge) return null;
+    return {
+      edge,
+      sourceInterfaceId: edge.sourceInterfaceId,
+      targetInterfaceId: edge.targetInterfaceId,
+      sourceDeviceId: layout.nodeDevice.get(edge.sourceInterfaceId) ?? null,
+      targetDeviceId: layout.nodeDevice.get(edge.targetInterfaceId) ?? null,
+    };
+  }, [selectedEdgeId, graph, layout]);
+
+  const selectedGroup = useMemo(
+    () => groups.find((group) => group.deviceId === selectedDeviceId) ?? null,
+    [groups, selectedDeviceId],
+  );
+
+  const selectedGroupConnections = useMemo(() => {
+    if (!selectedGroup) return 0;
+    return (
+      graph?.edges.filter((edge) => {
+        const sourceDevice = layout.nodeDevice.get(edge.sourceInterfaceId);
+        const targetDevice = layout.nodeDevice.get(edge.targetInterfaceId);
+        return (
+          sourceDevice === selectedGroup.deviceId ||
+          targetDevice === selectedGroup.deviceId
+        );
+      }).length ?? 0
+    );
+  }, [selectedGroup, graph, layout]);
+
   const upCount = groups.filter((group) => group.status === "up").length;
   const downCount = groups.filter((group) => group.status === "down").length;
   const unknownCount = groups.filter((group) => group.status === null).length;
 
   if (loading) {
-    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+    return <LoadingBlock />;
   }
 
   if (error && !graph) {
@@ -238,9 +310,9 @@ export function TopologyPage() {
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
         <h2>{error}</h2>
-        <button onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <Button variant="primary" onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px" }}>
           Tentar de novo
-        </button>
+        </Button>
       </div>
     );
   }
@@ -312,12 +384,18 @@ export function TopologyPage() {
 
           {graph && graph.nodes.length > 0 && (
             <div style={{ padding: 10, overflow: "auto", height: "calc(100% - 40px)", position: "relative" }}>
-              <svg style={{ width: "100%", height: "100%", transform: `scale(${zoom / 100})`, transformOrigin: "top left" }} viewBox={`0 0 1100 ${layout.height}`}>
+              <svg
+                style={{ width: "100%", height: "100%", transform: `scale(${zoom / 100})`, transformOrigin: "top left" }}
+                viewBox={`0 0 1100 ${layout.height}`}
+                onClick={clearSelection}
+              >
                 <defs>
                   <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
                 </defs>
 
-                {/* Edges — Connections sem tipo no contrato: traço neutro */}
+                {/* Edges — Connections sem tipo no contrato: traço neutro.
+                    Seleção: device → destaca as conexões dele; edge → destaca
+                    só ela; o resto perde opacidade (foco visual). */}
                 {graph.edges.map((edge) => {
                   const from = layout.nodePos.get(edge.sourceInterfaceId);
                   const to = layout.nodePos.get(edge.targetInterfaceId);
@@ -326,8 +404,36 @@ export function TopologyPage() {
                   const targetDevice = layout.nodeDevice.get(edge.targetInterfaceId);
                   if (!sourceDevice || !targetDevice) return null;
                   if (!visibleDeviceIds.has(sourceDevice) || !visibleDeviceIds.has(targetDevice)) return null;
+
+                  const isHighlighted =
+                    (selectedDeviceId !== null &&
+                      (sourceDevice === selectedDeviceId ||
+                        targetDevice === selectedDeviceId)) ||
+                    selectedEdgeId === edge.id;
+                  const isDimmed =
+                    (selectedDeviceId !== null && !isHighlighted) ||
+                    (selectedEdgeId !== null && !isHighlighted);
+
                   return (
-                    <line key={edge.id} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#94a3b8" strokeWidth={1.2} opacity={0.5} />
+                    <g key={edge.id}>
+                      <line
+                        x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                        stroke={selectedEdgeId === edge.id ? "#3b82f6" : "#94a3b8"}
+                        strokeWidth={isHighlighted ? 2.2 : 1.2}
+                        opacity={isDimmed ? 0.12 : isHighlighted ? 0.95 : 0.5}
+                      />
+                      {/* hit-area invisível: a linha visível tem 1,2px de alvo */}
+                      <line
+                        x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                        stroke="transparent" strokeWidth={12}
+                        style={{ cursor: "pointer" }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEdgeId(edge.id);
+                          setSelectedDeviceId(null);
+                        }}
+                      />
+                    </g>
                   );
                 })}
 
@@ -337,10 +443,36 @@ export function TopologyPage() {
                   .map((slot) => {
                     const { group } = slot;
                     const meta = typeMeta[group.deviceType] ?? { color: "#94a3b8", icon: "pi pi-question", emoji: "❓" };
+                    const isSelected = selectedDeviceId === group.deviceId;
+                    const isNeighbor = neighborDeviceIds.has(group.deviceId);
+                    const isInSelectedEdge =
+                      selectedEdge !== null &&
+                      (group.deviceId === selectedEdge.sourceDeviceId ||
+                        group.deviceId === selectedEdge.targetDeviceId);
+                    const dimmed =
+                      (selectedDeviceId !== null && !isSelected && !isNeighbor) ||
+                      (selectedEdge !== null && !isInSelectedEdge);
                     return (
-                      <g key={group.deviceId}>
+                      <g
+                        key={group.deviceId}
+                        opacity={dimmed ? 0.32 : 1}
+                        style={{ cursor: "pointer" }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedDeviceId(group.deviceId);
+                          setSelectedEdgeId(null);
+                        }}
+                      >
+                        {/* anel de seleção do device */}
+                        {isSelected && (
+                          <circle
+                            cx={slot.cx} cy={slot.cy} r={20}
+                            fill="none" stroke="#3b82f6" strokeWidth={1.5}
+                            strokeDasharray="4 3"
+                          />
+                        )}
                         {/* nome do device sob o cluster */}
-                        <text x={slot.cx} y={slot.cy + 52} textAnchor="middle" fill="#374151" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">
+                        <text x={slot.cx} y={slot.cy + 52} textAnchor="middle" fill={isSelected ? "#1d4ed8" : "#374151"} fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">
                           {group.deviceName}
                         </text>
 
@@ -355,7 +487,7 @@ export function TopologyPage() {
                               onMouseEnter={() => setHoveredId(node.id)}
                               onMouseLeave={() => setHoveredId(null)}
                             >
-                              <circle cx={pos.x} cy={pos.y} r={13} fill="white" stroke={color} strokeWidth={group.status === "up" ? 2 : 1.5} filter={group.status === "up" ? "url(#glow)" : undefined} />
+                              <circle cx={pos.x} cy={pos.y} r={13} fill="white" stroke={isSelected ? "#3b82f6" : color} strokeWidth={isSelected || group.status === "up" ? 2 : 1.5} filter={group.status === "up" ? "url(#glow)" : undefined} />
                               <text x={pos.x} y={pos.y + 1} textAnchor="middle" dominantBaseline="central" fontSize="10">{meta.emoji}</text>
 
                               {hoveredId === node.id && (
@@ -384,6 +516,99 @@ export function TopologyPage() {
 
         {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Detalhes da seleção — nó (device) ou aresta (Connection) */}
+          {(selectedGroup || selectedEdge) && (
+            <div className="uni-panel" style={{ padding: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <h3 style={{ fontSize: 11, fontWeight: 600 }}>Detalhes</h3>
+                <button
+                  onClick={clearSelection}
+                  aria-label="Limpar seleção"
+                  style={{ width: 20, height: 20, borderRadius: 4, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <i className="pi pi-times" style={{ fontSize: 9 }} />
+                </button>
+              </div>
+
+              {selectedGroup && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {selectedGroup.deviceName}
+                    </div>
+                    <StatusChip
+                      label={statusLabel(selectedGroup.status)}
+                      background={selectedGroup.status === "up" ? "#f0fdf4" : selectedGroup.status === "down" ? "#fef2f2" : "#f1f5f9"}
+                      color={selectedGroup.status === "up" ? "#16a34a" : selectedGroup.status === "down" ? "#dc2626" : "#64748b"}
+                      fontSize={9}
+                      style={{ flexShrink: 0 }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 10, color: "#6b7280" }}>
+                    <div>
+                      <span style={{ color: "#9ca3af" }}>Tipo: </span>
+                      {selectedGroup.deviceType}
+                    </div>
+                    <div>
+                      <span style={{ color: "#9ca3af" }}>IP: </span>
+                      {selectedGroup.ip ?? "—"}
+                    </div>
+                    <div>
+                      <span style={{ color: "#9ca3af" }}>Local: </span>
+                      {selectedGroup.locationId ? locations[selectedGroup.locationId] ?? "—" : "—"}
+                    </div>
+                    <div>
+                      <span style={{ color: "#9ca3af" }}>Interfaces: </span>
+                      {selectedGroup.nodes.length} ·{" "}
+                      <span style={{ color: "#9ca3af" }}>Conexões: </span>
+                      {selectedGroupConnections}
+                    </div>
+                  </div>
+                  <Button
+                    variant="primary"
+                    icon="pi pi-arrow-right"
+                    style={{ marginTop: 4, padding: "6px 12px", fontSize: 11 }}
+                    onClick={() => navigate(`/devices/${selectedGroup.deviceId}`)}
+                  >
+                    Ver device
+                  </Button>
+                </div>
+              )}
+
+              {selectedEdge && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>
+                    Connection (interface → interface)
+                  </div>
+                  {([["Origem", selectedEdge.sourceInterfaceId, selectedEdge.sourceDeviceId], ["Destino", selectedEdge.targetInterfaceId, selectedEdge.targetDeviceId]] as const).map(
+                    ([label, interfaceId, deviceId]) => {
+                      const node = nodeById.get(interfaceId);
+                      return (
+                        <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 10 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ color: "#9ca3af" }}>{label}: </span>
+                            <span style={{ fontWeight: 600 }}>{node?.deviceName ?? "—"}</span>
+                            <div style={{ color: "#9ca3af" }}>Interface {node?.name ?? "—"}</div>
+                          </div>
+                          {deviceId && (
+                            <Button
+                              variant="ghost"
+                              icon="pi pi-arrow-right"
+                              style={{ padding: "4px 8px", fontSize: 10, flexShrink: 0 }}
+                              onClick={() => navigate(`/devices/${deviceId}`)}
+                            >
+                              Abrir
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="uni-panel" style={{ padding: 12 }}>
             <h3 style={{ fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Legenda</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
@@ -401,6 +626,9 @@ export function TopologyPage() {
               <span style={{ color: "#22c55e", fontWeight: 600 }}>● Up</span>
               <span style={{ color: "#ef4444", fontWeight: 600 }}>● Down</span>
               <span style={{ color: "#94a3b8" }}>● Nunca verificado</span>
+            </div>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", fontSize: 9, color: "#94a3b8" }}>
+              Clique em um device ou conexão para ver os detalhes · Esc limpa a seleção
             </div>
           </div>
 

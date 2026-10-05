@@ -54,13 +54,15 @@ public sealed class CleanupWorker(
         logger.LogInformation(
             "Cleanup completed. Outbox={OutboxDeleted} Processed={ProcessedDeleted} Audit={AuditDeleted} " +
             "Monitoring={MonitoringDeleted} Notifications={NotificationDeleted} " +
-            "RemoteSessions={RemoteSessionDeleted} Discovery={DiscoveryDeleted}.",
+            "RemoteSessions={RemoteSessionDeleted} Discovery={DiscoveryDeleted} " +
+            "MonitoringEvents={MonitoringEventsDeleted}.",
             result.OutboxDeleted,
             result.ProcessedDeleted,
             result.AuditDeleted,
             result.MonitoringDeleted,
             result.NotificationDeleted,
             result.RemoteSessionDeleted,
-            result.DiscoveryDeleted);
+            result.DiscoveryDeleted,
+            result.MonitoringEventsDeleted);
     }
 }

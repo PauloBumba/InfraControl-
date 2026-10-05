@@ -96,6 +96,23 @@ public sealed class NotificationSignalRWorkerTests : IDisposable
         delivery.LastError.Should().BeNull();
     }
 
+    /// <summary>
+    /// Entrega 3 (docs/29 backlog §3): o push SignalR carrega o MESMO
+    /// `eventType` do feed persistido — o frontend exibe o tipo junto de
+    /// título/mensagem ao inserir o evento no feed em tempo real.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPending_ShouldCarryEventTypeOnTheSignalRMessage()
+    {
+        var (_, worker, dispatcher, deliveryId) = await CreateAsync();
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(1);
+        dispatcher.Sent.Should().ContainSingle(m => m.DeliveryId == deliveryId);
+        dispatcher.Sent[0].EventType.Should().Be("UserCreatedDomainEvent");
+    }
+
     [Fact]
     public async Task ProcessPending_WhenPushFails_ShouldMarkFailedWithPtBrError()
     {

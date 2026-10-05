@@ -9,6 +9,8 @@ public sealed record RetentionOptions
     public int NotificationsDays { get; set; } = 90;
     public int RemoteSessionsDays { get; set; } = 90;
     public int DiscoveryRunsDays { get; set; } = 180;
+    public int MonitoringEventsDays { get; set; } = 90;
+    public int InvitationsDays { get; set; } = 90;
     public int BatchSize { get; set; } = 500;
 
     public DateTime OutboxCutoff(DateTime utcNow) => utcNow.AddDays(-OutboxProcessedDays);
@@ -18,6 +20,8 @@ public sealed record RetentionOptions
     public DateTime NotificationsCutoff(DateTime utcNow) => utcNow.AddDays(-NotificationsDays);
     public DateTime RemoteSessionsCutoff(DateTime utcNow) => utcNow.AddDays(-RemoteSessionsDays);
     public DateTime DiscoveryCutoff(DateTime utcNow) => utcNow.AddDays(-DiscoveryRunsDays);
+    public DateTime MonitoringEventsCutoff(DateTime utcNow) => utcNow.AddDays(-MonitoringEventsDays);
+    public DateTime InvitationsCutoff(DateTime utcNow) => utcNow.AddDays(-InvitationsDays);
 }
 
 /// <summary>
@@ -36,10 +40,13 @@ public sealed record CleanupResult(
     int MonitoringDeleted,
     int NotificationDeleted,
     int RemoteSessionDeleted,
-    int DiscoveryDeleted)
+    int DiscoveryDeleted,
+    int MonitoringEventsDeleted = 0,
+    int InvitationsDeleted = 0)
 {
     public int TotalDeleted => OutboxDeleted + ProcessedDeleted + AuditDeleted
-        + MonitoringDeleted + NotificationDeleted + RemoteSessionDeleted + DiscoveryDeleted;
+        + MonitoringDeleted + NotificationDeleted + RemoteSessionDeleted + DiscoveryDeleted
+        + MonitoringEventsDeleted + InvitationsDeleted;
 }
 
 public interface ICleanupService

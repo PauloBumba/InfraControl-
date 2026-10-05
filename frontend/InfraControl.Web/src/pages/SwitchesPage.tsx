@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SelectField } from "@/components/ui/SelectField";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { StatusChip } from "@/components/ui/StatusChip";
 import {
   listLocations,
   listSwitchPorts,
@@ -113,7 +120,7 @@ export function SwitchesPage() {
   const downCount = ports.filter((port) => port.linkUp === false).length;
 
   if (loading) {
-    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+    return <LoadingBlock />;
   }
 
   if (!loading && switches.length === 0 && switchesTotal === 0 && error) {
@@ -121,34 +128,29 @@ export function SwitchesPage() {
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
         <h2>{error}</h2>
-        <button onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <Button variant="primary" onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px" }}>
           Tentar de novo
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Switches & Portas</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {switchesTotal} switches
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <select
-            value={selectedId ?? ""}
-            onChange={(e) => setSelectedId(e.target.value)}
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-          >
-            {switches.map((sw) => (
-              <option key={sw.id} value={sw.id}>{sw.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <PageHeader
+        title="Switches & Portas"
+        subtitle={`${switchesTotal} switches`}
+        actions={
+          <div style={{ display: "flex", gap: 8 }}>
+            <SelectField
+              value={selectedId ?? ""}
+              onChange={setSelectedId}
+              options={switches.map((sw) => ({ value: sw.id, label: sw.name }))}
+              style={{ minWidth: 180 }}
+            />
+          </div>
+        }
+      />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
@@ -199,7 +201,7 @@ export function SwitchesPage() {
         )}
 
         {portsLoading && (
-          <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>
+          <LoadingBlock />
         )}
 
         {!portsLoading && !portsError && (
@@ -238,44 +240,17 @@ export function SwitchesPage() {
 
       <div className="uni-panel">
         <div className="uni-panel-header"><h2>Detalhe de portas</h2></div>
-        <table className="uni-clients-table">
-          <thead>
-            <tr>
-              <th style={{ width: 120 }}>Porta</th>
-              <th>Descrição</th>
-              <th style={{ width: 90 }}>Link</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!portsLoading && !portsError && ports.map((port) => (
-              <tr key={`${port.id}-row`}>
-                <td style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12 }}>{port.name}</td>
-                <td style={{ fontSize: 13, color: "#64748b" }}>{port.description ?? "—"}</td>
-                <td>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      padding: "2px 8px",
-                      borderRadius: 4,
-                      background: port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9",
-                      color: port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b",
-                    }}
-                  >
-                    {port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {!portsLoading && !portsError && ports.length === 0 && (
-              <tr>
-                <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Nenhuma porta cadastrada
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <DataTablePanel panel={false} value={portsError ? [] : ports} dataKey="id" loading={portsLoading} emptyMessage={portsError ? "—" : "Nenhuma porta cadastrada"}>
+          <Column header="Porta" field="name" style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12, width: 120 }} />
+          <Column header="Descrição" body={(port: SwitchPortItem) => port.description ?? "—"} style={{ fontSize: 13, color: "#64748b" }} />
+          <Column header="Link" body={(port: SwitchPortItem) => (
+            <StatusChip
+              label={port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
+              background={port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9"}
+              color={port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b"}
+            />
+          )} style={{ width: 90 }} />
+        </DataTablePanel>
       </div>
     </div>
   );

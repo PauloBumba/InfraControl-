@@ -23,6 +23,8 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
         var notificationDeleted = await DeleteNotificationsAsync(Cutoff(days, RetentionDataType.Notifications, _options.NotificationsDays, utcNow), batchSize, cancellationToken);
         var remoteSessionDeleted = await DeleteRemoteSessionsAsync(Cutoff(days, RetentionDataType.RemoteSessions, _options.RemoteSessionsDays, utcNow), batchSize, cancellationToken);
         var discoveryDeleted = await DeleteDiscoveryRunsAsync(Cutoff(days, RetentionDataType.DiscoveryRuns, _options.DiscoveryRunsDays, utcNow), batchSize, cancellationToken);
+        var monitoringEventsDeleted = await DeleteMonitoringEventsAsync(Cutoff(days, RetentionDataType.MonitoringEvents, _options.MonitoringEventsDays, utcNow), batchSize, cancellationToken);
+        var invitationsDeleted = await DeleteInvitationsAsync(Cutoff(days, RetentionDataType.Invitations, _options.InvitationsDays, utcNow), batchSize, cancellationToken);
 
         return new CleanupResult(
             outboxDeleted,
@@ -31,7 +33,9 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             monitoringDeleted,
             notificationDeleted,
             remoteSessionDeleted,
-            discoveryDeleted);
+            discoveryDeleted,
+            monitoringEventsDeleted,
+            invitationsDeleted);
     }
 
     private async Task<int> DeleteOutboxAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
@@ -149,6 +153,40 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             return 0;
 
         return await _dbContext.DiscoveryRuns
+            .Where(m => ids.Contains(m.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    private async Task<int> DeleteMonitoringEventsAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
+    {
+        var ids = await _dbContext.MonitoringEvents
+            .Where(m => m.OccurredAt < cutoff)
+            .OrderBy(m => m.OccurredAt)
+            .Select(m => m.Id)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
+
+        if (ids.Count == 0)
+            return 0;
+
+        return await _dbContext.MonitoringEvents
+            .Where(m => ids.Contains(m.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    private async Task<int> DeleteInvitationsAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
+    {
+        var ids = await _dbContext.Invitations
+            .Where(m => m.CreateDateTime < cutoff)
+            .OrderBy(m => m.CreateDateTime)
+            .Select(m => m.Id)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
+
+        if (ids.Count == 0)
+            return 0;
+
+        return await _dbContext.Invitations
             .Where(m => ids.Contains(m.Id))
             .ExecuteDeleteAsync(cancellationToken);
     }

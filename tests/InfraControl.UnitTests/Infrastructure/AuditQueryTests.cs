@@ -90,6 +90,41 @@ public sealed class AuditQueryTests
         result.TotalCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Search_ShouldResolveActorNameByEmailIgnoringCase()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.EnsureCreatedAsync();
+
+        context.DomainUsers.Add(User.Create("admin@example.com", "Admin da Silva"));
+        await context.SaveChangesAsync();
+
+        // Caixa mista no gravado (login sem normalizar), e-mail de usuário
+        // removido e linha de sistema — os três casos de exibição do front.
+        await context.AuditEntries.AddRangeAsync(
+            new AuditEntry("CreateTaskCommand", "ApplicationRequest", "Succeeded", actorId: "Admin@Example.com"),
+            new AuditEntry("DeleteTaskCommand", "ApplicationRequest", "Succeeded", actorId: "removido@example.com"),
+            new AuditEntry("SystemCommand", "ApplicationRequest", "Succeeded"));
+        await context.SaveChangesAsync();
+
+        var handler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<SearchAuditEntriesQuery, PagedResult<AuditEntrySummary>>>();
+
+        var result = await handler.Handle(new SearchAuditEntriesQuery(), CancellationToken.None);
+
+        result.TotalCount.Should().Be(3);
+        result.Items.Should().ContainSingle(entry => entry.ActorId == "Admin@Example.com")
+            .Which.ActorName.Should().Be("Admin da Silva");
+        result.Items.Should().ContainSingle(entry => entry.ActorId == "removido@example.com")
+            .Which.ActorName.Should().BeNull();
+        result.Items.Should().ContainSingle(entry => entry.ActorId == null)
+            .Which.ActorName.Should().BeNull();
+    }
+
     private static ServiceProvider BuildProvider(SqliteConnection connection)
     {
         var services = new ServiceCollection();

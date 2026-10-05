@@ -23,6 +23,6 @@ public sealed class NotificationSignalRWorker(
         => services.GetRequiredService<ISignalRNotificationDispatcher>().SendAsync(
             new NotificationSignalRMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
-                item.Title, item.Message, item.CreatedAt),
+                item.Title, item.Message, item.EventType, item.CreatedAt),
             cancellationToken);
 }

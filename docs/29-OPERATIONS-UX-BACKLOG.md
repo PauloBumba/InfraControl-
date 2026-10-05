@@ -1,0 +1,97 @@
+# Backlog de Operação e UX
+
+## Objetivo
+
+Evoluir a operação diária sem criar dados fictícios no frontend. Cada entrega
+consome contratos existentes ou começa pelo slice backend, com testes e API
+documentada antes da tela.
+
+## Entregas
+
+1. **Feedback contextual — concluída**
+   - `Messages` inline em Users, Sessions e Notifications; sucesso e erro de
+     ação ficam visíveis até fechamento manual.
+
+2. **Governança de convites — concluída (2026-10-03)**
+   - Backend: consulta administrativa paginada de convites por estado
+     `Pending`/`Accepted`/`Rejected`/`Expired`, com e-mail, role, criação,
+     expiração e aceite/recusa — `SearchInvitationsQuery` +
+     `GET /api/v1/admin/invitations` (Admin).
+   - Backend: `GET /api/v1/invitations/me` (convites do e-mail logado),
+     `POST /api/v1/invitations/{id}/accept` e `/{id}/reject` em tempo real +
+     `Invitation` no `RetentionPolicy` (cleanup automático).
+   - Frontend: `InvitationsPage` (aba/rota Convites) com filtros por status,
+     busca e ações aceitar/recusar; **seção "Convites pendentes" no
+     Dashboard** do usuário (carga independente — falha não derruba os
+     demais painéis; só renderiza com pendentes ou erro, com aviso de
+     sucesso/erro e recarga própria).
+   - Não expõe token nem senha; apenas Administrador na lista completa.
+
+3. **Notificações operacionais — concluída (2026-10-04)**
+   - Backend: hub `GET /hubs/notifications` + evento `notification`
+     confirmados e documentados (docs/07 §Canal SignalR) — payload ganhou
+     **`eventType`** (espelho do feed persistido) via
+     `PendingDeliveryItem`/`NotificationSignalRMessage`; fluxo
+     persistência → delivery → push inalterado (worker verde, 16 testes).
+   - Frontend: `services/signalr/notifications.ts` (singleton por aba,
+     antiforgery no negotiate, retry 10s, reconexão automática) consumido
+     pelo **AppLayout** (hub vivo enquanto logado; cada evento soma o
+     **contador do sino**) e pela **NotificationsPage** (insere o item no
+     topo da página 1 com dedup por notificationId e soma o total; fora da
+     página 1 o próximo load traz na posição certa). O feed persistido
+     continua fonte de histórico. `eventType` exibido no item; não há
+     destinatário/canal no contrato do push (sem esse campo hoje).
+
+4. **Topologia SVG — concluída (2026-10-03)**
+   - SVG próprio mantido (decisão existente); interação melhorada:
+     **seleção por clique** em device (anel + foco: conexões dele destacadas,
+     vizinhos preservados, resto esmaecido) e em **aresta** (hit-area
+     invisível de 12px, conexão em destaque), **painel de Detalhes** na
+     sidebar (device: tipo/IP/local/interfaces/conexões + botão **Ver
+     device** → `/devices/:id`; conexão: origem/destino com navegação para
+     cada device), **Esc** limpa a seleção, clique no fundo do mapa limpa,
+     dica de uso na legenda. Hover/tooltip, filtros, zoom e legenda
+     existentes preservados. Não trocado por componente de árvore genérico.
+
+5. **Base de conhecimento**
+   - Validar commands de edição/publicação existentes; completar backend se
+     faltar atualização. Frontend com visualização lista/tabela e quadro por
+     status, sem mudar o conteúdo dos artigos.
+
+6. **Tarefas e operação**
+   - Antes de UI: definir no domínio se responsável é um `UserId` obrigatório
+     ou opcional e as regras de atribuição/reatribuição/auditoria.
+   - Depois: filtro por operador, cartões com responsável, gráfico de estados
+     e relatório operacional baseado em dados reais de tarefas e histórico.
+
+7. **Relatórios**
+   - Definir indicadores e período: tarefas por operador/estado, incidentes,
+     alertas e SLA. O backend fornece agregados; o frontend só apresenta.
+
+8. **PDI — Plano de Desenvolvimento Individual (mínimo viável implementado)**
+   - Significado definido pelo usuário em 2026-10-03: **PDI = Plano de
+     Desenvolvimento Individual** (não é Plano Diretor de Infraestrutura).
+     Conceito de pessoas: trilhas/capacitação dos operadores da plataforma.
+   - **Implementado em 2026-10-04** (pedido "checklist B1–B4 + commit"):
+     1 PDI por usuário (upsert, sem histórico), campos **estratégia**
+     (≤4000), **prazo** (`target_date`) e **status**
+     (InProgress/Completed/Cancelled); permissões — Admin cria/edita/lista
+     tudo, Operador só edita o próprio e enxerga o seu, Viewer sem acesso
+     (rota nível `operate`); endpoints `GET/PUT /api/v1/pdi` + `PdiPage`
+     em `/pdi`. Criação exclusiva do Admin (Operador → 403).
+   - Parte distribuída (padrão do domínio): `PdiCreated/UpdatedDomainEvent`
+     → outbox → RabbitMQ → `NotificationEventConsumer` — **criação** notifica
+     o dono por **Email + SignalR**; **edição** notifica o dono (ou Admin,
+     quando age sobre o próprio) só por **SignalR**; regra "quem fez não
+     recebe" (o ator determina o destinatário).
+   - Evolução do módulo (diagnóstico → ciclo completo, fases, check-ins,
+     evidências, avaliação, dashboards/indicadores/relatórios): plano de
+     produto integral em **`docs/30-PLANO-MODULO-PDI.md`** (colado pelo
+     usuário em 2026-10-04) — execução por fases (Fase 1…8), **uma task
+     por fase**, nunca tudo de uma vez.
+
+## Ordem de execução
+
+`Convites → Notificações SignalR → Topologia SVG → Conhecimento → Tarefas com
+operador → Relatórios` (PDI mínimo concluído 2026-10-04 — item 8 acima;
+evolução do módulo por fases em `docs/30-PLANO-MODULO-PDI.md`).

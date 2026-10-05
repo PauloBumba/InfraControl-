@@ -1,5 +1,6 @@
 using InfraControl.Application;
 using InfraControl.Application.Identity;
+using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Middleware;
@@ -87,6 +88,13 @@ builder.Services
 builder.Services
     .AddOptions<ZabbixIntegrationOptions>()
     .Bind(builder.Configuration.GetSection(ZabbixIntegrationOptions.SectionName));
+
+// F20-T001/ADR-028 §2: cliente REST de saída do UniFi Controller — vazio
+// (default) = integração desligada: o client lança "não configurada" e nada
+// é chamado; credenciais vêm só de env (UNIFI_* no compose), nunca do repo.
+builder.Services
+    .AddOptions<UnifiIntegrationOptions>()
+    .Bind(builder.Configuration.GetSection(UnifiIntegrationOptions.SectionName));
 
 // Decisão do usuário 01/10/2026: a origem dos links de e-mail (convite
 // F1-T017; reset quando a página /reset-password nascer) vem da config

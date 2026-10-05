@@ -15,6 +15,8 @@ export interface AuditEntry {
   resource: string;
   outcome: string;
   actorId: string | null;
+  /** Fase D — `DisplayName` resolvido no reader (join por e-mail); null = usuário removido. */
+  actorName: string | null;
   correlationId: string | null;
   error: string | null;
   occurredAt: string;

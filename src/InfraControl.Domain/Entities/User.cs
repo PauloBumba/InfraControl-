@@ -93,6 +93,27 @@ public sealed class User : AggregateRoot
         RaiseDomainEvent(new UserEnabledDomainEvent(Id));
     }
 
+    public void Update(string displayName, string email)
+    {
+        var newEmail = NormalizeEmail(email);
+        var newDisplayName = RequireDisplayName(displayName);
+
+        if (Email == newEmail && DisplayName == newDisplayName)
+            return;
+
+        Email = newEmail;
+        DisplayName = newDisplayName;
+        Touch();
+        RaiseDomainEvent(new UserUpdatedDomainEvent(Id, DisplayName, Email));
+    }
+
+    public void Delete()
+    {
+        // Guard: usuário não pode se auto-excluir - validado no serviço
+        // Evento disparado ANTES de marcar deleted para notificação
+        RaiseDomainEvent(new UserDeletedDomainEvent(Id, Email, DisplayName));
+    }
+
     private static string NormalizeEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))

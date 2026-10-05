@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import {
   listDevices,
@@ -82,7 +84,7 @@ export function LocationsPage() {
     list.filter((entry) => entry.locationId === locationId).length;
 
   if (loading) {
-    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+    return <LoadingBlock />;
   }
 
   if (!loading && locationItems.length === 0 && locationTotal === 0 && error) {
@@ -90,9 +92,9 @@ export function LocationsPage() {
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
         <h2>{error}</h2>
-        <button onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <Button variant="primary" onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px" }}>
           Tentar de novo
-        </button>
+        </Button>
       </div>
     );
   }

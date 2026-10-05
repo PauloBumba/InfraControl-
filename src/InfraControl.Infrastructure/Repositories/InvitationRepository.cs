@@ -38,6 +38,56 @@ public sealed class InvitationRepository(AppDbContext dbContext) : IInvitationRe
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<List<Invitation>> SearchAsync(
+        InvitationStatus? status = null,
+        string? email = null,
+        int skip = 0,
+        int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Invitations
+            .Include(invitation => invitation.RoleAssignments)
+            .AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(invitation => invitation.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            query = query.Where(invitation => invitation.Email.Contains(normalizedEmail));
+        }
+
+        return query
+            .OrderByDescending(invitation => invitation.CreateDateTime)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> CountAsync(
+        InvitationStatus? status = null,
+        string? email = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Invitations.AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(invitation => invitation.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            query = query.Where(invitation => invitation.Email.Contains(normalizedEmail));
+        }
+
+        return query.CountAsync(cancellationToken);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.SaveChangesAsync(cancellationToken);

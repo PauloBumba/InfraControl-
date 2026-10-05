@@ -14,6 +14,7 @@ public sealed record PendingDeliveryItem(
     Guid UserId,
     string Title,
     string Message,
+    string EventType,
     DateTime CreatedAt,
     string? RecipientEmail);
 

@@ -25,6 +25,7 @@ public sealed class SignalRNotificationDispatcher(
                 notificationId = message.NotificationId,
                 title = message.Title,
                 message = message.Message,
+                eventType = message.EventType,
                 createdAt = message.CreatedAt
             }, cancellationToken);
 

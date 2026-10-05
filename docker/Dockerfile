@@ -45,6 +45,8 @@ ENTRYPOINT ["dotnet", "InfraControl.Api.dll"]
 # ------------------------------------------------ runtime dos workers --------
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS workers
 WORKDIR /app
+# Instala iputils-ping para suporte a ping ICMP (base Debian/Ubuntu)
+RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
 COPY --from=workers-build /out/workers ./
 USER $APP_UID
 ENTRYPOINT ["dotnet", "InfraControl.Workers.dll"]

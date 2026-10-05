@@ -1,0 +1,207 @@
+/* =============================================
+   PrimeReact → skin UniFi (sem trocar o tema base)
+   Mantém lara-light-blue + pinta DataTable/Tag/Skeleton
+   com as variáveis --uni-* do styles.css.
+   ============================================= */
+
+.uni-panel .p-datatable {
+  font-family: inherit;
+}
+
+.uni-panel .p-datatable .p-datatable-thead > tr > th {
+  background: #f9fafb;
+  color: var(--uni-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: none;
+  border-bottom: 1px solid var(--uni-border);
+  padding: 10px 14px;
+}
+
+.uni-panel .p-datatable .p-datatable-tbody > tr > td {
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--uni-text);
+}
+
+.uni-panel .p-datatable .p-datatable-tbody > tr:hover > td {
+  background: #f9fafb;
+}
+
+.uni-panel .p-datatable .p-datatable-tbody > tr.p-datatable-emptymessage > td {
+  text-align: center;
+  color: var(--uni-text-muted);
+  padding: 24px;
+}
+
+.uni-panel .p-datatable .p-paginator {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--uni-border);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--uni-text-secondary);
+}
+
+.uni-panel .p-datatable .p-paginator .p-paginator-element {
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+}
+
+.uni-panel .p-datatable .p-paginator .p-highlight {
+  background: #eff6ff;
+  color: var(--uni-accent);
+  border-color: transparent;
+}
+
+.uni-panel .p-datatable.p-datatable-sm .p-datatable-thead > tr > th,
+.uni-panel .p-datatable.p-datatable-sm .p-datatable-tbody > tr > td {
+  padding: 8px 12px;
+}
+
+.uni-panel .p-datatable-loading-overlay {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+/* Tag/StatusChip — sem sombra do tema Lara */
+.p-tag {
+  box-shadow: none;
+  line-height: 1.3;
+}
+
+/* Skeleton alinhado ao painel */
+.uni-loading-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.uni-loading-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.uni-loading-cell {
+  width: 100% !important;
+}
+
+/* SelectField (Dropdown) — altura/borda alinhadas aos inputs uni-* */
+.uni-select.p-dropdown {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  font-size: 13px;
+  color: #64748b;
+  min-height: 34px;
+  align-items: center;
+}
+
+.uni-select.p-dropdown:not(.p-disabled):hover {
+  border-color: #cbd5e1;
+}
+
+.uni-select.p-dropdown.p-focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.uni-select .p-dropdown-label {
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.uni-select .p-dropdown-trigger {
+  width: 2rem;
+  color: #94a3b8;
+}
+
+.p-dropdown-panel .p-dropdown-item {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+/* SwitchField (InputSwitch) — tom azul UniFi */
+.uni-switch.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider {
+  background: #3b82f6;
+}
+
+.uni-switch.p-inputswitch .p-inputswitch-slider {
+  background: #cbd5e1;
+}
+
+.uni-switch.p-inputswitch {
+  width: 2.75rem;
+  height: 1.5rem;
+}
+
+.uni-switch.p-inputswitch .p-inputswitch-slider:before {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: -0.55rem;
+  margin-left: -0.55rem;
+}
+
+/* MetricChart — canvas dentro do painel */
+.uni-metric-chart {
+  position: relative;
+  width: 100%;
+}
+
+/* Feedback da Fase F: Toast/Message/Badge conservam a linguagem UniFi. */
+.uni-inline-messages .p-message,
+.uni-form-message .p-message-text {
+  font-family: inherit;
+}
+
+.uni-inline-messages .p-message { margin: 0; border-radius: 6px; font-size: 13px; }
+
+.uni-form-message.p-message {
+  width: 100%;
+  margin: 0;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.uni-nav-badge.p-badge {
+  margin-left: auto;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  line-height: 1.25rem;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--uni-red);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.uni-filter-bar.p-toolbar { padding: 0; border: 0; background: transparent; }
+.uni-select-button .p-button { padding: 5px 12px; font-size: 12px; color: #64748b; border-color: #e2e8f0; }
+.uni-select-button .p-button.p-highlight { background: #eff6ff; border-color: #bfdbfe; color: var(--uni-accent); }
+.uni-breadcrumb.p-breadcrumb { padding: 0; border: 0; background: transparent; font-size: 12px; }
+.uni-input-otp { display: flex; gap: 8px; }
+.uni-input-otp .p-inputotp-input { width: 2.5rem; height: 2.75rem; border-radius: 6px; font-size: 18px; font-weight: 600; }
+
+.uni-meter-group .p-metergroup-meter-container { height: 7px; border-radius: 4px; }
+.uni-meter-group .p-metergroup-label-list { display: none; }
+.uni-health-meter { margin-top: 6px; }
+.uni-timeline-wrap { padding: 16px; }
+.uni-feed-timeline .p-timeline-event-opposite { flex: 0 0 150px; padding-top: 3px; }
+.uni-feed-time { font-size: 11px; color: #94a3b8; }
+.uni-feed-marker { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #eff6ff; color: var(--uni-accent); }
+.uni-feed-content { padding: 0 0 18px 10px; }
+.uni-feed-content > span { display: inline-block; margin-top: 6px; font-size: 10px; color: #64748b; background: #f1f5f9; border-radius: 4px; padding: 2px 6px; }
+.uni-task-progress { padding: 12px 16px; display: flex; align-items: center; gap: 16px; }
+.uni-task-progress > div:first-child { min-width: 230px; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.uni-task-progress span { color: #64748b; font-size: 11px; }
+.uni-task-progress .p-progressbar { flex: 1; height: 8px; border-radius: 4px; background: #e2e8f0; }
+.uni-task-progress .p-progressbar-value { background: var(--uni-accent); }

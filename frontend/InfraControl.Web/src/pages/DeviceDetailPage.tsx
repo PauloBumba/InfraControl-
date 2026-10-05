@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Column } from "primereact/column";
+import { DataTable } from "primereact/datatable";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { useNavigate, useParams } from "react-router-dom";
+import { BreadCrumb } from "primereact/breadcrumb";
 import { ApiError } from "@/services/api/client";
 import {
   getDevice,
@@ -249,15 +255,15 @@ export function DeviceDetailPage() {
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
         <h2>Dispositivo não encontrado</h2>
-        <button onClick={() => navigate("/devices")} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <Button variant="primary" onClick={() => navigate("/devices")} style={{ marginTop: 8, padding: "6px 14px" }}>
           Voltar para Dispositivos
-        </button>
+        </Button>
       </div>
     );
   }
 
   if (loading && !device) {
-    return <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</div>;
+    return <LoadingBlock />;
   }
 
   if (!device) {
@@ -265,9 +271,9 @@ export function DeviceDetailPage() {
       <div className="uni-page-empty">
         <i className="pi pi-exclamation-circle" />
         <h2>{error ?? "Erro ao carregar o dispositivo"}</h2>
-        <button onClick={() => void loadDevice()} style={{ marginTop: 8, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}>
+        <Button variant="primary" onClick={() => void loadDevice()} style={{ marginTop: 8, padding: "6px 14px" }}>
           Tentar de novo
-        </button>
+        </Button>
       </div>
     );
   }
@@ -287,6 +293,7 @@ export function DeviceDetailPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <BreadCrumb className="uni-breadcrumb" home={{ icon: "pi pi-home", command: () => navigate("/") }} model={[{ label: "Dispositivos", command: () => navigate("/devices") }, { label: device.name }]} />
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={() => navigate("/devices")} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", background: "white", cursor: "pointer" }}>
@@ -376,56 +383,13 @@ export function DeviceDetailPage() {
               <h2>Últimos polls</h2>
               <span style={{ fontSize: 11, color: "#94a3b8" }}>até 20, mais recentes primeiro</span>
             </div>
-            <table className="uni-clients-table">
-              <thead>
-                <tr>
-                  <th>Check</th>
-                  <th>Status</th>
-                  <th>Duração</th>
-                  <th>Detalhes</th>
-                  <th>Quando</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((result) => (
-                  <tr key={result.id}>
-                    <td style={{ fontWeight: 500, fontSize: 12 }}>{result.check}</td>
-                    <td>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: result.succeeded ? "#f0fdf4" : "#fef2f2", color: result.succeeded ? "#15803d" : "#dc2626" }}>
-                        {result.succeeded ? "OK" : "Falhou"}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: "#64748b" }}>{result.durationMs} ms</td>
-                    <td style={{ fontSize: 11, maxWidth: 260 }}>
-                      {result.error ? (
-                        <span style={{ color: "#dc2626" }}>{result.error}</span>
-                      ) : result.values ? (
-                        <span style={{ fontFamily: "monospace", color: "#64748b", overflowWrap: "anywhere" }}>
-                          {Object.entries(result.values).map(([key, value]) => `${key}=${value}`).join(" · ")}
-                        </span>
-                      ) : (
-                        <span style={{ color: "#94a3b8" }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(result.checkedAt))}</td>
-                  </tr>
-                ))}
-                {!monitoringLoading && results.length === 0 && !error && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Nenhum poll registrado ainda — o histórico nasce com a execução dos checks
-                    </td>
-                  </tr>
-                )}
-                {monitoringLoading && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Carregando…
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <DataTable value={results} dataKey="id" loading={monitoringLoading} size="small" emptyMessage={error ? "—" : "Nenhum poll registrado ainda — o histórico nasce com a execução dos checks"} tableStyle={{ width: "100%" }}>
+              <Column header="Check" field="check" style={{ fontWeight: 500, fontSize: 12 }} />
+              <Column header="Status" body={(result: MonitoringResultItem) => <StatusChip label={result.succeeded ? "OK" : "Falhou"} background={result.succeeded ? "#f0fdf4" : "#fef2f2"} color={result.succeeded ? "#15803d" : "#dc2626"} fontWeight={600} fontSize={10} />} style={{ width: 90 }} />
+              <Column header="Duração" body={(result: MonitoringResultItem) => `${result.durationMs} ms`} style={{ fontSize: 12, color: "#64748b", width: 100 }} />
+              <Column header="Detalhes" body={(result: MonitoringResultItem) => result.error ? <span style={{ color: "#dc2626" }}>{result.error}</span> : result.values ? <span style={{ fontFamily: "monospace", color: "#64748b", overflowWrap: "anywhere" }}>{Object.entries(result.values).map(([key, value]) => `${key}=${value}`).join(" · ")}</span> : <span style={{ color: "#94a3b8" }}>—</span>} style={{ fontSize: 11 }} />
+              <Column header="Quando" body={(result: MonitoringResultItem) => formatDateTime(new Date(result.checkedAt))} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
+            </DataTable>
           </div>
 
           <div className="uni-panel">
@@ -433,39 +397,13 @@ export function DeviceDetailPage() {
               <h2>Alertas deste dispositivo</h2>
               <span style={{ fontSize: 11, color: "#94a3b8" }}>{alertsTotal} no total · mostrando até 5</span>
             </div>
-            <table className="uni-clients-table">
-              <thead>
-                <tr>
-                  <th>Severidade</th>
-                  <th>Check</th>
-                  <th>Mensagem</th>
-                  <th>Status</th>
-                  <th>Aberto em</th>
-                </tr>
-              </thead>
-              <tbody>
-                {alerts.map((alert) => (
-                  <tr key={alert.id}>
-                    <td>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: alert.severity === "Critical" ? "#fef2f2" : "#fef3c7", color: alert.severity === "Critical" ? "#dc2626" : "#d97706" }}>
-                        {alert.severity === "Critical" ? "Crítico" : "Atenção"}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, fontWeight: 500 }}>{alert.check ?? alert.source}</td>
-                    <td style={{ fontSize: 12, color: "#64748b" }}>{alert.message}</td>
-                    <td style={{ fontSize: 12 }}>{alert.status === "Open" ? "Aberto" : alert.status === "Resolved" ? "Resolvido" : "Suprimido"}</td>
-                    <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(alert.openedAt))}</td>
-                  </tr>
-                ))}
-                {!monitoringLoading && alerts.length === 0 && !error && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Nenhum alerta neste dispositivo
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <DataTable value={alerts} dataKey="id" loading={monitoringLoading} size="small" emptyMessage={error ? "—" : "Nenhum alerta neste dispositivo"} tableStyle={{ width: "100%" }}>
+              <Column header="Severidade" body={(alert: AlertItem) => <StatusChip label={alert.severity === "Critical" ? "Crítico" : "Atenção"} background={alert.severity === "Critical" ? "#fef2f2" : "#fef3c7"} color={alert.severity === "Critical" ? "#dc2626" : "#d97706"} fontWeight={600} fontSize={10} />} style={{ width: 100 }} />
+              <Column header="Check" body={(alert: AlertItem) => alert.check ?? alert.source} style={{ fontSize: 12, fontWeight: 500 }} />
+              <Column header="Mensagem" field="message" style={{ fontSize: 12, color: "#64748b" }} />
+              <Column header="Status" body={(alert: AlertItem) => alert.status === "Open" ? "Aberto" : alert.status === "Resolved" ? "Resolvido" : "Suprimido"} style={{ fontSize: 12, width: 105 }} />
+              <Column header="Aberto em" body={(alert: AlertItem) => formatDateTime(new Date(alert.openedAt))} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
+            </DataTable>
           </div>
         </>
       )}
@@ -482,31 +420,10 @@ export function DeviceDetailPage() {
                   : `${interfaces.length}`}
               </span>
             </div>
-            <table className="uni-clients-table">
-              <thead>
-                <tr><th>Nome</th><th>Descrição</th></tr>
-              </thead>
-              <tbody>
-                {interfaces.map((entry) => (
-                  <tr key={entry.id}>
-                    <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{entry.name}</td>
-                    <td style={{ fontSize: 12, color: "#64748b" }}>{entry.description ?? "—"}</td>
-                  </tr>
-                ))}
-                {!addrLoading && interfaces.length === 0 && !error && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Nenhuma interface cadastrada
-                    </td>
-                  </tr>
-                )}
-                {addrLoading && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <DataTable value={interfaces} dataKey="id" loading={addrLoading} size="small" emptyMessage={error ? "—" : "Nenhuma interface cadastrada"} tableStyle={{ width: "100%" }}>
+              <Column header="Nome" field="name" style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }} />
+              <Column header="Descrição" body={(entry: NetworkInterfaceItem) => entry.description ?? "—"} style={{ fontSize: 12, color: "#64748b" }} />
+            </DataTable>
           </div>
 
           <div className="uni-panel">
@@ -516,31 +433,10 @@ export function DeviceDetailPage() {
                 {addrTotals.ipAddresses > ips.length ? `mostrando ${ips.length} de ${addrTotals.ipAddresses}` : `${ips.length}`}
               </span>
             </div>
-            <table className="uni-clients-table">
-              <thead>
-                <tr><th>IP</th><th>Interface</th></tr>
-              </thead>
-              <tbody>
-                {ips.map((entry) => (
-                  <tr key={entry.id}>
-                    <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{entry.ip}</td>
-                    <td style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }}>{interfaceName(entry.interfaceId)}</td>
-                  </tr>
-                ))}
-                {!addrLoading && ips.length === 0 && !error && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Nenhum endereço IP cadastrado
-                    </td>
-                  </tr>
-                )}
-                {addrLoading && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <DataTable value={ips} dataKey="id" loading={addrLoading} size="small" emptyMessage={error ? "—" : "Nenhum endereço IP cadastrado"} tableStyle={{ width: "100%" }}>
+              <Column header="IP" field="ip" style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }} />
+              <Column header="Interface" body={(entry: IpAddressItem) => interfaceName(entry.interfaceId)} style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }} />
+            </DataTable>
           </div>
 
           <div className="uni-panel">
@@ -550,31 +446,10 @@ export function DeviceDetailPage() {
                 {addrTotals.macAddresses > macs.length ? `mostrando ${macs.length} de ${addrTotals.macAddresses}` : `${macs.length}`}
               </span>
             </div>
-            <table className="uni-clients-table">
-              <thead>
-                <tr><th>MAC</th><th>Interface</th></tr>
-              </thead>
-              <tbody>
-                {macs.map((entry) => (
-                  <tr key={entry.id}>
-                    <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{entry.mac}</td>
-                    <td style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }}>{interfaceName(entry.interfaceId)}</td>
-                  </tr>
-                ))}
-                {!addrLoading && macs.length === 0 && !error && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Nenhum endereço MAC cadastrado
-                    </td>
-                  </tr>
-                )}
-                {addrLoading && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <DataTable value={macs} dataKey="id" loading={addrLoading} size="small" emptyMessage={error ? "—" : "Nenhum endereço MAC cadastrado"} tableStyle={{ width: "100%" }}>
+              <Column header="MAC" field="mac" style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }} />
+              <Column header="Interface" body={(entry: MacAddressItem) => interfaceName(entry.interfaceId)} style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace" }} />
+            </DataTable>
           </div>
         </>
       )}
@@ -588,36 +463,11 @@ export function DeviceDetailPage() {
               {portsTotal > ports.length ? `mostrando ${ports.length} de ${portsTotal}` : `${ports.length}`}
             </span>
           </div>
-          <table className="uni-clients-table">
-            <thead>
-              <tr><th>Nome</th><th>Descrição</th><th>Link</th></tr>
-            </thead>
-            <tbody>
-              {ports.map((port) => (
-                <tr key={port.id}>
-                  <td style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }}>{port.name}</td>
-                  <td style={{ fontSize: 12, color: "#64748b" }}>{port.description ?? "—"}</td>
-                  <td>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: port.linkUp === true ? "#f0fdf4" : port.linkUp === false ? "#fef2f2" : "#f1f5f9", color: port.linkUp === true ? "#15803d" : port.linkUp === false ? "#dc2626" : "#64748b" }}>
-                      {port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {!portsLoading && ports.length === 0 && !error && (
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                    Nenhuma porta cadastrada
-                  </td>
-                </tr>
-              )}
-              {portsLoading && (
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>Carregando…</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <DataTable value={ports} dataKey="id" loading={portsLoading} size="small" emptyMessage={error ? "—" : "Nenhuma porta cadastrada"} tableStyle={{ width: "100%" }}>
+            <Column header="Nome" field="name" style={{ fontWeight: 500, fontSize: 12, fontFamily: "monospace" }} />
+            <Column header="Descrição" body={(port: SwitchPortItem) => port.description ?? "—"} style={{ fontSize: 12, color: "#64748b" }} />
+            <Column header="Link" body={(port: SwitchPortItem) => <StatusChip label={port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"} background={port.linkUp === true ? "#f0fdf4" : port.linkUp === false ? "#fef2f2" : "#f1f5f9"} color={port.linkUp === true ? "#15803d" : port.linkUp === false ? "#dc2626" : "#64748b"} fontWeight={600} fontSize={10} />} style={{ width: 90 }} />
+          </DataTable>
         </div>
       )}
     </div>

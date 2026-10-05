@@ -42,7 +42,6 @@ builder.Services.AddInfrastructure(
 
 builder.Services.AddMediatR(configuration =>
     configuration.RegisterServicesFromAssembly(typeof(InfraControl.Application.Identity.AdminBootstrapper).Assembly));
-builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationMediatR();
 
 // F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —

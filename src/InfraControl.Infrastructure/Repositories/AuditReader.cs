@@ -41,6 +41,18 @@ public sealed class AuditReader(AppDbContext dbContext) : IAuditReader
                 entry.Resource,
                 entry.Outcome,
                 entry.ActorId,
+                // Fase D: `ActorId` grava o e-mail do Identity (AuditBehavior) ou o
+                // `DomainUsers.Email` (SecurityAudit) — resolvido aqui em DisplayName,
+                // com case-insensitive (login pode gravar caixa mista; `User.Email` é
+                // normalizado em minúsculas). Sem correspondência (usuário removido) →
+                // null e o front exibe o valor gravado, como antes.
+                entry.ActorId == null
+                    ? null
+                    : dbContext.DomainUsers
+                        .AsNoTracking()
+                        .Where(user => user.Email == entry.ActorId.ToLower())
+                        .Select(user => user.DisplayName)
+                        .FirstOrDefault(),
                 entry.CorrelationId,
                 entry.Error,
                 entry.OccurredAt))

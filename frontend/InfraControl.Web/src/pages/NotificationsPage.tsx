@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
+import { Column } from "primereact/column";
 import { useCan } from "@/app/router/access";
 import { useAppSelector } from "@/app/store/hooks";
 import { formatDateTime } from "@/utils/format";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SwitchField } from "@/components/ui/SwitchField";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
+import { Timeline } from "primereact/timeline";
 import {
   CHANNELS,
   CHANNEL_ICON,
@@ -13,6 +20,7 @@ import {
   setPreference,
   type NotificationFeedItem,
 } from "@/services/api/notifications";
+import { onNotificationPush } from "@/services/signalr/notifications";
 
 /**
  * F17-T010 + pendência da F18-T001 — NotificationsPage com as duas abas
@@ -48,6 +56,7 @@ function messageFor(error: unknown): string {
 }
 
 export function NotificationsPage() {
+  const { messagesRef, showMessage } = useInlineMessages();
   const user = useAppSelector((state) => state.auth.user);
   const userId = user?.id;
   // Escrita (PUT) é Operate no backend; sem nível o toggle vira chip fixo.
@@ -108,6 +117,30 @@ export function NotificationsPage() {
     void loadFeed();
   }, [loadFeed]);
 
+  // Entrega 3 (docs/29 backlog): push SignalR → insere o evento no topo
+  // do feed (página 1, dedup por notificationId) e soma o total. O feed
+  // persistido continua fonte de histórico; fora da página 1 o próximo
+  // load já traz a nova notificação na posição certa.
+  useEffect(() => {
+    return onNotificationPush((event) => {
+      setFeedTotal((current) => current + 1);
+      if (feedPage !== 1 || feedLoading) return;
+      setFeedItems((current) => {
+        if (current.some((item) => item.id === event.notificationId)) return current;
+        return [
+          {
+            id: event.notificationId,
+            eventType: event.eventType,
+            title: event.title,
+            message: event.message,
+            createdAt: event.createdAt,
+          },
+          ...current,
+        ];
+      });
+    });
+  }, [feedPage, feedLoading]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -120,8 +153,12 @@ export function NotificationsPage() {
     try {
       await setPreference(userId, channel, next);
       setEnabledByChannel((current) => ({ ...current, [channel]: next }));
+      showMessage({
+        severity: "success",
+        summary: `${CHANNEL_LABEL[channel]} ${next ? "ativado" : "desativado"}.`,
+      });
     } catch (caught) {
-      setError(messageFor(caught));
+      showMessage({ severity: "error", summary: "Não foi possível salvar a preferência.", detail: messageFor(caught) });
     } finally {
       setBusyChannel(null);
     }
@@ -129,6 +166,7 @@ export function NotificationsPage() {
 
   const activeCount = CHANNELS.filter((channel) => enabledByChannel[channel]).length;
   const feedTotalPages = Math.max(1, Math.ceil(feedTotal / PAGE_SIZE));
+  const preferenceRows = CHANNELS.map((channel) => ({ channel }));
 
   const subtitle =
     tab === "feed"
@@ -141,85 +179,51 @@ export function NotificationsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Notificações</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>{subtitle}</p>
-        </div>
-        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
-          {([
-            { id: "feed", label: "Feed" },
-            { id: "prefs", label: "Preferências" },
-          ] as const).map((entry) => (
-            <button
-              key={entry.id}
-              onClick={() => setTab(entry.id)}
-              style={{
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                color: tab === entry.id ? "#3b82f6" : "#64748b",
-                background: "none",
-                border: "none",
-                borderBottom: tab === entry.id ? "2px solid #3b82f6" : "2px solid transparent",
-                marginBottom: -1,
-                cursor: "pointer",
-              }}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Notificações"
+        subtitle={subtitle}
+        actions={
+          <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
+            {([
+              { id: "feed", label: "Feed" },
+              { id: "prefs", label: "Preferências" },
+            ] as const).map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => setTab(entry.id)}
+                style={{
+                  padding: "8px 14px",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: tab === entry.id ? "#3b82f6" : "#64748b",
+                  background: "none",
+                  border: "none",
+                  borderBottom: tab === entry.id ? "2px solid #3b82f6" : "2px solid transparent",
+                  marginBottom: -1,
+                  cursor: "pointer",
+                }}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
+
+      <InlineMessages ref={messagesRef} />
 
       {tab === "feed" && (
         <>
           {feedError && <ErrorBanner message={feedError} onRetry={() => void loadFeed()} />}
           <div className="uni-panel">
-            <div className="uni-alerts-list">
-              {feedItems.map((item) => (
-                <div className="uni-alert-row" key={item.id}>
-                  <div className="uni-alert-icon info">
-                    <i className="pi pi-bell" />
-                  </div>
-                  <div className="uni-alert-body">
-                    <div className="uni-alert-title">{item.title}</div>
-                    <div className="uni-alert-detail">{item.message}</div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        background: "#f1f5f9",
-                        color: "#64748b",
-                        maxWidth: 220,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={item.eventType}
-                    >
-                      {item.eventType}
-                    </span>
-                    <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                      {formatDateTime(new Date(item.createdAt))}
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="uni-timeline-wrap">
+              <Timeline value={feedItems} align="left" className="uni-feed-timeline" marker={() => <span className="uni-feed-marker"><i className="pi pi-bell" /></span>} content={(item: NotificationFeedItem) => <div className="uni-feed-content"><div className="uni-alert-title">{item.title}</div><div className="uni-alert-detail">{item.message}</div><span title={item.eventType}>{item.eventType}</span></div>} opposite={(item: NotificationFeedItem) => <span className="uni-feed-time">{formatDateTime(new Date(item.createdAt))}</span>} />
               {!feedLoading && feedItems.length === 0 && (
                 <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
                   {feedError ? "—" : "Nenhuma notificação"}
                 </div>
               )}
-              {feedLoading && feedItems.length === 0 && (
-                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Carregando…
-                </div>
-              )}
+              {feedLoading && feedItems.length === 0 && <LoadingBlock />}
             </div>
           </div>
 
@@ -244,62 +248,10 @@ export function NotificationsPage() {
                 Desligar um canal = não receber por ele
               </span>
             </div>
-            <table className="uni-clients-table">
-              <thead>
-                <tr>
-                  <th>Canal</th>
-                  <th style={{ width: 120 }}>Ativo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CHANNELS.map((channel) => {
-                  const enabled = enabledByChannel[channel] ?? true;
-                  const busy = busyChannel === channel;
-                  return (
-                    <tr key={channel}>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 500, fontSize: 13 }}>
-                          <i className={CHANNEL_ICON[channel]} style={{ color: "#3b82f6", fontSize: 14 }} />
-                          {CHANNEL_LABEL[channel]}
-                        </div>
-                      </td>
-                      <td>
-                        {loading && enabledByChannel[channel] === undefined ? (
-                          <span style={{ fontSize: 11, color: "#94a3b8" }}>…</span>
-                        ) : canOperate ? (
-                          <div
-                            role="switch"
-                            aria-checked={enabled}
-                            aria-label={`${CHANNEL_LABEL[channel]}: ${enabled ? "ativo" : "inativo"}`}
-                            title={busy ? "Salvando…" : enabled ? "Clique para desligar" : "Clique para ligar"}
-                            onClick={() => { if (!busy) void toggle(channel); }}
-                            className={`uni-toggle-switch ${enabled ? "on" : ""}`}
-                            style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
-                          />
-                        ) : (
-                          <span
-                            style={{
-                              fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                              background: enabled ? "#f0fdf4" : "#f1f5f9",
-                              color: enabled ? "#15803d" : "#64748b",
-                            }}
-                          >
-                            {enabled ? "Ativo" : "Desativado"}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!loading && Object.keys(enabledByChannel).length === 0 && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      {error ? "—" : "Nenhuma preferência registrada (todos os canais no padrão)"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <DataTablePanel panel={false} value={preferenceRows} dataKey="channel" loading={loading} emptyMessage={error ? "—" : "Nenhuma preferência registrada (todos os canais no padrão)"}>
+              <Column header="Canal" body={(row: { channel: number }) => <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 500, fontSize: 13 }}><i className={CHANNEL_ICON[row.channel]} style={{ color: "#3b82f6", fontSize: 14 }} />{CHANNEL_LABEL[row.channel]}</div>} />
+              <Column header="Ativo" body={(row: { channel: number }) => { const channel = row.channel; const enabled = enabledByChannel[channel] ?? true; const busy = busyChannel === channel; if (loading && enabledByChannel[channel] === undefined) return <span style={{ fontSize: 11, color: "#94a3b8" }}>…</span>; return canOperate ? <SwitchField checked={enabled} disabled={busy} aria-label={`${CHANNEL_LABEL[channel]}: ${enabled ? "ativo" : "inativo"}`} title={busy ? "Salvando…" : enabled ? "Clique para desligar" : "Clique para ligar"} onChange={() => { if (!busy) void toggle(channel); }} /> : <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: enabled ? "#f0fdf4" : "#f1f5f9", color: enabled ? "#15803d" : "#64748b" }}>{enabled ? "Ativo" : "Desativado"}</span>; }} style={{ width: 120 }} />
+            </DataTablePanel>
           </div>
         </>
       )}

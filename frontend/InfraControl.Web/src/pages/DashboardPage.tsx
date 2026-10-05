@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { MetricChart } from "@/components/ui/MetricChart";
+import { Button } from "@/components/ui/Button";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
@@ -7,6 +11,12 @@ import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import { listTasks, type TaskItem } from "@/services/api/tasks";
 import { listIncidents, type IncidentItem } from "@/services/api/incidents";
 import { listClients, type ClientItem } from "@/services/api/clients";
+import {
+  getMyInvitations,
+  acceptInvitation,
+  rejectInvitation,
+  type InvitationItem,
+} from "@/services/api/invitations";
 import {
   AUDIT_OUTCOME_SUCCEEDED,
   listAuditEntries,
@@ -137,6 +147,11 @@ export function DashboardPage() {
   const [eventsError, setEventsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingInvitations, setPendingInvitations] = useState<InvitationItem[]>([]);
+  const [invitationsLoaded, setInvitationsLoaded] = useState(false);
+  const [invitationsError, setInvitationsError] = useState<string | null>(null);
+  const [invitationsNotice, setInvitationsNotice] = useState<string | null>(null);
+  const [invitationBusyId, setInvitationBusyId] = useState<string | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -200,6 +215,62 @@ export function DashboardPage() {
     };
   }, []);
 
+  // Convites pendentes do e-mail logado (GET /invitations/me) — carga
+  // independente do dashboard: falha aqui não derruba os demais painéis.
+  const loadPendingInvitations = useCallback(async () => {
+    try {
+      const all = await getMyInvitations();
+      setPendingInvitations(
+        all.filter(
+          (inv) =>
+            inv.status === "Pending" &&
+            new Date(inv.expiresAt).getTime() > Date.now(),
+        ),
+      );
+      setInvitationsError(null);
+    } catch (caught) {
+      setInvitationsError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível carregar seus convites.",
+      );
+    } finally {
+      setInvitationsLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPendingInvitations();
+  }, [loadPendingInvitations]);
+
+  const decideInvitation = async (
+    invitation: InvitationItem,
+    decision: "accept" | "reject",
+  ) => {
+    setInvitationBusyId(invitation.id);
+    setInvitationsError(null);
+    try {
+      if (decision === "accept") {
+        await acceptInvitation(invitation.id);
+        setInvitationsNotice(`Convite de ${invitation.email} aceito.`);
+      } else {
+        await rejectInvitation(invitation.id);
+        setInvitationsNotice(`Convite de ${invitation.email} recusado.`);
+      }
+      setPendingInvitations((current) =>
+        current.filter((inv) => inv.id !== invitation.id),
+      );
+    } catch (caught) {
+      setInvitationsError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível processar o convite.",
+      );
+    } finally {
+      setInvitationBusyId(null);
+    }
+  };
+
   const openTasks = tasks.filter((task) => !TERMINAL_TASK_STATES.includes(task.state));
   const inProgressTasks = openTasks.filter((task) => task.state === "InProgress");
   const criticalOpenAlerts = openAlerts.filter((alert) => alert.severity === "Critical");
@@ -208,6 +279,120 @@ export function DashboardPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {error && <ErrorBanner message={error} />}
+
+      {/* ============ CONVITES PENDENTES (ações do usuário) ============ */}
+      {invitationsLoaded && (pendingInvitations.length > 0 || invitationsError) && (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>
+              Convites pendentes
+              {pendingInvitations.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 11,
+                    padding: "2px 7px",
+                    borderRadius: 10,
+                    background: "#fef3c7",
+                    color: "#d97706",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  {pendingInvitations.length}
+                </span>
+              )}
+            </h2>
+          </div>
+          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {invitationsError && (
+              <ErrorBanner
+                message={invitationsError}
+                onRetry={() => void loadPendingInvitations()}
+              />
+            )}
+            {invitationsNotice && (
+              <div
+                style={{
+                  fontSize: 12,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  background: "#dcfce7",
+                  color: "#16a34a",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                }}
+              >
+                <span>{invitationsNotice}</span>
+                <Button
+                  variant="ghost"
+                  icon="pi pi-times"
+                  aria-label="Fechar aviso"
+                  onClick={() => setInvitationsNotice(null)}
+                />
+              </div>
+            )}
+            {pendingInvitations.map((inv) => (
+              <div
+                key={inv.id}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 6,
+                  border: "1px solid #f3f4f6",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {inv.email}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                    {inv.roles.length > 0 && <span>Papéis: {inv.roles.join(", ")} · </span>}
+                    <span>expira em {formatDateTime(new Date(inv.expiresAt))}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <StatusChip
+                    label="Pendente"
+                    background="#fef3c7"
+                    color="#d97706"
+                    fontSize={9}
+                  />
+                  <Button
+                    variant="primary"
+                    icon="pi pi-check"
+                    disabled={invitationBusyId === inv.id}
+                    onClick={() => void decideInvitation(inv, "accept")}
+                  >
+                    Aceitar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    icon="pi pi-times"
+                    disabled={invitationBusyId === inv.id}
+                    onClick={() => void decideInvitation(inv, "reject")}
+                  >
+                    Recusar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
@@ -252,6 +437,24 @@ export function DashboardPage() {
           onClick={() => navigate("/tasks")}
         />
       </div>
+
+      {/* ============ VISÃO — Chart (Fase E docs/28) ============ */}
+      {!loading && (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Distribuição operacional</h2>
+          </div>
+          <div className="uni-panel-body">
+            <MetricChart
+              type="doughnut"
+              labels={["Dispositivos", "Alertas abertos", "Incidentes", "Clientes", "Tarefas abertas"]}
+              values={[deviceTotal, openAlertTotal, incidentTotal, clientTotal, openTasks.length]}
+              ariaLabel="Distribuição operacional do dashboard"
+              height={240}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ============ INCIDENTES + CLIENTES ============ */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -304,7 +507,7 @@ export function DashboardPage() {
               <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum incidente cadastrado</div>
             )}
             {loading && incidents.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
             )}
           </div>
         </div>
@@ -339,16 +542,14 @@ export function DashboardPage() {
                     {cli.vlan && <span>· VLAN: {cli.vlan}</span>}
                   </div>
                 </div>
-                <span style={{ fontSize: 9, padding: "2px 5px", borderRadius: 4, background: "#f1f5f9", color: "#475569", flexShrink: 0 }}>
-                  {cli.kind}
-                </span>
+                <StatusChip label={cli.kind} background="#f1f5f9" color="#475569" fontSize={9} style={{ flexShrink: 0 }} />
               </div>
             ))}
             {!loading && clients.length === 0 && (
               <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum cliente descoberto</div>
             )}
             {loading && clients.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
             )}
           </div>
         </div>
@@ -375,7 +576,7 @@ export function DashboardPage() {
               <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum dispositivo</div>
             )}
             {loading && devices.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
             )}
           </div>
         </div>
@@ -402,7 +603,7 @@ export function DashboardPage() {
               <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum alerta aberto 🎉</div>
             )}
             {loading && openAlerts.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
             )}
           </div>
         </div>
@@ -419,9 +620,14 @@ export function DashboardPage() {
                 <div key={task.id} style={{ padding: "10px 12px", borderRadius: 6, border: "1px solid #f3f4f6" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 12, fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span>
-                    <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: color.bg, color: color.color, fontWeight: 500, flexShrink: 0 }}>
-                      {taskStateLabels[task.state] ?? task.state}
-                    </span>
+                    <StatusChip
+                      label={taskStateLabels[task.state] ?? task.state}
+                      background={color.bg}
+                      color={color.color}
+                      fontSize={9}
+                      title={task.state}
+                      style={{ flexShrink: 0 }}
+                    />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "#9ca3af" }}>
                     <span><i className="pi pi-tag" style={{ marginRight: 3 }} />{task.kind}</span>
@@ -434,7 +640,7 @@ export function DashboardPage() {
               <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhuma tarefa aberta</div>
             )}
             {loading && openTasks.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
             )}
           </div>
         </div>
@@ -458,7 +664,7 @@ export function DashboardPage() {
             </div>
           )}
           {events === null && !eventsForbidden && !eventsError && (
-            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Carregando…</div>
+            <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
           )}
           {events?.map((event, i) => (
             <div key={event.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 0", borderBottom: i < events.length - 1 ? "1px solid #f3f4f6" : "none" }}>

@@ -478,6 +478,47 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("incident_alerts", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.IndividualDevelopmentPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Strategy")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("strategy");
+
+                    b.Property<DateOnly>("TargetDate")
+                        .HasColumnType("date")
+                        .HasColumnName("target_date");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("individual_development_plans", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -902,6 +943,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DeviceId");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("IX_monitoring_events_occurred_at");
 
                     b.HasIndex("Source", "ExternalEventId")
                         .IsUnique()

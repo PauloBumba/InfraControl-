@@ -62,6 +62,8 @@ public sealed class GetRetentionPoliciesQueryHandler(
         RetentionDataType.Notifications => options.NotificationsDays,
         RetentionDataType.RemoteSessions => options.RemoteSessionsDays,
         RetentionDataType.DiscoveryRuns => options.DiscoveryRunsDays,
+        RetentionDataType.MonitoringEvents => options.MonitoringEventsDays,
+        RetentionDataType.Invitations => options.InvitationsDays,
         _ => throw new ArgumentOutOfRangeException(nameof(dataType), dataType, "Tipo de dado de retenção inválido.")
     };
 }

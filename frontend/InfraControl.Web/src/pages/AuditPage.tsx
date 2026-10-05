@@ -9,12 +9,14 @@ import {
   type AuditEntry,
   type PagedAudit,
 } from "@/services/api/audit";
-import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { CopyableId } from "@/components/ui/CopyableId";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { SelectField } from "@/components/ui/SelectField";
+import { Button } from "@/components/ui/Button";
 
 /**
  * F17-T002 — AuditPage conectada ao backend (substitui o mock de
@@ -29,11 +31,12 @@ import { SearchInput } from "@/components/ui/SearchInput";
  * "Até" inclusivo até o fim do minuto).
  *
  * Legibilidade (2026-10-02, pedido: "sem id cru, nome para facilitar;
- * fácil de ler/achar"): Ator exibe `displayName` + e-mail resolvidos via
- * `listUsers()` — o contrato traz em `actorId` o `CurrentUser.UserName`
- * (= e-mail do Identity), então o mapa indexa por userId e por e-mail; o
- * valor original fica no `title` da célula e é o fallback quando não há
- * correspondência (usuário removido). Ação em PascalCase humanizada com o
+ * fácil de ler/achar"; Fase D 2026-10-03 — resolução movida para o
+ * backend): Ator exibe `actorName` (DisplayName, resolvido no reader da
+ * API) + o e-mail gravado (`actorId`, que é o `CurrentUser.UserName`); o
+ * e-mail fica no `title` da célula e é o fallback exibido cru quando
+ * `actorName` é null (usuário removido) — sem a chamada extra de
+ * `listUsers()` nem mapa local. Ação em PascalCase humanizada com o
  * valor cru no `title` (o filtro é igualdade exata). Correlation truncada
  * com clique para copiar (pi-copy → pi-check), pronta para colar no
  * rastreador da LogsPage.
@@ -76,13 +79,6 @@ export function AuditPage() {
   const [pageData, setPageData] = useState<PagedAudit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Mapa de resolução do ATOR: o backend grava em `actorId` o
-  // `CurrentUser.UserName` (= e-mail do Identity), NÃO o GUID — o mapa é
-  // indexado por userId e por e-mail (minúsculas) para achar nos dois
-  // sentidos. Falha silenciosa: sem mapa, a célula exibe o valor cru (um
-  // e-mail, que já é legível).
-  const [usersById, setUsersById] = useState<Map<string, AdminUser>>(new Map());
-
   const [page, setPage] = useState(1);
   const [outcome, setOutcome] = useState("");
   const [action, setAction] = useState("");
@@ -119,24 +115,6 @@ export function AuditPage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void listUsers()
-      .then((users) => {
-        if (cancelled) return;
-        const map = new Map<string, AdminUser>();
-        for (const user of users) {
-          map.set(user.userId, user);
-          map.set(user.email.toLowerCase(), user);
-        }
-        setUsersById(map);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   function applyAction(event: FormEvent) {
     event.preventDefault();
@@ -182,7 +160,7 @@ export function AuditPage() {
           loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "evento" : "eventos"}`
         }
         actions={
-        <form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <FilterBar><form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <SearchInput
             value={actionInput}
             onChange={setActionInput}
@@ -191,15 +169,12 @@ export function AuditPage() {
             variant="muted"
             onEnter={() => { setAction(actionInput.trim()); setPage(1); }}
           />
-          <select
+          <SelectField
             value={outcome}
-            onChange={(event) => { setOutcome(event.target.value); setPage(1); }}
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-          >
-            {outcomeOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            onChange={(value) => { setOutcome(value); setPage(1); }}
+            options={outcomeOptions}
+            style={{ minWidth: 140 }}
+          />
           <input
             type="datetime-local"
             title="De — início do período (relógio local)"
@@ -214,22 +189,13 @@ export function AuditPage() {
             onChange={(event) => setToInput(event.target.value)}
             style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
           />
-          <button
-            type="submit"
-            style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-          >
-            Filtrar
-          </button>
+          <Button type="submit" variant="ghost">Filtrar</Button>
           {hasFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-            >
+            <Button type="button" variant="ghost" onClick={clearFilters}>
               Limpar
-            </button>
+            </Button>
           )}
-        </form>
+        </form></FilterBar>
         }
       />
 
@@ -295,22 +261,19 @@ export function AuditPage() {
             body={(row: AuditEntry) => {
               if (!row.actorId)
                 return <span style={{ color: "#94a3b8" }}>sistema</span>;
-              const user =
-                usersById.get(row.actorId) ??
-                usersById.get(row.actorId.toLowerCase());
+              // Fase D: `actorName` vem resolvido do reader (DisplayName).
+              // null = usuário removido → exibe o e-mail gravado, como antes.
               return (
                 <span title={row.actorId}>
-                  {user ? (
+                  {row.actorName ? (
                     <>
                       <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                         <i className="pi pi-user" style={{ fontSize: 11, color: "#94a3b8" }} />
-                        {user.displayName}
+                        {row.actorName}
                       </div>
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{user.email}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{row.actorId}</div>
                     </>
                   ) : (
-                    // Sem correspondência (usuário removido): o valor gravado
-                    // é o UserName/e-mail — exibe cru, legível.
                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <i className="pi pi-user" style={{ fontSize: 11, color: "#94a3b8" }} />
                       {row.actorId}

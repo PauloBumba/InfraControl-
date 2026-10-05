@@ -16,4 +16,6 @@ public interface IIdentityAdministrationService
     Task<bool> SetActiveAsync(Guid userId, bool active, CancellationToken cancellationToken = default);
     Task<bool> AssignRoleAsync(Guid userId, UserRole role, CancellationToken cancellationToken = default);
     Task<bool> RemoveRoleAsync(Guid userId, UserRole role, CancellationToken cancellationToken = default);
+    Task<bool> UpdateUserAsync(Guid userId, string displayName, string email, CancellationToken cancellationToken = default);
+    Task<bool> DeleteUserAsync(Guid userId, Guid currentUserId, CancellationToken cancellationToken = default);
 }

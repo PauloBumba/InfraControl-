@@ -27,6 +27,7 @@ public sealed class CleanupServiceTests
         options.NotificationsDays.Should().Be(90);
         options.RemoteSessionsDays.Should().Be(90);
         options.DiscoveryRunsDays.Should().Be(180);
+        options.MonitoringEventsDays.Should().Be(90);
         options.BatchSize.Should().Be(500);
     }
 
@@ -48,6 +49,7 @@ public sealed class CleanupServiceTests
         options.NotificationsCutoff(utcNow).Should().Be(utcNow.AddDays(-90));
         options.RemoteSessionsCutoff(utcNow).Should().Be(utcNow.AddDays(-90));
         options.DiscoveryCutoff(utcNow).Should().Be(utcNow.AddDays(-180));
+        options.MonitoringEventsCutoff(utcNow).Should().Be(utcNow.AddDays(-90));
     }
 
     [Fact]
@@ -181,6 +183,46 @@ public sealed class CleanupServiceTests
         (await context.AuditEntries.CountAsync()).Should().Be(1);
     }
 
+    [Fact]
+    public async Task CleanupAsync_ShouldDeleteExpiredMonitoringEventsAndKeepLinkedAlert()
+    {
+        var utcNow = new DateTime(2026, 9, 22, 12, 0, 0, DateTimeKind.Utc);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.EnsureCreatedAsync();
+
+        // cutoff de 90 dias sobre OccurredAt (não CreateDateTime)
+        var oldEvent = MonitoringEvent.CreateProblem(
+            MonitoringSource.Zabbix, "ev-old", null, "ping", 3,
+            utcNow.AddDays(-100), "problem antigo", null);
+        var recentEvent = MonitoringEvent.CreateProblem(
+            MonitoringSource.Zabbix, "ev-new", null, "ping", 3,
+            utcNow.AddDays(-1), "problem recente", null);
+        await context.AddRangeAsync(oldEvent, recentEvent);
+        await context.SaveChangesAsync();
+
+        var linkedAlert = Alert.CreateExternal(
+            oldEvent.Id, "ev-old", null, null, AlertSeverity.Critical,
+            "problem antigo", MonitoringSource.Zabbix);
+        context.Alerts.Add(linkedAlert);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var cleanup = scope.ServiceProvider.GetRequiredService<ICleanupService>();
+        var result = await cleanup.CleanupAsync(utcNow);
+
+        result.MonitoringEventsDeleted.Should().Be(1);
+        (await context.MonitoringEvents.CountAsync()).Should().Be(1);
+
+        // FK alert.monitoring_event_id = SetNull: o alerta sobrevive sem o evento
+        var alert = await context.Alerts.SingleAsync(a => a.Id == linkedAlert.Id);
+        alert.MonitoringEventId.Should().BeNull();
+        alert.ExternalProblemId.Should().Be("ev-old");
+    }
+
     private static async Task<Guid> SeedDeviceAsync(AppDbContext context)
     {
         var location = Location.Create("Data Center A");
@@ -242,6 +284,7 @@ public sealed class CleanupServiceTests
             options.NotificationsDays = 90;
             options.RemoteSessionsDays = 90;
             options.DiscoveryRunsDays = 180;
+            options.MonitoringEventsDays = 90;
             options.BatchSize = 500;
         });
         services.AddScoped<ICleanupService, CleanupService>();

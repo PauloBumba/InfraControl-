@@ -12,6 +12,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Sessions;
+using InfraControl.Application.Integrations.Unifi.Ports;
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
@@ -33,6 +34,7 @@ using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
+using InfraControl.Infrastructure.Integrations.Unifi;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
@@ -112,6 +114,16 @@ public static class DependencyInjection
         services.AddHttpClient(HttpWebhookNotificationDispatcher.HttpClientName)
             .AddResilienceHandler(
                 "n8n-webhook",
+                static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
+
+        // F20-T001/ADR-028 §2/§6: cliente REST de saída do UniFi Controller —
+        // login POST /api/auth/login → cookie unifises + re-autenticação em
+        // 401 ficam no próprio client; aqui só o named client com a MESMA
+        // política Polly do dispatcher n8n (retry/backoff + circuit breaker).
+        services.AddScoped<IUnifiApiClient, UnifiApiClient>();
+        services.AddHttpClient(UnifiApiClient.HttpClientName)
+            .AddResilienceHandler(
+                "unifi",
                 static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
 
         services.AddScoped<ISlackNotificationDispatcher, LoggingSlackNotificationDispatcher>();

@@ -6,6 +6,7 @@ public sealed record AuditEntrySummary(
     string Resource,
     string Outcome,
     string? ActorId,
+    string? ActorName,
     string? CorrelationId,
     string? Error,
     DateTime OccurredAt);

@@ -112,6 +112,12 @@ services:
       # vazio) e o SnmpSystem roda com o default "public"/161 da engenharia,
       # invisível para quem só olha o .env.
       Integrations__Zabbix__Token: ${ZABBIX_TOKEN:-}
+      # F20-T001/ADR-028: cliente REST do UniFi Controller — vazio = integração
+      # desligada (credencial só via .env, nunca no repositório).
+      Integrations__Unifi__BaseUrl: ${UNIFI_BASE_URL:-}
+      Integrations__Unifi__Username: ${UNIFI_USERNAME:-}
+      Integrations__Unifi__Password: ${UNIFI_PASSWORD:-}
+      Integrations__Unifi__Site: ${UNIFI_SITE:-default}
       Monitoring__Snmp__Community: ${SNMP_COMMUNITY:-public}
       Monitoring__Snmp__Port: ${SNMP_PORT:-161}
       Notifications__Channels__Default__0: ${NOTIFY_DEFAULT_0:-Email}
@@ -263,9 +269,10 @@ services:
       - infracontrol
 
   zabbix-server:
-    image: # F18-T001 (decisão do usuário 2026-10-02): 7.0 → 7.4.15 — 8.0 é devel e
-    # não tem tag publicada; pin de patch estável (não latest).
-    image: zabbix/zabbix-server-pgsql:alpine-7.4.15
+    # F18-T001 (decisão do usuário 2026-10-03): 7.4.15 → 8.0 trunk (alpine-trunk,
+    # próximo LTS com feedback positivo da comunidade no LinkedIn - HA nativo,
+    # Postgres 18, ClickHouse, JSON nativo).
+    image: zabbix/zabbix-server-pgsql:alpine-trunk
     container_name: infracontrol-zabbix-server
     profiles: ["zabbix"]
     environment:
@@ -292,7 +299,7 @@ services:
       - infracontrol
 
   zabbix-web:
-    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.4.15
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-trunk
     container_name: infracontrol-zabbix-web
     profiles: ["zabbix"]
     environment:
@@ -323,7 +330,7 @@ services:
       - infracontrol
 
   zabbix-agent:
-    image: zabbix/zabbix-agent2:alpine-7.4.15
+    image: zabbix/zabbix-agent2:alpine-trunk
     container_name: infracontrol-zabbix-agent
     profiles: ["zabbix"]
     environment:

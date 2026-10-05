@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { listDevices, type DeviceItem } from "@/services/api/inventory";
 
 /**
@@ -102,9 +103,7 @@ export function WiFiPage() {
             </div>
           )}
           {loading && aps.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-              Carregando…
-            </div>
+            <LoadingBlock style={{ gridColumn: "1 / -1" }} />
           )}
         </div>
       </div>

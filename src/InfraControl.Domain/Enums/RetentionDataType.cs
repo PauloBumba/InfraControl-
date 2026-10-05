@@ -1,7 +1,7 @@
 namespace InfraControl.Domain.Enums;
 
 /// <summary>
-/// Tipos de dado cobertos pela retenção/cleanup (F12-T002) — os mesmos 7
+/// Tipos de dado cobertos pela retenção/cleanup (F12-T002) — os mesmos 9
 /// que o <c>CleanupService</c> apaga (docs/11).
 /// </summary>
 public enum RetentionDataType
@@ -12,5 +12,7 @@ public enum RetentionDataType
     MonitoringResults,
     Notifications,
     RemoteSessions,
-    DiscoveryRuns
+    DiscoveryRuns,
+    MonitoringEvents,
+    Invitations
 }

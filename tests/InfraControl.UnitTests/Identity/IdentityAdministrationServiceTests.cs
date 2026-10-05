@@ -5,6 +5,7 @@ using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using DomainIdentity = InfraControl.Domain.Entities;
 
 namespace InfraControl.UnitTests.Identity;
 
@@ -47,9 +48,9 @@ public sealed class IdentityAdministrationServiceTests : IDisposable
         return context;
     }
 
-    private static async Task<User> SeedUserAsync(AppDbContext context, UserRole role)
+    private static async Task<DomainIdentity.User> SeedUserAsync(AppDbContext context, UserRole role)
     {
-        var user = User.Create(Guid.NewGuid(), $"{role.ToString().ToLowerInvariant()}@example.com", "Operador", role);
+        var user = DomainIdentity.User.Create(Guid.NewGuid(), $"{role.ToString().ToLowerInvariant()}@example.com", "Operador", role);
         context.DomainUsers.Add(user);
         await context.SaveChangesAsync();
         return user;
@@ -118,5 +119,98 @@ public sealed class IdentityAdministrationServiceTests : IDisposable
 
         removed.Should().BeTrue();
         user.Roles.Should().BeEquivalentTo([UserRole.Admin]);
+    }
+
+    [Fact]
+    public async Task UpdateUser_ShouldPersistChanges()
+    {
+        await using var context = await CreateContextAsync();
+        var user = await SeedUserAsync(context, UserRole.Viewer);
+
+        var service = new IdentityAdministrationService(context);
+        var updated = await service.UpdateUserAsync(user.Id, "Novo Nome", "novo@example.com", CancellationToken.None);
+
+        updated.Should().BeTrue();
+        user.DisplayName.Should().Be("Novo Nome");
+        user.Email.Should().Be("novo@example.com");
+    }
+
+    [Fact]
+    public async Task UpdateUser_UnknownUser_ShouldReturnFalseFor404()
+    {
+        await using var context = await CreateContextAsync();
+        var service = new IdentityAdministrationService(context);
+
+        var updated = await service.UpdateUserAsync(Guid.NewGuid(), "Nome", "email@example.com", CancellationToken.None);
+
+        updated.Should().BeFalse("o controller traduz false em 404 no envelope");
+    }
+
+    [Fact]
+    public async Task UpdateUser_DuplicateEmail_ShouldThrowInvalidOperationExceptionPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var user1 = await SeedUserAsync(context, UserRole.Viewer);
+        var user2 = await SeedUserAsync(context, UserRole.Admin);
+
+        var service = new IdentityAdministrationService(context);
+        var action = () => service.UpdateUserAsync(user2.Id, "Admin", user1.Email, CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Já existe um usuário com este e-mail.");
+    }
+
+    [Fact]
+    public async Task DeleteUser_ShouldRevokeSessionsAndRemoveUser()
+    {
+        await using var context = await CreateContextAsync();
+        var user = await SeedUserAsync(context, UserRole.Viewer);
+        var session = DomainIdentity.UserSession.Start(user.Id, "refresh-token", TimeSpan.FromHours(1), TimeSpan.FromMinutes(30));
+        context.UserSessions.Add(session);
+        await context.SaveChangesAsync();
+
+        var service = new IdentityAdministrationService(context);
+        var deleted = await service.DeleteUserAsync(user.Id, Guid.NewGuid(), CancellationToken.None);
+
+        deleted.Should().BeTrue();
+        session.RevokedAt.Should().NotBeNull();
+        context.DomainUsers.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteUser_UnknownUser_ShouldReturnFalseFor404()
+    {
+        await using var context = await CreateContextAsync();
+        var service = new IdentityAdministrationService(context);
+
+        var deleted = await service.DeleteUserAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+
+        deleted.Should().BeFalse("o controller traduz false em 404 no envelope");
+    }
+
+    [Fact]
+    public async Task DeleteUser_SelfDelete_ShouldThrowInvalidOperationExceptionPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var user = await SeedUserAsync(context, UserRole.Viewer);
+
+        var service = new IdentityAdministrationService(context);
+        var action = () => service.DeleteUserAsync(user.Id, user.Id, CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Você não pode excluir seu próprio usuário.");
+    }
+
+    [Fact]
+    public async Task DeleteUser_LastActiveAdmin_ShouldThrowInvalidOperationExceptionPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var admin = await SeedUserAsync(context, UserRole.Admin);
+
+        var service = new IdentityAdministrationService(context);
+        var action = () => service.DeleteUserAsync(admin.Id, Guid.NewGuid(), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("O último administrador ativo não pode ser excluído.");
     }
 }

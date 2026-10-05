@@ -18,8 +18,10 @@ using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Tasks.Ports;
+using InfraControl.Application.Identity.Administration;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
+using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
@@ -27,6 +29,7 @@ using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
 using InfraControl.Infrastructure.Services;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -65,6 +68,19 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(_postgres.GetConnectionString()));
 
+        // Identity foundation (mínimo para DomainUsers funcionar)
+        services.AddIdentityCore<InfraControlUser>(options =>
+        {
+            options.User.RequireUniqueEmail = true;
+            options.Password.RequiredLength = 12;
+            options.Password.RequireDigit = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+        })
+        .AddRoles<IdentityRole<Guid>>()
+        .AddEntityFrameworkStores<AppDbContext>();
+
         // Pipeline MediatR do aplicativo — mesmo escopo do Program.cs
         services.AddApplicationMediatR();
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
@@ -83,6 +99,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // OutboxDispatchHandler precisa do serviço real (grava OutboxMessages,
         // sem broker).
         services.AddScoped<IDomainEventService, DomainEventService>();
+        // F1-T018: IdentityAdministrationService para CRUD de usuários
+        services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         // F19-T006: identidade externa estável do device (MAC/Device ID)

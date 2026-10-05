@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InfraControl.Application.Identity.Invitations.Commands;
+using InfraControl.Application.Identity.Invitations.Queries;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Admin;
 using InfraControl.BuildingBlocks.Application.Response;
@@ -20,6 +21,25 @@ namespace InfraControl.Api.Controllers.Admin;
 [Route("api/v1/admin/invitations")]
 public sealed class InvitationsController(ISender sender, IOptions<FrontendOptions> frontendOptions) : BaseController
 {
+    [HttpGet]
+    public async Task<IActionResult> Search(
+        [FromQuery] string? status = null,
+        [FromQuery] string? email = null,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var statusEnum = Enum.TryParse<Domain.Enums.InvitationStatus>(status, true, out var parsed)
+            ? parsed
+            : (Domain.Enums.InvitationStatus?)null;
+
+        var result = await sender.Send(
+            new SearchInvitationsQuery(statusEnum, email, skip, take),
+            cancellationToken);
+
+        return Ok(ApiResponse.Ok(result));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateInvitationViewModel model, CancellationToken cancellationToken)
     {

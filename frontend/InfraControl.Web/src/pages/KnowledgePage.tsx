@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Can } from "@/components/auth/Can";
+import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { FormError } from "@/components/ui/FormField";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { SelectField } from "@/components/ui/SelectField";
 import {
   ARTICLE_STATUS_ARCHIVED,
   ARTICLE_STATUS_DRAFT,
@@ -152,43 +156,38 @@ export function KnowledgePage() {
                 width={160}
                 onEnter={() => { setTerm(termInput.trim()); setPage(1); }}
               />
-              <button
+              <Button
                 type="submit"
-                style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", fontSize: 12, color: "#374151" }}
+                variant="ghost"
+                style={{ padding: "5px 10px" }}
               >
                 Filtrar
-              </button>
+              </Button>
               {term && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
-                  style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "white", fontSize: 12, color: "#374151" }}
+                  style={{ padding: "5px 10px" }}
                 >
                   Limpar
-                </button>
+                </Button>
               )}
             </form>
             <Can level="operate">
-              <button
+              <Button
+                variant="primary"
                 onClick={() => { setCreating((value) => !value); setFormError(null); }}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
+                style={{ padding: "5px 12px" }}
               >
                 <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
-              </button>
+              </Button>
             </Can>
           </div>
         }
       />
 
-      {notice && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
@@ -204,16 +203,18 @@ export function KnowledgePage() {
               maxLength={200}
               style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-            <select
+            <SelectField
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-            >
-              <option value="">Sem categoria</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </select>
+              onChange={setCategoryId}
+              placeholder="Sem categoria"
+              options={[
+                { value: "", label: "Sem categoria" },
+                ...categories.map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                })),
+              ]}
+            />
           </div>
           <textarea
             value={content}
@@ -224,20 +225,22 @@ export function KnowledgePage() {
           />
           {formError && <FormError message={formError} />}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+              style={{ padding: "6px 14px" }}
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+              style={{ padding: "6px 14px" }}
             >
               {saving ? "Salvando…" : "Criar artigo"}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -281,9 +284,7 @@ export function KnowledgePage() {
           </div>
         )}
         {loading && articles.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-            Carregando…
-          </div>
+          <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
         )}
       </div>
 

@@ -84,5 +84,10 @@ public sealed class MonitoringEventConfiguration : IEntityTypeConfiguration<Moni
 
         builder.HasIndex(x => new { x.Source, x.ExternalProblemId })
             .HasDatabaseName("IX_monitoring_events_source_external_problem_id");
+
+        // Cutoff da retenção (CleanupService) filtra por OccurredAt — sem
+        // este índice o delete faria full scan na tabela de eventos.
+        builder.HasIndex(x => x.OccurredAt)
+            .HasDatabaseName("IX_monitoring_events_occurred_at");
     }
 }

@@ -102,9 +102,16 @@ entrega (F9-T004+) deve consultar `enabled` por canal antes de enviar.
   dos F9-T005+ enfileiram os seus.
 - **Envia**: `NotificationSignalRWorker` (BackgroundService no Api, 2s)
   lê `Pending` (limite 50), envia via porta `ISignalRNotificationDispatcher`
-  (evento `notification` com deliveryId/notificationId/title/message/createdAt)
-  e marca `Sent` (+`sent_at`) ou `Failed` (`last_error` ≤500 pt-BR).
-  Retry/backoff/DLQ = F9-T009.
+  (evento `notification` com deliveryId/notificationId/title/message/
+  **eventType**/createdAt — o `eventType` espelha o feed persistido,
+  entregue 3 do backlog de UX) e marca `Sent` (+`sent_at`) ou `Failed`
+  (`last_error` ≤500 pt-BR). Retry/backoff/DLQ = F9-T009.
+- **Consome (front)**: `frontend/.../services/signalr/notifications.ts`
+  (singleton por aba; negotiate autenticado com antiforgery, retry 10s
+  enquanto o layout logado monta). O `AppLayout` sobe o hub e soma o
+  contador do sino a cada evento; a `NotificationsPage` insere o item no
+  topo da página 1 (dedup por notificationId) e soma o total. O feed
+  `GET /notifications` continua fonte de histórico.
 
 Tabela `notification_deliveries`: `notification_id`/`user_id` FKs
 `Cascade`, `channel`/`status` (strings), `sent_at`, `last_error`;

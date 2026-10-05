@@ -7,6 +7,10 @@ import {
 import { formatDateTime } from "@/utils/format";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { SelectButton } from "primereact/selectbutton";
 
 /**
  * F17-T011 — AlertsPage conectada ao backend (substitui `alertsData` de
@@ -84,31 +88,13 @@ export function AlertsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Alertas</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "alerta" : "alertas"}`}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 4, background: "#f3f4f6", padding: 2, borderRadius: 6 }}>
-          {filters.map((entry) => (
-            <button
-              key={entry.key || "all"}
-              onClick={() => { setStatus(entry.key); setPage(1); }}
-              style={{
-                padding: "5px 12px", borderRadius: 5, fontSize: 12, fontWeight: 500,
-                background: status === entry.key ? "white" : "transparent",
-                color: status === entry.key ? "#1a1a1a" : "#6b7280",
-                boxShadow: status === entry.key ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-                border: "none", cursor: "pointer",
-              }}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Alertas"
+        subtitle={loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "alerta" : "alertas"}`}
+        actions={
+          <SelectButton className="uni-select-button" value={status} options={filters} optionLabel="label" optionValue="key" allowEmpty={false} onChange={(event) => { setStatus(event.value); setPage(1); }} />
+        }
+      />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
@@ -131,12 +117,8 @@ export function AlertsPage() {
                   <div className="uni-alert-detail">{alert.message}</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: severity.bg, color: severity.color }}>
-                    {severity.label}
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: statusStyle.bg, color: statusStyle.color }}>
-                    {statusStyle.label}
-                  </span>
+                  <StatusChip label={severity.label} background={severity.bg} color={severity.color} fontWeight={600} />
+                  <StatusChip label={statusStyle.label} background={statusStyle.bg} color={statusStyle.color} />
                   <span style={{ fontSize: 10, color: "#94a3b8" }}>
                     {formatDateTime(new Date(alert.openedAt))}
                     {alert.resolvedAt ? ` → ${formatDateTime(new Date(alert.resolvedAt))}` : ""}
@@ -150,11 +132,7 @@ export function AlertsPage() {
               {error ? "—" : "Nenhum alerta neste filtro"}
             </div>
           )}
-          {loading && items.length === 0 && (
-            <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-              Carregando…
-            </div>
-          )}
+          {loading && items.length === 0 && <LoadingBlock />}
         </div>
       </div>
 

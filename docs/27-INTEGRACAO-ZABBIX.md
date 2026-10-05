@@ -126,48 +126,104 @@ Pipeline (ADR-027): **`MonitoringEvent` → `Alert` → `Incident`**, num único
    `source = 'Native'`).
 6. Rate limit padrão (120 req/min) vale para a rota.
 
-## 4. Runbook — action no Zabbix (6.x/7.x)
+## 4. Runbook — action no Zabbix (8.x, via API — implementado 2026-10-03)
 
-O Zabbix não envia esse JSON pronto: **o action monta o payload**. Passos:
+O Zabbix não envia esse JSON pronto: **o script da media type monta o
+payload**. A configuração abaixo foi criada via JSON-RPC e validada de
+ponta-a-ponta (PROBLEM → alert → incidente; OK → alert `Resolved`).
 
-1. **Configurações → Canais de notificação (Media types) → Criar**
-   - Tipo: `Webhook` · Nome: `InfraControl`
-   - **URL**: `https://<seu-host>/api/v1/integrations/zabbix/problems`
-   - **Headers** (HTTP headers): `X-Zabbix-Token: <mesmo token do appsettings>`
-   - **Parâmetros** (viram o corpo JSON):
+> **Gotchas do Zabbix 8.0** (aprendidos na implementação):
+> - Não existe condição `value = PROBLEM/OK` na action: **uma action só**,
+>   com `operations` (PROBLEM) + `recovery_operations` (OK).
+> - `conditiontype` de trigger action: 0=host group, 1=host, 2=trigger,
+>   3=event name, 4=severity, 6=time period, 13=template, 16=suppressed,
+>   25/26=tags — sem "event value".
+> - `opmessage.default_msg = 1` **falha** com `No message defined for media
+>   type`: em `default_msg = 0` é obrigatório `subject` + `message`.
+> - `user.medias.get` não existe: usar `user.get` + `selectMedias: "extend"`.
+> - `user.medias.severity` é **bitmask**: `0` = nenhuma severidade (nunca
+>   envia); usar `63` (todas). `active = 0` significa habilitado.
+> - `action.create` não aceita `value`; `esc_period` aceita apenas
+>   `60..604800` (segundos).
+> - Auth: header `Authorization: Bearer <token>` — campo `auth` no corpo é
+>   rejeitado (`unexpected parameter "auth"`).
 
-     | Parâmetro | Valor | Observação |
-     |-----------|-------|------------|
-     | `eventId` | `{EVENT.ID}` | **obrigatório** — no OK o macro já resolve para o problem original |
-     | `recoveryEventId` | `{EVENT.RECOVERY.ID}` | opcional — preenche só na action de OK (macro de recovery operation); no PROBLEM vem vazio e é ignorado |
-     | `host` | `{HOST.NAME1}` | |
-     | `ip` | `{HOST.IP}` | |
-     | `name` | `{TRIGGER.NAME}` | |
-     | `severity` | `{EVENT.SEVERITY}` | |
-     | `occurredAt` | `{EVENT.TIMESTAMP}` | opcional (unix seconds) |
-     | `status` | `PROBLEM` *(fixo nesta action)* | |
+### 4.1 Media types (2 — uma por status)
 
-2. **Ações → Criar action de problema** (ex.: "InfraControl — problem"):
-   - Condição: valor do gatilho = **PROBLEM** (e o escopo que quiser: grupos,
-     severidade mínima…)
-   - Operação → **Enviar para**: usuário/grupecanal `InfraControl`.
-3. **Ação de recuperação** (action separada): mesma mídia, mas com
-   `status` = `OK` — `{EVENT.VALUE}` dá 0/1, não `OK`, por isso o valor fixo
-   em cada action. Nesta action o `eventId` = `{EVENT.ID}` entrega o problem
-   original e o `recoveryEventId` = `{EVENT.RECOVERY.ID}` o id do evento de
-   recovery (os dois juntos permitem a linha própria + backfill do §3.3).
-4. **Testar**: botão "Testar" da media type; em produção basta disparar um
-   trigger de teste e conferir `GET /api/v1/incidents` (incidente `Open` →
-   depois `Resolved` quando o problema some).
+| Campo | Valor |
+|---|---|
+| `type` | `4` (webhook) |
+| Nomes | `InfraControl — Problem` (id **105**) · `InfraControl — Recovery` (id **106**) |
+| `status` | `0` (habilitada) |
 
-Smoke test manual por curl:
+Parâmetros das duas (`{name, value}`), diferindo só em `status`:
+
+| name | value | Observação |
+|------|-------|------------|
+| `url` | `http://api:8080/api/v1/integrations/zabbix/problems` | rede interna do compose |
+| `token` | `${ZABBIX_TOKEN}` (dev: `infracontrol-zabbix-dev-2026`) | header `X-Zabbix-Token` |
+| `eventId` | `{EVENT.ID}` | **obrigatório** — no OK o macro resolve para o problem original |
+| `recoveryEventId` | `{EVENT.RECOVERY.ID}` | só tem valor no recovery; vazio é ignorado |
+| `host` | `{HOST.NAME1}` | |
+| `ip` | `{HOST.IP}` | |
+| `name` | `{TRIGGER.NAME}` | |
+| `nseverity` | `{EVENT.NSEVERITY}` | numérico **0..5** (`{EVENT.SEVERITY}` é texto) |
+| `status` | `PROBLEM` (105) / `OK` (106) | fixo por media type |
+
+Script (JS do runtime do Zabbix) — monta o JSON do contrato v2 e faz POST:
+
+```javascript
+const p = JSON.parse(value);
+if (!p.url) { throw 'InfraControl: URL não definida'; }
+const request = new HttpRequest();
+request.addHeader('Content-Type: application/json');
+request.addHeader('X-Zabbix-Token: ' + p.token);
+const body = { eventId: p.eventId, host: p.host, ip: p.ip, name: p.name,
+               severity: parseInt(p.nseverity, 10), status: p.status };
+if (p.recoveryEventId && p.recoveryEventId !== '') { body.recoveryEventId = p.recoveryEventId; }
+const response = request.post(p.url, JSON.stringify(body));
+Zabbix.log(4, 'InfraControl webhook [' + p.status + '] response: ' + response);
+return 'OK';
+```
+
+> `occurredAt` ficou de fora de propósito: `{EVENT.TIMESTAMP}` é timestamp
+> textual; sem ele o handler usa o horário atual.
+
+### 4.2 Action única (id **7** — "InfraControl — triggers")
+
+- `eventsource: 0` (trigger), `esc_period: 60`, `filter.conditions: []` (todos).
+- `operations` → `operationtype: 0` (send message), grupo `usrgrpid 7`
+  (Zabbix administrators), `opmessage.mediatypeid: 105`,
+  `default_msg: 0` + `subject`/`message` explícitos com `{TRIGGER.NAME}`,
+  `{HOST.NAME}`, `{EVENT.SEVERITY}`, `{EVENT.ID}`.
+- `recovery_operations` → idem com `mediatypeid: 106` + `{EVENT.RECOVERY.ID}`.
+- Usuário `Admin` (userid 1) com **mídias 105 e 106** habilitadas
+  (`active: 0`, `severity: 63`, `period: 1-7,00:00-24:00`).
+
+### 4.3 Gatilho de teste
+
+- Host `Zabbix server` (hostid 10084) · item trapper `test.value`
+  (itemid 72011, `type: 2`) · trigger `last(/Zabbix server/test.value)=1`
+  (triggerid 33178, severidade 4/High).
 
 ```bash
-curl -X POST https://<seu-host>/api/v1/integrations/zabbix/problems \
+# PROBLEM (1) e OK (0) — disparado de dentro do container do server:
+docker exec infracontrol-zabbix-server zabbix_sender -z 127.0.0.1 \
+  -s "Zabbix server" -k test.value -o 1   # depois -o 0 para resolver
+```
+
+Smoke test manual por curl (equivalente ao que o script envia):
+
+```bash
+curl -X POST http://localhost:8086/api/v1/integrations/zabbix/problems \
   -H "Content-Type: application/json" \
   -H "X-Zabbix-Token: <token>" \
   -d '{"eventId":"1","host":"srv-teste","ip":"192.0.2.10","name":"Teste webhook","severity":3,"status":"PROBLEM"}'
 ```
+
+Evidência do ciclo real (2026-10-03): eventos Zabbix `8` (Problem) e `9`
+(Recovered, `external_problem_id=8`) → alerta externo `severity=Critical`
+→ incidente próprio `Resolved`.
 
 ## 5. Limitações conhecidas
 
@@ -198,21 +254,21 @@ A infraestrutura do Zabbix 8.0 é executada via Docker Compose sob o perfil dedi
 | Serviço | Container | Imagem Oficial | Porta Host / Container | Volume / Persistência |
 |:---|:---|:---|:---|:---|
 | **`zabbix-db`** | `infracontrol-zabbix-db` | `postgres:17-alpine` | `5434:5432` (`ZABBIX_DB_PORT`) | `zabbix_db_data` |
-| **`zabbix-server`** | `infracontrol-zabbix-server` | `zabbix/zabbix-server-pgsql:alpine-7.0-latest` | `10052:10051` (`ZABBIX_SERVER_PORT`) | `zabbix_server_snmptraps`, `zabbix_server_mibs` |
-| **`zabbix-web`** | `infracontrol-zabbix-web` | `zabbix/zabbix-web-nginx-pgsql:alpine-7.0-latest` | `8086:8080` (`ZABBIX_WEB_PORT`) | *(Web em memória + conexão DB)* |
-| **`zabbix-agent`** | `infracontrol-zabbix-agent` | `zabbix/zabbix-agent2:alpine-7.0-latest` | `10053:10050` (`ZABBIX_AGENT_PORT`) | *(Métricas locais de teste)* |
+| **`zabbix-server`** | `infracontrol-zabbix-server` | `zabbix/zabbix-server-pgsql:alpine-trunk` | `10052:10051` (`ZABBIX_SERVER_PORT`) | `zabbix_server_snmptraps`, `zabbix_server_mibs` |
+| **`zabbix-web`** | `infracontrol-zabbix-web` | `zabbix/zabbix-web-nginx-pgsql:alpine-trunk` | `8086:8080` (`ZABBIX_WEB_PORT`) | *(Web em memória + conexão DB)* |
+| **`zabbix-agent`** | `infracontrol-zabbix-agent` | `zabbix/zabbix-agent2:alpine-trunk` | `10053:10050` (`ZABBIX_AGENT_PORT`) | *(Métricas locais de teste)* |
 
-> **Nota F18-T001 (2026-10-02):** a diretriz do usuário é Zabbix **8.0**, mas
-> o registro oficial ainda marca 8.0 como *devel* e o Docker Hub **não
-> publica tags 8.0** nas 3 imagens (mais nova = 7.4.15). As imagens ficam
-> em `alpine-7.0-latest` até a decisão de upgrade (pendência registrada no
-> TASKS F18-T001). Portas vindas do `.env` — **8086** para o web porque
-> `8085` é do `HTTP_PORT` do frontend (decisão registrada).
+> **Nota F18-T001 (decisão 2026-10-03):** imagens `alpine-trunk` mantidas
+> **conforme orientação do usuário** ("deixa o zabbix conforme" — a API
+> responde `8.0.0`); o upgrade para tags 8.0 oficiais fica para quando o
+> registro sair de *devel* (pendência registrada no TASKS F18-T001). Portas
+> vindas do `.env` — **8086** para o web porque `8085` é do `HTTP_PORT` do
+> frontend; token de integração em `ZABBIX_TOKEN` (`.env`).
 
 ### Credenciais e Acesso de Desenvolvimento
 
 - **Zabbix Web UI:** `http://localhost:8086` (Usuário: `Admin`, Senha padrão: `zabbix`).
-- **PostgreSQL Dedicado:** Host `zabbix-db` (porta interna `5432`, publicada no host como `5433`), BD `zabbix`, Usuário `zabbix`, Senha `${ZABBIX_DB_PASSWORD:-zabbix_dev_password_2026}` — host `5434` (`ZABBIX_DB_PORT`).
+- **PostgreSQL Dedicado:** Host `zabbix-db` (porta interna `5432`, publicada no host como `5434`), BD `zabbix`, Usuário `zabbix`, Senha `${ZABBIX_DB_PASSWORD:-zabbix_dev_password_2026}` (`ZABBIX_DB_PORT`).
 
 ### Comandos de Operação
 

@@ -1,39 +1,40 @@
 # Levantamento — Componentes reutilizáveis, PrimeReact e PrimeFlex (front) + legibilidade (back)
 
-- **Data**: 2026-10-02
-- **Pedido**: "ajusta back e front, olha onde pode usar o PrimeReact e o PrimeFlex e deixa legível — faz um levantamento por componentes que podem ser reutilizados."
-- **Natureza**: levantamento (só leitura) — nenhuma alteração de código acompanha este documento; a execução entra como fase/task aprovada.
+- **Data**: 2026-10-02 (revisão mapeamento página×PR: **2026-10-03**)
+- **Pedido**: "ajusta back e front, olha onde pode usar o PrimeReact e o PrimeFlex e deixa legível — faz um levantamento por componentes que podem ser reutilizados." + "mapeia DataTable/DataView e o que vira reutilizável".
+- **Natureza**: levantamento vivo — §10 atualizado após Fases A/B/C parciais; execução continua em TASKS (Fases B/C).
 
 ---
 
-## 1. Situação atual das dependências
+## 1. Situação atual das dependências *(atualizado 2026-10-03)*
 
 | Pacote | Versão instalada | Importado? | Em uso real? |
 |---|---|---|---|
-| `primereact` | ^10.9.4 | CSS do tema `lara-dark-blue` + `primereact.min.css` no `main.tsx` | **0 componentes** — nenhum `import … from "primereact/…"` no código |
-| `primeflex` | ^4.0.0 | `primeflex/primeflex.css` no `main.tsx` | **~0 classes** — os greps em `className` só encontram nomes `uni-*-grid` (falsos positivos) |
-| `primeicons` | ^7.0.0 | CSS global | **Uso amplo** — `<i className="pi pi-…">` em toda a UI ✓ |
+| `primereact` | ^10.9.4 | tema `lara-light-blue` + `primereact.min.css` + `styles/prime-overrides.css` | **Sim** — `DataTable`/`Column` (Audit, Users), `Tag` (via `StatusChip`), `Skeleton` (via `LoadingRows`), `Dropdown` (via `SelectField`, ainda sem páginas) |
+| `primeflex` | ^4.0.0 | `primeflex/primeflex.css` no `main.tsx` | uso pontual nos wrappers `ui/` (flex/gap); páginas ainda majoritariamente `uni-*` / inline |
+| `primeicons` | ^7.0.0 | CSS global | **Uso amplo** — `<i className="pi pi-…">` ✓ |
 
-Conclusão: as duas bibliotecas que o usuário quer usar **já estão pagas** (instaladas e com CSS carregado); falta apenas adotar os componentes/utilities.
+Conclusão: bibliotecas pagas e **parcialmente adotadas**. O ganho agora é migrar páginas e adotar wrappers já criados (ex.: `SelectField` existe e **0 páginas** o importam).
 
-## 2. Design system próprio existente (`uni-*`)
+## 2. Design system próprio existente (`uni-*`) + `components/ui/`
 
-`src/styles.css` tem ~200 regras `uni-*` (design system próprio, visual UniFi).
+`src/styles.css` tem ~200 regras `uni-*` (design system próprio, visual UniFi) + skin Prime em `styles/prime-overrides.css`.
 
 **Famílias ativas (com uso real em `.tsx`)**:
 
-| Classe | Arquivos | Papel |
-|---|---|---|
-| `uni-panel` / `uni-panel-header` / `uni-panel-body` | 18 / 6 / 4 | cartão genérico — base visual do app |
-| `uni-clients-table` (+ variações) | 9 | tabela densa estilo UniFi |
-| `uni-page-empty` | 5 | estado vazio ilustrado |
-| `uni-login-*` (família, ~20 classes) | 3–4 | tela de login completa |
-| `uni-alerts-list` / `uni-alert-*` | 2 | lista de alertas |
-| `uni-toggle-*`, `uni-settings-*` | 1–2 | Settings |
+| Classe | Papel |
+|---|---|
+| `uni-panel` / `uni-panel-header` / `uni-panel-body` | cartão genérico — base visual do app |
+| `uni-clients-table` | legado das tabelas densas UniFi — removido das áreas migradas para `DataTable`; poda da regra fica para o fechamento da Fase C |
+| `uni-page-empty` | estado vazio ilustrado |
+| `uni-login-*` | tela de login |
+| `uni-alerts-list` / `uni-alert-*` | lista (Alerts + feed Notifications) — candidatas a `DataView` |
+| `uni-toggle-*`, `uni-settings-*` | Settings + toggle Notifications |
+| `uni-btn-*` | wrapper `Button` |
 
-**CSS órfão (0 uso em `.tsx` — sobra do mock antigo do dashboard que virou contrato real)**: `uni-metric-*`, `uni-gateway-*`, `uni-events-*`, `uni-throughput-*`, `uni-chart-*`, `uni-subsystems`/`uni-subsystem-*`, `uni-signal-*`, `uni-progress-*`, `uni-stat-block`, `uni-connector`, `uni-legend-dot`… **~60 regras**. Candidatas a poda (confirmar com grep de string dinâmica antes de apagar).
+**CSS órfão (~60 regras do mock antigo)**: `uni-metric-*`, `uni-gateway-*`, `uni-events-*`, `uni-throughput-*`, `uni-chart-*`, `uni-logs-table` (órfã desde Fase A)… — poda na Fase C.
 
-**Componentes React compartilhados hoje (só 3)**: `components/auth/AccessDenied`, `components/auth/Can`, `components/layout/AppLayout`. **Não existe `components/ui/`** — toda página recria os mesmos padrões inline.
+**`components/ui/` (13 wrappers — 2026-10-03)**: `Button`, `CopyableId`, `Dialog`/`ConfirmDialog`, `ErrorBanner`, `FormField`/`FormError`, `LoadingBlock`, `LoadingRows`, `NoticeBanner`, `PageHeader`, `Pagination`, `SearchInput`, `SelectField`, `StatusChip`. Auth/layout: `AccessDenied`, `Can`, `AppLayout`.
 
 ## 3. Padrões duplicados medidos (o que grita "extraia um componente")
 
@@ -72,20 +73,25 @@ Hoje importado e ocioso. Uso recomendado (**sem** reescrever as páginas existen
 - na refatoração de pages quando mexer nelas por outro motivo;
 - **não** fazer rewrite em massa só por causa do PrimeFlex (risco alto, ganho baixo).
 
-## 6. Componentes a extrair (reutilização imediata)
+## 6. Componentes a extrair (reutilização) — progresso 2026-10-03
 
-Ordem de valor (menor esforço × maior replicação):
+| # | Wrapper | Status | Notas |
+|---|---|---|---|
+| 1 | `ErrorBanner` | ✅ | adoção ampla |
+| 2 | `Pagination` | ✅ | 6 páginas; some em páginas que forem p/ DataTable lazy |
+| 3 | `PageHeader` | ✅ | ampla |
+| 4 | `StatusChip` | ✅ | usa `Tag` |
+| 5 | `SearchInput` | ✅ | falta AppLayout |
+| 6 | `CopyableId` | ✅ | falta Sessions/DeviceDetail |
+| 7 | `LoadingRows` / `LoadingBlock` | ✅ | adoção parcial |
+| 8 | `FormField` | ✅ | adoção parcial |
+| 9 | `Button` / `Dialog` | ✅ | Users/Sessions |
+| 10 | `SelectField` | ✅ adotado | 0 `<select>` em pages |
+| 11 | `SwitchField` (`InputSwitch`) | ✅ | Settings + Notifications |
+| 12 | `MetricChart` (`Chart`+chart.js) | ✅ piloto | Dashboard doughnut; DeviceDetail line depois |
+| 13 | `FilterBar` / `DateTimeField` | ⏳ opcional | só se o markup continuar se repetindo |
 
-1. **`ErrorBanner`** — mensagem + botão "Tentar de novo" (19 duplicações);
-2. **`Pagination`** — página/atual + Anterior/Próxima + total (7 páginas);
-3. **`PageHeader`** — título + subtítulo/contagem + ações à direita (todas);
-4. **`FilterBar`** — busca + selects + período + Filtrar/Limpar (Audit já tem o caso mais completo);
-5. **`StatusChip`** — cores por vocabulário (`outcome` Succeeded/Failed, severidade, status) com `Tag` do PrimeReact;
-6. **`SearchInput`** — input + ícone (5 usos);
-7. **`CopyableId`** — valor monoespaçado + clique para copiar (já feito na AuditPage; extrair p/ Sessions/DeviceDetail);
-8. **`LoadingRows`** — skeleton de tabela (18 usos de loading manual).
-
-Local: `src/components/ui/` (novo), seguindo os padrões dos componentes existentes (named export, docs em comentário no topo do arquivo, pt-BR).
+Local: `src/components/ui/` (named export, comentário no topo, pt-BR).
 
 ## 7. Legibilidade no BACKEND (pendências — `src/` está com a sessão paralela da Fase 19)
 
@@ -113,89 +119,233 @@ Local: `src/components/ui/` (novo), seguindo os padrões dos componentes existen
 
 ---
 
-## 10. Mapeamento página × componentes (revisão completa do front — 2026-10-02)
+## 10. Mapeamento página × componentes *(revisão 2026-10-03 — pós Fases A/B/C parciais)*
 
-Revisão real das **27 páginas + `AppLayout`** (7.518 linhas de `.tsx` em `src/pages`) com os
-widgets efetivamente presentes. Legenda: **PR** = componente do `primereact@10.9.4` a adotar;
-**ui/** = componente de `src/components/ui/` reutilizável (criado ✅ / pendente ⏳).
+Revisão real das **27 páginas + `AppLayout`** (~8.019 linhas em `src/pages` + layout).
+Legenda: **PR** = PrimeReact; **ui/** = wrapper em `src/components/ui/`;
+✅ feito · 🟡 parcial · ⏳ pendente · ❌ não aplicar.
 
-### 10.1 Páginas
+### 10.0 Decisão rápida: DataTable vs DataView vs manter
 
-| Página | linhas | widgets hoje | PR a adotar | ui/ reutilizáveis |
+| Quando usar | Critério | Páginas |
+|---|---|---|
+| **`DataTable`** | linhas com colunas fixas (CSV mental), sort/paginação, ações por linha | Sessions, Clients, Incidents, Remote, Sla, Switches, Notifications prefs, DeviceDetail ×6 |
+| **`DataView`** | lista/card (ícone + título + detalhe), layout não-tabular | ~~**Alerts**, **Notifications feed**, **Knowledge**~~ **dispensado em 2026-10-03** (ver nota abaixo) |
+| **Manter custom** | kanban, SVG, painéis métricos, empty-state | Tasks (kanban), Topology (SVG), Dashboard, Locations, WiFi |
+
+Em `DataTable`: **AuditPage** (lazy server-side), **UsersPage** (client-side), **SessionsPage**, **ClientsPage** (lazy), **IncidentsPage** (lazy), **RemotePage**, **SlaPage**, detalhe de portas de **SwitchesPage**, preferências de **NotificationsPage** e as 6 tabelas de **DeviceDetailPage**.
+
+### 10.1 Páginas (estado atual × próximo passo)
+
+| Página | ln | Hoje (relevante) | PR próximo | ui/ (estado) |
 |---|---:|---|---|---|
-| `AppLayout` (topbar/menu) | — | busca `pi-search` inline, botões inline | `InputText` + `IconField`, `Button` | ⏳ `SearchInput` |
-| `DashboardPage` | 484 | 6 painéis, métricas, barras, chips, error/loading | `Card`, `ProgressBar`, `Tag` | ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `AlertsPage` | 188 | lista com chips, paginação manual, error/loading | `Tag`, `DataView` (ou `DataTable`) | ⏳ `Pagination`*, ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| **`AuditPage`** | 382 | **piloto ✅ `DataTable`+`PageHeader`+`ErrorBanner`**; restam `datetime-local`, `<select>`, input de ação | `Calendar` (período), `Dropdown` (outcome), `InputText`+`IconField` | ✅ os 3 |
-| `ClientsPage` | 222 | form, `<table>`, busca, paginação manual, error/loading | `DataTable`, `InputText`, `Button` | ⏳ `Pagination`*, ✅ `ErrorBanner`, ⏳ `SearchInput`/`LoadingRows` |
-| `DeviceDetailPage` | 624 | **6 `<table>`s**, empty state, chips, error/loading | `DataTable` ×6, `Tag` | ⏳ `CopyableId`, ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `DevicesPage` | 562 | form (4 input + 2 select + textarea), chips, error/loading | `InputText`, `Dropdown`, `InputTextarea`, `Button`, `Tag` | ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `ForgotPasswordPage` | 94 | form + erro inline | `InputText`, `Button`, `Message` | ⏳ `FormField`* |
-| `HealthPage` | 50 | painel de status | `Tag` (UP/DOWN), `ProgressBar` | — |
-| `IncidentsPage` | 318 | form (input+textarea+2 select), `<table>`, paginação, chips | `DataTable`, `Dropdown`, `InputText`, `InputTextarea`, `Button`, `Tag` | ⏳ `Pagination`*, ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `InsightsPage` | 68 | estático/leitura | `Skeleton` (se ganhar fetch) | — |
-| `InvitationAcceptancePage` | 244 | form com senha, erros inline | `InputText`, `Password`, `Button`, `Message` | ⏳ `FormField`* |
-| `KnowledgePage` | 309 | 2 forms, select, busca, paginação manual | `Dropdown`, `InputText`, `InputTextarea`, `Button` | ⏳ `Pagination`*, ✅ `ErrorBanner` |
-| `LocationsPage` | 210 | empty, error, loading | `Skeleton`, `Button` | ✅ `ErrorBanner` (uni-page-empty mantido) |
-| `LoginPage` | 256 | form login (usuário/senha), erro | `InputText`, `Password`, `Button`, `Card`, `Message` | ⏳ `FormField`* |
-| `LogsPage` | 107 | busca + botões com `buttonStyle` local | `InputText`+`IconField`, `Button` | ⏳ `SearchInput` |
-| `NetworkPage` | 239 | form com `type="number"`, paginação manual | `InputNumber`, `Button` | ⏳ `Pagination`*, ✅ `ErrorBanner` |
-| `NotificationsPage` | 329 | `<table>`, toggle, paginação, error/loading | `DataTable`, `InputSwitch`, `Tag` | ⏳ `Pagination`*, ✅ `ErrorBanner` |
-| `RemotePage` | 366 | `<table>`, chips, error/loading | `DataTable`, `Tag` | ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `SessionsPage` | 241 | `<table>` + **2 `window.confirm` nativos** | `DataTable`, **`ConfirmDialog`** | ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `SettingsPage` | 213 | 6 abas manuais (`activeTab`), **36 toggles**, 9 inputs, 1 select | `TabView` (6 abas), **`InputSwitch` ×36**, `InputText`, `Dropdown`, `Button` | ✅ `ErrorBanner` |
-| `SlaPage` | 306 | form + textarea, `<table>`, error/loading | `DataTable`, `InputTextarea`, `InputText`, `Button`, `Tag` | ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `SwitchesPage` | 291 | `<select>`, `<table>`, empty, error/loading | `Dropdown`, `DataTable` | ✅ `ErrorBanner` |
-| `TasksPage` | 407 | 2 forms, 4 selects, barras de progresso | `Dropdown`, `InputText`, `InputTextarea`, `ProgressBar`, `Button`, `Tag` | ✅ `ErrorBanner`, ⏳ `LoadingRows` |
-| `TopologyPage` | 432 | **SVG próprio** (não trocar por lib de gráfico), chips, empty | `Tag` | ✅ `ErrorBanner` |
-| `UsersPage` | 447 | form, `<table>`, busca, 2 abas manuais, chips, exclusão | `DataTable`, `InputText`, `Dropdown`, `Tag`, `TabView`, **`ConfirmDialog`** (excluir) | ⏳ `Pagination`*, ✅ `ErrorBanner`, ⏳ `SearchInput`/`LoadingRows` |
-| `WiFiPage` | 120 | error/loading | `Skeleton` | ✅ `ErrorBanner` |
+| `AppLayout` | 563 | busca `pi-search` inline | `SearchInput` no topbar | ⏳ adotar `SearchInput`/`Button` |
+| `DashboardPage` | 480 | 6 painéis + "Carregando…" | `Skeleton`/`Tag` (opcional `ProgressBar`) | ✅ `ErrorBanner` · ⏳ `LoadingBlock` |
+| **`AlertsPage`** | 167 | `uni-alerts-list` + chips + `Pagination` | **`DataView`** (não tabela) | ✅ `Pagination`/`ErrorBanner`/`PageHeader`/`StatusChip` · ⏳ `LoadingRows` |
+| **`AuditPage`** | 335 | ✅ `DataTable` lazy; restam `<select>` + 2× `datetime-local` | `SelectField`, `Calendar` | ✅ `PageHeader`/`ErrorBanner`/`StatusChip`/`CopyableId`/`SearchInput` |
+| **`ClientsPage`** | 202 | `<table>` + busca + `Pagination` | **`DataTable`** | ✅ `Pagination`/`ErrorBanner`/`PageHeader`/`SearchInput`/`StatusChip` · ⏳ `LoadingRows` |
+| **`DeviceDetailPage`** | 625 | **6 `<table>`** + "Carregando…" ×N | **`DataTable` ×6** | ✅ `ErrorBanner` · ⏳ `CopyableId`/`LoadingRows`/`StatusChip` |
+| `DevicesPage` | 550 | form: 2× `<select>` + textarea + lists | `SelectField`, `InputTextarea`, `Button` | ✅ `ErrorBanner`/`PageHeader`/`NoticeBanner` · ⏳ `FormField`/`LoadingBlock` |
+| `ForgotPasswordPage` | 94 | form + mensagem | `InputText`, `Button`, `Message` | ⏳ `FormField`/`Button` |
+| `HealthPage` | 49 | status | — | ✅ `PageHeader`/`StatusChip` |
+| **`IncidentsPage`** | 297 | `<table>` + 2× `<select>` + textarea + `Pagination` | **`DataTable`**, `SelectField`, `InputTextarea` | ✅ `Pagination`/`ErrorBanner`/`PageHeader`/`StatusChip`/`FormField` · ⏳ `LoadingRows`/`Button` |
+| `InsightsPage` | 68 | estático | — | — |
+| `InvitationAcceptancePage` | 244 | senha ×2 | `Password`, `Button`, `Message` | ⏳ `FormField`/`Button` |
+| **`KnowledgePage`** | 300 | **grid de cards** + `<select>` + busca + `Pagination` | **`DataView`** (layout=grid), `SelectField` | ✅ `Pagination`/`ErrorBanner`/`PageHeader`/`SearchInput`/`StatusChip`/`FormError` · ⏳ `Button`/`LoadingBlock` |
+| `LocationsPage` | 204 | empty/list + `LoadingBlock` | — (uni-page-empty ok) | ✅ `LoadingBlock`/`ErrorBanner` |
+| `LoginPage` | 256 | senha + erro | `Password`, `Button`, `Message` | ⏳ `FormField`/`Button` |
+| `LogsPage` | 103 | `SearchInput` + **`buttonStyle` local** | — | ✅ `PageHeader`/`SearchInput` · ⏳ `Button` (tirar `buttonStyle`) |
+| `NetworkPage` | 219 | `type="number"` + `Pagination` | `InputNumber` | ✅ `Pagination`/`ErrorBanner`/`PageHeader`/`FormField` · ⏳ `Button`/`LoadingBlock` |
+| **`NotificationsPage`** | 309 | **feed** `uni-alerts-list` + **prefs** `<table>` + toggle CSS + `Pagination` | feed → **`DataView`**; prefs → **`DataTable`** + `InputSwitch` | ✅ `Pagination`/`ErrorBanner`/`PageHeader` · ⏳ `LoadingRows`/`StatusChip`/`SwitchField`* |
+| **`RemotePage`** | 358 | `<table>` + chips | **`DataTable`** | ✅ `ErrorBanner`/`NoticeBanner`/`PageHeader`/`StatusChip` · ⏳ `LoadingRows` |
+| **`SessionsPage`** | 223 | `<table>` + ✅ `ConfirmDialog` + `LoadingRows` | **`DataTable`** (próximo piloto fácil) | ✅ `ErrorBanner`/`NoticeBanner`/`PageHeader`/`Button`/`ConfirmDialog`/`LoadingRows`/`StatusChip` |
+| `SettingsPage` | 214 | 6 abas manuais + ~15 toggles CSS + 1 `<select>` | `TabView` (opcional), **`InputSwitch`**, `SelectField` | ✅ `PageHeader` · ⏳ `SwitchField`*/`SelectField`/`FormField` |
+| **`SlaPage`** | 303 | `<table>` + textarea | **`DataTable`**, `InputTextarea` | ✅ `ErrorBanner`/`PageHeader`/`FormField` · ⏳ `LoadingRows`/`Button` |
+| **`SwitchesPage`** | 282 | `<table>` + `<select>` + `LoadingBlock` | **`DataTable`**, `SelectField` | ✅ `ErrorBanner`/`LoadingBlock`/`PageHeader` |
+| `TasksPage` | 404 | **kanban custom** + 4× `<select>` + textarea | ❌ não DataTable/DataView; `SelectField` nos filters/move | ✅ `ErrorBanner`/`NoticeBanner`/`PageHeader`/`SearchInput`/`FormField` · ⏳ `Button`/`StatusChip` |
+| `TopologyPage` | 426 | **SVG próprio** | ❌ não trocar | ✅ `ErrorBanner`/`LoadingBlock` |
+| **`UsersPage`** | 622 | ✅ `DataTable` + Dialogs; restam 2× `<select>` + abas manuais | `SelectField`; `TabView` opcional | ✅ `DataTable`/`ErrorBanner`/`PageHeader`/`StatusChip`/`SearchInput`/`FormField`/`Dialog`/`Button` |
+| `WiFiPage` | 113 | lista AP + loading | `Skeleton`/`LoadingBlock` | ✅ `ErrorBanner` |
 | `NotFoundPage` | 9 | `uni-page-empty` | — | — |
 
-\* `Pagination` já criado (✅) — adotar nas 7 páginas com paginação manual na Fase B.
+\* `SwitchField` = wrapper novo fino de `InputSwitch` (Settings + Notifications prefs).
 
-### 10.2 Inventário PrimeReact 10.9.4 × decisão
+### 10.2 Inventário PrimeReact 10.9.4 × decisão *(atualizado)*
 
-| Componente | Instalado | Decisão | Motivo |
+| Componente | Decisão | Estado | Onde |
 |---|---|---|---|
-| `DataTable`/`Column`/`Paginator` | ✅ | **adotar** (piloto feito) | 10 tabelas + 7 paginações manuais |
-| `Dropdown` | ✅ | **adotar** | 8 `<select>` nativos (v10: `Dropdown`, não `Select`) |
-| `InputText` + `IconField`/`InputIcon` | ✅ | **adotar** | buscas inline do topbar + 5 páginas |
-| `Button` | ✅ | **adotar** | `buttonStyle` local em 20 arquivos |
-| `Tag` | ✅ | **adotar** | ~80 chips de status/severidade medidos |
-| `Skeleton` | ✅ | **adotar** | "Carregando…" manual em 19 páginas |
-| `Message`/`Messages` | ✅ | **adotar** | erro de formulário inline em 10 páginas |
-| `Calendar` | ✅ | **adotar** (Audit) | 2 `datetime-local`; em v10.9.4 o componente é `Calendar` |
-| `InputTextarea`, `InputNumber`, `InputSwitch` | ✅ | **adotar** | textareas (6), number (Network), 37 toggles (Settings/Notifications) |
-| `Password` | ✅ | **adotar** | 3 telas com senha (Login/Forgot/Invite) |
-| `ConfirmDialog` | ✅ | **adotar** | substitui 2 `window.confirm` (Sessions) + exclusão (Users) |
-| `Dialog` | ✅ | opcional | forms hoje são inline/colapsáveis — só se o usuário pedir modal |
-| `TabView` | ✅ | opcional | Settings (6 abas) e Users (2 abas) manuais |
-| `ProgressBar` | ✅ | opcional | Dashboard + Tasks |
-| `Card`, `Toolbar`, `Divider` | ✅ | opcional | estilização de painéis novos |
-| `Toast` | ✅ | opcional | hoje erros são inline; só se pedir feedback flutuante |
-| `Chart`, `Editor`, `FileUpload`, `Galleria`, `Terminal`, `Dock`, `SpeedDial`, `Tree/OrganizationChart`, `Timeline` | ✅ | **fora de escopo** | sem caso de uso no produto (Topology é SVG próprio; Knowledge usa textarea simples) |
+| `DataTablePanel` + `DataTable`/`Column` | **adotar** | ✅ | casca reutilizável UniFi para painel, tamanho e largura; Sessions, Clients, Incidents, Remote, Sla, Switches e Notifications a consomem; DeviceDetail mantém colunas específicas |
+| `DataView` | **dispensar** (2026-10-03) | ✅ | feed de Notifications já migrou para `Timeline` (Fase H); Alerts (`uni-alert-row`) e Knowledge (grid de cards) têm markup próprio único — a duplicação que motivou o `DataView` não existe mais; trocar o wrapper por `p-dataview` seria DOM novo sem ganho funcional, contra a diretriz "sem mexer no layout" (decisão do usuário 2026-10-03) |
+| `Dropdown` | **adotar** | 🟡 wrapper pronto | ✅ `SelectField` · **0 páginas adotam** (Audit, Users×2, Devices×2, Incidents×2, Knowledge, Switches, Tasks×4, Settings) |
+| `Tag` | **adotar** | ✅ via `StatusChip` | várias páginas |
+| `Skeleton` | **adotar** | 🟡 | ✅ `LoadingRows`/`LoadingBlock` · falta ~14 páginas com "Carregando…" |
+| `Button` (PR) | via wrapper | ✅ | `ui/Button` adotado em Dialog/Pagination/Users/Sessions + **lote 2026-10-03**: Logs, Knowledge, Incidents, Locations, Clients, Switches, Tasks, Devices, DeviceDetail, Topology, Sla, Remote, Network (32 botões de ação — variant + `style` mínimo de fidelia, `disabled` nativo cobre o `opacity` manual); **mantidos nativos por decisão**: tabs/abas, filtros-chip com cor dinâmica, botões icon-only 28×28/zoom SVG, link do Dashboard, chip "Encerrar" da coluna Remote e as 3 telas de autenticação (Login/Forgot/Invitation — visual sensível, lote próprio) |
+| `InputSwitch` | **adotar** | ⏳ | Settings (~15) + Notifications prefs → criar `SwitchField` |
+| `Calendar` | **adotar** | ⏳ | Audit (2× `datetime-local`) |
+| `InputTextarea` / `InputNumber` | **adotar** | ⏳ | forms Incidents/Sla/Knowledge/Devices/Tasks; Network number |
+| `Password` | **adotar** | ⏳ | Login / Invite (Forgot não usa campo senha) |
+| `ConfirmDialog` / `Dialog` | **adotar** | ✅ via `ui/Dialog` | Users + Sessions |
+| `TabView` | opcional | ⏳ | Settings (6) / Users (2) / Notifications (2) — hoje CSS manual ok |
+| `ProgressBar` / `Card` | opcional | — | só sob pedido |
+| `Toast` | **adotar** | ✅ Fase F | provider global + ações em Users/Sessions/Notifications |
+| `Chart`, `Editor`, `FileUpload`, `Tree`, `Timeline`, … | **fora** | — | Topology = SVG; Knowledge = textarea |
 
-### 10.3 Multiplicador de reutilização (componente → consumo)
+### 10.3 Multiplicador de reutilização (`ui/` → consumo)
 
-| `components/ui/` | criado | páginas que se beneficiam |
+| `components/ui/` | criado | adoção nas páginas | próximo |
+|---|---|---|---|
+| `ErrorBanner` | ✅ | ampla (~20) | — |
+| `PageHeader` | ✅ | ampla | AppLayout/auth se fizer sentido |
+| `Pagination` | ✅ | Alerts/Clients/Incidents/Knowledge/Network/Notifications | some quando a página for p/ `DataTable` lazy |
+| `SearchInput` | ✅ | Audit/Clients/Knowledge/Logs/Users/Tasks | **AppLayout** topbar |
+| `LoadingRows` / `LoadingBlock` | ✅ | Sessions + Locations/Topology/Switches | demais loadings inline |
+| `StatusChip` (`Tag`) | ✅ | Audit/Alerts/Clients/Health/Incidents/Knowledge/Remote/Sessions/Users | Tasks chips locais |
+| `FormField` / `FormError` | ✅ | Users/Incidents/Network/Sla/Tasks/Knowledge | Devices + auth |
+| `CopyableId` | ✅ | Audit | Sessions, DeviceDetail |
+| `Button` | ✅ | Dialog/Pagination/Users/Sessions | Logs (`buttonStyle`) + forms |
+| `Dialog` / `ConfirmDialog` | ✅ | Users, Sessions | — |
+| `SelectField` (`Dropdown`) | ✅ | **Audit, Users×2, Devices×2, Incidents×2, Knowledge, Switches, Tasks×4, Settings** | — |
+| `NoticeBanner` | ✅ | Sessions/Remote/Devices/Incidents/Tasks | — |
+| `SwitchField` (`InputSwitch`) | ✅ | Settings (toggles locais) + Notifications prefs | — |
+| `MetricChart` (`Chart`+chart.js) | ✅ | Dashboard doughnut (piloto Fase E) | DeviceDetail line na sequência |
+| `FilterBar` | ⏳ opcional | — | Audit/Incidents/Knowledge/Clients (só se repetir markup) |
+| `DateTimeField` (`Calendar`) | ⏳ opcional | — | Audit |
+
+### 10.4 Fila de alto ganho (ordem sugerida)
+
+1. **Adotar `SelectField`** nas páginas com `<select>` (wrapper já existe — zero criação).
+2. **`DataTable` em `SessionsPage`** (já tem LoadingRows/ConfirmDialog/StatusChip — menor atrito).
+3. **`DataTable` lote**: Clients → Incidents → Remote → Sla → Switches → Notifications prefs.
+4. ~~**`DataView`**: Alerts → Notifications feed → Knowledge.~~ **Dispensado** (2026-10-03 — feed em `Timeline`; Alerts/Knowledge com markup próprio, sem duplicação; decisão do usuário registrada na §10.0).
+5. **`SwitchField`** + Settings/Notifications toggles.
+6. **`DeviceDetailPage` DataTable ×6** (maior volume, deixar por último neste ciclo).
+7. ~~Fase C: poda CSS `uni-*` órfão após as migrações de tabela.~~ **EXECUTADA 2026-10-03**: 122 regras removidas (69 classes órfãs + modificadores e trechos de `@media`) — `styles.css` 967 → 731 linhas; garantia por diff: nenhuma classe removida tem uso em `.ts/.tsx` (0 de 125 classes usadas afetadas).
+
+Observações:
+
+- **Reutilização > PR cru**: preferir `ui/` que já embute PR (`SelectField`→Dropdown, `StatusChip`→Tag, `LoadingRows`→Skeleton).
+- **Incremental**: uma página (ou um wrapper) por vez; `tsc`/`build` verdes; visual UniFi via `prime-overrides.css`.
+- **Não** forçar DataTable em kanban (Tasks), SVG (Topology) ou cards métricos (Dashboard).
+
+---
+
+## 11. Catálogo ampliado PrimeReact 10.9 — plano (pesquisa 2026-10-03)
+
+Fonte: [v10.primereact.org](https://v10.primereact.org/) (80+ componentes; app em `primereact@^10.9.4`).
+O inventário antigo (§10.2) cobriu só o óbvio (tabela/form). Abaixo: o que **ainda dá** para usar
+com caso real no InfraControl — inclusive **Chart**, que a visão do produto pede e ainda **não**
+está no `package.json` (exige `chart.js` como peer).
+
+### 11.1 Matriz: componente × onde encaixa × prioridade
+
+| Componente PR | Onde no produto | Wrapper `ui/`? | Prioridade | Nota |
+|---|---|---|---|---|
+| **`Chart`** (Chart.js: line/bar/doughnut/pie/radar/polar/combo) | Dashboard (contagens/tendência), DeviceDetail (histórico de polls), Sla (uptime/error budget), Health (latência) | `MetricChart` | **P1** | **dep nova**: `npm i chart.js`; tipos line/bar/doughnut bastam no início |
+| **`DataView`** | Alerts, Notifications feed, Knowledge | — | ~~P1~~ **dispensado** | decisão 2026-10-03 (§10.0) |
+| **`DataTable`** | 8 páginas + DeviceDetail×6 | — | **P1** | já na fila §10.4 |
+| **`Timeline`** | feed Notifications / Audit “linha do tempo” / histórico DeviceDetail / ciclo Incidente | `EventTimeline` | **P2** | vertical; markers com cor de severidade |
+| **`MeterGroup`** | Sla uptime/error budget, toner/drum %, Health uptime | `UsageMeter` | **P2** | escalar 0–100; melhor que barra CSS solta |
+| **`Knob`** (readonly) | Health latency / score, Dashboard “saúde” | opcional | **P3** | dial; usar só se couber no visual UniFi |
+| **`ProgressBar`** | Tasks progressão, jobs Remote | — | **P2** | já no inventário; fácil |
+| **`Toast`** | feedback pós-ação (convite, revogar sessão, salvar prefs) | `useToast` / provider no App | **P1** | hoje só banner inline; Toast não substitui `ErrorBanner` de load |
+| **`Message`** | erro de formulário auth/forms | já parcialmente `FormError` | **P2** | alinhar `FormError` a `Message` |
+| **`Badge`** / **`Chip`** | contagem no menu (alertas abertos), filtros removíveis | `CountBadge` | **P2** | Chip ≠ StatusChip (Tag) — Chip é removível/filtro |
+| **`Avatar`** / **`AvatarGroup`** | ator na Audit/Sessions, responsáveis Tasks | — | **P3** | iniciais do displayName |
+| **`Toolbar`** | barra de filtros+ações (Audit, Incidents, Clients) | `FilterBar` vira Toolbar | **P2** | substitui flex inline repetido |
+| **`SelectButton`** | filtro segmented (Alerts status, Notifications tabs leves) | — | **P2** | melhor a11y que botões CSS |
+| **`MultiSelect`** | filtros multi (roles Users, severidade Incidents) | via `SelectField` multi | **P2** | |
+| **`AutoComplete`** | busca global AppLayout (F2-T007 search) | estender `SearchInput` | **P2** | quando a barra topbar ligar no backend |
+| **`Calendar`** | Audit período | `DateTimeField` | **P2** | |
+| **`Accordion`** / **`Panel`** | DeviceDetail seções, Settings blocos | — | **P3** | Settings hoje é nav lateral — Accordion só se unificar mobile |
+| **`OverlayPanel`** | preview rápido de device/cliente na lista | — | **P3** | popover sem navegar |
+| **`ConfirmPopup`** | confirmação leve inline (vs Dialog modal) | — | **P3** | Sessions/Users já têm ConfirmDialog |
+| **`Breadcrumb`** | Devices → DeviceDetail | — | **P2** | navegação hierárquica |
+| **`SplitButton`** | “Novo” + variantes (device types, export) | — | **P3** | |
+| **`Tooltip`** | tooltips ricos (porta switch, truncates) | — | **P3** | hoje `title=` nativo |
+| **`BlockUI`** / **`ProgressSpinner`** | overlay em save longo | — | **P3** | |
+| **`VirtualScroller`** | Logs / Clients listas longas | — | **P3** | só se paginação server ficar curta demais |
+| **`Tree` / `TreeTable`** | Locations→Racks, VLANs/ports | — | **P3** | só se modelar hierarquia na UI |
+| **`TabView`** | Settings / Users / Notifications | — | **P3** | opcional — CSS atual ok |
+| **`InputOtp`** | Login MFA (código 6 dígitos) | — | **P2** | hoje 1 campo texto; ganho UX |
+| **`Password`** | Login / Invite | — | **P2** | strength/toggle eye |
+| **`InputMask`** | MAC/IP em forms Devices | — | **P3** | |
+| **`ScrollTop`** | páginas longas (DeviceDetail, Audit) | — | **P3** | |
+
+### 11.2 Explicitamente fora (rico no catálogo, sem caso no produto)
+
+| Componente | Por quê |
+|---|---|
+| `OrganizationChart` | Topology é **SVG próprio** (pan/zoom/filtros) — não substituir |
+| `Editor` (Quill) | Knowledge usa textarea; editor rich = escopo produto novo |
+| `Galleria` / `Image` / `Carousel` | sem galeria de mídia |
+| `FileUpload` | sem upload de anexos hoje |
+| `Terminal` / `Dock` / `SpeedDial` | estética desktop alienígena ao UniFi |
+| `OrderList` / `PickList` / `Rating` / `ColorPicker` | sem domínio |
+| `MegaMenu` / `Menubar` / `SlideMenu` / `TieredMenu` | sidebar custom `AppLayout` já resolve |
+| `Stepper` / `Steps` | só se nascer wizard (ex.: onboarding device) — não há |
+
+### 11.3 Fases propostas (além de A–D atuais)
+
+| Fase | Escopo | Entregáveis | Critério de aceite |
+|---|---|---|---|
+| **B′** (fechar B) | adoções baratas | `SelectField` nas páginas; `SwitchField`; Skeleton restante; `Button` no Logs | selects nativos sumiram das páginas tocadas; tsc/build |
+| **C′** (fechar C) | dados | DataTable lote + ~~DataView~~ dispensado (§10.0) + poda `uni-*` ✅ | 0 `<table className="uni-clients-table">` nas páginas migradas · **0 classes usadas removidas na poda** |
+| **E — Chart** *(nova)* | visão | instalar `chart.js`; wrapper `MetricChart`; piloto Dashboard (doughnut status + bar contagens) **ou** DeviceDetail (line de Succeeded/Failed ao longo do tempo) | chart renderiza com dados reais da API; a11y `aria-label`; tema UniFi em `prime-overrides` |
+| **F — Feedback** | UX ação | `Toast` provider no App + adoção em Users/Sessions/Notifications; `Message` no `FormError`; `Badge` contagem alertas no menu | toast em pt-BR; ErrorBanner de load permanece |
+| **G — Chrome** | navegação/filtros | `Toolbar`/`FilterBar`, `Breadcrumb` DeviceDetail, `SelectButton` Alerts, `AutoComplete` topbar (se search API), `InputOtp` MFA | sem regressão de filtro/URL |
+| **H — Métricas extras** | ops | `Timeline` feed; `MeterGroup` Sla/Health; `ProgressBar` Tasks; opcional `Knob` | visual coerente; sem inventar endpoint |
+
+**Dependência crítica da Fase E:** `chart.js` **não** está instalado — PrimeReact Chart só encapsula; sem o pacote o import quebra em runtime.
+
+**Ordem recomendada de execução (checkpoint por fase):**
+
+```text
+B′ (SelectField + SwitchField)
+→ C′ DataTable Sessions + lote
+→ C′ DataView (Alerts…)
+→ E Chart piloto (Dashboard OU DeviceDetail — escolher 1)
+→ F Toast/Badge
+→ G Toolbar/Breadcrumb/SelectButton/InputOtp
+→ H Timeline/MeterGroup
+→ poda CSS órfão
+```
+
+### 11.4 Decisões (fechadas 2026-10-03 — autorização "documenta tudo e começa")
+
+| # | Pergunta | Decisão |
 |---|---|---|
-| `ErrorBanner` | ✅ | **19** (banner idêntico hoje) |
-| `PageHeader` | ✅ | **todas** (título+contagem+ações) |
-| `Pagination` | ✅ | **7** (Anterior/Próxima manual) |
-| `SearchInput` | ⏳ | **6** (topbar + Clients/Knowledge/Logs/Users/Audit) |
-| `LoadingRows` (Skeleton de tabela) | ⏳ | **19** (loading manual) |
-| `StatusChip` (por `Tag`) | ⏳ | **14** (chips de status/severidade/outcome) |
-| `FormField` (label+input+erro p/ forms) | ⏳ | **10** (forms com erro inline) |
-| `CopyableId` | ⏳ | **3** (Audit ✅ impl., Sessions, DeviceDetail) |
-| `FilterBar` (busca+selects+período+ações) | ⏳ | **4** (Audit, Incidents, Knowledge, Clients) |
+| 1 | Piloto Chart | **Dashboard primeiro** (visão executiva); DeviceDetail line chart na sequência |
+| 2 | Toast flutuante | **Sim** — Fase F; visual UniFi via `prime-overrides` (não substitui ErrorBanner de load) |
+| 3 | Topology | **SVG próprio** — OrganizationChart fora |
+| 4 | Ordem | **B′ agora** (SelectField + SwitchField) **em paralelo com wrapper Chart** (`MetricChart` + `chart.js`); piloto Dashboard na mesma leva se build verde |
 
-Observações finais:
+Execução desta leva: wrappers reutilizáveis + adoção SelectField/SwitchField + Chart no Dashboard.
 
-- **Reutilização real**: cada `ui/` criado substitui N duplicações (coluna "páginas") — é o ganho
-  central, mais do que o componente PR isolado; os PRs entram *dentro* desses componentes
-  (ex.: `FilterBar` usa `Dropdown`+`InputText`, `StatusChip` usa `Tag`).
-- **Adoção incremental**: nenhum rewrite em massa — cada página migrada quando tocada por outra
-  razão (Fases A–D), mantendo contrato e visual UniFi.
-- Campos com `*` no §10.3 = criáveis sem dependência de backend; `StatusChip`/`FormField` são os
-  de maior multiplicador depois dos já criados.
+### 11.5 Execução — Fase F (2026-10-03)
+
+- `ToastProvider` e `useToast` em `components/ui/` centralizam o feedback
+  transitório em pt-BR (5 s, canto superior direito).
+- Users, Sessions e Preferences de Notifications exibem sucesso e falha de
+  ações via Toast; erros de carga continuam em `ErrorBanner`, com retry onde
+  o contrato já o oferece.
+- `FormError` renderiza o `Message` acessível do PrimeReact e `Badge` renderiza
+  os totais dinâmicos da navegação lateral. As regras em `prime-overrides.css`
+  preservam o acabamento UniFi.
+
+### 11.6 Execução — Fase G (2026-10-03)
+
+- `FilterBar` encapsula `Toolbar` nos filtros de Audit, Clients e Incidents.
+- `BreadCrumb` no detalhe do dispositivo torna explícito o retorno para a lista;
+  `SelectButton` controla o filtro `status` de Alertas sem alterar os params.
+- O login usa `InputOtp` para TOTP de seis dígitos e mantém o campo textual
+  alternativo para recovery codes. A busca global server-side existente já
+  oferece autocomplete e foi preservada.
+
+### 11.7 Execução — Fase H (2026-10-03)
+
+- `Timeline` organiza o feed paginado de notificações por evento e horário.
+- `MeterGroup` mostra consumo/disponibilidade do Error Budget e o uptime já
+  exposto na tela de Health.
+- `ProgressBar` mostra a conclusão agregada do quadro de tarefas. Não há
+  percentual individual no contrato, então esse componente não cria um dado
+  novo: usa somente os estados `Resolved` e `Closed` retornados pela listagem.

@@ -30,6 +30,7 @@ const TasksPage = lazy(() => import("@/pages/TasksPage").then(m => ({ default: m
 const KnowledgePage = lazy(() => import("@/pages/KnowledgePage").then(m => ({ default: m.KnowledgePage })));
 const DeviceDetailPage = lazy(() => import("@/pages/DeviceDetailPage").then(m => ({ default: m.DeviceDetailPage })));
 const UsersPage = lazy(() => import("@/pages/UsersPage").then(m => ({ default: m.UsersPage })));
+const InvitationsPage = lazy(() => import("@/pages/InvitationsPage").then(m => ({ default: m.InvitationsPage })));
 const AuditPage = lazy(() => import("@/pages/AuditPage").then(m => ({ default: m.AuditPage })));
 const IncidentsPage = lazy(() => import("@/pages/IncidentsPage").then(m => ({ default: m.IncidentsPage })));
 const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
@@ -270,6 +271,11 @@ function AppContent() {
           <Route path="/users" element={
             <ProtectedRoute>
               <UsersPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/invitations" element={
+            <ProtectedRoute>
+              <InvitationsPage />
             </ProtectedRoute>
           } />
           <Route path="/audit" element={

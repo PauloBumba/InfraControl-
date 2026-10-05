@@ -8,13 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace InfraControl.IntegrationTests.Operations;
 
 /// <summary>
-/// F12-T002: RetentionPolicy no PostgreSQL real — 7 tipos com default de
+/// F12-T002: RetentionPolicy no PostgreSQL real — 8 tipos com default de
 /// config, upsert/reset com autorização RetentionManage (Admin-only).
 /// </summary>
 public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 {
     [Fact]
-    public async Task GetPolicies_WithAdminRole_ShouldReturnSevenTypesWithConfigDefaults()
+    public async Task GetPolicies_WithAdminRole_ShouldReturnNineTypesWithConfigDefaults()
     {
         using var scope = CreateScope();
         UseRole(UserRole.Admin);
@@ -22,7 +22,7 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 
         var policies = await mediator.Send(new GetRetentionPoliciesQuery());
 
-        policies.Should().HaveCount(7);
+        policies.Should().HaveCount(9);
         policies.Should().OnlyContain(p => p.Source == "Config");
         policies.Single(p => p.DataType == "AuditEntries").Days.Should().Be(90);
         policies.Single(p => p.DataType == "RemoteSessions").Days.Should().Be(90);

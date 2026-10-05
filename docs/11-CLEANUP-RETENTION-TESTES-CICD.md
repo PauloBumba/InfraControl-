@@ -17,6 +17,12 @@ Histórico: 1–5 anos               -> RemoteSessions: 90 dias; DiscoveryRuns:
                                       180 dias, só quando FinishedAt != null
                                       (implementado; ativos nunca são tocados)
 AuditEntries: 90 dias             -> implementado
+monitoring_events (Zabbix): 90    -> MonitoringEvents: 90 dias (implementado;
+                                     cutoff em occurred_at, índice
+                                     IX_monitoring_events_occurred_at;
+                                     alerta vinculado sobrevive via SetNull)
+Convites: 90 dias                  -> Invitations: 90 dias (implementado;
+                                     default RetentionOptions.InvitationsDays)
 ```
 
 Config em `Retention:*` (appsettings); exclusão em batch de `BatchSize`
@@ -35,7 +41,7 @@ API (`[Authorize(Policy = AuthorizationPolicies.Administer)]` +
 Admin-only):
 
 ```text
-GET    /api/v1/operations/retention-policies          # 7 tipos, valor efetivo
+GET    /api/v1/operations/retention-policies          # 9 tipos, valor efetivo
 GET    /api/v1/operations/retention-policies/{type}   # um tipo
 PUT    /api/v1/operations/retention-policies/{type}   # upsert {days}
 DELETE /api/v1/operations/retention-policies/{type}   # reset p/ config (404 se não existe)

@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "primereact/badge";
 import { navigation, secondaryNavigation } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
@@ -11,6 +12,11 @@ import { listAlerts } from "@/services/api/alerts";
 import { listIncidents } from "@/services/api/incidents";
 import { listTasks } from "@/services/api/tasks";
 import { listFeed } from "@/services/api/notifications";
+import {
+  onNotificationPush,
+  startNotificationsConnection,
+  stopNotificationsConnection,
+} from "@/services/signalr/notifications";
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 import { canReach, routeLevel } from "@/app/router/access";
 
@@ -123,6 +129,24 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
   useEffect(() => {
     loadBadges();
   }, [loadBadges]);
+
+  // Entrega 3 (docs/29 backlog): push SignalR em tempo real — conexão do
+  // hub viva enquanto o layout logado estiver montado; cada evento novo
+  // incrementa o contador do sino (o feed persistido continua fonte de
+  // histórico; o badge é revalidado a cada refresh/reload).
+  useEffect(() => {
+    void startNotificationsConnection();
+    const unsubscribe = onNotificationPush(() => {
+      setSidebarBadges((current) => ({
+        ...current,
+        notifications: (current.notifications ?? 0) + 1,
+      }));
+    });
+    return () => {
+      unsubscribe();
+      void stopNotificationsConnection();
+    };
+  }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -254,7 +278,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                   >
                     <i className={item.icon} />
                     <span>{item.label}</span>
-                    {badge && <span className="uni-nav-badge">{badge}</span>}
+                    {badge && <Badge value={badge} className="uni-nav-badge" />}
                   </button>
                 </li>
               );
@@ -275,7 +299,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                   >
                     <i className={item.icon} />
                     <span>{item.label}</span>
-                    {badge && <span className="uni-nav-badge">{badge}</span>}
+                    {badge && <Badge value={badge} className="uni-nav-badge" />}
                   </button>
                 </li>
               );

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { useCan } from "@/app/router/access";
 import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import {
@@ -159,14 +165,12 @@ export function RemotePage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Acesso Remoto</h1>
-        <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-          {devicesLoading
-            ? "Carregando…"
-            : `${deviceTotal} ${deviceTotal === 1 ? "dispositivo" : "dispositivos"} · selecione um para ver e abrir sessões`}
-        </p>
-      </div>
+      <PageHeader
+        title="Acesso Remoto"
+        subtitle={devicesLoading
+          ? "Carregando…"
+          : `${deviceTotal} ${deviceTotal === 1 ? "dispositivo" : "dispositivos"} · selecione um para ver e abrir sessões`}
+      />
 
       {devicesError && (
         <ErrorBanner
@@ -222,9 +226,7 @@ export function RemotePage() {
             </div>
           )}
           {devicesLoading && devices.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-              Carregando…
-            </div>
+            <LoadingBlock style={{ gridColumn: "1 / -1" }} />
           )}
         </div>
       </div>
@@ -243,24 +245,26 @@ export function RemotePage() {
             </div>
             {canOperate && (
               <div style={{ display: "flex", gap: 8 }}>
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => void open("ssh")}
                   disabled={!!busy || !selected.ip}
                   title={!selected.ip ? "Device sem IP — acesso remoto indisponível" : "Abrir sessão SSH (credenciais do device)"}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, fontWeight: 500, color: selected.ip ? "#3b82f6" : "#9ca3af", cursor: selected.ip && !busy ? "pointer" : "default", opacity: busy ? 0.6 : 1 }}
+                  style={{ padding: "6px 14px", borderColor: "#e2e8f0", color: selected.ip ? "#3b82f6" : "#9ca3af", cursor: selected.ip && !busy ? "pointer" : "default", opacity: busy ? 0.6 : 1 }}
                 >
                   <i className="pi pi-terminal" style={{ fontSize: 11 }} />
                   {busy === "ssh" ? "Abrindo…" : "Abrir SSH"}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => void open("rdp")}
                   disabled={!!busy || !selected.ip}
                   title={!selected.ip ? "Device sem IP — acesso remoto indisponível" : "Probe RDP (TCP, sem autenticação)"}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, border: "1px solid #e2e8f0", background: "white", fontSize: 12, fontWeight: 500, color: selected.ip ? "#8b5cf6" : "#9ca3af", cursor: selected.ip && !busy ? "pointer" : "default", opacity: busy ? 0.6 : 1 }}
+                  style={{ padding: "6px 14px", borderColor: "#e2e8f0", color: selected.ip ? "#8b5cf6" : "#9ca3af", cursor: selected.ip && !busy ? "pointer" : "default", opacity: busy ? 0.6 : 1 }}
                 >
                   <i className="pi pi-desktop" style={{ fontSize: 11 }} />
                   {busy === "rdp" ? "Abrindo…" : "Abrir RDP"}
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -277,82 +281,15 @@ export function RemotePage() {
             />
           )}
 
-          <div className="uni-panel">
-            <table className="uni-clients-table">
-              <thead>
-                <tr>
-                  <th>Protocolo</th>
-                  <th>Usuário</th>
-                  <th>Início</th>
-                  <th>Fim</th>
-                  <th>Duração</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((session) => {
-                  const status = statusConfig[session.status] ?? {
-                    label: session.status, bg: "#f3f4f6", color: "#6b7280",
-                  };
-                  const closing = busy === `close:${session.id}`;
-                  return (
-                    <tr key={session.id}>
-                      <td>
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: session.protocol === "Ssh" ? "#eff6ff" : "#f5f3ff", color: session.protocol === "Ssh" ? "#3b82f6" : "#8b5cf6" }}>
-                          {session.protocol === "Ssh" ? "SSH" : "RDP"}
-                        </span>
-                      </td>
-                      <td style={{ fontFamily: "monospace", fontSize: 11 }} title={session.userId}>
-                        {session.userId.slice(0, 8)}
-                      </td>
-                      <td style={{ fontSize: 12, color: "#6b7280" }}>{formatDateTime(new Date(session.startedAt))}</td>
-                      <td style={{ fontSize: 12, color: "#6b7280" }}>
-                        {session.endedAt ? formatDateTime(new Date(session.endedAt)) : "—"}
-                      </td>
-                      <td style={{ fontSize: 12, fontWeight: 500 }}>{durationOf(session)}</td>
-                      <td>
-                        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: status.bg, color: status.color }} title={session.failureReason ?? undefined}>
-                          {status.label}
-                        </span>
-                        {session.status === "Failed" && session.failureReason && (
-                          <div style={{ fontSize: 10, color: "#dc2626", marginTop: 3, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={session.failureReason}>
-                            {session.failureReason}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        {canOperate && session.status === "Active" && (
-                          <button
-                            onClick={() => void close(session.id)}
-                            disabled={!!busy}
-                            style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "#fef2f2", color: "#dc2626", fontWeight: 500, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
-                          >
-                            <i className="pi pi-times" style={{ fontSize: 9, marginRight: 3 }} />
-                            {closing ? "Encerrando…" : "Encerrar"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!sessionsLoading && sessions.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      {error ? "—" : "Nenhuma sessão registrada neste dispositivo"}
-                    </td>
-                  </tr>
-                )}
-                {sessionsLoading && (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                      Carregando…
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTablePanel value={sessions} dataKey="id" loading={sessionsLoading} emptyMessage={error ? "—" : "Nenhuma sessão registrada neste dispositivo"}>
+              <Column header="Protocolo" body={(session: RemoteSessionItem) => <StatusChip label={session.protocol === "Ssh" ? "SSH" : "RDP"} background={session.protocol === "Ssh" ? "#eff6ff" : "#f5f3ff"} color={session.protocol === "Ssh" ? "#3b82f6" : "#8b5cf6"} fontWeight={600} fontSize={10} />} style={{ width: 100 }} />
+              <Column header="Usuário" body={(session: RemoteSessionItem) => <span style={{ fontFamily: "monospace", fontSize: 11 }} title={session.userId}>{session.userId.slice(0, 8)}</span>} />
+              <Column header="Início" body={(session: RemoteSessionItem) => formatDateTime(new Date(session.startedAt))} style={{ fontSize: 12, color: "#6b7280", width: 155 }} />
+              <Column header="Fim" body={(session: RemoteSessionItem) => session.endedAt ? formatDateTime(new Date(session.endedAt)) : "—"} style={{ fontSize: 12, color: "#6b7280", width: 155 }} />
+              <Column header="Duração" body={(session: RemoteSessionItem) => durationOf(session)} style={{ fontSize: 12, fontWeight: 500, width: 90 }} />
+              <Column header="Status" body={(session: RemoteSessionItem) => { const status = statusConfig[session.status] ?? { label: session.status, bg: "#f3f4f6", color: "#6b7280" }; return <><StatusChip label={status.label} background={status.bg} color={status.color} fontSize={10} title={session.failureReason ?? undefined} />{session.status === "Failed" && session.failureReason && <div style={{ fontSize: 10, color: "#dc2626", marginTop: 3 }} title={session.failureReason}>{session.failureReason}</div>}</>; }} />
+              <Column header="Ações" body={(session: RemoteSessionItem) => canOperate && session.status === "Active" ? <button onClick={() => void close(session.id)} disabled={!!busy} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "#fef2f2", color: "#dc2626", fontWeight: 500, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}><i className="pi pi-times" style={{ fontSize: 9, marginRight: 3 }} />{busy === `close:${session.id}` ? "Encerrando…" : "Encerrar"}</button> : null} style={{ width: 100 }} />
+          </DataTablePanel>
         </div>
       )}
     </div>

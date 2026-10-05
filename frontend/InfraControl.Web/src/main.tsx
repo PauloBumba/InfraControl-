@@ -15,8 +15,9 @@ import "primereact/resources/primereact.min.css";
 import "primeflex/primeflex.css";
 import "primeicons/primeicons.css";
 
-// Custom styles
+// Custom styles + skin UniFi sobre o PrimeReact
 import "./styles.css";
+import "./styles/prime-overrides.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

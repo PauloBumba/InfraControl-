@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { Can } from "@/components/auth/Can";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FormField, FormError } from "@/components/ui/FormField";
+import { SelectField } from "@/components/ui/SelectField";
 import { formatDateTime } from "@/utils/format";
+import { ProgressBar } from "primereact/progressbar";
 import {
   changeTaskState,
   createTask,
@@ -164,6 +168,8 @@ export function TasksPage() {
   const totalCount = page?.totalCount ?? 0;
   const truncated = totalCount > items.length;
   const hasFilters = term !== "" || kindFilter !== "" || stateFilter !== "";
+  const completedCount = items.filter((task) => task.state === "Resolved" || task.state === "Closed").length;
+  const completionPercent = items.length === 0 ? 0 : Math.round((completedCount / items.length) * 100);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -178,24 +184,31 @@ export function TasksPage() {
         }
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
+            <Button
               onClick={() => void load()}
               disabled={loading}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151", cursor: loading ? "default" : "pointer" }}
+              variant="ghost"
+              style={{ padding: "6px 12px", cursor: loading ? "default" : "pointer" }}
             >
               <i className="pi pi-refresh" style={{ fontSize: 11 }} /> Atualizar
-            </button>
+            </Button>
             <Can level="operate">
-              <button
+              <Button
+                variant="primary"
                 onClick={() => { setCreating((value) => !value); setFormError(null); }}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
+                style={{ padding: "6px 14px" }}
               >
                 <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
-              </button>
+              </Button>
             </Can>
           </div>
         }
       />
+
+      <div className="uni-panel uni-task-progress">
+        <div><strong>Conclusão do quadro</strong><span>{completedCount} de {items.length} tarefas resolvidas ou fechadas</span></div>
+        <ProgressBar value={completionPercent} aria-label={`Conclusão do quadro: ${completionPercent}%`} />
+      </div>
 
       <form onSubmit={applyFilters} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <SearchInput
@@ -206,40 +219,33 @@ export function TasksPage() {
           width={220}
           onEnter={() => { setTerm(termInput.trim()); }}
         />
-        <select
+        <SelectField
           value={kindFilter}
-          onChange={(event) => setKindFilter(event.target.value)}
-          style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-        >
-          <option value="">Todos os tipos</option>
-          {kindOptions.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-        <select
+          onChange={setKindFilter}
+          placeholder="Todos os tipos"
+          options={[
+            { value: "", label: "Todos os tipos" },
+            ...kindOptions.map((option) => ({ value: option.value, label: option.label })),
+          ]}
+          style={{ minWidth: 150 }}
+        />
+        <SelectField
           value={stateFilter}
-          onChange={(event) => setStateFilter(event.target.value)}
-          style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-        >
-          <option value="">Todos os estados</option>
-          {stateColumns.map((column) => (
-            <option key={column.id} value={column.id}>{column.label}</option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          style={{ padding: "7px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500 }}
-        >
+          onChange={setStateFilter}
+          placeholder="Todos os estados"
+          options={[
+            { value: "", label: "Todos os estados" },
+            ...stateColumns.map((column) => ({ value: column.id, label: column.label })),
+          ]}
+          style={{ minWidth: 150 }}
+        />
+        <Button type="submit" variant="primary">
           Filtrar
-        </button>
+        </Button>
         {hasFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            style={{ padding: "7px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
-          >
+          <Button type="button" variant="ghost" onClick={clearFilters}>
             Limpar
-          </button>
+          </Button>
         )}
       </form>
 
@@ -261,15 +267,12 @@ export function TasksPage() {
               />
             </FormField>
             <FormField label="Tipo">
-              <select
+              <SelectField
                 value={kind}
-                onChange={(event) => setKind(event.target.value)}
-                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-              >
-                {kindOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                onChange={setKind}
+                options={kindOptions.map((option) => ({ value: option.value, label: option.label }))}
+                style={{ width: "100%" }}
+              />
             </FormField>
           </div>
           <FormField label="Descrição (opcional)">
@@ -283,20 +286,22 @@ export function TasksPage() {
           </FormField>
           {formError && <FormError message={formError} />}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+              style={{ padding: "6px 14px" }}
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+              style={{ padding: "6px 14px" }}
             >
               {saving ? "Salvando…" : "Criar tarefa"}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -341,9 +346,14 @@ function TaskCard({
   return (
     <div style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 12, transition: "all 0.12s" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#f1f5f9", color: "#475569", whiteSpace: "nowrap" }}>
-          {kindLabel(task.kind)}
-        </span>
+        <StatusChip
+          label={kindLabel(task.kind)}
+          background="#f1f5f9"
+          color="#475569"
+          fontWeight={600}
+          fontSize={10}
+          style={{ whiteSpace: "nowrap", padding: "2px 6px" }}
+        />
         <span style={{ fontSize: 10, color: "#9ca3af" }}>
           {formatDateTime(new Date(task.openedAt))}
         </span>
@@ -381,22 +391,18 @@ function TaskCard({
           {/* Select controlado por task.state: se a transição falhar (409 do
               mapa do domínio), o re-render restaura o valor anterior — a UI
               nunca mostra um estado que o backend não gravou. */}
-          <select
+          <SelectField
             value={task.state}
             disabled={moving}
             aria-label={`Mover "${task.title}" para outro estado`}
-            onChange={(event) => {
-              const target = event.target.value;
+            options={stateColumns.map((column) => ({ value: column.id, label: column.label }))}
+            onChange={(target) => {
               if (target === task.state) return;
               setMoving(true);
               void onMove(task, target).finally(() => setMoving(false));
             }}
-            style={{ width: "100%", padding: "5px 8px", fontSize: 11, border: "1px solid #e5e7eb", borderRadius: 6, background: "white", color: "#374151", cursor: "pointer" }}
-          >
-            {stateColumns.map((column) => (
-              <option key={column.id} value={column.id}>{column.label}</option>
-            ))}
-          </select>
+            style={{ width: "100%" }}
+          />
         </div>
       </Can>
     </div>

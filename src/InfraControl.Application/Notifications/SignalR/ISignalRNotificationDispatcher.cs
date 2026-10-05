@@ -2,7 +2,9 @@ namespace InfraControl.Application.Notifications.SignalR;
 
 /// <summary>
 /// Payload enviado ao canal SignalR (F9-T004) — título/mensagem da
-/// notificação já resolvidos pelo worker.
+/// notificação já resolvidos pelo worker. <c>EventType</c> espelha o feed
+/// persistido (entrega 3 do backlog de UX): o frontend usa o mesmo campo
+/// para exibir o tipo junto de título/mensagem no evento em tempo real.
 /// </summary>
 public sealed record NotificationSignalRMessage(
     Guid DeliveryId,
@@ -10,6 +12,7 @@ public sealed record NotificationSignalRMessage(
     Guid UserId,
     string Title,
     string Message,
+    string EventType,
     DateTime CreatedAt);
 
 /// <summary>

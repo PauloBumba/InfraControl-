@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { InputOtp } from "primereact/inputotp";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { loginFailed, loginStarted, loginSucceeded, clearAuthError } from "@/app/store/slices/authSlice";
@@ -43,6 +44,7 @@ export function LoginPage() {
   // persistido (some com a navegação, como sempre foi a regra desta tela).
   const [mfaStep, setMfaStep] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
+  const [usingRecoveryCode, setUsingRecoveryCode] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -84,6 +86,7 @@ export function LoginPage() {
   const handleBackToPassword = () => {
     setMfaStep(false);
     setMfaCode("");
+    setUsingRecoveryCode(false);
     dispatch(clearAuthError());
   };
 
@@ -178,23 +181,14 @@ export function LoginPage() {
           {mfaStep && (
             <>
               <label className="uni-login-label" htmlFor="login-mfa">Código de verificação</label>
-              <input
-                id="login-mfa"
-                className="uni-login-input"
-                type="text"
-                name="one-time-code"
-                autoComplete="one-time-code"
-                placeholder="000000"
-                value={mfaCode}
-                onChange={(event) => setMfaCode(event.target.value)}
-                disabled={pending}
-                autoFocus
-                required
-              />
+              {usingRecoveryCode ? <input id="login-mfa" className="uni-login-input" type="text" name="one-time-code" autoComplete="one-time-code" placeholder="XXXX-XXXX" value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} disabled={pending} autoFocus required /> : <InputOtp id="login-mfa" value={mfaCode} onChange={(event) => setMfaCode(String(event.value ?? ""))} length={6} integerOnly disabled={pending} autoFocus className="uni-input-otp" aria-label="Código MFA de seis dígitos" />}
               <p style={{ fontSize: 12, color: "#64748b", margin: "-4px 0 8px" }}>
                 Digite o código de 6 dígitos do aplicativo autenticador ou um
                 código de recuperação (XXXX-XXXX).
               </p>
+              <button type="button" className="uni-login-link" onClick={() => { setUsingRecoveryCode((value) => !value); setMfaCode(""); }}>
+                {usingRecoveryCode ? "Usar código do autenticador" : "Usar código de recuperação"}
+              </button>
             </>
           )}
 

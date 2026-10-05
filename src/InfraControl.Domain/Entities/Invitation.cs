@@ -133,6 +133,48 @@ public sealed class Invitation : AggregateRoot
         Touch();
     }
 
+    /// <summary>
+    /// Aceite de convite em tempo real dentro da plataforma (usuário já autenticado).
+    /// Não valida token pois o email já foi validado pelo contexto do usuário logado.
+    /// </summary>
+    public void AcceptInternal(DateTime utcNow)
+    {
+        if (Status != InvitationStatus.Pending)
+            throw new InvalidOperationException($"Apenas convites pendentes podem ser aceitos (atual: {Status}).");
+
+        if (ExpiresAt <= utcNow)
+        {
+            MarkExpired();
+            throw new InvalidOperationException("O convite expirou.");
+        }
+
+        Status = InvitationStatus.Accepted;
+        DecidedAt = utcNow;
+        Touch();
+        RaiseDomainEvent(new InvitationAcceptedDomainEvent(Id, Email));
+    }
+
+    /// <summary>
+    /// Recusa de convite em tempo real dentro da plataforma (usuário já autenticado).
+    /// Não valida token pois o email já foi validado pelo contexto do usuário logado.
+    /// </summary>
+    public void RejectInternal(DateTime utcNow)
+    {
+        if (Status != InvitationStatus.Pending)
+            throw new InvalidOperationException($"Apenas convites pendentes podem ser recusados (atual: {Status}).");
+
+        if (ExpiresAt <= utcNow)
+        {
+            MarkExpired();
+            throw new InvalidOperationException("O convite expirou.");
+        }
+
+        Status = InvitationStatus.Rejected;
+        DecidedAt = utcNow;
+        Touch();
+        RaiseDomainEvent(new InvitationRejectedDomainEvent(Id, Email));
+    }
+
     private bool MatchesHash(string tokenHash)
     {
         var expected = System.Text.Encoding.UTF8.GetBytes(TokenHash);

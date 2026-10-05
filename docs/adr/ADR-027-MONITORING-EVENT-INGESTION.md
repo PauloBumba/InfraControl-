@@ -120,8 +120,12 @@ sem resolução não gera notificação).
 - Incidentes de Zabbix **pré-upgrade** não ganham linha de evento/alerta
   retroativos: o OK correspondente responde `none` e esses incidentes fecham
   manualmente (migração de dados fora de escopo).
-- `monitoring_events` **ainda não tem retenção** no `CleanupService`
-  (`RetentionDataType` sem o novo tipo) — pendência declarada.
+- `monitoring_events` **ganhou retenção** no `CleanupService`
+  (`RetentionDataType.MonitoringEvents`, default 90 dias sobre
+  `occurred_at`, policy sobrescreve via Operations → Retention; índice
+  `IX_monitoring_events_occurred_at` na migração
+  `20261004005530_AddMonitoringEventsOccurredAtIndex`; alerta vinculado
+  sobrevive com `monitoring_event_id` em NULL — `SetNull`).
 - Alertas externos sem device entram no search com `deviceName` null; a UI
   mostra "Sem device · Zabbix" (fallbacks no front).
 - Escritas concorrentes do mesmo `eventid` podem gerar 500 pontual (índice

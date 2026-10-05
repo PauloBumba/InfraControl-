@@ -7,6 +7,7 @@
  * (`#b91c1c`); para erros soltos do form (após o último campo) use `FormError`.
  */
 import type { CSSProperties, ReactNode } from "react";
+import { Message } from "primereact/message";
 
 export function FormField({
   label,
@@ -38,9 +39,9 @@ export function FormField({
 }
 
 /**
- * Erro de formulário solto (após os campos, antes dos botões) — o mesmo
- * `<div>` inline que aparecia em Incidents, Tasks, Devices etc. `style`
- * cobre variações locais (ex.: Network usa `alignSelf: "center"`).
+ * Erro de formulário solto (após os campos, antes dos botões), agora com o
+ * `Message` acessível do PrimeReact. `style` cobre variações locais (ex.:
+ * Network usa `alignSelf: "center"`).
  */
 export function FormError({
   message,
@@ -49,7 +50,9 @@ export function FormError({
   message: string;
   style?: CSSProperties;
 }) {
+  if (!message) return null;
+
   return (
-    <div style={{ fontSize: 12, color: "#b91c1c", ...style }}>{message}</div>
+    <Message severity="error" text={message} className="uni-form-message" style={style} />
   );
 }

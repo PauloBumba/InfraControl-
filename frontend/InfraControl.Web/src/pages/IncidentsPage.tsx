@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Column } from "primereact/column";
+import { type DataTablePageEvent } from "primereact/datatable";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
-import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { FormField, FormError } from "@/components/ui/FormField";
+import { SelectField } from "@/components/ui/SelectField";
+import { Button } from "@/components/ui/Button";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { FilterBar } from "@/components/ui/FilterBar";
 import {
   createIncident,
   listIncidents,
@@ -118,39 +126,37 @@ export function IncidentsPage() {
 
   const incidents = pageData?.items ?? [];
   const totalCount = pageData?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  function handlePageChange(event: DataTablePageEvent) {
+    setPage(Math.floor(event.first / PAGE_SIZE) + 1);
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Incidentes</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "incidente" : "incidentes"}`}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <select
-            value={statusFilter}
-            onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
-            style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 13, color: "#64748b", background: "white" }}
-          >
-            {statusFilterOptions.map((value) => (
-              <option key={value || "all"} value={value}>
-                {value === "" ? "Todos os status" : statusConfig[value]?.label ?? value}
-              </option>
-            ))}
-          </select>
-          <Can level="operate">
-            <button
-              onClick={() => { setCreating((value) => !value); setFormError(null); }}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none" }}
-            >
-              <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Incidente
-            </button>
-          </Can>
-        </div>
-      </div>
+      <PageHeader
+        title="Incidentes"
+        subtitle={loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "incidente" : "incidentes"}`}
+        actions={
+          <FilterBar><div style={{ display: "flex", gap: 8 }}>
+            <SelectField
+              value={statusFilter}
+              onChange={(value) => { setStatusFilter(value); setPage(1); }}
+              options={statusFilterOptions.map((value) => ({
+                value,
+                label: value === "" ? "Todos os status" : statusConfig[value]?.label ?? value,
+              }))}
+              style={{ minWidth: 160 }}
+            />
+            <Can level="operate">
+              <Button
+                icon="pi pi-plus"
+                onClick={() => { setCreating((value) => !value); setFormError(null); }}
+              >
+                Novo Incidente
+              </Button>
+            </Can>
+          </div></FilterBar>
+        }
+      />
 
       {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
@@ -160,113 +166,77 @@ export function IncidentsPage() {
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Novo incidente</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Título *"
-              autoFocus
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-            <select
-              value={severity}
-              onChange={(event) => setSeverity(event.target.value)}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-            >
-              {severityOptions.map((value) => (
-                <option key={value} value={value}>{severityConfig[value]?.label ?? value}</option>
-              ))}
-            </select>
+            <FormField label="Título" error={formError}>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Título *"
+                autoFocus
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              />
+            </FormField>
+            <FormField label="Severidade">
+              <SelectField
+                value={severity}
+                onChange={setSeverity}
+                options={severityOptions.map((value) => ({
+                  value,
+                  label: severityConfig[value]?.label ?? value,
+                }))}
+                style={{ width: "100%" }}
+              />
+            </FormField>
           </div>
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descrição (opcional)"
-            rows={3}
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
-          />
-          {formError && <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>}
+          <FormField label="Descrição (opcional)">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={3}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </FormField>
+          <FormError message={formError ?? ""} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
-            >
-              {saving ? "Salvando…" : "Criar incidente"}
-            </button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => { setCreating(false); setFormError(null); }}
+            style={{ padding: "6px 14px" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={saving}
+            style={{ padding: "6px 14px" }}
+          >
+            {saving ? "Salvando…" : "Criar incidente"}
+          </Button>
           </div>
         </form>
       )}
 
-      <div className="uni-panel">
-        <table className="uni-clients-table">
-          <thead>
-            <tr>
-              <th style={{ width: 90 }}>ID</th>
-              <th>Título</th>
-              <th style={{ width: 90 }}>Severidade</th>
-              <th style={{ width: 120 }}>Status</th>
-              <th style={{ width: 140 }}>Aberto em</th>
-              <th style={{ width: 140 }}>Resolvido em</th>
-            </tr>
-          </thead>
-          <tbody>
-            {incidents.map((incident) => (
-              <IncidentRow key={incident.id} incident={incident} />
-            ))}
-            {!loading && incidents.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  {error ? "—" : "Nenhum incidente encontrado"}
-                </td>
-              </tr>
-            )}
-            {loading && incidents.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Carregando…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {totalCount > PAGE_SIZE && (
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          disabled={loading}
-          onPage={setPage}
-        />
-      )}
+      <DataTablePanel value={incidents} dataKey="id" loading={loading} paginator lazy rows={PAGE_SIZE} first={(page - 1) * PAGE_SIZE} totalRecords={totalCount} onPage={handlePageChange} alwaysShowPaginator={totalCount > PAGE_SIZE} paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink" currentPageReportTemplate="Página {currentPage} de {totalPages} ({totalRecords} incidentes)" emptyMessage={error ? "—" : "Nenhum incidente encontrado"}>
+          <Column header="ID" body={(incident: IncidentItem) => <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }} title={incident.id}>{shortId(incident.id)}</span>} style={{ width: 90 }} />
+          <Column header="Título" body={(incident: IncidentItem) => <IncidentSummary incident={incident} />} />
+          <Column header="Severidade" body={(incident: IncidentItem) => <IncidentSeverity incident={incident} />} style={{ width: 100 }} />
+          <Column header="Status" body={(incident: IncidentItem) => <IncidentStatus incident={incident} />} style={{ width: 125 }} />
+          <Column header="Aberto em" body={(incident: IncidentItem) => formatDateTime(new Date(incident.openedAt))} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
+          <Column header="Resolvido em" body={(incident: IncidentItem) => incident.resolvedAt ? formatDateTime(new Date(incident.resolvedAt)) : "—"} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
+      </DataTablePanel>
     </div>
   );
 }
 
-function IncidentRow({ incident }: { incident: IncidentItem }) {
-  const sev = severityConfig[incident.severity] ?? {
-    label: incident.severity, bg: "#f1f5f9", color: "#64748b",
-  };
-  const st = statusConfig[incident.status] ?? {
-    label: incident.status, bg: "#f1f5f9", color: "#64748b",
-  };
+function IncidentSummary({ incident }: { incident: IncidentItem }) {
   const meta: string[] = [];
   if (incident.alertCount > 0) meta.push(`${incident.alertCount} alerta(s)`);
   if (incident.deviceId) meta.push(`dispositivo ${shortId(incident.deviceId)}`);
 
   return (
-    <tr>
-      <td style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }} title={incident.id}>
-        {shortId(incident.id)}
-      </td>
-      <td>
+      <>
         <div style={{ fontWeight: 500, fontSize: 13 }}>{incident.title}</div>
         {incident.description && (
           <div style={{ fontSize: 11, color: "#94a3b8" }}>{incident.description}</div>
@@ -274,21 +244,16 @@ function IncidentRow({ incident }: { incident: IncidentItem }) {
         {meta.length > 0 && (
           <div style={{ fontSize: 11, color: "#94a3b8" }}>{meta.join(" · ")}</div>
         )}
-      </td>
-      <td>
-        <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: sev.bg, color: sev.color }}>
-          {sev.label}
-        </span>
-      </td>
-      <td>
-        <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: st.bg, color: st.color }}>
-          {st.label}
-        </span>
-      </td>
-      <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(incident.openedAt))}</td>
-      <td style={{ fontSize: 12, color: "#64748b" }}>
-        {incident.resolvedAt ? formatDateTime(new Date(incident.resolvedAt)) : "—"}
-      </td>
-    </tr>
+      </>
   );
+}
+
+function IncidentSeverity({ incident }: { incident: IncidentItem }) {
+  const value = severityConfig[incident.severity] ?? { label: incident.severity, bg: "#f1f5f9", color: "#64748b" };
+  return <StatusChip label={value.label} background={value.bg} color={value.color} />;
+}
+
+function IncidentStatus({ incident }: { incident: IncidentItem }) {
+  const value = statusConfig[incident.status] ?? { label: incident.status, bg: "#f1f5f9", color: "#64748b" };
+  return <StatusChip label={value.label} background={value.bg} color={value.color} />;
 }

@@ -69,4 +69,61 @@ public sealed class IdentityDomainTests
         act.Should().Throw<ArgumentException>()
             .WithMessage("*teto*");
     }
+
+    [Fact]
+    public void User_Update_ShouldNormalizeEmailDisplayNameAndRaiseEvent()
+    {
+        var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
+        user.ClearDomainEvents();
+
+        user.Update("  Novo Nome  ", "  NOVO@EXAMPLE.COM ");
+
+        user.DisplayName.Should().Be("Novo Nome");
+        user.Email.Should().Be("novo@example.com");
+        user.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<UserUpdatedDomainEvent>();
+    }
+
+    [Fact]
+    public void User_Update_WithSameValues_ShouldNotRaiseEvent()
+    {
+        var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
+        user.ClearDomainEvents();
+
+        user.Update("Admin", "admin@example.com");
+
+        user.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void User_Update_WithInvalidEmail_ShouldThrow()
+    {
+        var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
+
+        var act = () => user.Update("Admin", "invalid-email");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*e-mail*");
+    }
+
+    [Fact]
+    public void User_Update_WithEmptyDisplayName_ShouldThrow()
+    {
+        var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
+
+        var act = () => user.Update("  ", "admin@example.com");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*nome de exibição*");
+    }
+
+    [Fact]
+    public void User_Delete_ShouldRaiseEvent()
+    {
+        var user = User.Create("admin@example.com", "Admin", UserRole.Admin);
+        user.ClearDomainEvents();
+
+        user.Delete();
+
+        user.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<UserDeletedDomainEvent>();
+    }
 }
