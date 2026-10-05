@@ -77,3 +77,13 @@ export function createInvitation(input: {
     expiresInDays: input.expiresInDays ?? 7,
   });
 }
+
+/** Atualiza usuário (Administer) — 204, ou 404 no envelope. */
+export function updateUser(userId: string, displayName: string, email: string): Promise<null> {
+  return api.put<null>(`/admin/users/${userId}`, { displayName, email });
+}
+
+/** Exclui usuário (Administer) — 204, ou 404/409 no envelope. */
+export function deleteUser(userId: string): Promise<null> {
+  return api.delete<null>(`/admin/users/${userId}`);
+}

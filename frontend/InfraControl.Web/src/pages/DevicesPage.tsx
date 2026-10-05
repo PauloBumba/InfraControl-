@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
-import { FormError } from "@/components/ui/FormField";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { SelectField } from "@/components/ui/SelectField";
+
 import { useNavigate } from "react-router-dom";
 import { Can } from "@/components/auth/Can";
 import {
@@ -221,39 +225,32 @@ export function DevicesPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Dispositivos</h1>
-          <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-            {loading ? (
-              <span>Carregando…</span>
-            ) : (
-              <span>
-                {totalCount} {totalCount === 1 ? "dispositivo" : "dispositivos"}
-                {items.length < totalCount && ` · mostrando ${items.length} (refine por tipo)`}
-              </span>
-            )}
-          </div>
-        </div>
-        <Can level="operate">
-          <button
-            onClick={() => { setCreating((value) => !value); setFormError(null); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, border: "none" }}
-          >
-            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-          </button>
-        </Can>
-      </div>
+      <PageHeader
+        title="Dispositivos"
+        subtitle={
+          loading ? (
+            "Carregando…"
+          ) : (
+            <>
+              {totalCount} {totalCount === 1 ? "dispositivo" : "dispositivos"}
+              {items.length < totalCount && ` · mostrando ${items.length} (refine por tipo)`}
+            </>
+          )
+        }
+        actions={
+          <Can level="operate">
+            <Button
+              variant="primary"
+              onClick={() => { setCreating((value) => !value); setFormError(null); }}
+              style={{ padding: "6px 14px" }}
+            >
+              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+            </Button>
+          </Can>
+        }
+      />
 
-      {notice && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
@@ -268,26 +265,30 @@ export function DevicesPage() {
               autoFocus
               style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-            <select
+            <SelectField
               value={type}
-              onChange={(event) => setType(event.target.value)}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-            >
-              <option value="">Tipo *</option>
-              {DEVICE_TYPES.map((deviceType) => (
-                <option key={deviceType} value={deviceType}>{typeNames[deviceType]}</option>
-              ))}
-            </select>
-            <select
+              onChange={setType}
+              placeholder="Tipo *"
+              options={[
+                { value: "", label: "Tipo *" },
+                ...DEVICE_TYPES.map((deviceType) => ({
+                  value: deviceType,
+                  label: typeNames[deviceType] ?? deviceType,
+                })),
+              ]}
+            />
+            <SelectField
               value={locationId}
-              onChange={(event) => setLocationId(event.target.value)}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-            >
-              <option value="">Localização *</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>{location.name}</option>
-              ))}
-            </select>
+              onChange={setLocationId}
+              placeholder="Localização *"
+              options={[
+                { value: "", label: "Localização *" },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                })),
+              ]}
+            />
             <input
               value={ip}
               onChange={(event) => setIp(event.target.value)}
@@ -316,20 +317,22 @@ export function DevicesPage() {
           />
           {formError && <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+              style={{ padding: "6px 14px" }}
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+              style={{ padding: "6px 14px" }}
             >
               {saving ? "Salvando…" : "Criar dispositivo"}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -410,9 +413,7 @@ export function DevicesPage() {
               </div>
             )}
             {loading && filtered.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-                Carregando…
-              </div>
+              <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
             )}
           </div>
         </div>
@@ -473,9 +474,7 @@ export function DevicesPage() {
             </div>
           )}
           {loading && locations.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-              Carregando…
-            </div>
+            <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
           )}
         </div>
       )}
@@ -540,9 +539,7 @@ export function DevicesPage() {
             </div>
           )}
           {loading && switches.length === 0 && (
-            <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-              Carregando…
-            </div>
+            <LoadingBlock style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
           )}
         </div>
       )}

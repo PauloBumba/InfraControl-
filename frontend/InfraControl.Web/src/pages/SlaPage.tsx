@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
-import { FormError } from "@/components/ui/FormField";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { FormField, FormError } from "@/components/ui/FormField";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { MeterGroup } from "primereact/metergroup";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -120,137 +126,78 @@ export function SlaPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>SLA/SLO & Services</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {loading
-              ? "Carregando…"
-              : `${services.length} ${services.length === 1 ? "serviço" : "serviços"} · ${slos.length} ${slos.length === 1 ? "SLO" : "SLOs"}`}
-          </p>
-        </div>
-        <Can level="operate">
-          <button
-            onClick={() => { setCreating((value) => !value); setFormError(null); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none" }}
-          >
-            <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Serviço
-          </button>
-        </Can>
-      </div>
+      <PageHeader
+        title="SLA/SLO & Services"
+        subtitle={loading
+          ? "Carregando…"
+          : `${services.length} ${services.length === 1 ? "serviço" : "serviços"} · ${slos.length} ${slos.length === 1 ? "SLO" : "SLOs"}`}
+        actions={
+          <Can level="operate">
+            <Button
+              variant="primary"
+              onClick={() => { setCreating((value) => !value); setFormError(null); }}
+              style={{ padding: "6px 14px", fontSize: 13 }}
+            >
+              <i className="pi pi-plus" style={{ fontSize: 12 }} /> Novo Serviço
+            </Button>
+          </Can>
+        }
+      />
 
-      {notice && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       {creating && (
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Novo serviço</div>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Nome *"
-            autoFocus
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-          />
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descrição (opcional)"
-            rows={2}
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
-          />
-          {formError && <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>}
+          <FormField label="Nome" error={formError}>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Nome *"
+              autoFocus
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+          </FormField>
+          <FormField label="Descrição (opcional)">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={2}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </FormField>
+          <FormError message={formError ?? ""} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+              style={{ padding: "6px 14px" }}
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+              style={{ padding: "6px 14px" }}
             >
               {saving ? "Salvando…" : "Criar serviço"}
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       <div className="uni-panel">
         <div className="uni-panel-header"><h2>Serviços</h2></div>
-        <table className="uni-clients-table">
-          <thead>
-            <tr>
-              <th>Serviço</th>
-              <th style={{ width: 240 }}>SLA (política)</th>
-              <th style={{ width: 240 }}>SLOs</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.map((service) => {
-              const servicePolicies = policies.filter((policy) => policy.serviceId === service.id);
-              const serviceSlos = slos.filter((slo) => slo.serviceId === service.id);
-              return (
-                <tr key={service.id}>
-                  <td>
-                    <div style={{ fontWeight: 500, fontSize: 13 }}>{service.name}</div>
-                    {service.description && (
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>{service.description}</div>
-                    )}
-                  </td>
-                  <td style={{ fontSize: 12, color: "#64748b" }}>
-                    {servicePolicies.length === 0 && "—"}
-                    {servicePolicies.map((policy) => (
-                      <div key={policy.id} style={{ marginBottom: 2 }}>
-                        {policy.name}: resposta {policy.responseMinutes}min · resolução {policy.resolutionMinutes}min
-                      </div>
-                    ))}
-                  </td>
-                  <td>
-                    {serviceSlos.length === 0 && <span style={{ fontSize: 12, color: "#64748b" }}>—</span>}
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {serviceSlos.map((slo) => (
-                        <span
-                          key={slo.id}
-                          title={`${slo.targetPercent}% em ${slo.windowDays} dias`}
-                          style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#eff6ff", color: "#3b82f6" }}
-                        >
-                          {slo.name} · {slo.targetPercent}%/{slo.windowDays}d
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {!loading && services.length === 0 && (
-              <tr>
-                <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  {error ? "—" : "Nenhum serviço cadastrado"}
-                </td>
-              </tr>
-            )}
-            {loading && services.length === 0 && (
-              <tr>
-                <td colSpan={3} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  Carregando…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <DataTablePanel panel={false} value={services} dataKey="id" loading={loading} emptyMessage={error ? "—" : "Nenhum serviço cadastrado"}>
+          <Column header="Serviço" body={(service: ServiceItem) => <><div style={{ fontWeight: 500, fontSize: 13 }}>{service.name}</div>{service.description && <div style={{ fontSize: 11, color: "#94a3b8" }}>{service.description}</div>}</>} />
+          <Column header="SLA (política)" body={(service: ServiceItem) => { const values = policies.filter((policy) => policy.serviceId === service.id); return values.length ? <>{values.map((policy) => <div key={policy.id} style={{ marginBottom: 2 }}>{policy.name}: resposta {policy.responseMinutes}min · resolução {policy.resolutionMinutes}min</div>)}</> : "—"; }} style={{ fontSize: 12, color: "#64748b", width: 280 }} />
+          <Column header="SLOs" body={(service: ServiceItem) => { const values = slos.filter((slo) => slo.serviceId === service.id); return values.length ? <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{values.map((slo) => <span key={slo.id} title={`${slo.targetPercent}% em ${slo.windowDays} dias`} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#eff6ff", color: "#3b82f6" }}>{slo.name} · {slo.targetPercent}%/{slo.windowDays}d</span>)}</div> : <span style={{ fontSize: 12, color: "#64748b" }}>—</span>; }} style={{ width: 280 }} />
+        </DataTablePanel>
       </div>
 
       <div className="uni-panel">
@@ -270,9 +217,7 @@ export function SlaPage() {
                     {consumed >= 100 ? "Esgotado" : consumed >= 50 ? "Atenção" : "Normal"}
                   </span>
                 </div>
-                <div style={{ height: 6, background: "#f1f5f9", borderRadius: 3, overflow: "hidden", marginBottom: 6 }}>
-                  <div style={{ height: "100%", width: `${Math.min(100, consumed)}%`, background: barColor, borderRadius: 3 }} />
-                </div>
+                <MeterGroup className="uni-meter-group" values={[{ label: "Consumido", value: Math.min(100, consumed), color: barColor }, { label: "Disponível", value: Math.max(0, 100 - consumed), color: "#e2e8f0" }]} max={100} />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b" }}>
                   <span>{consumed}% consumido</span>
                   <span>
@@ -290,9 +235,7 @@ export function SlaPage() {
             </div>
           )}
           {loading && budgetCards.length === 0 && (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 12, color: "#94a3b8", fontSize: 13 }}>
-              Carregando…
-            </div>
+            <LoadingBlock style={{ gridColumn: "1 / -1", padding: 12 }} />
           )}
         </div>
       </div>

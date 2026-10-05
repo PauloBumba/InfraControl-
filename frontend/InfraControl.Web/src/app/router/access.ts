@@ -15,6 +15,8 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/audit": "administer",
   "/settings": "administer",
   "/sessions": "administer",
+  // PDI: Operate (Operator + Admin) — Viewer não alcança (2026-10-04).
+  "/pdi": "operate",
 };
 
 /** Nível exigido pela rota (curinga/dinâmica = `read`). */

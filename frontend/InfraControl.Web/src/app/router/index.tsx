@@ -40,6 +40,7 @@ const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const InvitationAcceptancePage = lazy(() => import("@/pages/InvitationAcceptancePage").then(m => ({ default: m.InvitationAcceptancePage })));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
+const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
 
@@ -279,6 +280,11 @@ function AppContent() {
           <Route path="/sessions" element={
             <ProtectedRoute>
               <SessionsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/pdi" element={
+            <ProtectedRoute>
+              <PdiPage />
             </ProtectedRoute>
           } />
           <Route path="/incidents" element={

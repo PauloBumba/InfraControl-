@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FormField, FormError } from "@/components/ui/FormField";
+import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
+import { Button } from "@/components/ui/Button";
+import { SelectField } from "@/components/ui/SelectField";
+import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -15,9 +24,11 @@ import {
   ROLE_VALUE,
   assignRole,
   createInvitation,
+  deleteUser,
   listUsers,
   removeRole,
   setUserStatus,
+  updateUser,
   type AdminUser,
 } from "@/services/api/adminUsers";
 
@@ -65,7 +76,7 @@ export function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { messagesRef, showMessage } = useInlineMessages();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("users");
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
@@ -75,6 +86,16 @@ export function UsersPage() {
   const [inviteRole, setInviteRole] = useState<UserRole>("Viewer");
   const [invitingSaving, setInvitingSaving] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
+
+  const [statusConfirmUser, setStatusConfirmUser] = useState<AdminUser | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,10 +118,10 @@ export function UsersPage() {
     setError(null);
     try {
       await action();
-      setNotice(success);
+      showMessage({ severity: "success", summary: success });
       await load();
     } catch (caught) {
-      setError(messageFor(caught));
+      showMessage({ severity: "error", summary: "Não foi possível atualizar o usuário.", detail: messageFor(caught) });
     } finally {
       setBusyUserId(null);
     }
@@ -120,12 +141,69 @@ export function UsersPage() {
       setInviting(false);
       setInviteEmail("");
       setInviteRole("Viewer");
-      setNotice("Convite criado — o link sai por e-mail (hoje registrado no log do backend).");
+      showMessage({ severity: "success", summary: "Convite criado", detail: "O link sai por e-mail (hoje registrado no log do backend)." });
     } catch (caught) {
       setInviteError(messageFor(caught));
     } finally {
       setInvitingSaving(false);
     }
+  }
+
+  function openEditDialog(user: AdminUser) {
+    setEditingUser(user);
+    setEditDisplayName(user.displayName);
+    setEditEmail(user.email);
+    setEditError(null);
+  }
+
+  async function submitEdit() {
+    if (!editingUser) return;
+    const displayName = editDisplayName.trim();
+    const email = editEmail.trim();
+    if (!displayName || !email) {
+      setEditError("Nome e e-mail são obrigatórios.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await updateUser(editingUser.userId, displayName, email);
+      setEditingUser(null);
+      showMessage({ severity: "success", summary: `${displayName} atualizado.` });
+      await load();
+    } catch (caught) {
+      setEditError(messageFor(caught));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  function openDeleteDialog(user: AdminUser) {
+    setDeletingUser(user);
+  }
+
+  async function confirmDelete() {
+    if (!deletingUser) return;
+    try {
+      await deleteUser(deletingUser.userId);
+      setDeletingUser(null);
+      showMessage({ severity: "success", summary: `${deletingUser.displayName} excluído.` });
+      await load();
+    } catch (caught) {
+      showMessage({ severity: "error", summary: "Não foi possível excluir o usuário.", detail: messageFor(caught) });
+      setDeletingUser(null);
+    }
+  }
+
+  function openStatusConfirm(user: AdminUser) {
+    setStatusConfirmUser(user);
+  }
+
+  async function confirmStatusChange() {
+    if (!statusConfirmUser) return;
+    const newStatus = !statusConfirmUser.isActive;
+    await mutate(statusConfirmUser.userId, () => setUserStatus(statusConfirmUser.userId, newStatus), newStatus ? `${statusConfirmUser.displayName} ativado.` : `${statusConfirmUser.displayName} desativado.`);
+    setStatusConfirmUser(null);
   }
 
   const filtered = users.filter((user) => {
@@ -141,90 +219,141 @@ export function UsersPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Usuários & Roles</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {loading ? "Carregando…" : `${users.length} ${users.length === 1 ? "usuário" : "usuários"} · ${USER_ROLES.length} roles`}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f1f5f9", borderRadius: 6, padding: "6px 12px" }}>
-            <i className="pi pi-search" style={{ fontSize: 12, color: "#94a3b8" }} />
-            <input
-              type="text"
-              placeholder="Pesquisar usuários..."
+      <PageHeader
+        title="Usuários & Roles"
+        subtitle={loading ? "Carregando…" : `${users.length} ${users.length === 1 ? "usuário" : "usuários"} · ${USER_ROLES.length} roles`}
+        actions={
+          <div style={{ display: "flex", gap: 8 }}>
+            <SearchInput
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              style={{ border: "none", background: "none", outline: "none", fontSize: 13, width: 180 }}
+              onChange={setSearch}
+              placeholder="Pesquisar usuários..."
+              variant="muted"
             />
+            <Can level="administer">
+              <Button
+                icon="pi pi-user-plus"
+                onClick={() => { setInviting((value) => !value); setInviteError(null); }}
+              >
+                Convidar
+              </Button>
+            </Can>
           </div>
-          <Can level="administer">
-            <button
-              onClick={() => { setInviting((value) => !value); setInviteError(null); }}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "#3b82f6", color: "white", fontSize: 13, fontWeight: 500, border: "none", borderRadius: 6 }}
-            >
-              <i className="pi pi-user-plus" style={{ fontSize: 12 }} /> Convidar
-            </button>
-          </Can>
-        </div>
-      </div>
+        }
+      />
 
-      {notice && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      )}
+      <InlineMessages ref={messagesRef} />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       {inviting && (
-        <form onSubmit={submitInvite} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, flexWrap: "wrap" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b" }}>
-            E-mail *
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={(event) => setInviteEmail(event.target.value)}
-              placeholder="nome@empresa.com"
-              autoFocus
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: 240 }}
-            />
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b" }}>
-            Role
-            <select
-              value={inviteRole}
-              onChange={(event) => setInviteRole(event.target.value as UserRole)}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, background: "white" }}
-            >
-              {USER_ROLES.map((role) => (
-                <option key={role} value={role}>{ROLE_LABEL[role]}</option>
-              ))}
-            </select>
-          </label>
-          {inviteError && <div style={{ fontSize: 12, color: "#b91c1c", alignSelf: "center" }}>{inviteError}</div>}
-          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-            <button
-              type="button"
-              onClick={() => { setInviting(false); setInviteError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={invitingSaving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: invitingSaving ? 0.6 : 1 }}
-            >
-              {invitingSaving ? "Enviando…" : "Criar convite"}
-            </button>
-          </div>
-        </form>
+        <Dialog
+          visible={inviting}
+          onHide={() => { setInviting(false); setInviteError(null); }}
+          header="Convidar usuário"
+          footer={
+            <div className="uni-modal-actions">
+              <Button
+                variant="ghost"
+                onClick={() => { setInviting(false); setInviteError(null); }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={submitInvite} disabled={invitingSaving}>
+                {invitingSaving ? "Enviando…" : "Criar convite"}
+              </Button>
+            </div>
+          }
+        >
+          <form onSubmit={submitInvite} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <FormField label="E-mail *">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="nome@empresa.com"
+                autoFocus
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormField label="Role">
+              <SelectField
+                value={inviteRole}
+                onChange={(value) => setInviteRole(value as UserRole)}
+                options={USER_ROLES.map((role) => ({ value: role, label: ROLE_LABEL[role] }))}
+                style={{ width: "100%" }}
+              />
+            </FormField>
+            <FormError message={inviteError ?? ""} />
+          </form>
+        </Dialog>
+      )}
+
+      {editingUser && (
+        <Dialog
+          visible={!!editingUser}
+          onHide={() => setEditingUser(null)}
+          header="Editar usuário"
+          footer={
+            <div className="uni-modal-actions">
+              <Button variant="ghost" onClick={() => setEditingUser(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={submitEdit} disabled={editSaving}>
+                {editSaving ? "Salvando…" : "Salvar"}
+              </Button>
+            </div>
+          }
+        >
+          <form onSubmit={(e) => { e.preventDefault(); void submitEdit(); }} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <FormField label="Nome de exibição *">
+              <input
+                type="text"
+                value={editDisplayName}
+                onChange={(event) => setEditDisplayName(event.target.value)}
+                placeholder="Nome do usuário"
+                autoFocus
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormField label="E-mail *">
+              <input
+                type="email"
+                value={editEmail}
+                onChange={(event) => setEditEmail(event.target.value)}
+                placeholder="email@exemplo.com"
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormError message={editError ?? ""} />
+          </form>
+        </Dialog>
+      )}
+
+      {deletingUser && (
+        <ConfirmDialog
+          visible={!!deletingUser}
+          onHide={() => setDeletingUser(null)}
+          onConfirm={confirmDelete}
+          header="Excluir usuário"
+          message={`Tem certeza que deseja excluir o usuário "${deletingUser.displayName}" (${deletingUser.email})? Esta ação não pode ser desfeita.`}
+          confirmLabel="Excluir"
+          severity="danger"
+        />
+      )}
+
+      {statusConfirmUser && (
+        <ConfirmDialog
+          visible={!!statusConfirmUser}
+          onHide={() => setStatusConfirmUser(null)}
+          onConfirm={confirmStatusChange}
+          header={statusConfirmUser.isActive ? "Desativar usuário" : "Ativar usuário"}
+          message={statusConfirmUser.isActive
+            ? `Tem certeza que deseja desativar o usuário "${statusConfirmUser.displayName}"? Ele não poderá mais acessar o sistema.`
+            : `Tem certeza que deseja ativar o usuário "${statusConfirmUser.displayName}"?`}
+          confirmLabel={statusConfirmUser.isActive ? "Desativar" : "Ativar"}
+          severity={statusConfirmUser.isActive ? "warning" : "info"}
+        />
       )}
 
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
@@ -249,41 +378,58 @@ export function UsersPage() {
 
       {activeTab === "users" && (
         <div className="uni-panel">
-          <table className="uni-clients-table">
-            <thead>
-              <tr>
-                <th>Usuário</th>
-                <th>Roles</th>
-                <th style={{ width: 90 }}>Status</th>
-                <th style={{ width: 150 }}>Atualizado em</th>
-                <th style={{ width: 110 }}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((user) => (
-                <UserRow
-                  key={user.userId}
+          <DataTable
+            value={filtered}
+            loading={loading}
+            dataKey="userId"
+            size="small"
+            emptyMessage={error ? "—" : "Nenhum usuário encontrado"}
+            tableStyle={{ width: "100%" }}
+          >
+            <Column
+              header="Usuário"
+              body={(user: AdminUser) => <UserIdentityCell user={user} />}
+            />
+            <Column
+              header="Roles"
+              body={(user: AdminUser) => (
+                <UserRolesCell
                   user={user}
                   busy={busyUserId === user.userId}
                   onMutate={(action, success) => mutate(user.userId, action, success)}
                 />
-              ))}
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                    {error ? "—" : "Nenhum usuário encontrado"}
-                  </td>
-                </tr>
               )}
-              {loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                    Carregando…
-                  </td>
-                </tr>
+            />
+            <Column
+              header="Status"
+              body={(user: AdminUser) => (
+                <StatusChip
+                  label={user.isActive ? "Ativo" : "Inativo"}
+                  background={user.isActive ? "#dcfce7" : "#f1f5f9"}
+                  color={user.isActive ? "#16a34a" : "#64748b"}
+                />
               )}
-            </tbody>
-          </table>
+              style={{ width: 90 }}
+            />
+            <Column
+              header="Atualizado em"
+              body={(user: AdminUser) => formatDateTime(new Date(user.updatedAt))}
+              style={{ width: 150, fontSize: 12, color: "#64748b" }}
+            />
+            <Column
+              header="Ações"
+              body={(user: AdminUser) => (
+                <UserActionsCell
+                  user={user}
+                  busy={busyUserId === user.userId}
+                  onEdit={() => openEditDialog(user)}
+                  onDelete={() => openDeleteDialog(user)}
+                  onStatusConfirm={() => openStatusConfirm(user)}
+                />
+              )}
+              style={{ width: 110 }}
+            />
+          </DataTable>
         </div>
       )}
 
@@ -297,9 +443,7 @@ export function UsersPage() {
               <div key={role} className="uni-panel" style={{ padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: color.bg, color: color.color }}>
-                      {ROLE_LABEL[role]}
-                    </span>
+                    <StatusChip label={ROLE_LABEL[role]} background={color.bg} color={color.color} fontWeight={600} />
                     <span style={{ fontSize: 10, color: "#94a3b8" }}>Sistema</span>
                   </div>
                   <span style={{ fontSize: 12, color: "#64748b" }}>{count} {count === 1 ? "usuário" : "usuários"}</span>
@@ -317,7 +461,28 @@ export function UsersPage() {
   );
 }
 
-function UserRow({
+function UserIdentityCell({ user }: { user: AdminUser }) {
+  const initials = (user.displayName || user.email)
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="uni-client-table-name">
+      <div className="uni-client-table-icon" style={{ background: "#eff6ff", color: "#3b82f6", fontWeight: 600, fontSize: 12 }}>
+        {initials}
+      </div>
+      <div>
+        <div style={{ fontWeight: 500 }}>{user.displayName}</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>{user.email}</div>
+      </div>
+    </div>
+  );
+}
+
+function UserRolesCell({
   user,
   busy,
   onMutate,
@@ -327,115 +492,122 @@ function UserRow({
   onMutate: (action: () => Promise<unknown>, success: string) => Promise<void>;
 }) {
   const [addRole, setAddRole] = useState("");
-
   const assigned = user.roles
     .map((value) => ROLE_BY_VALUE[value])
     .filter((role): role is UserRole => role !== undefined);
   const available = USER_ROLES.filter((role) => !assigned.includes(role));
 
-  const initials = (user.displayName || user.email)
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   return (
-    <tr>
-      <td>
-        <div className="uni-client-table-name">
-          <div className="uni-client-table-icon" style={{ background: "#eff6ff", color: "#3b82f6", fontWeight: 600, fontSize: 12 }}>
-            {initials}
-          </div>
-          <div>
-            <div style={{ fontWeight: 500 }}>{user.displayName}</div>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>{user.email}</div>
-          </div>
-        </div>
-      </td>
-      <td>
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-          {assigned.map((role) => {
-            const color = roleColors[role];
-            return (
-              <span
-                key={role}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
-                  background: color.bg, color: color.color,
-                }}
-              >
-                {ROLE_LABEL[role]}
-                <Can level="administer">
-                  <button
-                    title={`Remover ${ROLE_LABEL[role]}`}
-                    disabled={busy}
-                    onClick={() => onMutate(
-                      () => removeRole(user.userId, role),
-                      `${ROLE_LABEL[role]} removido de ${user.displayName}.`,
-                    )}
-                    style={{ background: "none", border: "none", color: "inherit", cursor: busy ? "default" : "pointer", padding: 0, fontSize: 10, opacity: busy ? 0.5 : 1 }}
-                  >
-                    <i className="pi pi-times" />
-                  </button>
-                </Can>
-              </span>
-            );
-          })}
-          <Can level="administer">
-            {available.length > 0 && (
-              <select
-                value={addRole}
-                disabled={busy}
-                title="Atribuir role"
-                onChange={(event) => {
-                  const role = event.target.value as UserRole;
-                  setAddRole("");
-                  if (role) void onMutate(() => assignRole(user.userId, role), `${ROLE_LABEL[role]} atribuído a ${user.displayName}.`);
-                }}
-                style={{ fontSize: 11, padding: "2px 4px", borderRadius: 4, border: "1px dashed #cbd5e1", background: "white", color: "#64748b" }}
-              >
-                <option value="">+ role</option>
-                {available.map((role) => (
-                  <option key={role} value={role}>{ROLE_LABEL[role]}</option>
-                ))}
-              </select>
-            )}
-          </Can>
-        </div>
-      </td>
-      <td>
-        <span
-          style={{
-            fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
-            background: user.isActive ? "#dcfce7" : "#f1f5f9",
-            color: user.isActive ? "#16a34a" : "#64748b",
-          }}
-        >
-          {user.isActive ? "Ativo" : "Inativo"}
-        </span>
-      </td>
-      <td style={{ fontSize: 12, color: "#64748b" }}>{formatDateTime(new Date(user.updatedAt))}</td>
-      <td>
-        <Can level="administer">
-          <button
-            title={user.isActive ? "Desativar" : "Ativar"}
-            disabled={busy}
-            onClick={() => onMutate(
-              () => setUserStatus(user.userId, !user.isActive),
-              user.isActive ? `${user.displayName} desativado.` : `${user.displayName} ativado.`,
-            )}
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+      {assigned.map((role) => {
+        const color = roleColors[role];
+        return (
+          <span
+            key={role}
             style={{
-              width: 28, height: 28, borderRadius: 6, border: "1px solid #e2e8f0",
-              background: "white", color: user.isActive ? "#dc2626" : "#16a34a",
-              cursor: busy ? "default" : "pointer", fontSize: 12, opacity: busy ? 0.5 : 1,
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4,
+              background: color.bg, color: color.color,
             }}
           >
-            <i className="pi pi-power-off" />
-          </button>
-        </Can>
-      </td>
-    </tr>
+            {ROLE_LABEL[role]}
+            <Can level="administer">
+              <button
+                type="button"
+                title={`Remover ${ROLE_LABEL[role]}`}
+                disabled={busy}
+                onClick={() => onMutate(
+                  () => removeRole(user.userId, role),
+                  `${ROLE_LABEL[role]} removido de ${user.displayName}.`,
+                )}
+                style={{ background: "none", border: "none", color: "inherit", cursor: busy ? "default" : "pointer", padding: 0, fontSize: 10, opacity: busy ? 0.5 : 1 }}
+              >
+                <i className="pi pi-times" />
+              </button>
+            </Can>
+          </span>
+        );
+      })}
+      <Can level="administer">
+        {available.length > 0 && (
+          <SelectField
+            value={addRole}
+            disabled={busy}
+            title="Atribuir role"
+            placeholder="+ role"
+            options={[
+              { value: "", label: "+ role" },
+              ...available.map((role) => ({ value: role, label: ROLE_LABEL[role] })),
+            ]}
+            onChange={(value) => {
+              const role = value as UserRole;
+              setAddRole("");
+              if (role) void onMutate(() => assignRole(user.userId, role), `${ROLE_LABEL[role]} atribuído a ${user.displayName}.`);
+            }}
+            style={{ fontSize: 11, minWidth: 88 }}
+          />
+        )}
+      </Can>
+    </div>
+  );
+}
+
+function UserActionsCell({
+  user,
+  busy,
+  onEdit,
+  onDelete,
+  onStatusConfirm,
+}: {
+  user: AdminUser;
+  busy: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onStatusConfirm: () => void;
+}) {
+  return (
+    <Can level="administer">
+      <div style={{ display: "flex", gap: 4 }}>
+        <button
+          type="button"
+          title="Editar"
+          disabled={busy}
+          onClick={onEdit}
+          style={{
+            width: 28, height: 28, borderRadius: 6, border: "1px solid #e2e8f0",
+            background: "white", color: "#3b82f6",
+            cursor: busy ? "default" : "pointer", fontSize: 12, opacity: busy ? 0.5 : 1,
+          }}
+        >
+          <i className="pi pi-pencil" />
+        </button>
+        <button
+          type="button"
+          title={user.isActive ? "Desativar" : "Ativar"}
+          disabled={busy}
+          onClick={onStatusConfirm}
+          style={{
+            width: 28, height: 28, borderRadius: 6, border: "1px solid #e2e8f0",
+            background: "white", color: user.isActive ? "#dc2626" : "#16a34a",
+            cursor: busy ? "default" : "pointer", fontSize: 12, opacity: busy ? 0.5 : 1,
+          }}
+        >
+          <i className="pi pi-power-off" />
+        </button>
+        <button
+          type="button"
+          title="Excluir"
+          disabled={busy}
+          onClick={onDelete}
+          style={{
+            width: 28, height: 28, borderRadius: 6, border: "1px solid #e2e8f0",
+            background: "white", color: "#dc2626",
+            cursor: busy ? "default" : "pointer", fontSize: 12, opacity: busy ? 0.5 : 1,
+          }}
+        >
+          <i className="pi pi-trash" />
+        </button>
+      </div>
+    </Can>
   );
 }

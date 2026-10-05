@@ -40,3 +40,43 @@ public sealed class UserEnabledDomainEvent : DomainEvent
     public Guid UserId { get; }
     public override string EventType => nameof(UserEnabledDomainEvent);
 }
+
+public sealed class UserUpdatedDomainEvent : DomainEvent
+{
+    public UserUpdatedDomainEvent(Guid userId, string displayName, string email)
+    {
+        UserId = userId;
+        DisplayName = displayName;
+        Email = email;
+    }
+    public Guid UserId { get; }
+    public string DisplayName { get; }
+    public string Email { get; }
+    public override string EventType => nameof(UserUpdatedDomainEvent);
+}
+
+public sealed class UserDeletedDomainEvent : DomainEvent
+{
+    public UserDeletedDomainEvent(Guid userId, string email, string displayName)
+    {
+        UserId = userId;
+        Email = email;
+        DisplayName = displayName;
+    }
+    public Guid UserId { get; }
+    public string Email { get; }
+    public string DisplayName { get; }
+    public override string EventType => nameof(UserDeletedDomainEvent);
+}
+
+public sealed class UserPasswordChangedDomainEvent : DomainEvent
+{
+    public UserPasswordChangedDomainEvent(Guid userId, string email)
+    {
+        UserId = userId;
+        Email = email;
+    }
+    public Guid UserId { get; }
+    public string Email { get; }
+    public override string EventType => nameof(UserPasswordChangedDomainEvent);
+}

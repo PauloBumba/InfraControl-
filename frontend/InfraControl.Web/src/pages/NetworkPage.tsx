@@ -3,8 +3,12 @@ import { Can } from "@/components/auth/Can";
 import { NETWORK_PAGE_SIZE, createVlan, listVlans, type Paged, type VlanItem } from "@/services/api/network";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
-import { FormError } from "@/components/ui/FormField";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { FormField, FormError } from "@/components/ui/FormField";
+
 
 /**
  * F17-T008 — NetworkPage conectada ao backend (substitui `vlans`,
@@ -94,52 +98,41 @@ export function NetworkPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Rede</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-            {loading
-              ? "Carregando…"
-              : `${totalCount} ${totalCount === 1 ? "VLAN" : "VLANs"} cadastradas`}
-          </p>
-        </div>
-        <Can level="operate">
-          <button
-            onClick={() => { setCreating((value) => !value); setFormError(null); }}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, border: "none" }}
-          >
-            <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-          </button>
-        </Can>
-      </div>
+      <PageHeader
+        title="Rede"
+        subtitle={loading
+          ? "Carregando…"
+          : `${totalCount} ${totalCount === 1 ? "VLAN" : "VLANs"} cadastradas`}
+        actions={
+          <Can level="operate">
+            <Button
+              variant="primary"
+              onClick={() => { setCreating((value) => !value); setFormError(null); }}
+              style={{ padding: "6px 14px" }}
+            >
+              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+            </Button>
+          </Can>
+        }
+      />
 
-      {notice && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 6, fontSize: 13, background: "#f0fdf4", color: "#15803d" }}>
-          <i className="pi pi-check-circle" />
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "inherit", cursor: "pointer" }}>
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       {creating && (
         <form onSubmit={submitCreate} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, flexWrap: "wrap" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b" }}>
-            Nome *
+          <FormField label="Nome *" width={180}>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Ex.: Voz"
               autoFocus
               maxLength={120}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: 180 }}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b" }}>
-            Número (1–4094) *
+          </FormField>
+          <FormField label="Número (1–4094) *" width={130}>
             <input
               type="number"
               min={1}
@@ -147,10 +140,10 @@ export function NetworkPage() {
               value={vlanNumber}
               onChange={(event) => setVlanNumber(event.target.value)}
               placeholder="100"
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: 130 }}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b", flex: 1, minWidth: 200 }}>
+          </FormField>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b", flex: 1, minWidth: 200 }}>
             Descrição
             <input
               value={description}
@@ -159,23 +152,25 @@ export function NetworkPage() {
               maxLength={500}
               style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          {formError && <div style={{ fontSize: 12, color: "#b91c1c", alignSelf: "center" }}>{formError}</div>}
+          </div>
+          <FormError message={formError ?? ""} style={{ alignSelf: "center" }} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "white", border: "1px solid #e5e7eb", fontSize: 12, color: "#374151" }}
+              style={{ padding: "6px 14px" }}
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving}
-              style={{ padding: "6px 14px", borderRadius: 6, background: "#3b82f6", color: "white", fontSize: 12, fontWeight: 500, opacity: saving ? 0.6 : 1 }}
+              style={{ padding: "6px 14px" }}
             >
               {saving ? "Salvando…" : "Criar VLAN"}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -203,9 +198,7 @@ export function NetworkPage() {
           </div>
         )}
         {loading && vlans.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-            Carregando…
-          </div>
+          <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
         )}
       </div>
 

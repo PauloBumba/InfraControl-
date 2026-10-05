@@ -26,12 +26,16 @@ public sealed class NotificationEventConsumer(
     ILogger<NotificationEventConsumer> logger)
     : IConsumer<UserCreatedDomainEvent>,
       IConsumer<UserDisabledDomainEvent>,
+      IConsumer<UserUpdatedDomainEvent>,
+      IConsumer<UserDeletedDomainEvent>,
       IConsumer<UserRoleAssignedDomainEvent>,
       IConsumer<UserRoleRemovedDomainEvent>,
       IConsumer<InvitationAcceptedDomainEvent>,
       IConsumer<IncidentCreatedDomainEvent>,
       IConsumer<IncidentResolvedDomainEvent>,
-      IConsumer<AlertResolvedDomainEvent>
+      IConsumer<AlertResolvedDomainEvent>,
+      IConsumer<PdiCreatedDomainEvent>,
+      IConsumer<PdiUpdatedDomainEvent>
 {
     public const string ConsumerName = "NotificationConsumer";
 
@@ -75,6 +79,52 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken);
 
+    /// <summary>
+    /// PDI criado (docs/29 §8, regra do usuário 2026-10-04): notifica o
+    /// DONO nos canais Email + SignalR (destaque de criação).
+    /// </summary>
+    public Task Consume(ConsumeContext<PdiCreatedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "PDI criado",
+            $"O seu PDI foi criado — prazo {context.Message.TargetDate:dd/MM/yyyy} ({StatusLabel(context.Message.Status)}).",
+            recipientUserId: context.Message.UserId,
+            recipientRoles: [],
+            context.CancellationToken,
+            channels: [NotificationChannel.Email, NotificationChannel.SignalR]);
+
+    /// <summary>
+    /// PDI atualizado (regra do usuário 2026-10-04): só SignalR. Quem
+    /// mexeu ≠ dono → avisa o DONO; mexeu no próprio (operador no seu) →
+    /// avisa o ADMIN (roles) — a comunicação existe nos dois sentidos.
+    /// </summary>
+    public Task Consume(ConsumeContext<PdiUpdatedDomainEvent> context)
+    {
+        var message = context.Message;
+        var editedOwn = message.ActorId == message.UserId;
+
+        return HandleAsync(
+            message.EventId,
+            message.EventType,
+            "PDI atualizado",
+            editedOwn
+                ? $"O PDI de {message.OwnerEmail} foi atualizado pelo próprio dono — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)})."
+                : $"O PDI de {message.OwnerEmail} foi atualizado — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)}).",
+            recipientUserId: editedOwn ? null : message.UserId,
+            recipientRoles: editedOwn ? [UserRole.Admin.ToString()] : [],
+            context.CancellationToken,
+            channels: [NotificationChannel.SignalR]);
+    }
+
+    private static string StatusLabel(PdiStatus status) => status switch
+    {
+        PdiStatus.InProgress => "Em andamento",
+        PdiStatus.Completed => "Concluído",
+        PdiStatus.Cancelled => "Cancelado",
+        _ => status.ToString()
+    };
+
     public Task Consume(ConsumeContext<UserCreatedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
@@ -91,6 +141,26 @@ public sealed class NotificationEventConsumer(
             context.Message.EventType,
             "Usuário desativado",
             $"O usuário {context.Message.UserId} foi desativado.",
+            recipientUserId: context.Message.UserId,
+            recipientRoles: [],
+            context.CancellationToken);
+
+    public Task Consume(ConsumeContext<UserUpdatedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Usuário atualizado",
+            $"O usuário {context.Message.Email} foi atualizado ({context.Message.DisplayName}).",
+            recipientUserId: context.Message.UserId,
+            recipientRoles: [],
+            context.CancellationToken);
+
+    public Task Consume(ConsumeContext<UserDeletedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Usuário excluído",
+            $"O usuário {context.Message.Email} ({context.Message.DisplayName}) foi excluído.",
             recipientUserId: context.Message.UserId,
             recipientRoles: [],
             context.CancellationToken);
@@ -168,7 +238,8 @@ public sealed class NotificationEventConsumer(
         string message,
         Guid? recipientUserId,
         string[] recipientRoles,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationChannel[]? channels = null)
     {
         // Valida antes de marcar o inbox — erro de domínio não pode virar
         // mensagem perdida (processed sem notification).
@@ -218,7 +289,13 @@ public sealed class NotificationEventConsumer(
             "Notificação {NotificationId} criada a partir de {EventType}/{EventId}: {Title}.",
             notification.Id, eventType, eventId, title);
 
-        foreach (var channel in ResolveFanoutChannels())
+        // Canais por evento (PDI: criação Email+SignalR, edição SignalR) —
+        // sem lista explícita, o fanout default de F9-T006 (Default config).
+        var fanout = channels is null
+            ? ResolveFanoutChannels()
+            : channels.Where(IsSendable).Distinct().ToList();
+
+        foreach (var channel in fanout)
             await QueueDeliveriesAsync(notification, channel, cancellationToken);
     }
 
