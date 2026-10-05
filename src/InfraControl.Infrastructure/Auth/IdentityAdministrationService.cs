@@ -22,6 +22,20 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
                 user.UpdateDateTime))
             .ToArrayAsync(cancellationToken);
 
+    public async Task<AdminUserSummary?> GetUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await dbContext.DomainUsers
+            .AsNoTracking()
+            .Include(item => item.RoleAssignments)
+            .SingleOrDefaultAsync(item => item.Id == userId, cancellationToken);
+        return user is null
+            ? null
+            : new AdminUserSummary(
+                user.Id, user.Email, user.DisplayName, user.IsActive,
+                user.RoleAssignments.Select(assignment => assignment.Role).ToArray(),
+                user.UpdateDateTime);
+    }
+
     public async Task<bool> SetActiveAsync(Guid userId, bool active, CancellationToken cancellationToken = default)
     {
         var user = await dbContext.DomainUsers.FirstOrDefaultAsync(item => item.Id == userId, cancellationToken);
@@ -38,7 +52,7 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
 
     public async Task<bool> AssignRoleAsync(Guid userId, UserRole role, CancellationToken cancellationToken = default)
     {
-        var user = await GetUserAsync(userId, cancellationToken);
+        var user = await LoadUserAsync(userId, cancellationToken);
         if (user is null) return false;
         user.AssignRole(role);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -47,7 +61,7 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
 
     public async Task<bool> RemoveRoleAsync(Guid userId, UserRole role, CancellationToken cancellationToken = default)
     {
-        var user = await GetUserAsync(userId, cancellationToken);
+        var user = await LoadUserAsync(userId, cancellationToken);
         if (user is null) return false;
         if (role == UserRole.Admin && user.IsActive && await dbContext.DomainUsers.CountAsync(item => item.IsActive && item.RoleAssignments.Any(assignment => assignment.Role == UserRole.Admin), cancellationToken) <= 1)
             throw new InvalidOperationException("O último administrador ativo não pode perder a função Admin.");
@@ -58,7 +72,7 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
 
     public async Task<bool> UpdateUserAsync(Guid userId, string displayName, string email, CancellationToken cancellationToken = default)
     {
-        var user = await GetUserAsync(userId, cancellationToken);
+        var user = await LoadUserAsync(userId, cancellationToken);
         if (user is null) return false;
 
         // Verificar se o email já está em uso por outro usuário
@@ -75,7 +89,7 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
 
     public async Task<bool> DeleteUserAsync(Guid userId, Guid currentUserId, CancellationToken cancellationToken = default)
     {
-        var user = await GetUserAsync(userId, cancellationToken);
+        var user = await LoadUserAsync(userId, cancellationToken);
         if (user is null) return false;
 
         // Guard: usuário não pode se auto-excluir
@@ -109,6 +123,6 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
         return true;
     }
 
-    private Task<User?> GetUserAsync(Guid userId, CancellationToken cancellationToken)
+    private Task<User?> LoadUserAsync(Guid userId, CancellationToken cancellationToken)
         => dbContext.DomainUsers.Include(user => user.RoleAssignments).FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
 }

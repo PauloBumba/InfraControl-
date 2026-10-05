@@ -13,6 +13,9 @@ public sealed record AdminUserSummary(
 public interface IIdentityAdministrationService
 {
     Task<IReadOnlyCollection<AdminUserSummary>> ListUsersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>GET /admin/users/{id} (ADR-030 §2) — null = 404.</summary>
+    Task<AdminUserSummary?> GetUserAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<bool> SetActiveAsync(Guid userId, bool active, CancellationToken cancellationToken = default);
     Task<bool> AssignRoleAsync(Guid userId, UserRole role, CancellationToken cancellationToken = default);
     Task<bool> RemoveRoleAsync(Guid userId, UserRole role, CancellationToken cancellationToken = default);

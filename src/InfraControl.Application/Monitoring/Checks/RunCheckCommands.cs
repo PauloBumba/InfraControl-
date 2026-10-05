@@ -30,8 +30,10 @@ public sealed record CheckRunResultDto(
 public sealed record RunCheckCommand(Guid DeviceId, string Check)
     : BaseCommand<CheckRunResultDto>, IAuthorizedRequest
 {
+    // ADR-030 §3: mutação — mesma camada/policy HTTP (Operate); Viewer lê,
+    // não executa check.
     public IReadOnlyCollection<string> RequiredRoles =>
-        RoleAccess.Read;
+        RoleAccess.Operate;
 }
 
 /// <summary>Executa um check em todos os devices (estilo Zabbix "check now").</summary>
@@ -39,7 +41,7 @@ public sealed record RunAllChecksCommand(string Check)
     : BaseCommand<IReadOnlyList<CheckRunResultDto>>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
-        RoleAccess.Read;
+        RoleAccess.Operate;
 }
 
 public sealed class RunCheckCommandHandler(

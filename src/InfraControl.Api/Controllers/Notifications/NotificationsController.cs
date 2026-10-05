@@ -1,3 +1,4 @@
+using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Notifications;
 using InfraControl.Application.Notifications.Feed.Queries;
@@ -34,6 +35,13 @@ public sealed class NotificationsController(IMediator sender) : BaseController
             new GetNotificationFeedQuery(page, pageSize),
             cancellationToken)));
 
+    [HttpGet("{notificationId:guid}")]
+    public async Task<IActionResult> GetNotification(
+        Guid notificationId,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetNotificationQuery(notificationId), cancellationToken)));
+
     [HttpGet("{notificationId:guid}/recipients")]
     public async Task<IActionResult> GetRecipients(
         Guid notificationId,
@@ -65,6 +73,7 @@ public sealed class NotificationsController(IMediator sender) : BaseController
 
     /// <summary>Upsert: cria ou atualiza a preferência (usuário, canal).</summary>
     [HttpPut("preferences")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> SetPreference(
         [FromBody] SetNotificationPreferenceViewModel model,
         CancellationToken cancellationToken)
@@ -74,6 +83,7 @@ public sealed class NotificationsController(IMediator sender) : BaseController
             cancellationToken)));
 
     [HttpDelete("preferences")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> DeletePreference(
         [FromQuery] Guid userId,
         [FromQuery] Domain.Enums.NotificationChannel channel,

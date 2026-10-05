@@ -78,11 +78,111 @@ public sealed class ConnectionCommandTests : IDisposable
             new ConnectionRepository(context),
             NullLogger<DeleteConnectionCommandHandler>.Instance);
 
+    private static UpdateConnectionCommandHandler UpdateHandler(AppDbContext context)
+        => new(
+            new ConnectionRepository(context),
+            new GetNetworkInterfaceQueryHandler(new NetworkInterfaceRepository(context)),
+            NullLogger<UpdateConnectionCommandHandler>.Instance);
+
     private static SearchConnectionsQueryHandler SearchHandler(AppDbContext context)
         => new(new ConnectionRepository(context));
 
     private static GetConnectionQueryHandler GetHandler(AppDbContext context)
         => new(new ConnectionRepository(context));
+
+    // ── Update (ADR-030 §1 — CRUD completo; PUT reaponta as pontas) ──────
+
+    [Fact]
+    public async Task Update_Existing_ShouldRepointAndReturnDto()
+    {
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var oldTargetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var newTargetId = await SeedInterfaceAsync(context, "sw-03", "Gi0/3");
+        var created = await CreateHandler(context).Handle(
+            new CreateConnectionCommand(sourceId, oldTargetId), CancellationToken.None);
+
+        var result = await UpdateHandler(context).Handle(
+            new UpdateConnectionCommand(created.Id, sourceId, newTargetId),
+            CancellationToken.None);
+
+        result.Id.Should().Be(created.Id);
+        result.TargetInterfaceId.Should().Be(newTargetId);
+        result.TargetInterfaceName.Should().Be("Gi0/3");
+        (await GetHandler(context).Handle(
+                new GetConnectionQuery(created.Id), CancellationToken.None))
+            .TargetInterfaceId.Should().Be(newTargetId);
+    }
+
+    [Fact]
+    public async Task Update_UnknownId_ShouldThrowNotFoundMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var targetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var unknownId = Guid.NewGuid();
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateConnectionCommand(unknownId, sourceId, targetId),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Conexão '{unknownId}' não encontrada.");
+    }
+
+    [Fact]
+    public async Task Update_SelfLoop_ShouldThrowArgumentException()
+    {
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var targetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var created = await CreateHandler(context).Handle(
+            new CreateConnectionCommand(sourceId, targetId), CancellationToken.None);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateConnectionCommand(created.Id, sourceId, sourceId),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("A conexão não pode ligar a interface a ela mesma.*");
+    }
+
+    [Fact]
+    public async Task Update_DuplicateOtherPair_ShouldThrowConflictMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var targetA = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var targetB = await SeedInterfaceAsync(context, "sw-03", "Gi0/3");
+        await CreateHandler(context).Handle(
+            new CreateConnectionCommand(sourceId, targetA), CancellationToken.None);
+        var created = await CreateHandler(context).Handle(
+            new CreateConnectionCommand(sourceId, targetB), CancellationToken.None);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateConnectionCommand(created.Id, sourceId, targetA),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Já existe uma conexão entre essas interfaces.");
+    }
+
+    [Fact]
+    public async Task Update_UnknownSource_ShouldThrowNotFoundMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var targetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var created = await CreateHandler(context).Handle(
+            new CreateConnectionCommand(sourceId, targetId), CancellationToken.None);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateConnectionCommand(created.Id, Guid.NewGuid(), targetId),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage("Interface * não encontrado.");
+    }
 
     // ── Create ────────────────────────────────────────────────────────────
 

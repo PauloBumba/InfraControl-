@@ -18,12 +18,12 @@ namespace InfraControl.IntegrationTests.Monitoring;
 public sealed class MonitoringIntegrationTests : BaseIntegrationTest
 {
     [Fact]
-    public async Task RunCheck_WithViewerRole_ShouldPersistHistoryAndReadBackViaQuery()
+    public async Task RunCheck_WithOperatorRole_ShouldPersistHistoryAndReadBackViaQuery()
     {
         using var scope = CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.10");
-        UseRole(UserRole.Viewer);
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var run = await mediator.Send(new RunCheckCommand(device.Id, "Ping"));
@@ -35,6 +35,25 @@ public sealed class MonitoringIntegrationTests : BaseIntegrationTest
         history.DeviceId.Should().Be(device.Id);
         history.Results.Should().ContainSingle(result =>
             result.Check == "Ping" && result.Succeeded);
+    }
+
+    /// <summary>
+    /// ADR-030 §3: executar check é mutação (Operate) — Viewer lê o
+    /// histórico, não dispara execução.
+    /// </summary>
+    [Fact]
+    public async Task RunCheck_WithViewerRole_ShouldThrowUnauthorizedPtBr()
+    {
+        using var scope = CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.12");
+        UseRole(UserRole.Viewer);
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var action = () => mediator.Send(new RunCheckCommand(device.Id, "Ping"));
+
+        (await action.Should().ThrowAsync<UnauthorizedAccessException>())
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]
@@ -49,7 +68,7 @@ public sealed class MonitoringIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new RunCheckCommand(device.Id, "Ping"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Roles ausentes: Admin, Operator");
     }
 
     [Fact]

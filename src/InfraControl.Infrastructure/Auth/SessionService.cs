@@ -43,6 +43,28 @@ public sealed class SessionService(
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<UserSessionItem?> GetAsync(
+        Guid userId, Guid sessionId, Guid? currentSessionId,
+        CancellationToken cancellationToken = default)
+    {
+        var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        return await dbContext.UserSessions
+            .AsNoTracking()
+            .Where(item => item.Id == sessionId
+                && item.UserId == userId
+                && item.RevokedAt == null
+                && item.ExpiresAt > now
+                && item.AbsoluteExpiresAt > now)
+            .Select(item => new UserSessionItem(
+                item.Id,
+                item.CreatedAt,
+                item.LastSeenAt,
+                item.ExpiresAt,
+                item.AbsoluteExpiresAt,
+                currentSessionId != null && item.Id == currentSessionId))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<OperationResult> RevokeAsync(
         Guid userId, Guid sessionId, CancellationToken cancellationToken = default)
     {

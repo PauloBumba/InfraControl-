@@ -39,7 +39,8 @@ public sealed class AlertIntegrationTests : BaseIntegrationTest
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var device = await SeedDeviceAsync(dbContext, ip: "192.0.2.50");
         var alert = SeedAlert(dbContext, device.Id, AlertStatus.Open);
-        UseRole(UserRole.Viewer);
+        // ADR-030: RunCheck é Operate (Viewer não executa check).
+        UseRole(UserRole.Operator);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         var run = await mediator.Send(new RunCheckCommand(device.Id, "Ping"));

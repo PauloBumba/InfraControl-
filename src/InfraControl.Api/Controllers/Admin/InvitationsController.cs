@@ -40,6 +40,11 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
         return Ok(ApiResponse.Ok(result));
     }
 
+    [HttpGet("{invitationId:guid}")]
+    public async Task<IActionResult> Get(Guid invitationId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetInvitationQuery(invitationId), cancellationToken)));
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateInvitationViewModel model, CancellationToken cancellationToken)
     {

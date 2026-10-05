@@ -8,7 +8,7 @@ using InfraControl.Domain.Enums;
 namespace InfraControl.Application.Monitoring.Checks;
 
 /// <summary>Um check ativo do device (F5-T001).</summary>
-public sealed record MonitoringCheckDto(Guid Id, string Check, bool Enabled);
+public sealed record MonitoringCheckDto(Guid Id, Guid DeviceId, string Check, bool Enabled);
 
 /// <summary>Checks monitoráveis de um device, vindos do DeviceProfile.</summary>
 public sealed record DeviceChecksDto(
@@ -43,7 +43,30 @@ public sealed class GetDeviceChecksQueryHandler(
             device.Name,
             checks
                 .Select(check => new MonitoringCheckDto(
-                    check.Id, check.Kind.ToString(), check.Enabled))
+                    check.Id, check.DeviceId, check.Kind.ToString(), check.Enabled))
                 .ToArray());
+    }
+}
+
+/// <summary>Um check por id (ADR-030 §2 — get by id).</summary>
+public sealed record GetMonitoringCheckQuery(Guid Id)
+    : IQuery<MonitoringCheckDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
+}
+
+public sealed class GetMonitoringCheckQueryHandler(IMonitoringCheckRepository checkRepository)
+    : IRequestHandler<GetMonitoringCheckQuery, MonitoringCheckDto>
+{
+    public async Task<MonitoringCheckDto> Handle(
+        GetMonitoringCheckQuery request,
+        CancellationToken cancellationToken)
+    {
+        var check = await checkRepository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Check '{request.Id}' não encontrada.");
+
+        return new MonitoringCheckDto(
+            check.Id, check.DeviceId, check.Kind.ToString(), check.Enabled);
     }
 }

@@ -10,6 +10,12 @@ public interface IMonitoringCheckRepository : IRepository<MonitoringCheck>
     Task<IReadOnlyList<MonitoringCheck>> GetByDeviceAsync(
         Guid deviceId, CancellationToken cancellationToken = default);
 
+    /// <summary>Check do par (device, kind) — guard de duplicidade (índice único).</summary>
+    Task<MonitoringCheck?> GetByDeviceAndKindAsync(
+        Guid deviceId,
+        CheckKind kind,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Todas as checks habilitadas de todos os devices (F5-T007:
     /// polling periódico — fonte do que executar a cada ciclo).
@@ -26,4 +32,6 @@ public interface IMonitoringCheckRepository : IRepository<MonitoringCheck>
         Guid deviceId,
         IEnumerable<CheckKind> checks,
         CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -17,6 +17,29 @@ public sealed class Connection : AggregateRoot
 
     public static Connection Create(Guid sourceInterfaceId, Guid targetInterfaceId)
     {
+        ValidatePair(sourceInterfaceId, targetInterfaceId);
+
+        return new Connection
+        {
+            SourceInterfaceId = sourceInterfaceId,
+            TargetInterfaceId = targetInterfaceId
+        };
+    }
+
+    /// <summary>
+    /// ADR-030 §1 — PUT reaponta as pontas preservando a identidade (mesmas
+    /// regras do Create: origem/destino obrigatórios e self-loop proibido).
+    /// </summary>
+    public void Repoint(Guid sourceInterfaceId, Guid targetInterfaceId)
+    {
+        ValidatePair(sourceInterfaceId, targetInterfaceId);
+
+        SourceInterfaceId = sourceInterfaceId;
+        TargetInterfaceId = targetInterfaceId;
+    }
+
+    private static void ValidatePair(Guid sourceInterfaceId, Guid targetInterfaceId)
+    {
         if (sourceInterfaceId == Guid.Empty)
             throw new ArgumentException(
                 "O id da interface de origem é obrigatório.", nameof(sourceInterfaceId));
@@ -29,11 +52,5 @@ public sealed class Connection : AggregateRoot
             throw new ArgumentException(
                 "A conexão não pode ligar a interface a ela mesma.",
                 nameof(targetInterfaceId));
-
-        return new Connection
-        {
-            SourceInterfaceId = sourceInterfaceId,
-            TargetInterfaceId = targetInterfaceId
-        };
     }
 }

@@ -28,6 +28,25 @@ public sealed class NotificationFeedRepository(AppDbContext dbContext)
     public void Remove(Notification entity)
         => dbContext.Notifications.Remove(entity);
 
+    public Task<Notification?> GetForUserAsync(
+        Guid id,
+        Guid userId,
+        IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken = default)
+    {
+        var roleList = roles.ToArray();
+
+        return dbContext.Notifications
+            .AsNoTracking()
+            .SingleOrDefaultAsync(notification =>
+                notification.Id == id &&
+                dbContext.NotificationRecipients.Any(recipient =>
+                    recipient.NotificationId == notification.Id &&
+                    (recipient.UserId == userId ||
+                     (recipient.Role != null && roleList.Contains(recipient.Role)))),
+                cancellationToken);
+    }
+
     public async Task<PagedResult<Notification>> SearchForUserAsync(
         Guid userId,
         IReadOnlyCollection<string> roles,

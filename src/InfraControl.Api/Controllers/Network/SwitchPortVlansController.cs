@@ -53,6 +53,14 @@ public sealed class SwitchPortVlansController(ISender sender) : BaseController
         return NoContent();
     }
 
+    [HttpGet("switch-port-vlans/{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetById(
+        Guid id,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetSwitchPortVlanQuery(id), cancellationToken)));
+
     [HttpGet("vlans/{vlanId:guid}/ports")]
     [Authorize]
     public async Task<IActionResult> GetPortsOfVlan(

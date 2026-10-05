@@ -12,6 +12,34 @@ namespace InfraControl.Application.Network.SwitchPortVlans.Queries;
 // F3-T004: listas dos dois lados da junção. Reusam VlanDto (F3-T003) e
 // SwitchPortDto (F3-T002) — sem DTO próprio. Guards reusados dos slices.
 
+/// <summary>Linha da junção N:N (ADR-030 §2 — GET por id).</summary>
+public sealed record SwitchPortVlanDto(
+    Guid Id,
+    Guid SwitchPortId,
+    Guid VlanId);
+
+public sealed record GetSwitchPortVlanQuery(Guid Id)
+    : IQuery<SwitchPortVlanDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
+}
+
+public sealed class GetSwitchPortVlanQueryHandler(ISwitchPortVlanRepository switchPortVlanRepository)
+    : IRequestHandler<GetSwitchPortVlanQuery, SwitchPortVlanDto>
+{
+    public async Task<SwitchPortVlanDto> Handle(
+        GetSwitchPortVlanQuery request,
+        CancellationToken cancellationToken)
+    {
+        var link = await switchPortVlanRepository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Vinculação switch-port/vlan '{request.Id}' não encontrada.");
+
+        return new SwitchPortVlanDto(link.Id, link.SwitchPortId, link.VlanId);
+    }
+}
+
 public sealed record GetSwitchPortVlansQuery(Guid SwitchPortId)
     : IQuery<IReadOnlyList<VlanDto>>, IAuthorizedRequest
 {

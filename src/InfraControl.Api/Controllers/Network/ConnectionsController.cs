@@ -50,6 +50,17 @@ public sealed class ConnectionsController(ISender sender) : BaseController
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateConnectionViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateConnectionCommand(
+                id, model.SourceInterfaceId, model.TargetInterfaceId),
+            cancellationToken)));
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Delete(

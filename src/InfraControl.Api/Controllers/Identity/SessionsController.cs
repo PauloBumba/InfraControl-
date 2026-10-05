@@ -35,6 +35,20 @@ public sealed class SessionsController(
         return Ok(ApiResponse.Ok(sessions));
     }
 
+    [HttpGet("{sessionId:guid}")]
+    public async Task<IActionResult> Get(Guid sessionId, CancellationToken cancellationToken)
+    {
+        var userId = currentUser.UserId;
+        if (userId is null) return Unauthorized(ApiResponse.Fail(["Usuário não autenticado."]));
+
+        // Alheia/expirada/revogada = MESMO 404 do revoke — sem oráculo de sid.
+        var item = await sessionService.GetAsync(
+            userId.Value, sessionId, CurrentSessionId, cancellationToken);
+        return item is null
+            ? NotFound(ApiResponse.Fail(["Sessão não encontrada."]))
+            : Ok(ApiResponse.Ok(item));
+    }
+
     [HttpDelete("{sessionId:guid}")]
     public async Task<IActionResult> Revoke(Guid sessionId, CancellationToken cancellationToken)
     {

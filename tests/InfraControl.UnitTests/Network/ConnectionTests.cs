@@ -49,6 +49,34 @@ public sealed class ConnectionTests
     }
 
     [Fact]
+    public void Repoint_ShouldMoveTheDirectedPair()
+    {
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+        var c = Guid.NewGuid();
+        var connection = Connection.Create(a, b);
+
+        connection.Repoint(a, c);
+
+        connection.SourceInterfaceId.Should().Be(a);
+        connection.TargetInterfaceId.Should().Be(c);
+        connection.Id.Should().Be(connection.Id, "reapontar não troca a identidade");
+    }
+
+    [Fact]
+    public void Repoint_SelfLoop_ShouldThrowPtBrMessage()
+    {
+        var connection = Connection.Create(Guid.NewGuid(), Guid.NewGuid());
+        var same = Guid.NewGuid();
+
+        var act = () => connection.Repoint(same, same);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("A conexão não pode ligar a interface a ela mesma.*");
+        connection.SourceInterfaceId.Should().NotBe(same, "estado preservado após falha");
+    }
+
+    [Fact]
     public void Create_ReversePair_IsAllowed_Directed()
     {
         // (a,b) e (b,a) são conexões distintas — par dirigido.

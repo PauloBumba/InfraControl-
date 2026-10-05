@@ -26,6 +26,16 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(
             await sender.Send(new GetDeviceSessionsQuery(deviceId, limit), cancellationToken)));
 
+    /// <summary>Sessão pontual do device (ADR-030 §2 — get by id).</summary>
+    [HttpGet("{sessionId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetSession(
+        Guid deviceId,
+        Guid sessionId,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetRemoteSessionQuery(deviceId, sessionId), cancellationToken)));
+
     /// <summary>
     /// Abre uma sessão SSH no device (F11-T002). Sem terminal interativo —
     /// a conexão fica registrada até o encerramento.

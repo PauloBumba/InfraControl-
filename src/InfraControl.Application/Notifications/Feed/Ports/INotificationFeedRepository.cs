@@ -11,6 +11,13 @@ namespace InfraControl.Application.Notifications.Feed.Ports;
 /// </summary>
 public interface INotificationFeedRepository : IRepository<Notification>
 {
+    /// <summary>Visibilidade pontual (ADR-030 §2) — mesmo predicado do feed.</summary>
+    Task<Notification?> GetForUserAsync(
+        Guid id,
+        Guid userId,
+        IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken = default);
+
     Task<PagedResult<Notification>> SearchForUserAsync(
         Guid userId,
         IReadOnlyCollection<string> roles,

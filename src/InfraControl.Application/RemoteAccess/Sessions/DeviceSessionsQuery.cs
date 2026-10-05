@@ -24,6 +24,40 @@ public sealed record DeviceSessionsDto(
     IReadOnlyList<RemoteSessionDto> Sessions);
 
 /// <summary>
+/// ADR-030 §2 — GET .../remote/sessions/{sessionId}: a sessão precisa ser
+/// DO device da rota (fora = mesma 404 do inexistente, sem oráculo).
+/// </summary>
+public sealed record GetRemoteSessionQuery(Guid DeviceId, Guid SessionId)
+    : IQuery<RemoteSessionDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
+}
+
+public sealed class GetRemoteSessionQueryHandler(IRemoteSessionRepository sessionRepository)
+    : IRequestHandler<GetRemoteSessionQuery, RemoteSessionDto>
+{
+    public async Task<RemoteSessionDto> Handle(
+        GetRemoteSessionQuery request,
+        CancellationToken cancellationToken)
+    {
+        var session = await sessionRepository.GetByIdAsync(request.SessionId, cancellationToken);
+        if (session is null || session.DeviceId != request.DeviceId)
+            throw new KeyNotFoundException(
+                $"Sessão de acesso remoto '{request.SessionId}' não encontrada.");
+
+        return new RemoteSessionDto(
+            session.Id,
+            session.UserId,
+            session.Protocol.ToString(),
+            session.Status.ToString(),
+            session.FailureReason,
+            session.StartedAt,
+            session.EndedAt);
+    }
+}
+
+/// <summary>
 /// Sessões do device, mais recente primeiro (F11-T001, ADR-013).
 /// O DTO não transporta credenciais (docs/10).
 /// </summary>

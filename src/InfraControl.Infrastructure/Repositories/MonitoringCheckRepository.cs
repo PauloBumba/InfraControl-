@@ -20,6 +20,16 @@ public sealed class MonitoringCheckRepository(AppDbContext dbContext)
     public void Remove(MonitoringCheck entity)
         => dbContext.MonitoringChecks.Remove(entity);
 
+    public Task<MonitoringCheck?> GetByDeviceAndKindAsync(
+        Guid deviceId,
+        CheckKind kind,
+        CancellationToken cancellationToken = default)
+        => dbContext.MonitoringChecks
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                check => check.DeviceId == deviceId && check.Kind == kind,
+                cancellationToken);
+
     public async Task<IReadOnlyList<MonitoringCheck>> GetByDeviceAsync(
         Guid deviceId, CancellationToken cancellationToken = default)
     {
@@ -65,4 +75,7 @@ public sealed class MonitoringCheckRepository(AppDbContext dbContext)
         foreach (var kind in desired.Where(kind => !present.Contains(kind)))
             dbContext.MonitoringChecks.Add(MonitoringCheck.Create(deviceId, kind));
     }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        => dbContext.SaveChangesAsync(cancellationToken);
 }

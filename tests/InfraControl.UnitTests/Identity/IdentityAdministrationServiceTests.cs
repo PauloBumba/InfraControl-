@@ -213,4 +213,34 @@ public sealed class IdentityAdministrationServiceTests : IDisposable
         (await action.Should().ThrowAsync<InvalidOperationException>())
             .WithMessage("O último administrador ativo não pode ser excluído.");
     }
+
+    // ADR-030 §2 — GET /admin/users/{userId}: recuperação pontual com as
+    // mesmas peças do resumo da lista (roles incluídas).
+
+    [Fact]
+    public async Task GetUser_Existing_ShouldReturnSummaryWithRoles()
+    {
+        await using var context = await CreateContextAsync();
+        var user = await SeedUserAsync(context, UserRole.Operator);
+
+        var service = new IdentityAdministrationService(context);
+        var summary = await service.GetUserAsync(user.Id, CancellationToken.None);
+
+        summary.Should().NotBeNull();
+        summary!.UserId.Should().Be(user.Id);
+        summary.Email.Should().Be(user.Email);
+        summary.IsActive.Should().BeTrue();
+        summary.Roles.Should().ContainSingle(role => role == UserRole.Operator);
+    }
+
+    [Fact]
+    public async Task GetUser_UnknownUser_ShouldReturnNullFor404()
+    {
+        await using var context = await CreateContextAsync();
+
+        var service = new IdentityAdministrationService(context);
+        var summary = await service.GetUserAsync(Guid.NewGuid(), CancellationToken.None);
+
+        summary.Should().BeNull();
+    }
 }

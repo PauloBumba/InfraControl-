@@ -29,4 +29,7 @@ public sealed class MonitoringCheck : AggregateRoot
             Enabled = enabled
         };
     }
+
+    /// <summary>ADR-030 §1 — único campo mutável da check (toggle).</summary>
+    public void SetEnabled(bool enabled) => Enabled = enabled;
 }

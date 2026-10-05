@@ -1,3 +1,4 @@
+using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Ports;
@@ -10,9 +11,10 @@ namespace InfraControl.Api.Controllers.Integrations;
 
 /// <summary>
 /// F20-T001/ADR-028 §5: integração de SAÍDA com o UniFi Controller. O sync
-/// é escrita de nível Operate — as roles ficam no IAuthorizedRequest do
-/// command (nenhum literal de role nem policy aqui, regra do arch test) e a
-/// proteção CSRF é do middleware global (AntiforgeryCookieMiddleware). O
+/// é escrita de nível Operate — a policy HTTP (Operate) declara a 1ª camada
+/// e o IAuthorizedRequest do command a 2ª, mesmo nível nas duas (ADR-030 §3);
+/// nenhum literal de role (regra do arch test) e a proteção CSRF é do
+/// middleware global (AntiforgeryCookieMiddleware). O
 /// health é sondagem ao vivo em tempo real; o agregado persistido da
 /// integração fica para task própria (decisão do usuário 03/10/2026).
 /// </summary>
@@ -26,6 +28,7 @@ public sealed class UnifiIntegrationController(
     /// Resumo em <see cref="UnifiSyncResultDto"/>.
     /// </summary>
     [HttpPost("sync")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Sync(CancellationToken cancellationToken)
     {
         var result = await sender.Send(

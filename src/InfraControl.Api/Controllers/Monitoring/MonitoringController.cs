@@ -1,6 +1,7 @@
 using InfraControl.Application.Alerts.Queries;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Results;
+using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -20,7 +21,7 @@ public sealed class MonitoringController(ISender sender) : BaseController
 {
     /// <summary>Executa um check num device agora e grava o resultado (MON-006).</summary>
     [HttpPost("run-check/{id:guid}")]
-    [Authorize]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> RunCheck(
         Guid id,
         [FromQuery] string check,
@@ -30,7 +31,7 @@ public sealed class MonitoringController(ISender sender) : BaseController
 
     /// <summary>Executa um check em todos os devices (estilo Zabbix "check now").</summary>
     [HttpPost("run-check")]
-    [Authorize]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> RunAllChecks(
         [FromQuery] string check,
         CancellationToken cancellationToken)
@@ -38,10 +39,54 @@ public sealed class MonitoringController(ISender sender) : BaseController
             await sender.Send(new RunAllChecksCommand(check), cancellationToken)));
 
     /// <summary>Checks monitoráveis de um device, vindos do perfil (F5-T001).</summary>
-    [HttpGet("checks/{id:guid}")]
+    [HttpGet("devices/{deviceId:guid}/checks")]
     [Authorize]
-    public async Task<IActionResult> GetChecks(Guid id, CancellationToken cancellationToken)
-        => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceChecksQuery(id), cancellationToken)));
+    public async Task<IActionResult> GetChecks(Guid deviceId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceChecksQuery(deviceId), cancellationToken)));
+
+    // ── CRUD de MonitoringCheck (ADR-030 §1) ──────────────────────────────
+
+    /// <summary>Uma check por id (ADR-030 §2 — get by id).</summary>
+    [HttpGet("checks/{checkId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetCheck(Guid checkId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetMonitoringCheckQuery(checkId), cancellationToken)));
+
+    /// <summary>Adiciona uma check ao device (duplicidade = 409).</summary>
+    [HttpPost("checks")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> CreateCheck(
+        [FromBody] CreateMonitoringCheckViewModel model,
+        CancellationToken cancellationToken)
+        => StatusCode(
+            StatusCodes.Status201Created,
+            ApiResponse.Ok(await sender.Send(
+                new CreateMonitoringCheckCommand(
+                    model.DeviceId, model.Check, model.Enabled),
+                cancellationToken)));
+
+    /// <summary>Toggle de habilitação da check.</summary>
+    [HttpPut("checks/{checkId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UpdateCheck(
+        Guid checkId,
+        [FromBody] UpdateMonitoringCheckViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateMonitoringCheckCommand(checkId, model.Enabled),
+            cancellationToken)));
+
+    /// <summary>Remove a check do device (o sync do profile pode recriá-la).</summary>
+    [HttpDelete("checks/{checkId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> DeleteCheck(
+        Guid checkId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteMonitoringCheckCommand(checkId), cancellationToken);
+        return NoContent();
+    }
 
     /// <summary>Histórico de polls do device, mais recente primeiro (F5-T002).</summary>
     [HttpGet("results/{id:guid}")]

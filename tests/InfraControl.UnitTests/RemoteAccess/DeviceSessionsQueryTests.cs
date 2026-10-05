@@ -149,4 +149,43 @@ public sealed class DeviceSessionsQueryTests : IDisposable
                 property.Name.Contains(word, StringComparison.OrdinalIgnoreCase)),
             "o DTO de sessão não pode transportar credenciais");
     }
+
+    // ADR-030 §2 — GET .../remote/sessions/{sessionId}: recuperação pontual
+    // da sessão DO device (fora do device = 404, mesma resposta do inexistente).
+
+    [Fact]
+    public async Task GetRemoteSession_KnownSession_ShouldReturnDto()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+        var session = RemoteSession.Open(device.Id, Guid.NewGuid(), RemoteProtocol.Ssh);
+        context.RemoteSessions.Add(session);
+        await context.SaveChangesAsync();
+
+        var handler = new GetRemoteSessionQueryHandler(new RemoteSessionRepository(context));
+        var dto = await handler.Handle(
+            new GetRemoteSessionQuery(device.Id, session.Id), CancellationToken.None);
+
+        dto.Id.Should().Be(session.Id);
+        dto.Protocol.Should().Be(nameof(RemoteProtocol.Ssh));
+        dto.Status.Should().Be(nameof(RemoteSessionStatus.Active));
+    }
+
+    [Fact]
+    public async Task GetRemoteSession_FromAnotherDevice_ShouldThrowKeyNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceA = await SeedDeviceAsync(context);
+        var deviceB = await SeedDeviceAsync(context);
+        var session = RemoteSession.Open(deviceA.Id, Guid.NewGuid(), RemoteProtocol.Rdp);
+        context.RemoteSessions.Add(session);
+        await context.SaveChangesAsync();
+
+        var handler = new GetRemoteSessionQueryHandler(new RemoteSessionRepository(context));
+        var action = () => handler.Handle(
+            new GetRemoteSessionQuery(deviceB.Id, session.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Sessão de acesso remoto '{session.Id}' não encontrada.");
+    }
 }

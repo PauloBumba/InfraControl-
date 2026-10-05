@@ -22,6 +22,15 @@ public interface ISessionService
     Task<OperationResult> RevokeAsync(
         Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// ADR-030 §2 — GET /auth/sessions/{id}: a própria sessão ativa.
+    /// Alheia/revogada/expirada = null (o controller responde o MESMO 404 do
+    /// revoke — o cliente não vira oráculo do sid).
+    /// </summary>
+    Task<UserSessionItem?> GetAsync(
+        Guid userId, Guid sessionId, Guid? currentSessionId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Revoga todas as sessões do usuário menos a atual ("sair de todos os outros").</summary>
     Task<OperationResult> RevokeOthersAsync(
         Guid userId, Guid? currentSessionId, CancellationToken cancellationToken = default);

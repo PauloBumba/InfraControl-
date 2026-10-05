@@ -86,3 +86,59 @@ public sealed class DeleteConnectionCommandHandler(
         logger.LogInformation("Connection {ConnectionId} deleted.", connection.Id);
     }
 }
+
+/// <summary>
+/// ADR-030 §1 — CRUD completo: PUT reaponta as pontas da conexão existente
+/// (identidade preservada). Guards espelham o Create: self-loop 400, ponta
+/// inexistente 404, par dirigido já usado por OUTRA conexão 409.
+/// </summary>
+public sealed record UpdateConnectionCommand(
+    Guid Id,
+    Guid SourceInterfaceId,
+    Guid TargetInterfaceId) : BaseCommand<ConnectionDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class UpdateConnectionCommandHandler(
+    IConnectionRepository repository,
+    GetNetworkInterfaceQueryHandler interfaceQueryHandler,
+    ILogger<UpdateConnectionCommandHandler> logger)
+    : IRequestHandler<UpdateConnectionCommand, ConnectionDto>
+{
+    public async Task<ConnectionDto> Handle(
+        UpdateConnectionCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.SourceInterfaceId == request.TargetInterfaceId)
+            throw new ArgumentException(
+                "A conexão não pode ligar a interface a ela mesma.",
+                nameof(request.TargetInterfaceId));
+
+        var connection = await repository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Conexão '{request.Id}' não encontrada.");
+
+        var source = await interfaceQueryHandler.Handle(
+            new GetNetworkInterfaceQuery(request.SourceInterfaceId), cancellationToken);
+        var target = await interfaceQueryHandler.Handle(
+            new GetNetworkInterfaceQuery(request.TargetInterfaceId), cancellationToken);
+
+        var existing = await repository.GetPairAsync(
+            request.SourceInterfaceId, request.TargetInterfaceId, cancellationToken);
+        if (existing is not null && existing.Id != request.Id)
+            throw new InvalidOperationException("Já existe uma conexão entre essas interfaces.");
+
+        connection.Repoint(request.SourceInterfaceId, request.TargetInterfaceId);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Connection {ConnectionId} repointed to {Source} → {Target}.",
+            connection.Id, request.SourceInterfaceId, request.TargetInterfaceId);
+
+        return new ConnectionDto(
+            connection.Id,
+            source.Id, source.Name, source.DeviceId,
+            target.Id, target.Name, target.DeviceId);
+    }
+}

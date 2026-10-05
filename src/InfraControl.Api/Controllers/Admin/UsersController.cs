@@ -20,6 +20,15 @@ public sealed class UsersController(
     public async Task<IActionResult> List(CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await identityService.ListUsersAsync(cancellationToken)));
 
+    [HttpGet("{userId:guid}")]
+    public async Task<IActionResult> Get(Guid userId, CancellationToken cancellationToken)
+    {
+        var summary = await identityService.GetUserAsync(userId, cancellationToken);
+        return summary is null
+            ? NotFound(ApiResponse<object>.Fail(["Usuário não encontrado."]))
+            : Ok(ApiResponse.Ok(summary));
+    }
+
     [HttpPatch("{userId:guid}/status")]
     [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> SetStatus(Guid userId, SetUserStatusViewModel model, CancellationToken cancellationToken)

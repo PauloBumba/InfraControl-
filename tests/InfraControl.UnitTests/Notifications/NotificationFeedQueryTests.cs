@@ -182,4 +182,62 @@ public sealed class NotificationFeedQueryTests : IDisposable
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Usuário autenticado é obrigatório para o feed de notificações.");
     }
+
+    // ADR-030 §2 — GET /notifications/{id}: mesma visibilidade do feed
+    // (destinatário direto OU de role); fora da visibilidade = 404.
+
+    [Fact]
+    public async Task GetNotification_WhenDirectRecipient_ShouldReturnFeedItem()
+    {
+        await using var context = await CreateContextAsync();
+        var me = Guid.NewGuid();
+        var notification = await SeedNotificationAsync(context, "Ponto único", DateTime.UtcNow);
+        context.NotificationRecipients.Add(
+            Domain.Entities.NotificationRecipient.CreateForUser(notification.Id, me));
+        await context.SaveChangesAsync();
+
+        var handler = new GetNotificationQueryHandler(
+            new NotificationFeedRepository(context), new FakeCurrentUser(me, "Operator"));
+
+        var item = await handler.Handle(
+            new GetNotificationQuery(notification.Id), CancellationToken.None);
+
+        item.Id.Should().Be(notification.Id);
+        item.Title.Should().Be("Ponto único");
+        item.EventType.Should().Be("IncidentCreatedDomainEvent");
+    }
+
+    [Fact]
+    public async Task GetNotification_WhenVisibleByRole_ShouldReturnFeedItem()
+    {
+        await using var context = await CreateContextAsync();
+        var notification = await SeedNotificationAsync(context, "Por role", DateTime.UtcNow);
+        context.NotificationRecipients.Add(
+            Domain.Entities.NotificationRecipient.CreateForRole(notification.Id, "Operator"));
+        await context.SaveChangesAsync();
+
+        var handler = new GetNotificationQueryHandler(
+            new NotificationFeedRepository(context), new FakeCurrentUser(Guid.NewGuid(), "Operator"));
+
+        var item = await handler.Handle(
+            new GetNotificationQuery(notification.Id), CancellationToken.None);
+
+        item.Id.Should().Be(notification.Id);
+    }
+
+    [Fact]
+    public async Task GetNotification_WhenNotVisible_ShouldThrowKeyNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var notification = await SeedNotificationAsync(context, "Alheia", DateTime.UtcNow);
+
+        var handler = new GetNotificationQueryHandler(
+            new NotificationFeedRepository(context), new FakeCurrentUser(Guid.NewGuid(), "Viewer"));
+
+        var action = () => handler.Handle(
+            new GetNotificationQuery(notification.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Notificação '{notification.Id}' não encontrada.");
+    }
 }

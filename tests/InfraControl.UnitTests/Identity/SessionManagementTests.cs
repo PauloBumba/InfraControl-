@@ -53,6 +53,54 @@ public sealed class SessionManagementTests
         list.Select(item => item.Id).Should().NotContain(sidB);
     }
 
+    // ADR-030 §2 — GET /auth/sessions/{sessionId}: recuperação pontual das
+    // PRÓPRIAS sessões ativas; alheia/revogada/expirada = null (o controller
+    // responde o MESMO 404 do revoke — sem oráculo de sid).
+
+    [Fact]
+    public async Task GetSession_OwnActive_ShouldReturnItemWithCurrentFlag()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var (userA, emailA) = await SeedActiveUserAsync(scope, "get-session@example.com");
+        var sid = await LoginAsync(scope, emailA);
+        var sessions = scope.ServiceProvider.GetRequiredService<ISessionService>();
+
+        var item = await sessions.GetAsync(userA, sid, sid);
+
+        item.Should().NotBeNull();
+        item!.Id.Should().Be(sid);
+        item.IsCurrent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetSession_RevokedOrForeign_ShouldReturnNull()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var (userA, emailA) = await SeedActiveUserAsync(scope, "get-session-a@example.com");
+        var (userB, emailB) = await SeedActiveUserAsync(scope, "get-session-b@example.com");
+        var sidRevoked = await LoginAsync(scope, emailA);
+        var sidForeign = await LoginAsync(scope, emailB);
+        var sessions = scope.ServiceProvider.GetRequiredService<ISessionService>();
+
+        (await sessions.RevokeAsync(userA, sidRevoked)).Succeeded.Should().BeTrue();
+
+        (await sessions.GetAsync(userA, sidRevoked, null)).Should().BeNull(
+            "sessão revogada não é recuperável");
+        (await sessions.GetAsync(userA, sidForeign, null)).Should().BeNull(
+            "sessão de outro usuário não é recuperável (sem oráculo de sid)");
+        (await sessions.GetAsync(userB, sidForeign, null)).Should().NotBeNull();
+    }
+
     [Fact]
     public async Task Revoke_Should_Revoked_The_Session_And_Write_The_Check_To_The_Shared_Cache()
     {
