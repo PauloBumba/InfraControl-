@@ -84,6 +84,8 @@ public sealed class UnassignTaskCommandHandler(
                 $"Vínculo da task '{request.TaskId}' com o usuário "
                 + $"'{request.UserId}' não encontrado.");
 
+        assignee.Delete(); // ADR-030 §5 — TaskAssigneeDeletedDomainEvent na mesma transação
+
         assigneeRepository.Remove(assignee);
         await assigneeRepository.SaveChangesAsync(cancellationToken);
 

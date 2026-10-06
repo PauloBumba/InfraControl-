@@ -83,6 +83,10 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<PdiStrategy> PdiStrategies => Set<PdiStrategy>();
     public DbSet<PdiPhase> PdiPhases => Set<PdiPhase>();
     public DbSet<PdiActivity> PdiActivities => Set<PdiActivity>();
+    public DbSet<PdiProgress> PdiProgresses => Set<PdiProgress>();
+    public DbSet<PdiCheckIn> PdiCheckIns => Set<PdiCheckIn>();
+    public DbSet<PdiImpediment> PdiImpediments => Set<PdiImpediment>();
+    public DbSet<PdiFeedback> PdiFeedbacks => Set<PdiFeedback>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

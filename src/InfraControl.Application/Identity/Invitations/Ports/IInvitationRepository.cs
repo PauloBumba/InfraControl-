@@ -18,5 +18,16 @@ public interface IInvitationRepository : IRepository<Invitation>
         InvitationStatus? status = null,
         string? email = null,
         CancellationToken cancellationToken = default);
+    /// <summary>
+    /// ADR-030 §1 — troca física das roles de um convite (DELETE das linhas
+    /// atuais + INSERT das novas). O replace é feito aqui de propósito: a
+    /// coleção do domínio é exposta como view read-only e o fixup do EF
+    /// corrompe o ChangeTracker (detecta as novas filhas como Modified).
+    /// </summary>
+    Task ReplaceRolesAsync(
+        Guid invitationId,
+        IReadOnlyCollection<UserRole> roles,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

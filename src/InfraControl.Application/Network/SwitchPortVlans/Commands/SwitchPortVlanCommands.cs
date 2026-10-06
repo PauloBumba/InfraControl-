@@ -86,6 +86,7 @@ public sealed class UnassignVlanFromSwitchPortCommandHandler(
             throw new KeyNotFoundException(
                 $"Vínculo da porta '{request.SwitchPortId}' com a VLAN '{request.VlanId}' não encontrado.");
 
+        link.Delete(); // ADR-030 §5 — linkDeletedDomainEvent na mesma transação
         repository.Remove(link);
         await repository.SaveChangesAsync(cancellationToken);
 

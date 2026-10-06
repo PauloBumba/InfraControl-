@@ -86,6 +86,8 @@ public sealed class UnlinkTaskIncidentCommandHandler(
                 $"Vínculo da task '{request.TaskId}' com o incidente "
                 + $"'{request.IncidentId}' não encontrado.");
 
+        link.Delete(); // ADR-030 §5 — junçãoDeletedDomainEvent na mesma transação
+
         taskIncidentRepository.Remove(link);
         await taskIncidentRepository.SaveChangesAsync(cancellationToken);
 

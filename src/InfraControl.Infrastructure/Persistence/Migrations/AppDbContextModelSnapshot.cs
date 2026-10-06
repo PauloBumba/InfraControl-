@@ -1345,6 +1345,79 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("pdi_activities", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiCheckIn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("CheckInDate")
+                        .HasColumnType("date")
+                        .HasColumnName("check_in_date");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Difficulty")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("difficulty");
+
+                    b.Property<string>("ManagerFeedback")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("manager_feedback");
+
+                    b.Property<string>("NeedSupport")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("need_support");
+
+                    b.Property<string>("NextAction")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("next_action");
+
+                    b.Property<Guid>("PhaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("phase_id");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<Guid?>("RespondedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responded_by");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.Property<string>("WhatDone")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("what_done");
+
+                    b.Property<string>("WhatLearned")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("what_learned");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("pdi_check_ins", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiCompetency", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1376,6 +1449,56 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("pdi_competencies", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiFeedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<DateOnly>("FeedbackDate")
+                        .HasColumnType("date")
+                        .HasColumnName("feedback_date");
+
+                    b.Property<Guid>("PhaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("phase_id");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipient_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("pdi_feedbacks", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiHistoryEntry", b =>
@@ -1432,6 +1555,72 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "CreateDateTime");
 
                     b.ToTable("individual_development_plan_history", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiImpediment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionTaken")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("action_taken");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Impact")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("impact");
+
+                    b.Property<DateOnly>("OccurredAt")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<Guid>("PhaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("phase_id");
+
+                    b.Property<DateOnly?>("ResolvedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid?>("ResponsibleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responsible_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("pdi_impediments", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiObjective", b =>
@@ -1571,6 +1760,46 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("StrategyId", "Order");
 
                     b.ToTable("pdi_phases", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiProgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<int?>("Percent")
+                        .HasColumnType("integer")
+                        .HasColumnName("percent");
+
+                    b.Property<Guid>("PhaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("phase_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("pdi_progresses", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiStrategy", b =>
@@ -2949,6 +3178,33 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiCheckIn", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
+                        .WithMany()
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiFeedback", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
+                        .WithMany()
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiImpediment", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
+                        .WithMany()
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiObjective", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.PdiCompetency", null)
@@ -2969,6 +3225,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.PdiStrategy", null)
                         .WithMany()
                         .HasForeignKey("StrategyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiProgress", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
+                        .WithMany()
+                        .HasForeignKey("PhaseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

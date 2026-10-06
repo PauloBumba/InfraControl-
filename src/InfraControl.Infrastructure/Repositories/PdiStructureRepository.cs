@@ -6,10 +6,12 @@ using Microsoft.EntityFrameworkCore;
 namespace InfraControl.Infrastructure.Repositories;
 
 /// <summary>
-/// Estrutura do PDI (Fase 2, ADR-031): catálogo + árvore de
+/// Estrutura do PDI (Fase 2, ADR-032): catálogo + árvore de
 /// objetivos/estratégias/fases/atividades em listas planas (domínio sem
 /// nav collections). Nome da competência comparado com LOWER() para ser
-/// case-insensitive em Postgres e Sqlite (testes in-memory).
+/// case-insensitive em Postgres e Sqlite (testes in-memory). Fase 3
+/// (ADR-033): acompanhamento da fase (progresso/check-ins/impedimentos/
+/// feedbacks) filtrado pelos PhaseIds do plano.
 /// </summary>
 public sealed class PdiStructureRepository(AppDbContext dbContext)
     : IPdiStructureRepository
@@ -51,6 +53,50 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.PdiObjectives
             .SingleOrDefaultAsync(objective => objective.Id == id, cancellationToken);
+
+    public Task<PdiProgress?> GetProgressAsync(
+        Guid id, CancellationToken cancellationToken = default)
+        => dbContext.PdiProgresses
+            .SingleOrDefaultAsync(progress => progress.Id == id, cancellationToken);
+
+    public Task<PdiCheckIn?> GetCheckInAsync(
+        Guid id, CancellationToken cancellationToken = default)
+        => dbContext.PdiCheckIns
+            .SingleOrDefaultAsync(checkIn => checkIn.Id == id, cancellationToken);
+
+    public Task<PdiImpediment?> GetImpedimentAsync(
+        Guid id, CancellationToken cancellationToken = default)
+        => dbContext.PdiImpediments
+            .SingleOrDefaultAsync(impediment => impediment.Id == id, cancellationToken);
+
+    public Task<PdiFeedback?> GetFeedbackAsync(
+        Guid id, CancellationToken cancellationToken = default)
+        => dbContext.PdiFeedbacks
+            .SingleOrDefaultAsync(feedback => feedback.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<PdiProgress>> ListProgressesAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default)
+        => await dbContext.PdiProgresses
+            .Where(progress => phaseIds.Contains(progress.PhaseId))
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<PdiCheckIn>> ListCheckInsAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default)
+        => await dbContext.PdiCheckIns
+            .Where(checkIn => phaseIds.Contains(checkIn.PhaseId))
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<PdiImpediment>> ListImpedimentsAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default)
+        => await dbContext.PdiImpediments
+            .Where(impediment => phaseIds.Contains(impediment.PhaseId))
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<PdiFeedback>> ListFeedbacksAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default)
+        => await dbContext.PdiFeedbacks
+            .Where(feedback => phaseIds.Contains(feedback.PhaseId))
+            .ToListAsync(cancellationToken);
 
     public Task<PdiStrategy?> GetStrategyAsync(
         Guid id, CancellationToken cancellationToken = default)
@@ -150,6 +196,18 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
     public void AddActivity(PdiActivity activity)
         => dbContext.PdiActivities.Add(activity);
 
+    public void AddProgress(PdiProgress progress)
+        => dbContext.PdiProgresses.Add(progress);
+
+    public void AddCheckIn(PdiCheckIn checkIn)
+        => dbContext.PdiCheckIns.Add(checkIn);
+
+    public void AddImpediment(PdiImpediment impediment)
+        => dbContext.PdiImpediments.Add(impediment);
+
+    public void AddFeedback(PdiFeedback feedback)
+        => dbContext.PdiFeedbacks.Add(feedback);
+
     public void RemoveObjective(PdiObjective objective)
         => dbContext.PdiObjectives.Remove(objective);
 
@@ -161,6 +219,18 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
 
     public void RemoveActivity(PdiActivity activity)
         => dbContext.PdiActivities.Remove(activity);
+
+    public void RemoveProgress(PdiProgress progress)
+        => dbContext.PdiProgresses.Remove(progress);
+
+    public void RemoveCheckIn(PdiCheckIn checkIn)
+        => dbContext.PdiCheckIns.Remove(checkIn);
+
+    public void RemoveImpediment(PdiImpediment impediment)
+        => dbContext.PdiImpediments.Remove(impediment);
+
+    public void RemoveFeedback(PdiFeedback feedback)
+        => dbContext.PdiFeedbacks.Remove(feedback);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);

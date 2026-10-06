@@ -105,6 +105,7 @@ public sealed class DeleteNetworkInterfaceCommandHandler(
         if (await connectionRepository.HasConnectionsForInterfaceAsync(nic.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir a interface: existem conexões vinculadas.");
 
+        nic.Delete(); // ADR-030 §5 — nicDeletedDomainEvent na mesma transação
         repository.Remove(nic);
         await repository.SaveChangesAsync(cancellationToken);
 

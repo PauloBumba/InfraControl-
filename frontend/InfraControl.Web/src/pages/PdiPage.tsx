@@ -538,6 +538,7 @@ export function PdiPage() {
         onHide={() => setStructurePlan(null)}
         plan={structurePlan}
         isAdmin={isAdmin}
+        currentUserId={user?.id ?? null}
       />
     </div>
   );

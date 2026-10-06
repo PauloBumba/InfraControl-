@@ -30,6 +30,7 @@ import {
   type PdiStructure,
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
+import { PdiAccompanimentDialog } from "@/components/pdi/PdiAccompanimentDialog";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -132,6 +133,7 @@ interface PdiStructureDialogProps {
   onHide: () => void;
   plan: Pdi | null;
   isAdmin: boolean;
+  currentUserId?: string | null;
 }
 
 export function PdiStructureDialog({
@@ -139,6 +141,7 @@ export function PdiStructureDialog({
   onHide,
   plan,
   isAdmin,
+  currentUserId = null,
 }: PdiStructureDialogProps) {
   const planUserId = plan?.userId ?? null;
 
@@ -157,6 +160,10 @@ export function PdiStructureDialog({
     message: string;
     run: () => Promise<void>;
   } | null>(null);
+
+  // Acompanhamento da fase (Fase 3 — ADR-033).
+  const [accompaniedPhase, setAccompaniedPhase] =
+    useState<PdiPhaseNode | null>(null);
 
   // Catálogo de competências (Admin).
   const [catalogVisible, setCatalogVisible] = useState(false);
@@ -557,6 +564,12 @@ export function PdiStructureDialog({
           </span>
         )}
         <span style={{ flex: 1 }} />
+        <Button
+          variant="ghost"
+          onClick={() => setAccompaniedPhase(phase)}
+        >
+          Acompanhar
+        </Button>
         <Button
           variant="ghost"
           onClick={() => openActivityForm(phase.id, null)}
@@ -1227,6 +1240,15 @@ export function PdiStructureDialog({
         header="Confirmar exclusão"
         message={confirm?.message ?? ""}
         confirmLabel="Excluir"
+      />
+
+      <PdiAccompanimentDialog
+        visible={accompaniedPhase !== null}
+        onHide={() => setAccompaniedPhase(null)}
+        plan={plan}
+        phase={accompaniedPhase}
+        isAdmin={isAdmin}
+        currentUserId={currentUserId}
       />
     </>
   );

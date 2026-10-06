@@ -68,6 +68,7 @@ public sealed class DeleteSloBudgetCommandHandler(
             ?? throw new KeyNotFoundException(
                 $"Orçamento de SLO '{request.Id}' não encontrado.");
 
+        budget.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(budget);
         await repository.SaveChangesAsync(cancellationToken);
 

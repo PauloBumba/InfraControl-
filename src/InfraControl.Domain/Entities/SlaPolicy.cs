@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -19,6 +20,10 @@ public sealed class SlaPolicy : AggregateRoot
 
     private SlaPolicy() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new SlaPolicyDeletedDomainEvent(Id, Name));
+
     public static SlaPolicy Create(
         string name,
         int responseMinutes,
@@ -27,6 +32,11 @@ public sealed class SlaPolicy : AggregateRoot
     {
         var policy = new SlaPolicy();
         policy.Update(name, responseMinutes, resolutionMinutes, serviceId);
+
+        // ADR-030 §5 — descarta o Updated transitório do Update interno.
+        policy.ClearDomainEvents();
+        policy.RaiseDomainEvent(new SlaPolicyCreatedDomainEvent(
+            policy.Id, policy.Name, policy.ResponseMinutes, policy.ResolutionMinutes));
         return policy;
     }
 
@@ -57,5 +67,7 @@ public sealed class SlaPolicy : AggregateRoot
         ResponseMinutes = responseMinutes;
         ResolutionMinutes = resolutionMinutes;
         ServiceId = serviceId;
+
+        RaiseDomainEvent(new SlaPolicyUpdatedDomainEvent(Id, Name));
     }
 }

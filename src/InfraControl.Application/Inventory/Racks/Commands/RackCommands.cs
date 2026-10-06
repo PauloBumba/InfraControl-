@@ -99,6 +99,7 @@ public sealed class DeleteRackCommandHandler(
         if (await deviceRepository.HasByRackAsync(rack.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o rack: existem devices vinculados.");
 
+        rack.Delete(); // ADR-030 §5 — rackDeletedDomainEvent na mesma transação
         repository.Remove(rack);
         await repository.SaveChangesAsync(cancellationToken);
 

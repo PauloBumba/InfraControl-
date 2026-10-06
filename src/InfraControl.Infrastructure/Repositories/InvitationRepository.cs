@@ -88,6 +88,30 @@ public sealed class InvitationRepository(AppDbContext dbContext) : IInvitationRe
         return query.CountAsync(cancellationToken);
     }
 
+    public async Task ReplaceRolesAsync(
+        Guid invitationId,
+        IReadOnlyCollection<UserRole> roles,
+        CancellationToken cancellationToken = default)
+    {
+        // Desanexa principal + filhas: a coleção do domínio é uma view
+        // read-only e o fixup do EF quebra ao escrever nela (Add/Remove →
+        // NotSupportedException) ou deixa as novas filhas como Modified
+        // (DbUpdateConcurrencyException no SaveChanges). Após o detach a
+        // instância domínio segue válida em memória — só sai do tracker.
+        foreach (var entry in dbContext.ChangeTracker.Entries<InvitationRole>().ToList())
+            entry.State = EntityState.Detached;
+        foreach (var entry in dbContext.ChangeTracker.Entries<Invitation>().ToList())
+            entry.State = EntityState.Detached;
+
+        var existing = await dbContext.InvitationRoles
+            .Where(role => role.InvitationId == invitationId)
+            .ToListAsync(cancellationToken);
+        dbContext.InvitationRoles.RemoveRange(existing);
+
+        foreach (var role in roles.Distinct())
+            dbContext.InvitationRoles.Add(InvitationRole.Assign(invitationId, role));
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return dbContext.SaveChangesAsync(cancellationToken);

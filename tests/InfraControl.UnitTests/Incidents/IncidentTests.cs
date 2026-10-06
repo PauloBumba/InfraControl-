@@ -88,7 +88,9 @@ public sealed class IncidentTests
 
         incident.ChangeStatus(IncidentStatus.Investigating);
 
-        incident.DomainEvents.Should().BeEmpty();
+        incident.DomainEvents.Should().NotContainItemsAssignableTo<IncidentResolvedDomainEvent>();
+        incident.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<IncidentUpdatedDomainEvent>();
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -22,6 +23,10 @@ public sealed class TaskItem : AggregateRoot
 
     private TaskItem() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new TaskItemDeletedDomainEvent(Id, Title));
+
     public static TaskItem Create(
         string title,
         TaskKind kind,
@@ -31,6 +36,10 @@ public sealed class TaskItem : AggregateRoot
         task.Update(title, description);
         task.Kind = kind;
         task.State = TaskState.Open;
+
+        // ADR-030 §5 — descarta o Updated transitório do Update interno.
+        task.ClearDomainEvents();
+        task.RaiseDomainEvent(new TaskItemCreatedDomainEvent(task.Id, task.Title, task.Kind));
         return task;
     }
 
@@ -52,6 +61,7 @@ public sealed class TaskItem : AggregateRoot
 
         Title = title;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        RaiseDomainEvent(new TaskItemUpdatedDomainEvent(Id, Title, State));
     }
 
     /// <summary>
@@ -69,5 +79,6 @@ public sealed class TaskItem : AggregateRoot
                 $"Transição inválida: '{State}' → '{state}'.");
 
         State = state;
+        RaiseDomainEvent(new TaskItemUpdatedDomainEvent(Id, Title, State));
     }
 }

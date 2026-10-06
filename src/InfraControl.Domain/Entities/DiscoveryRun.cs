@@ -1,6 +1,7 @@
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -29,12 +30,14 @@ public sealed class DiscoveryRun : AggregateRoot
         if (deviceId == Guid.Empty)
             throw new ArgumentException("O id do device é obrigatório.", nameof(deviceId));
 
-        return new DiscoveryRun
+        var run = new DiscoveryRun
         {
             DeviceId = deviceId,
             Status = DiscoveryRunStatus.Running,
             StartedAt = startedAt ?? AppTimeProvider.Current.GetUtcNow().UtcDateTime
         };
+        run.RaiseDomainEvent(new DiscoveryRunCreatedDomainEvent(run.Id, run.DeviceId));
+        return run;
     }
 
     public void Complete()
@@ -43,6 +46,7 @@ public sealed class DiscoveryRun : AggregateRoot
 
         Status = DiscoveryRunStatus.Completed;
         FinishedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        RaiseDomainEvent(new DiscoveryRunUpdatedDomainEvent(Id, DeviceId, Status));
     }
 
     public void Fail(string errorMessage)
@@ -61,6 +65,8 @@ public sealed class DiscoveryRun : AggregateRoot
         Status = DiscoveryRunStatus.Failed;
         FinishedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         ErrorMessage = errorMessage;
+
+        RaiseDomainEvent(new DiscoveryRunUpdatedDomainEvent(Id, DeviceId, Status));
     }
 
     private void EnsureNotFinalized()

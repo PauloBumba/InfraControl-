@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace InfraControl.Domain.Entities;
 /// os prazos históricos (docs/04). PK = TaskId (1:1 por task);
 /// `TaskSlaPause` (F8-T004) somará pausas aos vencimentos.
 /// </summary>
-public sealed class TaskSla : Entity
+public sealed class TaskSla : AggregateRoot
 {
     public Guid TaskId { get; private set; }
     public Guid SlaPolicyId { get; private set; }
@@ -28,7 +29,7 @@ public sealed class TaskSla : Entity
         ArgumentNullException.ThrowIfNull(task);
         ArgumentNullException.ThrowIfNull(policy);
 
-        return new TaskSla
+        var sla = new TaskSla
         {
             TaskId = task.Id,
             SlaPolicyId = policy.Id,
@@ -37,6 +38,8 @@ public sealed class TaskSla : Entity
             ResponseDueAt = task.CreateDateTime.AddMinutes(policy.ResponseMinutes),
             ResolutionDueAt = task.CreateDateTime.AddMinutes(policy.ResolutionMinutes)
         };
+        sla.RaiseDomainEvent(new TaskSlaCreatedDomainEvent(sla.TaskId, sla.SlaPolicyId));
+        return sla;
     }
 
     /// <summary>
@@ -50,5 +53,7 @@ public sealed class TaskSla : Entity
 
         ResponseDueAt = ResponseDueAt.Add(paused);
         ResolutionDueAt = ResolutionDueAt.Add(paused);
+        RaiseDomainEvent(new TaskSlaUpdatedDomainEvent(
+            TaskId, ResponseDueAt, ResolutionDueAt));
     }
 }

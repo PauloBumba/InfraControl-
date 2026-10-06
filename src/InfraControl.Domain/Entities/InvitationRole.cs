@@ -15,4 +15,11 @@ public sealed class InvitationRole : Entity
         InvitationId = invitationId;
         Role = role;
     }
+
+    /// <summary>
+    /// ADR-030 §1 — fábrica para o repositório trocar as roles de um
+    /// convite (replace físico no PUT pendente).
+    /// </summary>
+    public static InvitationRole Assign(Guid invitationId, UserRole role)
+        => new(invitationId, role);
 }

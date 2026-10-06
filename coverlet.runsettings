@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>opencover</Format>
+          <Output>${CoverageDir}/coverage.opencover.xml</Output>
+          <Include>[InfraControl.Domain]*%2c[InfraControl.Application]*%2c[InfraControl.Infrastructure]*</Include>
+          <Exclude>[InfraControl.Domain]*Tests*%2c[InfraControl.Application]*Tests*%2c[InfraControl.Infrastructure]*Tests*</Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

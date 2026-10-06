@@ -66,6 +66,7 @@ public sealed class DeleteSloMeasurementCommandHandler(
             ?? throw new KeyNotFoundException(
                 $"Medição de SLO '{request.Id}' não encontrada.");
 
+        measurement.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(measurement);
         await repository.SaveChangesAsync(cancellationToken);
 

@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -19,6 +20,10 @@ public sealed class MacAddress : AggregateRoot
 
     private MacAddress() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new MacAddressDeletedDomainEvent(Id, InterfaceId, Mac));
+
     public static MacAddress Create(Guid interfaceId, string mac)
     {
         if (interfaceId == Guid.Empty)
@@ -27,6 +32,8 @@ public sealed class MacAddress : AggregateRoot
         var entity = new MacAddress();
         entity.InterfaceId = interfaceId;
         entity.Update(mac);
+        entity.ClearDomainEvents(); // descarta o Updated transitório do Create
+        entity.RaiseDomainEvent(new MacAddressCreatedDomainEvent(entity.Id, entity.InterfaceId, entity.Mac));
         return entity;
     }
 
@@ -42,6 +49,8 @@ public sealed class MacAddress : AggregateRoot
 
         Mac = Normalize(mac)
             ?? throw new ArgumentException("O MAC informado é inválido.", nameof(mac));
+
+        RaiseDomainEvent(new MacAddressUpdatedDomainEvent(Id, InterfaceId, Mac));
     }
 
     private static string? Normalize(string value)

@@ -101,6 +101,7 @@ public sealed class DeleteSwitchPortCommandHandler(
         if (await switchPortVlanRepository.HasVlanLinksAsync(port.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir a porta: existem VLANs vinculadas.");
 
+        port.Delete(); // ADR-030 §5 — portDeletedDomainEvent na mesma transação
         repository.Remove(port);
         await repository.SaveChangesAsync(cancellationToken);
 

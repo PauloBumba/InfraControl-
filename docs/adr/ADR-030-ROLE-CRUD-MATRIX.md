@@ -21,7 +21,7 @@ o ADR-016 (roles como fonte única) sem criar um terceiro modelo.
 |---|---|
 | **Operacionais** (inventory, network, tasks, incidents, knowledge, SLA, monitoring checks, discovery, remote access) | CRUD completo exposto: list + **get by id** + create + update + delete (ou ciclo por estado, quando a entidade não deleta) |
 | **Parciais operacionais** | Completar a operação que faltar (ex.: `PUT` em `Connection`) dentro da própria vertical slice |
-| **Append-only / telemetria** | Somente leitura permanece: `Alert`, `AuditEntry`, `MonitoringResult`, `MonitoringEvent`, `DiscoveryResult`, `TaskHistory`, `Notification` (feed), `SloMeasurement`/`SloBudget` salvo decisão contrária registrada na task |
+| **Append-only / telemetria** | Somente leitura permanece: `Alert`, `AuditEntry`, `MonitoringResult`, `MonitoringEvent`, `DiscoveryResult`, `TaskHistory`, `Notification` (feed), `SloMeasurement`/`SloBudget` — **decisão Fase 2 (2026-10-05): sem PUT**, registros imutáveis (create + delete para correção); `Slo` mantém CRUD completo |
 | **Self-service** | PDI, preferências de notificação, sessões próprias, convite (`me`/accept/reject) — escrita sobre o próprio registro |
 | **Sem API (não muda)** | Infra de mensageria/integração: `OutboxMessage`, `ProcessedMessage`, `NotificationDelivery`, `IncidentAlert`, `InvitationRole`, `ExternalDeviceReference` |
 
@@ -89,6 +89,14 @@ ficam publicados no bus aguardando consumidores futuros.
   telemetria continuam sendo ingestão interna/webhook, não CRUD.
 - Work split: Fase 1 gaps de autorização → Fase 2 CRUD parcial → Fase 3
   eventos/outbox → Fase 4 consumers → Fase 5 frontend → Fase 6 docs.
+  - [x] Fase 1 concluída (2026-10-04): RunCheck/UniFi sync/Notification
+    prefs → policy `Operate`.
+  - [x] Fase 2 concluída (2026-10-05): `Connection` PUT, `MonitoringCheck`
+    CRUD (lista migrou para `devices/{id}/checks`), `TaskComment` PUT/DELETE,
+    `Invitation` PUT (roles pendentes), `Incident` sem DELETE confirmado,
+    `TaskItem` update já existia, `SloMeasurement`/`SloBudget` sem PUT.
+    Ajuste estrutural: `Invitation.RoleAssignments` expõe a `List` real
+    (não `AsReadOnly()`) — o fixup do EF precisa escrever na coleção.
 
 ## Referências
 

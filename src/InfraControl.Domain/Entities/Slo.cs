@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -19,6 +20,10 @@ public sealed class Slo : AggregateRoot
 
     private Slo() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new SloDeletedDomainEvent(Id, Name));
+
     public static Slo Create(
         string name,
         decimal targetPercent,
@@ -27,6 +32,11 @@ public sealed class Slo : AggregateRoot
     {
         var slo = new Slo();
         slo.Update(name, targetPercent, windowDays, serviceId);
+
+        // ADR-030 §5 — descarta o Updated transitório do Update interno.
+        slo.ClearDomainEvents();
+        slo.RaiseDomainEvent(new SloCreatedDomainEvent(
+            slo.Id, slo.Name, slo.TargetPercent, slo.ServiceId));
         return slo;
     }
 
@@ -62,5 +72,7 @@ public sealed class Slo : AggregateRoot
         TargetPercent = targetPercent;
         WindowDays = windowDays;
         ServiceId = serviceId;
+
+        RaiseDomainEvent(new SloUpdatedDomainEvent(Id, Name, TargetPercent));
     }
 }

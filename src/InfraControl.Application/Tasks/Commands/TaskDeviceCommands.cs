@@ -86,6 +86,8 @@ public sealed class UnlinkTaskDeviceCommandHandler(
                 $"Vínculo da task '{request.TaskId}' com o device "
                 + $"'{request.DeviceId}' não encontrado.");
 
+        link.Delete(); // ADR-030 §5 — junçãoDeletedDomainEvent na mesma transação
+
         taskDeviceRepository.Remove(link);
         await taskDeviceRepository.SaveChangesAsync(cancellationToken);
 

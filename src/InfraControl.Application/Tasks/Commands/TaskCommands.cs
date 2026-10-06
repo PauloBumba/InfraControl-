@@ -114,6 +114,7 @@ public sealed class DeleteTaskCommandHandler(
         // F7-T002→T005 passam a bloquear aqui (pré-check) quando houver
         // assignees/devices/incidents/comentários; FKs Restrict são o
         // backstop (padrão Locations/DeviceCredentials).
+        task.Delete(); // ADR-030 §5 — TaskItemDeletedDomainEvent na mesma transação
         repository.Remove(task);
         await repository.SaveChangesAsync(cancellationToken);
 
