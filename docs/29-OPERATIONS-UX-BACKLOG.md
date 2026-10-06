@@ -104,6 +104,21 @@ documentada antes da tela.
      (remapeamento de dados `InProgress` → `Active`); front com seletor
      dos próximos estados válidos, gestor/período/motivo e timeline;
      testes `PdiCommandTests` 15 + `PdiTransitionsTests` 20.
+   - **Fase 2 — Estrutura do desenvolvimento executada em 2026-10-05**
+     (ADR-032): catálogo **global** de competências (`pdi_competencies`,
+     escrita `Administer`, duplicata em lowercase → 409) + árvore
+     **objetivos → estratégias → fases → atividades** (FKs `Restrict` →
+     409 ao excluir com filhos, ordenação `sort_order`, fase com status
+     provisório `NotStarted/InProgress/Completed` + progresso e
+     responsável, prazos), ownership centralizado em `PdiAccess` (Admin
+     gerencia qualquer plano, Operador só o próprio → 403),
+     `PdiStructureLookup` resolve a cadeia filho → plano, rota
+     `GET /pdi/{userId}/structure` + CRUD dos 5 níveis, migração
+     `20261006001904_PdiDevelopmentStructure`; front `PdiStructureDialog`
+     (árvore, forms por nível, catálogo com criação Admin, responsável
+     Admin=usuários / Operador=plano+gestor) no botão "Estrutura" da
+     `PdiPage`; testes `PdiStructureTests` 11; Fase 2 **não** escreve
+     histórico/eventos (auditoria = Fase 5).
 
 ## Ordem de execução
 

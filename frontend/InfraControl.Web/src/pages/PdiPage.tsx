@@ -17,6 +17,7 @@ import {
   type PdiStatus,
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
+import { PdiStructureDialog } from "@/components/pdi/PdiStructureDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
@@ -95,6 +96,9 @@ export function PdiPage() {
   const [historyEntries, setHistoryEntries] = useState<PdiHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // Estrutura do desenvolvimento (docs/30 §5-§8, Fase 2).
+  const [structurePlan, setStructurePlan] = useState<Pdi | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -244,6 +248,9 @@ export function PdiPage() {
 
   const actionsCell = (plan: Pdi) => (
     <div style={{ display: "flex", gap: 6 }}>
+      <Button variant="ghost" onClick={() => setStructurePlan(plan)}>
+        Estrutura
+      </Button>
       <Button variant="ghost" onClick={() => void openHistory(plan)}>
         Histórico
       </Button>
@@ -305,7 +312,7 @@ export function PdiPage() {
           />
           <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} style={{ width: 155 }} />
           <Column header="Atualizado" body={(plan: Pdi) => formatDateTime(new Date(plan.updateDateTime))} style={{ width: 155 }} />
-          <Column body={actionsCell} style={{ width: 190 }} />
+          <Column body={actionsCell} style={{ width: 270 }} />
         </DataTable>
       ) : ownPdi ? (
         <div
@@ -324,6 +331,9 @@ export function PdiPage() {
             <div style={{ fontWeight: 600 }}>Meu plano</div>
             <div className="flex align-items-center gap-2">
               {statusChip(ownPdi.status)}
+              <Button variant="ghost" onClick={() => setStructurePlan(ownPdi)}>
+                Estrutura
+              </Button>
               <Button variant="ghost" onClick={() => void openHistory(ownPdi)}>
                 Histórico
               </Button>
@@ -522,6 +532,13 @@ export function PdiPage() {
           </div>
         )}
       </Dialog>
+
+      <PdiStructureDialog
+        visible={structurePlan !== null}
+        onHide={() => setStructurePlan(null)}
+        plan={structurePlan}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }
