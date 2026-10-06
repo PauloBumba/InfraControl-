@@ -36,6 +36,20 @@ public sealed class IncidentCreatedDomainEvent : DomainEvent
 /// avisa as roles Operator e Admin (regra 7 da revisão: só o InfraControl
 /// decide a resolução; o n8n nunca manda nesse estado).
 /// </summary>
+/// <summary>ADR-030 §5 — transição de status (CRUD update do incidente).</summary>
+public sealed class IncidentUpdatedDomainEvent : DomainEvent
+{
+    public IncidentUpdatedDomainEvent(Guid incidentId, IncidentStatus status)
+    {
+        IncidentId = incidentId;
+        Status = status;
+    }
+
+    public Guid IncidentId { get; }
+    public IncidentStatus Status { get; }
+    public override string EventType => nameof(IncidentUpdatedDomainEvent);
+}
+
 public sealed class IncidentResolvedDomainEvent : DomainEvent
 {
     public IncidentResolvedDomainEvent(

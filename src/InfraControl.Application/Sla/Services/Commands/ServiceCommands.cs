@@ -106,6 +106,7 @@ public sealed class DeleteServiceCommandHandler(
             throw new InvalidOperationException(
                 "Não é possível excluir o serviço: existem SLOs vinculados.");
 
+        service.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(service);
         await repository.SaveChangesAsync(cancellationToken);
 

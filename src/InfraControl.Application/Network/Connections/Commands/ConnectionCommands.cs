@@ -80,6 +80,7 @@ public sealed class DeleteConnectionCommandHandler(
         var connection = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Conexão '{request.Id}' não encontrada.");
 
+        connection.Delete(); // ADR-030 §5 — connectionDeletedDomainEvent na mesma transação
         repository.Remove(connection);
         await repository.SaveChangesAsync(cancellationToken);
 

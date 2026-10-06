@@ -59,3 +59,64 @@ public sealed class AddTaskCommentCommandHandler(
             currentUser.UserName, comment.Content, comment.CreateDateTime);
     }
 }
+
+// ADR-030 §1 — PUT/DELETE do comentário (Operate). Mutação de terceiros
+// (autor não precisa ser o dono): Admin e Operator moderam o mural.
+// Mapeamento: ArgumentException → 400, KeyNotFoundException → 404.
+
+public sealed record UpdateTaskCommentCommand(
+    Guid Id,
+    string Content) : BaseCommand<TaskCommentDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class UpdateTaskCommentCommandHandler(
+    ITaskCommentRepository commentRepository)
+    : IRequestHandler<UpdateTaskCommentCommand, TaskCommentDto>
+{
+    public async Task<TaskCommentDto> Handle(
+        UpdateTaskCommentCommand request, CancellationToken cancellationToken)
+    {
+        var comment = await commentRepository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Comentário '{request.Id}' não encontrado.");
+
+        comment.EditContent(request.Content);
+        await commentRepository.SaveChangesAsync(cancellationToken);
+
+        return new TaskCommentDto(
+            comment.Id, comment.TaskId, comment.AuthorId,
+            AuthorName: null, comment.Content, comment.CreateDateTime);
+    }
+}
+
+public sealed record DeleteTaskCommentCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class DeleteTaskCommentCommandHandler(
+    ITaskCommentRepository commentRepository,
+    ILogger<DeleteTaskCommentCommandHandler> logger)
+    : IRequestHandler<DeleteTaskCommentCommand>
+{
+    public async Task Handle(
+        DeleteTaskCommentCommand request, CancellationToken cancellationToken)
+    {
+        var comment = await commentRepository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Comentário '{request.Id}' não encontrado.");
+
+        comment.Delete(); // ADR-030 §5 — TaskCommentDeletedDomainEvent na mesma transação
+
+        commentRepository.Remove(comment);
+        await commentRepository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Comment {CommentId} deleted from task {TaskId}.",
+            comment.Id, comment.TaskId);
+    }
+}

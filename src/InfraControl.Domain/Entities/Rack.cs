@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -18,6 +19,10 @@ public sealed class Rack : AggregateRoot
 
     private Rack() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new RackDeletedDomainEvent(Id, LocationId, Name));
+
     public static Rack Create(Guid locationId, string name, string? description = null)
     {
         if (locationId == Guid.Empty)
@@ -26,6 +31,8 @@ public sealed class Rack : AggregateRoot
         var rack = new Rack();
         rack.LocationId = locationId;
         rack.Update(name, description);
+        rack.ClearDomainEvents(); // descarta o Updated transitório do Create
+        rack.RaiseDomainEvent(new RackCreatedDomainEvent(rack.Id, rack.LocationId, rack.Name));
         return rack;
     }
 
@@ -45,5 +52,7 @@ public sealed class Rack : AggregateRoot
 
         Name = name;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        RaiseDomainEvent(new RackUpdatedDomainEvent(Id, LocationId, Name));
     }
 }

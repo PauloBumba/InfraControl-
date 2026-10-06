@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Events;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Domain.Events;
 
@@ -13,6 +14,20 @@ public sealed class InvitationCreatedDomainEvent : DomainEvent
     public Guid InvitationId { get; }
     public string Email { get; }
     public override string EventType => nameof(InvitationCreatedDomainEvent);
+}
+
+/// <summary>ADR-030 §5 — PUT de roles / cancelamento (CRUD update).</summary>
+public sealed class InvitationUpdatedDomainEvent : DomainEvent
+{
+    public InvitationUpdatedDomainEvent(Guid invitationId, InvitationStatus status)
+    {
+        InvitationId = invitationId;
+        Status = status;
+    }
+
+    public Guid InvitationId { get; }
+    public InvitationStatus Status { get; }
+    public override string EventType => nameof(InvitationUpdatedDomainEvent);
 }
 
 public sealed class InvitationAcceptedDomainEvent : DomainEvent

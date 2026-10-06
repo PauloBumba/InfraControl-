@@ -1,5 +1,6 @@
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.Application.Identity.Invitations.Queries;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
@@ -95,5 +96,53 @@ public sealed class CancelInvitationCommandHandler(
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Invitation {InvitationId} cancelled.", request.InvitationId);
+    }
+}
+
+/// <summary>
+/// ADR-030 §1 — PUT do convite pendente: só as roles são editáveis
+/// (email/expiração ficam no ciclo de cancelar e recriar — o token já
+/// foi enviado ao e-mail original).
+/// </summary>
+public sealed record UpdateInvitationCommand(
+    Guid InvitationId,
+    IReadOnlyCollection<UserRole> Roles) : BaseCommand<InvitationDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
+}
+
+public sealed class UpdateInvitationCommandHandler(
+    IInvitationRepository repository,
+    ILogger<UpdateInvitationCommandHandler> logger)
+    : IRequestHandler<UpdateInvitationCommand, InvitationDto>
+{
+    public async Task<InvitationDto> Handle(
+        UpdateInvitationCommand request, CancellationToken cancellationToken)
+    {
+        var invitation = await repository.GetByIdAsync(request.InvitationId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Convite '{request.InvitationId}' não encontrado.");
+
+        // Domínio valida (Pending 409 / vazio 400) e muta a coleção em
+        // memória; o replace físico fica no repositório (ver IInvitationRepository).
+        invitation.SetRoles(request.Roles);
+        await repository.ReplaceRolesAsync(
+            invitation.Id, invitation.Roles.ToArray(), cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Invitation {InvitationId} roles updated to {Roles}.",
+            invitation.Id, string.Join(", ", invitation.Roles));
+
+        return new InvitationDto(
+            invitation.Id,
+            invitation.Email,
+            invitation.Status,
+            invitation.ExpiresAt,
+            invitation.CreateDateTime,
+            invitation.CreatedBy,
+            invitation.Roles.Select(role => role.ToString()).ToArray(),
+            invitation.DecidedAt);
     }
 }

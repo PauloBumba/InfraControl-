@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -17,10 +18,19 @@ public sealed class KnowledgeCategory : AggregateRoot
 
     private KnowledgeCategory() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new KnowledgeCategoryDeletedDomainEvent(Id, Name));
+
     public static KnowledgeCategory Create(string name, string? description)
     {
         var category = new KnowledgeCategory();
         category.Update(name, description);
+
+        // ADR-030 §5 — descarta o Updated transitório do Update interno.
+        category.ClearDomainEvents();
+        category.RaiseDomainEvent(new KnowledgeCategoryCreatedDomainEvent(
+            category.Id, category.Name));
         return category;
     }
 
@@ -50,5 +60,7 @@ public sealed class KnowledgeCategory : AggregateRoot
 
         Name = name;
         Description = description;
+
+        RaiseDomainEvent(new KnowledgeCategoryUpdatedDomainEvent(Id, Name));
     }
 }

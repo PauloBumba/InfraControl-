@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -21,10 +22,16 @@ public sealed class Vlan : AggregateRoot
 
     private Vlan() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new VlanDeletedDomainEvent(Id, Name, VlanNumber));
+
     public static Vlan Create(string name, int vlanNumber, string? description = null)
     {
         var vlan = new Vlan();
         vlan.Update(name, vlanNumber, description);
+        vlan.ClearDomainEvents(); // descarta o Updated transitório do Create
+        vlan.RaiseDomainEvent(new VlanCreatedDomainEvent(vlan.Id, vlan.Name, vlan.VlanNumber));
         return vlan;
     }
 
@@ -49,5 +56,7 @@ public sealed class Vlan : AggregateRoot
         Name = name;
         VlanNumber = vlanNumber;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        RaiseDomainEvent(new VlanUpdatedDomainEvent(Id, Name, VlanNumber));
     }
 }

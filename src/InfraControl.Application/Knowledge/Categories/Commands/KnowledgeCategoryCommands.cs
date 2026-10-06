@@ -106,6 +106,7 @@ public sealed class DeleteKnowledgeCategoryCommandHandler(
             ?? throw new KeyNotFoundException(
                 $"Categoria '{request.Id}' não encontrada.");
 
+        category.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(category);
         await repository.SaveChangesAsync(cancellationToken);
 

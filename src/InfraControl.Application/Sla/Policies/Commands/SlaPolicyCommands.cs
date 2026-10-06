@@ -127,6 +127,7 @@ public sealed class DeleteSlaPolicyCommandHandler(
             throw new InvalidOperationException(
                 "Não é possível excluir a política de SLA: existem tasks com este SLA aplicado.");
 
+        policy.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(policy);
         await repository.SaveChangesAsync(cancellationToken);
 

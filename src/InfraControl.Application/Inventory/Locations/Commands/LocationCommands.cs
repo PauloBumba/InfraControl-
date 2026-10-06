@@ -88,6 +88,7 @@ public sealed class DeleteLocationCommandHandler(
         if (await repository.HasRacksAsync(location.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o local: existem racks vinculados.");
 
+        location.Delete(); // ADR-030 §5 — locationDeletedDomainEvent na mesma transação
         repository.Remove(location);
         await repository.SaveChangesAsync(cancellationToken);
 

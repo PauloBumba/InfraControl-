@@ -59,7 +59,9 @@ public sealed class MonitoringCheckCommandTests : IDisposable
         => new(new MonitoringCheckRepository(context));
 
     private static DeleteMonitoringCheckCommandHandler DeleteHandler(AppDbContext context)
-        => new(new MonitoringCheckRepository(context));
+        => new(
+            new MonitoringCheckRepository(context),
+            NullLogger<DeleteMonitoringCheckCommandHandler>.Instance);
 
     private static GetMonitoringCheckQueryHandler GetHandler(AppDbContext context)
         => new(new MonitoringCheckRepository(context));

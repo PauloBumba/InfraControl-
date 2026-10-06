@@ -70,16 +70,49 @@ public interface IPdiStructureRepository
     Task<PdiStructureRows> GetTreeAsync(
         Guid userId, CancellationToken cancellationToken = default);
 
+    // ---- Acompanhamento (Fase 3, ADR-033) ----
+    Task<PdiProgress?> GetProgressAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<PdiCheckIn?> GetCheckInAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<PdiImpediment?> GetImpedimentAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<PdiFeedback?> GetFeedbackAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PdiProgress>> ListProgressesAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PdiCheckIn>> ListCheckInsAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PdiImpediment>> ListImpedimentsAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PdiFeedback>> ListFeedbacksAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
+
     // ---- Escrita ----
     void AddObjective(PdiObjective objective);
     void AddStrategy(PdiStrategy strategy);
     void AddPhase(PdiPhase phase);
     void AddActivity(PdiActivity activity);
+    void AddProgress(PdiProgress progress);
+    void AddCheckIn(PdiCheckIn checkIn);
+    void AddImpediment(PdiImpediment impediment);
+    void AddFeedback(PdiFeedback feedback);
 
     void RemoveObjective(PdiObjective objective);
     void RemoveStrategy(PdiStrategy strategy);
     void RemovePhase(PdiPhase phase);
     void RemoveActivity(PdiActivity activity);
+    void RemoveProgress(PdiProgress progress);
+    void RemoveCheckIn(PdiCheckIn checkIn);
+    void RemoveImpediment(PdiImpediment impediment);
+    void RemoveFeedback(PdiFeedback feedback);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

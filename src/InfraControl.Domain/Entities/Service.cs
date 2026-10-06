@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -18,10 +19,18 @@ public sealed class Service : AggregateRoot
 
     private Service() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new ServiceDeletedDomainEvent(Id, Name));
+
     public static Service Create(string name, string? description = null)
     {
         var service = new Service();
         service.Update(name, description);
+
+        // ADR-030 §5 — descarta o Updated transitório do Update interno.
+        service.ClearDomainEvents();
+        service.RaiseDomainEvent(new ServiceCreatedDomainEvent(service.Id, service.Name));
         return service;
     }
 
@@ -42,5 +51,7 @@ public sealed class Service : AggregateRoot
 
         Name = name;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        RaiseDomainEvent(new ServiceUpdatedDomainEvent(Id, Name));
     }
 }

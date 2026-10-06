@@ -80,6 +80,23 @@ public sealed class TaskCommentCommandTests : IDisposable
     private static GetTaskCommentsQueryHandler ListHandler(AppDbContext context)
         => new(TaskRepo(context), CommentRepo(context));
 
+    private static UpdateTaskCommentCommandHandler UpdateHandler(AppDbContext context)
+        => new(CommentRepo(context));
+
+    private static DeleteTaskCommentCommandHandler DeleteHandler(AppDbContext context)
+        => new(
+            CommentRepo(context),
+            NullLogger<DeleteTaskCommentCommandHandler>.Instance);
+
+    private static async Task<Guid> SeedCommentAsync(AppDbContext context)
+    {
+        var (taskId, authorId) = await SeedTaskAndAuthorAsync(context);
+        var comment = TaskComment.Create(taskId, authorId, "comentário original");
+        context.TaskComments.Add(comment);
+        await context.SaveChangesAsync();
+        return comment.Id;
+    }
+
     // ── Add ──────────────────────────────────────────────────────────────
 
     [Fact]
@@ -203,4 +220,84 @@ public sealed class TaskCommentCommandTests : IDisposable
 
         comments.Should().ContainSingle().Which.Content.Should().Be("único");
     }
+
+    // ── Update / Delete (ADR-030 §1) ────────────────────────────────────
+
+    [Fact]
+    public void UpdateCommand_ShouldRequireOperate()
+        => new UpdateTaskCommentCommand(Guid.NewGuid(), "c").RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
+
+    [Fact]
+    public async Task Update_Existing_ShouldChangeContent()
+    {
+        await using var context = await CreateContextAsync();
+        var commentId = await SeedCommentAsync(context);
+
+        var dto = await UpdateHandler(context).Handle(
+            new UpdateTaskCommentCommand(commentId, "  conteúdo corrigido  "),
+            CancellationToken.None);
+
+        dto.Id.Should().Be(commentId);
+        dto.Content.Should().Be("conteúdo corrigido");
+
+        var saved = await context.TaskComments.AsNoTracking().SingleAsync();
+        saved.Content.Should().Be("conteúdo corrigido");
+    }
+
+    [Fact]
+    public async Task Update_UnknownId_ShouldThrowNotFoundMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var unknownId = Guid.NewGuid();
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateTaskCommentCommand(unknownId, "x"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Comentário '{unknownId}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Update_EmptyContent_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var commentId = await SeedCommentAsync(context);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateTaskCommentCommand(commentId, "   "), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("O conteúdo do comentário é obrigatório.*");
+    }
+
+    [Fact]
+    public async Task Delete_Existing_ShouldRemoveIt()
+    {
+        await using var context = await CreateContextAsync();
+        var commentId = await SeedCommentAsync(context);
+
+        await DeleteHandler(context).Handle(
+            new DeleteTaskCommentCommand(commentId), CancellationToken.None);
+
+        context.TaskComments.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Delete_UnknownId_ShouldThrowNotFoundMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var unknownId = Guid.NewGuid();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteTaskCommentCommand(unknownId), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Comentário '{unknownId}' não encontrado.");
+    }
+
+    [Fact]
+    public void DeleteCommand_ShouldRequireOperate()
+        => new DeleteTaskCommentCommand(Guid.NewGuid()).RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
 }

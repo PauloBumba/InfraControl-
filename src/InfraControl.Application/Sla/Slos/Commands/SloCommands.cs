@@ -118,6 +118,7 @@ public sealed class DeleteSloCommandHandler(
             throw new InvalidOperationException(
                 "Não é possível excluir o SLO: existem orçamentos vinculados.");
 
+        slo.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(slo);
         await repository.SaveChangesAsync(cancellationToken);
 

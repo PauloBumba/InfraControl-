@@ -202,6 +202,7 @@ public sealed class DeleteDeviceCommandHandler(
         if (await repository.HasTasksAsync(device.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o device: existem tasks vinculadas.");
 
+        device.Delete(); // ADR-030 §5 — deviceDeletedDomainEvent na mesma transação
         repository.Remove(device);
         await repository.SaveChangesAsync(cancellationToken);
 
