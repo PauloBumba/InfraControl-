@@ -30,7 +30,9 @@ import {
   type PdiStructure,
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
+
 import { PdiAccompanimentDialog } from "@/components/pdi/PdiAccompanimentDialog";
+
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
