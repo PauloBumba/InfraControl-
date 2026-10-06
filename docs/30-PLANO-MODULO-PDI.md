@@ -6,7 +6,7 @@
 > implementado** está no cabeçalho; a evolução segue as **8 fases** da §25,
 > **uma task por fase**, com ADR antes de qualquer mudança arquitetural.
 >
-> ## Situação atual (2026-10-04) — o que já existe
+> ## Situação atual (2026-10-05) — o que já existe
 >
 > - `IndividualDevelopmentPlan` (1 por usuário): estratégia, prazo,
 >   status, **gestor (`ManagerId`), período (`PeriodStart/End`)**, ator
@@ -18,22 +18,34 @@
 > - **histórico/timeline** da §17: `individual_development_plan_history`
 >   (append-only, Created/Updated/StatusChanged + motivo), endpoint
 >   `GET /pdi/{userId}/history`;
+> - **estrutura do desenvolvimento (Fase 2, ADR-032)**: catálogo global
+>   de competências (`pdi_competencies`, escrita Admin, duplicata em
+>   lowercase → 409) e árvore **objetivos → estratégias → fases →
+>   atividades** (tabelas `pdi_*`, FKs `Restrict` → 409 com filhos,
+>   ordenação `sort_order`, fase com status provisório
+>   NotStarted/InProgress/Completed + progresso, prazos), ownership
+>   único `PdiAccess` (Admin qualquer plano / Operador só o próprio),
+>   `GET /pdi/{userId}/structure` + CRUD dos 5 níveis, `PdiStructureDialog`
+>   no front (árvore, forms, catálogo, responsável Admin=usuários /
+>   Operador=plano+gestor);
 > - permissões: Admin cria/edita/transiciona/lista tudo (gestor/período
 >   só o Admin define), Operador edita só o próprio e **só o aceite
 >   (Aguardando aceite → Ativo)** muda status, Viewer sem acesso (rota
 >   `operate`);
 > - `GET/PUT /api/v1/pdi` + `PdiPage` (`/pdi`, seletor de status com os
->   próximos estados válidos, gestor, período, motivo, timeline);
+>   próximos estados válidos, gestor, período, motivo, timeline,
+>   botão Estrutura);
 > - eventos `PdiCreated/Updated` → outbox → RabbitMQ → notificações
 >   (criação: dono Email+SignalR; edição: dono ou Admin por role, só
 >   SignalR);
-> - testes `PdiCommandTests` (15) + `PdiTransitionsTests` (20) + suítes
->   verdes; migração `20261005011124_PdiLifecycleManagerPeriodHistory`
->   aplicada no dev; containers/ smoke/ E2E.
+> - testes `PdiCommandTests` (15) + `PdiTransitionsTests` (20) +
+>   `PdiStructureTests` (11) + suítes verdes; migrações `20261005011124`
+>   e `20261006001904_PdiDevelopmentStructure` aplicadas no dev;
+>   containers/ smoke/ E2E.
 >
-> **Fase 1 (§25) executada em 2026-10-04** — ver ADR-029. Gap para a
-> **Fase 2**: diagnóstico inicial (§4), objetivos, competências, fases,
-> atividades.
+> **Fases 1 (§25) e 2 executadas** — ver ADR-029 e ADR-032. Gap para a
+> **Fase 3**: acompanhamento (§9) — check-ins, progresso, comentários,
+> feedback, dificuldades, impedimentos.
 
 ---
 
@@ -415,7 +427,7 @@ DIAGNÓSTICO → PLANEJAMENTO (objetivos + estratégia) → FASES → EXECUÇÃO
 > "Como você já possui um PDI básico, eu não reescreveria tudo. Faria em etapas:"
 
 - **Fase 1 — Fundamento:** revisar entidade PDI atual; pessoa/gestor; período; status; permissões; histórico. <!-- [x] Executada 2026-10-04 — ADR-029: 9 status + tabela de transições (§3), ManagerId/PeriodStart/PeriodEnd, histórico append-only (17), permissões (Operador só aceite), migração `20261005011124` com remapeamento InProgress→Active, front (transições/gestor/período/motivo/timeline), testes 35 PDI. -->
-- **Fase 2 — Estrutura do desenvolvimento:** objetivos; competências; estratégias; fases; atividades; prazos.
+- **Fase 2 — Estrutura do desenvolvimento:** objetivos; competências; estratégias; fases; atividades; prazos. <!-- [x] Executada 2026-10-05 — ADR-032: 5 entidades (PdiCompetency catálogo global lowercase 409, PdiObjective/Strategy/Phase/Activity com FK Restrict → 409, sort_order, fase NotStarted/InProgress/Completed + Percent), ownership PdiAccess (Admin tudo / Operador próprio), PdiStructureLookup cadeia→plano, migração `20261006001904_PdiDevelopmentStructure`, controller/VMs GET structure + CRUD 5 níveis, PdiStructureDialog (árvore/forms/catálogo/responsável), testes 11 PDI. -->
 - **Fase 3 — Acompanhamento:** check-ins; progresso; comentários; feedback; dificuldades; impedimentos.
 - **Fase 4 — Evidências:** upload; tipos; validação; rejeição; histórico.
 - **Fase 5 — Governança:** aprovação; aceite do colaborador; replanejamento; auditoria; histórico de alterações.

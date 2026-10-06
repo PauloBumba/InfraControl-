@@ -78,6 +78,11 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<DomainIdentity.UserMfa> UserMfas => Set<DomainIdentity.UserMfa>();
     public DbSet<IndividualDevelopmentPlan> IndividualDevelopmentPlans => Set<IndividualDevelopmentPlan>();
     public DbSet<PdiHistoryEntry> PdiHistoryEntries => Set<PdiHistoryEntry>();
+    public DbSet<PdiCompetency> PdiCompetencies => Set<PdiCompetency>();
+    public DbSet<PdiObjective> PdiObjectives => Set<PdiObjective>();
+    public DbSet<PdiStrategy> PdiStrategies => Set<PdiStrategy>();
+    public DbSet<PdiPhase> PdiPhases => Set<PdiPhase>();
+    public DbSet<PdiActivity> PdiActivities => Set<PdiActivity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

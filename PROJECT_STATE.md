@@ -191,6 +191,39 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   400, timeline Created+4 StatusChanged ordenada com ator resolvido,
   SPA `/pdi` 200). Docs: ADR-029, docs/30 (situação+§25),
   docs/29 §8, TASKS. **Checkpoint — nada commitado** (aguarda decisão).
+- PDI Fase 2 — Estrutura do desenvolvimento concluída (2026-10-05,
+  pedido "executa todas as fases restantes 2→8 sem perguntar"; escopo
+  docs/30 §5–§8): **ADR-032** (`docs/adr/ADR-032-PDI-DEVELOPMENT-STRUCTURE.md`).
+  Domínio: 5 entidades próprias sob o plano — `PdiCompetency` (catálogo
+  **global** sem dono, duplicata em lowercase → 409), `PdiObjective`
+  (dono=UserId, competência opcional, situação atual/desejada,
+  resultado/indicador, prazo, `Order`), `PdiStrategy`, `PdiPhase`
+  (responsável opcional, período `End ≥ Start`, `PdiPhaseStatus`
+  NotStarted/InProgress/Completed provisório — governança = Fase 5 —,
+  `Percent` 0–100, `Order`), `PdiActivity` (conclusão+prazo); FKs
+  `Restrict` → 409 ao excluir com filhos; ordenação em `sort_order`
+  (coluna `order` é keyword). Application: `IPdiStructureRepository`,
+  DTOs da árvore, **`PdiAccess`** (regra única: Admin qualquer plano /
+  Operador só o próprio → 403), `PdiStructureLookup` (sobe a cadeia
+  filho → plano), 3 comandos de competência (`Administer`) + 12 da
+  estrutura (`Operate`+dono) + 2 queries. Infra: 5 configs `pdi_*`,
+  5 DbSets, `PdiStructureRepository` (`LOWER()` case-insensitive em
+  Postgres+Sqlite), migração `20261006001904_PdiDevelopmentStructure`
+  aplicada no dev. Api: `PdiStructureController` (GET estrutura,
+  competências CRUD Administer, 4 níveis POST/PUT/DELETE) + 9 VMs.
+  Front: `pdi.ts` (+15 funções), `PdiStructureDialog.tsx` (árvore,
+  forms, catálogo Admin, responsável Admin=usuários / Operador=
+  plano+gestor), botão "Estrutura" na `PdiPage`. Testes:
+  `PdiStructureTests` **11/11** · PDI **46/46** · unit **1537/1538**
+  (única falha = `InvitationUpdateCommandTests.Update_Pending_ShouldReplaceRoles`
+  da sessão paralela — `DbUpdateConcurrencyException` no WIP deles,
+  reportada, não corrigida) · arch **113/113** · front tsc/lint/build
+  verdes · containers reconstruídos healthy · smoke **12/12** · E2E
+  Fase 2 **37/37** (inclui convite→accept→set-password p/ operador,
+  2×403 de escopo, 400 sem XSRF, 4×409 de exclusão, histórico intacto).
+  Descobertas: registro direto cria usuário *pending* que não loga
+  (caminho autêntico = convite) e DELETE também exige `X-XSRF-TOKEN`.
+  Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
