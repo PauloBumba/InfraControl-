@@ -87,10 +87,29 @@
 >   muda, status restrito por papel); testes `PdiGovernanceTests` (11);
 >   E2E 63/63 (sem migração).
 >
-> **Fases 1 (§25), 2, 3, 4 e 5 executadas** — ver ADR-029, ADR-032,
-> ADR-033, ADR-034 e ADR-035.
-> Gap para a **Fase 6**: avaliação (autoavaliação; avaliação do
-> gestor; resultado; comparação inicial/final).
+> - **avaliação final (Fase 6, ADR-036)**: entidades `PdiAssessment`
+>   (`pdi_assessments`, 1 linha por lado — `Self` autoavaliação do
+>   colaborador / `Manager` avaliação do gestor, autor + conteúdo
+>   ≤4000, upsert) e `PdiResult` (`pdi_results`, único por plano: 4
+>   desfechos do §16 + nota opcional + carimbo do finalizador); fluxo
+>   do §15.3 imposto pelo backend — autoavaliação leva o plano a
+>   **Em avaliação** (+`StatusChanged` no timeline), gestor exige a
+>   autoavaliação, resultado exige as duas avaliações e é imutável
+>   (2ª → 409; plano concluído congela a avaliação); **seta nova**
+>   `UnderEvaluation → Replanned` para o resultado "Replanejado"
+>   (§16 + §3) — os demais → `Completed`; rotas
+>   `GET /pdi/{userId}/evaluation`, `PUT .../assessment`,
+>   `PUT .../result`; histórico `AssessmentCreated`/`ResultFinalized`
+>   (sem migração de dados); auditoria nos 2 comandos novos; botão
+>   "Avaliar" + `PdiEvaluationDialog` (snapshot + 2 avaliações +
+>   resultado, leitura após finalizar); migração
+>   `20261007233505_PdiEvaluation`; testes `PdiEvaluationTests` (15);
+>   E2E 31/31.
+>
+> **Fases 1 (§25), 2, 3, 4, 5 e 6 executadas** — ver ADR-029, ADR-032,
+> ADR-033, ADR-034, ADR-035 e ADR-036.
+> Gap para a **Fase 7**: gestão (dashboard do colaborador; dashboard
+> do gestor; dashboard administrativo).
 
 ---
 
@@ -476,7 +495,7 @@ DIAGNÓSTICO → PLANEJAMENTO (objetivos + estratégia) → FASES → EXECUÇÃO
 - **Fase 3 — Acompanhamento:** check-ins; progresso; comentários; feedback; dificuldades; impedimentos. <!-- [x] Executada 2026-10-06 — ADR-033: 4 entidades sob a fase (PdiProgress progresso+comentário, PdiCheckIn bilateral PUT por lado com null preserva / "" limpa, PdiImpediment status Open→Resolved + ResolvedAt, PdiFeedback histórico excluir=Admin), FK Restrict → 409, permissão por ação em PdiAccess (View=Admin/dono/gestor, Report=Admin/dono, Respond=Admin/gestor, Assist=Admin/dono/gestor, feedback Create=View/Delete=Administer), GET /pdi/{userId}/accompaniment único, PdiAccompanimentDialog (4 abas) pelo botão "Acompanhar", migração `20261006013525_PdiAccompaniment`, testes 9 PDI, E2E 64/64; "comentários" = PdiProgress.Comment; tipo de impedimento livre (lookup = Fase 8). -->
 - **Fase 4 — Evidências:** upload; tipos; validação; rejeição; histórico. <!-- [x] Executada 2026-10-07 — ADR-034: PdiEvidence (pdi_evidences sob a fase, 9 tipos enum + rótulos pt-BR, Pending→Validated/Rejected com revisão única 409 e motivo obrigatório na rejeição, arquivo ≤10MB com nome saneado), storage disco var/pdi-evidence (IPdiEvidenceFileStore, arquivo antes do DB com rollback best-effort; volume nomeado + chown no Dockerfile e nginx client_max_body_size 16m — descobertas do E2E), POST /pdi/evidences multipart + PUT review (JsonStringEnumConverter explícito) + GET download (nosniff), 5ª lista no GET acompanhamento, histórico EvidenceAdded/EvidenceReviewed sem migração, PdiAccess EnsureCanReport/EnsureCanReview/EnsureCanView, aba "Evidências" no PdiAccompanimentDialog (upload/revisão/download blob), migração 20261007015235_PdiEvidence, testes 10 PDI, E2E 50/50. -->
 - **Fase 5 — Governança:** aprovação; aceite do colaborador; replanejamento; auditoria; histórico de alterações. <!-- [x] Executada 2026-10-07 — ADR-035: §14 motivo obrigatório em mudança de campo + detalhe anterior→novo no evento Updated (status-only sem motivo; ordem EnsureCanMove→RequireStrategy→EnsureValid→motivo); §15.2 PdiPhaseStatus.PendingValidation + SubmitPdiPhaseCommand (dono/Admin) / ValidatePdiPhaseCommand (Admin/gestor, rejeição exige motivo → InProgress, validação → Completed + auto-start via ListPhasesAsync) + guard no PUT (não-Admin não muda status para/nem desde PendingValidation/Completed → 400 "…aprovação…"); §15.1 aceite sem motivo já vigente; §17 +7 tipos PhaseStarted/Submitted/Validated/Rejected, CheckInCreated, ImpedimentCreated/Resolved (sem migração) gravados pelos handlers; IAuditableRequest em 30 comandos PDI (AuditResource "PDI"); rotas POST /pdi/phases/{id}/submit + PUT .../validation (JsonStringEnumConverter); front PdiStructureDialog (Concluir/Validar/Rejeitar + diálogo de motivo, phaseStatusOptions por papel) e PdiPage (fieldsChanged/needsReason/payload reason); testes 11 PDI, suíte unit 1605, E2E 63/63 + regressão Fase 4 50/50. -->
-- **Fase 6 — Avaliação:** autoavaliação; avaliação do gestor; resultado; comparação inicial/final.
+- **Fase 6 — Avaliação:** autoavaliação; avaliação do gestor; resultado; comparação inicial/final. <!-- [x] Executada 2026-10-07 — ADR-036: PdiAssessment (1 linha/lado Self+Manager, upsert, autor, conteúdo ≤4000) + PdiResult único (4 desfechos §16 + nota + finalizador); fluxo §15.3 no backend (autoavaliação → UnderEvaluation com StatusChanged; gestor exige Self; resultado exige Manager e é único; Completed congela); seta nova UnderEvaluation→Replanned (Replanejado) + Completed; EnsureCanEvaluate (Admin/gestor); GET evaluation + PUT assessment/result; histórico AssessmentCreated/ResultFinalized; IAuditableRequest (32 comandos PDI); PdiEvaluationDialog + botão "Avaliar"; migração 20261007233505_PdiEvaluation; testes 15 PDI (unit 1621, arch 117, PDI 166), E2E 31/31 + regressão Fase 5 63/63. -->
 - **Fase 7 — Gestão:** dashboard do colaborador; dashboard do gestor; dashboard administrativo.
 - **Fase 8 — Analytics:** indicadores; filtros; relatórios (individual, semestral); exportação PDF/Excel.
 

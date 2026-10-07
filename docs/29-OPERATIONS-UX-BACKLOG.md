@@ -182,6 +182,33 @@ documentada antes da tela.
      original); testes `PdiGovernanceTests` 11; E2E **63/63** (+
      regressão Fase 4 50/50); retenção de evidências **não** entrou
      (continua pendente).
+   - **Fase 6 — Avaliação executada em 2026-10-07** (ADR-036):
+     `PdiAssessment` (`pdi_assessments`, 1 linha por lado — `Self`
+     autoavaliação / `Manager` avaliação do gestor, autor + conteúdo
+     ≤4000, upsert) e `PdiResult` (`pdi_results`, único por plano — 4
+     desfechos do §16 *atingido · parcialmente atingido · não atingido ·
+     replanejado* + nota opcional + finalizador); fluxo do §15.3
+     imposto pelo backend: autoavaliação (dono) leva o plano a **Em
+     avaliação** com `StatusChanged` no timeline, avaliação do
+     gestor/Admin exige a autoavaliação (400) e plano em avaliação
+     (409), resultado exige as duas avaliações e é **único/imutável**
+     (2ª → 409, plano concluído congela → 409); **seta nova**
+     `UnderEvaluation → Replanned` para o resultado "Replanejado"
+     (§16 + §3) — os demais vão a `Completed`; rotas
+     `GET /pdi/{userId}/evaluation`, `PUT .../assessment`,
+     `PUT .../result` (`EnsureCanEvaluate` = Admin/gestor), histórico
+     `AssessmentCreated`/`ResultFinalized` (sem migração de dados),
+     auditoria nos 2 comandos novos (32 no total com "PDI"); front
+     botão **"Avaliar"** + `PdiEvaluationDialog` (snapshot do plano,
+     as 2 avaliações e o resultado — somente leitura depois de
+     finalizar) e `UnderEvaluation: ["Completed","Replanned"]` no
+     seletor; migração `20261007233505_PdiEvaluation` aplicada no dev;
+     testes `PdiEvaluationTests` 15 (+ seta em `PdiTransitionsTests`);
+     E2E **31/31** (`/tmp/opencode/pdi_fase6_e2e.py`: guards na ordem
+     do §15.3, transição + timeline, upsert por linha, congelamento,
+     ciclo `Replanejado → Replanned → Active`, auditoria SQL, 2
+     colaboradores convidados, purga de resíduo) + regressão Fase 5
+     **63/63**.
 
 ## Ordem de execução
 

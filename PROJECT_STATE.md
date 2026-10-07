@@ -323,6 +323,35 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   pré-existente — sem isso o motivo é exigido pela própria limpeza).
   Docs: ADR-035, docs/30 (situação+§25), docs/29 §8, TASKS.
 
+- PDI Fase 6 — Avaliação concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §15.3, §16, §17, §23):
+  **ADR-036** (`docs/adr/ADR-036-PDI-EVALUATION.md`). Domínio:
+  `PdiAssessment` (1 linha por lado `Self`/`Manager`, upsert, autor,
+  conteúdo ≤4000) + `PdiResult` único (4 desfechos do §16 + nota
+  opcional + finalizador), **seta nova** `UnderEvaluation →
+  Replanned` (resultado "Replanejado" devolve o plano ao ciclo —
+  demais vão a `Completed`), histórico `AssessmentCreated`/
+  `ResultFinalized` (sem migração de dados). Application: fluxo do
+  §15.3 imposto no servidor (autoavaliação → plano `UnderEvaluation`
+  com `StatusChanged`; gestor exige autoavaliação 400 e plano em
+  avaliação 409; resultado exige as duas avaliações, é único e
+  congela o plano — 409), `EnsureCanEvaluate`, `GET
+  /pdi/{userId}/evaluation` + `PUT .../assessment` + `PUT
+  .../result`, `IAuditableRequest` (32 comandos PDI). Infra: migração
+  `20261007233505_PdiEvaluation` aplicada no dev (via script SQL —
+  o design-time factory aponta outra instância em 5432). Front:
+  botão **"Avaliar"** + `PdiEvaluationDialog` (snapshot, 2
+  avaliações, resultado; leitura após finalizar) e
+  `UnderEvaluation: ["Completed","Replanned"]` no seletor. Testes:
+  `PdiEvaluationTests` **15/15** · PDI **166/166** · unit
+  **1621/1621** · arch **117/117** · front tsc/lint/build verdes ·
+  containers reconstruídos healthy · E2E **31/31**
+  (`pdi_fase6_e2e.py`) + regressão Fase 5 **63/63**. **Descobertas
+  do E2E**: guarda de status precede o da avaliação (ordem do fluxo),
+  purge com `UNION`, e Admin no próprio plano só grava o lado Self
+  (plano sem gestor não fecha o ciclo — mesma lacuna da Fase 5).
+  Docs: ADR-036, docs/30 (situação+§25), docs/29 §8, TASKS.
+
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
