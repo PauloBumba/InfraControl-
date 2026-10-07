@@ -5,9 +5,10 @@ using MediatR;
 
 namespace InfraControl.Application.Pdi.Queries;
 
-// Acompanhamento da fase (docs/30 §9-§11, §13, Fase 3 — ADR-033):
-// progresso, check-ins, impedimentos e feedbacks do plano em um único
-// GET (o diálogo abre por fase e filtra pelo PhaseId no cliente).
+// Acompanhamento da fase (docs/30 §9-§11, §13, §12, Fase 3/4 —
+// ADR-033/ADR-034): progresso, check-ins, impedimentos, feedbacks e
+// evidências do plano em um único GET (o diálogo abre por fase e filtra
+// pelo PhaseId no cliente).
 // Leitura bilateral: Admin, dono ou gestor (o gestor precisa ver os
 // relatos para responder); 404 sem plano, 403 para estranhos.
 
@@ -79,6 +80,8 @@ public sealed class GetPdiAccompanimentQueryHandler(
                 impediment.ActionTaken, impediment.Status.ToString(),
                 impediment.ResolvedAt));
 
+        var evidences = await repository.ListEvidenceAsync(phaseIds, cancellationToken);
+
         var feedbackDtos = new List<PdiFeedbackDto>(feedbacks.Count);
         foreach (var feedback in feedbacks
                      .OrderBy(item => item.FeedbackDate)
@@ -89,7 +92,19 @@ public sealed class GetPdiAccompanimentQueryHandler(
                 await NameOf(feedback.RecipientId), feedback.Type, feedback.Content,
                 feedback.FeedbackDate));
 
+        var evidenceDtos = new List<PdiEvidenceDto>(evidences.Count);
+        foreach (var evidence in evidences.OrderBy(item => item.CreateDateTime))
+            evidenceDtos.Add(new PdiEvidenceDto(
+                evidence.Id, evidence.PhaseId, evidence.Type.ToString(),
+                evidence.Status.ToString(), evidence.Description,
+                evidence.OriginalFileName, evidence.ContentType, evidence.FileSize,
+                evidence.CreatedBy, await NameOf(evidence.CreatedBy),
+                evidence.CreateDateTime,
+                evidence.ReviewedBy, await NameOf(evidence.ReviewedBy),
+                evidence.ReviewedAt, evidence.RejectionReason));
+
         return new PdiAccompanimentDto(
-            plan.UserId, progressDtos, checkInDtos, impedimentDtos, feedbackDtos);
+            plan.UserId, progressDtos, checkInDtos, impedimentDtos, feedbackDtos,
+            evidenceDtos);
     }
 }

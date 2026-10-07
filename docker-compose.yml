@@ -136,6 +136,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    volumes:
+      # Storage de evidências do PDI (ADR-034, Fase 4): /app/var é gravável
+      # só pelo UID não-root (chown no Dockerfile) e o volume nomeado herda
+      # essa ownership na primeira montagem — arquivos sobrevivem a recreate.
+      - pdi-evidence:/app/var/pdi-evidence
     depends_on:
       postgres:
         condition: service_healthy
@@ -362,6 +367,7 @@ volumes:
   zabbix_db_data:
   zabbix_server_snmptraps:
   zabbix_server_mibs:
+  pdi-evidence:
 
 networks:
   infracontrol:

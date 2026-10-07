@@ -129,6 +129,28 @@ public sealed class IndividualDevelopmentPlan : AggregateRoot
         return drained;
     }
 
+    /// <summary>Evidência anexada a uma fase (docs/30 §12, §17 — Fase 4).</summary>
+    public void RecordEvidenceAdded(
+        Guid actorId, PdiEvidenceType type, string? description)
+    {
+        var detail = description is null
+            ? $"evidência anexada: {type.ToDisplayLabel()}"
+            : $"evidência anexada: {type.ToDisplayLabel()} — {description}";
+
+        _pendingHistory.Add(PdiHistoryEntry.ForEvidenceAdded(
+            UserId, actorId, detail));
+    }
+
+    /// <summary>Evidência revisada pelo gestor (§12 — validada/rejeitada).</summary>
+    public void RecordEvidenceReviewed(
+        Guid actorId, bool approved, string? rejectionReason)
+    {
+        _pendingHistory.Add(PdiHistoryEntry.ForEvidenceReviewed(
+            UserId, actorId,
+            approved ? "validada" : "rejeitada",
+            approved ? null : rejectionReason));
+    }
+
     private void Apply(PdiChanges changes)
     {
         Strategy = RequireStrategy(changes.Strategy);

@@ -33,7 +33,12 @@ export interface Pdi {
   updateDateTime: string;
 }
 
-export type PdiHistoryType = "Created" | "Updated" | "StatusChanged";
+export type PdiHistoryType =
+  | "Created"
+  | "Updated"
+  | "StatusChanged"
+  | "EvidenceAdded"
+  | "EvidenceReviewed";
 
 export interface PdiHistoryEntry {
   id: string;
@@ -91,6 +96,8 @@ export const PDI_HISTORY_TYPE_LABEL: Record<PdiHistoryType, string> = {
   Created: "Plano criado",
   Updated: "Campos atualizados",
   StatusChanged: "Status alterado",
+  EvidenceAdded: "Evidência anexada",
+  EvidenceReviewed: "Evidência revisada",
 };
 
 export const PDI_STATUS_LABEL: Record<PdiStatus, string> =
@@ -452,6 +459,7 @@ export interface PdiAccompaniment {
   checkIns: PdiCheckIn[];
   impediments: PdiImpediment[];
   feedbacks: PdiFeedback[];
+  evidences: PdiEvidence[];
 }
 
 export const PDI_IMPEDIMENT_STATUS_LABEL: Record<
@@ -481,7 +489,7 @@ export async function getPdiAccompaniment(
   userId: string,
 ): Promise<PdiAccompaniment> {
   const data = await api.get<PdiAccompaniment>(`/pdi/${userId}/accompaniment`);
-  return data ?? { userId, progresses: [], checkIns: [], impediments: [], feedbacks: [] };
+  return data ?? { userId, progresses: [], checkIns: [], impediments: [], feedbacks: [], evidences: [] };
 }
 
 // ---- Progresso (§9 — relato + comentário, append-only) ------------------
@@ -577,4 +585,126 @@ export async function createPdiFeedback(input: {
 
 export async function deletePdiFeedback(id: string): Promise<void> {
   await api.delete(`/pdi/feedbacks/${id}`);
+}
+
+// ---- Evidências (§12 — upload, tipos fixos, validação/rejeição) ----------
+
+export type PdiEvidenceType =
+  | "Certificate"
+  | "Document"
+  | "Image"
+  | "File"
+  | "CompletedActivity"
+  | "Assessment"
+  | "Feedback"
+  | "Result"
+  | "Other";
+
+export type PdiEvidenceStatus = "Pending" | "Validated" | "Rejected";
+
+export type PdiEvidenceReviewDecision = "Validated" | "Rejected";
+
+export interface PdiEvidence {
+  id: string;
+  phaseId: string;
+  type: PdiEvidenceType;
+  status: PdiEvidenceStatus;
+  description: string | null;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  createdBy: string;
+  createdByName: string | null;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+}
+
+export const PDI_EVIDENCE_TYPE_LABEL: Record<PdiEvidenceType, string> = {
+  Certificate: "Certificado",
+  Document: "Documento",
+  Image: "Imagem",
+  File: "Arquivo",
+  CompletedActivity: "Atividade realizada",
+  Assessment: "Avaliação",
+  Feedback: "Feedback",
+  Result: "Resultado",
+  Other: "Outro",
+};
+
+export const PDI_EVIDENCE_STATUS_LABEL: Record<PdiEvidenceStatus, string> = {
+  Pending: "Pendente",
+  Validated: "Validada",
+  Rejected: "Rejeitada",
+};
+
+export const PDI_EVIDENCE_STATUS_STYLE: Record<
+  PdiEvidenceStatus,
+  { background: string; color: string }
+> = {
+  Pending: { background: "#fef3c7", color: "#b45309" },
+  Validated: { background: "#dcfce7", color: "#15803d" },
+  Rejected: { background: "#fee2e2", color: "#b91c1c" },
+};
+
+export function parsePdiEvidenceStatus(value: string): PdiEvidenceStatus {
+  return value.toLowerCase() === "validated"
+    ? "Validated"
+    : value.toLowerCase() === "rejected"
+      ? "Rejected"
+      : "Pending";
+}
+
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Upload multipart (arquivo + phaseId + type + description) — XSRF via header. */
+export async function uploadPdiEvidence(input: {
+  phaseId: string;
+  type: PdiEvidenceType;
+  description?: string | null;
+  file: File;
+}): Promise<void> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("phaseId", input.phaseId);
+  form.append("type", input.type);
+  if (input.description) form.append("description", input.description);
+  await api.post("/pdi/evidences", form);
+}
+
+/** Revisão única do gestor: validada ou rejeitada com motivo. */
+export async function reviewPdiEvidence(
+  id: string,
+  input: {
+    decision: PdiEvidenceReviewDecision;
+    rejectionReason?: string | null;
+  },
+): Promise<void> {
+  await api.put(`/pdi/evidences/${id}/review`, {
+    decision: input.decision,
+    rejectionReason: input.rejectionReason ?? null,
+  });
+}
+
+/** Download autenticado — blob → objectURL → clique no link temporário. */
+export async function downloadPdiEvidence(
+  id: string,
+  fileName: string,
+): Promise<void> {
+  const blob = await api.download(`/pdi/evidences/${id}/download`);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -95,6 +95,13 @@ public interface IPdiStructureRepository
     Task<IReadOnlyList<PdiFeedback>> ListFeedbacksAsync(
         IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
 
+    // ---- Evidências (Fase 4, ADR-034) ----
+    Task<PdiEvidence?> GetEvidenceAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PdiEvidence>> ListEvidenceAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
+
     // ---- Escrita ----
     void AddObjective(PdiObjective objective);
     void AddStrategy(PdiStrategy strategy);
@@ -104,6 +111,7 @@ public interface IPdiStructureRepository
     void AddCheckIn(PdiCheckIn checkIn);
     void AddImpediment(PdiImpediment impediment);
     void AddFeedback(PdiFeedback feedback);
+    void AddEvidence(PdiEvidence evidence);
 
     void RemoveObjective(PdiObjective objective);
     void RemoveStrategy(PdiStrategy strategy);

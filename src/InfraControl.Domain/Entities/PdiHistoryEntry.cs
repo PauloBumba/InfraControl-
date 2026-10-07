@@ -13,7 +13,13 @@ public enum PdiHistoryType
     Updated = 2,
 
     /// <summary>Mudança de status — <see cref="PdiHistoryEntry.FromStatus"/>/<see cref="PdiHistoryEntry.ToStatus"/> + motivo opcional.</summary>
-    StatusChanged = 3
+    StatusChanged = 3,
+
+    /// <summary>Evidência anexada — <see cref="PdiHistoryEntry.Detail"/> com o tipo (§17 "certificado anexado").</summary>
+    EvidenceAdded = 4,
+
+    /// <summary>Evidência revisada — <see cref="PdiHistoryEntry.Detail"/> "validada"/"rejeitada" + <see cref="PdiHistoryEntry.Reason"/> na rejeição (§17).</summary>
+    EvidenceReviewed = 5
 }
 
 /// <summary>
@@ -78,6 +84,27 @@ public sealed class PdiHistoryEntry : Entity
             Type = PdiHistoryType.Updated,
             ActorId = actorId,
             Detail = Truncate(detail, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForEvidenceAdded(
+        Guid userId, Guid actorId, string detail)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.EvidenceAdded,
+            ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForEvidenceReviewed(
+        Guid userId, Guid actorId, string detail, string? reason)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.EvidenceReviewed,
+            ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength),
+            Reason = Truncate(reason, MaxReasonLength)
         };
 
     private static string? Truncate(string? value, int max)

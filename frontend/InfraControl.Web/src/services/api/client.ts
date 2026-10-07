@@ -85,7 +85,10 @@ async function request<T>(path: string, method: Method, body?: unknown, options?
   let response: Response;
 
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  // FormData (upload de evidência) leva o Content-Type multipart com
+  // boundary — definir application/json aqui quebraria o parser.
+  const isFormData = body instanceof FormData;
+  if (body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
 
   // escrita autenticada: o header é obrigatório. Sem token a API responde 400
   // ("A requisição não pôde ser validada") e a ação é perdida — por isso o
@@ -100,7 +103,7 @@ async function request<T>(path: string, method: Method, body?: unknown, options?
       method,
       credentials: "include",
       headers: Object.keys(headers).length ? headers : undefined,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
     });
   } catch {
     // Falha de transporte: sem status e sem vazar URL/credencial na mensagem.
@@ -125,10 +128,37 @@ async function request<T>(path: string, method: Method, body?: unknown, options?
   return payload.data;
 }
 
+/**
+ * Download autenticado (blob) — GET sem XSRF; 401 limpa a sessão igual ao
+ * request normal. O caller cuida de objectURL + clique no link.
+ */
+async function download(path: string): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: "GET",
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiError(GENERIC_ERROR, 0);
+  }
+
+  if (response.status === 401) store.dispatch(signedOut());
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiResponse<unknown> | null;
+    const message = payload?.errors?.[0] ?? (response.status === 401 ? UNAUTHORIZED_ERROR : GENERIC_ERROR);
+    throw new ApiError(message, response.status);
+  }
+
+  return await response.blob();
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>(path, "GET", undefined, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>(path, "POST", body, options),
   put: <T>(path: string, body?: unknown) => request<T>(path, "PUT", body),
   patch: <T>(path: string, body?: unknown) => request<T>(path, "PATCH", body),
   delete: <T>(path: string) => request<T>(path, "DELETE"),
+  download,
 };

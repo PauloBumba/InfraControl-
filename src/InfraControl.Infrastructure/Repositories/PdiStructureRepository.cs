@@ -98,6 +98,17 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
             .Where(feedback => phaseIds.Contains(feedback.PhaseId))
             .ToListAsync(cancellationToken);
 
+    public Task<PdiEvidence?> GetEvidenceAsync(
+        Guid id, CancellationToken cancellationToken = default)
+        => dbContext.PdiEvidences
+            .SingleOrDefaultAsync(evidence => evidence.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<PdiEvidence>> ListEvidenceAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default)
+        => await dbContext.PdiEvidences
+            .Where(evidence => phaseIds.Contains(evidence.PhaseId))
+            .ToListAsync(cancellationToken);
+
     public Task<PdiStrategy?> GetStrategyAsync(
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.PdiStrategies
@@ -207,6 +218,9 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
 
     public void AddFeedback(PdiFeedback feedback)
         => dbContext.PdiFeedbacks.Add(feedback);
+
+    public void AddEvidence(PdiEvidence evidence)
+        => dbContext.PdiEvidences.Add(evidence);
 
     public void RemoveObjective(PdiObjective objective)
         => dbContext.PdiObjectives.Remove(objective);

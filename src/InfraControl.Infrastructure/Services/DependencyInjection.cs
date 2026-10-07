@@ -25,6 +25,7 @@ using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.Application.Monitoring.Polling;
 using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
@@ -141,6 +142,12 @@ public static class DependencyInjection
         // F1-T016a (ADR-019): tolerância do TOTP é política de configuração,
         // não de código — padrão ±1 período de 30s.
         services.Configure<MfaOptions>(configuration.GetSection(MfaOptions.SectionName));
+
+        // Fase 4 (ADR-034): upload de evidências do PDI em disco local —
+        // caminho em PdiEvidence:StoragePath.
+        services.Configure<PdiEvidenceOptions>(
+            configuration.GetSection(PdiEvidenceOptions.SectionName));
+        services.AddScoped<IPdiEvidenceFileStore, PhysicalPdiEvidenceFileStore>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());

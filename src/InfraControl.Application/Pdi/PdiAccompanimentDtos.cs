@@ -53,9 +53,27 @@ public sealed record PdiFeedbackDto(
     string Content,
     DateOnly FeedbackDate);
 
+public sealed record PdiEvidenceDto(
+    Guid Id,
+    Guid PhaseId,
+    string Type,
+    string Status,
+    string? Description,
+    string FileName,
+    string ContentType,
+    long FileSize,
+    Guid CreatedBy,
+    string? CreatedByName,
+    DateTime CreatedAt,
+    Guid? ReviewedBy,
+    string? ReviewedByName,
+    DateTime? ReviewedAt,
+    string? RejectionReason);
+
 public sealed record PdiAccompanimentDto(
     Guid UserId,
     IReadOnlyList<PdiProgressDto> Progresses,
     IReadOnlyList<PdiCheckInDto> CheckIns,
     IReadOnlyList<PdiImpedimentDto> Impediments,
-    IReadOnlyList<PdiFeedbackDto> Feedbacks);
+    IReadOnlyList<PdiFeedbackDto> Feedbacks,
+    IReadOnlyList<PdiEvidenceDto> Evidences);

@@ -8,14 +8,24 @@ import {
   deletePdiFeedback,
   deletePdiImpediment,
   deletePdiProgress,
+  downloadPdiEvidence,
+  formatFileSize,
   getPdiAccompaniment,
+  PDI_EVIDENCE_STATUS_LABEL,
+  PDI_EVIDENCE_STATUS_STYLE,
+  PDI_EVIDENCE_TYPE_LABEL,
   PDI_IMPEDIMENT_STATUS_LABEL,
   PDI_IMPEDIMENT_STATUS_STYLE,
+  parsePdiEvidenceStatus,
   parsePdiImpedimentStatus,
+  reviewPdiEvidence,
   updatePdiCheckIn,
   updatePdiImpediment,
+  uploadPdiEvidence,
   type Pdi,
   type PdiAccompaniment,
+  type PdiEvidenceReviewDecision,
+  type PdiEvidenceType,
   type PdiImpedimentStatus,
   type PdiPhaseNode,
 } from "@/services/api/pdi";
@@ -29,19 +39,26 @@ import { SelectField } from "@/components/ui/SelectField";
 import { StatusChip } from "@/components/ui/StatusChip";
 
 /**
- * Acompanhamento da fase (docs/30 §9-§11, §13, Fase 3 — ADR-033): quatro
- * seções — check-ins bilaterais, progresso/comentários, impedimentos e
- * feedbacks — lidas no GET único do plano e filtradas pela fase aberta.
+ * Acompanhamento da fase (docs/30 §9-§11, §12, §13, Fase 3/4 —
+ * ADR-033/ADR-034): cinco seções — check-ins bilaterais,
+ * progresso/comentários, impedimentos, evidências (upload do colaborador,
+ * revisão do gestor) e feedbacks — lidas no GET único do plano e filtradas
+ * pela fase aberta.
  * O backend decide permissões (403 pt-BR); aqui a UI só oferece o que o
- * papel atual costuma fazer: relato do dono, resposta do gestor, exclusão
- * de feedback restrita ao Admin. Datas "yyyy-MM-dd" formatadas à mão
- * (anti-fuso, mesmo critério do PdiStructureDialog).
+ * papel atual costuma fazer: relato do dono, resposta/revisão do gestor,
+ * exclusão de feedback restrita ao Admin. Datas "yyyy-MM-dd" formatadas à
+ * mão (anti-fuso, mesmo critério do PdiStructureDialog).
  */
 
-type TabKey = "checkins" | "progress" | "impediments" | "feedback";
+type TabKey =
+  | "checkins"
+  | "progress"
+  | "impediments"
+  | "evidences"
+  | "feedback";
 
 interface AccForm {
-  kind: "checkin" | "progress" | "impediment" | "feedback";
+  kind: "checkin" | "progress" | "impediment" | "feedback" | "evidence" | "review";
   id: string | null;
   side: "create" | "relato" | "resposta";
   date: string;
@@ -61,6 +78,8 @@ interface AccForm {
   status: PdiImpedimentStatus;
   recipientId: string;
   content: string;
+  file: File | null;
+  decision: PdiEvidenceReviewDecision;
 }
 
 function emptyForm(kind: AccForm["kind"], plan: Pdi | null): AccForm {
@@ -85,6 +104,8 @@ function emptyForm(kind: AccForm["kind"], plan: Pdi | null): AccForm {
     status: "Open",
     recipientId: plan?.userId ?? "",
     content: "",
+    file: null,
+    decision: "Validated",
   };
 }
 
@@ -182,6 +203,7 @@ export function PdiAccompanimentDialog({
   const canReport = isAdmin || isOwner;
   const canAssist = isAdmin || isOwner || isManager;
   const canRespond = isAdmin || isManager;
+  const canReview = isAdmin || isManager;
   const canView = isAdmin || isOwner || isManager;
 
   const reload = useCallback(async () => {
@@ -217,6 +239,8 @@ export function PdiAccompanimentDialog({
     data?.impediments.filter((item) => item.phaseId === phaseId) ?? [];
   const feedbacks =
     data?.feedbacks.filter((item) => item.phaseId === phaseId) ?? [];
+  const evidences =
+    data?.evidences.filter((item) => item.phaseId === phaseId) ?? [];
 
   const responsibleOptions = plan
     ? [
@@ -312,6 +336,16 @@ export function PdiAccompanimentDialog({
     setForm(emptyForm("feedback", plan));
   };
 
+  const openEvidenceForm = () => {
+    setFormError(null);
+    setForm(emptyForm("evidence", plan));
+  };
+
+  const openReviewForm = (id: string) => {
+    setFormError(null);
+    setForm({ ...emptyForm("review", plan), id });
+  };
+
   // ---- Envio -------------------------------------------------------------
 
   const submit = async (event: FormEvent) => {
@@ -374,6 +408,28 @@ export function PdiAccompanimentDialog({
       }
       if (!form.content.trim()) {
         setFormError("O conteúdo do feedback é obrigatório.");
+        return;
+      }
+    }
+
+    if (form.kind === "evidence") {
+      if (!form.file) {
+        setFormError("O arquivo da evidência é obrigatório.");
+        return;
+      }
+      if (!form.type) {
+        setFormError("O tipo da evidência é obrigatório.");
+        return;
+      }
+      if (form.file.size > 10 * 1024 * 1024) {
+        setFormError("O arquivo excede o tamanho máximo de 10 MB.");
+        return;
+      }
+    }
+
+    if (form.kind === "review") {
+      if (form.decision === "Rejected" && !form.description.trim()) {
+        setFormError("O motivo da rejeição é obrigatório.");
         return;
       }
     }
@@ -442,6 +498,25 @@ export function PdiAccompanimentDialog({
           });
           break;
         }
+        case "evidence": {
+          if (!form.file) break;
+          await uploadPdiEvidence({
+            phaseId: phase.id,
+            type: form.type as PdiEvidenceType,
+            description: form.description.trim() || null,
+            file: form.file,
+          });
+          break;
+        }
+        case "review": {
+          if (!form.id) break;
+          await reviewPdiEvidence(form.id, {
+            decision: form.decision,
+            rejectionReason:
+              form.decision === "Rejected" ? form.description.trim() : null,
+          });
+          break;
+        }
       }
       setForm(null);
       await reload();
@@ -458,15 +533,19 @@ export function PdiAccompanimentDialog({
       ? "Novo progresso"
       : form.kind === "feedback"
         ? "Novo feedback"
-        : form.kind === "impediment"
-          ? form.id
-            ? "Editar impedimento"
-            : "Novo impedimento"
-          : form.id && form.side === "resposta"
-            ? "Responder check-in"
-            : form.id
-              ? "Editar relato do check-in"
-              : "Novo check-in";
+        : form.kind === "evidence"
+          ? "Nova evidência"
+          : form.kind === "review"
+            ? "Revisar evidência"
+            : form.kind === "impediment"
+              ? form.id
+                ? "Editar impedimento"
+                : "Novo impedimento"
+              : form.id && form.side === "resposta"
+                ? "Responder check-in"
+                : form.id
+                  ? "Editar relato do check-in"
+                  : "Novo check-in";
 
   // ---- Renderização ------------------------------------------------------
 
@@ -474,6 +553,7 @@ export function PdiAccompanimentDialog({
     { key: "checkins", label: "Check-ins", count: checkIns.length },
     { key: "progress", label: "Progresso", count: progresses.length },
     { key: "impediments", label: "Impedimentos", count: impediments.length },
+    { key: "evidences", label: "Evidências", count: evidences.length },
     { key: "feedback", label: "Feedback", count: feedbacks.length },
   ];
 
@@ -760,10 +840,89 @@ export function PdiAccompanimentDialog({
       </div>
     );
 
+  const renderEvidences = () =>
+    evidences.length === 0 ? (
+      <NoticeBanner
+        message="Nenhuma evidência — anexe certificados, documentos ou resultados da fase (docs/30 §12)."
+        background="#f8fafc"
+        color="#475569"
+      />
+    ) : (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {evidences.map((item) => {
+          const status = parsePdiEvidenceStatus(item.status);
+          return (
+            <div key={item.id} style={boxStyle}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <StatusChip
+                  label={PDI_EVIDENCE_TYPE_LABEL[item.type] ?? item.type}
+                  background="#e0f2fe"
+                  color="#0369a1"
+                />
+                <StatusChip
+                  label={PDI_EVIDENCE_STATUS_LABEL[status]}
+                  background={PDI_EVIDENCE_STATUS_STYLE[status].background}
+                  color={PDI_EVIDENCE_STATUS_STYLE[status].color}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600 }}>
+                  {item.fileName}
+                </span>
+                <span style={metaStyle}>{formatFileSize(item.fileSize)}</span>
+                <span style={{ flex: 1 }} />
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    void downloadPdiEvidence(item.id, item.fileName)
+                  }
+                >
+                  Baixar
+                </Button>
+                {canReview && status === "Pending" && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => openReviewForm(item.id)}
+                  >
+                    Revisar
+                  </Button>
+                )}
+              </div>
+              {item.description && (
+                <div style={bodyStyle}>{item.description}</div>
+              )}
+              <div style={metaStyle}>
+                Enviada por {item.createdByName ?? "Colaborador"} em{" "}
+                {formatTimestamp(item.createdAt)}
+              </div>
+              {status !== "Pending" && (
+                <div style={metaStyle}>
+                  {PDI_EVIDENCE_STATUS_LABEL[status]} por{" "}
+                  {item.reviewedByName ?? "gestor"} em{" "}
+                  {formatTimestamp(item.reviewedAt)}
+                </div>
+              )}
+              {item.rejectionReason && (
+                <div style={bodyStyle}>
+                  <strong>Motivo da rejeição:</strong> {item.rejectionReason}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+
   const createAction: Record<TabKey, (() => void) | null> = {
     checkins: canReport ? openCheckInCreate : null,
     progress: canReport ? openProgressForm : null,
     impediments: canReport ? () => openImpedimentForm(null) : null,
+    evidences: canReport ? openEvidenceForm : null,
     feedback: canView ? openFeedbackForm : null,
   };
 
@@ -771,6 +930,7 @@ export function PdiAccompanimentDialog({
     checkins: "+ Check-in",
     progress: "+ Progresso",
     impediments: "+ Impedimento",
+    evidences: "+ Evidência",
     feedback: "+ Feedback",
   };
 
@@ -813,6 +973,8 @@ export function PdiAccompanimentDialog({
             renderProgress()
           ) : tab === "impediments" ? (
             renderImpediments()
+          ) : tab === "evidences" ? (
+            renderEvidences()
           ) : (
             renderFeedbacks()
           )}
@@ -1038,6 +1200,91 @@ export function PdiAccompanimentDialog({
                     style={textAreaStyle}
                   />
                 </FormField>
+              </>
+            )}
+
+            {form.kind === "evidence" && (
+              <>
+                <FormField label="Arquivo (até 10 MB)">
+                  <input
+                    type="file"
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        file: event.target.files?.[0] ?? null,
+                      })
+                    }
+                    style={{ ...inputStyle, padding: "5px 0" }}
+                  />
+                </FormField>
+                {form.file && (
+                  <div style={metaStyle}>
+                    Selecionado: {form.file.name} ·{" "}
+                    {formatFileSize(form.file.size)}
+                  </div>
+                )}
+                <FormField label="Tipo da evidência">
+                  <SelectField
+                    value={form.type}
+                    onChange={(value) => setForm({ ...form, type: value })}
+                    options={Object.entries(PDI_EVIDENCE_TYPE_LABEL).map(
+                      ([value, label]) => ({ value, label }),
+                    )}
+                    aria-label="Tipo da evidência"
+                  />
+                </FormField>
+                <FormField label="Descrição (opcional)">
+                  <textarea
+                    value={form.description}
+                    onChange={(event) =>
+                      setForm({ ...form, description: event.target.value })
+                    }
+                    rows={2}
+                    maxLength={500}
+                    style={textAreaStyle}
+                  />
+                </FormField>
+              </>
+            )}
+
+            {form.kind === "review" && (
+              <>
+                <FormField label="Decisão do gestor (§12)">
+                  <SelectField
+                    value={form.decision}
+                    onChange={(value) =>
+                      setForm({
+                        ...form,
+                        decision:
+                          value === "Rejected"
+                            ? "Rejected"
+                            : "Validated",
+                      })
+                    }
+                    options={[
+                      { value: "Validated", label: "Validar" },
+                      { value: "Rejected", label: "Rejeitar" },
+                    ]}
+                    aria-label="Decisão da revisão"
+                  />
+                </FormField>
+                {form.decision === "Rejected" && (
+                  <FormField label="Motivo da rejeição">
+                    <textarea
+                      value={form.description}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          description: event.target.value,
+                        })
+                      }
+                      rows={3}
+                      maxLength={500}
+                      autoFocus
+                      style={textAreaStyle}
+                    />
+                  </FormField>
+                )}
               </>
             )}
 
