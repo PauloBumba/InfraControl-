@@ -109,6 +109,25 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
             .Where(evidence => phaseIds.Contains(evidence.PhaseId))
             .ToListAsync(cancellationToken);
 
+    // ---- Avaliação (Fase 6, ADR-036) ----
+
+    public Task<PdiAssessment?> GetAssessmentAsync(
+        Guid planId,
+        InfraControl.Domain.Enums.PdiAssessmentSide side,
+        CancellationToken cancellationToken = default)
+        => dbContext.PdiAssessments
+            .SingleOrDefaultAsync(
+                assessment => assessment.PlanId == planId
+                    && assessment.Side == side,
+                cancellationToken);
+
+    public Task<PdiResult?> GetResultAsync(
+        Guid planId, CancellationToken cancellationToken = default)
+        => dbContext.PdiResults
+            .SingleOrDefaultAsync(
+                result => result.PlanId == planId,
+                cancellationToken);
+
     public Task<PdiStrategy?> GetStrategyAsync(
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.PdiStrategies
@@ -228,6 +247,12 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
 
     public void AddEvidence(PdiEvidence evidence)
         => dbContext.PdiEvidences.Add(evidence);
+
+    public void AddAssessment(PdiAssessment assessment)
+        => dbContext.PdiAssessments.Add(assessment);
+
+    public void AddResult(PdiResult result)
+        => dbContext.PdiResults.Add(result);
 
     public void RemoveObjective(PdiObjective objective)
         => dbContext.PdiObjectives.Remove(objective);

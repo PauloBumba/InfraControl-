@@ -18,6 +18,7 @@ import {
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { PdiStructureDialog } from "@/components/pdi/PdiStructureDialog";
+import { PdiEvaluationDialog } from "@/components/pdi/PdiEvaluationDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
@@ -102,6 +103,9 @@ export function PdiPage() {
 
   // Estrutura do desenvolvimento (docs/30 §5-§8, Fase 2).
   const [structurePlan, setStructurePlan] = useState<Pdi | null>(null);
+
+  // Avaliação final (docs/30 §15.3/§16, Fase 6).
+  const [evaluationPlan, setEvaluationPlan] = useState<Pdi | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -272,6 +276,9 @@ export function PdiPage() {
       <Button variant="ghost" onClick={() => setStructurePlan(plan)}>
         Estrutura
       </Button>
+      <Button variant="ghost" onClick={() => setEvaluationPlan(plan)}>
+        Avaliar
+      </Button>
       <Button variant="ghost" onClick={() => void openHistory(plan)}>
         Histórico
       </Button>
@@ -354,6 +361,9 @@ export function PdiPage() {
               {statusChip(ownPdi.status)}
               <Button variant="ghost" onClick={() => setStructurePlan(ownPdi)}>
                 Estrutura
+              </Button>
+              <Button variant="ghost" onClick={() => setEvaluationPlan(ownPdi)}>
+                Avaliar
               </Button>
               <Button variant="ghost" onClick={() => void openHistory(ownPdi)}>
                 Histórico
@@ -568,6 +578,14 @@ export function PdiPage() {
         visible={structurePlan !== null}
         onHide={() => setStructurePlan(null)}
         plan={structurePlan}
+        isAdmin={isAdmin}
+        currentUserId={user?.id ?? null}
+      />
+
+      <PdiEvaluationDialog
+        visible={evaluationPlan !== null}
+        onHide={() => setEvaluationPlan(null)}
+        plan={evaluationPlan}
         isAdmin={isAdmin}
         currentUserId={user?.id ?? null}
       />

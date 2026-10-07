@@ -68,3 +68,74 @@ public sealed record PdiHistoryDto(
             entry.Detail,
             entry.CreateDateTime);
 }
+
+/// <summary>
+/// Avaliação do PDI (§15.3 — Fase 6): uma linha por lado
+/// (Self = autoavaliação, Manager = avaliação do gestor).
+/// </summary>
+public sealed record PdiAssessmentDto(
+    Guid Id,
+    Guid PlanUserId,
+    string Side,
+    Guid AuthorId,
+    string? AuthorName,
+    string Content,
+    DateTime CreatedAt,
+    DateTime UpdatedAt)
+{
+    internal static PdiAssessmentDto From(
+        Domain.Entities.PdiAssessment assessment,
+        Guid planUserId,
+        string? authorName)
+        => new(
+            assessment.Id,
+            planUserId,
+            assessment.Side.ToString(),
+            assessment.AuthorId,
+            authorName,
+            assessment.Content,
+            assessment.CreateDateTime,
+            assessment.UpdateDateTime);
+}
+
+/// <summary>Resultado final do PDI (§16 — Fase 6) — único por plano.</summary>
+public sealed record PdiResultDto(
+    Guid Id,
+    Guid PlanUserId,
+    string Outcome,
+    string? Notes,
+    Guid FinalizedById,
+    string? FinalizedByName,
+    DateOnly FinalizedAt)
+{
+    internal static PdiResultDto From(
+        Domain.Entities.PdiResult result,
+        Guid planUserId,
+        string? finalizedName)
+        => new(
+            result.Id,
+            planUserId,
+            result.Outcome.ToString(),
+            result.Notes,
+            result.FinalizedById,
+            finalizedName,
+            result.FinalizedAt);
+}
+
+/// <summary>
+/// Avaliação final do PDI (GET /pdi/{userId}/evaluation, §16): plano +
+/// as duas avaliações + resultado — base da comparação
+/// inicial/durante/final no front.
+/// </summary>
+public sealed record PdiEvaluationDto(
+    Guid UserId,
+    string Status,
+    string Strategy,
+    DateOnly TargetDate,
+    Guid? ManagerId,
+    string? ManagerName,
+    DateOnly? PeriodStart,
+    DateOnly? PeriodEnd,
+    PdiAssessmentDto? SelfAssessment,
+    PdiAssessmentDto? ManagerAssessment,
+    PdiResultDto? Result);

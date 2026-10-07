@@ -106,6 +106,15 @@ public interface IPdiStructureRepository
     Task<IReadOnlyList<PdiEvidence>> ListEvidenceAsync(
         IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
 
+    // ---- Avaliação (Fase 6, ADR-036) — filhas do plano ----
+    Task<PdiAssessment?> GetAssessmentAsync(
+        Guid planId,
+        Domain.Enums.PdiAssessmentSide side,
+        CancellationToken cancellationToken = default);
+
+    Task<PdiResult?> GetResultAsync(
+        Guid planId, CancellationToken cancellationToken = default);
+
     // ---- Escrita ----
     void AddObjective(PdiObjective objective);
     void AddStrategy(PdiStrategy strategy);
@@ -116,6 +125,8 @@ public interface IPdiStructureRepository
     void AddImpediment(PdiImpediment impediment);
     void AddFeedback(PdiFeedback feedback);
     void AddEvidence(PdiEvidence evidence);
+    void AddAssessment(PdiAssessment assessment);
+    void AddResult(PdiResult result);
 
     void RemoveObjective(PdiObjective objective);
     void RemoveStrategy(PdiStrategy strategy);

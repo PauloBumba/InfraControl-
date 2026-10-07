@@ -70,3 +70,69 @@ public sealed class GetPdiHistoryQueryHandler(
             .ToArray();
     }
 }
+
+// ------------------------------------------------------------------
+// Avaliação final (docs/30 §15.3/§16 — Fase 6, ADR-036)
+// ------------------------------------------------------------------
+
+/// <summary>Avaliação final do PDI: plano + autoavaliação + avaliação do gestor + resultado (§16).</summary>
+public sealed record GetPdiEvaluationQuery(Guid UserId)
+    : IQuery<PdiEvaluationDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class GetPdiEvaluationQueryHandler(
+    IPdiRepository plans,
+    IPdiStructureRepository repository,
+    ICurrentUserContext currentUser)
+    : IRequestHandler<GetPdiEvaluationQuery, PdiEvaluationDto>
+{
+    public async Task<PdiEvaluationDto> Handle(
+        GetPdiEvaluationQuery request, CancellationToken cancellationToken)
+    {
+        var plan = await plans.GetByUserIdAsync(request.UserId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"PDI do usuário '{request.UserId}' não encontrado.");
+
+        PdiAccess.EnsureCanView(currentUser, plan);
+
+        var self = await repository.GetAssessmentAsync(
+            plan.Id, PdiAssessmentSide.Self, cancellationToken);
+        var manager = await repository.GetAssessmentAsync(
+            plan.Id, PdiAssessmentSide.Manager, cancellationToken);
+        var result = await repository.GetResultAsync(
+            plan.Id, cancellationToken);
+
+        string? managerName = plan.ManagerId is { } managerId
+            ? await plans.GetUserNameAsync(managerId, cancellationToken)
+            : null;
+        string? selfName = self is null
+            ? null
+            : await plans.GetUserNameAsync(self.AuthorId, cancellationToken);
+        string? managerAuthorName = manager is null
+            ? null
+            : await plans.GetUserNameAsync(manager.AuthorId, cancellationToken);
+        string? finalizedName = result is null
+            ? null
+            : await plans.GetUserNameAsync(result.FinalizedById, cancellationToken);
+
+        return new PdiEvaluationDto(
+            plan.UserId,
+            plan.Status.ToString(),
+            plan.Strategy,
+            plan.TargetDate,
+            plan.ManagerId,
+            managerName,
+            plan.PeriodStart,
+            plan.PeriodEnd,
+            self is null ? null : PdiAssessmentDto.From(self, plan.UserId, selfName),
+            manager is null
+                ? null
+                : PdiAssessmentDto.From(manager, plan.UserId, managerAuthorName),
+            result is null
+                ? null
+                : PdiResultDto.From(result, plan.UserId, finalizedName));
+    }
+}

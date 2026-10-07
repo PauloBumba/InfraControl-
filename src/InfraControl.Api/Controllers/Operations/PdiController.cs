@@ -51,4 +51,45 @@ public sealed class PdiController(ISender sender) : BaseController
         Guid userId, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetPdiHistoryQuery(userId), cancellationToken)));
+
+    /// <summary>
+    /// Avaliação final (docs/30 §16, Fase 6): plano + autoavaliação +
+    /// avaliação do gestor + resultado. Leitura = Admin/dono/gestor.
+    /// </summary>
+    [HttpGet("{userId:guid}/evaluation")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> GetEvaluation(
+        Guid userId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetPdiEvaluationQuery(userId), cancellationToken)));
+
+    /// <summary>
+    /// Salva a avaliação do lado do ator (§15.3): dono = autoavaliação
+    /// (leva o plano a Em avaliação); gestor/Admin = avaliação do
+    /// gestor (exige a autoavaliação). Upsert por lado.
+    /// </summary>
+    [HttpPut("{userId:guid}/assessment")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SaveAssessment(
+        Guid userId,
+        [FromBody] SavePdiAssessmentViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SavePdiAssessmentCommand(userId, model.Content),
+            cancellationToken)));
+
+    /// <summary>
+    /// Resultado final (§16 — Fase 6, Admin/gestor): conclui o plano ou
+    /// o devolve ao ciclo (Replanejado). Único por plano (2ª → 409).
+    /// </summary>
+    [HttpPut("{userId:guid}/result")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> FinalizeResult(
+        Guid userId,
+        [FromBody] FinalizePdiResultViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new FinalizePdiResultCommand(
+                userId, model.Outcome, model.Notes),
+            cancellationToken)));
 }

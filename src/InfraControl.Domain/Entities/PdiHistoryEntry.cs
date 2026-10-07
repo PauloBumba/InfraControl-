@@ -40,7 +40,13 @@ public enum PdiHistoryType
     ImpedimentCreated = 11,
 
     /// <summary>Impedimento resolvido — <see cref="PdiHistoryEntry.Detail"/> (§17 — Fase 5).</summary>
-    ImpedimentResolved = 12
+    ImpedimentResolved = 12,
+
+    /// <summary>Avaliação registrada — <see cref="PdiHistoryEntry.Detail"/> "autoavaliação"/"avaliação do gestor" (§15.3/§17 — Fase 6).</summary>
+    AssessmentCreated = 13,
+
+    /// <summary>Resultado final definido — <see cref="PdiHistoryEntry.Detail"/> "resultado: …" (§16/§17 — Fase 6).</summary>
+    ResultFinalized = 14
 }
 
 /// <summary>
@@ -159,6 +165,26 @@ public sealed class PdiHistoryEntry : Entity
             Type = type,
             ActorId = actorId,
             Detail = Truncate(detail, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForAssessmentCreated(
+        Guid userId, Guid actorId, string sideLabel)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.AssessmentCreated,
+            ActorId = actorId,
+            Detail = Truncate(sideLabel, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForResultFinalized(
+        Guid userId, Guid actorId, string outcomeLabel)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.ResultFinalized,
+            ActorId = actorId,
+            Detail = Truncate($"resultado: {outcomeLabel}", MaxDetailLength)
         };
 
     private static string? Truncate(string? value, int max)

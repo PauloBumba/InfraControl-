@@ -210,6 +210,19 @@ public sealed class IndividualDevelopmentPlan : AggregateRoot
             UserId, actorId, PdiHistoryType.ImpedimentResolved,
             $"impedimento resolvido: {description}"));
 
+    /// <summary>Avaliação registrada — autoavaliação ou do gestor (§15.3/§17 — Fase 6).</summary>
+    public void RecordAssessmentCreated(Guid actorId, PdiAssessmentSide side)
+        => _pendingHistory.Add(PdiHistoryEntry.ForAssessmentCreated(
+            UserId, actorId,
+            side == PdiAssessmentSide.Self
+                ? "autoavaliação"
+                : "avaliação do gestor"));
+
+    /// <summary>Resultado final definido (§16/§17 — Fase 6).</summary>
+    public void RecordResultFinalized(Guid actorId, PdiResultOutcome outcome)
+        => _pendingHistory.Add(PdiHistoryEntry.ForResultFinalized(
+            UserId, actorId, outcome.ToDisplayLabel()));
+
     private void Apply(PdiChanges changes)
     {
         Strategy = RequireStrategy(changes.Strategy);

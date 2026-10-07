@@ -45,7 +45,9 @@ export type PdiHistoryType =
   | "PhaseRejected"
   | "CheckInCreated"
   | "ImpedimentCreated"
-  | "ImpedimentResolved";
+  | "ImpedimentResolved"
+  | "AssessmentCreated"
+  | "ResultFinalized";
 
 export interface PdiHistoryEntry {
   id: string;
@@ -93,7 +95,8 @@ export const PDI_NEXT_STATUS: Record<PdiStatus, readonly PdiStatus[]> = {
   AwaitingAcceptance: ["Active"],
   Active: ["InProgress", "Replanned", "Cancelled"],
   InProgress: ["UnderEvaluation"],
-  UnderEvaluation: ["Completed"],
+  // ADR-036 (Fase 6): resultado "Replanejado" devolve o plano ao ciclo.
+  UnderEvaluation: ["Completed", "Replanned"],
   Replanned: ["Active"],
   Completed: [],
   Cancelled: [],
@@ -112,6 +115,8 @@ export const PDI_HISTORY_TYPE_LABEL: Record<PdiHistoryType, string> = {
   CheckInCreated: "Check-in registrado",
   ImpedimentCreated: "Impedimento registrado",
   ImpedimentResolved: "Impedimento resolvido",
+  AssessmentCreated: "Avaliação registrada",
+  ResultFinalized: "Resultado final",
 };
 
 export const PDI_STATUS_LABEL: Record<PdiStatus, string> =
@@ -757,4 +762,98 @@ export async function downloadPdiEvidence(
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ------------------------------------------------------------------
+// Avaliação final (docs/30 §15.3/§16 — Fase 6, ADR-036)
+// ------------------------------------------------------------------
+
+export type PdiAssessmentSide = "Self" | "Manager";
+
+export interface PdiAssessment {
+  id: string;
+  planUserId: string;
+  side: PdiAssessmentSide;
+  authorId: string;
+  authorName: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PdiResultOutcome =
+  | "Atingido"
+  | "ParcialmenteAtingido"
+  | "NaoAtingido"
+  | "Replanejado";
+
+export interface PdiResult {
+  id: string;
+  planUserId: string;
+  outcome: PdiResultOutcome;
+  notes: string | null;
+  finalizedById: string;
+  finalizedName: string | null;
+  finalizedAt: string;
+}
+
+export interface PdiEvaluation {
+  userId: string;
+  status: PdiStatus;
+  strategy: string;
+  targetDate: string;
+  managerId: string | null;
+  managerName: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  selfAssessment: PdiAssessment | null;
+  managerAssessment: PdiAssessment | null;
+  result: PdiResult | null;
+}
+
+export const PDI_RESULT_OUTCOME_OPTIONS: {
+  value: PdiResultOutcome;
+  label: string;
+}[] = [
+  { value: "Atingido", label: "Atingido" },
+  { value: "ParcialmenteAtingido", label: "Parcialmente atingido" },
+  { value: "NaoAtingido", label: "Não atingido" },
+  { value: "Replanejado", label: "Replanejado" },
+];
+
+export const PDI_RESULT_OUTCOME_LABEL: Record<PdiResultOutcome, string> =
+  Object.fromEntries(
+    PDI_RESULT_OUTCOME_OPTIONS.map((option) => [option.value, option.label]),
+  ) as Record<PdiResultOutcome, string>;
+
+/** Avaliação final: plano + as duas avaliações + resultado (§16). */
+export async function getPdiEvaluation(
+  userId: string,
+): Promise<PdiEvaluation> {
+  const data = await api.get<PdiEvaluation>(`/pdi/${userId}/evaluation`);
+  return data as PdiEvaluation;
+}
+
+/**
+ * Salva a avaliação do lado do ator (§15.3): dono grava a
+ * autoavaliação (leva o plano a Em avaliação), gestor/Admin grava a
+ * avaliação do gestor — o servidor determina o lado.
+ */
+export async function savePdiAssessment(
+  userId: string,
+  content: string,
+): Promise<void> {
+  await api.put(`/pdi/${userId}/assessment`, { content });
+}
+
+/** Resultado final (§16, Admin/gestor) — único por plano (2ª → 409). */
+export async function finalizePdiResult(
+  userId: string,
+  outcome: PdiResultOutcome,
+  notes?: string | null,
+): Promise<void> {
+  await api.put(`/pdi/${userId}/result`, {
+    outcome,
+    notes: notes ?? null,
+  });
 }

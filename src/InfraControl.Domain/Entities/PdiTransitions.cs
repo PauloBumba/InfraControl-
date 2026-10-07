@@ -24,7 +24,14 @@ public static class PdiTransitions
                 PdiStatus.Cancelled
             ],
             [PdiStatus.InProgress] = [PdiStatus.UnderEvaluation],
-            [PdiStatus.UnderEvaluation] = [PdiStatus.Completed],
+            // ADR-036 (Fase 6): a avaliação final (§16) termina em
+            // Concluído — ou devolve o plano ao ciclo quando o
+            // resultado é "Replanejado".
+            [PdiStatus.UnderEvaluation] =
+            [
+                PdiStatus.Completed,
+                PdiStatus.Replanned
+            ],
             [PdiStatus.Replanned] = [PdiStatus.Active],
             [PdiStatus.Completed] = [],
             [PdiStatus.Cancelled] = []
