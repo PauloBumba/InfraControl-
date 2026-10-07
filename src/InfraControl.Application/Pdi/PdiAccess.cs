@@ -1,4 +1,5 @@
 using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Pdi;
@@ -17,4 +18,79 @@ internal static class PdiAccess
             throw new UnauthorizedAccessException(
                 "Você só pode editar a estrutura do seu próprio PDI.");
     }
+
+    /// <summary>
+    /// Leitura do acompanhamento (ADR-033 §4): Admin, o dono do plano ou
+    /// o gestor do plano — o §9 é bilateral, o gestor precisa ver os
+    /// relatos para responder.
+    /// </summary>
+    internal static void EnsureCanView(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser))
+            return;
+
+        if (currentUser.UserId == plan.UserId
+            || (plan.ManagerId is { } managerId && currentUser.UserId == managerId))
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Você só pode ver o acompanhamento do seu próprio PDI.");
+    }
+
+    /// <summary>
+    /// Escrita do colaborador (relatos, progresso, impedimentos,
+    /// exclusões): Admin ou dono do plano (§9 — lado colaborador).
+    /// </summary>
+    internal static void EnsureCanReport(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser) || currentUser.UserId == plan.UserId)
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Você só pode registrar acompanhamento no seu próprio PDI.");
+    }
+
+    /// <summary>
+    /// Resposta do gestor ao check-in (§10): Admin ou o gestor
+    /// definido no plano (sem gestor, só o Admin responde).
+    /// </summary>
+    internal static void EnsureCanRespond(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser)
+            || (plan.ManagerId is { } managerId && currentUser.UserId == managerId))
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Apenas o gestor ou um administrador pode responder este check-in.");
+    }
+
+    /// <summary>
+    /// Edição de impedimento (§11): Admin, dono ou gestor — o gestor
+    /// registra ação tomada e resolução junto com o colaborador.
+    /// </summary>
+    internal static void EnsureCanAssist(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser)
+            || currentUser.UserId == plan.UserId
+            || (plan.ManagerId is { } managerId && currentUser.UserId == managerId))
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Você só pode editar o acompanhamento do seu próprio PDI.");
+    }
+
+    /// <summary>Admin exclusivo (feedback é histórico — ADR-033 §6).</summary>
+    internal static void EnsureIsAdmin(ICurrentUserContext currentUser)
+    {
+        if (!IsAdmin(currentUser))
+            throw new UnauthorizedAccessException(
+                "Apenas administradores podem excluir feedbacks.");
+    }
+
+    private static bool IsAdmin(ICurrentUserContext currentUser)
+        => currentUser.Roles.Contains(UserRole.Admin.ToString());
 }

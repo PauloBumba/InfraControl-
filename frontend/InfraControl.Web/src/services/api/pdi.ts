@@ -382,3 +382,199 @@ export async function updatePdiActivity(
 export async function deletePdiActivity(id: string): Promise<void> {
   await api.delete(`/pdi/activities/${id}`);
 }
+
+// ---------------------------------------------------------------------------
+// Acompanhamento da fase (docs/30 §9-§11, §13, Fase 3 — ADR-033):
+// progresso/comentários, check-ins bilaterais, impedimentos e feedbacks.
+// Contrato espelha `PdiAccompanimentDtos` (Application); datas "yyyy-MM-dd";
+// escrita: progresso/check-in/impedimento = dono ou Admin (403 pt-BR),
+// editar impedimento também o gestor, feedback = qualquer um que vê o
+// plano e exclusão de feedback = só Admin.
+// ---------------------------------------------------------------------------
+
+export type PdiImpedimentStatus = "Open" | "Resolved";
+
+export interface PdiProgress {
+  id: string;
+  phaseId: string;
+  authorId: string;
+  authorName: string | null;
+  percent: number | null;
+  comment: string;
+  createdAt: string;
+}
+
+export interface PdiCheckIn {
+  id: string;
+  phaseId: string;
+  checkInDate: string;
+  createdBy: string;
+  createdByName: string | null;
+  whatDone: string;
+  whatLearned: string | null;
+  difficulty: string | null;
+  needSupport: string | null;
+  managerFeedback: string | null;
+  nextAction: string | null;
+  respondedAt: string | null;
+  respondedByName: string | null;
+}
+
+export interface PdiImpediment {
+  id: string;
+  phaseId: string;
+  type: string;
+  description: string;
+  impact: string | null;
+  occurredAt: string;
+  responsibleId: string | null;
+  responsibleName: string | null;
+  actionTaken: string | null;
+  status: PdiImpedimentStatus;
+  resolvedAt: string | null;
+}
+
+export interface PdiFeedback {
+  id: string;
+  phaseId: string;
+  authorId: string;
+  authorName: string | null;
+  recipientId: string;
+  recipientName: string | null;
+  type: string;
+  content: string;
+  feedbackDate: string;
+}
+
+export interface PdiAccompaniment {
+  userId: string;
+  progresses: PdiProgress[];
+  checkIns: PdiCheckIn[];
+  impediments: PdiImpediment[];
+  feedbacks: PdiFeedback[];
+}
+
+export const PDI_IMPEDIMENT_STATUS_LABEL: Record<
+  PdiImpedimentStatus,
+  string
+> = {
+  Open: "Aberto",
+  Resolved: "Resolvido",
+};
+
+export const PDI_IMPEDIMENT_STATUS_STYLE: Record<
+  PdiImpedimentStatus,
+  { background: string; color: string }
+> = {
+  Open: { background: "#fee2e2", color: "#b91c1c" },
+  Resolved: { background: "#dcfce7", color: "#15803d" },
+};
+
+export function parsePdiImpedimentStatus(
+  value: string,
+): PdiImpedimentStatus {
+  return value.toLowerCase() === "resolved" ? "Resolved" : "Open";
+}
+
+/** Lista única do acompanhamento — Admin: qualquer; dono/gestor: o próprio. */
+export async function getPdiAccompaniment(
+  userId: string,
+): Promise<PdiAccompaniment> {
+  const data = await api.get<PdiAccompaniment>(`/pdi/${userId}/accompaniment`);
+  return data ?? { userId, progresses: [], checkIns: [], impediments: [], feedbacks: [] };
+}
+
+// ---- Progresso (§9 — relato + comentário, append-only) ------------------
+
+export async function createPdiProgress(input: {
+  phaseId: string;
+  percent?: number | null;
+  comment: string;
+}): Promise<void> {
+  await api.post("/pdi/progresses", input);
+}
+
+export async function deletePdiProgress(id: string): Promise<void> {
+  await api.delete(`/pdi/progresses/${id}`);
+}
+
+// ---- Check-ins (§10 — bilateral: relato do dono, resposta do gestor) ----
+
+export async function createPdiCheckIn(input: {
+  phaseId: string;
+  checkInDate: string;
+  whatDone: string;
+  whatLearned?: string | null;
+  difficulty?: string | null;
+  needSupport?: string | null;
+}): Promise<void> {
+  await api.post("/pdi/checkins", input);
+}
+
+/** PUT por lado: só os campos enviados são gravados (403 pt-BR do backend). */
+export async function updatePdiCheckIn(
+  id: string,
+  input: {
+    whatDone?: string | null;
+    whatLearned?: string | null;
+    difficulty?: string | null;
+    needSupport?: string | null;
+    managerFeedback?: string | null;
+    nextAction?: string | null;
+  },
+): Promise<void> {
+  await api.put(`/pdi/checkins/${id}`, input);
+}
+
+export async function deletePdiCheckIn(id: string): Promise<void> {
+  await api.delete(`/pdi/checkins/${id}`);
+}
+
+// ---- Impedimentos (§11 — entidade própria com status) ------------------
+
+export async function createPdiImpediment(input: {
+  phaseId: string;
+  type: string;
+  description: string;
+  occurredAt: string;
+  impact?: string | null;
+  responsibleId?: string | null;
+  actionTaken?: string | null;
+}): Promise<void> {
+  await api.post("/pdi/impediments", input);
+}
+
+export async function updatePdiImpediment(
+  id: string,
+  input: {
+    type: string;
+    description: string;
+    occurredAt: string;
+    impact?: string | null;
+    responsibleId?: string | null;
+    actionTaken?: string | null;
+    status: PdiImpedimentStatus;
+  },
+): Promise<void> {
+  await api.put(`/pdi/impediments/${id}`, input);
+}
+
+export async function deletePdiImpediment(id: string): Promise<void> {
+  await api.delete(`/pdi/impediments/${id}`);
+}
+
+// ---- Feedback (§13 — histórico, nunca sobrescreve; excluir = Admin) -----
+
+export async function createPdiFeedback(input: {
+  phaseId: string;
+  recipientId: string;
+  type: string;
+  content: string;
+  feedbackDate: string;
+}): Promise<void> {
+  await api.post("/pdi/feedbacks", input);
+}
+
+export async function deletePdiFeedback(id: string): Promise<void> {
+  await api.delete(`/pdi/feedbacks/${id}`);
+}
