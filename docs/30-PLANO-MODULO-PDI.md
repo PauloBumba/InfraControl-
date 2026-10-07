@@ -6,7 +6,7 @@
 > implementado** está no cabeçalho; a evolução segue as **8 fases** da §25,
 > **uma task por fase**, com ADR antes de qualquer mudança arquitetural.
 >
-> ## Situação atual (2026-10-05) — o que já existe
+> ## Situação atual (2026-10-06) — o que já existe
 >
 > - `IndividualDevelopmentPlan` (1 por usuário): estratégia, prazo,
 >   status, **gestor (`ManagerId`), período (`PeriodStart/End`)**, ator
@@ -35,17 +35,31 @@
 > - `GET/PUT /api/v1/pdi` + `PdiPage` (`/pdi`, seletor de status com os
 >   próximos estados válidos, gestor, período, motivo, timeline,
 >   botão Estrutura);
+> - **acompanhamento bilateral (Fase 3, ADR-033)**: quatro entidades sob
+>   a fase — **progresso** (`pdi_progresses`, relato + comentário
+>   append-only), **check-in** (`pdi_check_ins`, bilateral: relato do
+>   dono + resposta do gestor, PUT por lado com `null` preserva / `""`
+>   limpa), **impedimento** (`pdi_impediments`, tipo/descrição/impacto/
+>   responsável/ação + status Open→Resolved com `ResolvedAt` derivado) e
+>   **feedback** (`pdi_feedbacks`, histórico: autor→destinatário, tipo,
+>   conteúdo, data; excluir = só Admin), FKs `Restrict` → 409, permissão
+>   por ação em `PdiAccess` (ler: Admin/dono/gestor · relato: Admin/dono ·
+>   responder: Admin/gestor · editar impedimento: Admin/dono/gestor),
+>   `GET /pdi/{userId}/accompaniment` único, `PdiAccompanimentDialog`
+>   (abas Check-ins/Progresso/Impedimentos/Feedback) pelo botão
+>   "Acompanhar" de cada fase;
 > - eventos `PdiCreated/Updated` → outbox → RabbitMQ → notificações
 >   (criação: dono Email+SignalR; edição: dono ou Admin por role, só
 >   SignalR);
 > - testes `PdiCommandTests` (15) + `PdiTransitionsTests` (20) +
->   `PdiStructureTests` (11) + suítes verdes; migrações `20261005011124`
->   e `20261006001904_PdiDevelopmentStructure` aplicadas no dev;
+>   `PdiStructureTests` (11) + `PdiAccompanimentTests` (9) + suítes
+>   verdes; migrações `20261005011124`, `20261006001904_PdiDevelopmentStructure`
+>   e `20261006013525_PdiAccompaniment` aplicadas no dev;
 >   containers/ smoke/ E2E.
 >
-> **Fases 1 (§25) e 2 executadas** — ver ADR-029 e ADR-032. Gap para a
-> **Fase 3**: acompanhamento (§9) — check-ins, progresso, comentários,
-> feedback, dificuldades, impedimentos.
+> **Fases 1 (§25), 2 e 3 executadas** — ver ADR-029, ADR-032 e ADR-033.
+> Gap para a **Fase 4**: evidências (§12) — upload, tipos, validação,
+> rejeição, histórico.
 
 ---
 
@@ -428,7 +442,7 @@ DIAGNÓSTICO → PLANEJAMENTO (objetivos + estratégia) → FASES → EXECUÇÃO
 
 - **Fase 1 — Fundamento:** revisar entidade PDI atual; pessoa/gestor; período; status; permissões; histórico. <!-- [x] Executada 2026-10-04 — ADR-029: 9 status + tabela de transições (§3), ManagerId/PeriodStart/PeriodEnd, histórico append-only (17), permissões (Operador só aceite), migração `20261005011124` com remapeamento InProgress→Active, front (transições/gestor/período/motivo/timeline), testes 35 PDI. -->
 - **Fase 2 — Estrutura do desenvolvimento:** objetivos; competências; estratégias; fases; atividades; prazos. <!-- [x] Executada 2026-10-05 — ADR-032: 5 entidades (PdiCompetency catálogo global lowercase 409, PdiObjective/Strategy/Phase/Activity com FK Restrict → 409, sort_order, fase NotStarted/InProgress/Completed + Percent), ownership PdiAccess (Admin tudo / Operador próprio), PdiStructureLookup cadeia→plano, migração `20261006001904_PdiDevelopmentStructure`, controller/VMs GET structure + CRUD 5 níveis, PdiStructureDialog (árvore/forms/catálogo/responsável), testes 11 PDI. -->
-- **Fase 3 — Acompanhamento:** check-ins; progresso; comentários; feedback; dificuldades; impedimentos.
+- **Fase 3 — Acompanhamento:** check-ins; progresso; comentários; feedback; dificuldades; impedimentos. <!-- [x] Executada 2026-10-06 — ADR-033: 4 entidades sob a fase (PdiProgress progresso+comentário, PdiCheckIn bilateral PUT por lado com null preserva / "" limpa, PdiImpediment status Open→Resolved + ResolvedAt, PdiFeedback histórico excluir=Admin), FK Restrict → 409, permissão por ação em PdiAccess (View=Admin/dono/gestor, Report=Admin/dono, Respond=Admin/gestor, Assist=Admin/dono/gestor, feedback Create=View/Delete=Administer), GET /pdi/{userId}/accompaniment único, PdiAccompanimentDialog (4 abas) pelo botão "Acompanhar", migração `20261006013525_PdiAccompaniment`, testes 9 PDI, E2E 64/64; "comentários" = PdiProgress.Comment; tipo de impedimento livre (lookup = Fase 8). -->
 - **Fase 4 — Evidências:** upload; tipos; validação; rejeição; histórico.
 - **Fase 5 — Governança:** aprovação; aceite do colaborador; replanejamento; auditoria; histórico de alterações.
 - **Fase 6 — Avaliação:** autoavaliação; avaliação do gestor; resultado; comparação inicial/final.
