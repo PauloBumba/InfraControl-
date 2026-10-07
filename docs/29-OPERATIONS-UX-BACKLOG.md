@@ -117,8 +117,30 @@ documentada antes da tela.
      `20261006001904_PdiDevelopmentStructure`; front `PdiStructureDialog`
      (árvore, forms por nível, catálogo com criação Admin, responsável
      Admin=usuários / Operador=plano+gestor) no botão "Estrutura" da
-     `PdiPage`; testes `PdiStructureTests` 11; Fase 2 **não** escreve
-     histórico/eventos (auditoria = Fase 5).
+      `PdiPage`; testes `PdiStructureTests` 11; Fase 2 **não** escreve
+      histórico/eventos (auditoria = Fase 5).
+   - **Fase 3 — Acompanhamento executada em 2026-10-06** (ADR-033):
+     quatro entidades sob a **fase**: `pdi_progresses` (relato +
+     comentário do colaborador, append-only), `pdi_check_ins`
+     (**bilateral** — relato do dono e resposta do gestor em campos
+     distintos; PUT por lado: campo enviado grava (`""` limpa), não
+     enviado preserva; `RespondedAt/RespondedById` só mudam no lado
+     resposta), `pdi_impediments` (§11: tipo/descrição/impacto/data/
+     responsável/ação + status `Open→Resolved` com `ResolvedAt` derivado
+     e reopen limpa; tipo texto livre — lookup = Fase 8) e
+     `pdi_feedbacks` (§13 histórico autor→destinatário/tipo/conteúdo/
+     data; **excluir = só Admin**); FKs `Restrict` → 409; permissão por
+     ação em `PdiAccess` (ler = Admin/dono/gestor, relato = Admin/dono,
+     responder = Admin/gestor, editar impedimento = Admin/dono/gestor,
+     criar feedback = quem vê); rota única
+     `GET /pdi/{userId}/accompaniment` + `POST/PUT/DELETE` de
+     progresses/checkins/impediments/feedbacks; migração
+     `20261006013525_PdiAccompaniment`; front `PdiAccompanimentDialog`
+     (4 abas com contadores, forms, chips Aberto/Resolvido,
+     `ConfirmDialog`) pelo botão **"Acompanhar"** de cada fase do
+     `PdiStructureDialog`; testes `PdiAccompanimentTests` 9 (inclui
+     regressão "PUT de relato não re-carimba a resposta"); Fase 3
+     **não** escreve histórico/eventos (auditoria = Fase 5).
 
 ## Ordem de execução
 

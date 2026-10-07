@@ -223,7 +223,47 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   2×403 de escopo, 400 sem XSRF, 4×409 de exclusão, histórico intacto).
   Descobertas: registro direto cria usuário *pending* que não loga
   (caminho autêntico = convite) e DELETE também exige `X-XSRF-TOKEN`.
-  Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
+   Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
+  autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
+  **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4
+  entidades próprias sob a **fase** (FK `Restrict` → 409, user refs sem
+  FK) — `PdiProgress` (progresso + comentário append-only),
+  `PdiCheckIn` (bilateral: relato do dono + resposta do gestor,
+  `RespondedAt/RespondedById` só no lado resposta), `PdiImpediment`
+  (§11 com status `Open→Resolved` + `ResolvedAt` derivado; tipo texto
+  livre — lookup = Fase 8), `PdiFeedback` (§13 histórico; excluir =
+  só Admin). Application: `PdiAccess` estendido com permissão **por
+  ação** (View=Admin/dono/gestor · Report=Admin/dono · Respond=Admin/
+  gestor · Assist=Admin/dono/gestor · IsAdmin), +12 métodos em
+  `IPdiStructureRepository`, 8 comandos (PUT de check-in **por lado**:
+  campo enviado grava, `""` limpa, não enviado preserva; PUT de relato
+  não re-carimba resposta), query única das 4 listas. Infra: 4 configs
+  `pdi_*`, 4 DbSets, migração `20261006013525_PdiAccompaniment`
+  aplicada no dev. Api: `PdiAccompanimentController` (GET
+  `/{userId}/accompaniment` + progresses/checkins/impediments/feedbacks;
+  DELETE de feedback = `Administer`) + 7 VMs. Front:
+  `PdiAccompanimentDialog.tsx` (4 abas com contadores, forms, chips
+  Aberto/Resolvido, `ConfirmDialog`, botões por papel) aberto pelo
+  botão **"Acompanhar"** de cada fase do `PdiStructureDialog`;
+  `pdi.ts` +11 funções. Testes: `PdiAccompanimentTests` **9/9** ·
+  PDI **129/129** · unit **1583/1584** (única falha =
+  `IncidentTests.ChangeStatus_NonResolvedStatus_ShouldNotRaiseResolvedEvent`
+  da **sessão paralela** — reportada, não corrigida) · arch
+  **115/115** · front tsc/lint/build verdes · containers reconstruídos
+  healthy · smoke **12/12** · E2E Fase 3 **64/64** (bilateral com
+  preservação/carimbo/limpeza, máquina de status de impedimento,
+  regras de feedback, 403 estrangeiro/não-Admin, dono no próprio,
+  400/404/antiforgery/anônimo, histórico intacto, limpeza).
+  Descobertas: campo **omitido** no JSON → `Required` do MVC responde
+  400 em inglês (convenção pré-existente; domínio pt-BR cobre o campo
+  em branco — testado nas duas camadas) e `DELETE /admin/users/{id}`
+  apaga `DomainUsers` mas deixa linha inerte em `AspNetUsers`
+  (lacuna conhecida no código do Identity da sessão paralela;
+  resíduo + planos órfãos de E2E removidos via SQL). Docs: ADR-033,
+  docs/30 (situação+§25), docs/29 §8, TASKS.
+
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
