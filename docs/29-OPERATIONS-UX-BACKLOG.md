@@ -141,6 +141,28 @@ documentada antes da tela.
      `PdiStructureDialog`; testes `PdiAccompanimentTests` 9 (inclui
      regressão "PUT de relato não re-carimba a resposta"); Fase 3
      **não** escreve histórico/eventos (auditoria = Fase 5).
+   - **Fase 4 — Evidências executada em 2026-10-07** (ADR-034):
+     `PdiEvidence` / `pdi_evidences` sob a **fase** (FK `Restrict`) com
+     os **9 tipos** do §12 (`PdiEvidenceType` + rótulos pt-BR) e status
+     `Pending→Validated/Rejected` — **revisão única** (2ª → 409),
+     rejeição com motivo obrigatório, arquivo ≤10 MB com nome saneado
+     (`Path.GetFileName` — `../evil.sh` → `evil.sh`) e storage em disco
+     `var/pdi-evidence` (`IPdiEvidenceFileStore`, arquivo gravado antes
+     do DB com rollback best-effort; **sem delete** — retention = Fase 5);
+     rotas `POST /pdi/evidences` (multipart), `PUT
+     /pdi/evidences/{id}/review` (enum com `JsonStringEnumConverter`
+     explícito), `GET .../download` (`nosniff` + attachment); 5ª lista
+     de `GET /pdi/{userId}/accompaniment`; histórico
+     `EvidenceAdded`/`EvidenceReviewed` (conversion string, **sem
+     migração**); permissão por ação (`EnsureCanReport` enviar,
+     `EnsureCanReview` revisar = Admin/gestor, `EnsureCanView` ler);
+     aba "Evidências" no `PdiAccompanimentDialog` (upload, revisão,
+     download blob); migração `20261007015235_PdiEvidence`; testes
+     `PdiEvidenceTests` 10. **Correções de deployment capturadas pelo
+     E2E**: diretório `/app/var` não-gravável pelo UID da API (→ `mkdir/
+     chown` no Dockerfile + named volume `pdi-evidence`), nginx em 1 MB
+     de `client_max_body_size` (→ 16m; senão 413 antes do teto de 10 MB)
+     e binding de enum só por número (→ 400 em toda revisão).
 
 ## Ordem de execução
 

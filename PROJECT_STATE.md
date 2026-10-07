@@ -264,6 +264,39 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   resíduo + planos órfãos de E2E removidos via SQL). Docs: ADR-033,
   docs/30 (situação+§25), docs/29 §8, TASKS.
 
+- PDI Fase 4 — Evidências concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §12): **ADR-034**
+  (`docs/adr/ADR-034-PDI-EVIDENCE.md`). Domínio: `PdiEvidence`
+  (`pdi_evidences` sob a fase, FK `Restrict`) com os **9 tipos** do §12
+  (enum + rótulos pt-BR), status `Pending→Validated/Rejected` —
+  revisão **única** (2ª → 409), rejeição com motivo obrigatório,
+  arquivo ≤10 MB com nome saneado (`../evil.sh` → `evil.sh`), histórico
+  `EvidenceAdded`/`EvidenceReviewed` (conversion string, sem migração).
+  Application: porta `IPdiEvidenceFileStore`, `PdiAccess.
+  EnsureCanReview` (Admin/gestor), +3 métodos no repositório, comando
+  de upload (arquivo antes do DB com rollback best-effort) + revisão,
+  query de download, 5ª lista no `GET /pdi/{userId}/accompaniment`.
+  Infra: `PhysicalPdiEvidenceFileStore` (`var/pdi-evidence` relativo à
+  base), config `PdiEvidence`, migração `20261007015235_PdiEvidence`
+  aplicada no dev. Api: `PdiEvidenceController` (POST multipart / PUT
+  review / GET download com nosniff) + VMs — `JsonStringEnumConverter`
+  explícito na decisão da revisão. Front: `client.ts` com FormData e
+  `download()` Blob, 5ª aba **"Evidências"** no
+  `PdiAccompanimentDialog` (upload, revisão, chips, motivo). Testes:
+  `PdiEvidenceTests` **10/10** · PDI **139/139** · unit **1594/1594** ·
+  arch **117/117** · front tsc/lint/build verdes · containers
+  reconstruídos healthy · E2E **50/50** (`pdi_fase4_e2e.py`: upload/400s
+  /traversal, download íntegro, revisão completa incl. 409 e 400 sem
+  XSRF, histórico, 4×403 de operador, purga de resíduo). **Descobertas
+  do E2E (corrigidas)**: storage `/app/var` não-gravável pelo UID da API
+  → `mkdir/chown` + named volume `pdi-evidence`; nginx
+  `client_max_body_size` 1 MB → 413 nos uploads de 10 MB → `16m`; enum
+  de revisão sem conversor de string → 400 em toda revisão; e o purge
+  de resíduo de E2E precisava incluir `DomainUsers`/`DomainUserRoles`
+  (sem isso o accept de convite ia pelo caminho "conta existente" e o
+  Identity nunca era provisionado). Docs: ADR-034, docs/30
+  (situação+§25), docs/29 §8, TASKS.
+
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
