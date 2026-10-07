@@ -65,6 +65,23 @@ public sealed class TaskAssigneeRepository(AppDbContext dbContext)
                     .Select(pair => pair.UserId).ToArray());
     }
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        // Usuário excluído some do dicionário (left join via ausência) —
+        // o chamador trata como nome não encontrado (F23-T001).
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(user => user.Id, user => user.DisplayName);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

@@ -16,7 +16,11 @@ namespace InfraControl.Application.Tasks.Commands;
 public sealed record CreateTaskCommand(
     string Title,
     string Kind,
-    string? Description = null) : BaseCommand<TaskDto>, IAuthorizedRequest
+    string? Description = null,
+    string? Priority = null,
+    DateOnly? DueDate = null,
+    Guid? ResponsibleId = null,
+    Guid? ParentTaskId = null) : BaseCommand<TaskDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -24,6 +28,7 @@ public sealed record CreateTaskCommand(
 
 public sealed class CreateTaskCommandHandler(
     ITaskItemRepository repository,
+    ITaskAssigneeRepository assigneeRepository,
     ITaskHistoryWriter historyWriter,
     ILogger<CreateTaskCommandHandler> logger)
     : IRequestHandler<CreateTaskCommand, TaskDto>
@@ -31,10 +36,37 @@ public sealed class CreateTaskCommandHandler(
     public async Task<TaskDto> Handle(
         CreateTaskCommand request, CancellationToken cancellationToken)
     {
+        var priority = ParsePriority(request.Priority);
+
+        // F23-T001: responsável precisa existir (404 pt-BR) — o vínculo
+        // com assignees é opcional e independente.
+        if (request.ResponsibleId is { } responsibleId
+            && !await assigneeRepository.UserExistsAsync(responsibleId, cancellationToken))
+            throw new KeyNotFoundException(
+                $"Usuário '{responsibleId}' não encontrado.");
+
+        // F23-T004/P4a: criação como subtarefa — pai precisa existir e
+        // não pode ser ele mesmo subtarefa (profundidade ≤ 2).
+        TaskItem? parent = null;
+        if (request.ParentTaskId is { } parentId)
+        {
+            parent = await repository.GetByIdAsync(parentId, cancellationToken)
+                ?? throw new KeyNotFoundException(
+                    $"Task '{parentId}' não encontrada.");
+            if (parent.ParentTaskId != null)
+                throw new ArgumentException(
+                    "Subtarefas não podem ter subtarefas.",
+                    nameof(request.ParentTaskId));
+        }
+
         var task = TaskItem.Create(
             request.Title,
             ParseKind(request.Kind),
-            request.Description);
+            request.Description,
+            priority,
+            request.DueDate,
+            request.ResponsibleId);
+        task.SetParent(parent?.Id);
 
         await repository.AddAsync(task, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
@@ -43,11 +75,55 @@ public sealed class CreateTaskCommandHandler(
         await historyWriter.RecordAsync(
             task.Id, TaskHistoryAction.Created, cancellationToken: cancellationToken);
 
-        logger.LogInformation(
-            "Task {TaskId} created ({Kind} — {Title}).",
-            task.Id, task.Kind, task.Title);
+        // F23-T004/P4a: o pai também registra a nova subtarefa.
+        if (parent != null)
+            await historyWriter.RecordAsync(
+                parent.Id, TaskHistoryAction.SubtaskAdded, task.Title,
+                cancellationToken);
 
-        return TaskDto.From(task);
+        logger.LogInformation(
+            "Task {TaskId} created ({Kind} — {Title}){Parent}.",
+            task.Id, task.Kind, task.Title,
+            parent == null ? "" : $" [subtask of {parent.Id}]");
+
+        var responsibleName = await ResolveResponsibleNameAsync(
+            assigneeRepository, task.ResponsibleId, cancellationToken);
+
+        return TaskDto.From(
+            task, responsibleName: responsibleName,
+            parentTitle: parent?.Title);
+    }
+
+    /// <summary>F23-T001: null/vazio = prioridade padrão Medium.</summary>
+    internal static TaskPriority ParsePriority(string? priority)
+    {
+        if (string.IsNullOrWhiteSpace(priority))
+            return TaskPriority.Medium;
+
+        if (!Enum.TryParse(priority.Trim(), ignoreCase: true, out TaskPriority parsed)
+            || !Enum.IsDefined(parsed))
+            throw new ArgumentException(
+                $"Prioridade inválida: '{priority}'. Use low, medium, high ou critical.",
+                nameof(priority));
+
+        return parsed;
+    }
+
+    /// <summary>
+    /// Nome do responsável (F23-T001) — compartilhado pelo Get/Search e
+    /// pelo SetTaskIdentification; sem responsável = null.
+    /// </summary>
+    internal static async Task<string?> ResolveResponsibleNameAsync(
+        ITaskAssigneeRepository assigneeRepository,
+        Guid? responsibleId,
+        CancellationToken cancellationToken)
+    {
+        if (responsibleId is not { } id)
+            return null;
+
+        var names = await assigneeRepository.GetUserNamesAsync(
+            [id], cancellationToken);
+        return names.TryGetValue(id, out var name) ? name : null;
     }
 
     internal static TaskKind ParseKind(string? kind)

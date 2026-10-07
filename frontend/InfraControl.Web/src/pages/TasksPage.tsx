@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
@@ -14,59 +15,39 @@ import {
   changeTaskState,
   createTask,
   listTasks,
+  setTaskIdentification,
   type PagedTasks,
   type TaskItem,
 } from "@/services/api/tasks";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
+import {
+  formatDateOnly,
+  isOverdue,
+  kindLabel,
+  kindOptions,
+  messageFor,
+  priorityOptions,
+  priorityVisual,
+  stateColumns,
+  stateLabel,
+} from "@/components/tasks/taskCatalogs";
 
 /**
  * F17-T001 — TasksPage conectada ao backend (substitui o mock de
  * `data/dashboardData`). O quadro espelha as enumerações REAIS: as colunas
  * são os 7 estados de `TaskState` e o chip de cada card é o `TaskKind`
- * (catálogo fechado de docs/04). Campos do mock que não existem no contrato
- * (priority, dueDate, tags) saíram — o backend é a autoridade. Escrita fica
- * atrás de `Can operate` (exibição; o 403 volta no envelope se escapar).
- * Pendências da F17-T001 fechadas: filtros `term/kind/state` na UI (params
- * reais de `GET /tasks`) e transição de estado via `PUT /tasks/{id}/state`
- * (o mapa de transições continua no domínio — fora dele o 409 pt-BR do
- * envelope vira banner).
+ * (catálogo fechado de docs/04). Escrita fica atrás de `Can operate`
+ * (exibição; o 403 volta no envelope se escapar). Pendências da F17-T001
+ * fechadas: filtros `term/kind/state` na UI (params reais de `GET /tasks`)
+ * e transição de estado via `PUT /tasks/{id}/state` (o mapa de transições
+ * continua no domínio — fora dele o 409 pt-BR do envelope vira banner).
+ *
+ * F23-T001 — identificação básica: prioridade, prazo (dueDate) e
+ * responsável entram na criação e num formulário de edição
+ * (`PUT /tasks/{id}/identification`, comando de substituição). O card
+ * mostra o chip de prioridade colorido, o prazo (vencido destacado) e o
+ * responsável resolvido pelo backend.
  */
-
-const stateColumns = [
-  { id: "Open", label: "Abertas", color: "#6b7280" },
-  { id: "InProgress", label: "Em progresso", color: "#3b82f6" },
-  { id: "Waiting", label: "Aguardando", color: "#f59e0b" },
-  { id: "Blocked", label: "Bloqueadas", color: "#dc2626" },
-  { id: "Resolved", label: "Resolvidas", color: "#22c55e" },
-  { id: "Cancelled", label: "Canceladas", color: "#94a3b8" },
-  { id: "Closed", label: "Fechadas", color: "#374151" },
-];
-
-const stateLabel = (state: string): string =>
-  stateColumns.find((column) => column.id === state)?.label ?? state;
-
-/** Rótulos pt-BR dos valores enviados no body (`CreateTaskCommand`). */
-const kindOptions = [
-  { value: "Manual", label: "Manual" },
-  { value: "Incident", label: "Incidente" },
-  { value: "Alert", label: "Alerta" },
-  { value: "Monitoring", label: "Monitoramento" },
-  { value: "Discovery", label: "Descoberta" },
-  { value: "Maintenance", label: "Manutenção" },
-  { value: "Change", label: "Mudança" },
-  { value: "Preventive", label: "Preventiva" },
-  { value: "Corrective", label: "Corretiva" },
-  { value: "Project", label: "Projeto" },
-  { value: "System", label: "Sistema" },
-];
-
-const kindLabel = (kind: string): string =>
-  kindOptions.find((option) => option.value === kind)?.label ?? kind;
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
 
 export function TasksPage() {
   const [page, setPage] = useState<PagedTasks | null>(null);
@@ -75,11 +56,16 @@ export function TasksPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<TaskItem | null>(null);
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState("Manual");
   const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [dueDate, setDueDate] = useState("");
+  const [responsibleId, setResponsibleId] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
 
   // Filtros: o input é aplicado no submit (mesmo padrão da ClientsPage) e os
   // valores aplicados é que disparam a recarga.
@@ -93,8 +79,11 @@ export function TasksPage() {
     setError(null);
     try {
       // pageSize no clamp máximo do handler (1..100) — o quadro não pagina.
+      // rootOnly (F23-T004/P4a): subtarefas ficam dentro do detalhe do
+      // pai — o quadro mostra só as tasks raiz.
       setPage(await listTasks({
         pageSize: 100,
+        rootOnly: true,
         term: term || undefined,
         kind: kindFilter || undefined,
         state: stateFilter || undefined,
@@ -109,6 +98,14 @@ export function TasksPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Usuários do seletor de responsável — a listagem exige role Admin/User;
+  // Viewer recebe 403 e a falha silencia (select fica só com "Sem").
+  useEffect(() => {
+    void listUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, []);
 
   function applyFilters(event: FormEvent) {
     event.preventDefault();
@@ -136,25 +133,71 @@ export function TasksPage() {
     }
   }, [load]);
 
-  async function submitCreate(event: FormEvent) {
+  function resetForm() {
+    setTitle("");
+    setDescription("");
+    setKind("Manual");
+    setPriority("Medium");
+    setDueDate("");
+    setResponsibleId("");
+    setFormError(null);
+  }
+
+  /** Edição de identificação (F23-T001) — pré-preenche os 3 campos. */
+  function startEdit(task: TaskItem) {
+    setCreating(false);
+    setPriority(task.priority || "Medium");
+    setDueDate(task.dueDate ?? "");
+    setResponsibleId(task.responsibleId ?? "");
+    setFormError(null);
+    setEditing(task);
+  }
+
+  /**
+   * Submit único: criação (title/kind/description + identificação) ou
+   * substituição da identificação (`PUT /tasks/{id}/identification`).
+   */
+  async function submitForm(event: FormEvent) {
     event.preventDefault();
+    setFormError(null);
+
+    if (editing) {
+      setSaving(true);
+      try {
+        await setTaskIdentification(editing.id, {
+          priority,
+          dueDate: dueDate || undefined,
+          responsibleId: responsibleId || undefined,
+        });
+        const savedTitle = editing.title;
+        setEditing(null);
+        setNotice(`Identificação de "${savedTitle}" atualizada.`);
+        await load();
+      } catch (caught) {
+        setFormError(messageFor(caught));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     const trimmed = title.trim();
     if (!trimmed) {
       setFormError("Informe o título da tarefa.");
       return;
     }
     setSaving(true);
-    setFormError(null);
     try {
       await createTask({
         title: trimmed,
         kind,
         description: description.trim() || undefined,
+        priority,
+        dueDate: dueDate || undefined,
+        responsibleId: responsibleId || undefined,
       });
       setCreating(false);
-      setTitle("");
-      setDescription("");
-      setKind("Manual");
+      resetForm();
       setNotice("Tarefa criada.");
       await load();
     } catch (caught) {
@@ -170,6 +213,26 @@ export function TasksPage() {
   const hasFilters = term !== "" || kindFilter !== "" || stateFilter !== "";
   const completedCount = items.filter((task) => task.state === "Resolved" || task.state === "Closed").length;
   const completionPercent = items.length === 0 ? 0 : Math.round((completedCount / items.length) * 100);
+
+  // Opções do responsável: "Sem" + usuários; se o responsável da task em
+  // edição não está na lista (usuário removido ou leitura negada), o id
+  // aparece truncado para não virar select em branco.
+  const responsibleOptions: { value: string; label: string }[] = [
+    { value: "", label: "Sem responsável" },
+    ...users.map((user) => ({
+      value: user.userId,
+      label: user.displayName || user.email,
+    })),
+  ];
+  if (
+    editing?.responsibleId &&
+    !users.some((user) => user.userId === editing.responsibleId)
+  ) {
+    responsibleOptions.push({
+      value: editing.responsibleId,
+      label: `Usuário ${editing.responsibleId.slice(0, 8)}`,
+    });
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -195,7 +258,11 @@ export function TasksPage() {
             <Can level="operate">
               <Button
                 variant="primary"
-                onClick={() => { setCreating((value) => !value); setFormError(null); }}
+                onClick={() => {
+                  setEditing(null);
+                  if (!creating) resetForm();
+                  setCreating((value) => !value);
+                }}
                 style={{ padding: "6px 14px" }}
               >
                 <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
@@ -253,43 +320,78 @@ export function TasksPage() {
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
-      {creating && (
-        <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Nova tarefa</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10 }}>
-            <FormField label="Título" error={formError ? "Informe o título da tarefa." : null}>
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Título *"
-                autoFocus
-                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+      {(creating || editing) && (
+        <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>
+            {editing ? `Editar identificação — ${editing.title}` : "Nova tarefa"}
+          </div>
+          {!editing && (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10 }}>
+                <FormField label="Título" error={formError ? "Informe o título da tarefa." : null}>
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Título *"
+                    autoFocus
+                    style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+                  />
+                </FormField>
+                <FormField label="Tipo">
+                  <SelectField
+                    value={kind}
+                    onChange={setKind}
+                    options={kindOptions.map((option) => ({ value: option.value, label: option.label }))}
+                    style={{ width: "100%" }}
+                  />
+                </FormField>
+              </div>
+              <FormField label="Descrição (opcional)">
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Descrição (opcional)"
+                  rows={3}
+                  style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+                />
+              </FormField>
+            </>
+          )}
+          {/* F23-T001 — identificação básica: prioridade, prazo e
+              responsável nos dois modos (no editing são os 3 campos que o
+              PUT substitui). */}
+          <div style={{ display: "grid", gridTemplateColumns: "180px 180px 1fr", gap: 10 }}>
+            <FormField label="Prioridade">
+              <SelectField
+                value={priority}
+                onChange={setPriority}
+                options={priorityOptions.map((option) => ({ value: option.value, label: option.label }))}
+                style={{ width: "100%" }}
               />
             </FormField>
-            <FormField label="Tipo">
+            <FormField label="Prazo (opcional)">
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+                style={{ padding: "6px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormField label="Responsável (opcional)">
               <SelectField
-                value={kind}
-                onChange={setKind}
-                options={kindOptions.map((option) => ({ value: option.value, label: option.label }))}
+                value={responsibleId}
+                onChange={setResponsibleId}
+                options={responsibleOptions}
                 style={{ width: "100%" }}
               />
             </FormField>
           </div>
-          <FormField label="Descrição (opcional)">
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Descrição (opcional)"
-              rows={3}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
-            />
-          </FormField>
           {formError && <FormError message={formError} />}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => { setCreating(false); setFormError(null); }}
+              onClick={() => { setCreating(false); setEditing(null); resetForm(); }}
               style={{ padding: "6px 14px" }}
             >
               Cancelar
@@ -300,7 +402,7 @@ export function TasksPage() {
               disabled={saving}
               style={{ padding: "6px 14px" }}
             >
-              {saving ? "Salvando…" : "Criar tarefa"}
+              {saving ? "Salvando…" : editing ? "Salvar identificação" : "Criar tarefa"}
             </Button>
           </div>
         </form>
@@ -324,7 +426,7 @@ export function TasksPage() {
                   <div style={{ fontSize: 11, color: "#9ca3af", padding: "6px 2px" }}>Sem tarefas</div>
                 )}
                 {colTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onMove={move} />
+                  <TaskCard key={task.id} task={task} onMove={move} onEdit={startEdit} />
                 ))}
               </div>
             </div>
@@ -338,27 +440,51 @@ export function TasksPage() {
 function TaskCard({
   task,
   onMove,
+  onEdit,
 }: {
   task: TaskItem;
   onMove: (task: TaskItem, target: string) => Promise<void>;
+  onEdit: (task: TaskItem) => void;
 }) {
   const [moving, setMoving] = useState(false);
+  const priority = priorityVisual(task.priority);
+  const overdue = task.dueDate != null && isOverdue(task.dueDate);
   return (
     <div style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 12, transition: "all 0.12s" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 8 }}>
-        <StatusChip
-          label={kindLabel(task.kind)}
-          background="#f1f5f9"
-          color="#475569"
-          fontWeight={600}
-          fontSize={10}
-          style={{ whiteSpace: "nowrap", padding: "2px 6px" }}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+          <StatusChip
+            label={kindLabel(task.kind)}
+            background="#f1f5f9"
+            color="#475569"
+            fontWeight={600}
+            fontSize={10}
+            style={{ whiteSpace: "nowrap", padding: "2px 6px" }}
+          />
+          {/* F23-T001 — prioridade com cor por nível. */}
+          <StatusChip
+            label={priority.label}
+            background={priority.background}
+            color={priority.color}
+            fontWeight={600}
+            fontSize={10}
+            style={{ whiteSpace: "nowrap", padding: "2px 6px" }}
+          />
+        </div>
         <span style={{ fontSize: 10, color: "#9ca3af" }}>
           {formatDateTime(new Date(task.openedAt))}
         </span>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>{task.title}</div>
+      {/* F23-T002 — o título abre a tela de detalhe `/tasks/:id`. */}
+      <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+        <Link
+          to={`/tasks/${task.id}`}
+          title="Abrir detalhe da tarefa"
+          style={{ color: "inherit", textDecoration: "none" }}
+        >
+          {task.title}
+        </Link>
+      </div>
       {task.description && (
         <div style={{
           fontSize: 10, color: "#6b7280", marginBottom: 6,
@@ -367,11 +493,44 @@ function TaskCard({
           {task.description}
         </div>
       )}
+      {/* F23-T004/P4a — progresso derivado das subtarefas (null = sem
+          subtarefas ativas → barra some). */}
+      {task.progress != null && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, marginBottom: 6 }}>
+          <div style={{ flex: 1, height: 4, background: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ width: `${task.progress}%`, height: "100%", background: "#0ea5e9" }} />
+          </div>
+          <span style={{ color: "#64748b", whiteSpace: "nowrap" }}>
+            {task.progress}% · {task.subtaskCount}{" "}
+            {task.subtaskCount === 1 ? "subtarefa" : "subtarefas"}
+          </span>
+        </div>
+      )}
+      {/* F23-T001 — prazo (vencido destacado) e responsável resolvido. */}
+      {(task.dueDate || task.responsibleName) && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 10, marginBottom: 6 }}>
+          {task.dueDate && (
+            <span
+              style={{ color: overdue ? "#dc2626" : "#64748b", fontWeight: overdue ? 600 : 400 }}
+              title={overdue ? "Prazo vencido" : "Prazo previsto"}
+            >
+              <i className="pi pi-calendar" style={{ fontSize: 9, marginRight: 3 }} />
+              {formatDateOnly(task.dueDate)}{overdue ? " · vencido" : ""}
+            </span>
+          )}
+          {task.responsibleName && (
+            <span style={{ color: "#64748b" }} title={`Responsável: ${task.responsibleName}`}>
+              <i className="pi pi-user" style={{ fontSize: 9, marginRight: 3 }} />
+              {task.responsibleName}
+            </span>
+          )}
+        </div>
+      )}
       {(task.assigneeCount > 0 || task.deviceCount > 0 || task.incidentCount > 0) && (
         <div style={{ display: "flex", gap: 10, fontSize: 10, color: "#64748b" }}>
           {task.assigneeCount > 0 && (
             <span title={`${task.assigneeCount} responsável(is)`}>
-              <i className="pi pi-user" style={{ fontSize: 9, marginRight: 3 }} />{task.assigneeCount}
+              <i className="pi pi-users" style={{ fontSize: 9, marginRight: 3 }} />{task.assigneeCount}
             </span>
           )}
           {task.deviceCount > 0 && (
@@ -387,7 +546,16 @@ function TaskCard({
         </div>
       )}
       <Can level="operate">
-        <div style={{ marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
+        <div style={{ marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 8, display: "flex", gap: 8 }}>
+          {/* F23-T001 — abre o formulário de identificação no topo. */}
+          <Button
+            variant="ghost"
+            onClick={() => onEdit(task)}
+            title="Editar prioridade, prazo e responsável"
+            style={{ padding: "4px 8px", fontSize: 11, whiteSpace: "nowrap" }}
+          >
+            <i className="pi pi-pencil" style={{ fontSize: 10 }} />
+          </Button>
           {/* Select controlado por task.state: se a transição falhar (409 do
               mapa do domínio), o re-render restaura o valor anterior — a UI
               nunca mostra um estado que o backend não gravou. */}
@@ -401,7 +569,7 @@ function TaskCard({
               setMoving(true);
               void onMove(task, target).finally(() => setMoving(false));
             }}
-            style={{ width: "100%" }}
+            style={{ width: "100%", minWidth: 0 }}
           />
         </div>
       </Can>

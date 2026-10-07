@@ -273,6 +273,13 @@ public static class DependencyInjection
         services.Configure<PerformanceOptions>(configuration.GetSection("Performance"));
         services.AddScoped<ICleanupService, CleanupService>();
 
+        // F23-T004/P4c — evidências de task em disco local (ADR-033):
+        // storage é interface sem par I*Repository → registro manual.
+        services.Configure<StorageOptions>(
+            configuration.GetSection(StorageOptions.SectionName));
+        services.AddScoped<InfraControl.Application.Tasks.Ports.IEvidenceFileStore,
+            LocalEvidenceFileStore>();
+
         // F5-T007: polling periódico de monitoring (worker fino agenda)
         services.AddScoped<IMonitoringPollingService, MonitoringPollingService>();
 

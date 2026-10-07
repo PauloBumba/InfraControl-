@@ -88,7 +88,7 @@ public sealed class TaskHistoryCommandTests : IDisposable
         var history = new RecordingTaskHistoryWriter();
 
         var create = new CreateTaskCommandHandler(
-            TaskRepo(context), history,
+            TaskRepo(context), AssigneeRepo(context), history,
             NullLogger<CreateTaskCommandHandler>.Instance);
         var dto = await create.Handle(
             new CreateTaskCommand("Segunda task", "Manual"),
@@ -162,7 +162,7 @@ public sealed class TaskHistoryCommandTests : IDisposable
         var history = new RecordingTaskHistoryWriter();
 
         var create = new CreateTaskCommandHandler(
-            TaskRepo(context), history,
+            TaskRepo(context), AssigneeRepo(context), history,
             NullLogger<CreateTaskCommandHandler>.Instance);
         var dto = await create.Handle(
             new CreateTaskCommand("P/ histórico", "Manual"),

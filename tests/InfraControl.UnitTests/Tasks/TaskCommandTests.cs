@@ -43,7 +43,8 @@ public sealed class TaskCommandTests : IDisposable
     private static RecordingTaskHistoryWriter History() => new();
 
     private static CreateTaskCommandHandler CreateHandler(AppDbContext context)
-        => new(Repo(context), History(), NullLogger<CreateTaskCommandHandler>.Instance);
+        => new(Repo(context), AssigneeRepo(context), History(),
+            NullLogger<CreateTaskCommandHandler>.Instance);
 
     // ── Create ───────────────────────────────────────────────────────────
 

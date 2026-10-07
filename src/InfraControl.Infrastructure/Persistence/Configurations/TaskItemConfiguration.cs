@@ -28,7 +28,30 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
             .HasConversion<string>()
             .IsRequired();
 
+        // F23-T001 — identificação básica: prioridade (padrão Medium na
+        // migração), prazo (date, precedente target_date do PDI) e
+        // responsável sem FK (precedente manager_id, ADR-029 — o usuário
+        // pode ser excluído e a task permanece).
+        builder.Property(x => x.Priority)
+            .HasMaxLength(20)
+            .HasConversion<string>()
+            .IsRequired();
+
+        builder.Property(x => x.DueDate)
+            .HasColumnType("date");
+
+        builder.Property(x => x.ResponsibleId);
+
+        // F23-T004/P4a — subtarefas: auto-relação na própria `tasks`;
+        // pai excluído → filho sobrevive (SetNull) e vira task raiz.
+        builder.HasOne<TaskItem>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentTaskId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.State);
         builder.HasIndex(x => x.Kind);
+        builder.HasIndex(x => x.Priority);
+        builder.HasIndex(x => x.ParentTaskId);
     }
 }

@@ -79,17 +79,28 @@ interface RequestOptions {
    * recusado (o erro da tela vem do chamador, não do interceptor global).
    */
   anonymousExpected?: boolean;
+
+  /**
+   * Devolve o corpo cru da resposta (ex.: download de evidência — ADR-033)
+   * em vez do envelope JSON. Erros continuam no envelope pt-BR.
+   */
+  raw?: boolean;
 }
 
 async function request<T>(path: string, method: Method, body?: unknown, options?: RequestOptions): Promise<T | null> {
   let response: Response;
 
+  // FormData (upload de evidência, ADR-033): o fetch monta o
+  // Content-Type com o boundary do multipart — setar application/json
+  // aqui quebraria o upload.
+  const isFormData = body instanceof FormData;
+
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
 
   // escrita autenticada: o header é obrigatório. Sem token a API responde 400
   // ("A requisição não pôde ser validada") e a ação é perdida — por isso o
-  // token é lido aqui e não em cada call site.
+  // token é lido aqui e não em cada call site. Vale também para multipart.
   if (WRITE_METHODS.has(method)) {
     const token = antiforgeryToken();
     if (token) headers[XSRF_HEADER] = token;
@@ -100,7 +111,11 @@ async function request<T>(path: string, method: Method, body?: unknown, options?
       method,
       credentials: "include",
       headers: Object.keys(headers).length ? headers : undefined,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined
+        ? undefined
+        : isFormData
+          ? (body as FormData)
+          : JSON.stringify(body),
     });
   } catch {
     // Falha de transporte: sem status e sem vazar URL/credencial na mensagem.
@@ -114,6 +129,14 @@ async function request<T>(path: string, method: Method, body?: unknown, options?
   }
 
   if (response.status === 204) return null;
+
+  if (options?.raw) {
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+      throw new ApiError(payload?.errors?.[0] ?? GENERIC_ERROR, response.status);
+    }
+    return (await response.blob()) as T;
+  }
 
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 

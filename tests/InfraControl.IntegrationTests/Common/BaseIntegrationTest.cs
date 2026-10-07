@@ -159,6 +159,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<ITaskDeviceRepository, TaskDeviceRepository>();
         services.AddScoped<ITaskIncidentRepository, TaskIncidentRepository>();
         services.AddScoped<ITaskCommentRepository, TaskCommentRepository>();
+        // F23-T003: critérios de aceite das tasks
+        services.AddScoped<ITaskCriterionRepository, TaskCriterionRepository>();
         services.AddScoped<InfraControl.Application.Tasks.History.Ports.ITaskHistoryRepository,
             TaskHistoryRepository>();
         services.AddScoped<InfraControl.Application.Tasks.History.Ports.ITaskHistoryWriter,

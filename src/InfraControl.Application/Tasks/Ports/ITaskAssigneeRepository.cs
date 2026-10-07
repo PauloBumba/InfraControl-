@@ -24,5 +24,14 @@ public interface ITaskAssigneeRepository : IRepository<TaskAssignee>
         IReadOnlyCollection<Guid> taskIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Nomes resolvidos (<c>DomainUsers.DisplayName</c>, left join —
+    /// usuário excluído some do dicionário) para o responsável da task
+    /// (F23-T001).
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
