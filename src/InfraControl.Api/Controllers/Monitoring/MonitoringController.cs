@@ -3,6 +3,7 @@ using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Results;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Monitoring;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
