@@ -118,7 +118,7 @@ documentada antes da tela.
      (árvore, forms por nível, catálogo com criação Admin, responsável
      Admin=usuários / Operador=plano+gestor) no botão "Estrutura" da
       `PdiPage`; testes `PdiStructureTests` 11; Fase 2 **não** escreve
-      histórico/eventos (auditoria = Fase 5).
+      histórico/eventos (auditoria entregue na Fase 5, ADR-035).
    - **Fase 3 — Acompanhamento executada em 2026-10-06** (ADR-033):
      quatro entidades sob a **fase**: `pdi_progresses` (relato +
      comentário do colaborador, append-only), `pdi_check_ins`
@@ -140,7 +140,7 @@ documentada antes da tela.
      `ConfirmDialog`) pelo botão **"Acompanhar"** de cada fase do
      `PdiStructureDialog`; testes `PdiAccompanimentTests` 9 (inclui
      regressão "PUT de relato não re-carimba a resposta"); Fase 3
-     **não** escreve histórico/eventos (auditoria = Fase 5).
+     **não** escreve histórico/eventos (auditoria entregue na Fase 5, ADR-035).
    - **Fase 4 — Evidências executada em 2026-10-07** (ADR-034):
      `PdiEvidence` / `pdi_evidences` sob a **fase** (FK `Restrict`) com
      os **9 tipos** do §12 (`PdiEvidenceType` + rótulos pt-BR) e status
@@ -148,7 +148,7 @@ documentada antes da tela.
      rejeição com motivo obrigatório, arquivo ≤10 MB com nome saneado
      (`Path.GetFileName` — `../evil.sh` → `evil.sh`) e storage em disco
      `var/pdi-evidence` (`IPdiEvidenceFileStore`, arquivo gravado antes
-     do DB com rollback best-effort; **sem delete** — retention = Fase 5);
+     do DB com rollback best-effort; **sem delete** — retention pendente);
      rotas `POST /pdi/evidences` (multipart), `PUT
      /pdi/evidences/{id}/review` (enum com `JsonStringEnumConverter`
      explícito), `GET .../download` (`nosniff` + attachment); 5ª lista
@@ -163,6 +163,25 @@ documentada antes da tela.
      chown` no Dockerfile + named volume `pdi-evidence`), nginx em 1 MB
      de `client_max_body_size` (→ 16m; senão 413 antes do teto de 10 MB)
      e binding de enum só por número (→ 400 em toda revisão).
+   - **Fase 5 — Governança executada em 2026-10-07** (ADR-035):
+     §14 — `Update` do plano exige **motivo** quando campo muda (status
+     sozinho mantém opcional) e o histórico `Updated` registra
+     `valor anterior → novo` (estratégia/prazo/gestor/período) +
+     motivo; §15.2 — `PdiPhaseStatus.PendingValidation` com
+     `POST /pdi/phases/{id}/submit` (dono/Admin) e
+     `PUT /pdi/phases/{id}/validation` (Admin/gestor; rejeição com
+     motivo obrigatório → volta a `InProgress`, validação → `Completed`
+     e **auto-start** da próxima fase), guard no PUT genérico —
+     não-Admin não conclui/reabre fase (400 "…aprovação…"); §17 —
+     timeline ganha `PhaseStarted/Submitted/Validated/Rejected`,
+     `CheckInCreated`, `ImpedimentCreated/Resolved` (sem migração);
+     **auditoria** — os 30 comandos PDI implementam `IAuditableRequest`
+     (`AuditResource = "PDI"`); front `PdiStructureDialog`
+     (Concluir/Validar/Rejeitar + diálogo de motivo, status restrito
+     por papel) e `PdiPage` (motivo obrigatório quando campo difere do
+     original); testes `PdiGovernanceTests` 11; E2E **63/63** (+
+     regressão Fase 4 50/50); retenção de evidências **não** entrou
+     (continua pendente).
 
 ## Ordem de execução
 

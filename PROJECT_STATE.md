@@ -297,6 +297,32 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   Identity nunca era provisionado). Docs: ADR-034, docs/30
   (situação+§25), docs/29 §8, TASKS.
 
+- PDI Fase 5 — Governança concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §14, §15, §17): **ADR-035**
+  (`docs/adr/ADR-035-PDI-GOVERNANCE.md`). Domínio: §14 — `Update` do
+  plano exige **motivo** em mudança de campo (status-only opcional) e
+  o histórico `Updated` guarda `valor anterior → novo` (estratégia/
+  prazo/gestor/período) + motivo; §15.2 — `PdiPhaseStatus.
+  PendingValidation` + `SubmitPdiPhaseCommand` (dono/Admin) /
+  `ValidatePdiPhaseCommand` (Admin/gestor, rejeição com motivo →
+  `InProgress`, validação → `Completed` + **auto-start** da próxima),
+  guard no PUT genérico (não-Admin não conclui/reabre fase → 400);
+  §17 — +7 tipos de timeline (fases/check-in/impedimento, sem
+  migração). Application: 2 comandos novos, `EnsureCanValidatePhase`,
+  `ListPhasesAsync`, histórico nos handlers de acompanhamento,
+  `IAuditableRequest` nos **30** comandos PDI (`AuditResource =
+  "PDI"`). Api: `POST /pdi/phases/{id}/submit` +
+  `PUT .../validation`. Front: botões Concluir/Validar/Rejeitar com
+  diálogo de motivo (`PdiStructureDialog`) e motivo obrigatório no
+  plano quando campo difere (`PdiPage`). Testes: `PdiGovernanceTests`
+  **11/11** · PDI **150/150** · unit **1605/1605** · arch **117/117**
+  · front tsc/lint/build verdes · containers reconstruídos healthy ·
+  E2E **63/63** (`pdi_fase5_e2e.py`) + regressão Fase 4 **50/50**.
+  **Descobertas do E2E**: fase responde **204** (asserções 200) e PUT
+  do Admin omitindo gestor/período **limpa** os campos (semântica
+  pré-existente — sem isso o motivo é exigido pela própria limpeza).
+  Docs: ADR-035, docs/30 (situação+§25), docs/29 §8, TASKS.
+
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 
