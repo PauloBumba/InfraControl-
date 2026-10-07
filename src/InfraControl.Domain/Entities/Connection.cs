@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -19,12 +20,19 @@ public sealed class Connection : AggregateRoot
     {
         ValidatePair(sourceInterfaceId, targetInterfaceId);
 
-        return new Connection
+        var connection = new Connection
         {
             SourceInterfaceId = sourceInterfaceId,
             TargetInterfaceId = targetInterfaceId
         };
+        connection.RaiseDomainEvent(new ConnectionCreatedDomainEvent(
+            connection.Id, connection.SourceInterfaceId, connection.TargetInterfaceId));
+        return connection;
     }
+
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new ConnectionDeletedDomainEvent(Id, SourceInterfaceId, TargetInterfaceId));
 
     /// <summary>
     /// ADR-030 §1 — PUT reaponta as pontas preservando a identidade (mesmas
@@ -36,6 +44,8 @@ public sealed class Connection : AggregateRoot
 
         SourceInterfaceId = sourceInterfaceId;
         TargetInterfaceId = targetInterfaceId;
+        RaiseDomainEvent(new ConnectionUpdatedDomainEvent(
+            Id, SourceInterfaceId, TargetInterfaceId));
     }
 
     private static void ValidatePair(Guid sourceInterfaceId, Guid targetInterfaceId)

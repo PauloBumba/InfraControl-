@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -19,6 +20,10 @@ public sealed class NetworkInterface : AggregateRoot
 
     private NetworkInterface() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new NetworkInterfaceDeletedDomainEvent(Id, DeviceId, Name));
+
     public static NetworkInterface Create(Guid deviceId, string name, string? description = null)
     {
         if (deviceId == Guid.Empty)
@@ -27,6 +32,8 @@ public sealed class NetworkInterface : AggregateRoot
         var nic = new NetworkInterface();
         nic.DeviceId = deviceId;
         nic.Update(name, description);
+        nic.ClearDomainEvents(); // descarta o Updated transitório do Create
+        nic.RaiseDomainEvent(new NetworkInterfaceCreatedDomainEvent(nic.Id, nic.DeviceId, nic.Name));
         return nic;
     }
 
@@ -46,5 +53,7 @@ public sealed class NetworkInterface : AggregateRoot
 
         Name = name;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        RaiseDomainEvent(new NetworkInterfaceUpdatedDomainEvent(Id, DeviceId, Name));
     }
 }

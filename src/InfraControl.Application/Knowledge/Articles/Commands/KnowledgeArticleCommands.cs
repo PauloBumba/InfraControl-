@@ -119,6 +119,7 @@ public sealed class DeleteKnowledgeArticleCommandHandler(
             ?? throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
+        article.Delete(); // ADR-030 §5 — evento na mesma transação
         repository.Remove(article);
         await repository.SaveChangesAsync(cancellationToken);
 

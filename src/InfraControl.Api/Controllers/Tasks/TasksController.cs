@@ -174,6 +174,25 @@ public sealed class TasksController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTaskCommentsQuery(taskId), cancellationToken)));
 
+    [HttpPut("comments/{commentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UpdateComment(
+        Guid commentId,
+        [FromBody] UpdateTaskCommentViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateTaskCommentCommand(commentId, model.Content),
+            cancellationToken)));
+
+    [HttpDelete("comments/{commentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> DeleteComment(
+        Guid commentId, CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteTaskCommentCommand(commentId), cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{taskId:guid}/history")]
     [Authorize]
     public async Task<IActionResult> GetHistory(

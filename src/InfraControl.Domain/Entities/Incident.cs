@@ -79,6 +79,8 @@ public sealed class Incident : AggregateRoot
         {
             ResolvedAt = null;
         }
+
+        RaiseDomainEvent(new IncidentUpdatedDomainEvent(Id, Status));
     }
 
     public void Acknowledge()

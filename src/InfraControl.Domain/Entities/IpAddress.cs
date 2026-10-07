@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -20,6 +21,10 @@ public sealed class IpAddress : AggregateRoot
 
     private IpAddress() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new IpAddressDeletedDomainEvent(Id, InterfaceId, Ip));
+
     public static IpAddress Create(Guid interfaceId, string ip)
     {
         if (interfaceId == Guid.Empty)
@@ -28,6 +33,8 @@ public sealed class IpAddress : AggregateRoot
         var entity = new IpAddress();
         entity.InterfaceId = interfaceId;
         entity.Update(ip);
+        entity.ClearDomainEvents(); // descarta o Updated transitório do Create
+        entity.RaiseDomainEvent(new IpAddressCreatedDomainEvent(entity.Id, entity.InterfaceId, entity.Ip));
         return entity;
     }
 
@@ -38,6 +45,8 @@ public sealed class IpAddress : AggregateRoot
 
         Ip = Normalize(ip)
             ?? throw new ArgumentException("O IP informado é inválido.", nameof(ip));
+
+        RaiseDomainEvent(new IpAddressUpdatedDomainEvent(Id, InterfaceId, Ip));
     }
 
     private static string? Normalize(string value)

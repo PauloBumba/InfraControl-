@@ -1,5 +1,6 @@
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.RemoteAccess;
 
@@ -8,7 +9,7 @@ namespace InfraControl.Domain.RemoteAccess;
 /// quem conectou, em qual device, quando e com qual desfecho. A entidade é
 /// o registro auditável da sessão — credenciais nunca fazem parte dela.
 /// </summary>
-public sealed class RemoteSession : Entity
+public sealed class RemoteSession : AggregateRoot
 {
     public const int FailureReasonMaxLength = 500;
 
@@ -36,7 +37,7 @@ public sealed class RemoteSession : Entity
             throw new ArgumentOutOfRangeException(
                 nameof(protocol), protocol, "Protocolo de acesso remoto inválido.");
 
-        return new RemoteSession
+        var session = new RemoteSession
         {
             DeviceId = deviceId,
             UserId = userId,
@@ -44,6 +45,9 @@ public sealed class RemoteSession : Entity
             Status = RemoteSessionStatus.Active,
             StartedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime
         };
+        session.RaiseDomainEvent(new RemoteSessionCreatedDomainEvent(
+            session.Id, session.DeviceId, session.UserId, session.Protocol));
+        return session;
     }
 
     public void Close()
@@ -51,6 +55,7 @@ public sealed class RemoteSession : Entity
         EnsureActive();
         Status = RemoteSessionStatus.Closed;
         EndedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        RaiseDomainEvent(new RemoteSessionUpdatedDomainEvent(Id, DeviceId, Status));
     }
 
     public void Fail(string reason)
@@ -67,6 +72,8 @@ public sealed class RemoteSession : Entity
         Status = RemoteSessionStatus.Failed;
         FailureReason = reason.Trim();
         EndedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+
+        RaiseDomainEvent(new RemoteSessionUpdatedDomainEvent(Id, DeviceId, Status));
     }
 
     private void EnsureActive()

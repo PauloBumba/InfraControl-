@@ -1,5 +1,6 @@
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -23,6 +24,10 @@ public sealed class KnowledgeArticle : AggregateRoot
 
     private KnowledgeArticle() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new KnowledgeArticleDeletedDomainEvent(Id, Title));
+
     public static KnowledgeArticle Create(string title, string content, Guid? categoryId)
     {
         var article = new KnowledgeArticle
@@ -30,6 +35,11 @@ public sealed class KnowledgeArticle : AggregateRoot
             Status = KnowledgeArticleStatus.Draft,
         };
         article.Update(title, content, categoryId);
+
+        // ADR-030 §5 — descarta o Updated transitório do Update interno.
+        article.ClearDomainEvents();
+        article.RaiseDomainEvent(new KnowledgeArticleCreatedDomainEvent(
+            article.Id, article.Title, article.Status, article.CategoryId));
         return article;
     }
 
@@ -62,6 +72,8 @@ public sealed class KnowledgeArticle : AggregateRoot
         Title = title;
         Content = content;
         CategoryId = categoryId;
+
+        RaiseDomainEvent(new KnowledgeArticleUpdatedDomainEvent(Id, Title, Status));
     }
 
     /// <summary>
@@ -76,6 +88,8 @@ public sealed class KnowledgeArticle : AggregateRoot
                 $"Transição inválida: '{Status}' → '{target}'.");
 
         Status = target;
+
+        RaiseDomainEvent(new KnowledgeArticleUpdatedDomainEvent(Id, Title, Status));
     }
 
     private static bool IsValidTransition(

@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -15,6 +16,10 @@ public sealed class SwitchPortVlan : AggregateRoot
 
     private SwitchPortVlan() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new SwitchPortVlanDeletedDomainEvent(Id, SwitchPortId, VlanId));
+
     public static SwitchPortVlan Create(Guid switchPortId, Guid vlanId)
     {
         if (switchPortId == Guid.Empty)
@@ -23,10 +28,13 @@ public sealed class SwitchPortVlan : AggregateRoot
         if (vlanId == Guid.Empty)
             throw new ArgumentException("O id da VLAN é obrigatório.", nameof(vlanId));
 
-        return new SwitchPortVlan
+        var link = new SwitchPortVlan
         {
             SwitchPortId = switchPortId,
             VlanId = vlanId
         };
+        link.RaiseDomainEvent(new SwitchPortVlanCreatedDomainEvent(
+            link.Id, link.SwitchPortId, link.VlanId));
+        return link;
     }
 }

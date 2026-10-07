@@ -92,6 +92,7 @@ public sealed class DeleteIpAddressCommandHandler(
         var entity = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"IP '{request.Id}' não encontrado.");
 
+        entity.Delete(); // ADR-030 §5 — entityDeletedDomainEvent na mesma transação
         repository.Remove(entity);
         await repository.SaveChangesAsync(cancellationToken);
 

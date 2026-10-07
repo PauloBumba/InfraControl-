@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -7,7 +8,7 @@ namespace InfraControl.Domain.Entities;
 /// orçamento de erro permitido pelo `TargetPercent` já foi gasto
 /// (docs/04: "orçamento em SloBudget").
 /// </summary>
-public sealed class SloBudget : Entity
+public sealed class SloBudget : AggregateRoot
 {
     public Guid SloId { get; private set; }
     public DateTime PeriodStart { get; private set; }
@@ -15,6 +16,10 @@ public sealed class SloBudget : Entity
     public decimal ConsumedPercent { get; private set; }
 
     private SloBudget() { }
+
+    /// <summary>ADR-030 §5 — correção de registro (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new SloBudgetDeletedDomainEvent(Id, SloId));
 
     public static SloBudget Create(
         Guid sloId,
@@ -35,12 +40,15 @@ public sealed class SloBudget : Entity
                 "O fim do período deve ser posterior ao início.",
                 nameof(periodEnd));
 
-        return new SloBudget
+        var budget = new SloBudget
         {
             SloId = sloId,
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
             ConsumedPercent = consumedPercent
         };
+        budget.RaiseDomainEvent(new SloBudgetCreatedDomainEvent(
+            budget.Id, budget.SloId, budget.ConsumedPercent));
+        return budget;
     }
 }

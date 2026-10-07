@@ -1,5 +1,6 @@
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -10,7 +11,7 @@ namespace InfraControl.Domain.Entities;
 /// `*DueAt` do `TaskSla` (docs/04: prazos históricos preservados — os
 /// minutos do snapshot não mudam).
 /// </summary>
-public sealed class TaskSlaPause : Entity
+public sealed class TaskSlaPause : AggregateRoot
 {
     public Guid TaskId { get; private set; }
     public DateTime StartAt { get; private set; }
@@ -23,12 +24,14 @@ public sealed class TaskSlaPause : Entity
         if (taskId == Guid.Empty)
             throw new ArgumentException("O id da task é obrigatório.", nameof(taskId));
 
-        return new TaskSlaPause
+        var pause = new TaskSlaPause
         {
             TaskId = taskId,
             StartAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime,
             EndAt = null
         };
+        pause.RaiseDomainEvent(new TaskSlaPauseCreatedDomainEvent(pause.Id, pause.TaskId));
+        return pause;
     }
 
     public bool IsOpen => EndAt is null;
@@ -41,6 +44,7 @@ public sealed class TaskSlaPause : Entity
         EndAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         if (EndAt < StartAt)
             EndAt = StartAt;
+        RaiseDomainEvent(new TaskSlaPauseUpdatedDomainEvent(Id, TaskId, EndAt));
     }
 
     public TimeSpan Duration =>

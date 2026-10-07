@@ -1,5 +1,6 @@
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -22,14 +23,26 @@ public sealed class MonitoringCheck : AggregateRoot
         if (deviceId == Guid.Empty)
             throw new ArgumentException("O id do device é obrigatório.", nameof(deviceId));
 
-        return new MonitoringCheck
+        var check = new MonitoringCheck
         {
             DeviceId = deviceId,
             Kind = kind,
             Enabled = enabled
         };
+        check.RaiseDomainEvent(new MonitoringCheckCreatedDomainEvent(
+            check.Id, check.DeviceId, check.Kind, check.Enabled));
+        return check;
     }
 
     /// <summary>ADR-030 §1 — único campo mutável da check (toggle).</summary>
-    public void SetEnabled(bool enabled) => Enabled = enabled;
+    /// <summary>ADR-030 §5 — único campo mutável (toggle).</summary>
+    public void SetEnabled(bool enabled)
+    {
+        Enabled = enabled;
+        RaiseDomainEvent(new MonitoringCheckUpdatedDomainEvent(Id, DeviceId, Enabled));
+    }
+
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new MonitoringCheckDeletedDomainEvent(Id, DeviceId, Kind));
 }

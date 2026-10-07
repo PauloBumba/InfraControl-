@@ -16,7 +16,10 @@ public sealed class Invitation : AggregateRoot
     public Guid CreatedBy { get; private set; }
     public DateTime? DecidedAt { get; private set; }
     public IReadOnlyCollection<UserRole> Roles => _roles.Select(role => role.Role).ToArray();
-    public IReadOnlyCollection<InvitationRole> RoleAssignments => _roles.AsReadOnly();
+    // A lista real (não AsReadOnly): o EF precisa escrever na coleção de
+    // navegação (fixup de add/remove de InvitationRole). Escrito apenas pelo
+    // próprio domínio + fixup; leitores externos só enxergam a interface.
+    public IReadOnlyCollection<InvitationRole> RoleAssignments => _roles;
 
     private Invitation() { }
 
@@ -123,6 +126,27 @@ public sealed class Invitation : AggregateRoot
         RaiseDomainEvent(new InvitationActivatedDomainEvent(Id, Email));
     }
 
+    /// <summary>
+    /// ADR-030 §1 — PUT do convite pendente: substitui as funções
+    /// (somente Pending — 409; vazio → 400; deduplica).
+    /// </summary>
+    public void SetRoles(IEnumerable<UserRole> roles)
+    {
+        if (Status != InvitationStatus.Pending)
+            throw new InvalidOperationException("Convite não está pendente.");
+
+        var distinct = roles.Distinct().ToArray();
+        if (distinct.Length == 0)
+            throw new ArgumentException(
+                "Ao menos uma função é obrigatória.", nameof(roles));
+
+        _roles.Clear();
+        foreach (var role in distinct)
+            _roles.Add(new InvitationRole(Id, role));
+
+        RaiseDomainEvent(new InvitationUpdatedDomainEvent(Id, Status));
+    }
+
     public void Cancel()
     {
         if (Status != InvitationStatus.Pending)
@@ -131,6 +155,8 @@ public sealed class Invitation : AggregateRoot
         Status = InvitationStatus.Cancelled;
         DecidedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         Touch();
+
+        RaiseDomainEvent(new InvitationUpdatedDomainEvent(Id, Status));
     }
 
     /// <summary>

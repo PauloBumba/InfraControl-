@@ -92,6 +92,7 @@ public sealed class DeleteMacAddressCommandHandler(
         var mac = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"MAC '{request.Id}' não encontrado.");
 
+        mac.Delete(); // ADR-030 §5 — macDeletedDomainEvent na mesma transação
         repository.Remove(mac);
         await repository.SaveChangesAsync(cancellationToken);
 

@@ -65,6 +65,15 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
     }
 
+    [HttpPut("{invitationId:guid}")]
+    public async Task<IActionResult> Update(
+        Guid invitationId,
+        [FromBody] UpdateInvitationViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateInvitationCommand(invitationId, model.Roles),
+            cancellationToken)));
+
     [HttpDelete("{invitationId:guid}")]
     public async Task<IActionResult> Cancel(Guid invitationId, CancellationToken cancellationToken)
     {

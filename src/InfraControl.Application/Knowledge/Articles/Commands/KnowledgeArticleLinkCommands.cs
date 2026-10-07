@@ -83,6 +83,7 @@ public sealed class UnlinkKnowledgeArticleDeviceCommandHandler(
                 $"Vínculo do artigo '{request.ArticleId}' com o device "
                 + $"'{request.DeviceId}' não encontrado.");
 
+        link.Delete(); // ADR-030 §5 — evento na mesma transação
         linkRepository.Remove(link);
         await linkRepository.SaveChangesAsync(cancellationToken);
 
@@ -161,6 +162,7 @@ public sealed class UnlinkKnowledgeArticleIncidentCommandHandler(
                 $"Vínculo do artigo '{request.ArticleId}' com o incidente "
                 + $"'{request.IncidentId}' não encontrado.");
 
+        link.Delete(); // ADR-030 §5 — evento na mesma transação
         linkRepository.Remove(link);
         await linkRepository.SaveChangesAsync(cancellationToken);
 
@@ -239,6 +241,7 @@ public sealed class UnlinkKnowledgeArticleServiceCommandHandler(
                 $"Vínculo do artigo '{request.ArticleId}' com o serviço "
                 + $"'{request.ServiceId}' não encontrado.");
 
+        link.Delete(); // ADR-030 §5 — evento na mesma transação
         linkRepository.Remove(link);
         await linkRepository.SaveChangesAsync(cancellationToken);
 

@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -17,10 +18,16 @@ public sealed class Location : AggregateRoot
 
     private Location() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new LocationDeletedDomainEvent(Id, Name));
+
     public static Location Create(string name, string? description = null)
     {
         var location = new Location();
         location.Update(name, description);
+        location.ClearDomainEvents(); // descarta o Updated transitório do Create
+        location.RaiseDomainEvent(new LocationCreatedDomainEvent(location.Id, location.Name));
         return location;
     }
 
@@ -40,5 +47,7 @@ public sealed class Location : AggregateRoot
 
         Name = name;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        RaiseDomainEvent(new LocationUpdatedDomainEvent(Id, Name));
     }
 }

@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -26,6 +27,10 @@ public sealed class SwitchPort : AggregateRoot
 
     private SwitchPort() { }
 
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new SwitchPortDeletedDomainEvent(Id, DeviceId, Name));
+
     public static SwitchPort Create(Guid deviceId, string name, string? description = null)
     {
         if (deviceId == Guid.Empty)
@@ -34,6 +39,8 @@ public sealed class SwitchPort : AggregateRoot
         var port = new SwitchPort();
         port.DeviceId = deviceId;
         port.Update(name, description, port.LinkUp);
+        port.ClearDomainEvents(); // descarta o Updated transitório do Create
+        port.RaiseDomainEvent(new SwitchPortCreatedDomainEvent(port.Id, port.DeviceId, port.Name));
         return port;
     }
 
@@ -54,5 +61,7 @@ public sealed class SwitchPort : AggregateRoot
         Name = name;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         LinkUp = linkUp;
+
+        RaiseDomainEvent(new SwitchPortUpdatedDomainEvent(Id, DeviceId, Name));
     }
 }

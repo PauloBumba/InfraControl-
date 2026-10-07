@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Profiles;
+using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
 
@@ -67,8 +68,17 @@ public sealed class Device : AggregateRoot
         device.Update(name, type, rackId, ip, mac, serial, model, vendor, vlanId, description);
         device._monitoringChecks = [.. DeviceProfileDefaults.For(type)];
         device.ProfileIsCustom = false;
+
+        // ADR-030 §5 — o Create delega ao Update; descarta o Updated
+        // transitório e publica só o Created.
+        device.ClearDomainEvents();
+        device.RaiseDomainEvent(new DeviceCreatedDomainEvent(device.Id, device.Name, device.Type));
         return device;
     }
+
+    /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
+    public void Delete() =>
+        RaiseDomainEvent(new DeviceDeletedDomainEvent(Id, Name, Type));
 
     public void Update(
         string name,
@@ -120,6 +130,8 @@ public sealed class Device : AggregateRoot
         VlanId = vlanId;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         // ADR-014: tipo pode mudar, mas override explícito do operador é preservado.
+
+        RaiseDomainEvent(new DeviceUpdatedDomainEvent(Id, Name, Type));
     }
 
     /// <summary>Override dos checks (F2-T008). Exige ao menos um check sem duplicatas.</summary>
