@@ -119,6 +119,13 @@ public sealed class PdiStructureRepository(AppDbContext dbContext)
         => dbContext.PdiPhases
             .SingleOrDefaultAsync(phase => phase.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<PdiPhase>> ListPhasesAsync(
+        Guid strategyId, CancellationToken cancellationToken = default)
+        => await dbContext.PdiPhases
+            .Where(phase => phase.StrategyId == strategyId)
+            .OrderBy(phase => phase.Order)
+            .ToListAsync(cancellationToken);
+
     public Task<PdiActivity?> GetActivityAsync(
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.PdiActivities

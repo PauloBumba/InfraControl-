@@ -38,7 +38,14 @@ export type PdiHistoryType =
   | "Updated"
   | "StatusChanged"
   | "EvidenceAdded"
-  | "EvidenceReviewed";
+  | "EvidenceReviewed"
+  | "PhaseStarted"
+  | "PhaseSubmitted"
+  | "PhaseValidated"
+  | "PhaseRejected"
+  | "CheckInCreated"
+  | "ImpedimentCreated"
+  | "ImpedimentResolved";
 
 export interface PdiHistoryEntry {
   id: string;
@@ -98,6 +105,13 @@ export const PDI_HISTORY_TYPE_LABEL: Record<PdiHistoryType, string> = {
   StatusChanged: "Status alterado",
   EvidenceAdded: "Evidência anexada",
   EvidenceReviewed: "Evidência revisada",
+  PhaseStarted: "Fase iniciada",
+  PhaseSubmitted: "Fase enviada para validação",
+  PhaseValidated: "Fase validada",
+  PhaseRejected: "Fase rejeitada",
+  CheckInCreated: "Check-in registrado",
+  ImpedimentCreated: "Impedimento registrado",
+  ImpedimentResolved: "Impedimento resolvido",
 };
 
 export const PDI_STATUS_LABEL: Record<PdiStatus, string> =
@@ -142,7 +156,15 @@ export async function getPdiHistory(userId: string): Promise<PdiHistoryEntry[]> 
 // escrita dono ou Admin (403), exclusão com children → 409.
 // ---------------------------------------------------------------------------
 
-export type PdiPhaseStatus = "NotStarted" | "InProgress" | "Completed";
+/** Aprovação de fase (§15 — Fase 5, ADR-035): status inclui PendingValidation. */
+export type PdiPhaseStatus =
+  | "NotStarted"
+  | "InProgress"
+  | "PendingValidation"
+  | "Completed";
+
+/** Decisão do gestor na validação da fase (§15 — Fase 5). */
+export type PdiPhaseValidationDecision = "Validated" | "Rejected";
 
 export interface PdiCompetency {
   id: string;
@@ -207,6 +229,7 @@ export const PDI_PHASE_STATUS_OPTIONS: {
 }[] = [
   { value: "NotStarted", label: "Não iniciada" },
   { value: "InProgress", label: "Em andamento" },
+  { value: "PendingValidation", label: "Aguardando validação" },
   { value: "Completed", label: "Concluída" },
 ];
 
@@ -221,6 +244,7 @@ export const PDI_PHASE_STATUS_STYLE: Record<
 > = {
   NotStarted: { background: "#f1f5f9", color: "#64748b" },
   InProgress: { background: "#dbeafe", color: "#1d4ed8" },
+  PendingValidation: { background: "#fef3c7", color: "#b45309" },
   Completed: { background: "#dcfce7", color: "#15803d" },
 };
 
@@ -357,6 +381,32 @@ export async function updatePdiPhase(
 
 export async function deletePdiPhase(id: string): Promise<void> {
   await api.delete(`/pdi/phases/${id}`);
+}
+
+/**
+ * Conclui a fase e envia para validação do gestor (§15 — Fase 5).
+ * Só dono/Admin; fase precisa estar InProgress (409 pt-BR).
+ */
+export async function submitPdiPhase(id: string): Promise<void> {
+  await api.post(`/pdi/phases/${id}/submit`);
+}
+
+/**
+ * Valida ou rejeita a fase concluída (§15 — Fase 5). Rejeição exige
+ * motivo (400 pt-BR) e a fase volta para InProgress; validação conclui
+ * e auto-inicia a próxima fase.
+ */
+export async function validatePdiPhase(
+  id: string,
+  input: {
+    decision: PdiPhaseValidationDecision;
+    reason?: string | null;
+  },
+): Promise<void> {
+  await api.put(`/pdi/phases/${id}/validation`, {
+    decision: input.decision,
+    reason: input.reason ?? null,
+  });
 }
 
 // ---- Atividades ----------------------------------------------------------

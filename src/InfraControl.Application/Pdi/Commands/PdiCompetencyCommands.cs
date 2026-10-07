@@ -14,8 +14,9 @@ namespace InfraControl.Application.Pdi.Commands;
 
 public sealed record CreatePdiCompetencyCommand(
     string Name,
-    string? Description = null) : BaseCommand<PdiCompetencyDto>, IAuthorizedRequest
+    string? Description = null) : BaseCommand<PdiCompetencyDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Administer;
 }
@@ -48,8 +49,9 @@ public sealed class CreatePdiCompetencyCommandHandler(
 public sealed record UpdatePdiCompetencyCommand(
     Guid Id,
     string Name,
-    string? Description = null) : BaseCommand, IAuthorizedRequest
+    string? Description = null) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Administer;
 }
@@ -80,8 +82,9 @@ public sealed class UpdatePdiCompetencyCommandHandler(
     }
 }
 
-public sealed record DeletePdiCompetencyCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiCompetencyCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Administer;
 }

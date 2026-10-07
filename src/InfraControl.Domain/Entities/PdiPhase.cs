@@ -67,6 +67,65 @@ public sealed class PdiPhase : Entity
             title, description, responsibleId, startDate, endDate,
             completionCriteria, status, percent);
 
+    /// <summary>
+    /// Auto-start da próxima fase ao validar a anterior (§15, ADR-035).
+    /// Estado inválido = 409.
+    /// </summary>
+    public void Start()
+    {
+        if (Status != PdiPhaseStatus.NotStarted)
+            throw new InvalidOperationException(
+                "A fase precisa estar não iniciada para ser iniciada.");
+
+        Status = PdiPhaseStatus.InProgress;
+        Touch();
+    }
+
+    /// <summary>
+    /// Dono conclui a fase → aguarda validação do gestor (§15, ADR-035).
+    /// Estado inválido = 409 (mensagem cita "em execução").
+    /// </summary>
+    public void Submit()
+    {
+        if (Status != PdiPhaseStatus.InProgress)
+            throw new InvalidOperationException(
+                "A fase precisa estar em execução para ser concluída.");
+
+        Status = PdiPhaseStatus.PendingValidation;
+        Percent = 100;
+        Touch();
+    }
+
+    /// <summary>
+    /// Gestor valida a fase concluída → <see cref="PdiPhaseStatus.Completed"/>
+    /// (§15, ADR-035). Estado inválido = 409.
+    /// </summary>
+    public void Validate()
+    {
+        EnsureAwaitingValidation();
+        Status = PdiPhaseStatus.Completed;
+        Touch();
+    }
+
+    /// <summary>
+    /// Gestor rejeita a fase concluída → volta a
+    /// <see cref="PdiPhaseStatus.InProgress"/> (§15, ADR-035). O motivo é
+    /// obrigatório e cobrado pelo handler. Estado inválido = 409.
+    /// </summary>
+    public void Reject()
+    {
+        EnsureAwaitingValidation();
+        Status = PdiPhaseStatus.InProgress;
+        Touch();
+    }
+
+    private void EnsureAwaitingValidation()
+    {
+        if (Status != PdiPhaseStatus.PendingValidation)
+            throw new InvalidOperationException(
+                "A fase precisa estar aguardando validação.");
+    }
+
     private void Apply(
         string title,
         string? description,
@@ -93,7 +152,7 @@ public sealed class PdiPhase : Entity
 
         if (!Enum.IsDefined(status))
             throw new ArgumentException(
-                "Status da fase inválido (use NotStarted, InProgress ou Completed).",
+                "Status da fase inválido (use NotStarted, InProgress, PendingValidation ou Completed).",
                 nameof(status));
 
         if (percent is < 0 or > 100)

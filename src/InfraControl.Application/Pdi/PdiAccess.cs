@@ -101,6 +101,23 @@ internal static class PdiAccess
             "Apenas o gestor ou um administrador pode revisar evidências.");
     }
 
+    /// <summary>
+    /// Validação/rejeição de fase (§15 — Fase 5): Admin ou o gestor
+    /// definido no plano. O colaborador não valida a própria fase.
+    /// </summary>
+    internal static void EnsureCanValidatePhase(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser))
+            return;
+
+        if (plan.ManagerId is { } managerId && currentUser.UserId == managerId)
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Apenas o gestor ou um administrador pode validar esta fase.");
+    }
+
     /// <summary>Admin exclusivo (feedback é histórico — ADR-033 §6).</summary>
     internal static void EnsureIsAdmin(ICurrentUserContext currentUser)
     {
@@ -109,6 +126,6 @@ internal static class PdiAccess
                 "Apenas administradores podem excluir feedbacks.");
     }
 
-    private static bool IsAdmin(ICurrentUserContext currentUser)
+    internal static bool IsAdmin(ICurrentUserContext currentUser)
         => currentUser.Roles.Contains(UserRole.Admin.ToString());
 }

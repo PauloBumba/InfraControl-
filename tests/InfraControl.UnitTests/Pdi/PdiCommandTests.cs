@@ -125,10 +125,12 @@ public sealed class PdiCommandTests
             CancellationToken.None);
 
         // Operador sem transição de status: só campos (decisão 2026-10-04).
+        // §14 (Fase 5): mudar campos exige motivo.
         var operatorUser = new FakeCurrentUser(owner.Id, "Operator");
         await UpsertHandler(context, operatorUser, ["Operator"]).Handle(
             new UpsertPdiCommand(
-                owner.Id, "Plano revisado pelo dono", new DateOnly(2027, 1, 31), "InProgress"),
+                owner.Id, "Plano revisado pelo dono", new DateOnly(2027, 1, 31),
+                "InProgress", Reason: "Revisão do dono"),
             CancellationToken.None);
 
         var plans = await context.IndividualDevelopmentPlans.ToListAsync();
@@ -147,7 +149,10 @@ public sealed class PdiCommandTests
         var entry = (await context.PdiHistoryEntries
             .Where(item => item.Type == PdiHistoryType.Updated)
             .ToArrayAsync()).Should().ContainSingle().Which;
-        entry.Detail.Should().Be("estratégia, prazo");
+        entry.Detail.Should().Be(
+            "estratégia: \"Plano inicial\" → \"Plano revisado pelo dono\"; " +
+            "prazo: 2026-11-30 → 2027-01-31");
+        entry.Reason.Should().Be("Revisão do dono");
         entry.ActorId.Should().Be(owner.Id);
     }
 
@@ -431,14 +436,15 @@ public sealed class PdiCommandTests
         created.PeriodEnd.Should().Be(new DateOnly(2026, 12, 31));
 
         // Operador manda gestor/período diferentes: entrada ignorada
-        // (ADR-029 §3) — só a estratégia muda.
+        // (ADR-029 §3) — só a estratégia muda (§14: com motivo).
         var operatorUser = new FakeCurrentUser(owner.Id, "Operator");
         var edited = await UpsertHandler(context, operatorUser, ["Operator"]).Handle(
             new UpsertPdiCommand(
                 owner.Id, "Estratégia revisada", new DateOnly(2026, 12, 31), "Active",
                 ManagerId: other.Id,
                 PeriodStart: new DateOnly(2027, 1, 1),
-                PeriodEnd: new DateOnly(2027, 6, 30)),
+                PeriodEnd: new DateOnly(2027, 6, 30),
+                Reason: "Revisão do dono"),
             CancellationToken.None);
 
         var plan = await context.IndividualDevelopmentPlans.SingleAsync();
@@ -466,8 +472,11 @@ public sealed class PdiCommandTests
             new UpsertPdiCommand(owner.Id, "Plano v1", target, "Draft"), CancellationToken.None);
         await UpsertHandler(context, admin, ["Admin"]).Handle(
             new UpsertPdiCommand(owner.Id, "Plano v1", target, "Planned"), CancellationToken.None);
+        // §14 (Fase 5): troca de estratégia exige motivo.
         await UpsertHandler(context, new FakeCurrentUser(owner.Id, "Operator"), ["Operator"]).Handle(
-            new UpsertPdiCommand(owner.Id, "Plano v2", target, "Planned"), CancellationToken.None);
+            new UpsertPdiCommand(
+                owner.Id, "Plano v2", target, "Planned", Reason: "Nova direção"),
+            CancellationToken.None);
 
         var history = (await HistoryHandler(context, admin.UserId, ["Admin"]).Handle(
                 new GetPdiHistoryQuery(owner.Id), CancellationToken.None))
@@ -477,7 +486,8 @@ public sealed class PdiCommandTests
         history.Select(entry => entry.Type)
             .Should().Equal("Updated", "StatusChanged", "Created");
 
-        history[0].Detail.Should().Be("estratégia");
+        history[0].Detail.Should().Be(
+            "estratégia: \"Plano v1\" → \"Plano v2\"");
         history[0].ActorName.Should().Be("Ana Dono");
 
         history[1].FromStatus.Should().Be("Draft");

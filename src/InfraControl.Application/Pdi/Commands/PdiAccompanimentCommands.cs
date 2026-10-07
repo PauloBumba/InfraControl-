@@ -21,8 +21,9 @@ namespace InfraControl.Application.Pdi.Commands;
 public sealed record CreatePdiProgressCommand(
     Guid PhaseId,
     int? Percent = null,
-    string Comment = "") : BaseCommand<PdiProgressDto>, IAuthorizedRequest
+    string Comment = "") : BaseCommand<PdiProgressDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -60,8 +61,9 @@ public sealed class CreatePdiProgressCommandHandler(
     }
 }
 
-public sealed record DeletePdiProgressCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiProgressCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -99,8 +101,9 @@ public sealed record CreatePdiCheckInCommand(
     string WhatDone,
     string? WhatLearned = null,
     string? Difficulty = null,
-    string? NeedSupport = null) : BaseCommand<PdiCheckInDto>, IAuthorizedRequest
+    string? NeedSupport = null) : BaseCommand<PdiCheckInDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -125,6 +128,9 @@ public sealed class CreatePdiCheckInCommandHandler(
             request.NeedSupport);
 
         repository.AddCheckIn(checkIn);
+        plan.RecordCheckInCreated(
+            currentUser.UserId!.Value, request.CheckInDate, request.WhatDone);
+        plans.AddHistoryRange(plan.DrainPendingHistory());
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -150,8 +156,9 @@ public sealed record UpdatePdiCheckInCommand(
     string? Difficulty = null,
     string? NeedSupport = null,
     string? ManagerFeedback = null,
-    string? NextAction = null) : BaseCommand, IAuthorizedRequest
+    string? NextAction = null) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -207,8 +214,9 @@ public sealed class UpdatePdiCheckInCommandHandler(
     }
 }
 
-public sealed record DeletePdiCheckInCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiCheckInCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -247,8 +255,9 @@ public sealed record CreatePdiImpedimentCommand(
     DateOnly OccurredAt,
     string? Impact = null,
     Guid? ResponsibleId = null,
-    string? ActionTaken = null) : BaseCommand<PdiImpedimentDto>, IAuthorizedRequest
+    string? ActionTaken = null) : BaseCommand<PdiImpedimentDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -275,6 +284,9 @@ public sealed class CreatePdiImpedimentCommandHandler(
             request.Impact, request.ResponsibleId, request.ActionTaken);
 
         repository.AddImpediment(impediment);
+        plan.RecordImpedimentCreated(
+            currentUser.UserId!.Value, request.Type, request.Description);
+        plans.AddHistoryRange(plan.DrainPendingHistory());
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -297,8 +309,9 @@ public sealed record UpdatePdiImpedimentCommand(
     string? Impact = null,
     Guid? ResponsibleId = null,
     string? ActionTaken = null,
-    string Status = "Open") : BaseCommand, IAuthorizedRequest
+    string Status = "Open") : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -331,9 +344,19 @@ public sealed class UpdatePdiImpedimentCommandHandler(
                 "Status do impedimento inválido (use Open ou Resolved).",
                 nameof(request.Status));
 
+        var wasResolved = impediment.Status == PdiImpedimentStatus.Resolved;
+
         impediment.Update(
             request.Type, request.Description, request.OccurredAt,
             request.Impact, request.ResponsibleId, request.ActionTaken, status);
+
+        if (!wasResolved && status == PdiImpedimentStatus.Resolved)
+        {
+            plan.RecordImpedimentResolved(
+                currentUser.UserId!.Value, request.Description);
+            plans.AddHistoryRange(plan.DrainPendingHistory());
+        }
+
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -342,8 +365,9 @@ public sealed class UpdatePdiImpedimentCommandHandler(
     }
 }
 
-public sealed record DeletePdiImpedimentCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiImpedimentCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -382,8 +406,9 @@ public sealed record CreatePdiFeedbackCommand(
     Guid RecipientId,
     string Type,
     string Content,
-    DateOnly FeedbackDate) : BaseCommand<PdiFeedbackDto>, IAuthorizedRequest
+    DateOnly FeedbackDate) : BaseCommand<PdiFeedbackDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -427,8 +452,9 @@ public sealed class CreatePdiFeedbackCommandHandler(
     }
 }
 
-public sealed record DeletePdiFeedbackCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiFeedbackCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Administer;
 }

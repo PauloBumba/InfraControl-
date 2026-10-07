@@ -20,8 +20,9 @@ public sealed record UploadPdiEvidenceCommand(
     string FileName,
     string? ContentType,
     long FileSize,
-    Stream Content) : BaseCommand<PdiEvidenceDto>, IAuthorizedRequest
+    Stream Content) : BaseCommand<PdiEvidenceDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -88,8 +89,9 @@ public sealed class UploadPdiEvidenceCommandHandler(
 public sealed record ReviewPdiEvidenceCommand(
     Guid Id,
     PdiEvidenceReviewDecision Decision,
-    string? RejectionReason) : BaseCommand<PdiEvidenceDto>, IAuthorizedRequest
+    string? RejectionReason) : BaseCommand<PdiEvidenceDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }

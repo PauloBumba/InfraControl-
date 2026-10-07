@@ -33,11 +33,14 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
  * ADR-029). Ciclo de 9 estados: o seletor de status mostra só os
  * próximos estados válidos (tabela docs/30 §3 — backend revalida);
  * Admin define gestor/período e transiciona tudo, Operador só edita
- * campos e o aceite (AwaitingAcceptance → Active); motivo opcional vira
- * entrada do timeline (histórico por plano). Criação é exclusiva do
- * Admin e começa em Rascunho. Rota nível `operate` (Viewer não
- * alcança). Datas em `yyyy-MM-dd` (DateOnly) formatadas à mão para não
- * sofrer deslocamento de fuso do `Date`.
+ * campos e o aceite (AwaitingAcceptance → Active). §14 (Fase 5,
+ * ADR-035): mudar campos (estratégia/prazo/gestor/período) exige o
+ * motivo — obrigatório no formulário, com valor anterior → novo no
+ * timeline; transição de status sozinha mantém o motivo opcional
+ * (§15 aceite). Criação é exclusiva do Admin e começa em Rascunho.
+ * Rota nível `operate` (Viewer não alcança). Datas em `yyyy-MM-dd`
+ * (DateOnly) formatadas à mão para não sofrer deslocamento de fuso do
+ * `Date`.
  */
 function messageFor(error: unknown): string {
   return error instanceof Error
@@ -77,7 +80,7 @@ export function PdiPage() {
   // Dialog unificado: criar (admin, com dono) e editar (admin ou dono).
   const [dialogVisible, setDialogVisible] = useState(false);
   const [editUserId, setEditUserId] = useState<string | null>(null);
-  const [originalStatus, setOriginalStatus] = useState<PdiStatus | null>(null);
+  const [original, setOriginal] = useState<Pdi | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [ownerId, setOwnerId] = useState("");
   const [strategy, setStrategy] = useState("");
@@ -118,7 +121,7 @@ export function PdiPage() {
 
   const resetDialog = () => {
     setEditUserId(null);
-    setOriginalStatus(null);
+    setOriginal(null);
     setStrategy("");
     setTargetDate("");
     setStatus("Draft");
@@ -143,7 +146,7 @@ export function PdiPage() {
   const openEdit = async (plan: Pdi) => {
     resetDialog();
     setEditUserId(plan.userId);
-    setOriginalStatus(plan.status);
+    setOriginal(plan);
     setStrategy(plan.strategy);
     setTargetDate(plan.targetDate);
     setStatus(plan.status);
@@ -175,15 +178,29 @@ export function PdiPage() {
     }
   };
 
-  const statusOptions = originalStatus
+  const statusOptions = original
     ? PDI_STATUS_OPTIONS.filter(
         (option) =>
-          option.value === originalStatus ||
-          PDI_NEXT_STATUS[originalStatus].includes(option.value),
+          option.value === original.status ||
+          PDI_NEXT_STATUS[original.status].includes(option.value),
       )
     : PDI_STATUS_OPTIONS;
 
-  const showReason = originalStatus !== null && status !== originalStatus;
+  const statusChanged = !!original && status !== original.status;
+
+  // §14 (Fase 5): campos alterados ⇒ motivo obrigatório. Gestor/período
+  // só o Admin envia (o Operador nem inclui no payload).
+  const fieldsChanged =
+    !!original &&
+    (strategy !== original.strategy ||
+      targetDate !== original.targetDate ||
+      (isAdmin &&
+        (managerId !== (original.managerId ?? "") ||
+          periodStart !== (original.periodStart ?? "") ||
+          periodEnd !== (original.periodEnd ?? ""))));
+
+  const needsReason = fieldsChanged;
+  const showReason = fieldsChanged || statusChanged;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -198,6 +215,10 @@ export function PdiPage() {
     }
     if (periodStart && periodEnd && periodEnd < periodStart) {
       setFormError("O fim do período não pode ser anterior ao início.");
+      return;
+    }
+    if (needsReason && !reason.trim()) {
+      setFormError("O motivo da alteração é obrigatório.");
       return;
     }
     setSaving(true);
@@ -215,7 +236,7 @@ export function PdiPage() {
         payload.periodStart = periodStart || null;
         payload.periodEnd = periodEnd || null;
       }
-      if (showReason && reason.trim()) payload.reason = reason.trim();
+      if (reason.trim()) payload.reason = reason.trim();
       await upsertPdi(targetUserId, payload);
       setDialogVisible(false);
       await load();
@@ -421,13 +442,19 @@ export function PdiPage() {
           </div>
 
           {showReason && (
-            <FormField label="Motivo da transição (opcional)">
+            <FormField
+              label={
+                needsReason
+                  ? "Motivo da alteração"
+                  : "Motivo da transição (opcional)"
+              }
+            >
               <input
                 type="text"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 maxLength={500}
-                placeholder="Ex.: aprovado pelo gestor no ciclo semestral."
+                placeholder="Ex.: replanejado com o gestor no ciclo semestral."
                 style={dateInputStyle}
               />
             </FormField>
@@ -522,7 +549,11 @@ export function PdiPage() {
                   {entry.actorName ?? "Usuário removido"} · {formatDateTime(new Date(entry.occurredAt))}
                 </div>
                 {entry.detail && (
-                  <div style={{ fontSize: 12, color: "#334155" }}>Campos: {entry.detail}</div>
+                  <div style={{ fontSize: 12, color: "#334155" }}>
+                    {entry.type === "Updated"
+                      ? `Campos: ${entry.detail}`
+                      : entry.detail}
+                  </div>
                 )}
                 {entry.reason && (
                   <div style={{ fontSize: 12, color: "#334155" }}>Motivo: {entry.reason}</div>

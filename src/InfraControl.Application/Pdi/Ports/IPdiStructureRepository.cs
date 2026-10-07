@@ -40,6 +40,10 @@ public interface IPdiStructureRepository
     Task<PdiPhase?> GetPhaseAsync(
         Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Fases de uma estratégia em ordem (auto-start, §15 — Fase 5).</summary>
+    Task<IReadOnlyList<PdiPhase>> ListPhasesAsync(
+        Guid strategyId, CancellationToken cancellationToken = default);
+
     Task<PdiActivity?> GetActivityAsync(
         Guid id, CancellationToken cancellationToken = default);
 
