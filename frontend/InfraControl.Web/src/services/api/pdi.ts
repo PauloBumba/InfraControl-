@@ -857,3 +857,82 @@ export async function finalizePdiResult(
     notes: notes ?? null,
   });
 }
+
+// ------------------------------------------------------------------
+// Dashboards (Fase 7 — docs/30 §18, §19, §20, ADR-037)
+// ------------------------------------------------------------------
+
+/** Linha de fase do dashboard do colaborador (§18). */
+export interface PdiDashboardPhase {
+  id: string;
+  title: string;
+  status: PdiPhaseStatus;
+}
+
+/** §18 — "Meu PDI": progresso, fases, próximo prazo, pendências e totais. */
+export interface PdiDashboard {
+  userId: string;
+  status: PdiStatus;
+  progressPercent: number;
+  phases: PdiDashboardPhase[];
+  nextDueDate: string | null;
+  openImpediments: number;
+  totalEvidences: number;
+  totalCheckIns: number;
+}
+
+/** Plano gerenciado com a classificação do §19 (acesso direto aos casos). */
+export interface PdiManagerPlan {
+  userId: string;
+  ownerName: string;
+  status: PdiStatus;
+  targetDate: string;
+  overdue: boolean;
+  needsAttention: boolean;
+}
+
+/** §19 — "Meus PDIs": 🟢/🟡/🔴 + agregados + lista de casos. */
+export interface PdiManagerDashboard {
+  totalPlans: number;
+  onTrack: number;
+  needsAttention: number;
+  overdue: number;
+  phasesDueSoon: number;
+  openImpediments: number;
+  pendingEvidences: number;
+  plans: PdiManagerPlan[];
+}
+
+/** §20 — visão administrativa: contagens globais e taxa de conclusão. */
+export interface PdiAdminDashboard {
+  totalPlans: number;
+  completedPlans: number;
+  inProgressPlans: number;
+  replannedPlans: number;
+  cancelledPlans: number;
+  completionRatePercent: number;
+  completedPhases: number;
+  totalCheckIns: number;
+  totalEvidences: number;
+  totalImpediments: number;
+}
+
+/** Dashboard do colaborador (§18) — leitura Admin/dono/gestor. */
+export async function getPdiDashboard(
+  userId: string,
+): Promise<PdiDashboard> {
+  const data = await api.get<PdiDashboard>(`/pdi/${userId}/dashboard`);
+  return data as PdiDashboard;
+}
+
+/** Dashboard do gestor (§19) — planos em que sou gestor. */
+export async function getPdiManagerDashboard(): Promise<PdiManagerDashboard> {
+  const data = await api.get<PdiManagerDashboard>(`/pdi/manager/dashboard`);
+  return data as PdiManagerDashboard;
+}
+
+/** Dashboard administrativo (§20) — somente Admin (403 no backend). */
+export async function getPdiAdminDashboard(): Promise<PdiAdminDashboard> {
+  const data = await api.get<PdiAdminDashboard>(`/pdi/admin/dashboard`);
+  return data as PdiAdminDashboard;
+}

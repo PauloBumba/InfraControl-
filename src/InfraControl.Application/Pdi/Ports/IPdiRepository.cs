@@ -23,6 +23,13 @@ public interface IPdiRepository : IRepository<IndividualDevelopmentPlan>
     Task<IReadOnlyCollection<PdiWithOwner>> ListWithOwnersAsync(
         Guid? onlyUserId = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Planos em que o usuário é o gestor (dashboard do §19) — mesmos
+    /// joins de <see cref="ListWithOwnersAsync"/>, ordenados por dono.
+    /// </summary>
+    Task<IReadOnlyCollection<PdiWithOwner>> ListByManagerAsync(
+        Guid managerId, CancellationToken cancellationToken = default);
+
     /// <summary>Dados do dono para o retorno do upsert — null = usuário inexistente (404).</summary>
     Task<PlanOwner?> GetOwnerAsync(Guid userId, CancellationToken cancellationToken = default);
 

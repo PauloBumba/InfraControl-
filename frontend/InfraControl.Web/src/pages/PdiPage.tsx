@@ -12,13 +12,25 @@ import {
   PDI_STATUS_LABEL,
   PDI_STATUS_OPTIONS,
   PDI_STATUS_STYLE,
+  getPdiDashboard,
+  getPdiManagerDashboard,
+  getPdiAdminDashboard,
   type Pdi,
+  type PdiAdminDashboard,
+  type PdiDashboard,
   type PdiHistoryEntry,
+  type PdiManagerDashboard,
+  type PdiManagerPlan,
   type PdiStatus,
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { PdiStructureDialog } from "@/components/pdi/PdiStructureDialog";
 import { PdiEvaluationDialog } from "@/components/pdi/PdiEvaluationDialog";
+import {
+  PdiAdminDashboardPanel,
+  PdiManagerDashboardPanel,
+  PdiOwnDashboardPanel,
+} from "@/components/pdi/PdiDashboardPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
@@ -107,6 +119,14 @@ export function PdiPage() {
   // Avaliação final (docs/30 §15.3/§16, Fase 6).
   const [evaluationPlan, setEvaluationPlan] = useState<Pdi | null>(null);
 
+  // Dashboards (docs/30 §18-§20, Fase 7) — painéis opcionais: um erro
+  // em um deles não derruba a página.
+  const [ownDashboard, setOwnDashboard] = useState<PdiDashboard | null>(null);
+  const [managerDashboard, setManagerDashboard] =
+    useState<PdiManagerDashboard | null>(null);
+  const [adminDashboard, setAdminDashboard] =
+    useState<PdiAdminDashboard | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -122,6 +142,30 @@ export function PdiPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const ownPdiId = !isAdmin ? (items[0]?.userId ?? null) : null;
+
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    void (async () => {
+      const loadOwn = ownPdiId
+        ? getPdiDashboard(ownPdiId).catch(() => null)
+        : Promise.resolve(null);
+      const [own, managed, admin] = await Promise.all([
+        loadOwn,
+        getPdiManagerDashboard().catch(() => null),
+        isAdmin ? getPdiAdminDashboard().catch(() => null) : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+      setOwnDashboard(own);
+      setManagerDashboard(managed);
+      setAdminDashboard(admin);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, ownPdiId, isAdmin]);
 
   const resetDialog = () => {
     setEditUserId(null);
@@ -253,6 +297,37 @@ export function PdiPage() {
 
   const ownPdi: Pdi | null = isAdmin ? null : (items[0] ?? null);
 
+  // §19 — "acesso direto aos casos": abre o diálogo de avaliação do
+  // plano gerenciado (leitura permitida ao gestor — ADR-037).
+  const openManagedPlan = (plan: PdiManagerPlan) => {
+    const known = items.find((item) => item.userId === plan.userId);
+    if (known) {
+      setEvaluationPlan(known);
+      return;
+    }
+    setEvaluationPlan({
+      userId: plan.userId,
+      ownerName: plan.ownerName,
+      ownerEmail: "",
+      strategy: "",
+      targetDate: plan.targetDate,
+      status: plan.status,
+      managerId: user?.id ?? null,
+      managerName: null,
+      periodStart: null,
+      periodEnd: null,
+      updateDateTime: new Date().toISOString(),
+    });
+  };
+
+  const managerPanel =
+    managerDashboard && managerDashboard.totalPlans > 0 ? (
+      <PdiManagerDashboardPanel
+        dashboard={managerDashboard}
+        onOpenPlan={openManagedPlan}
+      />
+    ) : null;
+
   const statusChip = (value: PdiStatus) => (
     <StatusChip
       label={PDI_STATUS_LABEL[value] ?? value}
@@ -310,6 +385,11 @@ export function PdiPage() {
       />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+
+      {!loading && adminDashboard && (
+        <PdiAdminDashboardPanel dashboard={adminDashboard} />
+      )}
+      {!loading && managerPanel}
 
       {loading ? (
         <LoadingBlock />
@@ -380,6 +460,7 @@ export function PdiPage() {
           <div style={{ fontSize: 12, color: "#64748b" }}>
             Atualizado em {formatDateTime(new Date(ownPdi.updateDateTime))}
           </div>
+          {ownDashboard && <PdiOwnDashboardPanel dashboard={ownDashboard} />}
         </div>
       ) : (
         <NoticeBanner

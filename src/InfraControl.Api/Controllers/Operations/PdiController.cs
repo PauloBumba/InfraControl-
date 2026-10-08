@@ -92,4 +92,37 @@ public sealed class PdiController(ISender sender) : BaseController
             new FinalizePdiResultCommand(
                 userId, model.Outcome, model.Notes),
             cancellationToken)));
+
+    /// <summary>
+    /// Dashboard do colaborador (docs/30 §18, Fase 7): progresso,
+    /// fases, próximo prazo, pendências e totais. Leitura = Admin/dono/gestor.
+    /// </summary>
+    [HttpGet("{userId:guid}/dashboard")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> GetDashboard(
+        Guid userId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetPdiDashboardQuery(userId), cancellationToken)));
+
+    /// <summary>
+    /// Dashboard do gestor (docs/30 §19, Fase 7): planos em que sou
+    /// gestor, classificados atrasado/atenção/prazo + agregados.
+    /// </summary>
+    [HttpGet("manager/dashboard")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> GetManagerDashboard(
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetPdiManagerDashboardQuery(), cancellationToken)));
+
+    /// <summary>
+    /// Dashboard administrativo (docs/30 §20, Fase 7): contagens globais
+    /// por status, taxa de conclusão e agregados — somente Admin.
+    /// </summary>
+    [HttpGet("admin/dashboard")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> GetAdminDashboard(
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetPdiAdminDashboardQuery(), cancellationToken)));
 }

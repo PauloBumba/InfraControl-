@@ -136,3 +136,223 @@ public sealed class GetPdiEvaluationQueryHandler(
                 : PdiResultDto.From(result, plan.UserId, finalizedName));
     }
 }
+
+// ------------------------------------------------------------------
+// Dashboards (Fase 7 — docs/30 §18, §19, §20, ADR-037)
+// ------------------------------------------------------------------
+
+/// <summary>
+/// §18 — dashboard do colaborador: progresso, fases, próximo prazo,
+/// pendências e totais do acompanhamento. Leitura = Admin/dono/gestor
+/// (mesmo guard do acompanhamento/avaliação).
+/// </summary>
+public sealed record GetPdiDashboardQuery(Guid UserId)
+    : IQuery<PdiDashboardDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class GetPdiDashboardQueryHandler(
+    IPdiRepository plans,
+    IPdiStructureRepository repository,
+    ICurrentUserContext currentUser)
+    : IRequestHandler<GetPdiDashboardQuery, PdiDashboardDto>
+{
+    public async Task<PdiDashboardDto> Handle(
+        GetPdiDashboardQuery request, CancellationToken cancellationToken)
+    {
+        var plan = await plans.GetByUserIdAsync(request.UserId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"PDI do usuário '{request.UserId}' não encontrado.");
+        PdiAccess.EnsureCanView(currentUser, plan);
+
+        var rows = await repository.GetTreeAsync(request.UserId, cancellationToken);
+        var phases = rows.Phases;
+        var phaseIds = phases.Select(phase => phase.Id).ToList();
+
+        var checkIns = await repository.ListCheckInsAsync(phaseIds, cancellationToken);
+        var impediments = await repository.ListImpedimentsAsync(phaseIds, cancellationToken);
+        var evidences = await repository.ListEvidenceAsync(phaseIds, cancellationToken);
+
+        var progress = phases.Count == 0
+            ? 0
+            : (int)Math.Round(
+                phases.Average(phase => (double)phase.Percent),
+                MidpointRounding.AwayFromZero);
+
+        var nextDueDate = phases
+            .Where(phase => phase.Status != PdiPhaseStatus.Completed
+                && phase.EndDate is not null)
+            .Select(phase => phase.EndDate)
+            .Min();
+
+        return new PdiDashboardDto(
+            plan.UserId,
+            plan.Status.ToString(),
+            progress,
+            phases
+                .Select(phase => new PdiDashboardPhaseDto(
+                    phase.Id, phase.Title, phase.Status.ToString()))
+                .ToArray(),
+            nextDueDate,
+            impediments.Count(impediment =>
+                impediment.Status == PdiImpedimentStatus.Open),
+            evidences.Count,
+            checkIns.Count);
+    }
+}
+
+/// <summary>
+/// §19 — dashboard do gestor: planos em que sou gestor, classificados
+/// como atrasado / atenção / dentro do prazo, com agregados de fases a
+/// vencer (7 dias), impedimentos abertos e evidências pendentes.
+/// </summary>
+public sealed record GetPdiManagerDashboardQuery
+    : IQuery<PdiManagerDashboardDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class GetPdiManagerDashboardQueryHandler(
+    IPdiRepository plans,
+    IPdiStructureRepository repository,
+    ICurrentUserContext currentUser)
+    : IRequestHandler<GetPdiManagerDashboardQuery, PdiManagerDashboardDto>
+{
+    public async Task<PdiManagerDashboardDto> Handle(
+        GetPdiManagerDashboardQuery request, CancellationToken cancellationToken)
+    {
+        var userId = currentUser.UserId
+            ?? throw new UnauthorizedAccessException(
+                "Usuário autenticado sem identificação — não é possível montar o dashboard do gestor.");
+
+        var managed = await plans.ListByManagerAsync(userId, cancellationToken);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var dueHorizon = today.AddDays(7);
+
+        var entries = new List<PdiManagerPlanDto>();
+        var phasesDueSoon = 0;
+        var openImpediments = 0;
+        var pendingEvidences = 0;
+
+        foreach (var item in managed)
+        {
+            var plan = item.Plan;
+            var finished = plan.Status is PdiStatus.Completed or PdiStatus.Cancelled;
+            var overdue = !finished && plan.TargetDate < today;
+
+            var rows = await repository.GetTreeAsync(
+                plan.UserId, cancellationToken);
+            var phaseIds = rows.Phases.Select(phase => phase.Id).ToList();
+
+            var impediments = await repository.ListImpedimentsAsync(
+                phaseIds, cancellationToken);
+            var evidences = await repository.ListEvidenceAsync(
+                phaseIds, cancellationToken);
+
+            var hasOpenImpediment = impediments.Any(impediment =>
+                impediment.Status == PdiImpedimentStatus.Open);
+            var hasPendingEvidence = evidences.Any(evidence =>
+                evidence.Status == PdiEvidenceStatus.Pending);
+            var hasPendingValidation = rows.Phases.Any(phase =>
+                phase.Status == PdiPhaseStatus.PendingValidation);
+
+            var needsAttention = !overdue && !finished
+                && (hasOpenImpediment || hasPendingEvidence || hasPendingValidation);
+
+            entries.Add(new PdiManagerPlanDto(
+                plan.UserId, item.OwnerName, plan.Status.ToString(),
+                plan.TargetDate, overdue, needsAttention));
+
+            phasesDueSoon += rows.Phases.Count(phase =>
+                phase.Status != PdiPhaseStatus.Completed
+                && phase.EndDate is { } endDate
+                && endDate >= today && endDate <= dueHorizon);
+            openImpediments += impediments.Count(impediment =>
+                impediment.Status == PdiImpedimentStatus.Open);
+            pendingEvidences += evidences.Count(evidence =>
+                evidence.Status == PdiEvidenceStatus.Pending);
+        }
+
+        return new PdiManagerDashboardDto(
+            entries.Count,
+            entries.Count(entry => !entry.Overdue && !entry.NeedsAttention),
+            entries.Count(entry => entry.NeedsAttention),
+            entries.Count(entry => entry.Overdue),
+            phasesDueSoon,
+            openImpediments,
+            pendingEvidences,
+            entries.ToArray());
+    }
+}
+
+/// <summary>
+/// §20 — dashboard administrativo: contagens globais por status de
+/// plano, taxa de conclusão e agregados de fases/check-ins/evidências/
+/// impedamentos (somente Admin — guard também na policy da API).
+/// </summary>
+public sealed record GetPdiAdminDashboardQuery
+    : IQuery<PdiAdminDashboardDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
+}
+
+public sealed class GetPdiAdminDashboardQueryHandler(
+    IPdiRepository plans,
+    IPdiStructureRepository repository,
+    ICurrentUserContext currentUser)
+    : IRequestHandler<GetPdiAdminDashboardQuery, PdiAdminDashboardDto>
+{
+    public async Task<PdiAdminDashboardDto> Handle(
+        GetPdiAdminDashboardQuery request, CancellationToken cancellationToken)
+    {
+        if (!currentUser.Roles.Contains(UserRole.Admin.ToString()))
+            throw new UnauthorizedAccessException(
+                "Apenas administradores podem ver o dashboard administrativo do PDI.");
+
+        var all = await plans.ListWithOwnersAsync(
+            onlyUserId: null, cancellationToken);
+
+        var total = all.Count;
+        var completed = all.Count(item =>
+            item.Plan.Status == PdiStatus.Completed);
+        var replanned = all.Count(item =>
+            item.Plan.Status == PdiStatus.Replanned);
+        var cancelled = all.Count(item =>
+            item.Plan.Status == PdiStatus.Cancelled);
+        var inProgress = total - completed - replanned - cancelled;
+
+        var completedPhases = 0;
+        var totalCheckIns = 0;
+        var totalEvidences = 0;
+        var totalImpediments = 0;
+
+        foreach (var item in all)
+        {
+            var rows = await repository.GetTreeAsync(
+                item.Plan.UserId, cancellationToken);
+            var phaseIds = rows.Phases.Select(phase => phase.Id).ToList();
+
+            completedPhases += rows.Phases.Count(phase =>
+                phase.Status == PdiPhaseStatus.Completed);
+            totalCheckIns += (await repository.ListCheckInsAsync(
+                phaseIds, cancellationToken)).Count;
+            totalEvidences += (await repository.ListEvidenceAsync(
+                phaseIds, cancellationToken)).Count;
+            totalImpediments += (await repository.ListImpedimentsAsync(
+                phaseIds, cancellationToken)).Count;
+        }
+
+        var rate = total == 0
+            ? 0
+            : (int)Math.Round(
+                100.0 * completed / total, MidpointRounding.AwayFromZero);
+
+        return new PdiAdminDashboardDto(
+            total, completed, inProgress, replanned, cancelled, rate,
+            completedPhases, totalCheckIns, totalEvidences, totalImpediments);
+    }
+}
