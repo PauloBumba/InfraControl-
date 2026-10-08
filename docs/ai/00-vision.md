@@ -70,4 +70,7 @@ código compilou.
   segurança LEVEL 0, runtime Docker).
 - Compose `profile: ai` + Ollama + `.env.example` **preparados**
   (execução/health check pendentes de ambiente sem Docker — §46).
-- Próximo: sprints S3+ (gateway mínimo) mediante autorização.
+- **S3 (AI Gateway mínimo) concluído em 2026-10-08** (FAI-T004):
+  contratos + `AiGateway` em `Application/AI/`, ainda sem provider
+  real registrado nem endpoint. Próximo: S4 (Provider & Model
+  Manager) mediante autorização.

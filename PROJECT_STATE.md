@@ -771,6 +771,31 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   atualizada, docs/35 §11 marcando S1/S2 ✓. Pendente: sprints S3–S9
   (código) mediante autorização.
 
+- Fase AI — **FAI-T004 (S3): AI Gateway mínimo concluído**
+  (2026-10-08, sequência natural da Fase 0 autorizada): primeiros
+  códigos da camada de IA em `src/InfraControl.Application/AI/` —
+  contratos (`IAiGateway`, `IAiProvider`, `IAiProviderRouter`,
+  `IAiProviderRegistry`, `IAiAuditSink`), `AiCapability` (5
+  capacidades §15), modelos (request sem escolha de modelo pelo
+  chamador — o router decide por capacidade; seleção primário +
+  fallback; audit entry) e exceções pt-BR (`AiProviderNotConfigured`
+  = estado "não configurado" §44, `AiGatewayException` com causa).
+  `AiGateway` orquestra: resolve capacidade → executa pelo
+  **IResilienceExecutor já existente** (policy `ai/{provider}`
+  isolada por provedor; `AiGatewayOptions` MaxRetries=1 / Timeout=30s
+  / FallbackEnabled — §55) → fallback §54 (erro/timeout do primário;
+  cancelamento do chamador NÃO dispara fallback) → exatamente 1
+  entrada de auditoria por request com hook **fail-open**
+  (persistência `AI.*` = S6/ADR-040). **Sem DI/endpoint**: registry +
+  provider chegam no S4 (registro incompleto quebraria o
+  `ValidateOnBuild` do host). Testes +10 (`AiGatewayTests` com fakes:
+  sucesso+audit, fallback, fallback desabilitado, sem fallback,
+  capacidade não mapeada, resgate pelo fallback, opções de
+  resiliência, cancelamento, sink quebrado, prompt vazio pt-BR) →
+  unit **1832/1832** · arch **115/115** · build 0 · sem migração.
+  Docs: TASKS FAI-T004 [x], docs/35 §11 S3 ✓, docs/ai/00+01
+  atualizados. Pendente de ambiente: integração gateway↔Ollama (§12).
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

@@ -213,6 +213,7 @@ S2 — Compose profile `ai` + .env.example + docs/ai/00..01 (config
    ↓
 S3 — AI Gateway mínimo (IAiProvider, router, timeout/retry/fallback,
      hook de audit) + testes unit
+      ………………………………………………………………… CONCLUÍDO 2026-10-08 (FAI-T004)
    ↓
 S4 — Provider & Model Manager v1 (config por env/appsettings conforme
      ADR-037; admin UI só se o ADR exigir já)
