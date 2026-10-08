@@ -735,6 +735,18 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   mandato: investigação Sprint 0 da AI Blueprint (docs/34, §66: só
   investigação/planejamento) no checkpoint.
 
+- AI Blueprint — **investigação Sprint 0 entregue** (2026-10-07, sem
+  implementação — §66): `docs/35-PLANO-AI-FOUNDATION-SPRINT0.md` com
+  diagnóstico (arquitetura, reuso, gaps), conflitos registrados
+  (Docker indisponível → §47/§63 sem evidência, igual às 12
+  migrações; ADRs de IA de **ADR-036** em diante — §59 x repo em 035;
+  compose único ADR-022 → IA como `profiles: [ai]`; ADR-035 coerente
+  com §33), **ADRs 036–041** previstos, plano Docker preparado (não
+  executado), ordem S1–S9 e critérios de aceite separando "executável
+  sem Docker × pendente de ambiente". **Fase 0 — AI Foundation é a
+  próxima fase** (F25-Indicadores fora da fila, exigiria autorização
+  nova) — aguardando autorização para criar tasks/ADRs.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

@@ -525,6 +525,21 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   tests/InfraControl.IntegrationTests` → `dotnet ef database update`
   (12 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§22.
 
+- [ ] **AI Blueprint (docs/34) — Sprint 0 investigado; Fase 0 AI
+  Foundation aguardando autorização** — investigação e planejamento
+  entregues (2026-10-07, conforme §66 "NÃO implemente nada ainda"):
+  diagnóstico da arquitetura atual (7 projetos .NET 10, 16 módulos,
+  compose único ADR-022, health checks/OTel/SignalR já existentes,
+  **zero código AI/LLM/MCP/RAG**), componentes reutilizáveis, gaps,
+  conflitos (Docker indisponível → §47/§63 sem evidência de execução;
+  ADRs de IA seguem de **ADR-036** — a §59 sugere 001–008 mas o repo já
+  está em 035; IA entra como `profiles: [ai]` (§49 × ADR-022);
+  ADR-035 coerente com §33), ADRs 036–041, plano Docker preparado
+  (não executado) e ordem de execução S1–S9 com critérios de aceite
+  divididos em "executável sem Docker × pendente de ambiente" — tudo
+  em **`docs/35-PLANO-AI-FOUNDATION-SPRINT0.md`**. Próximo passo:
+  autorizar a Fase 0 → criar tasks + ADRs (036 em diante).
+
 - [x] **Retenção/cleanup de `monitoring_events`** — CONCLUÍDA (2026-10-03,
   janela **90 dias** decidida pelo usuário): 8º tipo `RetentionDataType.
   MonitoringEvents` no `CleanupService` (cutoff em `OccurredAt`, batch de

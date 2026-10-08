@@ -1312,3 +1312,17 @@ que existe no modelo". No caminho a task pegou um bug de wiring do K5.
   tag vive em coluna JSON/text[]);
   "sistema/setor" entra só se o modelo ganhar os campos (requisito
   novo → task/ADR nova).
+
+## 23. Entrega — Investigação Sprint 0 da AI Blueprint (2026-10-07)
+
+Fim do mandato da Fase 24: blueprint arquivada em **docs/34** (§66 —
+"só investigação e planejamento, NÃO implementar") e investigação
+entregue em **docs/35-PLANO-AI-FOUNDATION-SPRINT0.md**: arquitetura
+encontrada, componentes reutilizáveis/inexistentes, Docker existente,
+dependências, gaps e conflitos (Docker indisponível → §47/§63 sem
+evidência; ADRs de IA de **ADR-036**; `profiles: [ai]` × ADR-022;
+ADR-035 × §33), riscos, **ADRs 036–041**, plano Docker preparado
+(não executado), ordem S1–S9 e critérios de aceite do §63/§67
+separando executável sem Docker × pendente de ambiente. **Zero código
+de IA escrito nesta etapa.** Fase 0 — AI Foundation = próxima fase,
+aguardando autorização para abrir tasks.
