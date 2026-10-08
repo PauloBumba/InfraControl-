@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { KnowledgeArticle } from "./knowledge";
 
 /**
  * PDI — Plano de Desenvolvimento Individual (docs/29 §8, docs/30,
@@ -126,6 +127,21 @@ export async function upsertPdi(
 export async function getPdiHistory(userId: string): Promise<PdiHistoryEntry[]> {
   const data = await api.get<PdiHistoryEntry[]>(`/pdi/${userId}/history`);
   return data ?? [];
+}
+
+/**
+ * F24-T006/K6 — `POST /pdi/{userId}/generate-knowledge` (Operate +
+ * dono/Admin): rascunho Knowledge a partir do PDI CONCLUÍDO
+ * (docs/32 §4, ADR-035). Nasce Draft → revisão (ADR-034).
+ */
+export async function generatePdiKnowledge(
+  userId: string,
+): Promise<KnowledgeArticle> {
+  const data = await api.post<KnowledgeArticle>(
+    `/pdi/${userId}/generate-knowledge`,
+  );
+  if (!data) throw new Error("Resposta vazia do servidor ao gerar o rascunho.");
+  return data;
 }
 
 // ---------------------------------------------------------------------------

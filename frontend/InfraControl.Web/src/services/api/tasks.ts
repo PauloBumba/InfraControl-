@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { KnowledgeArticle } from "./knowledge";
 
 /**
  * F17 — conexão da TasksPage ao backend (contrato real de
@@ -251,6 +252,22 @@ export function linkTaskPdi(taskId: string, userId: string): Promise<null> {
 
 export function unlinkTaskPdi(taskId: string, userId: string): Promise<null> {
   return api.delete<null>(`/tasks/${taskId}/pdi/${userId}`);
+}
+
+/**
+ * F24-T006/K6 — `POST /tasks/{id}/generate-knowledge` (Operate): gera
+ * rascunho Knowledge a partir dos registros da task CONCLUÍDA
+ * (docs/32 §3, ADR-035 — montagem determinística, nunca inventa).
+ * O artigo nasce Draft e passa pela revisão normal (ADR-034).
+ */
+export async function generateTaskKnowledge(
+  taskId: string,
+): Promise<KnowledgeArticle> {
+  const data = await api.post<KnowledgeArticle>(
+    `/tasks/${taskId}/generate-knowledge`,
+  );
+  if (!data) throw new Error("Resposta vazia do servidor ao gerar o rascunho.");
+  return data;
 }
 
 /**

@@ -28,6 +28,7 @@ import {
   deleteTaskImpediment,
   deleteTaskPhase,
   downloadTaskEvidence,
+  generateTaskKnowledge,
   getTask,
   getTaskComments,
   getTaskCriteria,
@@ -681,15 +682,36 @@ export function TaskDetailPage() {
           </span>
         }
         actions={
-          <Can level="operate">
-            <Button
-              variant="danger"
-              onClick={() => setConfirmDeleteTask(true)}
-              style={{ padding: "6px 14px" }}
-            >
-              <i className="pi pi-trash" style={{ fontSize: 11 }} /> Excluir
-            </Button>
-          </Can>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* F24-T006/K6 (docs/32 §3, ADR-035): "Gerar Knowledge"
+                só quando a task concluiu (Resolved/Closed) — rascunho
+                montado dos registros, sempre Draft → revisão. */}
+            {(task.state === "Resolved" || task.state === "Closed") && (
+              <Can level="operate">
+                <Button
+                  onClick={() =>
+                    void run(
+                      () => generateTaskKnowledge(task.id),
+                      "Rascunho de Knowledge gerado — revise na Base de Conhecimento.",
+                    )
+                  }
+                  disabled={saving}
+                  style={{ padding: "6px 14px" }}
+                >
+                  <i className="pi pi-file" style={{ fontSize: 11 }} /> Gerar Knowledge
+                </Button>
+              </Can>
+            )}
+            <Can level="operate">
+              <Button
+                variant="danger"
+                onClick={() => setConfirmDeleteTask(true)}
+                style={{ padding: "6px 14px" }}
+              >
+                <i className="pi pi-trash" style={{ fontSize: 11 }} /> Excluir
+              </Button>
+            </Can>
+          </div>
         }
       />
 

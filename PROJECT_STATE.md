@@ -684,6 +684,32 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   arch **115/115** · build 0 · front lint/build 0. docs/31 §20 ·
   docs/04 §Revisão periódica · TASKS F24-T005 [x].
 
+- Fase 24-T006 / K6 (Knowledge — geração automática de rascunho,
+  spec docs/32 §2–§4) concluída (2026-10-07, mesma autorização da
+  Fase 24 inteira): decisão de arquitetura aprovada pelo usuário =
+  **montagem determinística dos registros existentes, SEM LLM** (repo
+  sem infra de IA — docs/31 §12; §3 exige "não inventar") →
+  **ADR-035**. Dois endpoints `Operate`: `POST
+  /tasks/{id}/generate-knowledge` (só task Resolvida/Fechada — 409
+  pt-BR) e `POST /pdi/{userId}/generate-knowledge` (dono ou Admin —
+  403; só PDI Completed — 404/409). Artigo nasce **Draft** (§2 →
+  revisão ADR-034) com **v1.0** de proveniência (K3) e **origem**
+  Task/Pdi (K4) — **zero migração nova**. `KnowledgeDraftComposer`
+  puro: seção só com registro (Task: objetivo/resultado/critérios/
+  fases/-stats de subtarefas/impedimentos/evidências/comentários/
+  timeline ≤50 com ator+tipo; PDI: plano/objetivos+competência/
+  timeline), título = task/primeiro objetivo, banner de proveniência,
+  cortes nos limites 200/20k. Front: botão "Gerar Knowledge" no
+  detalhe da Task (só concluída, `<Can operate>`, via `run`) e no PDI
+  (só Completed, tabela Admin + card próprio, `NoticeBanner` novo).
+  Testes +8 (`KnowledgeGenerationTests`: montagem completa, seções
+  omitidas, 409/404/403 de cada porta) → unit **1816/1816** · arch
+  **115/115** · build 0 · front lint/build 0 · sem migração.
+  Docs: **ADR-035**, **docs/34** (blueprint de IA recebida — Fase 0
+  AI Foundation aprovada como próxima fase; investigação Sprint 0 no
+  checkpoint), docs/31 §21 · docs/04 §Geração automática · TASKS
+  F24-T006 [x].
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

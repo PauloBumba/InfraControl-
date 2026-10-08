@@ -751,6 +751,42 @@ revisão periódica da §12 ("Revisar Knowledge a cada 180 dias"):
   batch do autor) e `pendingReview`. Invariante do domínio:
   `nextReviewAt` não-nulo ⟺ `reviewIntervalDays` não-nulo.
 
+### Geração automática de rascunho (F24-T006/K6 — spec docs/32 §2–§4)
+
+"Gerar Knowledge" ao concluir Task/PDI — **montagem determinística dos
+registros existentes**, sem LLM (o repo não tem infra de IA — docs/31
+§12 — e a §3 exige "conteúdo baseado nos registros existentes, nunca
+inventar"). Decisão registrada em **ADR-035**.
+
+- Endpoints (`Operate`):
+  - `POST api/v1/tasks/{taskId}/generate-knowledge` — exige task em
+    `Resolved`/`Closed`; fora disso = 409 `A task precisa estar
+    concluída para gerar Knowledge.`;
+  - `POST api/v1/pdi/{userId}/generate-knowledge` — dono do plano ou
+    Admin (403 `Você só pode gerar Knowledge do seu próprio PDI.`),
+    exige PDI `Completed`; fora disso = 409 `O PDI precisa estar
+    concluído para gerar Knowledge.`
+- Ambos devolvem o `KnowledgeArticleDto` novo, que **nasce Draft** (§2
+  "Knowledge sugerida → Revisão" — nenhum caminho pula o ADR-034), com
+  versão **v1.0** cujo motivo é "Geração automática a partir de …"
+  (K3, §8) e **origem** Task/Pdi (K4, §9) — o vínculo "criada a partir
+  de" aparece na busca e no detalhe.
+- Composição pura em `KnowledgeDraftComposer` (testável sem I/O):
+  **seção só existe se existir registro**. Task → Objetivo
+  (descrição/prazo), Resultado, Critérios de aceite, Fases,
+  Subtarefas (estatísticas do repositório), Dificuldades e
+  impedimentos, Evidências, Comentários e Linha do tempo (últimas 50
+  entradas, com ator e tipo). PDI → Plano (estratégia + prazo),
+  Objetivos (só campos preenchidos + competência) e Linha do tempo.
+  Título: o da task / o do primeiro objetivo do PDI (§4 — sem reescrita
+  mágica); banner de proveniência no topo pede revisão; conteúdo
+  respeita os limites de 200/20k do domínio (corte com aviso).
+- Front: botão **"Gerar Knowledge"** no detalhe da Task (só
+  Resolvida/Fechada, dentro de `<Can operate>`) e no PDI (só
+  `Completed`, na linha da tabela do Admin e no card do plano próprio)
+  com aviso de sucesso apontando para a Base de Conhecimento.
+- Sem migração nova — usa as tabelas/vínculos do K3/K4.
+
 ### Relacionamentos (F10-T004)
 
 Vínculos N:N do artigo (tabelas `knowledge_article_devices`,

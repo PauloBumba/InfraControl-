@@ -1163,3 +1163,88 @@ ExistsAsync` para o responsável) e o do 409, os vínculos.
   artigo com destaque/redirect = backlog (hoje = conteúdo novo via
   PUT + origem K4); notificação push/e-mail do alerta (o §12 só diz
   "alerta") = backlog.
+
+## 21. Execução — K6 / F24-T006 (Fase 24, 2026-10-07)
+
+**Geração automática de rascunho** (spec docs/32 §2–§4 — "Gerar
+Knowledge" ao concluir Task/PDI"). A task bloqueava por arquitetura ("sem
+infra de IA no repo — definir antes, possível ADR"): decisão apresentada
+ao usuário e **aprovada em 2026-10-07** → montagem **determinística** dos
+registros existentes, **sem LLM** (a §3 exige "conteúdo baseado nos
+registros existentes / não inventar"; o repo não tem provedor, chave ou
+orçamento de IA — docs/31 §12). Registrada em **ADR-035**.
+
+### Design (decisões da task)
+
+- **Endpoints explícitos** (nada roda sozinho na conclusão — a §2 diz
+  "o sistema poderá disponibilizar"):
+  - `POST /api/v1/tasks/{taskId}/generate-knowledge` (Operate) — só
+    `Resolved`/`Closed` ("ao concluir"); 409
+    `A task precisa estar concluída para gerar Knowledge.`;
+  - `POST /api/v1/pdi/{userId}/generate-knowledge` (Operate) — dono
+    ou Admin (mesma checagem de dono dos endpoints de PDI: 403
+    `Você só pode gerar Knowledge do seu próprio PDI.`), só
+    `Completed`; 404 `PDI do usuário '{id}' não encontrado.`
+- **Nasce Draft** (§2 "Knowledge sugerida → Revisão" — nenhum caminho
+  pula o ADR-034), **versão v1.0** com motivo de proveniência
+  "Geração automática a partir de …" (K3, §8) e **origem** Task/Pdi
+  (K4, §9) — nos dois casos reaproveitando os repositórios/rotas
+  existentes, **zero migração nova**.
+- **`KnowledgeDraftComposer`** (função pura em Application, testável
+  sem I/O): seção só entra se houver registro — seção vazia nunca é
+  escrita (é assim que "não inventar" vira código). Task: Objetivo
+  (descrição/prazo), Resultado, Critérios de aceite (x/ ),
+  Fases (posição + estado), Subtarefas (estatísticas do
+  `GetSubtaskStatsAsync` — não há tabela de subtarefas legível), 
+  Dificuldades e impedimentos (resolvido/aberto), Evidências
+  (arquivo/nota), Comentários (data + autor) e Linha do tempo (últimas
+  50, ordenadas por data, com ator e rótulo `TaskTimelineTypes`). PDI:
+  Plano (estratégia + prazo), Objetivos (só campos preenchidos,
+  competência resolvida no catálogo) e Linha do tempo (tipo/detalhe/
+  motivo). Título: task.Title / primeiro objetivo (§4 — ex.: o PDI
+  "Conhecer funcionamento do sistema de Tomografia" vira artigo com
+  esse título, sem reescrita mágica); banner `> Rascunho gerado
+  automaticamente…` no topo; cortes nos limites do domínio (200/20k,
+  sem surrogate solto).
+- **Front**: `tasks.ts`/`pdi.ts` +`generateTaskKnowledge`/
+  `generatePdiKnowledge` (retornam o artigo; throw em resposta vazia,
+  molde `upsertPdi`); TaskDetailPage: botão **"Gerar Knowledge"** no
+  header, renderizado só quando `state` é Resolvida/Fechada, dentro de
+  `<Can operate>`, via `run()` (aviso pt-BR + recarga); PdiPage: botão
+  na linha da tabela (Admin) e no card do plano próprio, só
+  `status === "Completed"`, com `NoticeBanner` novo (estado `notice`).
+- **Testes** (8, `KnowledgeGenerationTests`): task concluída monta
+  todas as seções + v1.0 + origem Task; task aberta = 409; task
+  inexistente = 404; task sem registros omite seções vazias (§3);
+  PDI concluído monta do objetivo + origem Pdi; PDI em Draft = 409;
+  PDI inexistente = 404 (Admin); PDI de outro usuário = 403.
+
+### Arquivos alterados/criados
+
+- **`docs/adr/ADR-035-KNOWLEDGE-POR-MONTAGEM-DETERMINISTICA.md`** (novo).
+- **`docs/34-PLANO-AI-ENGINEERING-BLUEPRINT.md`** (novo — blueprint de
+  IA recebida do usuário em 2026-10-07, arquivada integralmente;
+  investigação/ plano da Fase 0 sai no checkpoint da Fase 24 — usuário
+  aprovou Fase 0 como próxima fase; ADRs de IA continuarão de ADR-036).
+- Application: **`KnowledgeDraftComposer`** (novo) +
+  **`KnowledgeGenerationCommands`** (novo — 2 commands + handlers com
+  12 ports no total).
+- API: `TasksController` +`POST {taskId}/generate-knowledge`;
+  `PdiController` +`POST {userId}/generate-knowledge`.
+- Front: `tasks.ts`, `pdi.ts`, `TaskDetailPage.tsx`, `PdiPage.tsx`.
+- Testes: **`KnowledgeGenerationTests`** (8).
+- Docs: docs/04 §Geração automática, docs/31 §21, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1816/1816** (+8) · arch **115/115** · front
+  lint exit 0 / build ✓ · **sem migração** (pendências continuam 12).
+
+### Pendências da K6
+
+- Sem Docker: Ollama/health checks da blueprint ficam para a Fase 0 com
+  ambiente pendente (igual às migrações); evidência de execução do
+  endpoint via Integração (Playwright/API) depende do ambiente de
+  teste; "sistema/setor" e seções sem registro (pesquisas/decisões
+  literais) ficam de fora até o modelo existir (K7 usa o mesmo
+  critério).

@@ -4,6 +4,7 @@ import { Column } from "primereact/column";
 import { useAppSelector } from "@/app/store/hooks";
 import { formatDateTime } from "@/utils/format";
 import {
+  generatePdiKnowledge,
   listPdis,
   upsertPdi,
   getPdiHistory,
@@ -73,6 +74,8 @@ export function PdiPage() {
   const [items, setItems] = useState<Pdi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // F24-T006/K6 — aviso do "Gerar Knowledge" (docs/32 §4).
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Dialog unificado: criar (admin, com dono) e editar (admin ou dono).
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -246,6 +249,24 @@ export function PdiPage() {
     </div>
   );
 
+  /**
+   * F24-T006/K6 (docs/32 §4, ADR-035): rascunho montado dos registros
+   * do PDI concluído — nasce Draft e vai para revisão.
+   */
+  const generateKnowledge = async (plan: Pdi) => {
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await generatePdiKnowledge(plan.userId);
+      setNotice("Rascunho de Knowledge gerado — revise na Base de Conhecimento.");
+    } catch (caught) {
+      setError(messageFor(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const actionsCell = (plan: Pdi) => (
     <div style={{ display: "flex", gap: 6 }}>
       <Button variant="ghost" onClick={() => setStructurePlan(plan)}>
@@ -254,6 +275,16 @@ export function PdiPage() {
       <Button variant="ghost" onClick={() => void openHistory(plan)}>
         Histórico
       </Button>
+      {/* F24-T006/K6 — só o PDI concluído disponibiliza o rascunho (§4). */}
+      {plan.status === "Completed" && (
+        <Button
+          variant="ghost"
+          disabled={saving}
+          onClick={() => void generateKnowledge(plan)}
+        >
+          Gerar Knowledge
+        </Button>
+      )}
       <Button variant="ghost" onClick={() => void openEdit(plan)}>
         Editar
       </Button>
@@ -282,6 +313,10 @@ export function PdiPage() {
       />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+
+      {notice && (
+        <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />
+      )}
 
       {loading ? (
         <LoadingBlock />
@@ -312,7 +347,7 @@ export function PdiPage() {
           />
           <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} style={{ width: 155 }} />
           <Column header="Atualizado" body={(plan: Pdi) => formatDateTime(new Date(plan.updateDateTime))} style={{ width: 155 }} />
-          <Column body={actionsCell} style={{ width: 270 }} />
+          <Column body={actionsCell} style={{ width: 360 }} />
         </DataTable>
       ) : ownPdi ? (
         <div
@@ -337,6 +372,16 @@ export function PdiPage() {
               <Button variant="ghost" onClick={() => void openHistory(ownPdi)}>
                 Histórico
               </Button>
+              {/* F24-T006/K6 — rascunho só quando o plano concluiu (§4). */}
+              {ownPdi.status === "Completed" && (
+                <Button
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => void generateKnowledge(ownPdi)}
+                >
+                  Gerar Knowledge
+                </Button>
+              )}
               <Button variant="primary" onClick={() => void openEdit(ownPdi)}>
                 Editar
               </Button>

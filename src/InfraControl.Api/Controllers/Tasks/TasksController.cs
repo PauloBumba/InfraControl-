@@ -2,6 +2,7 @@ using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Sla;
 using InfraControl.Api.ViewModels.Tasks;
 using InfraControl.BuildingBlocks.Application.Response;
+using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Sla.TaskSlas.Commands;
 using InfraControl.Application.Sla.TaskSlas.Queries;
 using InfraControl.Application.Tasks.Commands;
@@ -130,6 +131,17 @@ public sealed class TasksController(ISender sender) : BaseController
                 id, model.PlannedStart, model.PlannedEnd,
                 model.DueDate, model.Reason),
             cancellationToken)));
+
+    // F24-T006/K6 (docs/32 §3, ADR-035): rascunho Knowledge montado dos
+    // registros da task concluída — sempre nasce Draft → revisão.
+    /// <summary>Gera rascunho a partir da task concluída — 409 se não
+    /// estiver concluída (Operate).</summary>
+    [HttpPost("{taskId:guid}/generate-knowledge")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> GenerateKnowledge(
+        Guid taskId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GenerateTaskKnowledgeCommand(taskId), cancellationToken)));
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
