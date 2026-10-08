@@ -17,21 +17,21 @@ public sealed class CrudDomainEventLote3Tests
     [Fact]
     public void KnowledgeArticle_ShouldRaiseCreatedUpdatedDeleted()
     {
-        var article = KnowledgeArticle.Create("Como resetar switch", "passo 1", null);
+        var article = KnowledgeArticle.Create("Como resetar switch", "passo 1", null, "Procedimento");
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleCreatedDomainEvent>()
             .Which.Title.Should().Be("Como resetar switch");
 
         article.ClearDomainEvents();
-        article.Update("Como resetar switch (v2)", "passo 2", null);
+        article.Update("Como resetar switch (v2)", "passo 2", null, "Procedimento");
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleUpdatedDomainEvent>();
 
         article.ClearDomainEvents();
-        article.TransitionTo(KnowledgeArticleStatus.Published);
+        article.TransitionTo(KnowledgeArticleStatus.InReview);
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleUpdatedDomainEvent>()
-            .Which.Status.Should().Be(KnowledgeArticleStatus.Published);
+            .Which.Status.Should().Be(KnowledgeArticleStatus.InReview);
 
         article.ClearDomainEvents();
         article.Delete();

@@ -596,11 +596,11 @@ Conhecimento"** (docs/32) e **"INDICADORES E RELATÓRIOS — Plano"**
 
 | Spec Knowledge (docs/32) | Código (F10) |
 |---|---|
-| §5 tipos (14) | **ausente** — não há campo `Type` |
-| §6 identificação: descrição, tags, autor, responsável | **parcial** — só `Title`/`Content`/`CategoryId`; autor só na auditoria |
+| §5 tipos (14) | **concluído (K1/F24-T001)** — campo `type` (14 tipos, conjunto fechado, 400 pt-BR) |
+| §6 identificação: descrição, tags, autor, responsável | **concluído (K1/F24-T001)** — `description`, `tags` (tabela `knowledge_article_tags`), `author_id` (automático/imutável), `responsible_id` (404) + nomes nas queries; conteúdo estruturado continua ausente |
 | §6 conteúdo estruturado (objetivo, contexto, pré-requisitos, procedimento, observações, problemas, soluções, limitações, referências) | **ausente** — `Content` único (20k) |
 | §6 governança: versão, próxima revisão, responsável pela revisão, aprovador | **ausente** |
-| §7 status: RASCUNHO → EM REVISÃO → APROVADA → PUBLICADA → EM REVISÃO → ATUALIZADA + Arquivada/Obsoleta/Rejeitada | **diferente** — enum de 3 estados (`Draft/Published/Archived`), ciclo Draft→Published→Archived→Draft |
+| §7 status: RASCUNHO → EM REVISÃO → APROVADA → PUBLICADA → EM REVISÃO → ATUALIZADA + Arquivada/Obsoleta/Rejeitada | **concluído (K2/F24-T002, ADR-039)** — 8 estados com matriz de transições, 409 em rótulos pt-BR e estados não publicados ocultos de leitores |
 | §8 versionamento (v1.0→, alteração/autor/data/motivo/aprovador) | **ausente** |
 | §9 rastreabilidade de origem (Task/PDI/Chamado/…) | **ausente** |
 | §10 relação com Tasks (criada a partir de, utilizada por, atualizada por) | **ausente** — vínculos só de device/incident/service |
@@ -621,7 +621,7 @@ existe o dashboard inicial genérico (F14 com mock).
   (**§13**), P5b Task↔PDI (**§14**) e P5c conferência Chamado = Incident
   (**§15**, sem sobra) — F23-T005 concluída.
 - **Trilha K (Knowledge)** → **Fase 24 do TASKS.md (F24-T001–T007)** —
-  K1 tipos + identificação; K2 workflow dos 9 status; K3 versionamento;
+  K1 tipos + identificação; K2 workflow dos 8 status (concluída); K3 versionamento;
   K4 origem/rastreabilidade (pode absorver o vínculo do P5a); K5 revisão
   periódica; K6 geração automática (definir IA vs rascunho montado dos
   registros); K7 busca avançada.

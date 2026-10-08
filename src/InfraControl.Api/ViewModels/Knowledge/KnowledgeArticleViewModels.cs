@@ -13,6 +13,19 @@ public sealed class CreateKnowledgeArticleViewModel
     public string Content { get; set; } = string.Empty;
 
     public Guid? CategoryId { get; set; }
+
+    // F24-T001/K1 — identificação (docs/32 §5–§6)
+    [Required(ErrorMessage = "O tipo do artigo é obrigatório.")]
+    [MaxLength(50, ErrorMessage = "O tipo do artigo pode ter no máximo 50 caracteres.")]
+    public string Type { get; set; } = string.Empty;
+
+    [MaxLength(500, ErrorMessage = "A descrição do artigo pode ter no máximo 500 caracteres.")]
+    public string? Description { get; set; }
+
+    /// <summary>Tags brutas — limite/normalização no domínio (400 pt-BR).</summary>
+    public List<string>? Tags { get; set; }
+
+    public Guid? ResponsibleId { get; set; }
 }
 
 public sealed class UpdateKnowledgeArticleViewModel
@@ -26,6 +39,19 @@ public sealed class UpdateKnowledgeArticleViewModel
     public string Content { get; set; } = string.Empty;
 
     public Guid? CategoryId { get; set; }
+
+    // F24-T001/K1 — identificação (docs/32 §5–§6)
+    [Required(ErrorMessage = "O tipo do artigo é obrigatório.")]
+    [MaxLength(50, ErrorMessage = "O tipo do artigo pode ter no máximo 50 caracteres.")]
+    public string Type { get; set; } = string.Empty;
+
+    [MaxLength(500, ErrorMessage = "A descrição do artigo pode ter no máximo 500 caracteres.")]
+    public string? Description { get; set; }
+
+    /// <summary>Tags brutas — limite/normalização no domínio (400 pt-BR).</summary>
+    public List<string>? Tags { get; set; }
+
+    public Guid? ResponsibleId { get; set; }
 }
 
 /// <summary>F10-T003: corpo do POST {id}/status — o valor em si é

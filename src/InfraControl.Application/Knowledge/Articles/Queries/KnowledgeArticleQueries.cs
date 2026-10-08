@@ -10,6 +10,8 @@ namespace InfraControl.Application.Knowledge.Articles.Queries;
 // F10-T003: rascunho (Draft) só aparece para quem tem nível de
 // escrita (ADR-016 ≡ Operate) — a busca filtra e o GET/{id} de um
 // Draft responde 404 como se não existisse (não vaza existência).
+// F24-T001/K1: autor/responsável resolvidos em lote (join em
+// DomainUsers) — 1 chamada por request, sem N+1.
 
 public sealed record SearchKnowledgeArticlesQuery(
     string? Term = null,
@@ -34,14 +36,29 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
 
         var result = await repository.SearchAsync(
             term, page, pageSize,
-            includeDrafts: CanSeeDrafts(currentUser),
+            includeUnpublished: CanSeeUnpublished(currentUser),
+            cancellationToken);
+
+        var names = await KnowledgeArticleQueries.ResolveUserNamesAsync(
+            repository,
+            result.Items.SelectMany(article =>
+                new[] { article.AuthorId, article.ResponsibleId }),
             cancellationToken);
 
         return new PagedResult<KnowledgeArticleDto>(
             result.Items
                 .Select(article => new KnowledgeArticleDto(
                     article.Id, article.Title, article.Content,
-                    article.CategoryId, article.Status))
+                    article.CategoryId, article.Status,
+                    article.Type, article.Description,
+                    article.AuthorId, article.ResponsibleId)
+                {
+                    Tags = article.Tags.Select(tag => tag.Tag).ToArray(),
+                    AuthorName = KnowledgeArticleQueries.NameOf(
+                        names, article.AuthorId),
+                    ResponsibleName = KnowledgeArticleQueries.NameOf(
+                        names, article.ResponsibleId),
+                })
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -52,7 +69,7 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
     /// Rascunho só para quem escreve: papeis do usuário cortados em
     /// <see cref="RoleAccess.Operate"/> (Admin/Operator — ADR-016).
     /// </summary>
-    internal static bool CanSeeDrafts(ICurrentUserContext currentUser)
+    internal static bool CanSeeUnpublished(ICurrentUserContext currentUser)
         => RoleAccess.Operate.Any(role => currentUser.Roles.Contains(role));
 }
 
@@ -78,22 +95,59 @@ public sealed class GetKnowledgeArticleQueryHandler(
             ?? throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
-        if (article.Status == KnowledgeArticleStatus.Draft
-            && !SearchKnowledgeArticlesQueryHandler.CanSeeDrafts(currentUser))
+        if (!article.Status.IsVisibleToReaders()
+            && !SearchKnowledgeArticlesQueryHandler.CanSeeUnpublished(currentUser))
             throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
+        var names = await KnowledgeArticleQueries.ResolveUserNamesAsync(
+            repository,
+            [article.AuthorId, article.ResponsibleId],
+            cancellationToken);
+
         return new KnowledgeArticleDto(
             article.Id, article.Title, article.Content,
-            article.CategoryId, article.Status)
+            article.CategoryId, article.Status,
+            article.Type, article.Description,
+            article.AuthorId, article.ResponsibleId)
         {
             // F10-T004: vínculos só no detalhe (a busca não detalha).
+            Tags = article.Tags.Select(tag => tag.Tag).ToArray(),
             DeviceIds = await deviceLinkRepository.GetDeviceIdsAsync(
                 article.Id, cancellationToken),
             IncidentIds = await incidentLinkRepository.GetIncidentIdsAsync(
                 article.Id, cancellationToken),
             ServiceIds = await serviceLinkRepository.GetServiceIdsAsync(
                 article.Id, cancellationToken),
+            AuthorName = KnowledgeArticleQueries.NameOf(names, article.AuthorId),
+            ResponsibleName = KnowledgeArticleQueries.NameOf(names, article.ResponsibleId),
         };
     }
+}
+
+/// <summary>
+/// Resolução de nomes do K1 — compartilhada por Search/Get (1 chamada,
+/// ids distintos; sem N+1, precedente GetUserNamesAsync de Tasks/PDI).
+/// </summary>
+internal static class KnowledgeArticleQueries
+{
+    internal static async Task<IReadOnlyDictionary<Guid, string>> ResolveUserNamesAsync(
+        IKnowledgeArticleRepository repository,
+        IEnumerable<Guid?> candidateIds,
+        CancellationToken cancellationToken)
+    {
+        var userIds = candidateIds
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+
+        if (userIds.Length == 0)
+            return new Dictionary<Guid, string>();
+
+        return await repository.GetUserNamesAsync(userIds, cancellationToken);
+    }
+
+    internal static string? NameOf(
+        IReadOnlyDictionary<Guid, string> names, Guid? userId)
+        => userId is { } id && names.TryGetValue(id, out var name) ? name : null;
 }

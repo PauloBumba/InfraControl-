@@ -38,10 +38,12 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         return context;
     }
 
-    private static CreateKnowledgeArticleCommandHandler CreateHandler(AppDbContext context)
+    private static CreateKnowledgeArticleCommandHandler CreateHandler(
+        AppDbContext context, ICurrentUserContext? currentUser = null)
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeCategoryRepository(context),
+            currentUser ?? new FakeCurrentUser(["Operator"]),
             NullLogger<CreateKnowledgeArticleCommandHandler>.Instance);
 
     private static UpdateKnowledgeArticleCommandHandler UpdateHandler(AppDbContext context)
@@ -55,9 +57,9 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
             new KnowledgeArticleRepository(context),
             NullLogger<DeleteKnowledgeArticleCommandHandler>.Instance);
 
-    private sealed class FakeCurrentUser(string[] roles) : ICurrentUserContext
+    private sealed class FakeCurrentUser(string[] roles, Guid? userId = null) : ICurrentUserContext
     {
-        public Guid? UserId { get; } = Guid.NewGuid();
+        public Guid? UserId { get; } = userId ?? Guid.NewGuid();
         public string? UserName => "usuario@exemplo.test";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles => roles;
@@ -92,7 +94,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
 
         var dto = await CreateHandler(context).Handle(
             new CreateKnowledgeArticleCommand(
-                "Troca do switch central", "Failover passo a passo.", categoryId),
+                "Troca do switch central", "Failover passo a passo.", categoryId, "Procedimento"),
             CancellationToken.None);
 
         dto.Title.Should().Be("Troca do switch central");
@@ -111,7 +113,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown),
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown, "Guia"),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -124,7 +126,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         await using var context = await CreateContextAsync();
 
         var action = () => CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null),
+            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null, "Procedimento"),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<ArgumentException>())
@@ -137,12 +139,12 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         await using var context = await CreateContextAsync();
         var categoryId = await SeedCategoryAsync(context, "Backup");
         var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo.", null),
+            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo.", null, "Manual"),
             CancellationToken.None);
 
         await UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
-                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId),
+                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"),
             CancellationToken.None);
 
         var updated = await context.KnowledgeArticles.AsNoTracking()
@@ -160,7 +162,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null),
+            new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null, "Guia"),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -172,12 +174,12 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
     {
         await using var context = await CreateContextAsync();
         var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null),
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "FAQ"),
             CancellationToken.None);
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown),
+            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown, "FAQ"),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -202,10 +204,10 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
     {
         await using var context = await CreateContextAsync();
         await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Troca do switch central", "Conteúdo A.", null),
+            new CreateKnowledgeArticleCommand("Troca do switch central", "Conteúdo A.", null, "Guia"),
             CancellationToken.None);
         var other = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo B.", null),
+            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo B.", null, "Guia"),
             CancellationToken.None);
 
         var page = await SearchHandler(context).Handle(
@@ -227,5 +229,161 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Artigo '{unknown}' não encontrado.");
+    }
+
+    // ── F24-T001: tipos e identificação (K1) ─────────────────────────────
+
+    private static async Task<Guid> SeedUserAsync(AppDbContext context, string name)
+    {
+        var user = User.Create($"{name.ToLowerInvariant()}@exemplo.test", name, UserRole.Viewer);
+        context.DomainUsers.Add(user);
+        await context.SaveChangesAsync();
+        return user.Id;
+    }
+
+    [Fact]
+    public async Task Create_ShouldPersistIdentification()
+    {
+        await using var context = await CreateContextAsync();
+        var responsibleId = await SeedUserAsync(context, "Responsável KB");
+        var authorId = Guid.NewGuid();
+
+        var dto = await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
+            .Handle(new CreateKnowledgeArticleCommand(
+                "Guia de failover", "Passo a passo.", null,
+                Type: "Guia",
+                Description: "Guia de failover do switch central.",
+                Tags: ["Redes", "switch"],
+                ResponsibleId: responsibleId),
+            CancellationToken.None);
+
+        dto.Type.Should().Be("Guia");
+        dto.Description.Should().Be("Guia de failover do switch central.");
+        dto.AuthorId.Should().Be(authorId);
+        dto.ResponsibleId.Should().Be(responsibleId);
+        dto.Tags.Should().Equal("redes", "switch");
+
+        var saved = await context.KnowledgeArticles.AsNoTracking()
+            .Include(article => article.Tags)
+            .SingleAsync(article => article.Id == dto.Id);
+        saved.Type.Should().Be("Guia");
+        saved.AuthorId.Should().Be(authorId);
+        saved.Tags.Select(tag => tag.Tag).Should().BeEquivalentTo("redes", "switch");
+    }
+
+    [Fact]
+    public async Task Create_UnknownResponsible_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var unknown = Guid.NewGuid();
+
+        var action = () => CreateHandler(context).Handle(
+            new CreateKnowledgeArticleCommand(
+                "Artigo", "Conteúdo.", null, "Guia",
+                ResponsibleId: unknown),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Usuário '{unknown}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Create_UnknownType_ShouldThrowPtBr()
+    {
+        await using var context = await CreateContextAsync();
+
+        var action = () => CreateHandler(context).Handle(
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Receita"),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("Tipo inválido: 'Receita'. Use:*");
+    }
+
+    [Fact]
+    public async Task Update_ShouldReplaceTagsAndResponsible()
+    {
+        await using var context = await CreateContextAsync();
+        var first = await SeedUserAsync(context, "Primeiro Responsável");
+        var second = await SeedUserAsync(context, "Segundo Responsável");
+        var created = await CreateHandler(context).Handle(
+            new CreateKnowledgeArticleCommand(
+                "Artigo com tags", "Conteúdo.", null, "Guia",
+                Tags: ["antiga"],
+                ResponsibleId: first),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateKnowledgeArticleCommand(
+                created.Id, "Artigo com tags", "Conteúdo.", null, "Guia",
+                Description: "Nova descrição",
+                Tags: ["Nova"],
+                ResponsibleId: second),
+            CancellationToken.None);
+
+        var updated = await context.KnowledgeArticles.AsNoTracking()
+            .Include(article => article.Tags)
+            .SingleAsync(article => article.Id == created.Id);
+        updated.Description.Should().Be("Nova descrição");
+        updated.ResponsibleId.Should().Be(second);
+        updated.Tags.Select(tag => tag.Tag).Should().Equal("nova");
+    }
+
+    [Fact]
+    public async Task Update_UnknownResponsible_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"),
+            CancellationToken.None);
+        var unknown = Guid.NewGuid();
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateKnowledgeArticleCommand(
+                created.Id, "Artigo", "Conteúdo.", null, "Guia",
+                ResponsibleId: unknown),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Usuário '{unknown}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Get_ShouldResolveAuthorAndResponsibleNames()
+    {
+        await using var context = await CreateContextAsync();
+        var responsibleId = await SeedUserAsync(context, "Ana Responsável");
+        var authorId = await SeedUserAsync(context, "Bruno Autor");
+        var created = await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
+            .Handle(new CreateKnowledgeArticleCommand(
+                "Artigo assinado", "Conteúdo.", null, "Guia",
+                ResponsibleId: responsibleId),
+            CancellationToken.None);
+
+        var dto = await GetHandler(context).Handle(
+            new GetKnowledgeArticleQuery(created.Id), CancellationToken.None);
+
+        dto.AuthorName.Should().Be("Bruno Autor");
+        dto.ResponsibleName.Should().Be("Ana Responsável");
+    }
+
+    [Fact]
+    public async Task Search_ShouldReturnTagsAndAuthorName()
+    {
+        await using var context = await CreateContextAsync();
+        var authorId = await SeedUserAsync(context, "Carla Autora");
+        await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
+            .Handle(new CreateKnowledgeArticleCommand(
+                "Troca do switch central", "Conteúdo A.", null, "Guia",
+                Tags: ["Redes"]),
+            CancellationToken.None);
+
+        var page = await SearchHandler(context).Handle(
+            new SearchKnowledgeArticlesQuery("switch"), CancellationToken.None);
+
+        var dto = page.Items.Single();
+        dto.Type.Should().Be("Guia");
+        dto.Tags.Should().Equal("redes");
+        dto.AuthorName.Should().Be("Carla Autora");
     }
 }

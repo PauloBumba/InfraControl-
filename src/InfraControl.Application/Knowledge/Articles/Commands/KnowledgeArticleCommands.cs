@@ -12,11 +12,18 @@ namespace InfraControl.Application.Knowledge.Articles.Commands;
 // (artigo ou categoria de destino inexistente). Create nasce Draft.
 // F10-T003: ChangeKnowledgeArticleStatus — ciclo Draft → Published →
 // Archived → Draft (409 fora do ciclo), status fora do enum = 400.
+// F24-T001/K1: tipo obrigatório (400 pt-BR), tags (limite/normalização
+// no domínio) e responsável inexistente = 404; autor vem do usuário
+// autenticado e é imutável.
 
 public sealed record CreateKnowledgeArticleCommand(
     string Title,
     string Content,
-    Guid? CategoryId) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
+    Guid? CategoryId,
+    string Type,
+    string? Description = null,
+    IReadOnlyCollection<string>? Tags = null,
+    Guid? ResponsibleId = null) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -25,6 +32,7 @@ public sealed record CreateKnowledgeArticleCommand(
 public sealed class CreateKnowledgeArticleCommandHandler(
     IKnowledgeArticleRepository repository,
     IKnowledgeCategoryRepository categoryRepository,
+    ICurrentUserContext currentUser,
     ILogger<CreateKnowledgeArticleCommandHandler> logger)
     : IRequestHandler<CreateKnowledgeArticleCommand, KnowledgeArticleDto>
 {
@@ -33,9 +41,18 @@ public sealed class CreateKnowledgeArticleCommandHandler(
     {
         await EnsureCategoryExistsAsync(
             request.CategoryId, categoryRepository, cancellationToken);
+        await EnsureResponsibleExistsAsync(
+            repository, request.ResponsibleId, cancellationToken);
 
         var article = KnowledgeArticle.Create(
-            request.Title, request.Content, request.CategoryId);
+            request.Title,
+            request.Content,
+            request.CategoryId,
+            request.Type,
+            request.Description,
+            request.Tags,
+            authorId: currentUser.UserId,
+            responsibleId: request.ResponsibleId);
 
         await repository.AddAsync(article, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
@@ -44,7 +61,11 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             "KnowledgeArticle {ArticleId} created ({Title}).", article.Id, article.Title);
 
         return new KnowledgeArticleDto(
-            article.Id, article.Title, article.Content, article.CategoryId, article.Status);
+            article.Id, article.Title, article.Content, article.CategoryId, article.Status,
+            article.Type, article.Description, article.AuthorId, article.ResponsibleId)
+        {
+            Tags = article.Tags.Select(tag => tag.Tag).ToArray(),
+        };
     }
 
     /// <summary>
@@ -65,13 +86,34 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             throw new KeyNotFoundException(
                 $"Categoria '{categoryId}' não encontrada.");
     }
+
+    /// <summary>
+    /// Responsável precisa existir (404 pt-BR antes de persistir) —
+    /// precedente F23-T001 (CreateTaskCommand).
+    /// </summary>
+    internal static async Task EnsureResponsibleExistsAsync(
+        IKnowledgeArticleRepository repository,
+        Guid? responsibleId,
+        CancellationToken cancellationToken)
+    {
+        if (responsibleId is null)
+            return;
+
+        if (!await repository.UserExistsAsync(responsibleId.Value, cancellationToken))
+            throw new KeyNotFoundException(
+                $"Usuário '{responsibleId}' não encontrado.");
+    }
 }
 
 public sealed record UpdateKnowledgeArticleCommand(
     Guid Id,
     string Title,
     string Content,
-    Guid? CategoryId) : BaseCommand, IAuthorizedRequest
+    Guid? CategoryId,
+    string Type,
+    string? Description = null,
+    IReadOnlyCollection<string>? Tags = null,
+    Guid? ResponsibleId = null) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -92,8 +134,17 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
 
         await CreateKnowledgeArticleCommandHandler.EnsureCategoryExistsAsync(
             request.CategoryId, categoryRepository, cancellationToken);
+        await CreateKnowledgeArticleCommandHandler.EnsureResponsibleExistsAsync(
+            repository, request.ResponsibleId, cancellationToken);
 
-        article.Update(request.Title, request.Content, request.CategoryId);
+        article.Update(
+            request.Title,
+            request.Content,
+            request.CategoryId,
+            request.Type,
+            request.Description,
+            request.Tags,
+            request.ResponsibleId);
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -128,8 +179,8 @@ public sealed class DeleteKnowledgeArticleCommandHandler(
     }
 }
 
-// F10-T003: transição de status — ciclo Draft → Published → Archived →
-// Draft no domínio; fora do ciclo = 409, status fora do enum = 400 pt-BR.
+// F10-T003/F24-T002 (K2): transição de status — matriz de 8 estados no
+// domínio (ADR-039); fora da matriz = 409, status fora do enum = 400 pt-BR.
 
 public sealed record ChangeKnowledgeArticleStatusCommand(
     Guid Id,
@@ -147,10 +198,15 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
     public async Task<KnowledgeArticleDto> Handle(
         ChangeKnowledgeArticleStatusCommand request, CancellationToken cancellationToken)
     {
+        // TryParse aceita dígitos ("99") — IsDefined mantém o contrato
+        // "fora do enum = 400" (K2/ADR-039 §4).
         if (!Enum.TryParse<KnowledgeArticleStatus>(
-                request.Status, ignoreCase: true, out var target))
+                request.Status, ignoreCase: true, out var target)
+            || !Enum.IsDefined(target))
             throw new ArgumentException(
-                $"Status inválido: '{request.Status}'. Use 'draft', 'published' ou 'archived'.",
+                $"Status inválido: '{request.Status}'. Use 'draft', 'inReview', " +
+                "'approved', 'published', 'updated', 'archived', 'obsolete' " +
+                "ou 'rejected'.",
                 nameof(request.Status));
 
         var article = await repository.GetByIdAsync(request.Id, cancellationToken)
@@ -165,7 +221,12 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
             "KnowledgeArticle {ArticleId} status changed to {Status}.",
             article.Id, article.Status);
 
+        // Nomes de autor/responsável ficam com as queries Search/Get (K1).
         return new KnowledgeArticleDto(
-            article.Id, article.Title, article.Content, article.CategoryId, article.Status);
+            article.Id, article.Title, article.Content, article.CategoryId, article.Status,
+            article.Type, article.Description, article.AuthorId, article.ResponsibleId)
+        {
+            Tags = article.Tags.Select(tag => tag.Tag).ToArray(),
+        };
     }
 }

@@ -20,6 +20,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
     public Task<KnowledgeArticle?> GetByIdAsync(
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.KnowledgeArticles
+            .Include(article => article.Tags) // K1: substituição no PUT precisa das atuais
             .SingleOrDefaultAsync(article => article.Id == id, cancellationToken);
 
     public void Remove(KnowledgeArticle article)
@@ -29,10 +30,13 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         string? term,
         int page,
         int pageSize,
-        bool includeDrafts,
+        bool includeUnpublished,
         CancellationToken cancellationToken = default)
     {
-        var query = dbContext.KnowledgeArticles.AsNoTracking().AsQueryable();
+        var query = dbContext.KnowledgeArticles
+            .AsNoTracking()
+            .Include(article => article.Tags) // K1: dto traz as tags (1 query)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(term))
         {
@@ -42,9 +46,10 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
                 || article.Content.ToLower().Contains(normalized));
         }
 
-        if (!includeDrafts)
+        if (!includeUnpublished)
             query = query.Where(article =>
-                article.Status != KnowledgeArticleStatus.Draft);
+                !KnowledgeArticleStatusExtensions.HiddenFromReaders
+                    .Contains(article.Status));
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -58,4 +63,27 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
+
+    // F24-T001/K1 — precedente TaskAssigneeRepository.GetUserNamesAsync:
+    // usuário excluído some do dicionário, o chamador trata como nome não
+    // encontrado.
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(user => user.Id, user => user.DisplayName);
+    }
+
+    public Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => dbContext.DomainUsers.AsNoTracking()
+            .AnyAsync(user => user.Id == userId, cancellationToken);
 }

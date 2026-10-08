@@ -34,6 +34,23 @@ public sealed class KnowledgeArticleConfiguration
             .HasConversion<string>()
             .HasMaxLength(32);
 
+        // F24-T001/K1 — identificação (docs/32 §5–§6). Type nullable:
+        // artigos legados (anteriores ao K1) ficam sem tipo até a
+        // primeira edição (o Update exige).
+        builder.Property(x => x.Type)
+            .HasColumnName("type")
+            .HasMaxLength(50);
+
+        builder.Property(x => x.Description)
+            .HasColumnName("description")
+            .HasMaxLength(KnowledgeArticle.DescriptionMaxLength);
+
+        builder.Property(x => x.AuthorId)
+            .HasColumnName("author_id");
+
+        builder.Property(x => x.ResponsibleId)
+            .HasColumnName("responsible_id");
+
         // FK SetNull (decisão F10-T002): apagar a categoria não apaga nem
         // bloqueia o artigo — o conhecimento sobrevive à reorganização das
         // categorias (T001 não tinha FK; a constraint vem nesta migration).

@@ -651,6 +651,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
@@ -664,6 +668,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("ResponsibleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responsible_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -675,6 +688,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
 
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
@@ -753,6 +771,28 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("knowledge_article_services", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleTag", b =>
+                {
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<string>("Tag")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("tag");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ArticleId", "Tag");
+
+                    b.ToTable("knowledge_article_tags", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeCategory", b =>
@@ -3486,6 +3526,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleTag", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany("Tags")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.NetworkInterface", null)
@@ -3987,6 +4036,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("InfraControl.Domain.Entities.Invitation", b =>
                 {
                     b.Navigation("RoleAssignments");
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticle", b =>
+                {
+                    b.Navigation("Tags");
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>

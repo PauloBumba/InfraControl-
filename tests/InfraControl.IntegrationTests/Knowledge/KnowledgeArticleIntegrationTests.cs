@@ -25,12 +25,12 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var category = await mediator.Send(new CreateKnowledgeCategoryCommand("Redes", null));
 
         var created = await mediator.Send(new CreateKnowledgeArticleCommand(
-            "Troca do switch central", "Failover passo a passo.", category.Id));
+            "Troca do switch central", "Failover passo a passo.", category.Id, "Procedimento"));
         created.Title.Should().Be("Troca do switch central");
         created.Status.Should().Be(KnowledgeArticleStatus.Draft);
 
         await mediator.Send(new UpdateKnowledgeArticleCommand(
-            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null));
+            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null, "Procedimento"));
 
         var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
         fetched.Title.Should().Be("Troca do switch central (v2)");
@@ -52,7 +52,7 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var unknown = Guid.NewGuid();
 
         var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown));
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown, "Guia"));
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Categoria '{unknown}' não encontrada.");
@@ -80,7 +80,7 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         UseRole(UserRole.Admin);
 
         var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null));
+            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null, "Guia"));
 
         (await action.Should().ThrowAsync<ArgumentException>())
             .WithMessage("O título do artigo é obrigatório.*");
@@ -94,13 +94,14 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         UseNoRoles();
 
         var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("Sem permissão", "Conteúdo.", null));
+            new CreateKnowledgeArticleCommand("Sem permissão", "Conteúdo.", null, "Guia"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Roles ausentes: Admin, Operator");
     }
 
-    /// <summary>Ciclo completo Draft → Published → Archived → Draft via API.</summary>
+    /// <summary>Ciclo editorial do §7 via API: Rascunho → Em revisão →
+    /// Aprovada → Publicada → Arquivada → Rascunho.</summary>
     [Fact]
     public async Task ChangeStatus_Lifecycle_ShouldRoundTripViaQueries()
     {
@@ -108,7 +109,15 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo de publicação", "Conteúdo.", null));
+            new CreateKnowledgeArticleCommand("Artigo de publicação", "Conteúdo.", null, "Manual"));
+
+        var inReview = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "inReview"));
+        inReview.Status.Should().Be(KnowledgeArticleStatus.InReview);
+
+        var approved = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
+        approved.Status.Should().Be(KnowledgeArticleStatus.Approved);
 
         var published = await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(created.Id, "published"));
@@ -133,13 +142,13 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null));
+            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null, "FAQ"));
 
         var action = () => mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(created.Id, "archived"));
 
         (await action.Should().ThrowAsync<InvalidOperationException>())
-            .WithMessage("Transição inválida: 'Draft' → 'Archived'.");
+            .WithMessage("Transição inválida: 'Rascunho' → 'Arquivada'.");
     }
 
     [Fact]
@@ -149,15 +158,27 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var draft = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Rascunho interno", "Segredo.", null));
+            new CreateKnowledgeArticleCommand("Rascunho interno", "Segredo.", null, "FAQ"));
+        var inReview = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Em revisão", "Não publicado.", null, "FAQ"));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(inReview.Id, "inReview"));
         var published = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null));
+            new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null, "FAQ"));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "inReview"));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "approved"));
         await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(published.Id, "published"));
 
         UseRole(UserRole.Viewer);
         var page = await mediator.Send(new SearchKnowledgeArticlesQuery());
         page.Items.Should().ContainSingle(article => article.Id == published.Id);
+
+        var getInReview = () => mediator.Send(new GetKnowledgeArticleQuery(inReview.Id));
+        (await getInReview.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Artigo '{inReview.Id}' não encontrado.");
 
         var getDraft = () => mediator.Send(new GetKnowledgeArticleQuery(draft.Id));
         (await getDraft.Should().ThrowAsync<KeyNotFoundException>())
@@ -167,5 +188,59 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new ChangeKnowledgeArticleStatusCommand(draft.Id, "published"));
         (await change.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Roles ausentes: Admin, Operator");
+    }
+
+    // ── F24-T001: tipos e identificação (K1) ─────────────────────────────
+
+    [Fact]
+    public async Task Create_WithIdentification_ShouldPersist()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+
+        var created = await mediator.Send(new CreateKnowledgeArticleCommand(
+            "Guia de failover", "Passo a passo.", null,
+            Type: "Guia",
+            Description: "Guia de failover do switch central.",
+            Tags: ["Redes", "Switch"],
+            ResponsibleId: null));
+
+        created.Type.Should().Be("Guia");
+        created.Description.Should().Be("Guia de failover do switch central.");
+        created.Tags.Should().Equal("redes", "switch");
+
+        var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
+        fetched.Type.Should().Be("Guia");
+        fetched.Tags.Should().Equal("redes", "switch");
+    }
+
+    [Fact]
+    public async Task Create_UnknownResponsible_ShouldFailWith404PtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var unknown = Guid.NewGuid();
+
+        var action = () => mediator.Send(new CreateKnowledgeArticleCommand(
+            "Artigo", "Conteúdo.", null, "Guia", ResponsibleId: unknown));
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Usuário '{unknown}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Create_UnknownType_ShouldFailWith400PtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+
+        var action = () => mediator.Send(
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Receita"));
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("Tipo inválido: 'Receita'. Use:*");
     }
 }

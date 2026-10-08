@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-07
+**Última atualização:** 2026-10-08
 
 ## Regra operacional
 
@@ -120,7 +120,7 @@ Novas Tasks: `F2-T008 DeviceProfile` (ADR antes) e `F11-T006 Credential Store`.
 F2-T003 Device concluído (2026-09-24) com seed fictício RFC 5737 em `docs/database/seed-fictitious-devices.sql`.
 F2-T008 DeviceProfile concluído (2026-09-24) com ADR-014 Accepted; defaults por tipo materializados no create; override via `PUT /devices/{id}/profile`.
 F5-T003 Ping concluído (2026-09-24): ping ICMP sob demanda (1 device + todos), provider `PingMonitoringProvider` com seam `IIcmpClient`, endpoints em `/api/v1/monitoring/ping*` (policy `MonitoringRead`).
-Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLETA F9-T001→T010; F10-T001 concluída; Fase 8 completa F8-T001→T007); todas as restantes autorizadas pelo usuário (2026-09-26: "pode fazer todas as task e subir na main"; ordem F6 → F7 → F8 → F9 → F10; F0-T010 bloqueada até 01/10). **FASE 6 COMPLETA (F6-T001→T006)**; F5 completa F5-T001→T008.
+Próxima Task planejada (quando autorizada): **F24-T003 Versionamento (K3)** (Fase 24 em curso — F24-T001+T002 concluídas; Fase 10 COMPLETA F10-T001→T004; Fase 9 COMPLETA; Fase 8 completa F8-T001→T007); todas as restantes autorizadas pelo usuário (2026-09-26: "pode fazer todas as task e subir na main"; ordem F6 → F7 → F8 → F9 → F10; F0-T010 bloqueada até 01/10). **FASE 6 COMPLETA (F6-T001→T006)**; F5 completa F5-T001→T008.
 
 ## Próxima fase
 
@@ -963,3 +963,51 @@ Não considerar arquitetura ou código como concluído somente porque foi planej
 - Após F20-T001 — Cliente API REST UniFi Controller & descoberta leve (2026-10-03, ordem do usuário: "próxima task" após o HANDOFF da sessão paralela + "foca na tua task, esqueça o que está rodando em paralelo"; plano em 3 partes aprovado e as 3 decisões respondidas: gateway→`Firewall`, location default do sync = criar/reusar local **"UniFi"**, agregado Integration (ADR-028 §4) fica para task própria — health desta task = sondagem ao vivo). **Parte 1 — cliente**: `UnifiApiClient` (Infrastructure/Integrations/Unifi) — `POST /api/auth/login` → cookie `unifises`, re-autenticação automática 1× em 401 (`LoginAsync(invalidateSession)` invalida a sessão velha), credencial recusada → `UnauthorizedAccessException` pt-BR, sem config → `InvalidOperationException` ("Integração UniFi não configurada"); `GET /proxy/network/api/s/{site}/stat/device` (parse `{meta,data}` defensivo) e `GET /api/self` (health, false em qualquer falha); porta `IUnifiApiClient` + `UnifiDeviceDto` + `UnifiIntegrationOptions` (`Integrations:Unifi`, vazio = desligado); named client **`unifi`** no `Services/DependencyInjection.cs` reusando `HttpWebhookNotificationDispatcher.ConfigureResilience` (mesma Polly do n8n) + bind no `Program.cs` + envs `UNIFI_BASE_URL/USERNAME/PASSWORD/SITE` no compose/`.env.example`. **Parte 2 — sync**: `SyncUnifiInventoryCommand` (Operate via `IAuthorizedRequest` + auditoria `UniFiSync`) — upsert `Device` por MAC (`GetByMacAsync`) + upsert `ExternalDeviceReference(Source=UniFi)` com **ExternalId = MAC lowercase SEM separadores (ADR-028 §7)**, location "UniFi" auto-criada, mapeamento `udm/ugw/usg/uxg/usgw→Firewall`, `usw→Switch`, `uap→AccessPoint`, resto→Other, **REGRA 8: só cadastro persistido** (zero telemetria), erro por device não derruba o sync, divergência de dono da referência contada como erro (sem realocação automática), inventário vazio = zeros sem criar location. **Parte 3 — HTTP/docs**: `UnifiIntegrationController` (`[Authorize]` sem literal de role — arch test; `POST sync` → envelope `{created,updated,references,errors}` + `GET health` → 200/503 via `ApiResponse`) e **docs/29-INTEGRACAO-UNIFI.md** (contrato, auth, mapeamento com decisões, envs, Polly, limitações). TDD: RED→GREEN nos 3 suítes (**17 testes** novos) — `ScriptedHandler` fake para o HTTP (sem Controller UniFi real em dev, limitação registrada); bugs capturados pelo teste: contagem de referência existente como nova + MACs nos matchers. **Colisão com a sessão paralela**: build quebrou por `PdiRepository` sem o `DbSet<IndividualDevelopmentPlan>` no `AppDbContext` — a outra sessão adicionou o DbSet durante meu diagnóstico (removi minha duplicata; nenhuma alteração minha no código PDI). Validação final: **build 0 erros · unit 1444/1444 (1429+17 Unifi… total inclui +6/+8/+3) · arch 108/108 · compose ok**. TASKS F20-T001 `[x]`. Pendências: validação real com Controller do usuário; F20-T002 (webhooks) e F20-T003 (telemetria sob demanda/Redis) seguem na fila. Checkpoint — nada commitado (merge resolvido da sessão paralela segue aguardando decisão do usuário).
 
 - Após ADR-030 — Fases 0+1 do plano "CRUD + autorização por role + outbox/eventos" e 6 `GET /{id}` (2026-10-04, ordem do usuário: CRUD em todas as entidades com Admin= tudo / Operator = por entidade, segundo a arquitetura atual, com outbox/eventos de domínio, plano de execução; depois "lembra de usar também getbyid em todas as entidades, documenta e começa a executar"; decisões no questionário: escopo operacionais+parciais, matriz proposta e aprovada, eventos Created/Updated/Deleted nas operacionais, execução por fases aprovadas uma a uma). **Plano em 6 fases** (0 matriz → 1 gaps → 2 CRUD parcial → 3 eventos/outbox → 4 consumers → 5 frontend → 6 docs) registrado em **docs/adr/ADR-030-ROLE-CRUD-MATRIX.md**: matriz por entidade (Administer: users/roles/sessões alheias/convites/auditoria/retenção/credenciais · Operate: inventory/network/tasks/incidents/knowledge/SLA/checks/discovery/remote/integrações · Read: alerts/telemetria/feed/history · self-service: PDI/préferências/sessões/convites próprios · sem API: infra de mensageria), regra `GET /{id}` obrigatório, duas camadas de autorização com o mesmo nível, eventos `Created/Updated/Deleted` nas operacionais (namespace `InfraControl.Domain.Events`, ADR-005). **Fase 1 executada (TDD, `AuthorizationGapTests` 6/6)**: `RunCheckCommand`/`RunAllChecksCommand` `RoleAccess.Read`→`Operate` + policy `Operate` nas actions do `MonitoringController` (**bug real: Viewer disparava check**), `POST /integrations/unifi/sync` e `PUT/DELETE /notifications/preferences` ganharam policy HTTP `Operate` (1ª camada passou a declarar o mesmo que a 2ª); testes de integração ajustados (Viewer→Operator em Monitoring/Alert + teste novo `RunCheck_WithViewerRole_ShouldThrowUnauthorizedPtBr`). **6 `GET /{id}` do gap (ADR-030 §2)**: `GET /admin/users/{id}` (`IIdentityAdministrationService.GetUserAsync` + privado renomeado `LoadUserAsync`), `GET /admin/invitations/{id}` (`GetInvitationQuery`, Administer, `InvitationDto` reusado), `GET /notifications/{id}` (`GetNotificationQuery` + `INotificationFeedRepository.GetForUserAsync` — mesma visibilidade do feed, fora = 404), `GET /network/switch-port-vlans/{id}` (`GetSwitchPortVlanQuery` + `SwitchPortVlanDto`), `GET .../remote/sessions/{id}` (`GetRemoteSessionQuery` — sessão precisa ser do device da rota), `GET /auth/sessions/{id}` (`ISessionService.GetAsync` — só ativas próprias, alheia/expirada = MESMO 404 do revoke). Guarda de arquitetura nova: `GetByIdEndpointTests` (arch) trava os 6 endpoints contra regressão. TDD: RED (4 erros de compilação) → GREEN. **Validação: build 0 erros · unit 1495/1495 · arch 111/111 · integration subsets Monitoring+Alert 13/13 e Identity/Session/Invitation/Notification 42/42** (suíte completa não rodada). Colisão transitória: build quebrado por `PdiCommands`×`IndividualDevelopmentPlan.Create(periodStart)` no meio da edição da outra sessão — estabilizou sozinho, não mexi no código PDI. Checkpoint — nada commitado; Fases 2–6 aguardam aprovação.
+
+- F24-T001 — Knowledge K1: tipos e identificação concluída (2026-10-08,
+  pedido "segue" + aprovação "Aprovado como planejado" no checkpoint da
+  Fase 24 — processo F23, uma task por checkpoint; escopo docs/32
+  §5–§6). `KnowledgeArticle` ganhou `type` (14 tipos, conjunto fechado,
+  400 pt-BR `Tipo inválido: 'X'. Use: ...`), `description` (500),
+  `author_id` (automático via `ICurrentUserContext`, imutável),
+  `responsible_id` (404 `Usuário '{id}' não encontrado.` — precedente
+  F23-T001) e `tags` (nova tabela `knowledge_article_tags`, PK
+  (article_id, tag) + FK cascade; ≤10 de 30 chars, trim/lowercase/
+  dedupe no domínio; PUT substitui por diff sem conflito de chave).
+  Colunas nullable — artigos legados ficam sem tipo até a 1ª edição.
+  Migration `20261008020607_AddKnowledgeArticleIdentification` gerada,
+  script validado e **aplicada no dev DB**. DTO/queries: tags + nomes
+  de autor/responsável resolvidos em lote (novo `GetUserNamesAsync`/
+  `UserExistsAsync` no `IKnowledgeArticleRepository` — precedente
+  Tasks/PDI: cada módulo resolve os seus). Front: `knowledgeCatalogs.ts`
+  (catálogo único dos 14), form com tipo/responsável/descrição/tags e
+  card com chips + assinatura. Validação: **build 0 erros · unit
+  1838/1838 · arch 119/119 · integração 193/193 (1ª execução completa
+  com Docker)** · front tsc/lint/build verdes · E2E K1 **34/34**
+  (`/tmp/opencode/k1_e2e.py`) + regressão PDI fase7 32/32 · containers
+  reconstruídos healthy. Docs: docs/04 §Tipos e identificação, docs/31
+  §12 (§5/§6 → concluído), TASKS [x] F24-T001. Checkpoint — nada
+  commitado; F24-T002 (K2) aguarda aprovação.
+
+- F24-T002 — Knowledge K2: workflow dos status concluída (2026-10-08,
+  aprovação "Aprovado como planejado"; **ADR-039** escrito e aceito antes
+  do código — docs/adr/ADR-039-KNOWLEDGE-ARTICLE-WORKFLOW.md; escopo
+  docs/32 §7). Enum de **8 estados append-only** (`Draft=0/Published=1/
+  Archived=2` fixos — JSON numérico é contrato do front, storage string
+  intocado → **sem migração**; +`InReview/Approved/Updated/Obsolete/
+  Rejected` 3–7); matriz de 14 setas em `TransitionTo` com **409 em
+  rótulos pt-BR** ('Rascunho' → 'Arquivada'; ciclo antigo Draft→Published
+  removido — publicar exige revisão); 400 do status com as 8 opções +
+  `Enum.IsDefined` ("99" também 400); visibilidade: `HiddenFromReaders`
+  (Rascunho/Em revisão/Aprovada/Rejeitada) — busca filtra via EF `NOT IN`
+  e `GET/{id}` = 404, `CanSeeDrafts` → `CanSeeUnpublished`. Front: +5
+  constantes em `knowledge.ts`, `articleStatusConfig` (8 rótulos/cores)
+  no `knowledgeCatalogs.ts`, chips "Publicada/Arquivada"; sem UI de
+  troca (via API). Validação: **unit 1850/1850 · arch 119/119 ·
+  integração 193/193** · front tsc/lint/build verdes · E2E K2
+  **31/31** (`/tmp/opencode/k2_e2e.py` — ciclo §7, residuais, 409 ×3,
+  400 string/"99", CONVIDADO Viewer: busca/GET/403) + regressões K1
+  **34/34** e PDI fase 7 **32/32** · containers reconstruídos healthy.
+  Docs: ADR-039, docs/04 §Publicação e workflow, docs/31 §12 (§7 →
+  concluído), TASKS [x] F24-T002. Checkpoint — commit/push autorizados
+  pelo usuário; próxima: F24-T003 (K3) aguarda aprovação.
