@@ -11,6 +11,11 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectField } from "@/components/ui/SelectField";
 import {
+  KNOWLEDGE_TYPE_OPTIONS,
+  knowledgeTypeLabel,
+} from "@/components/knowledge/knowledgeCatalogs";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
+import {
   ARTICLE_STATUS_ARCHIVED,
   ARTICLE_STATUS_DRAFT,
   ARTICLE_STATUS_PUBLISHED,
@@ -31,6 +36,11 @@ import {
  * JsonStringEnumConverter no MVC) e a busca de `term` é real (substring no
  * repositório) — aplicada no submit. Rascunhos (Draft) o backend já esconde
  * de quem não escreve; nada de gating extra aqui.
+ *
+ * F24-T001/K1: a identificação da spec docs/32 §5–§6 voltou ao DTO —
+ * tipo (catálogo em `knowledgeCatalogs.ts`), descrição, tags, autor e
+ * responsável (nomes já resolvidos pelo backend); o formulário de
+ * criação ganhou os campos e o card mostra tudo.
  */
 
 const PAGE_SIZE = 20;
@@ -62,6 +72,12 @@ export function KnowledgePage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  // F24-T001/K1 — identificação (docs/32 §6).
+  const [articleType, setArticleType] = useState("");
+  const [description, setDescription] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [responsibleId, setResponsibleId] = useState("");
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -92,6 +108,14 @@ export function KnowledgePage() {
       .catch(() => undefined);
   }, []);
 
+  // F24-T001/K1: select de responsável (policy Operate — mesma policy do
+  // form). Falha aqui deixa o select vazio; o campo é opcional.
+  useEffect(() => {
+    listUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, []);
+
   function applyTerm(event: FormEvent) {
     event.preventDefault();
     setTerm(termInput.trim());
@@ -113,15 +137,29 @@ export function KnowledgePage() {
     setSaving(true);
     setFormError(null);
     try {
+      // F24-T001/K1: tags como chips por vírgula (o domínio normaliza
+      // trim/lowercase/dedup e valida os limites em pt-BR → 400).
+      const tags = tagsInput
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
       await createArticle({
         title: trimmedTitle,
         content: trimmedContent,
         categoryId: categoryId || undefined,
+        type: articleType || undefined,
+        description: description.trim() || undefined,
+        tags: tags.length ? tags : undefined,
+        responsibleId: responsibleId || undefined,
       });
       setCreating(false);
       setTitle("");
       setContent("");
       setCategoryId("");
+      setArticleType("");
+      setDescription("");
+      setTagsInput("");
+      setResponsibleId("");
       setNotice("Artigo criado como rascunho — publique pela troca de status.");
       await load();
     } catch (caught) {
@@ -216,6 +254,45 @@ export function KnowledgePage() {
               ]}
             />
           </div>
+          {/* F24-T001/K1 — identificação (docs/32 §5–§6). */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <SelectField
+              value={articleType}
+              onChange={setArticleType}
+              placeholder="Sem tipo"
+              options={[
+                { value: "", label: "Sem tipo" },
+                ...KNOWLEDGE_TYPE_OPTIONS,
+              ]}
+              aria-label="Tipo do artigo"
+            />
+            <SelectField
+              value={responsibleId}
+              onChange={setResponsibleId}
+              placeholder="Sem responsável"
+              options={[
+                { value: "", label: "Sem responsável" },
+                ...users.map((user) => ({
+                  value: user.userId,
+                  label: user.displayName || user.email,
+                })),
+              ]}
+              aria-label="Responsável pelo artigo"
+            />
+          </div>
+          <input
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Descrição (máx. 500) — resumo do que este artigo cobre"
+            maxLength={500}
+            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+          />
+          <input
+            value={tagsInput}
+            onChange={(event) => setTagsInput(event.target.value)}
+            placeholder="Tags separadas por vírgula (máx. 20, até 50 caracteres cada)"
+            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+          />
           <textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
@@ -250,16 +327,28 @@ export function KnowledgePage() {
           const status = statusConfig[article.status] ?? {
             label: String(article.status), bg: "#f1f5f9", color: "#64748b",
           };
+          const typeLabel = knowledgeTypeLabel(article.type);
           return (
             <div key={article.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <StatusChip
-                  label={categoryName(article.categoryId)}
-                  background="#eff6ff"
-                  color="#3b82f6"
-                  fontSize={10}
-                  fontWeight={600}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <StatusChip
+                    label={categoryName(article.categoryId)}
+                    background="#eff6ff"
+                    color="#3b82f6"
+                    fontSize={10}
+                    fontWeight={600}
+                  />
+                  {typeLabel && (
+                    <StatusChip
+                      label={typeLabel}
+                      background="#f5f3ff"
+                      color="#7c3aed"
+                      fontSize={10}
+                      fontWeight={600}
+                    />
+                  )}
+                </div>
                 <StatusChip
                   label={status.label}
                   background={status.bg}
@@ -269,12 +358,38 @@ export function KnowledgePage() {
                 />
               </div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{article.title}</div>
+              {article.description && (
+                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.4 }}>
+                  {article.description}
+                </div>
+              )}
               <div style={{
                 fontSize: 12, color: "#6b7280", lineHeight: 1.4,
                 display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
               }}>
                 {article.content}
               </div>
+              {article.tags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {article.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        fontSize: 10, background: "#f1f5f9", color: "#475569",
+                        border: "1px solid #e2e8f0", borderRadius: 999, padding: "1px 7px",
+                      }}
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(article.authorName || article.responsibleName) && (
+                <div style={{ fontSize: 11, color: "#9ca3af", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {article.authorName && <span>Autor: {article.authorName}</span>}
+                  {article.responsibleName && <span>Responsável: {article.responsibleName}</span>}
+                </div>
+              )}
             </div>
           );
         })}

@@ -540,6 +540,34 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   integração do módulo Tasks, não do incidente. Origem Chamado→
   Knowledge é escopo de K4 (Fase 24). Registro em docs/31 **§15**;
   TASKS.md F23-T005 marcada [x]. **Nenhum código alterado.**
+  Commits locais desta leva: `72e4fa7` (specs) + `1e7d6ab`
+  (F23-T005 + fases 24/25).
+
+- Fase 24-T001 / K1 (Knowledge — tipos e identificação, spec docs/32
+  §5–§6) concluída (2026-10-07, autorização "F23 (P5c) + Fase 24
+  inteira — paro só no fim da F24"): enum **`KnowledgeArticleType`**
+  com os **14 tipos da §5** (guardado como string; DTO expõe o nome do
+  enum), **descrição** (500), **tags** (coleção primitiva do EF →
+  coluna `text[]`/JSON em vez de tabela N:N — normalização
+  trim/lowercase/dedup no domínio, ≤50×20 pt-BR) e **autor +
+  responsável** (autor = `ICurrentUserContext` no POST, imutável;
+  responsável com 404 pt-BR; **FKs `DomainUsers` SetNull** — molde da
+  categoria, `Restrict` do TaskComment bloquearia a exclusão dura de
+  usuário). DTO com +7 init-props + factory `From/FromAsync` (nomes
+  resolvidos no backend, batch sem N+1 na busca); commands
+  Create/Update estendidos com parâmetros opcionais (14 call sites
+  antigos intactos); VMs/controller repassam; front: contrato +7
+  campos, catálogo **`knowledgeCatalogs.ts`** (14 rótulos pt-BR),
+  form com tipo/responsável/descrição/tags e card com chip de tipo,
+  descrição, chips de tags e rodapé "Autor · Responsável". Migração
+  **`20261008001827_AddKnowledgeArticleIdentification`** (script
+  validado: colunas + FKs SetNull + `tags text[] NOT NULL DEFAULT
+  ARRAY[]` — **não aplicada**). Testes: **+12**
+  (`KnowledgeArticleIdentificationTests` 7 + `KnowledgeArticleCommandTests`
+  5; `CreateContextAsync` semeia o autor — FK SetNull) → unit
+  **1771/1771** · arch **115/115** · build 0 · front lint/build 0.
+  Pendências: migração/integração (Docker); artigos do seed ficam sem
+  tipo. docs/31 §16 · docs/04 "Identificação (F24-T001/K1)".
 
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):

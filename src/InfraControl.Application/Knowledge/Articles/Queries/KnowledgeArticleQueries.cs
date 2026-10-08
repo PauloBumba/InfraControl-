@@ -37,11 +37,19 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
             includeDrafts: CanSeeDrafts(currentUser),
             cancellationToken);
 
+        // F24-T001/K1: nomes de autor/responsável da página inteira num
+        // round-trip só (group do batch — sem N+1).
+        var nameIds = result.Items
+            .SelectMany(KnowledgeArticleDto.NameIds)
+            .Distinct()
+            .ToArray();
+        var userNames = nameIds.Length == 0
+            ? null
+            : await repository.GetUserNamesAsync(nameIds, cancellationToken);
+
         return new PagedResult<KnowledgeArticleDto>(
             result.Items
-                .Select(article => new KnowledgeArticleDto(
-                    article.Id, article.Title, article.Content,
-                    article.CategoryId, article.Status))
+                .Select(article => KnowledgeArticleDto.From(article, userNames))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -83,9 +91,10 @@ public sealed class GetKnowledgeArticleQueryHandler(
             throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
-        return new KnowledgeArticleDto(
-            article.Id, article.Title, article.Content,
-            article.CategoryId, article.Status)
+        var dto = await KnowledgeArticleDto.FromAsync(
+            article, repository, cancellationToken);
+
+        return dto with
         {
             // F10-T004: vínculos só no detalhe (a busca não detalha).
             DeviceIds = await deviceLinkRepository.GetDeviceIdsAsync(

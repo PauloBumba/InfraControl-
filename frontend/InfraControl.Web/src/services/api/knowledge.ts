@@ -18,6 +18,16 @@ export interface KnowledgeArticle {
   categoryId: string | null;
   /** 0=Draft, 1=Published, 2=Archived (KnowledgeArticleStatus). */
   status: number;
+  /** F24-T001/K1 — nome do enum (KnowledgeArticleType); null = sem tipo. */
+  type: string | null;
+  /** F24-T001/K1 — identificação (spec docs/32 §6): descrição, tags e
+   * pessoas; nomes já resolvidos pelo backend (leitura sem /admin/users). */
+  description: string | null;
+  tags: string[];
+  authorId: string | null;
+  authorName: string | null;
+  responsibleId: string | null;
+  responsibleName: string | null;
   /** Vínculos F10-T004 — só populados no GET/{id}; a busca devolve []. */
   deviceIds: string[];
   incidentIds: string[];
@@ -79,16 +89,26 @@ export async function listCategories(): Promise<Paged<KnowledgeCategory>> {
 /**
  * Criação de artigo (Operate + antiforgery). As validações `[Required]`/
  * `[MaxLength]` do ViewModel já nascem em pt-BR e chegam no `errors` do
- * envelope.
+ * envelope. F24-T001/K1: identificação opcional (tipo/descrição/tags/
+ * responsável); autor é o usuário corrente, definido no servidor.
  */
 export function createArticle(input: {
   title: string;
   content: string;
   categoryId?: string;
+  /** Nome do enum KnowledgeArticleType (catálogo em knowledgeCatalogs). */
+  type?: string;
+  description?: string;
+  tags?: string[];
+  responsibleId?: string;
 }): Promise<KnowledgeArticle | null> {
   return api.post<KnowledgeArticle>("/knowledge/articles", {
     title: input.title,
     content: input.content,
     categoryId: input.categoryId || undefined,
+    type: input.type || undefined,
+    description: input.description || undefined,
+    tags: input.tags?.length ? input.tags : undefined,
+    responsibleId: input.responsibleId || undefined,
   });
 }

@@ -58,4 +58,33 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
+
+    // F24-T001/K1 — identificação: responsável (404 pt-BR no command) e
+    // nomes de autor/responsável resolvidos no backend (DisplayName,
+    // fallback e-mail; id sem usuário sai do mapa → nome null).
+
+    public Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => dbContext.DomainUsers.AnyAsync(
+            user => user.Id == userId, cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = userIds.Distinct().ToArray();
+        if (ids.Length == 0)
+            return new Dictionary<Guid, string>();
+
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => ids.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName, user.Email })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(
+            user => user.Id,
+            user => string.IsNullOrWhiteSpace(user.DisplayName)
+                ? user.Email
+                : user.DisplayName);
+    }
 }

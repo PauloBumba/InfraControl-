@@ -769,3 +769,83 @@ módulo novo. Conferência do que os vínculos existentes cobrem:
 P5b (§14) e esta conferência; a única ligação restante do §14
 (task↔chamado reversa) só entraria por pedido explícito do usuário
 (não inventar requisitos).
+
+## 16. Execução — K1 / F24-T001 (Fase 24, 2026-10-07)
+
+**Tipos e identificação** do artigo (spec Knowledge `docs/32` §5–§6) —
+primeira task da Fase 24, na autorização "F23 (P5c) + Fase 24 inteira".
+
+### Decisões de design
+
+- **Tipo**: enum `KnowledgeArticleType` com os 14 valores da §5,
+  guardado como **string** (coluna `type` 32) e exposto no DTO como
+  **nome do enum em string** (`"Procedure"`, …) — contrato explícito
+  apesar do MVC não registrar `JsonStringEnumConverter` (o `status`
+  numérico legado continua como está). **Opcional**: nulo = sem tipo
+  (a spec não define default para os 10 artigos do seed).
+- **Descrição**: `string?` de **500** (campo de identificação, não
+  conteúdo — o limite é decisão da task; spec não número).
+- **Tags**: **coleção primitiva do EF** (`IReadOnlyList<string>` +
+  backing field explícito) → coluna única `text[]` no Postgres/JSON no
+  Sqlite, em vez de tabela N:N — menos peças e o filtro do K7 usa
+  `Contains` (traduzido para `= ANY`/`json_each`). Normalização no
+  domínio (`KnowledgeArticle.NormalizeTags`): trim + lowercase + dedup
+  na ordem; ≤50 por tag e ≤20 no total (pt-BR → 400). Linhas antigas =
+  `[]`/NULL com getter que nunca devolve null.
+- **Autor × responsável**: `AuthorId` vem do **servidor**
+  (`ICurrentUserContext.UserId`) no `POST` e é **imutável**
+  (`SetIdentification` não toca); `ResponsibleId` vem do cliente com
+  validação 404 `Usuário '{id}' não encontrado.` (molde do
+  responsável de Task). As duas FKs para `DomainUsers` são **SetNull**
+  — mesma decisão da categoria do artigo; `Restrict` do `TaskComment`
+  bloquearia a exclusão dura de usuário que o produto tem.
+- **Nomes no DTO** (`authorName`/`responsponsibleName`): resolvidos no
+  backend por `IKnowledgeArticleRepository.GetUserNamesAsync` (join,
+  DisplayName com fallback e-mail) — leitura sem depender da policy do
+  `/admin/users`; a busca resolve a página inteira num round-trip.
+- **DTO por init-props + factory `From/FromAsync`**: os campos novos
+  não quebram nenhuma construção existente e centralizam o mapeamento
+  dos 4 pontos (Create, ChangeStatus, Search, Get).
+- Commands `Create`/`Update` estendidos com parâmetros **opcionais**
+  no fim — os 14 call sites antigos (unidade + integração) seguem
+  compilando; `Update` não mexe no `Status` nem no autor.
+
+### Arquivos alterados
+
+- Domínio: `Enums/KnowledgeArticleType.cs` (novo, 14 valores),
+  `KnowledgeArticle` (+Type/Description/AuthorId/ResponsibleId/Tags,
+  `SetIdentification`, `NormalizeTags`, constantes 500/50/20).
+- Application: `KnowledgeArticleDto` (+7 init-props, `From`/`FromAsync`
+  /`NameIds`), `IKnowledgeArticleRepository` (+`UserExistsAsync`,
+  `GetUserNamesAsync`), `KnowledgeArticleCommands` (Create/Update
+  estendidos, `ParseType`, `EnsureResponsibleExistsAsync`),
+  `KnowledgeArticleQueries` (mapeamento novo com batch de nomes).
+- Infra: `KnowledgeArticleRepository` (+2 métodos),
+  `KnowledgeArticleConfiguration` (+5 colunas, 2 FKs SetNull, `tags`
+  com backing field), migração
+  `20261008001827_AddKnowledgeArticleIdentification` (script validado:
+  `type` 32, `description` 500, FKs SetNull, `tags text[]` — **não
+  aplicada**).
+- Api: ViewModels +`Type`/`Description`/`Tags`/`ResponsibleId`,
+  controller repassa nos 2 endpoints.
+- Front: `knowledge.ts` (+7 campos no tipo, +4 no input de criação),
+  `knowledgeCatalogs.ts` (**novo** — 14 rótulos pt-BR), `KnowledgePage`
+  (form com tipo/responsável/descrição/tags + card com chip de tipo,
+  descrição, chips de tags e rodapé "Autor · Responsável"; select de
+  responsável carrega `listUsers`, falha → select vazio).
+- Testes: `KnowledgeArticleIdentificationTests` (**novo**, 7) +
+  `KnowledgeArticleCommandTests` +5 (criação com identificação,
+  responsável 404, tipo 400, update mantém autor, busca com nomes) —
+  `CreateContextAsync` agora semeia o usuário corrente (FK SetNull) e
+  `FakeCurrentUser` aceita id. Integration tests da K1 **não criados**
+  (critério das fases sem Docker).
+
+### Validação
+
+- build 0 erros · unit **1771/1771** (+12) · arch **115/115** · script
+  da migração OK · front lint exit 0 / build ✓.
+
+### Pendências da K1
+
+- Migração não aplicada + testes de integração não executados (Docker).
+  Os 10 artigos do seed ficam sem tipo/descrição (nulo = "sem tipo").

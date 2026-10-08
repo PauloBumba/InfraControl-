@@ -575,6 +575,44 @@ nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
 404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
 Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
 
+### Identificação (F24-T001/K1)
+
+Spec `docs/32` §5–§6 — campos de identificação do artigo (Fase 24):
+
+- **Tipo** — enum `KnowledgeArticleType` com os **14 tipos da §5**
+  (Procedimento, Manual, Guia, FAQ, Solução conhecida, Configuração,
+  Documentação técnica, Boas práticas, Política, Norma interna,
+  Troubleshooting, Conhecimento de sistema, Conhecimento de
+  infraestrutura, Conhecimento operacional), guardado como string
+  (coluna `type` 32). **Opcional**: nulo = artigo ainda não
+  classificado (a spec não define tipo padrão para os existentes).
+  Valor fora da lista = 400 `Tipo inválido: 'x'. Use 'procedure', …`
+  (moldo do status); rótulos pt-BR espelhados em
+  `frontend/src/components/knowledge/knowledgeCatalogs.ts`.
+- **Descrição** (`description`, 500, opcional) — resumo da
+  identificação; o conteúdo segue no `content`.
+- **Tags** (`tags` — coleção primitiva do EF, `text[]` no Postgres/JSON
+  no Sqlite): normalizadas no domínio (trim + lowercase + dedup na
+  ordem), cada uma ≤50 e no máximo 20 — limites em pt-BR → 400.
+- **Autor** (`author_id`) — preenchido no servidor com o usuário
+  corrente no `POST` e **imutável** depois (`SetIdentification` não
+  toca). **Responsável** (`responsável_id`) — opcional, vem do cliente
+  (404 `Usuário '{id}' não encontrado.`).
+- Ambas as FKs para `DomainUsers` são **SetNull** (mesma decisão da
+  categoria: apagar não apaga nem bloqueia o artigo; o produto tem
+  exclusão dura de usuário — `Restrict` do `TaskComment` bloquearia).
+- `KnowledgeArticleDto` expõe `type` (nome do enum em string),
+  `description`, `tags`, `authorId/authorName`,
+  `responsibleId/responsibleName` — **nomes resolvidos no backend**
+  (join em `DomainUsers`): o front não precisa (nem pode, sem a policy
+  do `/admin/users`) resolver por conta própria. Valores novos como
+  init-props: DTOs de mutação antigos seguem intactos.
+- Formulário de criação da `KnowledgePage` ganhou tipo, responsável,
+  descrição e tags (campo por vírgula); o card mostra chip do tipo,
+  descrição, chips de tags e a linha "Autor · Responsável".
+- Migração `20261008001827_AddKnowledgeArticleIdentification` (script
+  validado; não aplicada — Docker).
+
 ### Publicação (F10-T003)
 
 Transições de status em `POST api/v1/knowledge/articles/{id}/status`

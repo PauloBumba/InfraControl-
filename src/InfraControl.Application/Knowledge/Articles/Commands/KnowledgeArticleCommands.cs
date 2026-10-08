@@ -16,7 +16,13 @@ namespace InfraControl.Application.Knowledge.Articles.Commands;
 public sealed record CreateKnowledgeArticleCommand(
     string Title,
     string Content,
-    Guid? CategoryId) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
+    Guid? CategoryId,
+    // F24-T001/K1 — identificação (docs/32 §6); opcional para não
+    // quebrar os chamadores antigos.
+    string? Type = null,
+    string? Description = null,
+    IReadOnlyCollection<string>? Tags = null,
+    Guid? ResponsibleId = null) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -25,17 +31,24 @@ public sealed record CreateKnowledgeArticleCommand(
 public sealed class CreateKnowledgeArticleCommandHandler(
     IKnowledgeArticleRepository repository,
     IKnowledgeCategoryRepository categoryRepository,
+    ICurrentUserContext currentUser,
     ILogger<CreateKnowledgeArticleCommandHandler> logger)
     : IRequestHandler<CreateKnowledgeArticleCommand, KnowledgeArticleDto>
 {
     public async Task<KnowledgeArticleDto> Handle(
         CreateKnowledgeArticleCommand request, CancellationToken cancellationToken)
     {
+        var type = ParseType(request.Type);
+
         await EnsureCategoryExistsAsync(
             request.CategoryId, categoryRepository, cancellationToken);
+        await EnsureResponsibleExistsAsync(
+            repository, request.ResponsibleId, cancellationToken);
 
         var article = KnowledgeArticle.Create(
-            request.Title, request.Content, request.CategoryId);
+            request.Title, request.Content, request.CategoryId,
+            type, request.Description, request.Tags, request.ResponsibleId,
+            currentUser.UserId);
 
         await repository.AddAsync(article, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
@@ -43,8 +56,29 @@ public sealed class CreateKnowledgeArticleCommandHandler(
         logger.LogInformation(
             "KnowledgeArticle {ArticleId} created ({Title}).", article.Id, article.Title);
 
-        return new KnowledgeArticleDto(
-            article.Id, article.Title, article.Content, article.CategoryId, article.Status);
+        return await KnowledgeArticleDto.FromAsync(
+            article, repository, cancellationToken);
+    }
+
+    /// <summary>
+    /// Tipo da spec docs/32 §5 (F24-T001/K1): null/vazio = artigo sem
+    /// tipo (a spec não define default); fora da lista = 400 pt-BR com
+    /// as opções (molde do status F10-T003).
+    /// </summary>
+    internal static KnowledgeArticleType? ParseType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+            return null;
+
+        if (Enum.TryParse<KnowledgeArticleType>(type, ignoreCase: true, out var parsed))
+            return parsed;
+
+        throw new ArgumentException(
+            $"Tipo inválido: '{type}'. Use 'procedure', 'manual', 'guide', 'faq', "
+            + "'knownsolution', 'configuration', 'technicaldocumentation', "
+            + "'bestpractices', 'policy', 'internalstandard', 'troubleshooting', "
+            + "'systemknowledge', 'infrastructureknowledge' ou 'operacionalknowledge'.",
+            nameof(type));
     }
 
     /// <summary>
@@ -65,13 +99,35 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             throw new KeyNotFoundException(
                 $"Categoria '{categoryId}' não encontrada.");
     }
+
+    /// <summary>
+    /// Responsável do artigo (F24-T001/K1): id desconhecido = 404
+    /// pt-BR — mesma frase do responsável de Task.
+    /// </summary>
+    internal static async Task EnsureResponsibleExistsAsync(
+        IKnowledgeArticleRepository repository,
+        Guid? responsibleId,
+        CancellationToken cancellationToken)
+    {
+        if (responsibleId is null)
+            return;
+
+        if (!await repository.UserExistsAsync(responsibleId.Value, cancellationToken))
+            throw new KeyNotFoundException(
+                $"Usuário '{responsibleId}' não encontrado.");
+    }
 }
 
 public sealed record UpdateKnowledgeArticleCommand(
     Guid Id,
     string Title,
     string Content,
-    Guid? CategoryId) : BaseCommand, IAuthorizedRequest
+    Guid? CategoryId,
+    // F24-T001/K1 — identificação (docs/32 §6).
+    string? Type = null,
+    string? Description = null,
+    IReadOnlyCollection<string>? Tags = null,
+    Guid? ResponsibleId = null) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -86,14 +142,21 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
     public async Task Handle(
         UpdateKnowledgeArticleCommand request, CancellationToken cancellationToken)
     {
+        var type = CreateKnowledgeArticleCommandHandler.ParseType(request.Type);
+
         var article = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
         await CreateKnowledgeArticleCommandHandler.EnsureCategoryExistsAsync(
             request.CategoryId, categoryRepository, cancellationToken);
+        await CreateKnowledgeArticleCommandHandler.EnsureResponsibleExistsAsync(
+            repository, request.ResponsibleId, cancellationToken);
 
         article.Update(request.Title, request.Content, request.CategoryId);
+        // Autor imutável (K1): SetIdentification não toca AuthorId.
+        article.SetIdentification(
+            type, request.Description, request.Tags, request.ResponsibleId);
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -165,7 +228,7 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
             "KnowledgeArticle {ArticleId} status changed to {Status}.",
             article.Id, article.Status);
 
-        return new KnowledgeArticleDto(
-            article.Id, article.Title, article.Content, article.CategoryId, article.Status);
+        return await KnowledgeArticleDto.FromAsync(
+            article, repository, cancellationToken);
     }
 }

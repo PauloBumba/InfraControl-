@@ -651,6 +651,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
@@ -664,11 +668,25 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("ResponsibleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responsible_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("status");
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -676,12 +694,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("title");
 
+                    b.Property<string>("Type")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("type");
+
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AuthorId");
+
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ResponsibleId");
 
                     b.ToTable("knowledge_articles", (string)null);
                 });
@@ -3264,9 +3291,19 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticle", b =>
                 {
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("InfraControl.Domain.Entities.KnowledgeCategory", null)
                         .WithMany()
                         .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ResponsibleId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 

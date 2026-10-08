@@ -349,7 +349,7 @@ Plano de Base de Conhecimento" (`docs/32-PLANO-MODULO-KNOWLEDGE.md`,
 arquivada 2026-10-07; gap × código em `docs/31` §12 — trilha K). Uma task
 por checkpoint, com aprovação do usuário (mesmo processo da Fase 23).
 
-- [ ] **F24-T001 Tipos e identificação (K1)** <!-- docs/32 §5–§6: campo Type (14 tipos), descrição, tags, autor/responsável no artigo (hoje só Title/Content/CategoryId — docs/31 §12). Escopo: domínio + migração + DTO/VM + front (catálogo espelhado em arquivo único) + testes. Critérios: build/unit/arch front verdes, migração com script validado, docs/04 atualizado. -->
+- [x] **F24-T001 Tipos e identificação (K1)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §16, docs/04 "Identificação"): enum KnowledgeArticleType (14 tipos, docs/32 §5) + descrição (500) + tags (coleção primitiva EF → text[]/JSON, normalização trim/lowercase/dedup, ≤50×20 pt-BR) + autor (servidor, imutável) e responsável (404 pt-BR) com FKs SetNull; DTO +type/description/tags/authorName/responsibleName (init-props, factory From); form e card no front; catálogo knowledgeCatalogs.ts; migração 20261008001827 (script validado, não aplicada). Validação: build 0 · unit 1771/1771 · arch 115/115 · front lint/build 0. -->
 - [ ] **F24-T002 Workflow dos status (K2)** <!-- docs/32 §7: RASCUNHO → EM REVISÃO → APROVADA → PUBLICADA → EM REVISÃO → ATUALIZADA + Arquivada/Obsoleta/Rejeitada (hoje enum de 3 estados Draft/Published/Archived com ciclo próprio — docs/31 §12). Transições novas = regra de domínio → ADR antes de implementar (AGENTS: arquitetura exige ADR); testes de transição válida/inválida/400 pt-BR. -->
 - [ ] **F24-T003 Versionamento (K3)** <!-- docs/32 §8: versões nunca perdidas (v1.0 → v1.1 → v2.0), cada versão registra alteração/autor/data/motivo/aprovador — tabela nova de snapshots (molde: versionamento do PDI docs/30 §14) + endpoints de listagem/comparação de versão + testes. -->
 - [ ] **F24-T004 Rastreabilidade de origem (K4)** <!-- docs/32 §9: origem da Knowledge (Task, PDI, Chamado=Incident, Projeto…) com múltiplas origens — pode absorver/estender o vínculo task_knowledge_articles criado na P5a (docs/31 §13) em vez de tabela paralela; decidir no design. N:N + endpoints + card + testes; migração. -->
@@ -475,7 +475,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F23-T003 Planejamento, resultado e critérios/replanejamento (P3)
 - [x] F23-T004 Impedimentos, evidências, subtarefas, progresso, fases e timeline (P4) — P4a–P4d concluídas (2026-10-07)
 - [x] F23-T005 Integrações Chamado/PDI/Knowledge (P5) — **concluída (2026-10-07: P5a+P5b+P5c)**
-- [ ] F24-T001 Knowledge: tipos e identificação (K1)
+- [x] F24-T001 Knowledge: tipos e identificação (K1) — concluída (2026-10-07)
 - [ ] F24-T002 Knowledge: workflow dos status (K2)
 - [ ] F24-T003 Knowledge: versionamento (K3)
 - [ ] F24-T004 Knowledge: rastreabilidade de origem (K4)
@@ -513,13 +513,14 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   `20261007154956_AddTaskImpediments`,
   `20261007181534_AddTaskEvidences`,
   `20261007191602_AddTaskPhases`,
-  `20261007225543_AddTaskKnowledgeArticles` e
-  `20261007232706_AddTaskPdis` **não aplicadas** em banco dev
+  `20261007225543_AddTaskKnowledgeArticles`,
+  `20261007232706_AddTaskPdis` e
+  `20261008001827_AddKnowledgeArticleIdentification` **não aplicadas** em banco dev
   (Docker indisponível — decisão do usuário "não roda o docker");
   scripts das migrações validados. Commit realizado (ver entrada
   acima). Quando houver ambiente: `dotnet test
   tests/InfraControl.IntegrationTests` → `dotnet ef database update`
-  (8 migrações). Detalhe em `docs/31` §4, §6–§10, §13 e §14.
+  (9 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§16.
 
 - [x] **Retenção/cleanup de `monitoring_events`** — CONCLUÍDA (2026-10-03,
   janela **90 dias** decidida pelo usuário): 8º tipo `RetentionDataType.

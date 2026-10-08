@@ -17,5 +17,20 @@ public interface IKnowledgeArticleRepository : IRepository<KnowledgeArticle>
         bool includeDrafts,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F24-T001/K1: validação de responsável no command (404 pt-BR) —
+    /// molde de <c>ITaskAssigneeRepository.UserExistsAsync</c>.
+    /// </summary>
+    Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F24-T001/K1: nomes resolvidos para o DTO (DisplayName; fallback
+    /// e-mail). Ids sem usuário (removido) ficam de fora → nome null.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
