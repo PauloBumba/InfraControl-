@@ -376,6 +376,25 @@ complexidade, tipo, prazo, resultado, impacto e contexto.
 - [ ] **F25-T006 Relatórios automáticos e interpretação por IA (§15–§16)** <!-- mensal/trimestral/semestral/anual + interpretação textual dos indicadores — usa SOMENTE dados reais do sistema; SEM infra de IA no repo (docs/31 §12): definição de arquitetura antes (como K6 — possível ADR). -->
 
 
+## Fase AI — AI Foundation (blueprint docs/34; plano docs/35)
+
+Primeira fase da AI Blueprint, na ordem de sprints S1–S9 de `docs/35`
+§11 — Sprint 0 (investigação, §66 "não implementar") entregue em
+2026-10-07. Uma task por checkpoint, com aprovação do usuário; o
+tranche S1+S2 foi aprovado e executado em 2026-10-08.
+
+- [x] **FAI-T001 ADRs de IA 036–041 (S1)** <!-- CONCLUÍDA 2026-10-08: ADR-036 AI Layer & Gateway (camada em pastas por convenção Application/AI + Infrastructure/AI + Api/Controllers/AI — sem csproj novo; gateway único caminho p/ LLM com pipeline capability→política→contexto→provider→audit→fallback; ADR-035/§33 intactos); ADR-037 Provider & Model Manager (IAiProvider + OllamaProvider HTTP puro sem SDK, IProviderRegistry v1=config/.env → evolução banco+UI Admin §11–§12, AiCapability por capacidade §15 + Default/Fallback §54, modelo default qwen2.5-coder:1.5b §11); ADR-038 Context Engine & Hybrid RAG (pgvector no Postgres atual §35, contratos IEmbeddingProvider/IVectorStore/IRetrievalService híbrido/IContextBuilder/EvidenceSet §19, reranker heurístico v1, fonte inicial = Knowledge Published; pendência: imagem sem extensão vector); ADR-039 MCP & Tool Contracts (IAiTool+IToolRegistry in-process executando application services — nunca banco; servidor MCP = evolução; §21 tools de leitura; checklist §52); ADR-040 Security & Autonomy (LEVEL 0 Read Only §39, LLM→Tool→Policy→Permission, permissões = RoleAccess existente, conteúdo recuperado = dado §42, audit AI.* no mecanismo F0-T014, limites §55); ADR-041 AI Docker Runtime (profile ai no compose único ADR-022, serviço ollama, healthcheck /api/tags via /dev/tcp, evidência pendente de ambiente §46). -->
+- [x] **FAI-T002 Docker/config da IA (S2)** <!-- CONCLUÍDA 2026-10-08: docker-compose.yml ganhou seção profile `ai` com serviço `ollama` (image ollama/ollama:latest, container infracontrol-ollama, porta ${OLLAMA_PORT:-11434}, volume ollama_data, healthcheck HTTP GET /api/tags via bash /dev/tcp no padrão da `api`, restart unless-stopped, rede infracontrol; SEM depends_on da API — IA opcional, runtime "não configurado" §44) + comentário do profile no header + `Ai__Ollama__BaseUrl: ${OLLAMA_BASE_URL:-http://ollama:11434}` no app-env (DNS por nome de serviço, nunca localhost entre containers §48; workers herdam pelo anchor). .env.example += bloco Fase AI: OLLAMA_BASE_URL, OLLAMA_PORT, OLLAMA_MODEL (qwen2.5-coder:1.5b — §11 literal, com comando de pull), OLLAMA_EMBED_MODEL VAZIO de propósito (blueprint não nomeia modelo de embedding — escolha do ADR-038/S8, não inventar). Execução/health check EVIDÊNCIA PENDENTE (workstation sem Docker — docs/35 §12; §46: doc ≠ evidência). -->
+- [x] **FAI-T003 docs/ai/ base (S2)** <!-- CONCLUÍDA 2026-10-08: `docs/ai/00-vision.md` (objetivo §1, o que a IA não substitui, princípio, tabela das regras duras §3/§4/§5/§7/§39/§42/§46/§63, roadmap §61, estado datado) + `docs/ai/01-architecture.md` (estado zero-IA do diagnóstico, arquitetura-alvo §3, tabela dos ADRs 036–041, pipeline do gateway, onde o código nasce, dependências Docker, pendências de ambiente) — §60; arquivos 02–15 nascem com as fases correspondentes (§46). -->
+- [ ] **FAI-T004 S3 — AI Gateway mínimo** <!-- contrato IAiProvider/IAiGateway + router por capability + timeout/retry/fallback (§54) + hook de audit/telemetry (§43) + testes unit; primeiro código da camada AI (docs/35 §11 S3; ADR-036/037). -->
+- [ ] **FAI-T005 S4 — Provider & Model Manager v1** <!-- ConfigurationProviderRegistry (Ai__*), teste de conexão §13 + model discovery via GET /api/tags §14; UI Admin de providers só se o design da task exigir (ADR-037). -->
+- [ ] **FAI-T006 S5 — Runtime health + observabilidade de IA** <!-- checks degradados "não configurado" somados aos health checks existentes (§44) + ActivitySource de IA com tags §43 no otel-collector (S5). -->
+- [ ] **FAI-T007 S6 — Segurança LEVEL 0** <!-- audit AI.* no mecanismo existente (schema em metadata/tabela própria decidido na task) + limites §55 (max tokens/tools/tempo) no gateway (ADR-040, S6). -->
+- [ ] **FAI-T008 S7 — MCP foundation** <!-- IAiTool + IToolRegistry + primeiras tools de leitura (§21) mapeadas a queries MediatR existentes, uma por task, checklist §52/ADR-039 (S7). -->
+- [ ] **FAI-T009 S8 — Context Engine + RAG foundation** <!-- pgvector (avaliação de imagem do Postgres), IEmbeddingProvider, busca híbrida §17, EvidenceSet §19, ingesta do Knowledge publicado (ADR-038, S8). -->
+- [ ] **FAI-T010 S9 — Evaluation foundation** <!-- harness de avaliação §45 (grounding, tool selection, authorization) — esqueleto antes do critério §67 Fase 0→1 (S9). -->
+
+
 ## Dados de demonstração (2026-10-02)
 
 - [x] Seed demo `docs/database/seed-demo-data.sql` <!-- pedido direto do usuário ("alimenta tudo… com mais de 5 dados", para validar as telas cheias); somente SQL — nenhum código de produção intocado; fictício por regra (RFC 5737 + MACs 02:00:00/02:11/02:aa, aviso "nunca dados reais do hospital" no header, precedente do seed-fictitious do F2-T003); idempotente (BEGIN/COMMIT + ON CONFLICT DO NOTHING) e seguro de reexecutar — IDs gerados por to_hex levam offset 0x10000 + lpad(...,12) para não colidir com os IDs estáticos d0000000-…, e o bloco de topologia se recria com DELETE próprio (constraints únicos (source,target) e (device,name) não são cobertos pelo ON CONFLICT (id)); casos especiais do banco: colunas case-sensitive criadas aspas ("Title"/"State"/"Action"/"Detail"/"Content") exigem identificador entre aspas, `LIKE` sobre coluna uuid exige `::text`, CASE retornando uuid exige `::uuid` e `author_id` casta `DomainUsers."Id"::uuid`; volume persistido (prefixo d0000000-): 6 locations · 6 racks · 8 vlans · 20 devices · 40 interfaces + 40 IPs + 40 MACs · 48 switch_ports · 30 port_vlans · 17 connections · 40 monitoring_checks · 56 monitoring_results (2 últimos com falha em sw-hospital-a/cam-entrada-01 p/ status down) · 14 alerts (7 Open) · 8 incidents + 6 vínculos · 16 tasks + 27 histories + 6 comentários · 5 categorias + 10 artigos · 7 services · 12 SLOs · 7 SLA policies · 36 measurements + 12 budgets · 6 discovery runs (60 ARP + 24 DHCP) · 10 notificações (recipients `role='Admin'` — dedup do feed por construção) · 10 AuditEntries; aplicado no dev e verificado por API (12 rotas 200: devices 20, alerts open 7/14, incidents 8, tasks 17 = 16 seed + 1 residual "bumna" do smoke, feed 12, `/clients?term=198` 10 grupos, search "sw-core" 2, audit 445, slos 12, services 7, articles 10) e reexecutado sem nenhum INSERT (idempotente); uso: `docker compose exec -T postgres psql -U infracontrol -d infracontrol < docs/database/seed-demo-data.sql` -->
@@ -488,6 +507,16 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [ ] F25-T004 Relatórios Tasks/PDI/Knowledge/gerencial (§9–§12)
 - [ ] F25-T005 Histórico de indicadores + exportação (§13–§14)
 - [ ] F25-T006 Relatórios automáticos + interpretação por IA (§15–§16)
+- [x] FAI-T001 AI: ADRs de IA 036–041 (S1) — concluída (2026-10-08)
+- [x] FAI-T002 AI: compose profile `ai` + Ollama + .env (S2) — concluída (2026-10-08, execução pendente de Docker)
+- [x] FAI-T003 AI: docs/ai/ base — 00-vision + 01-architecture (S2) — concluída (2026-10-08)
+- [ ] FAI-T004 AI: AI Gateway mínimo (S3)
+- [ ] FAI-T005 AI: Provider & Model Manager v1 (S4)
+- [ ] FAI-T006 AI: runtime health + observabilidade de IA (S5)
+- [ ] FAI-T007 AI: segurança LEVEL 0 — audit AI.* + limites (S6)
+- [ ] FAI-T008 AI: MCP foundation + tools de leitura (S7)
+- [ ] FAI-T009 AI: Context Engine + RAG foundation (S8)
+- [ ] FAI-T010 AI: evaluation foundation (S9)
 
 
 
@@ -537,8 +566,12 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   ADR-035 coerente com §33), ADRs 036–041, plano Docker preparado
   (não executado) e ordem de execução S1–S9 com critérios de aceite
   divididos em "executável sem Docker × pendente de ambiente" — tudo
-  em **`docs/35-PLANO-AI-FOUNDATION-SPRINT0.md`**. Próximo passo:
-  autorizar a Fase 0 → criar tasks + ADRs (036 em diante).
+  em **`docs/35-PLANO-AI-FOUNDATION-SPRINT0.md`**. **Tranche S1+S2
+  executado em 2026-10-08** (escopo aprovado pelo usuário): ADRs
+  036–041, compose `profile: ai` + Ollama + `.env.example` (config
+  preparada, execução pendente de Docker) e `docs/ai/` 00/01 — ver a
+  seção **"Fase AI"**. Pendente: sprints S3–S9 (código) e a evidência
+  de execução quando houver ambiente.
 
 - [x] **Retenção/cleanup de `monitoring_events`** — CONCLUÍDA (2026-10-03,
   janela **90 dias** decidida pelo usuário): 8º tipo `RetentionDataType.

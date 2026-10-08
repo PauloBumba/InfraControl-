@@ -747,6 +747,30 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   próxima fase** (F25-Indicadores fora da fila, exigiria autorização
   nova) — aguardando autorização para criar tasks/ADRs.
 
+- Fase AI — AI Foundation, **tranche S1+S2 executado** (2026-10-08,
+  escopo aprovado pelo usuário: "ADRs + Docker/config + docs/ai base"):
+  **FAI-T001/T002/T003 [x]**. Foram criados os **6 ADRs de IA
+  036–041** — 036 AI Layer & Gateway (camada em pastas por convenção,
+  sem csproj novo; gateway único caminho p/ LLM), 037 Provider &
+  Model Manager (`IAiProvider`/`OllamaProvider` HTTP sem SDK;
+  `IProviderRegistry` config→banco+UI; capacidades + fallback), 038
+  Context Engine & Hybrid RAG (pgvector no Postgres atual; contratos
+  de embedding/busca/context builder + `EvidenceSet`; fonte inicial =
+  Knowledge publicado), 039 MCP & Tool Contracts (tool registry
+  in-process sobre application services; servidor MCP = evolução),
+  040 Security & Autonomy (**LEVEL 0** Read Only; `LLM → Tool →
+  Policy → Permission`; permissões = RoleAccess existente; audit
+  `AI.*`) e 041 AI Docker Runtime (serviço `ollama` sob `profiles:
+  [ai]` no compose único ADR-022 + `Ai__Ollama__BaseUrl` por DNS de
+  serviço + `.env.example` com `OLLAMA_*`, embedding vazio de
+  propósito). `docs/ai/00-vision.md` e `01-architecture.md` criados
+  (§60). **Sem código C#, sem migração, sem execução**: `docker
+  compose config`/up/health check do Ollama ficam **pendentes de
+  ambiente** (workstation sem Docker — §46: doc ≠ evidência). Docs:
+  TASKS seção "Fase AI" (FAI-T001–T010) + índice + pendência
+  atualizada, docs/35 §11 marcando S1/S2 ✓. Pendente: sprints S3–S9
+  (código) mediante autorização.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

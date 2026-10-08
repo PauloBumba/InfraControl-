@@ -205,9 +205,11 @@ Preparação (sem executar — ambiente sem Docker):
 Sprint 0 — investigação e planejamento  ……… ESTE DOCUMENTO (docs/35)
    ↓
 S1 — ADRs 036–041 (aprovados pelo humano — arquitetura exige ADR)
+      ………………………………………………………………… CONCLUÍDO 2026-10-08 (FAI-T001)
    ↓
 S2 — Compose profile `ai` + .env.example + docs/ai/00..01 (config
      preparada; execução/health check pendentes de ambiente)
+      ………………………………………………………………… CONCLUÍDO 2026-10-08 (FAI-T002/T003)
    ↓
 S3 — AI Gateway mínimo (IAiProvider, router, timeout/retry/fallback,
      hook de audit) + testes unit
