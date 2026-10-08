@@ -17,8 +17,13 @@ import {
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
   ARTICLE_STATUS_ARCHIVED,
+  ARTICLE_STATUS_APPROVED,
   ARTICLE_STATUS_DRAFT,
+  ARTICLE_STATUS_IN_REVIEW,
+  ARTICLE_STATUS_OBSOLETE,
   ARTICLE_STATUS_PUBLISHED,
+  ARTICLE_STATUS_REJECTED,
+  ARTICLE_STATUS_UPDATED,
   createArticle,
   listArticles,
   listCategories,
@@ -45,10 +50,18 @@ import {
 
 const PAGE_SIZE = 20;
 
+// F24-T002/K2 (ADR-034): rótulos verbatim da spec docs/32 §7 —
+// "Publicada"/"Arquivada" feminino mudou do legado "Publicado"/
+// "Arquivado". Números = knowledge.ts (0–2 legados, 3–7 novos).
 const statusConfig: Record<number, { label: string; bg: string; color: string }> = {
   [ARTICLE_STATUS_DRAFT]: { label: "Rascunho", bg: "#fef3c7", color: "#d97706" },
-  [ARTICLE_STATUS_PUBLISHED]: { label: "Publicado", bg: "#dcfce7", color: "#16a34a" },
-  [ARTICLE_STATUS_ARCHIVED]: { label: "Arquivado", bg: "#f1f5f9", color: "#475569" },
+  [ARTICLE_STATUS_IN_REVIEW]: { label: "Em revisão", bg: "#ffedd5", color: "#ea580c" },
+  [ARTICLE_STATUS_APPROVED]: { label: "Aprovada", bg: "#ccfbf1", color: "#0d9488" },
+  [ARTICLE_STATUS_PUBLISHED]: { label: "Publicada", bg: "#dcfce7", color: "#16a34a" },
+  [ARTICLE_STATUS_UPDATED]: { label: "Atualizada", bg: "#e0f2fe", color: "#0284c7" },
+  [ARTICLE_STATUS_ARCHIVED]: { label: "Arquivada", bg: "#f1f5f9", color: "#475569" },
+  [ARTICLE_STATUS_OBSOLETE]: { label: "Obsoleta", bg: "#e2e8f0", color: "#64748b" },
+  [ARTICLE_STATUS_REJECTED]: { label: "Rejeitada", bg: "#fee2e2", color: "#dc2626" },
 };
 
 function messageFor(error: unknown): string {

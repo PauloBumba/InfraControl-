@@ -6,9 +6,9 @@ namespace InfraControl.Domain.Entities;
 
 /// <summary>
 /// Artigo da base de conhecimento (F10-T002/T003, docs/04 — Knowledge
-/// Base). Nasce <see cref="KnowledgeArticleStatus.Draft"/>; o ciclo de
-/// publicação Draft → Published → Archived → Draft vive em
-/// <see cref="TransitionTo"/> (F10-T003). Categoria opcional — a FK é
+/// Base). Nasce <see cref="KnowledgeArticleStatus.Draft"/>; o workflow
+/// de revisão (8 estados — F24-T002/K2, ADR-034) vive em
+/// <see cref="TransitionTo"/>. Categoria opcional — a FK é
 /// SetNull na migration: apagar categoria não apaga nem bloqueia o
 /// artigo (decisão da task, T001 não tinha FK).
 /// F24-T001/K1 (spec docs/32 §5–§6): identificação com tipo (14 —
@@ -176,9 +176,13 @@ public sealed class KnowledgeArticle : AggregateRoot
     }
 
     /// <summary>
-    /// F10-T003 (Publishing): ciclo válido Draft → Published →
-    /// Archived → Draft. Qualquer outra transição (inclusive repetir o
-    /// mesmo estado) é conflito — 409 pt-BR com os dois estados.
+    /// F24-T002/K2 (ADR-034, spec docs/32 §7): matriz de revisão —
+    /// <c>Draft → InReview → Approved → Published</c> (publicação com
+    /// aprovação), <c>Published → InReview → Updated</c> (revisão do
+    /// publicado), <c>Published/Updated → Archived/Obsolete</c> e
+    /// <c>Archived/Obsolete/Rejected → Draft</c> (restauração).
+    /// Qualquer outra transição (inclusive repetir o mesmo estado) é
+    /// conflito — 409 pt-BR com os dois estados.
     /// </summary>
     public void TransitionTo(KnowledgeArticleStatus target)
     {
@@ -196,9 +200,28 @@ public sealed class KnowledgeArticle : AggregateRoot
         KnowledgeArticleStatus target)
         => (from, target) switch
         {
-            (KnowledgeArticleStatus.Draft, KnowledgeArticleStatus.Published) => true,
+            // Cadeia da §7 (rascunho → revisão → aprovação → publicação).
+            (KnowledgeArticleStatus.Draft, KnowledgeArticleStatus.InReview) => true,
+            (KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Approved) => true,
+            (KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Updated) => true,
+            (KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Rejected) => true,
+            (KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Draft) => true,
+            (KnowledgeArticleStatus.Approved, KnowledgeArticleStatus.Published) => true,
+            (KnowledgeArticleStatus.Approved, KnowledgeArticleStatus.Draft) => true,
+
+            // Revisão do publicado + especiais.
+            (KnowledgeArticleStatus.Published, KnowledgeArticleStatus.InReview) => true,
             (KnowledgeArticleStatus.Published, KnowledgeArticleStatus.Archived) => true,
+            (KnowledgeArticleStatus.Published, KnowledgeArticleStatus.Obsolete) => true,
+            (KnowledgeArticleStatus.Updated, KnowledgeArticleStatus.InReview) => true,
+            (KnowledgeArticleStatus.Updated, KnowledgeArticleStatus.Archived) => true,
+            (KnowledgeArticleStatus.Updated, KnowledgeArticleStatus.Obsolete) => true,
+
+            // Estados de saída restauram/retrabalham no rascunho.
             (KnowledgeArticleStatus.Archived, KnowledgeArticleStatus.Draft) => true,
+            (KnowledgeArticleStatus.Obsolete, KnowledgeArticleStatus.Draft) => true,
+            (KnowledgeArticleStatus.Rejected, KnowledgeArticleStatus.Draft) => true,
+
             _ => false,
         };
 }

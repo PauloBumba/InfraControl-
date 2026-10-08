@@ -7,14 +7,16 @@ public interface IKnowledgeArticleRepository : IRepository<KnowledgeArticle>
 {
     /// <summary>
     /// Busca por termo no título/conteúdo, mais recentes primeiro
-    /// (CreateDateTime desc). <paramref name="includeDrafts"/> = false
-    /// esconde rascunhos (Draft) de quem não escreve — F10-T003.
+    /// (CreateDateTime desc). <paramref name="includeUnpublished"/> =
+    /// false esconde os nunca-publicados (Draft/InReview/Approved/
+    /// Rejected) de quem não escreve — ADR-034 §4 (regra F10-T003
+    /// generalizada).
     /// </summary>
     Task<PagedResult<KnowledgeArticle>> SearchAsync(
         string? term,
         int page,
         int pageSize,
-        bool includeDrafts,
+        bool includeUnpublished,
         CancellationToken cancellationToken = default);
 
     /// <summary>

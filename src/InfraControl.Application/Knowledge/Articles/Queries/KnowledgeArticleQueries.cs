@@ -7,9 +7,10 @@ using MediatR;
 namespace InfraControl.Application.Knowledge.Articles.Queries;
 
 // Sem cache (IQuery direto): artigo muda a cada mutation.
-// F10-T003: rascunho (Draft) só aparece para quem tem nível de
-// escrita (ADR-016 ≡ Operate) — a busca filtra e o GET/{id} de um
-// Draft responde 404 como se não existisse (não vaza existência).
+// F24-T002/K2 (ADR-034 §4): estados nunca-publicados (Draft, InReview,
+// Approved, Rejected) só aparecem para quem tem nível de escrita
+// (ADR-016 ≡ Operate) — a busca filtra e o GET/{id} de um desses
+// estados responde 404 como se não existisse (não vaza existência).
 
 public sealed record SearchKnowledgeArticlesQuery(
     string? Term = null,
@@ -34,7 +35,7 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
 
         var result = await repository.SearchAsync(
             term, page, pageSize,
-            includeDrafts: CanSeeDrafts(currentUser),
+            includeUnpublished: CanSeeUnpublished(currentUser),
             cancellationToken);
 
         // F24-T001/K1: nomes de autor/responsável da página inteira num
@@ -57,10 +58,11 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
     }
 
     /// <summary>
-    /// Rascunho só para quem escreve: papeis do usuário cortados em
-    /// <see cref="RoleAccess.Operate"/> (Admin/Operator — ADR-016).
+    /// Nunca-publicados só para quem escreve: papeis do usuário
+    /// cortados em <see cref="RoleAccess.Operate"/> (Admin/Operator —
+    /// ADR-016; regra F10-T003 generalizada — ADR-034 §4).
     /// </summary>
-    internal static bool CanSeeDrafts(ICurrentUserContext currentUser)
+    internal static bool CanSeeUnpublished(ICurrentUserContext currentUser)
         => RoleAccess.Operate.Any(role => currentUser.Roles.Contains(role));
 }
 
@@ -86,8 +88,10 @@ public sealed class GetKnowledgeArticleQueryHandler(
             ?? throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 
-        if (article.Status == KnowledgeArticleStatus.Draft
-            && !SearchKnowledgeArticlesQueryHandler.CanSeeDrafts(currentUser))
+        // ADR-034 §4: estado nunca-publicado sem escrita = 404 mesmo
+        // (não vaza existência — regra F10-T003 generalizada).
+        if (article.Status.IsUnpublished()
+            && !SearchKnowledgeArticlesQueryHandler.CanSeeUnpublished(currentUser))
             throw new KeyNotFoundException(
                 $"Artigo '{request.Id}' não encontrado.");
 

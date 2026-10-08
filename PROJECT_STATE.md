@@ -569,6 +569,34 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   Pendências: migração/integração (Docker); artigos do seed ficam sem
   tipo. docs/31 §16 · docs/04 "Identificação (F24-T001/K1)".
 
+- Fase 24-T002 / K2 (Knowledge — workflow dos status, spec docs/32 §7)
+  concluída (2026-10-07, mesma autorização da Fase 24 inteira):
+  **ADR-034** (`docs/adr/ADR-034-KNOWLEDGE-STATUS-WORKFLOW.md` — regra
+  de domínio exige ADR antes). **8 estados** (`Draft/InReview/Approved
+  /Published/Updated/Archived/Obsolete/Rejected`; a §7 repete "EM
+  REVISÃO" = um `InReview` só; rótulos verbatim da spec —
+  "Publicada"/"Arquivada" femininos), **números legados estáveis**
+  (0/1/2 preservados, novos 3–7; armazenamento string → sem migração
+  de dados, seed válido). Matriz de **16 pares**: cadeia
+  `Draft→InReview→Approved→Published`, revisão do publicado
+  `Published→InReview→Updated` (`InReview` sem origem — aceita os dois
+  fechamentos, registrado no ADR), `Published/Updated→Archived/
+  Obsolete`, saídas `→Draft`; 409 fora (mecanismo inalterado), 400
+  listando as 8 opções. **Visibilidade generalizada** (F10-T003 →
+  ADR-034 §4): `includeDrafts→includeUnpublished`; fonte única =
+  `KnowledgeArticleStatusRules.UnpublishedStatuses` (Domínio; coleção
+  na expressão LINQ → `IN` traduzível) + `IsUnpublished()` no
+  `GET/{id}` (404); nunca-publicados = Draft/InReview/Approved/
+  Rejected (consequência: rejeição tira artigo publicado da vista —
+  aceito e documentado). Superfície inalterada (`POST {id}/status`,
+  Operate). Front: +5 constantes e 8 chips na `statusConfig`. Testes:
+  reescritos `KnowledgeArticleTests` (transições) e
+  `KnowledgeArticleStatusCommandTests` (12 — seed por `PathTo`),
+  ajustes em `CrudDomainEventLote3Tests` e integração (3 testes na
+  cadeia nova) → unit **1775/1775** · arch **115/115** · build 0 ·
+  front lint/build 0. Sem migração nova. docs/31 §17 · docs/04
+  §Publicação · TASKS F24-T002 [x].
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

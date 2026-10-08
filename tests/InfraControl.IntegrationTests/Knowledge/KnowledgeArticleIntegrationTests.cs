@@ -100,7 +100,8 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             .WithMessage("Roles ausentes: Admin, Operator");
     }
 
-    /// <summary>Ciclo completo Draft → Published → Archived → Draft via API.</summary>
+    /// <summary>Cadeia completa via API: Draft → InReview → Approved →
+    /// Published → Archived → Draft (workflow F24-T002/K2, ADR-034).</summary>
     [Fact]
     public async Task ChangeStatus_Lifecycle_ShouldRoundTripViaQueries()
     {
@@ -109,6 +110,14 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         UseRole(UserRole.Admin);
         var created = await mediator.Send(
             new CreateKnowledgeArticleCommand("Artigo de publicação", "Conteúdo.", null));
+
+        var inReview = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "inreview"));
+        inReview.Status.Should().Be(KnowledgeArticleStatus.InReview);
+
+        var approved = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
+        approved.Status.Should().Be(KnowledgeArticleStatus.Approved);
 
         var published = await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(created.Id, "published"));
@@ -152,6 +161,10 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new CreateKnowledgeArticleCommand("Rascunho interno", "Segredo.", null));
         var published = await mediator.Send(
             new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "inreview"));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "approved"));
         await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(published.Id, "published"));
 

@@ -29,7 +29,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         string? term,
         int page,
         int pageSize,
-        bool includeDrafts,
+        bool includeUnpublished,
         CancellationToken cancellationToken = default)
     {
         var query = dbContext.KnowledgeArticles.AsNoTracking().AsQueryable();
@@ -42,9 +42,11 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
                 || article.Content.ToLower().Contains(normalized));
         }
 
-        if (!includeDrafts)
+        // F24-T002/K2 (ADR-034 §4): nunca-publicados escondidos de quem
+        // não escreve — coleção do domínio vira parâmetro de IN.
+        if (!includeUnpublished)
             query = query.Where(article =>
-                article.Status != KnowledgeArticleStatus.Draft);
+                !KnowledgeArticleStatusRules.UnpublishedStatuses.Contains(article.Status));
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

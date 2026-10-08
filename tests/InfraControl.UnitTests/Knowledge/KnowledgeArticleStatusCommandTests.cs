@@ -13,9 +13,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace InfraControl.UnitTests.Knowledge;
 
 /// <summary>
-/// F10-T003: Publishing — transições do ciclo Draft→Published→Archived→Draft
-/// (409 pt-BR fora do ciclo), status fora do enum (400 pt-BR) e rascunhos
-/// invisíveis para quem não tem nível de escrita (docs/04).
+/// F24-T002/K2: workflow de revisão (ADR-034, spec docs/32 §7) —
+/// cadeia de aprovação e revisão do publicado (409 pt-BR fora da
+/// matriz), status fora do enum (400 pt-BR com as 8 opções) e
+/// nunca-publicados invisíveis para quem não escreve (docs/04).
+/// Herda do F10-T003 a rota, a policy e os 404 de não vazamento.
 /// </summary>
 public sealed class KnowledgeArticleStatusCommandTests : IDisposable
 {
@@ -62,67 +64,99 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
             new KnowledgeArticleServiceRepository(context),
             new FakeCurrentUser(roles));
 
+    /// <summary>
+    /// Caminho válido do domínio até o estado pedido (ADR-034 §3) — o
+    /// seed nunca "pula" a matriz.
+    /// </summary>
+    private static KnowledgeArticleStatus[] PathTo(KnowledgeArticleStatus status)
+        => status switch
+        {
+            KnowledgeArticleStatus.Draft => [],
+            KnowledgeArticleStatus.InReview => [KnowledgeArticleStatus.InReview],
+            KnowledgeArticleStatus.Approved =>
+                [KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Approved],
+            KnowledgeArticleStatus.Published =>
+                [KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Approved,
+                 KnowledgeArticleStatus.Published],
+            KnowledgeArticleStatus.Updated =>
+                [KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Approved,
+                 KnowledgeArticleStatus.Published, KnowledgeArticleStatus.InReview,
+                 KnowledgeArticleStatus.Updated],
+            KnowledgeArticleStatus.Archived =>
+                [KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Approved,
+                 KnowledgeArticleStatus.Published, KnowledgeArticleStatus.Archived],
+            KnowledgeArticleStatus.Obsolete =>
+                [KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Approved,
+                 KnowledgeArticleStatus.Published, KnowledgeArticleStatus.Obsolete],
+            KnowledgeArticleStatus.Rejected =>
+                [KnowledgeArticleStatus.InReview, KnowledgeArticleStatus.Rejected],
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
+        };
+
     private static async Task<Guid> SeedArticleAsync(
         AppDbContext context,
-        KnowledgeArticleStatus status = KnowledgeArticleStatus.Draft)
+        KnowledgeArticleStatus status = KnowledgeArticleStatus.Draft,
+        string title = "Artigo de publicação")
     {
-        var article = KnowledgeArticle.Create("Artigo de publicação", "Conteúdo.", null);
+        var article = KnowledgeArticle.Create(title, "Conteúdo.", null);
         context.KnowledgeArticles.Add(article);
         await context.SaveChangesAsync();
 
-        if (status == KnowledgeArticleStatus.Published)
-            article.TransitionTo(KnowledgeArticleStatus.Published);
-        else if (status == KnowledgeArticleStatus.Archived)
+        foreach (var step in PathTo(status))
         {
-            article.TransitionTo(KnowledgeArticleStatus.Published);
-            article.TransitionTo(KnowledgeArticleStatus.Archived);
+            article.TransitionTo(step);
+            await context.SaveChangesAsync();
         }
 
-        await context.SaveChangesAsync();
         return article.Id;
     }
 
     [Fact]
-    public async Task ChangeStatus_DraftToPublished_ShouldPersistAndReturnDto()
+    public async Task ChangeStatus_ApprovalChain_ShouldPersistEachStep()
     {
         await using var context = await CreateContextAsync();
         var articleId = await SeedArticleAsync(context);
 
-        var dto = await ChangeStatusHandler(context).Handle(
+        var inReview = await ChangeStatusHandler(context).Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "inreview"),
+            CancellationToken.None);
+        inReview.Status.Should().Be(KnowledgeArticleStatus.InReview);
+
+        var approved = await ChangeStatusHandler(context).Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "APPROVED"),
+            CancellationToken.None);
+        approved.Status.Should().Be(KnowledgeArticleStatus.Approved);
+
+        var published = await ChangeStatusHandler(context).Handle(
             new ChangeKnowledgeArticleStatusCommand(articleId, "published"),
             CancellationToken.None);
+        published.Status.Should().Be(KnowledgeArticleStatus.Published);
 
-        dto.Status.Should().Be(KnowledgeArticleStatus.Published);
         var saved = await context.KnowledgeArticles.AsNoTracking()
             .SingleAsync(article => article.Id == articleId);
         saved.Status.Should().Be(KnowledgeArticleStatus.Published);
     }
 
-    /// <summary>Ciclo completo via handler: Draft → Published → Archived → Draft.</summary>
+    /// <summary>Revisão do publicado fecha em Atualizada (§7).</summary>
     [Fact]
-    public async Task ChangeStatus_FullCycle_ShouldPersistEachStep()
+    public async Task ChangeStatus_PublishedRevision_ShouldReachUpdated()
     {
         await using var context = await CreateContextAsync();
-        var articleId = await SeedArticleAsync(context);
+        var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.Published);
 
-        var published = await ChangeStatusHandler(context).Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "Published"),
+        var inReview = await ChangeStatusHandler(context).Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "inreview"),
             CancellationToken.None);
-        published.Status.Should().Be(KnowledgeArticleStatus.Published);
+        inReview.Status.Should().Be(KnowledgeArticleStatus.InReview);
 
-        var archived = await ChangeStatusHandler(context).Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "archived"),
+        var updated = await ChangeStatusHandler(context).Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "updated"),
             CancellationToken.None);
-        archived.Status.Should().Be(KnowledgeArticleStatus.Archived);
-
-        var restored = await ChangeStatusHandler(context).Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "draft"),
-            CancellationToken.None);
-        restored.Status.Should().Be(KnowledgeArticleStatus.Draft);
+        updated.Status.Should().Be(KnowledgeArticleStatus.Updated);
 
         var saved = await context.KnowledgeArticles.AsNoTracking()
             .SingleAsync(article => article.Id == articleId);
-        saved.Status.Should().Be(KnowledgeArticleStatus.Draft);
+        saved.Status.Should().Be(KnowledgeArticleStatus.Updated);
     }
 
     [Fact]
@@ -178,35 +212,47 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<ArgumentException>())
-            .WithMessage("Status inválido: 'promoted'. Use 'draft', 'published' ou 'archived'.*");
+            .WithMessage("Status inválido: 'promoted'. Use 'draft', 'inreview', 'approved', 'published', 'updated', 'archived', 'obsolete' ou 'rejected'.*");
     }
 
+    /// <summary>ADR-034 §4: leitor vê só o que já foi publicado.</summary>
     [Fact]
-    public async Task Search_WithoutOperateRole_ShouldHideDrafts()
+    public async Task Search_WithoutOperateRole_ShouldHideUnpublished()
     {
         await using var context = await CreateContextAsync();
-        await SeedArticleAsync(context); // Draft
-        await SeedArticleAsync(context, KnowledgeArticleStatus.Published);
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Draft, "rascunho");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.InReview, "em revisão");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Approved, "aprovada");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Rejected, "rejeitada");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Published, "publicada");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Updated, "atualizada");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Archived, "arquivada");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Obsolete, "obsoleta");
 
         var page = await SearchHandler(context, ["Viewer"]).Handle(
             new SearchKnowledgeArticlesQuery(), CancellationToken.None);
 
-        page.TotalCount.Should().Be(1);
-        page.Items.Should().ContainSingle(article =>
-            article.Status == KnowledgeArticleStatus.Published);
+        page.TotalCount.Should().Be(4);
+        page.Items.Should().OnlyContain(article =>
+            article.Status == KnowledgeArticleStatus.Published
+            || article.Status == KnowledgeArticleStatus.Updated
+            || article.Status == KnowledgeArticleStatus.Archived
+            || article.Status == KnowledgeArticleStatus.Obsolete);
     }
 
     [Fact]
-    public async Task Search_AsOperator_ShouldIncludeDrafts()
+    public async Task Search_AsOperator_ShouldIncludeUnpublished()
     {
         await using var context = await CreateContextAsync();
-        await SeedArticleAsync(context); // Draft
-        await SeedArticleAsync(context, KnowledgeArticleStatus.Published);
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Draft, "rascunho");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.InReview, "em revisão");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Rejected, "rejeitada");
+        await SeedArticleAsync(context, KnowledgeArticleStatus.Published, "publicada");
 
         var page = await SearchHandler(context, ["Operator"]).Handle(
             new SearchKnowledgeArticlesQuery(), CancellationToken.None);
 
-        page.TotalCount.Should().Be(2);
+        page.TotalCount.Should().Be(4);
     }
 
     /// <summary>Rascunho sem escrita responde 404 — não vaza a existência.</summary>
@@ -215,6 +261,20 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
     {
         await using var context = await CreateContextAsync();
         var articleId = await SeedArticleAsync(context);
+
+        var action = () => GetHandler(context, ["Viewer"]).Handle(
+            new GetKnowledgeArticleQuery(articleId), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Artigo '{articleId}' não encontrado.");
+    }
+
+    /// <summary>Generalização da regra: Em revisão também não vaza.</summary>
+    [Fact]
+    public async Task Get_InReviewAsReader_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.InReview);
 
         var action = () => GetHandler(context, ["Viewer"]).Handle(
             new GetKnowledgeArticleQuery(articleId), CancellationToken.None);

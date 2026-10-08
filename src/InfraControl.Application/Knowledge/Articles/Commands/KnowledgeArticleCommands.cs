@@ -213,7 +213,8 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
         if (!Enum.TryParse<KnowledgeArticleStatus>(
                 request.Status, ignoreCase: true, out var target))
             throw new ArgumentException(
-                $"Status inválido: '{request.Status}'. Use 'draft', 'published' ou 'archived'.",
+                $"Status inválido: '{request.Status}'. Use 'draft', 'inreview', "
+                + "'approved', 'published', 'updated', 'archived', 'obsolete' ou 'rejected'.",
                 nameof(request.Status));
 
         var article = await repository.GetByIdAsync(request.Id, cancellationToken)

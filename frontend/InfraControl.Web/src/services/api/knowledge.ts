@@ -48,9 +48,17 @@ export interface Paged<T> {
   pageSize: number;
 }
 
+// F24-T002/K2 (ADR-034, spec docs/32 §7): 8 status. Os 3 primeiros
+// números são o contrato legado do F10 (estáveis); os novos entram
+// 3–7 — o MVC serializa enum como número (sem JsonStringEnumConverter).
 export const ARTICLE_STATUS_DRAFT = 0;
 export const ARTICLE_STATUS_PUBLISHED = 1;
 export const ARTICLE_STATUS_ARCHIVED = 2;
+export const ARTICLE_STATUS_IN_REVIEW = 3;
+export const ARTICLE_STATUS_APPROVED = 4;
+export const ARTICLE_STATUS_UPDATED = 5;
+export const ARTICLE_STATUS_OBSOLETE = 6;
+export const ARTICLE_STATUS_REJECTED = 7;
 
 export interface ArticleFilters {
   term?: string;

@@ -350,7 +350,7 @@ arquivada 2026-10-07; gap × código em `docs/31` §12 — trilha K). Uma task
 por checkpoint, com aprovação do usuário (mesmo processo da Fase 23).
 
 - [x] **F24-T001 Tipos e identificação (K1)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §16, docs/04 "Identificação"): enum KnowledgeArticleType (14 tipos, docs/32 §5) + descrição (500) + tags (coleção primitiva EF → text[]/JSON, normalização trim/lowercase/dedup, ≤50×20 pt-BR) + autor (servidor, imutável) e responsável (404 pt-BR) com FKs SetNull; DTO +type/description/tags/authorName/responsibleName (init-props, factory From); form e card no front; catálogo knowledgeCatalogs.ts; migração 20261008001827 (script validado, não aplicada). Validação: build 0 · unit 1771/1771 · arch 115/115 · front lint/build 0. -->
-- [ ] **F24-T002 Workflow dos status (K2)** <!-- docs/32 §7: RASCUNHO → EM REVISÃO → APROVADA → PUBLICADA → EM REVISÃO → ATUALIZADA + Arquivada/Obsoleta/Rejeitada (hoje enum de 3 estados Draft/Published/Archived com ciclo próprio — docs/31 §12). Transições novas = regra de domínio → ADR antes de implementar (AGENTS: arquitetura exige ADR); testes de transição válida/inválida/400 pt-BR. -->
+- [x] **F24-T002 Workflow dos status (K2)** <!-- CONCLUÍDA 2026-10-07 (ADR-034, docs/31 §17, docs/04 §Publicação): 8 estados da docs/32 §7 (InReview único; rótulos verbatim "Publicada"/"Arquivada"), números legados 0/1/2 estáveis + 3–7, matriz de 16 pares (cadeia Draft→InReview→Approved→Published; revisão Published→InReview→Updated; saídas Archived/Obsolete/Rejected→Draft), 409 fora da matriz, 400 com as 8 opções, visibilidade generalizada (includeUnpublished + KnowledgeArticleStatusRules — coleção do domínio vira IN; GET 404 por IsUnpublished), rota/policy/DTO inalterados, sem migração de dados. Testes reescritos (+4 líquidos) → unit 1775/1775 · arch 115/115 · front lint/build 0. -->
 - [ ] **F24-T003 Versionamento (K3)** <!-- docs/32 §8: versões nunca perdidas (v1.0 → v1.1 → v2.0), cada versão registra alteração/autor/data/motivo/aprovador — tabela nova de snapshots (molde: versionamento do PDI docs/30 §14) + endpoints de listagem/comparação de versão + testes. -->
 - [ ] **F24-T004 Rastreabilidade de origem (K4)** <!-- docs/32 §9: origem da Knowledge (Task, PDI, Chamado=Incident, Projeto…) com múltiplas origens — pode absorver/estender o vínculo task_knowledge_articles criado na P5a (docs/31 §13) em vez de tabela paralela; decidir no design. N:N + endpoints + card + testes; migração. -->
 - [ ] **F24-T005 Revisão periódica (K5)** <!-- docs/32 §12: próxima revisão (ex.: a cada 180 dias), responsável pela revisão, alerta "Knowledge necessita de revisão" e ações manter/atualizar/substituir/arquivar — campos de governança (§6) + filtro "pendentes de revisão" + testes. -->
@@ -476,7 +476,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F23-T004 Impedimentos, evidências, subtarefas, progresso, fases e timeline (P4) — P4a–P4d concluídas (2026-10-07)
 - [x] F23-T005 Integrações Chamado/PDI/Knowledge (P5) — **concluída (2026-10-07: P5a+P5b+P5c)**
 - [x] F24-T001 Knowledge: tipos e identificação (K1) — concluída (2026-10-07)
-- [ ] F24-T002 Knowledge: workflow dos status (K2)
+- [x] F24-T002 Knowledge: workflow dos status (K2) — concluída (2026-10-07, ADR-034)
 - [ ] F24-T003 Knowledge: versionamento (K3)
 - [ ] F24-T004 Knowledge: rastreabilidade de origem (K4)
 - [ ] F24-T005 Knowledge: revisão periódica (K5)

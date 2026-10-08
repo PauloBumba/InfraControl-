@@ -613,20 +613,49 @@ Spec `docs/32` §5–§6 — campos de identificação do artigo (Fase 24):
 - Migração `20261008001827_AddKnowledgeArticleIdentification` (script
   validado; não aplicada — Docker).
 
-### Publicação (F10-T003)
+### Publicação (F10-T003, evolução F24-T002/K2 — ADR-034)
 
 Transições de status em `POST api/v1/knowledge/articles/{id}/status`
 (corpo `{"status": "..."}`, `RoleAccess.Operate`, 200 devolve o artigo
-com o status novo). Ciclo válido **Draft → Published → Archived →
-Draft**; qualquer outra transição (incluindo repetir o mesmo estado) =
-**409** `Transição inválida: 'X' → 'Y'.` Status fora do enum = 400
-`Status inválido: 'X'. Use 'draft', 'published' ou 'archived'.`
+com o status novo). A spec `docs/32` §7 pede revisão com aprovação — o
+ciclo de 3 estados do F10-T003 virou **workflow de 8 estados**
+(**ADR-034**):
 
-**Rascunho (Draft) só para quem escreve**: para quem não tem nível de
-escrita (ADR-016 ≡ `RoleAccess.Operate`), a busca exclui os Drafts e o
-`GET/{id}` de um Draft responde **404 como se não existisse** — não vaza
-a existência do rascunho. `Published`/`Archived` continuam visíveis para
-todo mundo com `RoleAccess.Read`.
+| De | Para |
+|---|---|
+| `Draft` (Rascunho) | `InReview` |
+| `InReview` (Em revisão) | `Approved`, `Updated`, `Rejected`, `Draft` |
+| `Approved` (Aprovada) | `Published`, `Draft` |
+| `Published` (Publicada) | `InReview`, `Archived`, `Obsolete` |
+| `Updated` (Atualizada) | `InReview`, `Archived`, `Obsolete` |
+| `Archived` (Arquivada) | `Draft` |
+| `Obsolete` (Obsoleta) | `Draft` |
+| `Rejected` (Rejeitada) | `Draft` |
+
+Publicar exige a cadeia `Draft → InReview → Approved → Published`;
+revisar o publicado é `Published → InReview → Updated` (`InReview` não
+guarda a origem, por isso aceita os dois fechamentos). Qualquer outra
+transição (incluindo repetir o mesmo estado) = **409**
+`Transição inválida: 'X' → 'Y'.` Status fora do enum = 400
+`Status inválido: 'X'. Use 'draft', 'inreview', 'approved', 'published',
+'updated', 'archived', 'obsolete' ou 'rejected'.`
+
+Armazenado como string (linhas antigas `Draft/Published/Archived`
+valem sem migração); no contrato JSON os valores são **números** (enum
+sem `JsonStringEnumConverter`) — `Draft=0`, `Published=1`,
+`Archived=2` legados estáveis, novos 3–7. Rótulos da UI seguem a §7
+verbatim (feminino: "Publicada", "Arquivada").
+
+**Nunca-publicados (`Draft`, `InReview`, `Approved`, `Rejected`) só
+para quem escreve** (generalização da regra F10-T003 — ADR-034 §4): a
+busca de quem não tem nível de escrita (ADR-016 ≡ `RoleAccess.Operate`)
+exclui esses estados e o `GET/{id}` de um deles responde **404 como se
+não existisse** — não vaza a existência. `Published`/`Updated`/
+`Archived`/`Obsolete` ficam visíveis para todo mundo com
+`RoleAccess.Read`. Consequência: rejeitar a revisão de um artigo
+publicado o tira da vista até republicar (modelo de estado único — se
+a spec pedir "publicado com revisão rejeitada", é histórico de
+revisões + ADR novo).
 
 ### Relacionamentos (F10-T004)
 

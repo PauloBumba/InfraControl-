@@ -849,3 +849,65 @@ primeira task da Fase 24, na autorização "F23 (P5c) + Fase 24 inteira".
 
 - Migração não aplicada + testes de integração não executados (Docker).
   Os 10 artigos do seed ficam sem tipo/descrição (nulo = "sem tipo").
+
+## 17. Execução — K2 / F24-T002 (Fase 24, 2026-10-07)
+
+**Workflow dos status** (spec `docs/32` §7) — transição de status é
+regra de domínio, então **ADR antes do código** (`AGENTS.md`):
+**ADR-034** (`docs/adr/ADR-034-KNOWLEDGE-STATUS-WORKFLOW.md`).
+
+### Decisões do ADR-034
+
+- **8 estados** (a §7 repete "EM REVISÃO" — é um único `InReview`):
+  `Draft/InReview/Approved/Published/Updated/Archived/Obsolete/
+  Rejected`; rótulos pt-BR **verbatim da §7** ("Publicada"/"Arquivada"
+  — muda o gênero do legado).
+- **Números legados estáveis**: `Draft=0/Published=1/Archived=2`
+  preservados (contrato do front), novos 3–7; armazenamento segue
+  string → **nenhuma migração de dados** (o seed usa os 3 nomes
+  antigos, continua válido).
+- **Matriz de 16 pares válidos**: cadeia `Draft→InReview→Approved→
+  Published`; revisão do publicado `Published→InReview→Updated`;
+  `Published/Updated→Archived/Obsolete`; saídas `Archived/Obsolete/
+  Rejected→Draft`. `InReview` aceita os dois fechamentos (o estado não
+  guarda origem — registrado como consequência). Fora da matriz ou
+  repetir estado = 409 (mecanismo inalterado).
+- **Visibilidade generalizada** (F10-T003 → ADR-034 §4): `includeDrafts`
+  virou **`includeUnpublished`**; a fonte única do conjunto é
+  `KnowledgeArticleStatusRules.UnpublishedStatuses` (Domínio — a
+  coleção entra na expressão LINQ e vira `IN`, traduzível nos dois
+  providers; `IsUnpublished()` extensão para o `GET/{id}` = 404).
+  Nunca-publicados = `Draft/InReview/Approved/Rejected`.
+- 400 com as 8 opções; rota/policy/DTO **inalterados** (superfície
+  continua `POST {id}/status`, `Operate`).
+
+### Arquivos alterados
+
+- Domínio: `KnowledgeArticleStatus` (8 valores, doc por estado),
+  `KnowledgeArticleStatusRules` (**novo**), `KnowledgeArticle.
+  TransitionTo` (matriz nova).
+- Application: mensagem de 400 (8 opções), port/repo
+  `includeDrafts→includeUnpublished`, `CanSeeDrafts→CanSeeUnpublished`,
+  `GET/{id}` por `IsUnpublished()`, cabeçalho das queries.
+- Infra: filtro do `SearchAsync` com o conjunto do domínio (`IN`).
+- Front: `knowledge.ts` +5 constantes (3–7), `KnowledgePage.
+  statusConfig` com 8 chips na ordem da §7 (rótulos femininos).
+- Testes: `KnowledgeArticleTests` transições reescritas (8 → cadeia,
+  revisão, rejeição, 4 conflitos + regra de visibilidade) ;
+  `KnowledgeArticleStatusCommandTests` reescrito (12 — seed por
+  caminho válido `PathTo`, cadeia via handler, revisão→Updated, 409×2,
+  404, 400 com 8 opções, busca oculta/mostra os 4+4, GET InReview 404);
+  `CrudDomainEventLote3Tests` (cadeia até Published);
+  integração `KnowledgeArticleIntegrationTests` (3 testes na cadeia
+  nova — compilam, não executam sem Docker).
+- Docs: **ADR-034** (novo), docs/04 §Publicação reescrita.
+
+### Validação
+
+- build 0 erros · unit **1775/1775** (+4 líquidos) · arch **115/115** ·
+  front lint exit 0 / build ✓.
+
+### Pendências da K2
+
+- Testes de integração não executados (Docker); migração **nenhuma**
+  nova (enum em string).
