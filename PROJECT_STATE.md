@@ -657,6 +657,33 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   lint/build 0. Backlog: nome do alvo no card, origem automática na
   criação. docs/31 §19 · docs/04 §Origem · TASKS F24-T004 [x].
 
+- Fase 24-T005 / K5 (Knowledge — revisão periódica, spec docs/32 §6
+  governança + §12) concluída (2026-10-07, mesma autorização da Fase
+  24 inteira): **campos de governança da §6** no domínio —
+  `NextReviewAt` + `ReviewIntervalDays` (1..3650, 400 pt-BR) +
+  `ReviewResponsibleId` (§6 distingue "responsável" = K1 de
+  "responsável pela revisão" = K5), invariante data⟺intervalo. Dois
+  endpoints novos: `PUT {id}/review-schedule` (**agenda à parte do
+  PUT do artigo** — PUT é full-state com opcionais e clientes antigos
+  apagariam a agenda; mesma reflexão do ADR-033) e `POST
+  {id}/review/confirm` (ação **manter**, 409 `O artigo não tem
+  revisão periódica configurada.`). Ações da §12 sem endpoint novo:
+  atualizar = `PUT` (`PostponeReview()` reagenda sozinho), arquivar =
+  `POST {id}/status` (ADR-034), substituir = conteúdo novo (`PUT`) +
+  origem (K4). **Alerta** "Knowledge necessita de revisão" = filtro
+  `?pendingReview=true` (repo: `NextReviewAt <= now`, capturado fora)
+  + flag `pendingReview` no DTO (+ `nextReviewAt`,
+  `reviewIntervalDays`, `reviewResponsibleId/Name` — revisor no
+  `NameIds` do batch K1). Front: botão "Revisões" (toggle) + chip
+  âmbar "Revisar" no card. Migração **`20261008012115_AddKnowledge-
+  ArticleReview`** (3 colunas nullable, sem backfill; script validado,
+  não aplicada — pendências agora **12**). Testes +9
+  (`KnowledgeArticleReviewTests` — agenda/400/404/limpeza/confirm/409/
+  edição reagenda/filtro; envelhecimento da linha via SQL direto,
+  sem trocar o relógio estático compartilhado) → unit **1808/1808** ·
+  arch **115/115** · build 0 · front lint/build 0. docs/31 §20 ·
+  docs/04 §Revisão periódica · TASKS F24-T005 [x].
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

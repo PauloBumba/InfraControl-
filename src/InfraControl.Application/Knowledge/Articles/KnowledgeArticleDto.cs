@@ -1,4 +1,5 @@
 using InfraControl.Application.Knowledge.Articles.Ports;
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 
@@ -43,6 +44,20 @@ public sealed record KnowledgeArticleDto(
     // docs/32 §8). O histórico completo fica em GET {id}/versions.
     public string Version { get; init; } = "1.0";
 
+    // F24-T005/K5 — governança (spec docs/32 §6 + §12): próxima
+    // revisão, intervalo configurado (ex.: 180 dias) e responsável
+    // pela revisão (nome resolvido no mesmo batch do autor).
+    public DateTime? NextReviewAt { get; init; }
+    public int? ReviewIntervalDays { get; init; }
+    public Guid? ReviewResponsibleId { get; init; }
+    public string? ReviewResponsibleName { get; init; }
+
+    /// <summary>
+    /// Alerta da §12 — "Knowledge necessita de revisão": próxima
+    /// revisão vencida (comparada ao relógio do app).
+    /// </summary>
+    public bool PendingReview { get; init; }
+
     /// <summary>
     /// Leitura a partir da entidade + nomes resolvidos (join em
     /// DomainUsers). Vínculos (device/incident/service) continuam só no
@@ -69,12 +84,19 @@ public sealed record KnowledgeArticleDto(
             ResponsibleId = article.ResponsibleId,
             ResponsibleName = NameOf(userNames, article.ResponsibleId),
             Version = article.Version,
+            NextReviewAt = article.NextReviewAt,
+            ReviewIntervalDays = article.ReviewIntervalDays,
+            ReviewResponsibleId = article.ReviewResponsibleId,
+            ReviewResponsibleName = NameOf(userNames, article.ReviewResponsibleId),
+            PendingReview = article.NextReviewAt is { } due
+                && due <= AppTimeProvider.Current.GetUtcNow().UtcDateTime,
         };
     }
 
     /// <summary>
-    /// Resolve autor/responsável num único round-trip (dois ids) — usada
-    /// pelos handlers de leitura/escrita de um único artigo.
+    /// Resolve autor/responsável/responsável pela revisão num único
+    /// round-trip — usada pelos handlers de leitura/escrita de um
+    /// único artigo.
     /// </summary>
     internal static async Task<KnowledgeArticleDto> FromAsync(
         KnowledgeArticle article,
@@ -88,7 +110,12 @@ public sealed record KnowledgeArticleDto(
         return From(article, names);
     }
 
-    /// <summary>Ids de usuário (autor + responsável) a resolver, sem duplicata.</summary>
+    /// <summary>Ids de usuário (autor + responsável + revisor) a resolver, sem duplicata.</summary>
     internal static Guid[] NameIds(KnowledgeArticle article)
-        => [.. new[] { article.AuthorId, article.ResponsibleId }.OfType<Guid>().Distinct()];
+        => [.. new[]
+        {
+            article.AuthorId,
+            article.ResponsibleId,
+            article.ReviewResponsibleId,
+        }.OfType<Guid>().Distinct()];
 }

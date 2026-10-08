@@ -43,7 +43,9 @@ public sealed class UpdateKnowledgeArticleViewModel
     [MaxLength(500, ErrorMessage = "O motivo da alteração pode ter no máximo 500 caracteres.")]
     public string Reason { get; set; } = string.Empty;
 
-    // F24-T001/K1 — identificação (docs/32 §5–§6).
+    // F24-T005/K5 — governança (docs/32 §6/§12): agenda de revisão é
+    // configurada à parte (PUT review-schedule), nunca no PUT do
+    // artigo (evita apagar a agenda quando o cliente não envia o campo).
     public string? Type { get; set; }
 
     [MaxLength(500, ErrorMessage = "A descrição do artigo pode ter no máximo 500 caracteres.")]
@@ -52,6 +54,16 @@ public sealed class UpdateKnowledgeArticleViewModel
     public List<string>? Tags { get; set; }
 
     public Guid? ResponsibleId { get; set; }
+}
+
+/// <summary>F24-T005/K5 — agenda de revisão periódica (docs/32 §12).</summary>
+public sealed class SetKnowledgeArticleReviewScheduleViewModel
+{
+    /// <summary>Dias até a próxima revisão (1..3650); null = sem revisão periódica.</summary>
+    [Range(1, 3650, ErrorMessage = "O intervalo de revisão deve estar entre 1 e 3650 dias.")]
+    public int? IntervalDays { get; set; }
+
+    public Guid? ReviewResponsibleId { get; set; }
 }
 
 /// <summary>F10-T003: corpo do POST {id}/status — o valor em si é

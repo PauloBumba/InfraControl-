@@ -218,4 +218,37 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
             cancellationToken);
         return NoContent();
     }
+
+    // F24-T005/K5: revisão periódica (docs/32 §6 governança + §12).
+    // Agenda à parte do PUT do artigo; "manter" = reconfirmar. As
+    // outras ações da §12 já existem: "atualizar" = PUT (reagenda) e
+    // "arquivar" = POST {id}/status (ADR-034).
+
+    /// <summary>Configura/limpa a agenda de revisão (intervalo em dias +
+    /// responsável) — 400 pt-BR fora de 1..3650 (Operate).</summary>
+    [HttpPut("{id:guid}/review-schedule")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SetReviewSchedule(
+        Guid id,
+        [FromBody] SetKnowledgeArticleReviewScheduleViewModel model,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new SetKnowledgeArticleReviewScheduleCommand(
+                id, model.IntervalDays, model.ReviewResponsibleId),
+            cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Ação "manter" da §12: revisão feita sem mudar o conteúdo
+    /// → reagenda (409 sem agenda configurada) (Operate).</summary>
+    [HttpPost("{id:guid}/review/confirm")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ConfirmReview(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new ConfirmKnowledgeArticleReviewCommand(id), cancellationToken);
+        return NoContent();
+    }
 }

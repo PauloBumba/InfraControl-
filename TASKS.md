@@ -353,7 +353,7 @@ por checkpoint, com aprovação do usuário (mesmo processo da Fase 23).
 - [x] **F24-T002 Workflow dos status (K2)** <!-- CONCLUÍDA 2026-10-07 (ADR-034, docs/31 §17, docs/04 §Publicação): 8 estados da docs/32 §7 (InReview único; rótulos verbatim "Publicada"/"Arquivada"), números legados 0/1/2 estáveis + 3–7, matriz de 16 pares (cadeia Draft→InReview→Approved→Published; revisão Published→InReview→Updated; saídas Archived/Obsolete/Rejected→Draft), 409 fora da matriz, 400 com as 8 opções, visibilidade generalizada (includeUnpublished + KnowledgeArticleStatusRules — coleção do domínio vira IN; GET 404 por IsUnpublished), rota/policy/DTO inalterados, sem migração de dados. Testes reescritos (+4 líquidos) → unit 1775/1775 · arch 115/115 · front lint/build 0. -->
 - [x] **F24-T003 Versionamento (K3)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §18, docs/04 §Versionamento): tabela knowledge_article_versions (snapshot completo = "alteração" da §8 + motivo obrigatório + autor/data + aprovador carimbado na aprovação K2), numeração no domínio (v1.0 → minor → major novo pós-aprovação), endpoints GET {id}/versions (ordem numérica, nomes, isCurrent) e /versions/compare (dois snapshots; 404 pt-BR), PUT ganhou reason [Required], FK Cascade/SetNull + backfill v1.0 dos artigos existentes na migração 20261008004732 (script validado, não aplicada). Testes novos 8+8 → unit 1791/1791 · arch 115/115 · front lint/build 0. Histórico no front = backlog. -->
 - [x] **F24-T004 Rastreabilidade de origem (K4)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §19, docs/04 §Origem): tabela nova knowledge_article_origins (artigo-centro e polimórfica — NÃO estendeu task_knowledge_articles, que é task-centro de USO/§10) com origin_type string (Task/Pdi/Incident — Projetos/documentos/treinamentos fora por não existirem) + origin_id sem FK (validação por tipo no handler, precedente ADR-033) + FK Cascade + chave única; POST/DELETE {id}/origins/{type}/{originId} no molde F10-T004 (400/404 por tipo/409); origins no DTO vindo em lote na busca (sem N+1) e no detalhe; front chips Task/PDI/Chamado. Migração 20261008010616 (script validado, não aplicada — 11 pendentes). Testes +8 → unit 1799/1799 · arch 115/115 · front lint/build 0. -->
-- [ ] **F24-T005 Revisão periódica (K5)** <!-- docs/32 §12: próxima revisão (ex.: a cada 180 dias), responsável pela revisão, alerta "Knowledge necessita de revisão" e ações manter/atualizar/substituir/arquivar — campos de governança (§6) + filtro "pendentes de revisão" + testes. -->
+- [x] **F24-T005 Revisão periódica (K5)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §20, docs/04 §Revisão periódica): campos de governança §6 no domínio (NextReviewAt/ReviewIntervalDays 1..3650/ReviewResponsibleId — invariante data⟺intervalo) + PUT {id}/review-schedule (agenda à parte do PUT do artigo para não apagar com cliente antigo) + POST {id}/review/confirm (ação manter, 409 sem agenda); atualizar=PUT reagenda sozinho (PostponeReview), arquivar=status, substituir=PUT+origem K4; alerta = filtro ?pendingReview=true + flag pendingReview no DTO (revisor no batch de nomes) + front toggle "Revisões" e chip "Revisar". Migração 20261008012115 (3 colunas nullable, script validado, não aplicada — 12 pendentes). Testes +9 (envelhecer linha via SQL — sem relógio falso global) → unit 1808/1808 · arch 115/115 · front lint/build 0. -->
 - [ ] **F24-T006 Geração automática de rascunho (K6)** <!-- docs/32 §2–§4: botão "Gerar Knowledge" ao concluir Task/PDI → rascunho baseado SOMENTE nos registros existentes (objetivo, timeline, decisões, evidências, resultado) — nunca inventar; sempre entra por revisão. SEM infra de IA no repo (docs/31 §12): antes de implementar, definir arquitetura (rascunho montado dos registros × orçamento de LLM) — possível ADR. -->
 - [ ] **F24-T007 Busca avançada (K7)** <!-- docs/32 §13: busca por título, conteúdo, categoria, tags, autor, sistema, setor, tipo e palavras-chave (hoje `term` só em Title/Content — docs/31 §12). Escopo: índices/filtros no repositório + front (chips de filtro), testes de query. -->
 
@@ -479,7 +479,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F24-T002 Knowledge: workflow dos status (K2) — concluída (2026-10-07, ADR-034)
 - [x] F24-T003 Knowledge: versionamento (K3) — concluída (2026-10-07)
 - [x] F24-T004 Knowledge: rastreabilidade de origem (K4) — concluída (2026-10-07)
-- [ ] F24-T005 Knowledge: revisão periódica (K5)
+- [x] F24-T005 Knowledge: revisão periódica (K5) — concluída (2026-10-07)
 - [ ] F24-T006 Knowledge: geração automática de rascunho (K6)
 - [ ] F24-T007 Knowledge: busca avançada (K7)
 - [ ] F25-T001 Indicadores de Tasks/PDI/Knowledge (§2–§4)
@@ -516,13 +516,14 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   `20261007225543_AddTaskKnowledgeArticles`,
   `20261007232706_AddTaskPdis`,
   `20261008001827_AddKnowledgeArticleIdentification`,
-  `20261008004732_AddKnowledgeArticleVersioning` e
-  `20261008010616_AddKnowledgeArticleOrigins` **não aplicadas** em
+  `20261008004732_AddKnowledgeArticleVersioning`,
+  `20261008010616_AddKnowledgeArticleOrigins` e
+  `20261008012115_AddKnowledgeArticleReview` **não aplicadas** em
   banco dev (Docker indisponível — decisão do usuário "não roda o
   docker"); scripts das migrações validados. Commit realizado (ver
   entrada acima). Quando houver ambiente: `dotnet test
   tests/InfraControl.IntegrationTests` → `dotnet ef database update`
-  (11 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§19.
+  (12 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§20.
 
 - [x] **Retenção/cleanup de `monitoring_events`** — CONCLUÍDA (2026-10-03,
   janela **90 dias** decidida pelo usuário): 8º tipo `RetentionDataType.

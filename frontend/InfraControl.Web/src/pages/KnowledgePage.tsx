@@ -88,6 +88,8 @@ export function KnowledgePage() {
   const [page, setPage] = useState(1);
   const [term, setTerm] = useState("");
   const [termInput, setTermInput] = useState("");
+  // F24-T005/K5 — filtro "pendentes de revisão" (docs/32 §12).
+  const [pendingOnly, setPendingOnly] = useState(false);
 
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
@@ -107,14 +109,19 @@ export function KnowledgePage() {
     setError(null);
     try {
       setPageData(
-        await listArticles({ term: term || undefined, page, pageSize: PAGE_SIZE }),
+        await listArticles({
+          term: term || undefined,
+          page,
+          pageSize: PAGE_SIZE,
+          pendingReview: pendingOnly || undefined,
+        }),
       );
     } catch (caught) {
       setError(messageFor(caught));
     } finally {
       setLoading(false);
     }
-  }, [term, page]);
+  }, [term, page, pendingOnly]);
 
   useEffect(() => {
     void load();
@@ -222,11 +229,26 @@ export function KnowledgePage() {
               >
                 Filtrar
               </Button>
+              {/* F24-T005/K5 — alerta §12 ("Knowledge necessita de
+                  revisão") como filtro + chip no card. */}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => { setPendingOnly((value) => !value); setPage(1); }}
+                style={{
+                  padding: "5px 10px",
+                  ...(pendingOnly
+                    ? { background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }
+                    : {}),
+                }}
+              >
+                <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
+              </Button>
               {term && (
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
+                  onClick={() => { setTermInput(""); setTerm(""); setPendingOnly(false); setPage(1); }}
                   style={{ padding: "5px 10px" }}
                 >
                   Limpar
@@ -365,6 +387,16 @@ export function KnowledgePage() {
                       label={typeLabel}
                       background="#f5f3ff"
                       color="#7c3aed"
+                      fontSize={10}
+                      fontWeight={600}
+                    />
+                  )}
+                  {/* F24-T005/K5 — "Knowledge necessita de revisão" (§12). */}
+                  {article.pendingReview && (
+                    <StatusChip
+                      label="Revisar"
+                      background="#fef3c7"
+                      color="#92400e"
                       fontSize={10}
                       fontWeight={600}
                     />

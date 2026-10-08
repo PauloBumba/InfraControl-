@@ -15,7 +15,10 @@ namespace InfraControl.Application.Knowledge.Articles.Queries;
 public sealed record SearchKnowledgeArticlesQuery(
     string? Term = null,
     int Page = 1,
-    int PageSize = 20) : IQuery<PagedResult<KnowledgeArticleDto>>, IAuthorizedRequest
+    int PageSize = 20,
+    // F24-T005/K5 (docs/32 §12): filtro "pendentes de revisão" —
+    // próxima revisão vencida ("Knowledge necessita de revisão").
+    bool PendingReview = false) : IQuery<PagedResult<KnowledgeArticleDto>>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
@@ -37,6 +40,7 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
         var result = await repository.SearchAsync(
             term, page, pageSize,
             includeUnpublished: CanSeeUnpublished(currentUser),
+            pendingReview: request.PendingReview,
             cancellationToken);
 
         // F24-T001/K1: nomes de autor/responsável da página inteira num

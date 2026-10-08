@@ -1082,3 +1082,84 @@ treinamentos).
   card (hoje só tipo+id, como desenha a §9 "Task #0042") = backlog;
   origem automática ao "criar artigo a partir de uma task" = backlog
   com a UI de edição.
+
+## 20. Execução — K5 / F24-T005 (Fase 24, 2026-10-07)
+
+**Revisão periódica** (spec `docs/32` §6 governança + §12 — "Revisar
+Knowledge a cada 180 dias" → "Knowledge necessita de revisão" →
+manter/atualizar/substituir/arquivar). Sem precedente de agenda no
+repo; o molde dos endpoints/validação foi o K1 (`EnsureResponsible-
+ExistsAsync` para o responsável) e o do 409, os vínculos.
+
+### Design (decisões da task)
+
+- **Campos de governança da §6** no domínio: `NextReviewAt`,
+  `ReviewIntervalDays` (ex.: 180) e `ReviewResponsibleId` (§6
+  distingue "responsável" do artigo = K1 de "responsável pela
+  revisão" = K5). Invariante: `nextReviewAt` não-nulo ⟺ `interval`
+  não-nulo. Intervalo **1..3650** (`Min/MaxReviewIntervalDays` no
+  domínio; fora = 400 `O intervalo de revisão deve estar entre 1 e
+  3650 dias.` — VM `[Range]` + domínio).
+- **Agenda à parte do PUT do artigo** (`PUT {id}/review-schedule`):
+  o PUT do artigo é full-state com opcionais — mandar `null` não
+  distinguiria "limpar" de "não enviou" e clientes antigos apagariam
+  a agenda (mesma reflexão do ADR-033 sobre presença do campo).
+- **Ações da §12 mapeadas sem inventar endpoint novo**: manter =
+  `POST {id}/review/confirm` (`ConfirmReview` → 409 sem agenda);
+  atualizar = `PUT` do artigo (`PostponeReview()` no handler —
+  reagenda sozinho, no-op sem agenda); substituir = reescrever o
+  conteúdo (`PUT`) ou arquivar + origem no substituto (K4); arquivar =
+  `POST {id}/status` (ADR-034).
+- **Alerta = filtro + flag** (escopo da task: "filtro pendentes de
+  revisão"): `SearchKnowledgeArticlesQuery(+PendingReview)` →
+  repositório `NextReviewAt != null && <= now` (`now` capturado fora —
+  EF não traduz `AppTimeProvider`); DTO ganhou `pendingReview`
+  (comparação no `From`) + `nextReviewAt/reviewIntervalDays/
+  reviewResponsibleId/reviewResponsibleName` (revisor entrou no
+  `NameIds` do batch K1 — round-trip único, sem N+1).
+- **Front**: `knowledge.ts` +5 campos + `ArticleFilters.pendingReview`;
+  KnowledgePage: botão **"Revisões"** (toggle amarelo ao lado de
+  "Filtrar"; "Limpar" reseta) e chip âmbar **"Revisar"** no card quando
+  `pendingReview`.
+- **Testes sem relógio falso global**: `AppTimeProvider.Current` é
+  estático e os testes rodam em paralelo — envelhecer a linha é feito
+  com SQL direto (`UPDATE ... SET "NextReviewAt" = datetime('now',
+  '-1 day')`), não trocando o relógio compartilhado.
+
+### Migração `20261008012115_AddKnowledgeArticleReview`
+
+- 3 colunas nullable em `knowledge_articles` (`"NextReviewAt"`,
+  `"ReviewIntervalDays"`, `"ReviewResponsibleId"`) — sem backfill
+  (agenda nova por artigo); **script validado**, **não aplicada**
+  (Docker) — pendências de migração agora **12**.
+
+### Arquivos alterados/criados
+
+- Domínio: `KnowledgeArticle` (+3 campos, `SetReviewSchedule` /
+  `ConfirmReview` / `PostponeReview`, `Min/MaxReviewIntervalDays`).
+- Application: **`KnowledgeArticleReviewCommands`** (novo — set
+  schedule + confirm), `SearchKnowledgeArticlesQuery(+PendingReview)`,
+  port `SearchAsync(+pendingReview)`, DTO (+5 campos, `NameIds` com
+  revisor, `PendingReview` no `From`).
+- Infra: `KnowledgeArticleRepository.SearchAsync` +filtro; migração.
+- API: VM `SetKnowledgeArticleReviewScheduleViewModel` (`[Range]`) +
+  controller +`PUT {id}/review-schedule` e `POST {id}/review/confirm`.
+- Front: contrato + toggle "Revisões" + chip "Revisar".
+- Testes: **`KnowledgeArticleReviewTests`** (9 — agenda calculada +
+  responsável nomeado, 400 de intervalo ×2, 404 de responsável,
+  limpeza, confirm reagenda, 409 sem agenda, edição reagenda, filtro
+  pendentes).
+- Docs: docs/04 §Revisão periódica, docs/31 §20, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1808/1808** (+9) · arch **115/115** · script
+  da migração OK · front lint exit 0 / build ✓.
+
+### Pendências da K5
+
+- Migração `AddKnowledgeArticleReview` não aplicada + testes de
+  integração não executados (Docker); ação **substituir** por outro
+  artigo com destaque/redirect = backlog (hoje = conteúdo novo via
+  PUT + origem K4); notificação push/e-mail do alerta (o §12 só diz
+  "alerta") = backlog.

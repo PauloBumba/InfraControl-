@@ -175,6 +175,10 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
         article.SetIdentification(
             type, request.Description, request.Tags, request.ResponsibleId);
 
+        // F24-T005/K5 (docs/32 §12): "atualizar" satisfaz a revisão →
+        // reagenda a próxima (no-op quando não há intervalo).
+        article.PostponeReview();
+
         // F24-T003/K3 (docs/32 §8): edição = nova versão (minor, ou
         // major novo se houve aprovação) + snapshot imutável com o
         // motivo — SnapshotOf valida motivo vazio/longo em pt-BR (400).

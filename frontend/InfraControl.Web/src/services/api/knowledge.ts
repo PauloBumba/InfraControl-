@@ -35,6 +35,15 @@ export interface KnowledgeArticle {
    * busca e no detalhe. Type = "Task" | "Pdi" | "Incident".
    */
   origins: { type: string; id: string }[];
+  /**
+   * F24-T005/K5 — governança (docs/32 §6/§12): agenda de revisão
+   * periódica. `pendingReview` = "Knowledge necessita de revisão".
+   */
+  nextReviewAt: string | null;
+  reviewIntervalDays: number | null;
+  reviewResponsibleId: string | null;
+  reviewResponsibleName: string | null;
+  pendingReview: boolean;
   /** Vínculos F10-T004 — só populados no GET/{id}; a busca devolve []. */
   deviceIds: string[];
   incidentIds: string[];
@@ -71,6 +80,8 @@ export interface ArticleFilters {
   term?: string;
   page?: number;
   pageSize?: number;
+  /** F24-T005/K5 — só artigos com revisão vencida (docs/32 §12). */
+  pendingReview?: boolean;
 }
 
 /** Busca com `term` (substring no repositório); pageSize clampado 1..100. */
@@ -81,6 +92,7 @@ export async function listArticles(
   if (filters.term) params.set("term", filters.term);
   if (filters.page) params.set("page", String(filters.page));
   if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
+  if (filters.pendingReview) params.set("pendingReview", "true");
 
   const query = params.toString();
   const data = await api.get<Paged<KnowledgeArticle>>(

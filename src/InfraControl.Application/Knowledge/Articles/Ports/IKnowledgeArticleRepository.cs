@@ -10,13 +10,15 @@ public interface IKnowledgeArticleRepository : IRepository<KnowledgeArticle>
     /// (CreateDateTime desc). <paramref name="includeUnpublished"/> =
     /// false esconde os nunca-publicados (Draft/InReview/Approved/
     /// Rejected) de quem não escreve — ADR-034 §4 (regra F10-T003
-    /// generalizada).
+    /// generalizada). <paramref name="pendingReview"/> = true devolve
+    /// só os com revisão vencida (F24-T005/K5, docs/32 §12).
     /// </summary>
     Task<PagedResult<KnowledgeArticle>> SearchAsync(
         string? term,
         int page,
         int pageSize,
         bool includeUnpublished,
+        bool pendingReview,
         CancellationToken cancellationToken = default);
 
     /// <summary>

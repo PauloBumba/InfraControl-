@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
@@ -178,6 +179,63 @@ public sealed class KnowledgeArticle : AggregateRoot
     {
         var major = int.Parse(Version.Split('.')[0]);
         _versionMajorFloor = Math.Max(_versionMajorFloor, major + 1);
+    }
+
+    // ── F24-T005/K5 — revisão periódica (spec docs/32 §6/§12) ──────────
+    //
+    // Governança da §6: "próxima revisão" + "responsável pela revisão";
+    // §12: "Revisar Knowledge a cada 180 dias" → intervalo por artigo.
+    // Invariante: NextReviewAt não-nulo ⟺ ReviewIntervalDays não-nulo
+    // (só o intervalo calcula a data — setar intervalo null limpa).
+
+    public const int MinReviewIntervalDays = 1;
+    public const int MaxReviewIntervalDays = 3650;
+
+    public DateTime? NextReviewAt { get; private set; }
+    public int? ReviewIntervalDays { get; private set; }
+    public Guid? ReviewResponsibleId { get; private set; }
+
+    /// <summary>
+    /// Configura/limpa a revisão periódica: próxima revisão = hoje +
+    /// intervalo. Intervalo fora de 1..3650 = 400 pt-BR (a limpeza, com
+    /// null, passa direto).
+    /// </summary>
+    public void SetReviewSchedule(int? intervalDays, Guid? reviewResponsibleId)
+    {
+        if (intervalDays is < MinReviewIntervalDays or > MaxReviewIntervalDays)
+            throw new ArgumentException(
+                $"O intervalo de revisão deve estar entre {MinReviewIntervalDays} "
+                + $"e {MaxReviewIntervalDays} dias.",
+                nameof(intervalDays));
+
+        ReviewIntervalDays = intervalDays;
+        ReviewResponsibleId = reviewResponsibleId;
+        NextReviewAt = intervalDays is { } days
+            ? AppTimeProvider.Current.GetUtcNow().UtcDateTime.AddDays(days)
+            : null;
+    }
+
+    /// <summary>
+    /// Ação "manter" da §12: a revisão foi feita sem mudar o conteúdo →
+    /// reagenda a próxima revisão. Sem intervalo = 409 pt-BR.
+    /// </summary>
+    public void ConfirmReview()
+    {
+        if (ReviewIntervalDays is not int interval)
+            throw new InvalidOperationException(
+                "O artigo não tem revisão periódica configurada.");
+
+        NextReviewAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime.AddDays(interval);
+    }
+
+    /// <summary>
+    /// Ação "atualizar" da §12: editar o artigo satisfaz a revisão →
+    /// reagenda (no-op quando não há intervalo configurado).
+    /// </summary>
+    public void PostponeReview()
+    {
+        if (ReviewIntervalDays is int interval)
+            NextReviewAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime.AddDays(interval);
     }
 
     /// <summary>

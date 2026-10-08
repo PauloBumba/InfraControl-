@@ -1,6 +1,7 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Knowledge.Articles.Ports;
 using InfraControl.BuildingBlocks.Domain;
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -30,6 +31,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         int page,
         int pageSize,
         bool includeUnpublished,
+        bool pendingReview,
         CancellationToken cancellationToken = default)
     {
         var query = dbContext.KnowledgeArticles.AsNoTracking().AsQueryable();
@@ -47,6 +49,16 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         if (!includeUnpublished)
             query = query.Where(article =>
                 !KnowledgeArticleStatusRules.UnpublishedStatuses.Contains(article.Status));
+
+        // F24-T005/K5 (docs/32 §12): só os com revisão vencida —
+        // "Knowledge necessita de revisão". `now` capturado fora (EF
+        // não traduz AppTimeProvider na expressão).
+        if (pendingReview)
+        {
+            var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+            query = query.Where(article =>
+                article.NextReviewAt != null && article.NextReviewAt <= now);
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

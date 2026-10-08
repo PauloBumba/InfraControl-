@@ -721,6 +721,36 @@ entra valor novo no enum + validação).
 - A figura da §9 fica fechada: origem (K4) + autor (K1) + revisão =
   aprovador (K2/K3) + versão (K3).
 
+### Revisão periódica (F24-T005/K5 — spec docs/32 §6 + §12)
+
+Governança da §6 ("próxima revisão" + "responsável pela revisão") e a
+revisão periódica da §12 ("Revisar Knowledge a cada 180 dias"):
+
+- **Agenda à parte do PUT do artigo** (evita que um cliente que não
+  envia o campo apague a agenda):
+  - `PUT api/v1/knowledge/articles/{id}/review-schedule` (`Operate`)
+    — `{ intervalDays, reviewResponsibleId }`; `intervalDays` 1..3650
+    (400 `O intervalo de revisão deve estar entre 1 e 3650 dias.` via
+    VM e domínio); `null` limpa a agenda; responsável inexistente =
+    404 `Usuário '{id}' não encontrado.` (mesmo molde do K1);
+  - `POST api/v1/knowledge/articles/{id}/review/confirm` (`Operate`) —
+    ação **manter** da §12: revisão feita sem mudar conteúdo →
+    próxima revisão = hoje + intervalo; sem agenda = 409
+    `O artigo não tem revisão periódica configurada.`
+- As outras ações da §12 já existem: **atualizar** = `PUT` do artigo
+  (reagenda a próxima revisão sozinho), **arquivar** = `POST {id}/status`
+  (ADR-034) e **substituir** = reescrever o conteúdo (`PUT`) ou
+  arquivar + apontar a origem no substituto (K4).
+- **Alerta** "Knowledge necessita de revisão": filtro
+  `GET /knowledge/articles?pendingReview=true` (próxima revisão
+  vencida — `NextReviewAt <= agora`) + flag `pendingReview` no DTO. O
+  card exibe o chip âmbar **"Revisar"** e a barra de busca ganhou o
+  botão **"Revisões"** (toggle) para listar só os pendentes.
+- Campos no DTO: `nextReviewAt`, `reviewIntervalDays`,
+  `reviewResponsibleId`, `reviewResponsibleName` (resolvido no mesmo
+  batch do autor) e `pendingReview`. Invariante do domínio:
+  `nextReviewAt` não-nulo ⟺ `reviewIntervalDays` não-nulo.
+
 ### Relacionamentos (F10-T004)
 
 Vínculos N:N do artigo (tabelas `knowledge_article_devices`,

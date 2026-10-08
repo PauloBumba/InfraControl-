@@ -673,9 +673,18 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
 
+                    b.Property<DateTime?>("NextReviewAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("ResponsibleId")
                         .HasColumnType("uuid")
                         .HasColumnName("responsible_id");
+
+                    b.Property<int?>("ReviewIntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ReviewResponsibleId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsRequired()
