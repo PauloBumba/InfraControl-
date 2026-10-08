@@ -33,6 +33,8 @@
 29. [Backlog Operations UX](29-OPERATIONS-UX-BACKLOG.md)
 30. [Plano de módulo PDI](30-PLANO-MODULO-PDI.md)
 31. [Tasks — Plano de Execução (gap analysis)](31-TASKS-PLANO-EXECUCAO.md)
+32. [Plano de módulo Knowledge (spec)](32-PLANO-MODULO-KNOWLEDGE.md)
+33. [Plano de Indicadores e Relatórios (spec)](33-PLANO-INDICADORES-RELATORIOS.md)
 
 ## ADRs
 
