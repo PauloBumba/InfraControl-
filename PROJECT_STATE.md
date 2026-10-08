@@ -352,6 +352,28 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   (plano sem gestor não fecha o ciclo — mesma lacuna da Fase 5).
   Docs: ADR-036, docs/30 (situação+§25), docs/29 §8, TASKS.
 
+- PDI Fase 7 — Gestão concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §18, §19, §20): **ADR-037**
+  (`docs/adr/ADR-037-PDI-DASHBOARDS.md`). 3 dashboards de leitura
+  **sem migração**: §18 `GET /pdi/{userId}/dashboard` (progresso =
+  média dos % das fases, chips de fase, próximo prazo = menor
+  `EndDate` não concluída, pendências/totais; `EnsureCanView` + 404/
+  403), §19 `GET /pdi/manager/dashboard` (novo `ListByManagerAsync`;
+  partição exata 🔴 atrasado × 🟡 atenção (impedimento aberto |
+  evidência pendente | fase aguardando validação) × 🟢 dentro do
+  prazo; fases a vencer em 7 dias; `Plans[]` = acesso direto aos
+  casos), §20 `GET /pdi/admin/dashboard` (`Administer` + check no
+  handler; contagens por status em partição exata, taxa de conclusão,
+  agregados globais). Front `PdiDashboardPanels.tsx` (faixa do card
+  "Meu plano", card "Meus PDIs" 🟢/🟡/🔴 com "Abrir" → avaliação,
+  card "visão administrativa"); painéis opcionais (erro não derruba a
+  página); período/filtros do mock ficam para a Fase 8. Testes:
+  `PdiDashboardTests` **7/7** · PDI **173/173** · unit **1628/1628** ·
+  arch **117/117** · front tsc/lint/build verdes · containers
+  reconstruídos healthy (sem migração) · E2E **32/32**
+  (`pdi_fase7_e2e.py`) + regressão Fase 6 **31/31** e Fase 5
+  **63/63**. Docs: ADR-037, docs/30 (situação+§25), docs/29 §8, TASKS.
+
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
 

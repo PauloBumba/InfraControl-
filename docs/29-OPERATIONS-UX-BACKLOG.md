@@ -209,6 +209,30 @@ documentada antes da tela.
      ciclo `Replanejado → Replanned → Active`, auditoria SQL, 2
      colaboradores convidados, purga de resíduo) + regressão Fase 5
      **63/63**.
+   - **Fase 7 — Gestão executada em 2026-10-07** (ADR-037): 3
+     dashboards de leitura **sem migração** — §18 `GET
+     /pdi/{userId}/dashboard` (progresso = média dos % das fases,
+     chips de fase ✓●◐○, próximo prazo = menor `EndDate` não
+     concluída, pendências = impedimentos abertos + totais de
+     evidências/check-ins; `EnsureCanView` + 404 sem plano + 403
+     estranho), §19 `GET /pdi/manager/dashboard` (novo
+     `ListByManagerAsync`; partição exata 🔴 atrasado (meta vencida) ×
+     🟡 atenção (impedimento `Open` | evidência `Pending` | fase
+     `PendingValidation`) × 🟢 dentro do prazo (inclui
+     concluídos/cancelados), fases a vencer em 7 dias, agregados e
+     `Plans[]` com flags + nome = "acesso direto aos casos"), §20 `GET
+     /pdi/admin/dashboard` (policy `Administer` + check no handler;
+     contagens por status em partição exata — "em andamento" =
+     complementar —, taxa de conclusão e agregados globais); front
+     `PdiDashboardPanels.tsx` (faixa dentro do card "Meu plano", card
+     "Meus PDIs — N colaboradores" com 🟢/🟡/🔴 e botão "Abrir" →
+     diálogo de avaliação, card "visão administrativa" com 2 faixas de
+     `Stat`); painéis opcionais (erro não derruba a página); rótulo de
+     período do mock **não** entrou (filtro/relatório = Fase 8); acesso
+     direto abre a **avaliação** — estrutura segue restrita a
+     dono/Admin (guard ADR-032); testes `PdiDashboardTests` **7/7**;
+     E2E **32/32** (`/tmp/opencode/pdi_fase7_e2e.py`) + regressão Fase
+     6 **31/31** e Fase 5 **63/63**.
 
 ## Ordem de execução
 
