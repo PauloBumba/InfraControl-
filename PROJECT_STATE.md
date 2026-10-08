@@ -233,7 +233,7 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   `PdiCheckIn` (bilateral: relato do dono + resposta do gestor,
   `RespondedAt/RespondedById` só no lado resposta), `PdiImpediment`
   (§11 com status `Open→Resolved` + `ResolvedAt` derivado; tipo texto
-  livre — lookup = Fase 8), `PdiFeedback` (§13 histórico; excluir =
+  livre — lookup fora do escopo, pendente — ADR-038), `PdiFeedback` (§13 histórico; excluir =
   só Admin). Application: `PdiAccess` estendido com permissão **por
   ação** (View=Admin/dono/gestor · Report=Admin/dono · Respond=Admin/
   gestor · Assist=Admin/dono/gestor · IsAdmin), +12 métodos em
@@ -373,6 +373,35 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   reconstruídos healthy (sem migração) · E2E **32/32**
   (`pdi_fase7_e2e.py`) + regressão Fase 6 **31/31** e Fase 5
   **63/63**. Docs: ADR-037, docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 8 — Analytics concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §21, §22): **ADR-038**
+  (`docs/adr/ADR-038-PDI-ANALYTICS.md`). 4 queries de leitura **sem
+  migração** com escopo de período único (`TargetDate ∈ [de..até]`;
+  `'de' > 'até'` ou data fora de AAAA-MM-DD = 400): §21 `GET
+  /pdi/indicators` (4 blocos execução/desenvolvimento/acompanha
+  mento/dificuldades, `AvgCompletionDays` do timeline, evolução por
+  competência; Administer + `EnsureAdmin`), §22 `GET
+  /pdi/reports/individual/{userId}` (estrutura + acompanhamento +
+  avaliação via builders extraídos; Operate + `EnsureCanView` →
+  404/403), `GET /pdi/reports/semester` (semestre corrente, rótulo
+  "Nº SEMESTRE YYYY", tendências vs. janela anterior, gestores/
+  competências/dificuldades), `GET /pdi/reports/difficulties` (% por
+  tipo + resolvidos + média de resolução); 6 exports **PDF/Excel**
+  (`?format`, QuestPDF 2026.9.1 + ClosedXML 0.105.1 em
+  `Api/Reporting/`, inválido = 400); `GET /pdi/admin/dashboard`
+  ganhou `from`/`to` (deferido da Fase 7). Front `PdiReportsDialog`
+  (4 abas, filtros De/Até, PDF/Excel; não-admin só a aba Individual)
+  com botões "Relatórios"/"Relatório" no `PdiPage`. Escopos:
+  lookup de tipo de impedimento (texto livre — pendente) e setores
+  (sem campo no domínio) fora. Testes: `PdiAnalyticsTests`
+  **16/16** · PDI **189/189** · unit **1644/1644** · arch
+  **119/119** · front tsc/lint/build verdes · containers
+  reconstruídos healthy (sem migração) · E2E **76/76**
+  (`pdi_fase8_e2e.py`) + regressão Fase 7 **32/32**, Fase 6
+  **31/31**, Fase 5 **63/63** e Fase 4 **50/50**. Docs: ADR-038,
+  docs/30 (situação+§25), docs/29 §8, TASKS. **§25 concluído —
+  módulo PDI completo.**
 
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.

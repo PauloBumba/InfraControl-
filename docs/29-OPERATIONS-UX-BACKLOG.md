@@ -127,7 +127,7 @@ documentada antes da tela.
      enviado preserva; `RespondedAt/RespondedById` só mudam no lado
      resposta), `pdi_impediments` (§11: tipo/descrição/impacto/data/
      responsável/ação + status `Open→Resolved` com `ResolvedAt` derivado
-     e reopen limpa; tipo texto livre — lookup = Fase 8) e
+     e reopen limpa; tipo texto livre — lookup fora do escopo, pendente (Fase 8 decidiu manter texto livre, ADR-038)) e
      `pdi_feedbacks` (§13 histórico autor→destinatário/tipo/conteúdo/
      data; **excluir = só Admin**); FKs `Restrict` → 409; permissão por
      ação em `PdiAccess` (ler = Admin/dono/gestor, relato = Admin/dono,
@@ -228,11 +228,48 @@ documentada antes da tela.
      "Meus PDIs — N colaboradores" com 🟢/🟡/🔴 e botão "Abrir" →
      diálogo de avaliação, card "visão administrativa" com 2 faixas de
      `Stat`); painéis opcionais (erro não derruba a página); rótulo de
-     período do mock **não** entrou (filtro/relatório = Fase 8); acesso
+     período do mock **não** entrou (entrou na Fase 8 — ADR-038); acesso
      direto abre a **avaliação** — estrutura segue restrita a
      dono/Admin (guard ADR-032); testes `PdiDashboardTests` **7/7**;
      E2E **32/32** (`/tmp/opencode/pdi_fase7_e2e.py`) + regressão Fase
      6 **31/31** e Fase 5 **63/63**.
+   - **Fase 8 — Analytics executada em 2026-10-07** (ADR-038): 4
+     queries de leitura **sem migração** com escopo único de período
+     (`TargetDate ∈ [de..até]`, lados nulos = sem limite; `'de' >
+     'até'` = 400; data fora de AAAA-MM-DD = 400) — §21 `GET
+     /pdi/indicators` (Administer + `EnsureAdmin`; 4 blocos:
+     execução com `AvgCompletionDays` do timeline, desenvolvimento
+     com os 4 desfechos do §16 + evolução por competência,
+     acompanhamento com check-ins por plano, dificuldades com
+     distribuição % por tipo e média de resolução), §22 `GET
+     /pdi/reports/individual/{userId}` (Operate + `EnsureCanView` →
+     404 sem plano / 403 estranho; compõe estrutura + acompanhamento
+     + avaliação via builders extraídos das queries existentes),
+     `GET /pdi/reports/semester` (Administer; semestre corrente por
+     padrão, rótulo "Nº SEMESTRE YYYY", `Trends` vs. janela anterior
+     de mesmo tamanho, linhas de gestores/competências/dificuldades)
+     e `GET /pdi/reports/difficulties` (Administer; % por tipo +
+     resolvidos + média); 3 endpoints de **export × 2 formatos = 6
+     saídas PDF/Excel**
+     (`?format=pdf|xlsx`, padrão PDF, inválido = 400) com QuestPDF
+     2026.9.1 + ClosedXML 0.105.1 em `Api/Reporting/`
+     (`PdiExportFormat` + `PdiReportRenderers`); `GET
+     /pdi/admin/dashboard` ganhou `from`/`to` (deferido da Fase 7);
+     front: `pdi.ts` seção Analytics (tipos + 4 getters +
+     `downloadPdiReport` blob) e `PdiReportsDialog.tsx` (4 abas
+     Indicadores/Dificuldades/Individual/Semestral, filtros De/Até,
+     seletor de colaborador, botões PDF/Excel; não-admin só a aba
+     Individual) com botões "Relatórios" (header admin) e
+     "Relatório" (card próprio) no `PdiPage`; **escopos
+     deliberados** — lookup de tipo de impedimento (texto livre,
+     pendente) e **setores** (sem campo no domínio PDI) fora do
+     escopo; testes `PdiAnalyticsTests` **16/16**; suíte unit
+     **1644/1644**, arch **119/119**, PDI **189/189**, front
+     tsc/lint/build verdes; E2E **76/76**
+     (`/tmp/opencode/pdi_fase8_e2e.py`) + regressão Fase 7
+     **32/32**, Fase 6 **31/31**, Fase 5 **63/63** e Fase 4
+     **50/50** (sem migração). **§25 do docs/30 concluído — módulo
+     PDI completo.**
 
 ## Ordem de execução
 
