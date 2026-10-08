@@ -629,6 +629,34 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   front lint/build 0. Histórico no front = backlog (junto com UI de
   edição). docs/31 §18 · docs/04 §Versionamento · TASKS F24-T003 [x].
 
+- Fase 24-T004 / K4 (Knowledge — rastreabilidade de origem, spec
+  docs/32 §9) concluída (2026-10-07, mesma autorização da Fase 24
+  inteira): **tabela nova `knowledge_article_origins`** — decisão de
+  design: **não** estender `task_knowledge_articles` (aquele é
+  task-centro de USO/§10; origem é artigo-centro e polimórfica).
+  `origin_type` string (`KnowledgeOriginType` = Task/Pdi/Incident —
+  Projetos/documentos/treinamentos fora por não existirem no repo,
+  AGENTS "não inventar") + `origin_id` **sem FK** (existência validada
+  por tipo no handler: `Task '{id}' não encontrada.`/`PDI '{id}' não
+  encontrado.`/`Incidente '{id}' não encontrado.` — precedente de refs
+  sem FK do ADR-033), FK `article_id` Cascade, chave única (artigo,
+  tipo, id). `KnowledgeArticleOrigin` AggregateRoot + eventos
+  Created/Deleted (molde `KnowledgeArticleDevice`). Endpoints no molde
+  F10-T004: `POST/DELETE {id}/origins/{type}/{originId}` (`Operate`;
+  400 `Origem inválida: 'x'. Use 'task', 'pdi' ou 'incident'.`, 409
+  duplicado). DTO `KnowledgeArticleOriginDto(Type, Id)` (enum em
+  string — decisão K1) com `origins` no artigo vindo **em lote na
+  busca** (round-trip único + group, critério do batch K1 — sem N+1; ≠
+  vínculos F10-T004 que são só do detalhe) e no detalhe; front: chips
+  "Origem: Task/PDI/Chamado" no card (§9 "Task #0042"). Migração
+  **`20261008010616_AddKnowledgeArticleOrigins`** (script validado, não
+  aplicada — lista de pendências agora **11**). Testes novos 8
+  (`KnowledgeArticleOriginCommandTests`: detalhe+busca, múltiplas
+  origens, 400, 404×3, 409, unlink) + helpers de Search/Get em 3
+  arquivos → unit **1799/1799** · arch **115/115** · build 0 · front
+  lint/build 0. Backlog: nome do alvo no card, origem automática na
+  criação. docs/31 §19 · docs/04 §Origem · TASKS F24-T004 [x].
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

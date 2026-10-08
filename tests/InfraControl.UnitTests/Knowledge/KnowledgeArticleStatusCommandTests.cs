@@ -56,7 +56,10 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
             NullLogger<ChangeKnowledgeArticleStatusCommandHandler>.Instance);
 
     private static SearchKnowledgeArticlesQueryHandler SearchHandler(AppDbContext context, string[] roles)
-        => new(new KnowledgeArticleRepository(context), new FakeCurrentUser(roles));
+        => new(
+            new KnowledgeArticleRepository(context),
+            new KnowledgeArticleOriginRepository(context),
+            new FakeCurrentUser(roles));
 
     private static GetKnowledgeArticleQueryHandler GetHandler(AppDbContext context, string[] roles)
         => new(
@@ -64,6 +67,7 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
             new KnowledgeArticleDeviceRepository(context),
             new KnowledgeArticleIncidentRepository(context),
             new KnowledgeArticleServiceRepository(context),
+            new KnowledgeArticleOriginRepository(context),
             new FakeCurrentUser(roles));
 
     /// <summary>

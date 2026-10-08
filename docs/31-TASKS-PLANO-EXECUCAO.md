@@ -1010,3 +1010,75 @@ timeline de entradas, não cópia de conteúdo); o molde foi o próprio
 - Migração `AddKnowledgeArticleVersioning` não aplicada + testes de
   integração não executados (Docker); histórico no **front** (listar /
   comparar versões) = backlog junto com a UI de edição.
+
+## 19. Execução — K4 / F24-T004 (Fase 24, 2026-10-07)
+
+**Rastreabilidade de origem** (spec `docs/32` §9 — "a Knowledge mantém
+sua origem", múltiplas origens: Tasks/PDIs/Chamados/Projetos/documentos/
+treinamentos).
+
+### Design (decisões da task)
+
+- **Tabela nova `knowledge_article_origins`** em vez de estender o
+  vínculo P5a (`task_knowledge_articles`): aquele é task-centro e de
+  USO (§10 "ser utilizada por uma Task"); origem (§9) é artigo-centro
+  e polimórfica (Task/PDI/Chamado) — modelos diferentes, sem sobrepor.
+  Projetos/documentos/treinamentos **não existem** como entidade no
+  repo → fora do enum (AGENTS: não inventar; se nascerem, +1 valor).
+- **Polimórfico sem FK** em `origin_id` (alvo de outro agregado —
+  precedente das refs sem FK do ADR-033); a **existência é validada
+  no handler por tipo** (`ITaskItemRepository`/`IPdiRepository`/
+  `IIncidentRepository`) com 404 pt-BR por tipo. `article_id` FK
+  Cascade; chave única `(article_id, origin_type, origin_id)`;
+  `origin_type` string (enum `KnowledgeOriginType`).
+- `KnowledgeArticleOrigin` = `AggregateRoot` com eventos
+  Created/Deleted (molde `KnowledgeArticleDevice` — ADR-030 §5).
+- **Endpoints** no molde F10-T004: `POST/DELETE
+  {id}/origins/{type}/{originId}` (`Operate`); 400 `Origem inválida:
+  'x'. Use 'task', 'pdi' ou 'incident'.` / 404 (artigo, alvo por
+  tipo, vínculo) / 409 `A origem já está vinculada ao artigo.`
+- **DTO**: `KnowledgeArticleOriginDto(Type, Id)` (enum como string —
+  decisão K1); `origins` no artigo como init-prop vindo **em lote na
+  busca** (round-trip único + group, mesmo critério do batch de nomes
+  do K1 — sem N+1) **e** no detalhe. Diferença dos vínculos F10-T004
+  (só detalhe): §9 pede a origem visível no card.
+- Front: `knowledge.ts` +`origins`; chips "Origem: Task/PDI/Chamado"
+  no card (rótulo Incident→"Chamado" conforme §9).
+
+### Migração `20261008010616_AddKnowledgeArticleOrigins`
+
+- Tabela + FK Cascade + índice único do par (artigo, tipo, id);
+  **script validado** (`dotnet ef migrations script`), **não
+  aplicada** (Docker) — pendências de migração agora **11**.
+
+### Arquivos alterados/criados
+
+- Domínio: `KnowledgeOriginType` (novo), `KnowledgeArticleOrigin`
+  (novo), `KnowledgeDomainEvents` +2 eventos.
+- Application: port `IKnowledgeArticleOriginRepository` (novo),
+  `KnowledgeArticleOriginDto` (novo), `KnowledgeArticleOriginCommands`
+  (novo — Link/Unlink com ParseType compartilhado), `KnowledgeArticleDto
+  .Origins`, Search/Get handlers (+repositório de origem e anexação).
+- Infra: `KnowledgeArticleOriginConfiguration` +
+  `KnowledgeArticleOriginRepository` (novos), `AppDbContext` +DbSet,
+  migração.
+- API: controller +POST/DELETE origins.
+- Front: contrato + chips no card.
+- Testes: **`KnowledgeArticleOriginCommandTests`** (8 — origem no
+  detalhe e na busca, múltiplas origens, 400/404×3/409, unlink);
+  helpers `SearchHandler`/`GetHandler` de 3 arquivos de teste ganharam
+  o repositório de origem.
+- Docs: docs/04 §Origem, docs/31 §19, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1799/1799** (+8) · arch **115/115** · script
+  da migração OK · front lint exit 0 / build ✓.
+
+### Pendências da K4
+
+- Migração `AddKnowledgeArticleOrigins` não aplicada + testes de
+  integração não executados (Docker); nome/título do alvo de origem no
+  card (hoje só tipo+id, como desenha a §9 "Task #0042") = backlog;
+  origem automática ao "criar artigo a partir de uma task" = backlog
+  com a UI de edição.

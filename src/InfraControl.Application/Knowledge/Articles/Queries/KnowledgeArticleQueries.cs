@@ -23,6 +23,7 @@ public sealed record SearchKnowledgeArticlesQuery(
 
 public sealed class SearchKnowledgeArticlesQueryHandler(
     IKnowledgeArticleRepository repository,
+    IKnowledgeArticleOriginRepository originRepository,
     ICurrentUserContext currentUser)
     : IRequestHandler<SearchKnowledgeArticlesQuery, PagedResult<KnowledgeArticleDto>>
 {
@@ -48,9 +49,26 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
             ? null
             : await repository.GetUserNamesAsync(nameIds, cancellationToken);
 
+        // F24-T004/K4: origens da página inteira no mesmo critério —
+        // um round-trip e o group por artigo (docs/32 §9).
+        var originsByArticle = (await originRepository.ListByArticleIdsAsync(
+                result.Items.Select(article => article.Id).ToArray(), cancellationToken))
+            .GroupBy(origin => origin.ArticleId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(origin => new KnowledgeArticleOriginDto(
+                        origin.OriginType.ToString(), origin.OriginId))
+                    .ToArray());
+
         return new PagedResult<KnowledgeArticleDto>(
             result.Items
-                .Select(article => KnowledgeArticleDto.From(article, userNames))
+                .Select(article =>
+                {
+                    var dto = KnowledgeArticleDto.From(article, userNames);
+                    originsByArticle.TryGetValue(article.Id, out var origins);
+                    return dto with { Origins = origins ?? [] };
+                })
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -78,6 +96,7 @@ public sealed class GetKnowledgeArticleQueryHandler(
     IKnowledgeArticleDeviceRepository deviceLinkRepository,
     IKnowledgeArticleIncidentRepository incidentLinkRepository,
     IKnowledgeArticleServiceRepository serviceLinkRepository,
+    IKnowledgeArticleOriginRepository originRepository,
     ICurrentUserContext currentUser)
     : IRequestHandler<GetKnowledgeArticleQuery, KnowledgeArticleDto>
 {
@@ -100,13 +119,19 @@ public sealed class GetKnowledgeArticleQueryHandler(
 
         return dto with
         {
-            // F10-T004: vínculos só no detalhe (a busca não detalha).
+            // F10-T004: vínculos só no detalhe (a busca não detalha)…
             DeviceIds = await deviceLinkRepository.GetDeviceIdsAsync(
                 article.Id, cancellationToken),
             IncidentIds = await incidentLinkRepository.GetIncidentIdsAsync(
                 article.Id, cancellationToken),
             ServiceIds = await serviceLinkRepository.GetServiceIdsAsync(
                 article.Id, cancellationToken),
+            // …exceto as origens (K4), que a busca também traz em lote.
+            Origins = (await originRepository.ListByArticleAsync(
+                    article.Id, cancellationToken))
+                .Select(origin => new KnowledgeArticleOriginDto(
+                    origin.OriginType.ToString(), origin.OriginId))
+                .ToArray(),
         };
     }
 }

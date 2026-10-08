@@ -185,4 +185,37 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         await sender.Send(new UnlinkKnowledgeArticleServiceCommand(id, serviceId), cancellationToken);
         return NoContent();
     }
+
+    // F24-T004/K4: origens polimórficas (docs/32 §9) — Task/PDI/
+    // Chamado. O tipo é string na rota e validado no handler (400
+    // pt-BR com as opções); alvo inexistente = 404 pt-BR; duplicado
+    // = 409. Vem embutido em `origins` no GET (detalhe e busca).
+
+    [HttpPost("{id:guid}/origins/{type}/{originId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> LinkOrigin(
+        Guid id,
+        string type,
+        Guid originId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new LinkKnowledgeArticleOriginCommand(id, type, originId),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/origins/{type}/{originId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnlinkOrigin(
+        Guid id,
+        string type,
+        Guid originId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new UnlinkKnowledgeArticleOriginCommand(id, type, originId),
+            cancellationToken);
+        return NoContent();
+    }
 }

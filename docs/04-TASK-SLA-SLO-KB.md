@@ -692,6 +692,35 @@ PUT (edição) ganhou o campo obrigatório `reason` no corpo (400
 domínio). Artigos anteriores à K3 receberam a v1.0 por backfill na
 migration (mesmo conteúdo corrente, motivo fixo "Criação do artigo").
 
+### Origem (F24-T004/K4 — spec docs/32 §9)
+
+O artigo mantém sua origem com **múltiplas origens**: Task, PDI e
+Chamado (a §9 lista também Projetos/documentos/treinamentos — essas
+entidades não existem no repo e não foram inventadas; se nascerem,
+entra valor novo no enum + validação).
+
+- Tabela `knowledge_article_origins` (`article_id` FK **Cascade** +
+  `origin_type` string + `origin_id` **sem FK** — alvo de outro
+  agregado, precedente ADR-033; existência validada no handler por
+  tipo; chave única artigo+tipo+id). Diferente do vínculo de uso
+  (§10/F10-T004/P5a — "esta task usa este artigo"), a origem é
+  artigo-centro ("de onde veio").
+- Endpoints (mesmo molde dos vínculos F10-T004):
+  - `POST api/v1/knowledge/articles/{id}/origins/{type}/{originId}`
+    (`Operate`) — `type` ∈ `task|pdi|incident` (case-insensitive);
+    tipo fora = 400 `Origem inválida: 'x'. Use 'task', 'pdi' ou
+    'incident'.`; alvo inexistente = 404 `Task '{id}' não encontrada.` /
+    `PDI '{id}' não encontrado.` / `Incidente '{id}' não encontrado.`;
+    duplicado = 409 `A origem já está vinculada ao artigo.`;
+  - `DELETE` na mesma rota — vínculo inexistente = 404
+    `Origem '{type}' '{id}' não encontrada para o artigo '{id}'.`
+- `origins` (`[{type, id}]`, tipo como nome do enum) vem embutido no
+  **GET/{id}** e na **busca** (lote por página — round-trip único, sem
+  N+1, diferente dos vínculos F10-T004 que são só do detalhe): o card
+  mostra as origens como chips ("Task"/"PDI"/"Chamado").
+- A figura da §9 fica fechada: origem (K4) + autor (K1) + revisão =
+  aprovador (K2/K3) + versão (K3).
+
 ### Relacionamentos (F10-T004)
 
 Vínculos N:N do artigo (tabelas `knowledge_article_devices`,

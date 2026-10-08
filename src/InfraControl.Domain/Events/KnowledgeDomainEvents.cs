@@ -115,6 +115,40 @@ public sealed class KnowledgeArticleDeviceDeletedDomainEvent : DomainEvent
     public override string EventType => nameof(KnowledgeArticleDeviceDeletedDomainEvent);
 }
 
+// F24-T004/K4 — origem do artigo (docs/32 §9), polimórfica.
+
+public sealed class KnowledgeArticleOriginCreatedDomainEvent : DomainEvent
+{
+    public KnowledgeArticleOriginCreatedDomainEvent(
+        Guid articleId, KnowledgeOriginType originType, Guid originId)
+    {
+        ArticleId = articleId;
+        OriginType = originType;
+        OriginId = originId;
+    }
+
+    public Guid ArticleId { get; }
+    public KnowledgeOriginType OriginType { get; }
+    public Guid OriginId { get; }
+    public override string EventType => nameof(KnowledgeArticleOriginCreatedDomainEvent);
+}
+
+public sealed class KnowledgeArticleOriginDeletedDomainEvent : DomainEvent
+{
+    public KnowledgeArticleOriginDeletedDomainEvent(
+        Guid articleId, KnowledgeOriginType originType, Guid originId)
+    {
+        ArticleId = articleId;
+        OriginType = originType;
+        OriginId = originId;
+    }
+
+    public Guid ArticleId { get; }
+    public KnowledgeOriginType OriginType { get; }
+    public Guid OriginId { get; }
+    public override string EventType => nameof(KnowledgeArticleOriginDeletedDomainEvent);
+}
+
 public sealed class KnowledgeArticleIncidentCreatedDomainEvent : DomainEvent
 {
     public KnowledgeArticleIncidentCreatedDomainEvent(Guid articleId, Guid incidentId)

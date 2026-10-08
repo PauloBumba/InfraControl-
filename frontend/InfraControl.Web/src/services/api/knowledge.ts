@@ -30,6 +30,11 @@ export interface KnowledgeArticle {
   responsibleName: string | null;
   /** F24-T003/K3 — versão corrente ("1.0" na criação); histórico em GET {id}/versions. */
   version: string;
+  /**
+   * F24-T004/K4 — origens (docs/32 §9): tipo + id, vindo em lote na
+   * busca e no detalhe. Type = "Task" | "Pdi" | "Incident".
+   */
+  origins: { type: string; id: string }[];
   /** Vínculos F10-T004 — só populados no GET/{id}; a busca devolve []. */
   deviceIds: string[];
   incidentIds: string[];

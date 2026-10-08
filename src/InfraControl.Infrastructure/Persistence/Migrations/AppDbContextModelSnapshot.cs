@@ -773,6 +773,42 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("knowledge_article_incidents", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleOrigin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OriginId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("origin_id");
+
+                    b.Property<string>("OriginType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("origin_type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId", "OriginType", "OriginId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_article_origins_article_origin");
+
+                    b.ToTable("knowledge_article_origins", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleService", b =>
                 {
                     b.Property<Guid>("ArticleId")
@@ -3432,6 +3468,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Incident", null)
                         .WithMany()
                         .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleOrigin", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

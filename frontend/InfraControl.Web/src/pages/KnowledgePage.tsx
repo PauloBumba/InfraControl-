@@ -53,6 +53,14 @@ const PAGE_SIZE = 20;
 // F24-T002/K2 (ADR-034): rótulos verbatim da spec docs/32 §7 —
 // "Publicada"/"Arquivada" feminino mudou do legado "Publicado"/
 // "Arquivado". Números = knowledge.ts (0–2 legados, 3–7 novos).
+// F24-T004/K4: rótulos das origens (docs/32 §9 — "Chamados" = Incident
+// na API; PDI em caixa alta). Chave = enum em string no dto.
+const originLabels: Record<string, string> = {
+  Task: "Task",
+  Pdi: "PDI",
+  Incident: "Chamado",
+};
+
 const statusConfig: Record<number, { label: string; bg: string; color: string }> = {
   [ARTICLE_STATUS_DRAFT]: { label: "Rascunho", bg: "#fef3c7", color: "#d97706" },
   [ARTICLE_STATUS_IN_REVIEW]: { label: "Em revisão", bg: "#ffedd5", color: "#ea580c" },
@@ -393,6 +401,23 @@ export function KnowledgePage() {
                       }}
                     >
                       #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {article.origins.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: "#9ca3af" }}>Origem:</span>
+                  {article.origins.map((origin) => (
+                    <span
+                      key={`${origin.type}:${origin.id}`}
+                      title={origin.id}
+                      style={{
+                        fontSize: 10, background: "#f0fdfa", color: "#0f766e",
+                        border: "1px solid #ccfbf1", borderRadius: 999, padding: "1px 7px",
+                      }}
+                    >
+                      {originLabels[origin.type] ?? origin.type}
                     </span>
                   ))}
                 </div>

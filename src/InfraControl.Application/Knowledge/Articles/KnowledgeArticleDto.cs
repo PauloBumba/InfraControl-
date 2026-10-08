@@ -21,6 +21,11 @@ public sealed record KnowledgeArticleDto(
     public IReadOnlyCollection<Guid> IncidentIds { get; init; } = [];
     public IReadOnlyCollection<Guid> ServiceIds { get; init; } = [];
 
+    // F24-T004/K4 — origens (spec docs/32 §9): tipo + id
+    // ("Task"/"Pdi"/"Incident" — §9 desenha "Task #0042"). Vem em
+    // lote na busca (round-trip único, sem N+1) e no detalhe.
+    public IReadOnlyCollection<KnowledgeArticleOriginDto> Origins { get; init; } = [];
+
     // F24-T001/K1 — identificação (spec docs/32 §5–§6). `Type` é o
     // nome do enum em string (rótulo pt-BR fica no catálogo do front);
     // null = sem tipo. Nomes resolvidos no backend — o front não tem
