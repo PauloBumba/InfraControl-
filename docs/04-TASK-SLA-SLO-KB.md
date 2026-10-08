@@ -31,6 +31,45 @@ tabela `tasks`, enums como `string(20)`.
 - Transições de estado são `F7-T007` (Workflow); vínculos (assignees,
   devices, incidentes), comentários e histórico: `F7-T002`→`T006`.
 
+### Identificação básica (F23-T001)
+
+Prioridade, prazo e responsável da spec "TASKS — Plano de Execução" §5
+(análise completa em `docs/31-TASKS-PLANO-EXECUCAO.md`):
+
+- `Priority` = `TaskPriority` Low/Medium/High/Critical (espelha
+  `IncidentSeverity`), obrigatória, `string(20)`; nasce `Medium` no create e
+  nas tasks existentes (backfill da migração `AddTaskIdentification`).
+- `DueDate` = `DateOnly?` (coluna `date`, precedente `target_date` do PDI);
+  prazo no passado é permitido (task atrasada ≠ erro de domínio).
+- `ResponsibleId` = `Guid?` **sem FK** (precedente `manager_id`, ADR-029 —
+  usuário excluído não quebra a task); nome resolvido em leitura via
+  `DomainUsers.DisplayName`. Responsável ≠ assignee: assignees são os
+  participantes (N:N), responsável é o dono da identificação.
+- `PUT /api/v1/tasks/{id}/identification` (Operate) substitui os 3 campos:
+  `priority` obrigatória (400 pt-BR), `dueDate`/`responsibleId` nulos limpam
+  o valor, responsável desconhecido → 404. Histórico grava
+  `PriorityChanged`/`DueDateChanged`/`ResponsibleChanged` (detalhe
+  "de → para", um por campo alterado; regravação idêntica = no-op).
+- `TaskDto` expõe `priority`, `dueDate`, `responsibleId`, `responsibleName`;
+  a criação aceita os mesmos campos opcionais.
+
+### Planejamento e resultado (F23-T003)
+
+Continuação do §5 da spec — datas previstas do plano e o resultado da
+execução (análise completa em `docs/31-TASKS-PLANO-EXECUCAO.md` §6):
+
+- `PlannedStart`/`PlannedEnd` = `DateOnly?` — início/fim **previstos**;
+  o prazo de compromisso continua no `DueDate` (campos distintos, sem
+  duplicar semântica). Fim antes do início → 400 pt-BR (domínio).
+- `Result` = `string?` ≤ 2000 — o que a execução entregou; `null`/vazio
+  limpa. Setters silenciosos: quem grava o histórico é o handler.
+- `PUT /api/v1/tasks/{id}/planning` (Operate) — substituição das 2 datas
+  (`null` limpa), histórico `PlanningChanged` por campo alterado
+  ("início …", "fim …", no-op sem registro).
+- `PUT /api/v1/tasks/{id}/result` (Operate) — histórico `ResultChanged`
+  por troca ("de → para"; textos truncados para caber no `detail` ≤200).
+- `TaskDto` expõe `plannedStart`, `plannedEnd`, `result`.
+
 ### Assignees (F7-T002)
 
 N:N Task ↔ Usuário na tabela `task_assignees` (PK composta, FKs
@@ -59,6 +98,38 @@ N:N Task ↔ Incident na tabela `task_incidents` (PK composta; FK da task
   (policy `TasksManage`); duplicidade → 409, inexistente → 404.
 - `TaskDto` expõe `incidentCount` + `incidentIds`.
 
+### Knowledge vinculada (F23-T005/P5a)
+
+N:N Task ↔ KnowledgeArticle na tabela `task_knowledge_articles` (PK
+composta; FK da task `Cascade`, FK do artigo `Cascade` — a exclusão
+física do artigo, ADR-030 §5, limpa os vínculos, mesmo
+comportamento de `knowledge_article_incidents`).
+
+- `POST/DELETE api/v1/tasks/{taskId}/articles/{articleId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404.
+- `TaskDto` expõe `articleCount` + `articleIds`.
+- Histórico grava `KnowledgeLinked`/`KnowledgeUnlinked` (tipo de
+  timeline `vinculo`); card **"Knowledge"** no detalhe com select de
+  vinculação (spec Knowledge — `docs/32` §10; tasks §16).
+
+### PDI vinculado (F23-T005/P5b)
+
+N:N Task ↔ PDI na tabela `task_pdis` (PK composta `(task_id, user_id)`;
+FK da task `Cascade`; **`user_id` sem FK** — critério do ADR-029 para
+refs de usuário, e a coluna é justamente a chave do plano no produto:
+1 plano vigente por usuário, API `/pdi/{userId}`). A existência do plano
+é validada no handler (linkar exige PDI criado).
+
+- `POST/DELETE api/v1/tasks/{taskId}/pdi/{userId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404
+  (`PDI do usuário '{id}' não encontrado.`).
+- `TaskDto` expõe `pdiCount` + `pdiUserIds` (ids = donos dos planos).
+- Histórico grava `PdiLinked`/`PdiUnlinked` (tipo `vinculo`); card
+  **"PDI"** no detalhe: nomes dos donos vêm de `listUsers` (a leitura
+  não depende da policy `Operate` do `/pdi` — Viewer continua vendo os
+  vinculados), select de vinculação com `listPdis` (403 de Viewer
+  silencia → lista vazia).
+
 ### Comentários (F7-T005)
 
 Tabela `task_comments` (`task_id`, `author_id`, `content` ≤ 500; FK da
@@ -73,9 +144,18 @@ alterações vem em `F7-T006`.
 
 Tabela `task_histories` (`task_id`, `actor_id` nullable, `action`,
 `detail` ≤ 200; FK da task `Cascade`, sem FK no ator). Todo comando grava
-uma entrada (`Created`, `Updated`, `Assigned`, `Unassigned`,
-`DeviceLinked`, `DeviceUnlinked`, `IncidentLinked`, `IncidentUnlinked`,
-`Commented`).
+uma entrada — `TaskHistoryAction` (42 ações): `Created`, `Updated`,
+`Assigned`, `Unassigned`, `PriorityChanged`, `DueDateChanged`,
+`ResponsibleChanged`, `DeviceLinked`, `DeviceUnlinked`, `IncidentLinked`,
+`IncidentUnlinked`, `Commented`, `StateChanged`, `SlaApplied`,
+`SlaPaused`, `SlaResumed`, `PlanningChanged`, `ResultChanged`,
+`Replanned`, `CriterionAdded`, `CriterionUpdated`, `CriterionRemoved`,
+`ParentChanged`, `SubtaskAdded`, `SubtaskRemoved`, `ImpedimentAdded`,
+`ImpedimentUpdated`, `ImpedimentResolved`, `ImpedimentReopened`,
+`ImpedimentRemoved`, `EvidenceAdded`, `EvidenceRemoved`, `PhaseAdded`,
+`PhaseUpdated`, `PhaseCurrentChanged`, `PhaseCompleted`,
+`PhaseReopened`, `PhaseRemoved`, `KnowledgeLinked`,
+`KnowledgeUnlinked`, `PdiLinked`, `PdiUnlinked`.
 
 - `GET api/v1/tasks/{taskId}/history` (policy `TasksRead`) — ordem
   cronológica, com `actorName` (DisplayName).
@@ -102,9 +182,214 @@ Closed     → Open
 - Cada transição grava `StateChanged` no histórico com o detalhe
   `"De → Para"`.
 
-API (`api/v1/tasks`): `Search` (term/kind/state, policies `TasksRead`),
-`Get` (`TasksRead`), `Create`/`Update`/`Delete` (`TasksManage`),
-`ChangeState` (`TasksManage`).
+API (`api/v1/tasks`): `Search` (term/kind/state/**parentId/rootOnly**,
+policies `TasksRead`), `Get` (`TasksRead`), `Create` (`TasksManage` —
+`parentTaskId?` cria subtarefa), `Update`/`Delete`/`ChangeState`
+(`TasksManage`), **`SetParent`** `PUT {id}/parent` (`TasksManage` —
+move/desvincula o pai da subtarefa), **impedimentos** `GET/POST
+{id}/impediments` + `PUT/DELETE impediments/{id}` (leitura `Authorize`,
+escrita `Operate`), **evidências** `GET {id}/evidences`,
+`POST {id}/evidences` (multipart ≤10 MB), `GET
+evidences/{id}/download`, `DELETE evidences/{id}` (leitura `Authorize`,
+escrita `Operate` — ADR-033).
+
+### Critérios de aceite e replanejamento (F23-T003)
+
+Spec §12–§13: itens verificáveis que a task precisa cumprir e o ciclo de
+novo plano com justificativa (precedente: replanejamento do PDI,
+`docs/30` §14):
+
+- Tabela `task_criteria` (`description` ≤ 300, `is_done`,
+  `done_at timestamp?`; FK da task `Cascade`, índice em `task_id`) —
+  molde exato dos comentários, com eventos de domínio CRUD (ADR-030).
+- `GET .../tasks/{taskId}/criteria` (leitura `Authorize`) — ordem de
+  criação; `POST .../{taskId}/criteria` (Operate) — 201.
+  `PUT .../tasks/criteria/{criterionId}` (Operate) — descrição e/ou
+  `done` (campo `null` mantém; `done=true` carimba `doneAt`, `false`
+  limpa); `DELETE .../criteria/{criterionId}` → 204. 404 pt-BR para
+  task/critério inexistente.
+- Histórico: `CriterionAdded`/`CriterionUpdated` (descrição ou marcação,
+  um registro por aspecto alterado)/`CriterionRemoved` — detalhe truncado
+  em 190 chars; no-op não grava nada.
+- **Replanejamento**: `POST /api/v1/tasks/{id}/replan` (Operate) aceita
+  `plannedStart`/`plannedEnd`/`dueDate` + **`reason` obrigatório** (≤80
+  chars — garante o `detail` ≤200 do histórico); sem mudança real → 400
+  "Nada a replanejar…"; grava **UMA** entrada `Replanned` no formato
+  `"início a → b, prazo c → d — motivo: …"`.
+
+### Subtarefas e progresso (F23-T004 — P4a)
+
+Spec "subtarefas, progresso" (design derivado, sujeito a revisão):
+
+- Subtarefa É task: `TaskItem.ParentTaskId` (auto-relação na própria
+  `tasks`; FK `ON DELETE SET NULL` — pai excluído → filho sobrevive e
+  vira raiz; índice em `ParentTaskId`). Profundidade ≤ 2: "Subtarefas
+  não podem ter subtarefas" (400 pt-BR); auto-relação → 400 (domínio).
+- `POST /api/v1/tasks` aceita `parentTaskId?` (404 se o pai não existe,
+  400 se o pai é subtarefa); `PUT /api/v1/tasks/{id}/parent`
+  (Operate) move ou desvincula (`parentId` null → task raiz) — no-op
+  (mesmo pai) → 200 sem histórico.
+- `GET /api/v1/tasks` ganhou `parentId` (filhos de X) e `rootOnly`
+  (só raízes) — mútuos → 400 "filtros incompatíveis".
+- Progresso DERIVADO no `TaskDto`: `progress` = concluídas
+  (Resolved/Closed) ÷ não canceladas × 100; sem subtarefas ativas →
+  null (canceladas ficam fora do denominador). `subtaskCount`,
+  `parentTaskId` e `parentTitle` completam o DTO (2 consultas por
+  página, sem N+1).
+- Histórico (ações 23–25): `ParentChanged` no filho ("de → para" com
+  títulos truncados em 95 → detail ≤193), `SubtaskAdded`/`SubtaskRemoved`
+  nos pais afetados (título do filho ≤120); criação com pai grava
+  `SubtaskAdded` no pai; no-op não grava nada.
+
+### Impedimentos estruturados (F23-T004 — P4b)
+
+Spec §10 (design derivado, sujeito a revisão) — o "porquê está travado"
+auditável:
+
+- Tabela `task_impediments` (`description` ≤ 300, `resolved_at
+  timestamp?` null = em aberto; FK da task `Cascade`, índice em
+  `task_id`) — molde exato dos comentários/critérios, com eventos de
+  domínio CRUD (ADR-030). Quem detectou/resolveu vive no histórico
+  (actor), não na linha.
+- **O workflow não muda**: registrar impedimento NÃO move a task para
+  `Blocked` (mudança de ciclo de estados exigiria ADR) — um `Blocked`
+  sem impedimento estruturado e vice-versa são válidos. Múltiplos
+  impedimentos por task.
+- `GET .../tasks/{taskId}/impediments` (leitura `Authorize`) — ordem de
+  criação; `POST .../{taskId}/impediments` (Operate) — 201, 404 task,
+  400 do domínio (vazio/>300). `PUT .../tasks/impediments/{id}`
+  (Operate) — descrição e/ou `resolved` (campo `null` mantém; `true`
+  carimba `resolved_at`, `false` limpa/reabre); `DELETE
+  .../impediments/{id}` → 204. 404 pt-BR para impedimento inexistente.
+- Histórico (ações 26–30): `ImpedimentAdded`/`ImpedimentRemoved`
+  (descrição truncada em 190), `ImpedimentUpdated` (descrição
+  "de → para", 70/70), `ImpedimentResolved`/`ImpedimentReopened`
+  ("resolvido: …"/"reaberto: …", 185); no-op não grava nada.
+
+### Evidências anexadas (F23-T004 — P4c)
+
+Spec §11 — anexo de arquivo na task. **Armazenamento decidido pelo
+usuário no checkpoint: disco local (ADR-033)**:
+
+- Tabela `task_evidences`: `FileName` ≤ 200 (normalizado para o último
+  segmento), **`StoredName` = GUID + extensão gerada no domínio**,
+  `ContentType` ≤ 100 (default `application/octet-stream`), `FileSize`,
+  `Note?` ≤ 300; FK da task `Cascade` + índice. Nome original é só
+  metadado — nunca caminho.
+- Limites (400 pt-BR, domínio): **10 MB**, allowlist `png jpg jpeg gif
+  webp pdf txt log csv json xml zip`, arquivo vazio, nome/nota/tipo
+  acima do limite. `Storage:EvidencePath` (default `evidence-files`),
+  porta `IEvidenceFileStore` → `LocalEvidenceFileStore`.
+- `GET .../tasks/{taskId}/evidences` (leitura `Authorize`) — ordem de
+  upload; `POST .../{taskId}/evidences` **multipart** (`file` +
+  `note?`, Operate) → 201; `GET .../tasks/evidences/{id}/download`
+  (leitura) devolve o binário com `Content-Disposition` do nome
+  original (arquivo sumido do disco → 404 pt-BR); `DELETE
+  .../evidences/{id}` (Operate) → 204 e **apaga o arquivo junto**
+  (erro de IO logado não bloqueia — banco é fonte de verdade).
+- Histórico (ações 31–32): `EvidenceAdded`/`EvidenceRemoved` com
+  `"nome.ext (kB)"` (nome truncado em 150 → detail ≤ 200); exclusão
+  grava histórico antes do `Remove`.
+- Front (`client.ts`): `FormData` sem `Content-Type` fixo (o fetch
+  monta o boundary) e opção `raw` para `blob` no download — sessão e
+  antiforgery intactos (`X-XSRF-TOKEN` também no multipart).
+- Consequências aceitas (ADR-033): backup do PostgreSQL não leva os
+  arquivos; exclusão em massa de task deixa órfão o arquivo; uma
+  réplica só (storage compartilhado exigiria novo ADR).
+
+### Fases da task (F23-T004 — P4d)
+
+Spec §7 — **decisão escolhida pelo usuário no checkpoint: etapas
+nomeadas por task** (sem conjunto fixo; o texto original da spec não
+está no repositório):
+
+- Tabela `task_phases`: `Name` ≤ 120 required, `Position` (ordem;
+  **gaps aceitos** após exclusão — novas fases entram em `max+1`),
+  `IsCurrent` (ponteiro de "fase atual", **máx. 1 por task** — o PUT
+  limpa os irmãos no mesmo save), `CompletedAt?`; FK da task `Cascade`
+  + índice `(task_id, position)`.
+- Fases são **ortogonais ao workflow** (§6): estado = situação, fase =
+  etapa de execução — criar fase não muda estado.
+- `GET .../tasks/{taskId}/phases` (leitura `Authorize`) — ordem de
+  posição; `POST .../{taskId}/phases` (Operate) → 201, **a primeira
+  fase já nasce atual**; `PUT .../tasks/phases/{id}` (Operate) —
+  campos nulos mantêm o valor (`name` 400 pt-BR se vazio/>120, `current`
+  move o ponteiro, `completed` carimba/limpa) e grava **um histórico por
+  aspecto alterado** (no-op = 200 sem registro); `DELETE
+  .../phases/{id}` (Operate) → 204 (a fase atual excluída **não**
+  promove ninguém). 404 pt-BR para task/fase inexistente.
+- Histórico (ações 33–38): `PhaseAdded`, `PhaseUpdated` (renomear —
+  detail `nome: de → para`), `PhaseCurrentChanged`, `PhaseCompleted`,
+  `PhaseReopened`, `PhaseRemoved` (nome truncado em 190).
+- Front: card **"Fases (x/y)"** (progresso derivado = concluídas ÷
+  total) com checkbox concluir/reabrir, chip "Atual", botão tornar
+  atual, excluir com confirm e cadastro inline; rename sem UI (PUT
+  testado — mesmo molde dos critérios).
+
+### Linha do tempo unificada (F23-T004 — P4d)
+
+Spec §8 — **decisão escolhida pelo usuário no checkpoint: timeline
+unificada tipada, derivada em leitura (sem tabela nova)**:
+
+- `GET .../tasks/{taskId}/timeline?types=&limit=` (leitura
+  `Authorize`) funde **histórico + comentários** em entradas
+  `{id, type, action, detail, comment, at, actorId, actorName}`:
+  impedimentos/evidências/SLA/fases entram **pelo histórico** (mesmas
+  fontes — sem duplicata) e a ação `Commented` é descartada, com o
+  comentário vindo da fonte rica (texto integral).
+- **13 tipos** (`TaskTimelineTypes`, espelhados no front):
+  `criacao`, `edicao`, `estado`, `atribuicao`, `vinculo`,
+  `planejamento`, `criterio`, `subtarefa`, `bloqueio`, `anexo`, `sla`,
+  `fase`, `comentario` — as 42 ações do histórico mapeiam para eles
+  (default `edicao`).
+- `types` comma-separated (tipo desconhecido → **400 pt-BR** com a
+  lista aceita), `limit` clamp 1..500 (default 100), mais recente
+  primeiro; `id` opaco prefixado (`h:` histórico / `c:` comentário).
+- Front: o card "Histórico" virou **"Linha do tempo"** — chips de tipo
+  (só os presentes na resposta, filtro local sobre `limit=500`),
+  comentário exibido com texto integral, demais entradas com rótulo da
+  ação + detalhe.
+
+### Tela de detalhe (F23-T002)
+
+Rota `/tasks/:id` no dashboard (`TaskDetailPage.tsx`) — a tela que o kanban
+não tinha, ligando os endpoints acima (P2 sem mudança de backend; a P3
+enriqueceu a tela com os cards novos):
+
+- **Leitura** = nível `read` (qualquer role autenticada, mesmo padrão de
+  `/devices/:id`); toda escrita fica atrás de `Can operate` — o backend
+  continua sendo a autoridade (403 no envelope).
+- Seções: dados editáveis (`PUT /tasks/{id}`, título ≤120/descrição ≤500 —
+  fecha a pendência da P1 de editar título/descrição sem UI), identificação
+  em diálogo (`PUT /tasks/{id}/identification`), **planejamento** (editar
+  datas ou **replanejar** com motivo em diálogo), **resultado** (texto
+  ≤2000 em diálogo), **critérios de aceite** (checklist com progresso
+  `x/y`: adicionar, marcar/desmarcar, excluir com confirm),
+  **subtarefas** (F23-T004/P4a: lista com estado + link para o filho,
+  barra de progresso do pai, criação em diálogo herdando o tipo, botão
+  desvincular com confirm; breadcrumb "Subtarefa de …" no subtítulo da
+  task filha), **fases** (F23-T004/P4d: progresso `x/y`, concluir/
+  reabrir, chip "Atual" + tornar atual, excluir com confirm, cadastro
+  inline), **impedimentos** (F23-T004/P4b: chips Aberto/Resolvido,
+  resolver/reabrir e excluir com confirm, registro em diálogo ≤300 —
+  sem mexer no estado do workflow), **evidências** (F23-T004/P4c:
+  upload com seletor de arquivo + nota opcional, lista com tamanho e
+  nota, clique baixa o binário com o nome original, excluir com confirm
+  avisando que o arquivo sai do disco), transição de estado (409
+  do domínio → banner), comentários (criar/excluir, máx. 500),
+  **linha do tempo** (F23-T004/P4d: histórico + comentários tipados em
+  13 tipos com chips de filtro), participantes e vínculos de
+  device/incidente/knowledge/PDI (F23-T005/P5a–P5b; selects só com o que
+  ainda não está vinculado; nome resolvido no front com fallback para id
+  curto quando o vocabulário não carrega) e SLA (snapshot + pausas +
+  aplicar/pausar/retomar; `GET .../sla` **404 = "sem SLA aplicado"**,
+  fluxo normal, não banner).
+- Catálogo único `components/tasks/taskCatalogs.ts` (estados, kinds,
+  prioridade, prazo, rótulos das 42 ações do histórico + os 13 tipos da
+  linha do tempo) compartilhado com
+  o kanban (`TasksPage` — o título do card virou link para o detalhe;
+  F23-T004/P4a: o quadro lista só tasks raiz via `rootOnly=true` e o
+  card exibe barra de progresso quando há subtarefas).
 
 ## Estados
 

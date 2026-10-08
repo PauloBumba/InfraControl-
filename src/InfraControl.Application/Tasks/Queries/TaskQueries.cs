@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
@@ -14,7 +15,9 @@ public sealed record SearchTasksQuery(
     string? Kind = null,
     string? State = null,
     int Page = 1,
-    int PageSize = 20) : IQuery<PagedResult<TaskDto>>, IAuthorizedRequest
+    int PageSize = 20,
+    Guid? ParentId = null,
+    bool RootOnly = false) : IQuery<PagedResult<TaskDto>>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
@@ -24,7 +27,9 @@ public sealed class SearchTasksQueryHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
     ITaskDeviceRepository deviceRepository,
-    ITaskIncidentRepository incidentRepository)
+    ITaskIncidentRepository incidentRepository,
+    ITaskKnowledgeArticleRepository knowledgeRepository,
+    ITaskPdiRepository pdiRepository)
     : IRequestHandler<SearchTasksQuery, PagedResult<TaskDto>>
 {
     public async Task<PagedResult<TaskDto>> Handle(
@@ -35,9 +40,16 @@ public sealed class SearchTasksQueryHandler(
         var kind = ParseKind(request.Kind);
         var state = ParseState(request.State);
 
+        // F23-T004/P4a: filtros de hierarquia mutuamente exclusivos.
+        if (request.RootOnly && request.ParentId != null)
+            throw new ArgumentException(
+                "Os filtros rootOnly e parentId são incompatíveis.",
+                nameof(request));
+
         var result = await repository.SearchAsync(
             string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim(),
-            kind, state, page, pageSize, cancellationToken);
+            kind, state, page, pageSize,
+            request.ParentId, request.RootOnly, cancellationToken);
 
         // F7-T002/T003: group joins da página inteira (sem N+1).
         var pageIds = result.Items.Select(task => task.Id).ToArray();
@@ -47,13 +59,47 @@ public sealed class SearchTasksQueryHandler(
             pageIds, cancellationToken);
         var incidents = await incidentRepository.GetIncidentIdsByTaskIdsAsync(
             pageIds, cancellationToken);
+        var articles = await knowledgeRepository.GetArticleIdsByTaskIdsAsync(
+            pageIds, cancellationToken);
+        var pdiOwners = await pdiRepository.GetUserIdsByTaskIdsAsync(
+            pageIds, cancellationToken);
+
+        // F23-T001: nomes dos responsáveis da página em 1 consulta.
+        var responsibleIds = result.Items
+            .Where(task => task.ResponsibleId != null)
+            .Select(task => task.ResponsibleId!.Value)
+            .Distinct()
+            .ToArray();
+        var responsibleNames = responsibleIds.Length == 0
+            ? new Dictionary<Guid, string>()
+            : await assigneeRepository.GetUserNamesAsync(responsibleIds, cancellationToken);
+
+        // F23-T004/P4a: progresso das subtarefas + títulos dos pais
+        // (só as tasks filhas da página) — 2 consultas, sem N+1.
+        var subtaskStats = await repository.GetSubtaskStatsAsync(
+            pageIds, cancellationToken);
+        var parentIds = result.Items
+            .Where(task => task.ParentTaskId != null)
+            .Select(task => task.ParentTaskId!.Value)
+            .Distinct()
+            .ToArray();
+        var parentTitles = parentIds.Length == 0
+            ? new Dictionary<Guid, string>()
+            : await repository.GetTitlesAsync(parentIds, cancellationToken);
 
         return new PagedResult<TaskDto>(
             result.Items.Select(task => TaskDto.From(
                 task,
                 assignees.TryGetValue(task.Id, out var ids) ? ids : null,
                 devices.TryGetValue(task.Id, out var deviceIds) ? deviceIds : null,
-                incidents.TryGetValue(task.Id, out var incidentIds) ? incidentIds : null))
+                incidents.TryGetValue(task.Id, out var incidentIds) ? incidentIds : null,
+                task.ResponsibleId is { } rid
+                    && responsibleNames.TryGetValue(rid, out var name) ? name : null,
+                subtaskStats.TryGetValue(task.Id, out var stats) ? stats : null,
+                task.ParentTaskId is { } pid
+                    && parentTitles.TryGetValue(pid, out var parentTitle) ? parentTitle : null,
+                articles.TryGetValue(task.Id, out var articleIds) ? articleIds : null,
+                pdiOwners.TryGetValue(task.Id, out var pdiUserIds) ? pdiUserIds : null))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -100,7 +146,9 @@ public sealed class GetTaskQueryHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
     ITaskDeviceRepository deviceRepository,
-    ITaskIncidentRepository incidentRepository)
+    ITaskIncidentRepository incidentRepository,
+    ITaskKnowledgeArticleRepository knowledgeRepository,
+    ITaskPdiRepository pdiRepository)
     : IRequestHandler<GetTaskQuery, TaskDto>
 {
     public async Task<TaskDto> Handle(
@@ -115,7 +163,29 @@ public sealed class GetTaskQueryHandler(
             task.Id, cancellationToken);
         var incidentIds = await incidentRepository.GetIncidentIdsAsync(
             task.Id, cancellationToken);
+        var articleIds = await knowledgeRepository.GetArticleIdsAsync(
+            task.Id, cancellationToken);
+        var pdiUserIds = await pdiRepository.GetUserIdsAsync(
+            task.Id, cancellationToken);
+        var responsibleName = await CreateTaskCommandHandler
+            .ResolveResponsibleNameAsync(
+                assigneeRepository, task.ResponsibleId, cancellationToken);
 
-        return TaskDto.From(task, assigneeIds, deviceIds, incidentIds);
+        // F23-T004/P4a: progresso das subtarefas + título do pai.
+        var subtaskStats = await repository.GetSubtaskStatsAsync(
+            [task.Id], cancellationToken);
+        string? parentTitle = null;
+        if (task.ParentTaskId is { } parentId)
+        {
+            var titles = await repository.GetTitlesAsync([parentId], cancellationToken);
+            titles.TryGetValue(parentId, out parentTitle);
+        }
+
+        return TaskDto.From(
+            task, assigneeIds, deviceIds, incidentIds, responsibleName,
+            subtaskStats.TryGetValue(task.Id, out var stats) ? stats : null,
+            parentTitle,
+            articleIds,
+            pdiUserIds);
     }
 }

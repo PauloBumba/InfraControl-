@@ -27,6 +27,7 @@ const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.L
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 const RemotePage = lazy(() => import("@/pages/RemotePage").then(m => ({ default: m.RemotePage })));
 const TasksPage = lazy(() => import("@/pages/TasksPage").then(m => ({ default: m.TasksPage })));
+const TaskDetailPage = lazy(() => import("@/pages/TaskDetailPage").then(m => ({ default: m.TaskDetailPage })));
 const KnowledgePage = lazy(() => import("@/pages/KnowledgePage").then(m => ({ default: m.KnowledgePage })));
 const DeviceDetailPage = lazy(() => import("@/pages/DeviceDetailPage").then(m => ({ default: m.DeviceDetailPage })));
 const UsersPage = lazy(() => import("@/pages/UsersPage").then(m => ({ default: m.UsersPage })));
@@ -154,7 +155,9 @@ function AppContent() {
 
   const activeLabel = location.pathname.startsWith("/devices/")
     ? "Detalhes do Dispositivo"
-    : routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
+    : location.pathname.startsWith("/tasks/")
+      ? "Detalhe da Tarefa"
+      : routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
 
   const handleNavigate = (label: string) => {
     const route = labelRouteMap[label] || "/";
@@ -261,6 +264,12 @@ function AppContent() {
           <Route path="/tasks" element={
             <ProtectedRoute>
               <TasksPage />
+            </ProtectedRoute>
+          } />
+          {/* F23-T002 — detalhe da tarefa (leitura = read, como /devices/:id). */}
+          <Route path="/tasks/:id" element={
+            <ProtectedRoute>
+              <TaskDetailPage />
             </ProtectedRoute>
           } />
           <Route path="/knowledge" element={

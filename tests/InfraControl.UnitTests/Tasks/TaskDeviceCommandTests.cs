@@ -74,7 +74,7 @@ public sealed class TaskDeviceCommandTests : IDisposable
 
     private static GetTaskQueryHandler GetHandler(AppDbContext context)
         => new(TaskRepo(context), AssigneeRepo(context), DeviceRepo(context),
-            IncidentRepo(context));
+            IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
 
     // ── Link ─────────────────────────────────────────────────────────────
 
@@ -209,7 +209,7 @@ public sealed class TaskDeviceCommandTests : IDisposable
 
         var handler = new SearchTasksQueryHandler(
             TaskRepo(context), AssigneeRepo(context), DeviceRepo(context),
-            IncidentRepo(context));
+            IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
         var page = await handler.Handle(
             new SearchTasksQuery(), CancellationToken.None);
 

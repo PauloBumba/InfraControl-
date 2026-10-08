@@ -2422,6 +2422,41 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("task_comments", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskCriterion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("DoneAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("done_at");
+
+                    b.Property<bool>("IsDone")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("task_criteria", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskDevice", b =>
                 {
                     b.Property<Guid>("TaskId")
@@ -2443,6 +2478,51 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("DeviceId");
 
                     b.ToTable("task_devices", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("StoredName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("task_evidences", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskHistory", b =>
@@ -2481,6 +2561,38 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("task_histories", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskImpediment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("task_impediments", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskIncident", b =>
                 {
                     b.Property<Guid>("TaskId")
@@ -2517,10 +2629,33 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("ParentTaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("PlannedEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("PlannedStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("ResponsibleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Result")
+                        .HasColumnType("text");
 
                     b.Property<string>("State")
                         .IsRequired()
@@ -2539,9 +2674,97 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Kind");
 
+                    b.HasIndex("ParentTaskId");
+
+                    b.HasIndex("Priority");
+
                     b.HasIndex("State");
 
                     b.ToTable("tasks", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskKnowledgeArticle", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId", "ArticleId");
+
+                    b.HasIndex("ArticleId");
+
+                    b.ToTable("task_knowledge_articles", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskPdi", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId", "UserId");
+
+                    b.ToTable("task_pdis", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskPhase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_current");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId", "Position");
+
+                    b.ToTable("task_phases", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskSla", b =>
@@ -3543,6 +3766,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskCriterion", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskDevice", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.Device", null)
@@ -3551,6 +3783,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskEvidence", b =>
+                {
                     b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
                         .WithMany()
                         .HasForeignKey("TaskId")
@@ -3567,6 +3808,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskImpediment", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskIncident", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.Incident", null)
@@ -3575,6 +3825,47 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskItem", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("ParentTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskKnowledgeArticle", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskPdi", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskPhase", b =>
+                {
                     b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
                         .WithMany()
                         .HasForeignKey("TaskId")

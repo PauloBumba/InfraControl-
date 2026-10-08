@@ -43,7 +43,8 @@ public sealed class TaskCommandTests : IDisposable
     private static RecordingTaskHistoryWriter History() => new();
 
     private static CreateTaskCommandHandler CreateHandler(AppDbContext context)
-        => new(Repo(context), History(), NullLogger<CreateTaskCommandHandler>.Instance);
+        => new(Repo(context), AssigneeRepo(context), History(),
+            NullLogger<CreateTaskCommandHandler>.Instance);
 
     // ── Create ───────────────────────────────────────────────────────────
 
@@ -185,7 +186,7 @@ public sealed class TaskCommandTests : IDisposable
             .Handle(new UpdateTaskCommand(created.Id, "Trocar UPS da sala fria",
                 "troca preventiva agendada"), CancellationToken.None);
 
-        var handler = new SearchTasksQueryHandler(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context));
+        var handler = new SearchTasksQueryHandler(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
 
         var byTerm = await handler.Handle(
             new SearchTasksQuery(Term: "UPS"), CancellationToken.None);
@@ -210,7 +211,7 @@ public sealed class TaskCommandTests : IDisposable
     public async Task Search_InvalidKindOrState_ShouldThrowArgumentPtBr()
     {
         await using var context = await CreateContextAsync();
-        var handler = new SearchTasksQueryHandler(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context));
+        var handler = new SearchTasksQueryHandler(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
 
         var kindAction = () => handler.Handle(
             new SearchTasksQuery(Kind: "besouro"), CancellationToken.None);
@@ -229,7 +230,7 @@ public sealed class TaskCommandTests : IDisposable
         await using var context = await CreateContextAsync();
         var unknown = Guid.NewGuid();
 
-        var action = () => new GetTaskQueryHandler(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context)).Handle(
+        var action = () => new GetTaskQueryHandler(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context)).Handle(
             new GetTaskQuery(unknown), CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())

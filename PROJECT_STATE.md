@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-04
+**Última atualização:** 2026-10-07
 
 ## Regra operacional
 
@@ -223,7 +223,323 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   2×403 de escopo, 400 sem XSRF, 4×409 de exclusão, histórico intacto).
   Descobertas: registro direto cria usuário *pending* que não loga
   (caminho autêntico = convite) e DELETE também exige `X-XSRF-TOKEN`.
-   Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
+Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- Fase 23-T001 (Tasks P1 — identificação básica) concluída (2026-10-06,
+  pedido "executame fase pode ser e documenta isso" após a gap analysis
+  da spec "TASKS — Plano de Execução" × código; fase **P1** escolhida pelo
+  usuário; plano e análise em **docs/31**): domínio `TaskPriority`
+  (Low/Medium/High/Critical, default Medium) + `TaskItem.Priority/
+  DueDate(DateOnly?)/ResponsibleId(Guid? sem FK — ADR-029)` + 3 ações novas
+  no `TaskHistoryAction`; application — `CreateTaskCommand` com os 3 campos
+  (prioridade inválida 400 pt-BR, responsável 404), novo slice
+  **`SetTaskIdentificationCommand`** (PUT substituição em
+  `/api/v1/tasks/{id}/identification`, Operate, histórico "de → para" por
+  campo alterado), `TaskDto` + `priority/dueDate/responsibleId/
+  responsibleName` (resolução de nome em lote, sem N+1); infra —
+  `AddTaskIdentification` **sem `--no-build`** com backfill hand-edit
+  `DEFAULT 'Medium'` (EF gerava `""`), script validado; api — VMs + endpoint;
+  front — `tasks.ts` + `TasksPage` (form de criação/edição com
+  prioridade/prazo/responsável, chip colorido, prazo vencido, responsável
+  no card). Testes: `TaskIdentificationCommandTests` **10/10** + 5 de
+  domínio → Tasks **144/144** · unit **1599/1599** · arch **115/115** ·
+  build 0 erros · front lint/build exit 0. **Pendências**: integração não
+  executada e migração não aplicada (Docker indisponível — usuário: "não
+  roda o docker"); commit não realizado (ambiente sem git) — registradas em
+  TASKS "Pendências soltas" e docs/31 §4. **Checkpoint — parar aqui**
+  (P2+ aguarda autorização).
+- Fase 23-T002 (Tasks P2 — tela de detalhe `/tasks/:id`) concluída
+  (2026-10-06, pedido "segue"; **front puro** — todos os endpoints F7/F8 já
+  existiam): nova rota `/tasks/:id` (leitura `read`, escrita `Can operate`)
+  com `TaskDetailPage` — dados editáveis (`PUT /tasks/{id}`, fecha a
+  pendência da P1), identificação em diálogo, transição de estado,
+  comentários (listar/adicionar/excluir, máx. 500), histórico com rótulos
+  pt-BR, participantes e vínculos de device/incidente com selects e
+  fallback de id curto, SLA (snapshot, pausas, aplicar/pausar/retomar;
+  GET 404 = "sem SLA"). Novo `components/tasks/taskCatalogs.ts` (catálogo
+  único extraído da TasksPage) e `tasks.ts` +4 interfaces e ~20 funções;
+  TasksPage ligada ao detalhe pelo título do card. Validação: front
+  lint/build exit 0 (chunk `TaskDetailPage`); backend intocado (1599/1599
+  da P1 intacta). Detalhes em **docs/31 §5**; pendências de ambiente
+  (Docker/git) seguem as da P1. **Checkpoint — parar aqui** (P3+ aguarda
+  autorização).
+- Fase 23-T003 (Tasks P3 — planejamento, resultado, critérios e
+  replanejamento §5/§12/§13) concluída (2026-10-06, pedido "proxima fase";
+  a spec original não está no repo — design derivado da gap analysis e dos
+  precedentes do código: CRUD de comentários para critérios e
+  replanejamento do PDI para o ciclo; sujeito a revisão): domínio
+  `TaskItem.PlannedStart/PlannedEnd(DateOnly?)/Result(máx 2000)` com
+  setters silenciosos, nova entidade **`TaskCriterion`** (`task_criteria`,
+  FK cascade, eventos CRUD) e +6 ações no `TaskHistoryAction` (16→22);
+  application — **`TaskPlanningCommands`** (`UpdateTaskPlanning`
+  substituição com histórico por campo alterado, `UpdateTaskResult` com
+  no-op sem registro, **`ReplanTaskCommand`** com motivo obrigatório
+  ≤80 chars que grava UMA entrada `Replanned` "campos alterados — motivo:
+  …", 400 "Nada a replanejar"), **`TaskCriterionCommands`** (add/update/
+  delete com 404/400 pt-BR e histórico truncado) + query de critérios +
+  `TaskDto` +3 campos; infra — config/repositório/`DbSet` e migração
+  **`20261006201131_AddTaskPlanningAndCriteria`** gerada sem `--no-build`
+  (script validado: 3 colunas nullable + tabela nova, sem backfill);
+  api — 5 VMs + 7 endpoints (`{id}/planning`, `{id}/result`,
+  `{id}/replan`, `{id}/criteria` GET/POST, `criteria/{id}` PUT/DELETE;
+  leitura `Authorize`, escrita `Operate`); front — `tasks.ts` +7 funções,
+  catálogo +6 rótulos, `TaskDetailPage` +3 cards (Planejamento com
+  Editar/Replanejar, Resultado, Critérios com checklist `x/y`) +3
+  diálogos. Testes novos: **35** (`TaskCriterionTests` 9,
+  `TaskPlanningCommandTests` 12, `TaskCriterionCommandTests` 14) → Tasks
+  **156/156** · unit **1634/1634** · arch **115/115** · build 0 erros ·
+  front lint/build exit 0 (chunk `TaskDetailPage` 24.66 kB). **Pendências**:
+  migrações P1+P3 não aplicadas e integração não executada (Docker); commit
+  (sem git); edição da descrição de critério sem UI; confrontar com a spec
+  original quando disponível — TASKS "Pendências soltas" e **docs/31 §6**.
+  **Checkpoint — parar aqui** (P4+ aguarda autorização).
+- Fase 23-T004a (Tasks P4a — subtarefas e progresso) concluída
+  (2026-10-07, pedido "proxima fase"; a P4 foi dividida em P4a–P4d por
+  ser grande demais — AGENTS "dividir se estiver grande"; design
+  derivado da gap analysis, sujeito a revisão quando a spec estiver
+  disponível): domínio `TaskItem.ParentTaskId` (auto-relação na própria
+  `tasks`, FK `ON DELETE SET NULL` — pai excluído → filho sobrevive e
+  vira raiz) + `SetParent` (auto-relação → 400 pt-BR) e regra de
+  profundidade ≤ 2 no handler ("Subtarefas não podem ter subtarefas" —
+  elimina ciclos), `TaskHistoryAction` +3 (`ParentChanged`/
+  `SubtaskAdded`/`SubtaskRemoved` — 22→25); application —
+  `CreateTaskCommand.ParentTaskId` (pai 404, pai-subtarefa 400, grava
+  `SubtaskAdded` no pai), novo **`SetTaskParentCommand`** (PUT
+  `/api/v1/tasks/{id}/parent`, Operate — move/desvincula; no-op = 200
+  sem histórico; histórico em 3 frentes com títulos truncados em 95 →
+  detail ≤193), filtros **`parentId`/`rootOnly`** no Search (mútuos →
+  400 "filtros incompatíveis"), `TaskDto` +4 campos com progresso
+  DERIVADO (concluídas ÷ não canceladas × 100 `AwayFromZero`; sem
+  subtarefas ativas → null) resolvido em 2 consultas por página sem
+  N+1 (`GetSubtaskStatsAsync`/`GetTitlesAsync`), `TaskPlanningDtos` →
+  `TaskDtoProjection`; infra — config FK auto-referente SetNull +
+  índice e migração **`20261007145430_AddTaskSubtasks`** gerada (script
+  validado, **não aplicada**); api — `parentTaskId` no Create,
+  `PUT {id}/parent`, filtros no `GET /tasks`; front — `tasks.ts` (+4
+  campos, `setTaskParent`, `listSubtasks`), `TaskDetailPage` (card
+  Subtarefas com barra de progresso, breadcrumb "Subtarefa de …",
+  criação herdando o tipo do pai, desvincular com ConfirmDialog),
+  `TasksPage` (`rootOnly=true` no quadro + barra de progresso no card),
+  catálogo +3 rótulos. Testes: **`TaskSubtaskCommandTests` 16 novos** →
+  Tasks **172/172** · unit **1650/1650** · arch **115/115** · build 0
+  erros · front lint/build exit 0 (chunk `TaskDetailPage` 28.05 kB).
+  **Pendências**: migração não aplicada e integração não executada
+  (Docker); commit (sem git); P4b (impedimentos), P4c (evidências —
+  requer decisão de armazenamento) e P4d (fases/timeline — dependem da
+  spec) pendentes — TASKS "Pendências soltas" e **docs/31 §7**.
+  **Checkpoint — parar aqui** (P4b+ aguarda autorização).
+- Fase 23-T004b (Tasks P4b — impedimentos estruturados §10) concluída
+  (2026-10-07, pedido "proxima fase"; design derivado da gap analysis,
+  sujeito a revisão): nova entidade **`TaskImpediment`**
+  (`task_impediments`: `description` ≤300, `resolved_at` null = em
+  aberto; FK `task_id` cascade + índice; eventos CRUD ADR-030 —
+  detectado/resolvido por fica no histórico com actor, não na linha) e
+  `TaskHistoryAction` +5 (`ImpedimentAdded/Updated/Resolved/Reopened/
+  Removed` — 25→30); application — **`TaskImpedimentCommands`** no molde
+  dos critérios (404 pt-BR, 400 do domínio, um registro por aspecto
+  alterado com truncagens 190/70+70/185, no-op sem registro, histórico
+  antes do Remove) + `GetTaskImpedimentsQuery` (ordem de criação) +
+  `TaskImpedimentDto` + `ITaskImpedimentRepository`; infra — config/
+  `DbSet`/repositório (DI por `RepositoryRegistrar`) e migração
+  **`20261007154956_AddTaskImpediments`** gerada (script validado,
+  **não aplicada**); api — 4 endpoints (`{id}/impediments` GET/POST,
+  `impediments/{id}` PUT/DELETE; leitura `Authorize`, escrita `Operate`)
+  + 2 VMs; front — `tasks.ts` +interface +4 funções, catálogo +5
+  rótulos, `TaskDetailPage` +card "Impedimentos (abertos/total)" com
+  chips Aberto/Resolvido, resolver/reabrir, excluir com confirm e
+  diálogo de registro ≤300. **Decisão-chave**: registrar impedimento NÃO
+  muda o estado do workflow (`Blocked` independente — mudança de ciclo
+  exigiria ADR); múltiplos impedimentos por task. Testes: **24 novos**
+  (`TaskImpedimentTests` 9, `TaskImpedimentCommandTests` 15) → unit
+  **1674/1674** · arch **115/115** · build 0 erros · front lint/build
+  exit 0. **Pendências**: migração não aplicada e integração não executada
+  (Docker); commit (sem git); P4c (evidências — requer decisão
+  de armazenamento) e P4d (fases/timeline — dependem da spec) pendentes —
+  TASKS "Pendências soltas" e **docs/31 §8**. **Checkpoint — parar aqui**
+  (P4c+ aguarda autorização).
+- Fase 23-T004c (Tasks P4c — evidências anexadas §11) concluída
+  (2026-10-07, pedido "p4c" + escolha de armazenamento **"Disco local +
+  ADR-033"** no checkpoint — decisão arquitetural do usuário; design
+  derivado, sujeito a revisão com a spec): **ADR-033** escrito
+  (`docs/adr/ADR-033-LOCAL-EVIDENCE-FILE-STORAGE.md`); domínio
+  `TaskEvidence` (`task_evidences`: `FileName` ≤200 normalizado para o
+  último segmento, `StoredName` = **GUID + extensão** gerado no
+  domínio — nome original é só metadado, `ContentType` default
+  octet-stream, `FileSize`, `Note?` ≤300; FK `Cascade` + índice;
+  eventos CRUD) com limites no domínio (400 pt-BR: **10 MB**, allowlist
+  de 12 extensões, vazio) e `TaskHistoryAction` +2
+  (`EvidenceAdded/EvidenceRemoved` — 30→32, detail `"nome.ext (kB)"`);
+  application — `UploadTaskEvidenceCommand` (valida no domínio → salva
+  o arquivo → grava o registro → grava o histórico) /
+  `DeleteTaskEvidenceCommand` (histórico → Remove → apaga o arquivo,
+  com erro de IO engolido) + `GetTaskEvidenceQuery`/`GetTaskEvidenceDownloadQuery`
+  (arquivo sumido do disco → 404 pt-BR) + `TaskEvidenceDto` +
+  `ITaskEvidenceRepository` + porta **`IEvidenceFileStore`**; infra —
+  `StorageOptions` (`Storage:EvidencePath`, default `evidence-files`) +
+  **`LocalEvidenceFileStore`** (guard de `storedName`), config/`DbSet`/
+  repositório, DI manual no `DependencyInjection` e migração
+  **`20261007181534_AddTaskEvidences`** gerada (script validado,
+  **não aplicada**); api — 4 endpoints (`GET/POST {id}/evidences`
+  multipart, `GET evidences/{id}/download` com `Content-Disposition`,
+  `DELETE evidences/{id}`; leitura `Authorize`, escrita `Operate`);
+  front — **`client.ts` estendido** (`FormData` sem `Content-Type`
+  fixo + opção `raw` p/ `blob`, sessão/antiforgery intactos),
+  `tasks.ts` +interface +4 funções (download por blob com nome
+  original), catálogo +2 rótulos + `formatFileSize` + `EVIDENCE_ACCEPT`,
+  `TaskDetailPage` +card "Evidências" (upload arquivo+nota, download no
+  clique, excluir com confirm). Testes: **27 novos**
+  (`TaskEvidenceTests` 13, `TaskEvidenceCommandTests` 14 — store real em
+  diretório temporário, sem Docker) → unit **1701/1701** · arch
+  **115/115** · build 0 erros · front lint/build exit 0. **Pendências**:
+  migração não aplicada e integração não executada (Docker); commit
+  (sem git); backup do banco não leva os arquivos e exclusão em massa
+  deixa órfão o arquivo (consequências aceitas no ADR-033); P4d
+  (fases/timeline — dependem do texto da spec) aguarda autorização —
+  TASKS "Pendências soltas" e **docs/31 §9**. **Checkpoint — parar
+  aqui** (P4d+ aguarda autorização).
+- Fase 23-T004d (Tasks P4d — fases §7 + tipos de timeline §8)
+  concluída (2026-10-07, pedido "p4d" **sem o texto da spec no repo** —
+  as duas decisões de arquitetura foram perguntadas no checkpoint e o
+  usuário escolheu **"Etapas nomeadas por task"** + **"Timeline
+  unificada tipada"**; designs sujeitos a revisão com a spec): domínio
+  `TaskPhase` (`task_phases`: `Name` ≤120 required, `Position` com
+  **gaps aceitos** — leitura ordena, novas entram em max+1, `IsCurrent`
+  ponteiro **único por task** (o PUT limpa os irmãos no mesmo save;
+  primeira fase já nasce atual sem histórico extra; excluir a atual não
+  promove sucessor), `CompletedAt?` carimbado; FK `Cascade` + índice
+  `(task_id, position)`; eventos CRUD; fases **ortogonais ao workflow**
+  §6 — criar fase não muda estado) + `TaskHistoryAction` +6
+  (`PhaseAdded/PhaseUpdated/PhaseCurrentChanged/PhaseCompleted/
+  PhaseReopened/PhaseRemoved` — 32→**38**); application —
+  `AddTaskPhaseCommand` (position max+1) / `UpdateTaskPhaseCommand`
+  (PUT multi-aspecto: nome 400 pt-BR vazio/>120, ponteiro, conclusão —
+  **um histórico por aspecto alterado**, no-op = 200 sem registro) /
+  `DeleteTaskPhaseCommand` (histórico → Remove) + `GetTaskPhasesQuery`
+  (ordem de posição) + `TaskPhaseDto` + `ITaskPhaseRepository` +
+  **`TaskTimelineTypes`** (13 tipos: criacao/edicao/estado/atribuicao/
+  vinculo/planejamento/criterio/subtarefa/bloqueio/anexo/sla/fase/
+  comentario — mapeiam as 38 ações, default `edicao`) +
+  `GetTaskTimelineQuery` (**leitura pura** fundindo histórico +
+  comentários: ação `Commented` descartada e comentário vem da fonte
+  rica com texto integral — impedimentos/evidências/SLA/fases entram
+  pelo histórico, sem duplicata; `types` comma-separated com 400 pt-BR
+  em tipo desconhecido, `limit` clamp 1..500 default 100, desc com
+  desempate por id, ator resolvido pelas portas existentes) +
+  `TaskTimelineEntryDto`/`TaskPhaseCommands.cs`/`TaskPhaseQueries.cs`/
+  `TaskTimelineQueries.cs`; infra — config `task_phases` +
+  `TaskPhaseRepository` (auto-DI F0-T024) + `DbSet` + migração
+  **`20261007191602_AddTaskPhases`** gerada (script validado: tabela +
+  FK cascade + índice; **não aplicada**); api — 5 endpoints
+  (`GET/POST {id}/phases`, `PUT/DELETE phases/{id}`, `GET {id}/timeline`;
+  leitura `Authorize`, escrita `Operate`, VMs `Add/UpdateTaskPhase`);
+  front — `tasks.ts` +`TaskPhase`/`TaskTimelineEntry` +8 funções,
+  catálogo +6 rótulos → 38 + `timelineTypes`/`timelineTypeVisual` (13),
+  `TaskDetailPage` +card **"Fases (x/y)"** (checkbox concluir/reabrir,
+  chip "Atual", tornar atual, excluir com confirm, cadastro inline;
+  rename sem UI — PUT testado, molde dos critérios) e card "Histórico"
+  virou **"Linha do tempo"** com chips de tipo (filtro local sobre
+  `limit=500`; comentário com texto integral). Testes: **32 novos**
+  (`TaskPhaseTests` 9, `TaskPhaseCommandTests` 13,
+  `TaskTimelineQueryTests` 10 — FK de autor real no seed de comentários)
+  → unit **1733/1733** · arch **115/115** · build 0 erros · migração
+  script validado · front lint/build exit 0. **Pendências**: migração +
+  integração não executadas (Docker); commit (sem git); §7/§8 decididos
+  sem o texto original da spec (revisar quando aparecer); rename de
+  fase sem UI; timeline com teto de 500 entradas — TASKS "Pendências
+  soltas" e **docs/31 §10**. **Checkpoint — parar aqui** (F23-T004
+  completa: P4a–P4d; P5 (Chamado/PDI/KB §14–§16) aguarda autorização).
+
+- Ambiente de versionamento (2026-10-07, pedido "commit e push na
+  main"): `git` **instalado** via winget (Git 2.55.0.5), identidade já
+  configurada, remoto `origin` HTTPS (`PauloBumba/InfraControl-.git`).
+  Commit `7f4f229` (F23-T001–T004 — Tasks P1–P4d, 104 arquivos) +
+  merge `f3632f8` (`main` × branch `refactor-ddd-vertical-slice-solid-
+  tdd` — conflitos PDI/PROJECT_STATE/snapshot resolvidos com o nosso
+  lado, superconjunto do `1837133`) em `main` local, **validados**
+  (build 0 · unit 1733/1733 · arch 115/115). **Push pendente** —
+  `main` 5 commits à frente de `origin/main`, autenticação HTTPS sem
+  credencial para `github.com` (tentativa de login GCM travou;
+  alternativas: GitHub Desktop ou PAT). Detalhe: TASKS "Pendências
+  soltas".
+
+- Fase 23-T005/P5a (Tasks — vínculo Knowledge, spec §16 × docs/32 §10)
+  concluída (2026-10-07, escolhas no question tool: executar **"P5a:
+  vínculo Task↔Knowledge"** e alvo do P5b = **"Task ↔ PDI (plano do
+  usuário)"**; §14 Chamado = `Incident` existente): tabela
+  `task_knowledge_articles` (PK composta, FKs **Cascade/Cascade** — o
+  artigo tem exclusão física ADR-030 §5, apagar limpa os vínculos,
+  molde de `knowledge_article_incidents`), commands
+  `Link/UnlinkTaskArticleCommand` (404 pt-BR task/artigo/vínculo, 409
+  duplicidade, `Operate`), `TaskDto` +`articleCount`/`articleIds`
+  (só Get/Search — DTOs de mutação seguem parciais, o front recarrega
+  após mutação), histórico `KnowledgeLinked`/`KnowledgeUnlinked`
+  (**38→40**, tipo `vinculo`), rota `POST/DELETE
+  /tasks/{id}/articles/{articleId}` (204), migração
+  `20261007225543_AddTaskKnowledgeArticles` (script validado: tabela +
+  2 FKs + índice; **não aplicada**), front: `tasks.ts` +2 campos/+2
+  funções, `taskCatalogs` +2 rótulos → **40**, `TaskDetailPage` card
+  **"Knowledge"** com select de vínculo. Testes: **+13**
+  (`TaskKnowledgeArticleTests` 3, `TaskArticleCommandTests` 10 —
+  histórico e tipo da timeline) → unit **1746/1746** · arch
+  **115/115** · build 0 · front lint/build 0; 6 pontos de construção
+  de handlers de query ajustados; `BaseIntegrationTest` +registro.
+  Pendências: migração/integração (Docker); P5b (PDI) e P5c
+  (Chamado=Incident) abertos — docs/31 §13. **Checkpoint — parar
+  aqui**.
+
+- Fases 24 e 25 criadas no `TASKS.md` (2026-10-07, pedido "cria fases",
+  escolha no question tool: "Criar Fases novas no TASKS.md"):
+  **Fase 24 — Knowledge** (evolução do módulo F10 conforme spec
+  `docs/32`, gap `docs/31` §12) com **F24-T001–T007** = trilha K
+  (tipos/identificação, workflow dos 9 status — ADR antes, versionamento,
+  origem/rastreabilidade, revisão 180d, geração automática sem infra de
+  IA, busca avançada); **Fase 25 — Indicadores e Relatórios** (spec
+  `docs/33`, módulo novo) com **F25-T001–T006** propostos por seções
+  (indicadores, cruzamentos, dashboards, relatórios,
+  histórico/exportação, automáticos+IA — escopo de cada um confirmado na
+  execução; princípio da §17 da spec valem para toda a fase). Índice
+  "Tasks por concluir" e trilhas de `docs/31` §12 atualizados com as
+  referências; F23-T005 (P5b/P5c) segue aberta. Documentação —
+  **checkpoint** (nenhum código). Pendências: push de `main`; 7 migrações
+  + integração com Docker.
+
+- Fase 23-T005/P5b (Tasks — vínculo PDI, spec §15) concluída
+  (2026-10-07, escopo aprovado no question tool: **"P5b: Task↔PDI, fecha
+  F23-T005"**; alvo "Task ↔ PDI (plano do usuário)" escolhido na P5):
+  tabela `task_pdis` (PK composta `task_id`+`user_id`; FK task
+  **Cascade**; **`user_id` sem FK** — critério do ADR-029 para refs de
+  usuário; a chave é o dono porque a API do PDI usa `/pdi/{userId}` como
+  identificador e o DTO do front não expõe o PK do plano), commands
+  `Link/UnlinkTaskPdiCommand` (404 pt-BR task/PDI/vínculo — validação
+  via `IPdiRepository.GetByUserIdAsync`, 409 duplicidade, `Operate`),
+  `TaskDto` +`pdiCount`/`pdiUserIds` (só Get/Search, padrão P5a),
+  histórico `PdiLinked`/`PdiUnlinked` (**40→42**, tipo `vinculo`),
+  rota `POST/DELETE /tasks/{id}/pdi/{userId}` (204), migração
+  `20261007232706_AddTaskPdis` (script validado: tabela + FK Cascade —
+  **não aplicada**), front: `tasks.ts` +2 campos/+2 funções,
+  `taskCatalogs` +2 rótulos → **42**, `TaskDetailPage` card **"PDI"**
+  (nomes dos donos via `listUsers` — a leitura não depende da policy
+  `Operate` do `/pdi`; select de vínculo via `listPdis`, 403 de Viewer
+  silencia). Testes: **+13** (`TaskPdiTests` 3, `TaskPdiCommandTests`
+  10 — seed do plano com `IndividualDevelopmentPlan.Create` +
+  `PdiChangeActor`) → unit **1759/1759** · arch **115/115** · build 0 ·
+  front lint/build 0; 13 construções de handlers de query ajustadas
+  (6º parâmetro) em 6 arquivos de teste + `BaseIntegrationTest`
+  +registro. Pendências: migração/integração (Docker); **resta P5c**
+  (Chamado = Incident — conferir sobra) para fechar F23-T005 —
+  docs/31 §14. **Checkpoint — parar aqui**.
+
+- Fase 23-T005/P5c (conferência §14 Chamado) concluída e **F23-T005
+  fechada** (2026-10-07; autorização do usuário: "execução por fases" →
+  opção **"F23 (P5c) + Fase 24 inteira"**, commit local por fase, paro
+  só no fim da F24). Conferência sem sobra de código: Task↔Chamado
+  coberta pelo F7-T004 (`task_incidents` + card + timeline + testes),
+  Knowledge↔Chamado pelo `knowledge_article_incidents` (spec Knowledge
+  §11); o lado reverso (chamado listando tasks) não é exposto em
+  **nenhum** vínculo do repo — precedente consistente, e a §14 pede
+  integração do módulo Tasks, não do incidente. Origem Chamado→
+  Knowledge é escopo de K4 (Fase 24). Registro em docs/31 **§15**;
+  TASKS.md F23-T005 marcada [x]. **Nenhum código alterado.**
 
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
@@ -402,6 +718,7 @@ Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLE
   **31/31**, Fase 5 **63/63** e Fase 4 **50/50**. Docs: ADR-038,
   docs/30 (situação+§25), docs/29 §8, TASKS. **§25 concluído —
   módulo PDI completo.**
+
 
 
 Workflow de CI criado para backend e frontend; a execução remota foi bloqueada antes dos steps porque a conta consumiu 2.000/2.000 minutos incluídos do GitHub Actions. A fundação de Identity, o Bootstrap Admin, a reorganização da Infrastructure conforme o Sentinel e Permissions foram implementados e validados localmente. O uso do CI será renovado em 01/10/2026 ou após ajuste do orçamento da conta.
