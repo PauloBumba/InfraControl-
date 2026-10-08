@@ -27,7 +27,9 @@ public sealed class SearchTasksQueryHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
     ITaskDeviceRepository deviceRepository,
-    ITaskIncidentRepository incidentRepository)
+    ITaskIncidentRepository incidentRepository,
+    ITaskKnowledgeArticleRepository knowledgeRepository,
+    ITaskPdiRepository pdiRepository)
     : IRequestHandler<SearchTasksQuery, PagedResult<TaskDto>>
 {
     public async Task<PagedResult<TaskDto>> Handle(
@@ -56,6 +58,10 @@ public sealed class SearchTasksQueryHandler(
         var devices = await deviceRepository.GetDeviceIdsByTaskIdsAsync(
             pageIds, cancellationToken);
         var incidents = await incidentRepository.GetIncidentIdsByTaskIdsAsync(
+            pageIds, cancellationToken);
+        var articles = await knowledgeRepository.GetArticleIdsByTaskIdsAsync(
+            pageIds, cancellationToken);
+        var pdiOwners = await pdiRepository.GetUserIdsByTaskIdsAsync(
             pageIds, cancellationToken);
 
         // F23-T001: nomes dos responsáveis da página em 1 consulta.
@@ -91,7 +97,9 @@ public sealed class SearchTasksQueryHandler(
                     && responsibleNames.TryGetValue(rid, out var name) ? name : null,
                 subtaskStats.TryGetValue(task.Id, out var stats) ? stats : null,
                 task.ParentTaskId is { } pid
-                    && parentTitles.TryGetValue(pid, out var parentTitle) ? parentTitle : null))
+                    && parentTitles.TryGetValue(pid, out var parentTitle) ? parentTitle : null,
+                articles.TryGetValue(task.Id, out var articleIds) ? articleIds : null,
+                pdiOwners.TryGetValue(task.Id, out var pdiUserIds) ? pdiUserIds : null))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -138,7 +146,9 @@ public sealed class GetTaskQueryHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
     ITaskDeviceRepository deviceRepository,
-    ITaskIncidentRepository incidentRepository)
+    ITaskIncidentRepository incidentRepository,
+    ITaskKnowledgeArticleRepository knowledgeRepository,
+    ITaskPdiRepository pdiRepository)
     : IRequestHandler<GetTaskQuery, TaskDto>
 {
     public async Task<TaskDto> Handle(
@@ -152,6 +162,10 @@ public sealed class GetTaskQueryHandler(
         var deviceIds = await deviceRepository.GetDeviceIdsAsync(
             task.Id, cancellationToken);
         var incidentIds = await incidentRepository.GetIncidentIdsAsync(
+            task.Id, cancellationToken);
+        var articleIds = await knowledgeRepository.GetArticleIdsAsync(
+            task.Id, cancellationToken);
+        var pdiUserIds = await pdiRepository.GetUserIdsAsync(
             task.Id, cancellationToken);
         var responsibleName = await CreateTaskCommandHandler
             .ResolveResponsibleNameAsync(
@@ -170,6 +184,8 @@ public sealed class GetTaskQueryHandler(
         return TaskDto.From(
             task, assigneeIds, deviceIds, incidentIds, responsibleName,
             subtaskStats.TryGetValue(task.Id, out var stats) ? stats : null,
-            parentTitle);
+            parentTitle,
+            articleIds,
+            pdiUserIds);
     }
 }

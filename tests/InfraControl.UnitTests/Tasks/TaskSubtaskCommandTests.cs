@@ -74,10 +74,10 @@ public sealed class TaskSubtaskCommandTests : IDisposable
             NullLogger<SetTaskParentCommandHandler>.Instance);
 
     private static SearchTasksQueryHandler SearchHandler(AppDbContext context)
-        => new(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context));
+        => new(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
 
     private static GetTaskQueryHandler GetHandler(AppDbContext context)
-        => new(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context));
+        => new(Repo(context), AssigneeRepo(context), DeviceRepo(context), IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
 
     private static async Task<Guid> SeedTaskAsync(
         AppDbContext context, string title = "Task raiz")

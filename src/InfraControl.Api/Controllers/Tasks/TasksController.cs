@@ -242,6 +242,56 @@ public sealed class TasksController(ISender sender) : BaseController
         return NoContent();
     }
 
+    // F23-T005/P5a: Knowledge vinculada (N:N com artigo, docs/32 §10) —
+    // 204 nos dois sentidos e articleIds embutido no TaskDto.
+
+    [HttpPost("{taskId:guid}/articles/{articleId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> LinkArticle(
+        Guid taskId,
+        Guid articleId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkTaskArticleCommand(taskId, articleId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{taskId:guid}/articles/{articleId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnlinkArticle(
+        Guid taskId,
+        Guid articleId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkTaskArticleCommand(taskId, articleId), cancellationToken);
+        return NoContent();
+    }
+
+    // F23-T005/P5b: PDI vinculado (N:N por dono do plano — 1 PDI por
+    // usuário, spec §15) — 204 nos dois sentidos; pdiUserIds no TaskDto.
+
+    [HttpPost("{taskId:guid}/pdi/{userId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> LinkPdi(
+        Guid taskId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new LinkTaskPdiCommand(taskId, userId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{taskId:guid}/pdi/{userId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnlinkPdi(
+        Guid taskId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new UnlinkTaskPdiCommand(taskId, userId), cancellationToken);
+        return NoContent();
+    }
+
     // F7-T005: comentários — autor é o usuário logado (ICurrentUserContext).
 
     [HttpGet("{taskId:guid}/comments")]

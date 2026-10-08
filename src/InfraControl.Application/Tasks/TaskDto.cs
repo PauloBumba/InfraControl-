@@ -1,7 +1,8 @@
 namespace InfraControl.Application.Tasks;
 
 /// <summary>TaskItem na leitura (F7-T001; identificação F23-T001;
-/// planejamento/resultado F23-T003; subtarefas/progresso F23-T004/P4a).</summary>
+/// planejamento/resultado F23-T003; subtarefas/progresso F23-T004/P4a;
+/// Knowledge F23-T005/P5a; PDI F23-T005/P5b).</summary>
 public sealed record TaskDto(
     Guid Id,
     string Title,
@@ -15,6 +16,10 @@ public sealed record TaskDto(
     Guid[] DeviceIds,
     int IncidentCount,
     Guid[] IncidentIds,
+    int ArticleCount,
+    Guid[] ArticleIds,
+    int PdiCount,
+    Guid[] PdiUserIds,
     string Priority,
     DateOnly? DueDate,
     Guid? ResponsibleId,
@@ -34,7 +39,9 @@ public sealed record TaskDto(
         IReadOnlyCollection<Guid>? incidentIds = null,
         string? responsibleName = null,
         Ports.TaskSubtaskStats? subtaskStats = null,
-        string? parentTitle = null)
+        string? parentTitle = null,
+        IReadOnlyCollection<Guid>? articleIds = null,
+        IReadOnlyCollection<Guid>? pdiUserIds = null)
         => new(
             task.Id,
             task.Title,
@@ -48,6 +55,10 @@ public sealed record TaskDto(
             deviceIds?.ToArray() ?? [],
             incidentIds?.Count ?? 0,
             incidentIds?.ToArray() ?? [],
+            articleIds?.Count ?? 0,
+            articleIds?.ToArray() ?? [],
+            pdiUserIds?.Count ?? 0,
+            pdiUserIds?.ToArray() ?? [],
             task.Priority.ToString(),
             task.DueDate,
             task.ResponsibleId,

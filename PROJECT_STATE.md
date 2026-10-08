@@ -449,6 +449,98 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   soltas" e **docs/31 §10**. **Checkpoint — parar aqui** (F23-T004
   completa: P4a–P4d; P5 (Chamado/PDI/KB §14–§16) aguarda autorização).
 
+- Ambiente de versionamento (2026-10-07, pedido "commit e push na
+  main"): `git` **instalado** via winget (Git 2.55.0.5), identidade já
+  configurada, remoto `origin` HTTPS (`PauloBumba/InfraControl-.git`).
+  Commit `7f4f229` (F23-T001–T004 — Tasks P1–P4d, 104 arquivos) +
+  merge `f3632f8` (`main` × branch `refactor-ddd-vertical-slice-solid-
+  tdd` — conflitos PDI/PROJECT_STATE/snapshot resolvidos com o nosso
+  lado, superconjunto do `1837133`) em `main` local, **validados**
+  (build 0 · unit 1733/1733 · arch 115/115). **Push pendente** —
+  `main` 5 commits à frente de `origin/main`, autenticação HTTPS sem
+  credencial para `github.com` (tentativa de login GCM travou;
+  alternativas: GitHub Desktop ou PAT). Detalhe: TASKS "Pendências
+  soltas".
+
+- Fase 23-T005/P5a (Tasks — vínculo Knowledge, spec §16 × docs/32 §10)
+  concluída (2026-10-07, escolhas no question tool: executar **"P5a:
+  vínculo Task↔Knowledge"** e alvo do P5b = **"Task ↔ PDI (plano do
+  usuário)"**; §14 Chamado = `Incident` existente): tabela
+  `task_knowledge_articles` (PK composta, FKs **Cascade/Cascade** — o
+  artigo tem exclusão física ADR-030 §5, apagar limpa os vínculos,
+  molde de `knowledge_article_incidents`), commands
+  `Link/UnlinkTaskArticleCommand` (404 pt-BR task/artigo/vínculo, 409
+  duplicidade, `Operate`), `TaskDto` +`articleCount`/`articleIds`
+  (só Get/Search — DTOs de mutação seguem parciais, o front recarrega
+  após mutação), histórico `KnowledgeLinked`/`KnowledgeUnlinked`
+  (**38→40**, tipo `vinculo`), rota `POST/DELETE
+  /tasks/{id}/articles/{articleId}` (204), migração
+  `20261007225543_AddTaskKnowledgeArticles` (script validado: tabela +
+  2 FKs + índice; **não aplicada**), front: `tasks.ts` +2 campos/+2
+  funções, `taskCatalogs` +2 rótulos → **40**, `TaskDetailPage` card
+  **"Knowledge"** com select de vínculo. Testes: **+13**
+  (`TaskKnowledgeArticleTests` 3, `TaskArticleCommandTests` 10 —
+  histórico e tipo da timeline) → unit **1746/1746** · arch
+  **115/115** · build 0 · front lint/build 0; 6 pontos de construção
+  de handlers de query ajustados; `BaseIntegrationTest` +registro.
+  Pendências: migração/integração (Docker); P5b (PDI) e P5c
+  (Chamado=Incident) abertos — docs/31 §13. **Checkpoint — parar
+  aqui**.
+
+- Fases 24 e 25 criadas no `TASKS.md` (2026-10-07, pedido "cria fases",
+  escolha no question tool: "Criar Fases novas no TASKS.md"):
+  **Fase 24 — Knowledge** (evolução do módulo F10 conforme spec
+  `docs/32`, gap `docs/31` §12) com **F24-T001–T007** = trilha K
+  (tipos/identificação, workflow dos 9 status — ADR antes, versionamento,
+  origem/rastreabilidade, revisão 180d, geração automática sem infra de
+  IA, busca avançada); **Fase 25 — Indicadores e Relatórios** (spec
+  `docs/33`, módulo novo) com **F25-T001–T006** propostos por seções
+  (indicadores, cruzamentos, dashboards, relatórios,
+  histórico/exportação, automáticos+IA — escopo de cada um confirmado na
+  execução; princípio da §17 da spec valem para toda a fase). Índice
+  "Tasks por concluir" e trilhas de `docs/31` §12 atualizados com as
+  referências; F23-T005 (P5b/P5c) segue aberta. Documentação —
+  **checkpoint** (nenhum código). Pendências: push de `main`; 7 migrações
+  + integração com Docker.
+
+- Fase 23-T005/P5b (Tasks — vínculo PDI, spec §15) concluída
+  (2026-10-07, escopo aprovado no question tool: **"P5b: Task↔PDI, fecha
+  F23-T005"**; alvo "Task ↔ PDI (plano do usuário)" escolhido na P5):
+  tabela `task_pdis` (PK composta `task_id`+`user_id`; FK task
+  **Cascade**; **`user_id` sem FK** — critério do ADR-029 para refs de
+  usuário; a chave é o dono porque a API do PDI usa `/pdi/{userId}` como
+  identificador e o DTO do front não expõe o PK do plano), commands
+  `Link/UnlinkTaskPdiCommand` (404 pt-BR task/PDI/vínculo — validação
+  via `IPdiRepository.GetByUserIdAsync`, 409 duplicidade, `Operate`),
+  `TaskDto` +`pdiCount`/`pdiUserIds` (só Get/Search, padrão P5a),
+  histórico `PdiLinked`/`PdiUnlinked` (**40→42**, tipo `vinculo`),
+  rota `POST/DELETE /tasks/{id}/pdi/{userId}` (204), migração
+  `20261007232706_AddTaskPdis` (script validado: tabela + FK Cascade —
+  **não aplicada**), front: `tasks.ts` +2 campos/+2 funções,
+  `taskCatalogs` +2 rótulos → **42**, `TaskDetailPage` card **"PDI"**
+  (nomes dos donos via `listUsers` — a leitura não depende da policy
+  `Operate` do `/pdi`; select de vínculo via `listPdis`, 403 de Viewer
+  silencia). Testes: **+13** (`TaskPdiTests` 3, `TaskPdiCommandTests`
+  10 — seed do plano com `IndividualDevelopmentPlan.Create` +
+  `PdiChangeActor`) → unit **1759/1759** · arch **115/115** · build 0 ·
+  front lint/build 0; 13 construções de handlers de query ajustadas
+  (6º parâmetro) em 6 arquivos de teste + `BaseIntegrationTest`
+  +registro. Pendências: migração/integração (Docker); **resta P5c**
+  (Chamado = Incident — conferir sobra) para fechar F23-T005 —
+  docs/31 §14. **Checkpoint — parar aqui**.
+
+- Fase 23-T005/P5c (conferência §14 Chamado) concluída e **F23-T005
+  fechada** (2026-10-07; autorização do usuário: "execução por fases" →
+  opção **"F23 (P5c) + Fase 24 inteira"**, commit local por fase, paro
+  só no fim da F24). Conferência sem sobra de código: Task↔Chamado
+  coberta pelo F7-T004 (`task_incidents` + card + timeline + testes),
+  Knowledge↔Chamado pelo `knowledge_article_incidents` (spec Knowledge
+  §11); o lado reverso (chamado listando tasks) não é exposto em
+  **nenhum** vínculo do repo — precedente consistente, e a §14 pede
+  integração do módulo Tasks, não do incidente. Origem Chamado→
+  Knowledge é escopo de K4 (Fase 24). Registro em docs/31 **§15**;
+  TASKS.md F23-T005 marcada [x]. **Nenhum código alterado.**
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

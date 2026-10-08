@@ -37,8 +37,10 @@ import {
   getTaskSla,
   getTaskSlaPauses,
   getTaskTimeline,
+  linkTaskArticle,
   linkTaskDevice,
   linkTaskIncident,
+  linkTaskPdi,
   listSubtasks,
   pauseTaskSla,
   replanTask,
@@ -46,8 +48,10 @@ import {
   setTaskIdentification,
   setTaskParent,
   unassignTaskUser,
+  unlinkTaskArticle,
   unlinkTaskDevice,
   unlinkTaskIncident,
+  unlinkTaskPdi,
   updateTask,
   updateTaskCriterion,
   updateTaskImpediment,
@@ -69,6 +73,8 @@ import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { listDevices, INVENTORY_PAGE_SIZE, type DeviceItem } from "@/services/api/inventory";
 import { listIncidents, type IncidentItem } from "@/services/api/incidents";
 import { listSlaPolicies, type SlaPolicyItem } from "@/services/api/sla";
+import { listArticles, type KnowledgeArticle } from "@/services/api/knowledge";
+import { listPdis, type Pdi } from "@/services/api/pdi";
 import {
   EVIDENCE_ACCEPT,
   formatDateOnly,
@@ -165,6 +171,8 @@ export function TaskDetailPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+  const [pdis, setPdis] = useState<Pdi[]>([]);
   const [policies, setPolicies] = useState<SlaPolicyItem[]>([]);
 
   // Diálogos/formulários.
@@ -286,6 +294,14 @@ export function TaskDetailPage() {
     void listIncidents({ pageSize: 100 })
       .then((page) => setIncidents(page.items))
       .catch(() => setIncidents([]));
+    void listArticles({ pageSize: 100 })
+      .then((page) => setArticles(page.items))
+      .catch(() => setArticles([]));
+    // Operate (policy do /pdi) — Viewer 403 silencia; nomes dos donos
+    // vêm de listUsers, então o card continua legível.
+    void listPdis()
+      .then(setPdis)
+      .catch(() => setPdis([]));
     void listSlaPolicies({ pageSize: 100 })
       .then((page) => setPolicies(page.items))
       .catch(() => setPolicies([]));
@@ -607,6 +623,14 @@ export function TaskDetailPage() {
   );
   const linkableIncidents = incidents.filter(
     (incident) => !task.incidentIds.includes(incident.id),
+  );
+  const articleTitle = (articleId: string): string =>
+    articles.find((article) => article.id === articleId)?.title || shortId(articleId);
+  const linkableArticles = articles.filter(
+    (article) => !task.articleIds.includes(article.id),
+  );
+  const linkablePdis = pdis.filter(
+    (pdi) => !task.pdiUserIds.includes(pdi.userId),
   );
 
   const responsibleOptions = [
@@ -1665,6 +1689,120 @@ export function TaskDetailPage() {
                     }}
                     style={{ width: "100%", marginTop: 6 }}
                     aria-label="Vincular incidente"
+                  />
+                </Can>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
+                  Knowledge ({task.articleIds.length})
+                </div>
+                {task.articleIds.length === 0 && (
+                  <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 6px" }}>
+                    Nenhuma knowledge.
+                  </p>
+                )}
+                {task.articleIds.map((articleId) => (
+                  <div
+                    key={articleId}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+                  >
+                    <span style={{ fontSize: 12 }}>
+                      <i className="pi pi-book" style={{ fontSize: 10, marginRight: 5, color: "#6b7280" }} />
+                      {articleTitle(articleId)}
+                    </span>
+                    <Can level="operate">
+                      <Button
+                        variant="ghost"
+                        disabled={saving}
+                        title="Desvincular knowledge"
+                        onClick={() =>
+                          void run(
+                            () => unlinkTaskArticle(task.id, articleId),
+                            "Knowledge desvinculada.",
+                          )
+                        }
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                      >
+                        <i className="pi pi-times" style={{ fontSize: 10 }} />
+                      </Button>
+                    </Can>
+                  </div>
+                ))}
+                <Can level="operate">
+                  <SelectField
+                    value=""
+                    disabled={saving || linkableArticles.length === 0}
+                    placeholder={
+                      linkableArticles.length === 0 ? "Todas vinculadas" : "Vincular knowledge"
+                    }
+                    options={linkableArticles.map((article) => ({
+                      value: article.id,
+                      label: article.title,
+                    }))}
+                    onChange={(articleId) => {
+                      if (!articleId) return;
+                      void run(() => linkTaskArticle(task.id, articleId), "Knowledge vinculada.");
+                    }}
+                    style={{ width: "100%", marginTop: 6 }}
+                    aria-label="Vincular knowledge"
+                  />
+                </Can>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
+                  PDI ({task.pdiUserIds.length})
+                </div>
+                {task.pdiUserIds.length === 0 && (
+                  <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 6px" }}>
+                    Nenhum PDI vinculado.
+                  </p>
+                )}
+                {task.pdiUserIds.map((ownerId) => (
+                  <div
+                    key={ownerId}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}
+                  >
+                    <span style={{ fontSize: 12 }}>
+                      <i className="pi pi-id-card" style={{ fontSize: 10, marginRight: 5, color: "#6b7280" }} />
+                      {userName(ownerId)}
+                    </span>
+                    <Can level="operate">
+                      <Button
+                        variant="ghost"
+                        disabled={saving}
+                        title="Desvincular PDI"
+                        onClick={() =>
+                          void run(
+                            () => unlinkTaskPdi(task.id, ownerId),
+                            "PDI desvinculado.",
+                          )
+                        }
+                        style={{ padding: "2px 6px", fontSize: 11 }}
+                      >
+                        <i className="pi pi-times" style={{ fontSize: 10 }} />
+                      </Button>
+                    </Can>
+                  </div>
+                ))}
+                <Can level="operate">
+                  <SelectField
+                    value=""
+                    disabled={saving || linkablePdis.length === 0}
+                    placeholder={
+                      linkablePdis.length === 0 ? "Todos vinculados" : "Vincular PDI"
+                    }
+                    options={linkablePdis.map((pdi) => ({
+                      value: pdi.userId,
+                      label: pdi.ownerName,
+                    }))}
+                    onChange={(ownerId) => {
+                      if (!ownerId) return;
+                      void run(() => linkTaskPdi(task.id, ownerId), "PDI vinculado.");
+                    }}
+                    style={{ width: "100%", marginTop: 6 }}
+                    aria-label="Vincular PDI"
                   />
                 </Can>
               </div>

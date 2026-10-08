@@ -159,6 +159,14 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<ITaskDeviceRepository, TaskDeviceRepository>();
         services.AddScoped<ITaskIncidentRepository, TaskIncidentRepository>();
         services.AddScoped<ITaskCommentRepository, TaskCommentRepository>();
+        // F23-T005/P5a: Knowledge vinculada à task
+        services.AddScoped<
+            InfraControl.Application.Tasks.Ports.ITaskKnowledgeArticleRepository,
+            TaskKnowledgeArticleRepository>();
+        // F23-T005/P5b: PDI vinculado à task
+        services.AddScoped<
+            InfraControl.Application.Tasks.Ports.ITaskPdiRepository,
+            TaskPdiRepository>();
         // F23-T003: critérios de aceite das tasks
         services.AddScoped<ITaskCriterionRepository, TaskCriterionRepository>();
         services.AddScoped<InfraControl.Application.Tasks.History.Ports.ITaskHistoryRepository,

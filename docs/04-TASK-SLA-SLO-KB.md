@@ -98,6 +98,38 @@ N:N Task ↔ Incident na tabela `task_incidents` (PK composta; FK da task
   (policy `TasksManage`); duplicidade → 409, inexistente → 404.
 - `TaskDto` expõe `incidentCount` + `incidentIds`.
 
+### Knowledge vinculada (F23-T005/P5a)
+
+N:N Task ↔ KnowledgeArticle na tabela `task_knowledge_articles` (PK
+composta; FK da task `Cascade`, FK do artigo `Cascade` — a exclusão
+física do artigo, ADR-030 §5, limpa os vínculos, mesmo
+comportamento de `knowledge_article_incidents`).
+
+- `POST/DELETE api/v1/tasks/{taskId}/articles/{articleId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404.
+- `TaskDto` expõe `articleCount` + `articleIds`.
+- Histórico grava `KnowledgeLinked`/`KnowledgeUnlinked` (tipo de
+  timeline `vinculo`); card **"Knowledge"** no detalhe com select de
+  vinculação (spec Knowledge — `docs/32` §10; tasks §16).
+
+### PDI vinculado (F23-T005/P5b)
+
+N:N Task ↔ PDI na tabela `task_pdis` (PK composta `(task_id, user_id)`;
+FK da task `Cascade`; **`user_id` sem FK** — critério do ADR-029 para
+refs de usuário, e a coluna é justamente a chave do plano no produto:
+1 plano vigente por usuário, API `/pdi/{userId}`). A existência do plano
+é validada no handler (linkar exige PDI criado).
+
+- `POST/DELETE api/v1/tasks/{taskId}/pdi/{userId}`
+  (policy `TasksManage`); duplicidade → 409, inexistente → 404
+  (`PDI do usuário '{id}' não encontrado.`).
+- `TaskDto` expõe `pdiCount` + `pdiUserIds` (ids = donos dos planos).
+- Histórico grava `PdiLinked`/`PdiUnlinked` (tipo `vinculo`); card
+  **"PDI"** no detalhe: nomes dos donos vêm de `listUsers` (a leitura
+  não depende da policy `Operate` do `/pdi` — Viewer continua vendo os
+  vinculados), select de vinculação com `listPdis` (403 de Viewer
+  silencia → lista vazia).
+
 ### Comentários (F7-T005)
 
 Tabela `task_comments` (`task_id`, `author_id`, `content` ≤ 500; FK da
@@ -112,7 +144,7 @@ alterações vem em `F7-T006`.
 
 Tabela `task_histories` (`task_id`, `actor_id` nullable, `action`,
 `detail` ≤ 200; FK da task `Cascade`, sem FK no ator). Todo comando grava
-uma entrada — `TaskHistoryAction` (38 ações): `Created`, `Updated`,
+uma entrada — `TaskHistoryAction` (42 ações): `Created`, `Updated`,
 `Assigned`, `Unassigned`, `PriorityChanged`, `DueDateChanged`,
 `ResponsibleChanged`, `DeviceLinked`, `DeviceUnlinked`, `IncidentLinked`,
 `IncidentUnlinked`, `Commented`, `StateChanged`, `SlaApplied`,
@@ -122,7 +154,8 @@ uma entrada — `TaskHistoryAction` (38 ações): `Created`, `Updated`,
 `ImpedimentUpdated`, `ImpedimentResolved`, `ImpedimentReopened`,
 `ImpedimentRemoved`, `EvidenceAdded`, `EvidenceRemoved`, `PhaseAdded`,
 `PhaseUpdated`, `PhaseCurrentChanged`, `PhaseCompleted`,
-`PhaseReopened`, `PhaseRemoved`.
+`PhaseReopened`, `PhaseRemoved`, `KnowledgeLinked`,
+`KnowledgeUnlinked`, `PdiLinked`, `PdiUnlinked`.
 
 - `GET api/v1/tasks/{taskId}/history` (policy `TasksRead`) — ordem
   cronológica, com `actorName` (DisplayName).
@@ -307,7 +340,7 @@ unificada tipada, derivada em leitura (sem tabela nova)**:
 - **13 tipos** (`TaskTimelineTypes`, espelhados no front):
   `criacao`, `edicao`, `estado`, `atribuicao`, `vinculo`,
   `planejamento`, `criterio`, `subtarefa`, `bloqueio`, `anexo`, `sla`,
-  `fase`, `comentario` — as 38 ações do histórico mapeiam para eles
+  `fase`, `comentario` — as 42 ações do histórico mapeiam para eles
   (default `edicao`).
 - `types` comma-separated (tipo desconhecido → **400 pt-BR** com a
   lista aceita), `limit` clamp 1..500 (default 100), mais recente
@@ -346,13 +379,13 @@ enriqueceu a tela com os cards novos):
   do domínio → banner), comentários (criar/excluir, máx. 500),
   **linha do tempo** (F23-T004/P4d: histórico + comentários tipados em
   13 tipos com chips de filtro), participantes e vínculos de
-  device/incidente (selects só com o que
+  device/incidente/knowledge/PDI (F23-T005/P5a–P5b; selects só com o que
   ainda não está vinculado; nome resolvido no front com fallback para id
   curto quando o vocabulário não carrega) e SLA (snapshot + pausas +
   aplicar/pausar/retomar; `GET .../sla` **404 = "sem SLA aplicado"**,
   fluxo normal, não banner).
 - Catálogo único `components/tasks/taskCatalogs.ts` (estados, kinds,
-  prioridade, prazo, rótulos das 38 ações do histórico + os 13 tipos da
+  prioridade, prazo, rótulos das 42 ações do histórico + os 13 tipos da
   linha do tempo) compartilhado com
   o kanban (`TasksPage` — o título do card virou link para o detalhe;
   F23-T004/P4a: o quadro lista só tasks raiz via `rootOnly=true` e o

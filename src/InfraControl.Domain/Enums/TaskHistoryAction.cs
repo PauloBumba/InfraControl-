@@ -53,5 +53,13 @@ public enum TaskHistoryAction
     PhaseCurrentChanged,
     PhaseCompleted,
     PhaseReopened,
-    PhaseRemoved
+    PhaseRemoved,
+    // F23-T005/P5a — Knowledge vinculada à task (docs/32 §10, spec Tasks
+    // §16): vínculo e desvinculação N:N com artigo da base.
+    KnowledgeLinked,
+    KnowledgeUnlinked,
+    // F23-T005/P5b — PDI vinculado à task (spec §15; alvo = plano do
+    // usuário, 1 por usuário): junção por user_id (TaskPdi).
+    PdiLinked,
+    PdiUnlinked
 }

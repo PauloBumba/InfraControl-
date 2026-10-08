@@ -110,6 +110,10 @@ export const historyActionLabel = (action: string): string =>
     PhaseCompleted: "Fase concluída",
     PhaseReopened: "Fase reaberta",
     PhaseRemoved: "Fase removida",
+    KnowledgeLinked: "Knowledge vinculada",
+    KnowledgeUnlinked: "Knowledge desvinculada",
+    PdiLinked: "PDI vinculado",
+    PdiUnlinked: "PDI desvinculado",
   })[action] ??
   action.replace(/([a-z])([A-Z])/g, "$1 $2");
 

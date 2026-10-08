@@ -322,6 +322,58 @@ public sealed class TaskIncidentDeletedDomainEvent : DomainEvent
     public override string EventType => nameof(TaskIncidentDeletedDomainEvent);
 }
 
+public sealed class TaskKnowledgeArticleCreatedDomainEvent : DomainEvent
+{
+    public TaskKnowledgeArticleCreatedDomainEvent(Guid taskId, Guid articleId)
+    {
+        TaskId = taskId;
+        ArticleId = articleId;
+    }
+
+    public Guid TaskId { get; }
+    public Guid ArticleId { get; }
+    public override string EventType => nameof(TaskKnowledgeArticleCreatedDomainEvent);
+}
+
+public sealed class TaskKnowledgeArticleDeletedDomainEvent : DomainEvent
+{
+    public TaskKnowledgeArticleDeletedDomainEvent(Guid taskId, Guid articleId)
+    {
+        TaskId = taskId;
+        ArticleId = articleId;
+    }
+
+    public Guid TaskId { get; }
+    public Guid ArticleId { get; }
+    public override string EventType => nameof(TaskKnowledgeArticleDeletedDomainEvent);
+}
+
+public sealed class TaskPdiCreatedDomainEvent : DomainEvent
+{
+    public TaskPdiCreatedDomainEvent(Guid taskId, Guid userId)
+    {
+        TaskId = taskId;
+        UserId = userId;
+    }
+
+    public Guid TaskId { get; }
+    public Guid UserId { get; }
+    public override string EventType => nameof(TaskPdiCreatedDomainEvent);
+}
+
+public sealed class TaskPdiDeletedDomainEvent : DomainEvent
+{
+    public TaskPdiDeletedDomainEvent(Guid taskId, Guid userId)
+    {
+        TaskId = taskId;
+        UserId = userId;
+    }
+
+    public Guid TaskId { get; }
+    public Guid UserId { get; }
+    public override string EventType => nameof(TaskPdiDeletedDomainEvent);
+}
+
 public sealed class TaskSlaCreatedDomainEvent : DomainEvent
 {
     public TaskSlaCreatedDomainEvent(Guid taskId, Guid slaPolicyId)

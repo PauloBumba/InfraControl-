@@ -2512,6 +2512,50 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("tasks", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskKnowledgeArticle", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId", "ArticleId");
+
+                    b.HasIndex("ArticleId");
+
+                    b.ToTable("task_knowledge_articles", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskPdi", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId", "UserId");
+
+                    b.ToTable("task_pdis", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskPhase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3596,6 +3640,30 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ParentTaskId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskKnowledgeArticle", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TaskPdi", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskPhase", b =>

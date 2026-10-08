@@ -64,7 +64,7 @@ public sealed class TaskAssignmentCommandTests : IDisposable
 
     private static GetTaskQueryHandler GetHandler(AppDbContext context)
         => new(TaskRepo(context), AssigneeRepo(context), DeviceRepo(context),
-            IncidentRepo(context));
+            IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
 
     private static TaskDeviceRepository DeviceRepo(AppDbContext context) => new(context);
     private static TaskIncidentRepository IncidentRepo(AppDbContext context) => new(context);
@@ -200,7 +200,7 @@ public sealed class TaskAssignmentCommandTests : IDisposable
 
         var handler = new SearchTasksQueryHandler(
             TaskRepo(context), AssigneeRepo(context), DeviceRepo(context),
-            IncidentRepo(context));
+            IncidentRepo(context), new TaskKnowledgeArticleRepository(context), new TaskPdiRepository(context));
         var page = await handler.Handle(
             new SearchTasksQuery(), CancellationToken.None);
 

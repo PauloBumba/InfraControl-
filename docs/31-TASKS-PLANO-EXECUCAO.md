@@ -581,8 +581,191 @@ timeline carrega no máx. 500 entradas (teto do clamp).
 
 ## 11. Próximas fases
 
-P1–P3 e P4a–P4d concluídas — **F23-T004 cobre subtarefas, progresso,
-impedimentos, evidências, fases e timeline**. Restam **P5**
-(integrações Chamado/PDI/KB — §14–§16, módulo de Chamados não existe:
-definir arquitetura antes, provável ADR) e os itens da spec não
-cobertos pelo plano (§6 ciclo de estados — qualquer mudança exige ADR).
+P1–P3, P4a–P4d, **P5a**, **P5b** e **P5c** concluídas — **F23-T004
+cobre subtarefas, progresso, impedimentos, evidências, fases e
+timeline**; **F23-T005 fechou** com os vínculos Task↔Knowledge (§13),
+Task↔PDI (§14) e a conferência §14 Chamado = Incident (§15 — sem sobra
+de código). Restam os itens da spec não cobertos pelo plano (§6 ciclo de
+estados — qualquer mudança exige ADR).
+
+## 12. Specs recebidas — Knowledge (docs/32) e Indicadores (docs/33)
+
+Em 2026-10-07 o usuário colou as specs **"KNOWLEDGE — Plano de Base de
+Conhecimento"** (docs/32) e **"INDICADORES E RELATÓRIOS — Plano"**
+(docs/33); ambas arquivadas integralmente no repo. Gap × código:
+
+| Spec Knowledge (docs/32) | Código (F10) |
+|---|---|
+| §5 tipos (14) | **ausente** — não há campo `Type` |
+| §6 identificação: descrição, tags, autor, responsável | **parcial** — só `Title`/`Content`/`CategoryId`; autor só na auditoria |
+| §6 conteúdo estruturado (objetivo, contexto, pré-requisitos, procedimento, observações, problemas, soluções, limitações, referências) | **ausente** — `Content` único (20k) |
+| §6 governança: versão, próxima revisão, responsável pela revisão, aprovador | **ausente** |
+| §7 status: RASCUNHO → EM REVISÃO → APROVADA → PUBLICADA → EM REVISÃO → ATUALIZADA + Arquivada/Obsoleta/Rejeitada | **diferente** — enum de 3 estados (`Draft/Published/Archived`), ciclo Draft→Published→Archived→Draft |
+| §8 versionamento (v1.0→, alteração/autor/data/motivo/aprovador) | **ausente** |
+| §9 rastreabilidade de origem (Task/PDI/Chamado/…) | **ausente** |
+| §10 relação com Tasks (criada a partir de, utilizada por, atualizada por) | **ausente** — vínculos só de device/incident/service |
+| §11 relação com chamados ("Knowledge utilizada na resolução") | **existe** — `knowledge_article_incidents` (Chamado = Incident, decisão do usuário) |
+| §12 revisão periódica (180 dias) | **ausente** |
+| §13 busca (título, conteúdo, categoria, tags, autor, sistema, setor, tipo, keywords) | **parcial** — `term` em Title/Content |
+| §2–§4 criação automática Task/PDI → rascunho | **ausente** (sem infraestrutura de IA no repo) |
+| §15 indicadores | **ausente** — docs/33, módulo inteiro novo |
+
+**Spec Indicadores (docs/33)**: camada inteira ausente (indicadores de
+Tasks/PDI/Knowledge, dashboards colaborador/gestor/admin, relatórios,
+histórico mensal, exportação PDF/Excel/CSV, IA de interpretação). Só
+existe o dashboard inicial genérico (F14 com mock).
+
+### Trilhas de execução proposta (dividir para conquistar)
+
+- **Trilha P5 (Tasks §14–§16)** — ✅ **Fechada**: P5a Task↔Knowledge
+  (**§13**), P5b Task↔PDI (**§14**) e P5c conferência Chamado = Incident
+  (**§15**, sem sobra) — F23-T005 concluída.
+- **Trilha K (Knowledge)** → **Fase 24 do TASKS.md (F24-T001–T007)** —
+  K1 tipos + identificação; K2 workflow dos 9 status; K3 versionamento;
+  K4 origem/rastreabilidade (pode absorver o vínculo do P5a); K5 revisão
+  periódica; K6 geração automática (definir IA vs rascunho montado dos
+  registros); K7 busca avançada.
+- **Trilha I (Indicadores)** → **Fase 25 do TASKS.md (F25-T001–T006)** —
+  módulo novo (indicadores → dashboards → relatórios →
+  histórico/exportação → automáticos/IA), escopo de cada task confirmado
+  na execução.
+
+IA (docs/32 §14, docs/33 §16): **não há infraestrutura de IA no repo**
+— definir orçamento/arquitetura antes de qualquer geração automática.
+
+## 13. Execução — P5a (F23-T005, 2026-10-07)
+
+Vínculo **Task ↔ Knowledge** (spec Tasks §16 × docs/32 §10), decidido
+pelo usuário no question tool: executar "P5a: vínculo Task↔Knowledge"
+e alvo do P5b = "Task ↔ PDI (plano do usuário)"; §14 Chamado = módulo
+`Incident` existente (decisão anterior).
+
+### Decisões de design
+
+- Espelho do vínculo F7-T004 (`task_incidents`): tabela
+  `task_knowledge_articles`, PK composta `(task_id, article_id)`, FKs
+  **Cascade/Cascade** — task e artigo têm exclusão (ADR-030 §5) e
+  apagar qualquer um limpa o vínculo (mesmo comportamento de
+  `knowledge_article_incidents`).
+- Nome por camada: entidade `TaskKnowledgeArticle` (coluna
+  `article_id`), commands `Link/UnlinkTaskArticleCommand`, rota
+  `POST/DELETE /tasks/{id}/articles/{articleId}`, DTO
+  `articleCount`/`articleIds`, histórico `KnowledgeLinked`/
+  `KnowledgeUnlinked` (38→**40**, tipo de timeline `vinculo`).
+- 404 pt-BR (task/artigo/vínculo), 409 em duplicidade; escrita
+  `Operate`, leitura `Read`.
+- DTOs de mutação (estado/identificação/planejamento/subtarefas) **não
+  enriquecem** `articleIds` — mesmo desenho parcial já aceito (o front
+  recarrega via GET após toda mutação); Get/Search enriquecem.
+
+### Arquivos alterados
+
+- Domínio: `TaskKnowledgeArticle.cs` (novo), `TaskHistoryAction` +2
+  (40), `TasksDomainEvents` +2 eventos.
+- Application: `ITaskKnowledgeArticleRepository` (novo),
+  `TaskKnowledgeCommands.cs` (novo), `TaskDto` +2 campos,
+  `TaskQueries` (2 handlers + group join), `TaskTimelineTypes`
+  (ações novas → `vinculo`; doc 40).
+- Infra: `TaskKnowledgeArticleConfiguration` (novo),
+  `TaskKnowledgeArticleRepository` (novo), `DbSet`, migração
+  `20261007225543_AddTaskKnowledgeArticles` (script validado: tabela +
+  2 FKs Cascade + índice; **não aplicada**).
+- Api: `TasksController` +2 endpoints (`204`).
+- Front: `tasks.ts` (+`articleCount`/`articleIds`, +
+  `linkTaskArticle`/`unlinkTaskArticle`), `taskCatalogs` +2 rótulos →
+  40, `TaskDetailPage` card **"Knowledge"** (select de vínculo, título
+  resolvido com fallback para id curto).
+- Testes: `TaskKnowledgeArticleTests` (3) + `TaskArticleCommandTests`
+  (10 — inclui gravação do histórico e tipo da timeline); 6 pontos de
+  construção dos handlers de query atualizados; `BaseIntegrationTest`
+  +registro. Integration tests da P5a **não criados** (mesmo critério
+  das fases P4 — suíte parada no ambiente).
+
+### Validação
+
+- build 0 erros · unit **1746/1746** · arch **115/115** · script da
+  migração OK · front lint exit 0 / build ✓.
+
+### Pendências da P5a
+
+- Migração não aplicada + testes de integração não executados (Docker).
+- ~~P5b e P5c seguem abertos~~ — P5b concluída em 2026-10-07 (§14);
+  resta P5c.
+
+## 14. Execução — P5b (F23-T005, 2026-10-07)
+
+Vínculo **Task ↔ PDI** (spec Tasks §15), alvo decidido pelo usuário no
+question tool: "Task ↔ PDI (plano do usuário)".
+
+### Decisões de design
+
+- **Chave por `user_id`**: a API do PDI identifica o plano pelo dono
+  (`PUT /pdi/{userId}`, 1 plano vigente por usuário) e o DTO do front
+  (`Pdi`) não expõe o PK — a junção usa o dono, não `plan.id`.
+- Tabela `task_pdis`, PK composta `(task_id, user_id)`; FK da task
+  **Cascade**; **`user_id` sem FK** (critério do ADR-029 para refs de
+  usuário — `UserId`/`ManagerId` do próprio plano também não têm FK).
+  A existência do plano é validada no handler via
+  `IPdiRepository.GetByUserIdAsync` (linkar exige PDI criado → 404).
+- Nome por camada: entidade `TaskPdi`, commands
+  `Link/UnlinkTaskPdiCommand`, rota `POST/DELETE
+  /tasks/{id}/pdi/{userId}` (segmento singular, molde do módulo
+  `/pdi/{userId}`), DTO `pdiCount`/`pdiUserIds`, histórico
+  `PdiLinked`/`PdiUnlinked` (40→**42**, tipo de timeline `vinculo`).
+- 404 pt-BR (task/PDI/vínculo), 409 em duplicidade; escrita `Operate`.
+- Card **"PDI"** no detalhe: nomes dos donos resolvidos por
+  `listUsers` (a leitura do card **não** depende da policy `Operate`
+  do `/pdi` — Viewer vê os vinculados); select de vínculo usa
+  `listPdis` (403 de Viewer silencia → lista vazia, padrão já
+  estabelecido).
+
+### Arquivos alterados
+
+- Domínio: `TaskPdi.cs` (novo), `TaskHistoryAction` +2 (42),
+  `TasksDomainEvents` +2 eventos.
+- Application: `ITaskPdiRepository` (novo), `TaskPdiCommands.cs`
+  (novo), `TaskDto` +2 campos, `TaskQueries` (2 handlers + group
+  join), `TaskTimelineTypes` (ações → `vinculo`; doc 42).
+- Infra: `TaskPdiConfiguration` (novo), `TaskPdiRepository` (novo),
+  `DbSet`, migração `20261007232706_AddTaskPdis` (script validado:
+  tabela + FK Cascade única — `user_id` sem FK, por decisão; **não
+  aplicada**).
+- Api: `TasksController` +2 endpoints (`204`).
+- Front: `tasks.ts` (+`pdiCount`/`pdiUserIds`, +`linkTaskPdi`/
+  `unlinkTaskPdi`), `taskCatalogs` +2 rótulos → **42**,
+  `TaskDetailPage` card **"PDI"**.
+- Testes: `TaskPdiTests` (3) + `TaskPdiCommandTests` (10 — inclui
+  gravação do histórico e tipo da timeline; seed do plano via
+  `IndividualDevelopmentPlan.Create` + `PdiChangeActor`); ajustes nos 6
+  arquivos que constroem os handlers de query (13 construções — 6º
+  parâmetro); `BaseIntegrationTest` +registro. Integration tests da P5b
+  **não criados** (mesmo critério das fases P4/P5a).
+
+### Validação
+
+- build 0 erros · unit **1759/1759** · arch **115/115** · script da
+  migração OK · front lint exit 0 / build ✓.
+
+### Pendências da P5b
+
+- Migração não aplicada + testes de integração não executados (Docker).
+- Resta **P5c** (Chamado = Incident — conferir sobra dos vínculos já
+  existentes) para fechar F23-T005 → conferência em §15.
+
+## 15. Conferência — P5c (F23-T005, 2026-10-07)
+
+Última fatia de P5: §14 da spec Tasks (**Chamado, integração**) com a
+decisão já registrada — **Chamado = módulo `Incident` existente**, sem
+módulo novo. Conferência do que os vínculos existentes cobrem:
+
+| Verificação | Situação |
+|---|---|
+| Task ↔ Chamado (lado da task) | **existe** (F7-T004) — tabela `task_incidents` (PK composta, FKs Cascade), endpoints `POST/DELETE /tasks/{id}/incidents/{incidentId}` (404/409 pt-BR, `Operate`), `TaskDto.incidentIds`, card "Incidentes" no detalhe, histórico `IncidentLinked/IncidentUnlinked` (tipo `vinculo`), testes (`TaskIncidentCommandTests`) |
+| Knowledge utilizada na resolução do Chamado (spec Knowledge §11) | **existe** — `knowledge_article_incidents`, commands `Link/UnlinkKnowledgeArticleIncidentCommand` no módulo Knowledge (artigo é o dono do vínculo) |
+| Chamado → lista de Tasks vinculadas (lado do incidente) | **não existe** — e é o precedente do repo: nenhum vínculo é exposto pelo lado reverso (a página de Incidentes é lista, sem detalhe com links; knowledge↔incident só pelo artigo). Não é gap da §14, que pede integração **do módulo Tasks** com o Chamado — coberta acima. |
+| Task originada em Chamado / origem da Knowledge vinda de Chamado | fora da §14 — a segunda é escopo de **K4** (rastreabilidade de origem, spec Knowledge §9) na Fase 24 |
+
+**Resultado: nenhuma sobra de código.** F23-T005 fecha com P5a (§13),
+P5b (§14) e esta conferência; a única ligação restante do §14
+(task↔chamado reversa) só entraria por pedido explícito do usuário
+(não inventar requisitos).

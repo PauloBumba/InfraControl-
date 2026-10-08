@@ -5,7 +5,7 @@ namespace InfraControl.Application.Tasks;
 /// <summary>
 /// Catálogo dos 13 tipos da timeline unificada da Task
 /// (F23-T004/P4d — Plano de Execução §8). A timeline é DERIVADA na
-/// leitura (sem tabela nova): as 38 ações do `TaskHistoryAction`
+/// leitura (sem tabela nova): as 42 ações do `TaskHistoryAction`
 /// mapeiam para tipos grosseiros, comentários entram pela fonte rica
 /// (tabela de comentários) e a ação `Commented` do histórico é
 /// excluída para não duplicar. Valores em pt-BR minúsculo (query
@@ -40,7 +40,9 @@ public static class TaskTimelineTypes
         TaskHistoryAction.StateChanged => State,
         TaskHistoryAction.Assigned or TaskHistoryAction.Unassigned => Assignment,
         TaskHistoryAction.DeviceLinked or TaskHistoryAction.DeviceUnlinked
-            or TaskHistoryAction.IncidentLinked or TaskHistoryAction.IncidentUnlinked => Link,
+            or TaskHistoryAction.IncidentLinked or TaskHistoryAction.IncidentUnlinked
+            or TaskHistoryAction.KnowledgeLinked or TaskHistoryAction.KnowledgeUnlinked
+            or TaskHistoryAction.PdiLinked or TaskHistoryAction.PdiUnlinked => Link,
         TaskHistoryAction.PriorityChanged or TaskHistoryAction.DueDateChanged
             or TaskHistoryAction.ResponsibleChanged or TaskHistoryAction.PlanningChanged
             or TaskHistoryAction.ResultChanged or TaskHistoryAction.Replanned => Planning,

@@ -26,6 +26,10 @@ export interface TaskItem {
   deviceIds: string[];
   incidentCount: number;
   incidentIds: string[];
+  articleCount: number;
+  articleIds: string[];
+  pdiCount: number;
+  pdiUserIds: string[];
   priority: string;
   dueDate: string | null;
   responsibleId: string | null;
@@ -229,6 +233,24 @@ export function linkTaskIncident(taskId: string, incidentId: string): Promise<nu
 
 export function unlinkTaskIncident(taskId: string, incidentId: string): Promise<null> {
   return api.delete<null>(`/tasks/${taskId}/incidents/${incidentId}`);
+}
+
+/** `POST/DELETE /tasks/{id}/articles/{articleId}` (Operate) — P5a. */
+export function linkTaskArticle(taskId: string, articleId: string): Promise<null> {
+  return api.post<null>(`/tasks/${taskId}/articles/${articleId}`);
+}
+
+export function unlinkTaskArticle(taskId: string, articleId: string): Promise<null> {
+  return api.delete<null>(`/tasks/${taskId}/articles/${articleId}`);
+}
+
+/** `POST/DELETE /tasks/{id}/pdi/{userId}` (Operate) — P5b (1 PDI/usuário). */
+export function linkTaskPdi(taskId: string, userId: string): Promise<null> {
+  return api.post<null>(`/tasks/${taskId}/pdi/${userId}`);
+}
+
+export function unlinkTaskPdi(taskId: string, userId: string): Promise<null> {
+  return api.delete<null>(`/tasks/${taskId}/pdi/${userId}`);
 }
 
 /**
