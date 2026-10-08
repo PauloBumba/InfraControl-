@@ -936,3 +936,239 @@ export async function getPdiAdminDashboard(): Promise<PdiAdminDashboard> {
   const data = await api.get<PdiAdminDashboard>(`/pdi/admin/dashboard`);
   return data as PdiAdminDashboard;
 }
+
+// ------------------------------------------------------------------
+// Analytics (Fase 8 — docs/30 §21, §22, ADR-038)
+// ------------------------------------------------------------------
+
+/** §21 execução: planos, conclusão, atraso e fases (escopo = período). */
+export interface PdiExecutionIndicators {
+  totalPlans: number;
+  completedPlans: number;
+  completionRatePercent: number;
+  overduePlans: number;
+  phasesCompleted: number;
+  phasesOverdue: number;
+  avgCompletionDays: number | null;
+}
+
+/** Evolução por competência (objetivo → estratégia → fase). */
+export interface PdiEvolutionItem {
+  name: string;
+  objectives: number;
+  avgPhasePercent: number;
+}
+
+/** §21 desenvolvimento: competências, objetivos e resultados (§16). */
+export interface PdiDevelopmentIndicators {
+  competenciesWorked: number;
+  objectivesTotal: number;
+  resultsAtingido: number;
+  resultsParcial: number;
+  resultsNaoAtingido: number;
+  resultsReplanejado: number;
+  evolutionByCompetency: PdiEvolutionItem[];
+}
+
+/** §21 acompanhamento: check-ins, feedbacks e evidências validadas. */
+export interface PdiAccompanimentIndicators {
+  checkIns: number;
+  checkInsPerPlan: number;
+  feedbacks: number;
+  evidencesValidated: number;
+}
+
+/** Fatia por tipo de impedimento (texto livre) — % do total do escopo. */
+export interface PdiDifficultyShare {
+  type: string;
+  count: number;
+  percent: number;
+}
+
+/** §21 dificuldades: total, distribuição e tempo médio de resolução. */
+export interface PdiDifficultyIndicators {
+  totalImpediments: number;
+  byType: PdiDifficultyShare[];
+  avgResolutionDays: number | null;
+}
+
+/** §21 — indicadores consolidados nos 4 blocos. */
+export interface PdiIndicators {
+  execution: PdiExecutionIndicators;
+  development: PdiDevelopmentIndicators;
+  accompaniment: PdiAccompanimentIndicators;
+  difficulties: PdiDifficultyIndicators;
+}
+
+/** §22 — relatório individual: dados + estrutura + acompanhamento + avaliação. */
+export interface PdiIndividualReport {
+  ownerName: string;
+  ownerEmail: string;
+  managerName: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  structure: PdiStructure;
+  accompaniment: PdiAccompaniment;
+  evaluation: PdiEvaluation;
+}
+
+/** Comparação da janela atual com a anterior de mesmo tamanho. */
+export interface PdiSemesterComparison {
+  previousPlansInPeriod: number;
+  previousCompleted: number;
+  previousCompletionRatePercent: number;
+  plansDelta: number;
+  completedDelta: number;
+  completionRateDelta: number;
+}
+
+export interface PdiSemesterManager {
+  managerName: string;
+  plans: number;
+  completed: number;
+}
+
+export interface PdiSemesterCompetency {
+  name: string;
+  objectives: number;
+  avgPhasePercent: number;
+}
+
+/** §22 — relatório semestral: consolido + tendências + gestores/competências. */
+export interface PdiSemesterReport {
+  label: string;
+  from: string | null;
+  to: string | null;
+  plansInPeriod: number;
+  plansCreatedInPeriod: number;
+  completedInPeriod: number;
+  completionRatePercent: number;
+  avgCompletionDays: number | null;
+  trends: PdiSemesterComparison;
+  managers: PdiSemesterManager[];
+  competencies: PdiSemesterCompetency[];
+  difficulties: PdiDifficultyShare[];
+}
+
+/** §22 — relatório de dificuldades por tipo no período. */
+export interface PdiDifficultiesReport {
+  from: string | null;
+  to: string | null;
+  total: number;
+  byType: PdiDifficultyShare[];
+  resolved: number;
+  avgResolutionDays: number | null;
+}
+
+function periodQuery(from?: string, to?: string): string {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+/** §21 — indicadores (Admin; filtro de período opcional). */
+export async function getPdiIndicators(
+  from?: string,
+  to?: string,
+): Promise<PdiIndicators> {
+  const data = await api.get<PdiIndicators>(
+    `/pdi/indicators${periodQuery(from, to)}`,
+  );
+  return data as PdiIndicators;
+}
+
+/** §22 — relatório individual (Admin/dono/gestor). */
+export async function getPdiIndividualReport(
+  userId: string,
+): Promise<PdiIndividualReport> {
+  const data = await api.get<PdiIndividualReport>(
+    `/pdi/reports/individual/${userId}`,
+  );
+  return data as PdiIndividualReport;
+}
+
+/** §22 — relatório semestral (Admin; padrão = semestre corrente). */
+export async function getPdiSemesterReport(
+  from?: string,
+  to?: string,
+): Promise<PdiSemesterReport> {
+  const data = await api.get<PdiSemesterReport>(
+    `/pdi/reports/semester${periodQuery(from, to)}`,
+  );
+  return data as PdiSemesterReport;
+}
+
+/** §22 — relatório de dificuldades (Admin; filtro de período opcional). */
+export async function getPdiDifficultiesReport(
+  from?: string,
+  to?: string,
+): Promise<PdiDifficultiesReport> {
+  const data = await api.get<PdiDifficultiesReport>(
+    `/pdi/reports/difficulties${periodQuery(from, to)}`,
+  );
+  return data as PdiDifficultiesReport;
+}
+
+export type PdiReportFormat = "pdf" | "xlsx";
+
+function exportQuery(
+  format: PdiReportFormat,
+  from?: string,
+  to?: string,
+): string {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  params.set("format", format);
+  return `?${params.toString()}`;
+}
+
+/** Download autenticado de relatório — blob → objectURL → clique temporário. */
+async function downloadPdiReport(
+  path: string,
+  fileName: string,
+): Promise<void> {
+  const blob = await api.download(path);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadPdiIndividualReport(
+  userId: string,
+  format: PdiReportFormat,
+): Promise<void> {
+  return downloadPdiReport(
+    `/pdi/reports/individual/${userId}/export${exportQuery(format)}`,
+    `pdi-relatorio-individual-${userId}.${format}`,
+  );
+}
+
+export function downloadPdiSemesterReport(
+  format: PdiReportFormat,
+  from?: string,
+  to?: string,
+): Promise<void> {
+  return downloadPdiReport(
+    `/pdi/reports/semester/export${exportQuery(format, from, to)}`,
+    `pdi-relatorio-semestral.${format}`,
+  );
+}
+
+export function downloadPdiDifficultiesReport(
+  format: PdiReportFormat,
+  from?: string,
+  to?: string,
+): Promise<void> {
+  return downloadPdiReport(
+    `/pdi/reports/difficulties/export${exportQuery(format, from, to)}`,
+    `pdi-relatorio-dificuldades.${format}`,
+  );
+}

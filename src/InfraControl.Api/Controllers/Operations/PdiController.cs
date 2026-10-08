@@ -122,7 +122,12 @@ public sealed class PdiController(ISender sender) : BaseController
     [HttpGet("admin/dashboard")]
     [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> GetAdminDashboard(
+        [FromQuery] string? from,
+        [FromQuery] string? to,
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new GetPdiAdminDashboardQuery(), cancellationToken)));
+            new GetPdiAdminDashboardQuery(
+                PdiReportsController.ParseDate(from, nameof(from)),
+                PdiReportsController.ParseDate(to, nameof(to))),
+            cancellationToken)));
 }

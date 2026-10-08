@@ -1,5 +1,6 @@
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -33,7 +34,25 @@ public sealed class GetPdiAccompanimentQueryHandler(
                 $"PDI do usuário '{request.UserId}' não encontrado.");
         PdiAccess.EnsureCanView(currentUser, plan);
 
-        var rows = await repository.GetTreeAsync(request.UserId, cancellationToken);
+        return await PdiAccompanimentBuilder.BuildAsync(
+            repository, plans, plan, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Monta o acompanhamento do plano (leitura pura, sem guard de acesso)
+/// — usado pelo GET acompanhamento e pelo relatório individual
+/// (§22 — Fase 8).
+/// </summary>
+internal static class PdiAccompanimentBuilder
+{
+    internal static async Task<PdiAccompanimentDto> BuildAsync(
+        IPdiStructureRepository repository,
+        IPdiRepository plans,
+        IndividualDevelopmentPlan plan,
+        CancellationToken cancellationToken)
+    {
+        var rows = await repository.GetTreeAsync(plan.UserId, cancellationToken);
         var phaseIds = rows.Phases.Select(phase => phase.Id).ToList();
 
         var progresses = await repository.ListProgressesAsync(phaseIds, cancellationToken);

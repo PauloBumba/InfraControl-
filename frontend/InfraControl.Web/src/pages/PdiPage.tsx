@@ -26,6 +26,7 @@ import {
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { PdiStructureDialog } from "@/components/pdi/PdiStructureDialog";
 import { PdiEvaluationDialog } from "@/components/pdi/PdiEvaluationDialog";
+import { PdiReportsDialog } from "@/components/pdi/PdiReportsDialog";
 import {
   PdiAdminDashboardPanel,
   PdiManagerDashboardPanel,
@@ -118,6 +119,9 @@ export function PdiPage() {
 
   // Avaliação final (docs/30 §15.3/§16, Fase 6).
   const [evaluationPlan, setEvaluationPlan] = useState<Pdi | null>(null);
+
+  // Relatórios/indicadores (docs/30 §21, §22 — Fase 8, ADR-038).
+  const [reportsVisible, setReportsVisible] = useState(false);
 
   // Dashboards (docs/30 §18-§20, Fase 7) — painéis opcionais: um erro
   // em um deles não derruba a página.
@@ -376,10 +380,15 @@ export function PdiPage() {
         }
         actions={
           isAdmin ? (
-            <Button variant="primary" onClick={() => void openCreate()}>
-              <i className="pi pi-plus" style={{ fontSize: 11 }} />
-              Novo PDI
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="ghost" onClick={() => setReportsVisible(true)}>
+                Relatórios
+              </Button>
+              <Button variant="primary" onClick={() => void openCreate()}>
+                <i className="pi pi-plus" style={{ fontSize: 11 }} />
+                Novo PDI
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -439,6 +448,9 @@ export function PdiPage() {
             <div style={{ fontWeight: 600 }}>Meu plano</div>
             <div className="flex align-items-center gap-2">
               {statusChip(ownPdi.status)}
+              <Button variant="ghost" onClick={() => setReportsVisible(true)}>
+                Relatório
+              </Button>
               <Button variant="ghost" onClick={() => setStructurePlan(ownPdi)}>
                 Estrutura
               </Button>
@@ -654,6 +666,14 @@ export function PdiPage() {
           </div>
         )}
       </Dialog>
+
+      <PdiReportsDialog
+        visible={reportsVisible}
+        onHide={() => setReportsVisible(false)}
+        isAdmin={isAdmin}
+        plans={items}
+        ownUserId={ownPdi?.userId ?? null}
+      />
 
       <PdiStructureDialog
         visible={structurePlan !== null}

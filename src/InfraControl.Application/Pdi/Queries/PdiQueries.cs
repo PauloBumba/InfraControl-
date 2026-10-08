@@ -1,5 +1,6 @@
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -98,6 +99,24 @@ public sealed class GetPdiEvaluationQueryHandler(
 
         PdiAccess.EnsureCanView(currentUser, plan);
 
+        return await PdiEvaluationBuilder.BuildAsync(
+            repository, plans, plan, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Monta a avaliação final do plano (leitura pura, sem guard de
+/// acesso) — usado pelo GET evaluation e pelo relatório individual
+/// (§22 — Fase 8).
+/// </summary>
+internal static class PdiEvaluationBuilder
+{
+    internal static async Task<PdiEvaluationDto> BuildAsync(
+        IPdiStructureRepository repository,
+        IPdiRepository plans,
+        IndividualDevelopmentPlan plan,
+        CancellationToken cancellationToken)
+    {
         var self = await repository.GetAssessmentAsync(
             plan.Id, PdiAssessmentSide.Self, cancellationToken);
         var manager = await repository.GetAssessmentAsync(
@@ -293,7 +312,9 @@ public sealed class GetPdiManagerDashboardQueryHandler(
 /// plano, taxa de conclusão e agregados de fases/check-ins/evidências/
 /// impedamentos (somente Admin — guard também na policy da API).
 /// </summary>
-public sealed record GetPdiAdminDashboardQuery
+public sealed record GetPdiAdminDashboardQuery(
+    DateOnly? From = null,
+    DateOnly? To = null)
     : IQuery<PdiAdminDashboardDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
@@ -313,8 +334,13 @@ public sealed class GetPdiAdminDashboardQueryHandler(
             throw new UnauthorizedAccessException(
                 "Apenas administradores podem ver o dashboard administrativo do PDI.");
 
-        var all = await plans.ListWithOwnersAsync(
-            onlyUserId: null, cancellationToken);
+        PdiAnalytics.EnsurePeriod(request.From, request.To);
+
+        var all = (await plans.ListWithOwnersAsync(
+                onlyUserId: null, cancellationToken))
+            .Where(item => PdiAnalytics.InPeriod(
+                item.Plan.TargetDate, request.From, request.To))
+            .ToList();
 
         var total = all.Count;
         var completed = all.Count(item =>
