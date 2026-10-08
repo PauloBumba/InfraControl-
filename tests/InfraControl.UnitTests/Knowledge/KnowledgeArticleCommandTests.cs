@@ -62,6 +62,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeCategoryRepository(context),
+            new KnowledgeArticleVersionRepository(context),
             new FakeCurrentUser(["Operator"], CurrentUserId),
             NullLogger<CreateKnowledgeArticleCommandHandler>.Instance);
 
@@ -69,6 +70,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeCategoryRepository(context),
+            new KnowledgeArticleVersionRepository(context),
+            new FakeCurrentUser(["Operator"], CurrentUserId),
             NullLogger<UpdateKnowledgeArticleCommandHandler>.Instance);
 
     private static DeleteKnowledgeArticleCommandHandler DeleteHandler(AppDbContext context)
@@ -164,7 +167,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
 
         await UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
-                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId),
+                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId,
+                "Rotina semanal passou a ser diária."),
             CancellationToken.None);
 
         var updated = await context.KnowledgeArticles.AsNoTracking()
@@ -182,7 +186,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null),
+            new UpdateKnowledgeArticleCommand(
+                unknown, "Título", "Conteúdo.", null, "Motivo."),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -199,7 +204,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown),
+            new UpdateKnowledgeArticleCommand(
+                created.Id, "Artigo", "Conteúdo.", unknown, "Motivo."),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -326,6 +332,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         await UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
                 created.Id, "Roteiro", "Conteúdo novo.", null,
+                Reason: "Reclassificado como manual.",
                 Type: "Manual",
                 Description: "Agora é manual.",
                 Tags: ["manual", "passo a passo"],

@@ -15,9 +15,12 @@ namespace InfraControl.Api.Controllers.Knowledge;
 /// <summary>
 /// F10-T002: CRUD de artigos da base de conhecimento (docs/04).
 /// Controller próprio — o de categorias (F10-T001) já ocupa a rota
-/// api/v1/knowledge/categories. F10-T003: transições de status em
+/// api/v1/knowledge/categories. F10-T003 + K2: transições de status em
 /// POST {id}/status. F10-T004: vínculos N:N em
 /// POST/DELETE {id}/{devices|incidents|services}/{targetId}.
+/// F24-T003/K3: histórico de versões em GET {id}/versions e
+/// GET {id}/versions/compare?from=&to= (literal antes de {version}…
+/// — não há rota {version}, o compare é o único sub-recurso).
 /// Falhas embrulhadas pelo GlobalExceptionHandler.
 /// </summary>
 [Route("api/v1/knowledge/articles")]
@@ -63,10 +66,36 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         await sender.Send(
             new UpdateKnowledgeArticleCommand(
                 id, model.Title, model.Content, model.CategoryId,
+                model.Reason,
                 model.Type, model.Description, model.Tags, model.ResponsibleId),
             cancellationToken);
         return NoContent();
     }
+
+    // F24-T003/K3 (spec docs/32 §8): versões nunca perdidas — lista com
+    // metadados e comparação devolvendo os dois snapshots (o diff é
+    // decisão de quem consome). Mesma visibilidade do artigo.
+
+    /// <summary>Histórico de versões, mais recente primeiro (Read).</summary>
+    [HttpGet("{id:guid}/versions")]
+    [Authorize]
+    public async Task<IActionResult> ListVersions(
+        Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new ListKnowledgeArticleVersionsQuery(id), cancellationToken)));
+
+    /// <summary>Snapshot das duas versões lado a lado (Read) —
+    /// 404 pt-BR se qualquer lado não existir.</summary>
+    [HttpGet("{id:guid}/versions/compare")]
+    [Authorize]
+    public async Task<IActionResult> CompareVersions(
+        Guid id,
+        [FromQuery] string from,
+        [FromQuery] string to,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new CompareKnowledgeArticleVersionsQuery(id, from, to),
+            cancellationToken)));
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
@@ -76,8 +105,8 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         return NoContent();
     }
 
-    /// <summary>F10-T003: ciclo Draft → Published → Archived → Draft;
-    /// fora do ciclo = 409 pt-BR, status desconhecido = 400 pt-BR.</summary>
+    /// <summary>K2/ADR-034: workflow de 8 status (docs/32 §7);
+    /// fora da matriz = 409 pt-BR, status desconhecido = 400 pt-BR.</summary>
     [HttpPost("{id:guid}/status")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> ChangeStatus(

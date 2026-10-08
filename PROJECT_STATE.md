@@ -597,6 +597,38 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   front lint/build 0. Sem migração nova. docs/31 §17 · docs/04
   §Publicação · TASKS F24-T002 [x].
 
+- Fase 24-T003 / K3 (Knowledge — versionamento, spec docs/32 §8)
+  concluída (2026-10-07, mesma autorização da Fase 24 inteira):
+  **nenhuma versão é perdida** — tabela nova
+  **`knowledge_article_versions`** com snapshot completo do documento
+  (title/content/description/type/tags/category = a "alteração" da §8)
+  + os 5 campos da spec: motivo (`reason` obrigatório ≤500 — PUT ganhou
+  `Reason` obrigatório com `[Required]` na VM), autor, data,
+  aprovador (`approved_by_id` carimbado quando o status vira `Approved`
+  — K2; só o primeiro vale). **Numeração no domínio**: criação v1.0,
+  edição abre minor (1.1…), aprovar eleva o piso → próxima edição
+  abre major novo (cadeia §8 v1.0 → v1.1 → v2.0 sem renumerar linha);
+  `version`+`version_major_floor` no artigo (defaults `1.0`/`1`).
+  Endpoints `GET {id}/versions` (ordem numérica major/minor desc —
+  timestamp emparia e "1.10" não ordena com "1.2"; `isCurrent`; nomes
+  em round-trip) e `GET {id}/versions/compare?from=&to` (dois
+  snapshots lado a lado; 404 `Versão 'x' não encontrada.`), ambos
+  `Read` com a visibilidade ADR-034 §4 (nunca-publicado sem escrita =
+  404). Snapshot `KnowledgeArticleVersion.SnapshotOf` valida motivo em
+  pt-BR e copia tags. Infra: config/`KnowledgeArticleVersionRepository`
+  (nova interface casa o RepositoryRegistrar), FK artigo Cascade +
+  autor/aprovador SetNull, chave única `(article_id, version)`; DTO do
+  artigo + `version` (init-prop) e `knowledge.ts` +campo. **Migração
+  `20261008004732_AddKnowledgeArticleVersioning`** com **backfill
+  idempotente** (artigos existentes → v1.0 do histórico, motivo
+  "Criação do artigo") — script validado, **não aplicada** (Docker;
+  lista agora com **10 migrações** pendentes). Testes novos 8+8
+  (`KnowledgeArticleVersionTests` numeração/snapshot/motivos;
+  `KnowledgeArticleVersionCommandTests` handlers/list/compare/
+  visibilidade) → unit **1791/1791** · arch **115/115** · build 0 ·
+  front lint/build 0. Histórico no front = backlog (junto com UI de
+  edição). docs/31 §18 · docs/04 §Versionamento · TASKS F24-T003 [x].
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

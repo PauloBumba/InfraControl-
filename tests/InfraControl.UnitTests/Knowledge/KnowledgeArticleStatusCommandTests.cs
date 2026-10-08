@@ -51,6 +51,8 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
     private static ChangeKnowledgeArticleStatusCommandHandler ChangeStatusHandler(AppDbContext context)
         => new(
             new KnowledgeArticleRepository(context),
+            new KnowledgeArticleVersionRepository(context),
+            new FakeCurrentUser(["Operator"]),
             NullLogger<ChangeKnowledgeArticleStatusCommandHandler>.Instance);
 
     private static SearchKnowledgeArticlesQueryHandler SearchHandler(AppDbContext context, string[] roles)

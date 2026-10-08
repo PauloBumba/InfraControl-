@@ -657,6 +657,41 @@ publicado o tira da vista até republicar (modelo de estado único — se
 a spec pedir "publicado com revisão rejeitada", é histórico de
 revisões + ADR novo).
 
+### Versionamento (F24-T003/K3 — spec docs/32 §8)
+
+Nenhuma versão é perdida: cada edição do artigo abre uma nova linha em
+`knowledge_article_versions` com snapshot completo (título, conteúdo,
+descrição, tipo, tags, categoria) + os 5 campos da §8: **alteração**
+(o próprio snapshot), **autor**, **data** (`CreateDateTime`), **motivo**
+(`reason`, obrigatório) e **aprovador** (`approved_by_id`, carimbado
+quando o status vira `Approved` — ADR-034).
+
+Numeração (domínio, `KnowledgeArticle.BumpVersion`):
+
+- criação = **v1.0** (snapshot semeado junto com o artigo, motivo
+  "Criação do artigo");
+- cada edição abre **minor**: v1.0 → v1.1 → v1.2…;
+- aprovar põe o "piso" do próximo major — a próxima edição abre
+  **v2.0**, depois v3.0… (cadeia da §8: v1.0 → v1.1 → v2.0);
+- o artigo expõe a versão corrente no DTO (`version`); a tabela é
+  única por `(article_id, version)` com FK Cascade (apagar artigo
+  apaga o histórico); autor/aprovador com FK SetNull.
+
+Endpoints (mesma visibilidade do artigo — ADR-034 §4: estado nunca-
+publicado sem escrita = 404):
+
+- `GET api/v1/knowledge/articles/{id}/versions` (`Read`) — lista mais
+  recente primeiro, com autor/aprovador nomeados e `isCurrent`;
+- `GET api/v1/knowledge/articles/{id}/versions/compare?from=1.0&to=1.1`
+  (`Read`) — devolve os dois snapshots lado a lado (o diff é de quem
+  consome); lado inexistente = 404 `Versão 'x' não encontrada.`
+
+PUT (edição) ganhou o campo obrigatório `reason` no corpo (400
+`O motivo da alteração é obrigatório.` via VM; motivo > 500 = 400
+`O motivo da alteração pode ter no máximo 500 caracteres.` no
+domínio). Artigos anteriores à K3 receberam a v1.0 por backfill na
+migration (mesmo conteúdo corrente, motivo fixo "Criação do artigo").
+
 ### Relacionamentos (F10-T004)
 
 Vínculos N:N do artigo (tabelas `knowledge_article_devices`,

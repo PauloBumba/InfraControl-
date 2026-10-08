@@ -30,7 +30,8 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         created.Status.Should().Be(KnowledgeArticleStatus.Draft);
 
         await mediator.Send(new UpdateKnowledgeArticleCommand(
-            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null));
+            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null,
+            "Ajuste do roteiro."));
 
         var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
         fetched.Title.Should().Be("Troca do switch central (v2)");

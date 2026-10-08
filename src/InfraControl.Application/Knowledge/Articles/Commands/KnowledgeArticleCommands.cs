@@ -10,8 +10,9 @@ namespace InfraControl.Application.Knowledge.Articles.Commands;
 
 // F10-T002: CRUD de KnowledgeArticle — 400 (título/conteúdo), 404
 // (artigo ou categoria de destino inexistente). Create nasce Draft.
-// F10-T003: ChangeKnowledgeArticleStatus — ciclo Draft → Published →
-// Archived → Draft (409 fora do ciclo), status fora do enum = 400.
+// F10-T003 + F24-T002/K2: ChangeKnowledgeArticleStatus — workflow de 8
+// status (ADR-034; 409 fora da matriz, status fora do enum = 400).
+// F24-T003/K3: toda versão registra o motivo (spec docs/32 §8).
 
 public sealed record CreateKnowledgeArticleCommand(
     string Title,
@@ -31,6 +32,7 @@ public sealed record CreateKnowledgeArticleCommand(
 public sealed class CreateKnowledgeArticleCommandHandler(
     IKnowledgeArticleRepository repository,
     IKnowledgeCategoryRepository categoryRepository,
+    IKnowledgeArticleVersionRepository versionRepository,
     ICurrentUserContext currentUser,
     ILogger<CreateKnowledgeArticleCommandHandler> logger)
     : IRequestHandler<CreateKnowledgeArticleCommand, KnowledgeArticleDto>
@@ -51,6 +53,15 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             currentUser.UserId);
 
         await repository.AddAsync(article, cancellationToken);
+
+        // F24-T003/K3 (docs/32 §8): a criação é a v1.0 — snapshot com
+        // os 5 campos da spec (alteração/autor/data/motivo/aprovador;
+        // aprovador vem na aprovação do K2).
+        await versionRepository.AddAsync(
+            KnowledgeArticleVersion.SnapshotOf(
+                article, "Criação do artigo", currentUser.UserId),
+            cancellationToken);
+
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -123,6 +134,10 @@ public sealed record UpdateKnowledgeArticleCommand(
     string Title,
     string Content,
     Guid? CategoryId,
+    // F24-T003/K3 — motivo obrigatório (spec docs/32 §8: toda versão
+    // registra o motivo); vem antes dos opcionais da K1 (C# exige
+    // opcionais no fim).
+    string Reason,
     // F24-T001/K1 — identificação (docs/32 §6).
     string? Type = null,
     string? Description = null,
@@ -136,6 +151,8 @@ public sealed record UpdateKnowledgeArticleCommand(
 public sealed class UpdateKnowledgeArticleCommandHandler(
     IKnowledgeArticleRepository repository,
     IKnowledgeCategoryRepository categoryRepository,
+    IKnowledgeArticleVersionRepository versionRepository,
+    ICurrentUserContext currentUser,
     ILogger<UpdateKnowledgeArticleCommandHandler> logger)
     : IRequestHandler<UpdateKnowledgeArticleCommand>
 {
@@ -157,10 +174,21 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
         // Autor imutável (K1): SetIdentification não toca AuthorId.
         article.SetIdentification(
             type, request.Description, request.Tags, request.ResponsibleId);
+
+        // F24-T003/K3 (docs/32 §8): edição = nova versão (minor, ou
+        // major novo se houve aprovação) + snapshot imutável com o
+        // motivo — SnapshotOf valida motivo vazio/longo em pt-BR (400).
+        article.BumpVersion();
+        await versionRepository.AddAsync(
+            KnowledgeArticleVersion.SnapshotOf(
+                article, request.Reason, currentUser.UserId),
+            cancellationToken);
+
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "KnowledgeArticle {ArticleId} updated ({Title}).", article.Id, article.Title);
+            "KnowledgeArticle {ArticleId} updated ({Title} → {Version}).",
+            article.Id, article.Title, article.Version);
     }
 }
 
@@ -204,6 +232,8 @@ public sealed record ChangeKnowledgeArticleStatusCommand(
 
 public sealed class ChangeKnowledgeArticleStatusCommandHandler(
     IKnowledgeArticleRepository repository,
+    IKnowledgeArticleVersionRepository versionRepository,
+    ICurrentUserContext currentUser,
     ILogger<ChangeKnowledgeArticleStatusCommandHandler> logger)
     : IRequestHandler<ChangeKnowledgeArticleStatusCommand, KnowledgeArticleDto>
 {
@@ -223,6 +253,18 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
 
         // Fora do ciclo → InvalidOperationException → 409 (GlobalExceptionHandler).
         article.TransitionTo(target);
+
+        // F24-T003/K3 + K2/ADR-034: aprovar carimba o aprovador na
+        // versão corrente (só o primeiro vale) e põe o piso para a
+        // próxima edição abrir major novo (1.2 → 2.0).
+        if (target == KnowledgeArticleStatus.Approved)
+        {
+            article.MarkVersionApproved();
+            var current = await versionRepository.GetLatestAsync(
+                article.Id, cancellationToken);
+            current?.Approve(currentUser.UserId);
+        }
+
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(

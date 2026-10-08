@@ -34,6 +34,10 @@ public sealed record KnowledgeArticleDto(
     public Guid? ResponsibleId { get; init; }
     public string? ResponsibleName { get; init; }
 
+    // F24-T003/K3 — versão corrente do artigo ("1.0" na criação;
+    // docs/32 §8). O histórico completo fica em GET {id}/versions.
+    public string Version { get; init; } = "1.0";
+
     /// <summary>
     /// Leitura a partir da entidade + nomes resolvidos (join em
     /// DomainUsers). Vínculos (device/incident/service) continuam só no
@@ -59,6 +63,7 @@ public sealed record KnowledgeArticleDto(
             AuthorName = NameOf(userNames, article.AuthorId),
             ResponsibleId = article.ResponsibleId,
             ResponsibleName = NameOf(userNames, article.ResponsibleId),
+            Version = article.Version,
         };
     }
 

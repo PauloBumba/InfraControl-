@@ -80,5 +80,18 @@ public sealed class KnowledgeArticleConfiguration
         builder.Property(x => x.Tags)
             .HasColumnName("tags")
             .HasField("_tags");
+
+        // F24-T003/K3 — numeração de versões (docs/32 §8): corrente +
+        // piso do próximo major pós-aprovação. Defaults preenchem as
+        // linhas antigas como 1.0/piso 1 (primeira edição a partir da
+        // K3 cria o histórico — decisão registrada em docs/31 §18).
+        builder.Property(x => x.Version)
+            .HasColumnName("version")
+            .HasMaxLength(16)
+            .HasDefaultValue("1.0");
+
+        builder.Property<int>("_versionMajorFloor")
+            .HasColumnName("version_major_floor")
+            .HasDefaultValue(1);
     }
 }

@@ -44,6 +44,12 @@ public sealed class KnowledgeArticle : AggregateRoot
     private List<string>? _tags;
     public IReadOnlyList<string> Tags => _tags ?? [];
 
+    // F24-T003/K3 (spec docs/32 §8): versão corrente ("1.0" na
+    // criação) e o major que a próxima edição abrirá depois de uma
+    // aprovação (piso — coluna `version_major_floor`).
+    public string Version { get; private set; } = "1.0";
+    private int _versionMajorFloor = 1;
+
     private KnowledgeArticle() { }
 
     /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
@@ -140,6 +146,38 @@ public sealed class KnowledgeArticle : AggregateRoot
                 nameof(tags));
 
         return normalized;
+    }
+
+    // ── F24-T003/K3 — numeração de versões (spec docs/32 §8) ────────────
+
+    /// <summary>
+    /// Próxima versão: criação = 1.0; cada edição abre minor (1.1,
+    /// 1.2…); depois de uma aprovação a próxima edição abre o major do
+    /// piso (2.0, 3.0…). A cadeia da §8 (v1.0 → v1.1 → v2.0) sai daí.
+    /// </summary>
+    public void BumpVersion()
+    {
+        var parts = Version.Split('.');
+        if (parts.Length != 2
+            || !int.TryParse(parts[0], out var major)
+            || !int.TryParse(parts[1], out var minor))
+            throw new InvalidOperationException(
+                $"Número de versão inválido: '{Version}'.");
+
+        Version = _versionMajorFloor > major
+            ? $"{_versionMajorFloor}.0"
+            : $"{major}.{minor + 1}";
+    }
+
+    /// <summary>
+    /// Ao aprovar (ADR-034), a próxima edição começa um novo major —
+    /// aprovado em 1.2 → a próxima edição é 2.0. Re-aprovar só eleva o
+    /// piso se o major corrente ainda for menor.
+    /// </summary>
+    public void MarkVersionApproved()
+    {
+        var major = int.Parse(Version.Split('.')[0]);
+        _versionMajorFloor = Math.Max(_versionMajorFloor, major + 1);
     }
 
     /// <summary>

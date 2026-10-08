@@ -911,3 +911,102 @@ regra de domínio, então **ADR antes do código** (`AGENTS.md`):
 
 - Testes de integração não executados (Docker); migração **nenhuma**
   nova (enum em string).
+
+## 18. Execução — K3 / F24-T003 (Fase 24, 2026-10-07)
+
+**Versionamento** (spec `docs/32` §8 — "uma Knowledge nunca perde
+versões anteriores"). Sem precedente de snapshot no repo (o PDI tem
+timeline de entradas, não cópia de conteúdo); o molde foi o próprio
+`PdiHistoryEntry` para os metadados com ator resolvido.
+
+### Modelo (docs/04 §Versionamento)
+
+- Tabela **`knowledge_article_versions`**: snapshot completo
+  (title/content/description/type/tags/category — a "alteração" da §8)
+  + `reason` (motivo, obrigatório ≤500), `author_id` (autor),
+  `CreateDateTime` (data), `approved_by_id`/`approved_at` (aprovador,
+  carimbado na aprovação do K2). Chave única `(article_id, version)`;
+  FK artigo **Cascade** (apagar apaga o histórico), autor/aprovador
+  **SetNull** (molde K1); `tags` = coleção primitiva (JSON/`text[]`).
+- **Numeração no domínio** (`KnowledgeArticle.BumpVersion` /
+  `MarkVersionApproved`): criação **v1.0**; cada edição abre minor
+  (1.1, 1.2…); aprovar põe o piso → próxima edição abre major novo
+  (2.0, 3.0…) — cadeia da §8 (v1.0 → v1.1 → v2.0) sem renumerar linha
+  já gravada. `version` + `version_major_floor` viram colunas no
+  artigo (defaults `1.0`/`1` preenchem as linhas antigas).
+- **Snapshot `KnowledgeArticleVersion.SnapshotOf`** valida motivo em
+  pt-BR (vazio/`>500` = 400/ArgumentException) e **copia** as tags (o
+  artigo segue vivo). `Approve` carimba só o **primeiro** aprovador.
+
+### Pontos de disparo (handlers)
+
+- `Create` → linha v1.0 (motivo "Criação do artigo");
+- `Update` → `BumpVersion()` + snapshot (command ganhou **`Reason`
+  obrigatório** — posição após `CategoryId`, antes dos opcionais da
+  K1; VM `[Required]` "O motivo da alteração é obrigatório.");
+- `ChangeStatus` → se `Approved`: `MarkVersionApproved()` no artigo +
+  `Approve(currentUserId)` na versão corrente (handlers ganharam
+  `IKnowledgeArticleVersionRepository` + `ICurrentUserContext`).
+- DI automática (RepositoryRegistrar — `IXxxRepository`/`XxxRepository`
+  casam o padrão); DTO do artigo ganhou `version` (init-prop, molde K1)
+  + `knowledge.ts` ganhou o campo no contrato.
+
+### Endpoints (Read, mesma visibilidade ADR-034 §4)
+
+- `GET {id}/versions` → `ListKnowledgeArticleVersionsQuery` — ordenado
+  por **número** (major, minor) desc (o timestamp empataria no mesmo
+  tick e "1.10" não ordena com "1.2"), `isCurrent` = linha == versão
+  corrente, autor/aprovador nomeados num round-trip;
+- `GET {id}/versions/compare?from=&to` →
+  `CompareKnowledgeArticleVersionsQuery` — dois snapshots lado a lado
+  (o diff é de quem consome); lado inexistente = 404
+  `Versão 'x' não encontrada.`; estado nunca-publicado sem escrita =
+  404 (mesmo check do `GET/{id}`).
+
+### Migração `20261008004732_AddKnowledgeArticleVersioning`
+
+- `knowledge_articles` + `version` (`DEFAULT '1.0'`) +
+  `version_major_floor` (`DEFAULT 1`); tabela + 3 índices (único no
+  par artigo/versão); **backfill idempotente** (`INSERT…SELECT` com
+  `NOT EXISTS`): artigos existentes viram a v1.0 do próprio histórico
+  (motivo "Criação do artigo", `tags` com `COALESCE` para `{}`).
+- Script validado (`dotnet ef migrations script`): `ALTER TABLE … ADD
+  version … DEFAULT '1.0'` backfilla as linhas antigas; `gen_random_uuid()`
+  é core do PG13+. **Não aplicada** (Docker).
+
+### Arquivos alterados/criados
+
+- Domínio: `KnowledgeArticle` (Version, `_versionMajorFloor`,
+  `BumpVersion`, `MarkVersionApproved`), **`KnowledgeArticleVersion`**
+  (novo).
+- Application: port **`IKnowledgeArticleVersionRepository`** (novo) +
+  `KnowledgeArticleVersionWithActors`; DTOs
+  **`KnowledgeArticleVersionDto`/`Snapshot`/`Compare`** (novo);
+  **`KnowledgeArticleVersionQueries`** (novo — list/compare);
+  commands (Reason + snapshot + carimbo); `KnowledgeArticleDto.Version`.
+- Infra: **`KnowledgeArticleVersionRepository`** (novo) +
+  `KnowledgeArticleVersionConfiguration` (novo); `KnowledgeArticle`
+  config (+2 colunas); `AppDbContext` (+DbSet); migração.
+- API: VM `Reason` `[Required]`; controller +2 GET (rota
+  `versions/compare` literal).
+- Front: `knowledge.ts` +`version` no contrato (**sem UI de histórico —
+  backlog**, como já é a edição).
+- Testes: **`KnowledgeArticleVersionTests`** (8 — regra de numeração,
+  snapshot imutável, motivos 400 pt-BR, primeiro aprovador) +
+  **`KnowledgeArticleVersionCommandTests`** (8 — v1.0 no create,
+  minor com motivo, motivo vazio não grava, aprovação carimba + abre
+  major, 404 de artigo/lista/compare, visibilidade 404, compare com os
+  dois snapshots); call sites de `Update`/handlers ajustados (Reason +
+  ctor) — integração só compila (Docker).
+- Docs: docs/04 §Versionamento, docs/31 §18, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1791/1791** (+16) · arch **115/115** · script
+  da migração OK (backfill incluso) · front lint exit 0 / build ✓.
+
+### Pendências da K3
+
+- Migração `AddKnowledgeArticleVersioning` não aplicada + testes de
+  integração não executados (Docker); histórico no **front** (listar /
+  comparar versões) = backlog junto com a UI de edição.

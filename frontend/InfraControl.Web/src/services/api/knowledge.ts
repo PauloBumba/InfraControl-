@@ -28,6 +28,8 @@ export interface KnowledgeArticle {
   authorName: string | null;
   responsibleId: string | null;
   responsibleName: string | null;
+  /** F24-T003/K3 — versão corrente ("1.0" na criação); histórico em GET {id}/versions. */
+  version: string;
   /** Vínculos F10-T004 — só populados no GET/{id}; a busca devolve []. */
   deviceIds: string[];
   incidentIds: string[];

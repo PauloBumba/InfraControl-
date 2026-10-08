@@ -38,6 +38,11 @@ public sealed class UpdateKnowledgeArticleViewModel
 
     public Guid? CategoryId { get; set; }
 
+    // F24-T003/K3 — toda versão registra o motivo (spec docs/32 §8).
+    [Required(ErrorMessage = "O motivo da alteração é obrigatório.")]
+    [MaxLength(500, ErrorMessage = "O motivo da alteração pode ter no máximo 500 caracteres.")]
+    public string Reason { get; set; } = string.Empty;
+
     // F24-T001/K1 — identificação (docs/32 §5–§6).
     public string? Type { get; set; }
 
