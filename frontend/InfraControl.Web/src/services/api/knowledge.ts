@@ -82,6 +82,16 @@ export interface ArticleFilters {
   pageSize?: number;
   /** F24-T005/K5 — só artigos com revisão vencida (docs/32 §12). */
   pendingReview?: boolean;
+  /**
+   * F24-T007/K7 — busca avançada (docs/32 §13): filtros estruturados
+   * AND sobre campos do modelo. `type` = nome do enum; `tag` casa com a
+   * normalização do domínio (trim+lowercase). "Sistema"/"setor" da spec
+   * não existem no modelo e não têm filtro.
+   */
+  categoryId?: string;
+  authorId?: string;
+  type?: string;
+  tag?: string;
 }
 
 /** Busca com `term` (substring no repositório); pageSize clampado 1..100. */
@@ -93,6 +103,10 @@ export async function listArticles(
   if (filters.page) params.set("page", String(filters.page));
   if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
   if (filters.pendingReview) params.set("pendingReview", "true");
+  if (filters.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters.authorId) params.set("authorId", filters.authorId);
+  if (filters.type) params.set("type", filters.type);
+  if (filters.tag) params.set("tag", filters.tag);
 
   const query = params.toString();
   const data = await api.get<Paged<KnowledgeArticle>>(

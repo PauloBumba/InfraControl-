@@ -6,6 +6,7 @@ using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Knowledge.Articles.Queries;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.BuildingBlocks.Application.Response;
+using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,9 +33,20 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         [FromQuery] string? term,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        // F24-T005/K5: "pendentes de revisão" — a action NÃO repassava
+        // (bug de wiring pego na K7: o handler tinha o parâmetro e a
+        // query string era ignorada). F24-T007/K7: filtros estruturados
+        // (docs/32 §13) — "sistema"/"setor" não existem no modelo.
+        [FromQuery] bool pendingReview = false,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] Guid? authorId = null,
+        [FromQuery] KnowledgeArticleType? type = null,
+        [FromQuery] string? tag = null,
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new SearchKnowledgeArticlesQuery(term, page, pageSize), cancellationToken)));
+            new SearchKnowledgeArticlesQuery(
+                term, page, pageSize, pendingReview,
+                categoryId, authorId, type, tag), cancellationToken)));
 
     [HttpGet("{id:guid}")]
     [Authorize]

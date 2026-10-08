@@ -18,7 +18,14 @@ public sealed record SearchKnowledgeArticlesQuery(
     int PageSize = 20,
     // F24-T005/K5 (docs/32 §12): filtro "pendentes de revisão" —
     // próxima revisão vencida ("Knowledge necessita de revisão").
-    bool PendingReview = false) : IQuery<PagedResult<KnowledgeArticleDto>>, IAuthorizedRequest
+    bool PendingReview = false,
+    // F24-T007/K7 (docs/32 §13): busca avançada — filtros estruturados
+    // AND sobre campos que existem no modelo. "Sistema"/"setor" da spec
+    // não existem em nenhuma entidade e ficam documentados como ausentes.
+    Guid? CategoryId = null,
+    Guid? AuthorId = null,
+    KnowledgeArticleType? Type = null,
+    string? Tag = null) : IQuery<PagedResult<KnowledgeArticleDto>>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
@@ -36,11 +43,17 @@ public sealed class SearchKnowledgeArticlesQueryHandler(
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
         var term = string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim();
+        // Tag vazia/branca vira null (o repositório normaliza p/ lowercase).
+        var tag = string.IsNullOrWhiteSpace(request.Tag) ? null : request.Tag.Trim();
 
         var result = await repository.SearchAsync(
             term, page, pageSize,
             includeUnpublished: CanSeeUnpublished(currentUser),
             pendingReview: request.PendingReview,
+            categoryId: request.CategoryId,
+            authorId: request.AuthorId,
+            type: request.Type,
+            tag: tag,
             cancellationToken);
 
         // F24-T001/K1: nomes de autor/responsável da página inteira num

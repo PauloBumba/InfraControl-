@@ -32,16 +32,43 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         int pageSize,
         bool includeUnpublished,
         bool pendingReview,
+        Guid? categoryId = null,
+        Guid? authorId = null,
+        KnowledgeArticleType? type = null,
+        string? tag = null,
         CancellationToken cancellationToken = default)
     {
         var query = dbContext.KnowledgeArticles.AsNoTracking().AsQueryable();
 
+        // F24-T007/K7 (docs/32 §13): termo também casa na descrição
+        // (resumo do que o artigo cobre) — campo que existe no modelo.
         if (!string.IsNullOrWhiteSpace(term))
         {
             var normalized = term.Trim().ToLowerInvariant();
             query = query.Where(article =>
                 article.Title.ToLower().Contains(normalized)
-                || article.Content.ToLower().Contains(normalized));
+                || article.Content.ToLower().Contains(normalized)
+                || (article.Description != null
+                    && article.Description.ToLower().Contains(normalized)));
+        }
+
+        // F24-T007/K7: filtros estruturados AND — só campos que existem
+        // no modelo (sistema/setor, da spec §13, não existem — fora).
+        if (categoryId is not null)
+            query = query.Where(article => article.CategoryId == categoryId);
+
+        if (authorId is not null)
+            query = query.Where(article => article.AuthorId == authorId);
+
+        if (type is not null)
+            query = query.Where(article => article.Type == type);
+
+        // Tags são normalizadas pelo domínio (trim+lowercase) — o filtro
+        // repete a normalização para casa com o que está gravado.
+        if (!string.IsNullOrWhiteSpace(tag))
+        {
+            var normalizedTag = tag.Trim().ToLowerInvariant();
+            query = query.Where(article => article.Tags.Contains(normalizedTag));
         }
 
         // F24-T002/K2 (ADR-034 §4): nunca-publicados escondidos de quem

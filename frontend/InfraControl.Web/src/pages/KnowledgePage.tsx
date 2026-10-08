@@ -90,6 +90,12 @@ export function KnowledgePage() {
   const [termInput, setTermInput] = useState("");
   // F24-T005/K5 — filtro "pendentes de revisão" (docs/32 §12).
   const [pendingOnly, setPendingOnly] = useState(false);
+  // F24-T007/K7 — busca avançada (docs/32 §13): filtros estruturados
+  // sobre os campos que existem no modelo.
+  const [categoryIdFilter, setCategoryIdFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [authorFilter, setAuthorFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
 
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
@@ -114,6 +120,11 @@ export function KnowledgePage() {
           page,
           pageSize: PAGE_SIZE,
           pendingReview: pendingOnly || undefined,
+          // F24-T007/K7 — busca avançada (docs/32 §13).
+          categoryId: categoryIdFilter || undefined,
+          type: typeFilter || undefined,
+          authorId: authorFilter || undefined,
+          tag: tagFilter || undefined,
         }),
       );
     } catch (caught) {
@@ -121,7 +132,7 @@ export function KnowledgePage() {
     } finally {
       setLoading(false);
     }
-  }, [term, page, pendingOnly]);
+  }, [term, page, pendingOnly, categoryIdFilter, typeFilter, authorFilter, tagFilter]);
 
   useEffect(() => {
     void load();
@@ -149,6 +160,31 @@ export function KnowledgePage() {
     setTerm(termInput.trim());
     setPage(1);
   }
+
+  // F24-T007/K7 — um lugar só para desligar qualquer filtro (o botão
+  // "Limpar" do header passa a valer para todos).
+  const anyFilterActive = Boolean(
+    term || pendingOnly || categoryIdFilter || typeFilter || authorFilter || tagFilter,
+  );
+
+  function clearFilters() {
+    setTermInput("");
+    setTerm("");
+    setPendingOnly(false);
+    setCategoryIdFilter("");
+    setTypeFilter("");
+    setAuthorFilter("");
+    setTagFilter("");
+    setPage(1);
+  }
+
+  /** Visual de chip de filtro ativo (mesmo padrão do "Revisões"). */
+  const filterChipStyle = (active: boolean) => ({
+    padding: "5px 10px",
+    ...(active
+      ? { background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }
+      : {}),
+  });
 
   async function submitCreate(event: FormEvent) {
     event.preventDefault();
@@ -206,6 +242,24 @@ export function KnowledgePage() {
   const totalCount = pageData?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // F24-T007/K7: opções de autor vêm do próprio DTO (id + nome já
+  // resolvidos pelo backend — sem /admin/users): só quem tem artigo,
+  // exatamente o conjunto útil. Autor selecionado sem artigo na página
+  // ganha uma opção sintética para o filtro não sumir da UI.
+  const authorOptions = [
+    ...new Map(
+      articles
+        .filter((article) => article.authorId)
+        .map((article) => [
+          article.authorId as string,
+          article.authorName || "Sem nome",
+        ]),
+    ),
+  ].map(([value, label]) => ({ value, label }));
+  if (authorFilter && !authorOptions.some((option) => option.value === authorFilter)) {
+    authorOptions.push({ value: authorFilter, label: "Autor filtrado" });
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
@@ -244,11 +298,11 @@ export function KnowledgePage() {
               >
                 <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
               </Button>
-              {term && (
+              {anyFilterActive && (
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => { setTermInput(""); setTerm(""); setPendingOnly(false); setPage(1); }}
+                  onClick={clearFilters}
                   style={{ padding: "5px 10px" }}
                 >
                   Limpar
@@ -271,6 +325,84 @@ export function KnowledgePage() {
       {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+
+      {/* F24-T007/K7 — busca avançada (docs/32 §13): filtros sobre os
+          campos que existem no modelo (categoria, autor, tipo, tag).
+          "Sistema"/"setor" da spec não existem no modelo — sem chip. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignItems: "center",
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: "8px 12px",
+        }}
+      >
+        <SelectField
+          value={categoryIdFilter}
+          onChange={(value) => { setCategoryIdFilter(value); setPage(1); }}
+          placeholder="Todas as categorias"
+          options={[
+            { value: "", label: "Todas as categorias" },
+            ...categories.map((category) => ({
+              value: category.id,
+              label: category.name,
+            })),
+          ]}
+          style={{ minWidth: 160, fontSize: 12 }}
+          aria-label="Filtrar por categoria"
+        />
+        <SelectField
+          value={authorFilter}
+          onChange={(value) => { setAuthorFilter(value); setPage(1); }}
+          placeholder="Todos os autores"
+          options={[
+            { value: "", label: "Todos os autores" },
+            ...authorOptions,
+          ]}
+          style={{ minWidth: 160, fontSize: 12 }}
+          aria-label="Filtrar por autor"
+        />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#9ca3af" }}>Tipo:</span>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => { setTypeFilter(""); setPage(1); }}
+            style={filterChipStyle(!typeFilter)}
+          >
+            Todos
+          </Button>
+          {KNOWLEDGE_TYPE_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setTypeFilter(option.value === typeFilter ? "" : option.value);
+                setPage(1);
+              }}
+              style={filterChipStyle(typeFilter === option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+        {tagFilter && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => { setTagFilter(""); setPage(1); }}
+            style={filterChipStyle(true)}
+            title="Remover filtro de tag"
+          >
+            #{tagFilter} <i className="pi pi-times" style={{ fontSize: 10 }} />
+          </Button>
+        )}
+      </div>
 
       {creating && (
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
@@ -425,15 +557,19 @@ export function KnowledgePage() {
               {article.tags.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {article.tags.map((tag) => (
-                    <span
+                    <button
                       key={tag}
+                      type="button"
+                      onClick={() => { setTagFilter(tag); setPage(1); }}
+                      title={`Filtrar por #${tag}`}
                       style={{
                         fontSize: 10, background: "#f1f5f9", color: "#475569",
                         border: "1px solid #e2e8f0", borderRadius: 999, padding: "1px 7px",
+                        cursor: "pointer",
                       }}
                     >
                       #{tag}
-                    </span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -456,7 +592,20 @@ export function KnowledgePage() {
               )}
               {(article.authorName || article.responsibleName) && (
                 <div style={{ fontSize: 11, color: "#9ca3af", display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {article.authorName && <span>Autor: {article.authorName}</span>}
+                  {article.authorName && article.authorId && (
+                    <button
+                      type="button"
+                      onClick={() => { setAuthorFilter(article.authorId as string); setPage(1); }}
+                      title="Filtrar por este autor"
+                      style={{
+                        fontSize: 11, color: "#9ca3af", background: "none",
+                        border: "none", padding: 0, cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Autor: {article.authorName}
+                    </button>
+                  )}
                   {article.responsibleName && <span>Responsável: {article.responsibleName}</span>}
                 </div>
               )}

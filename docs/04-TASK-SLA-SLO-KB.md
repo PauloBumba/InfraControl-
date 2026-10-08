@@ -566,11 +566,12 @@ obrigatório), `content` (20.000, obrigatório), `category_id` (FK →
 `knowledge_categories`, **SetNull** — apagar a categoria não apaga nem
 bloqueia o artigo) e `status` (`Draft`/`Published`/`Archived`; nasce
 **Draft** — ciclo em §Publicação). Busca por termo no
-título/conteúdo, mais recentes primeiro.
+título/conteúdo/descrição, mais recentes primeiro (filtros
+estruturados em §Busca avançada).
 
 Rotas `api/v1/knowledge/articles` (`KnowledgeArticlesController` — o
 `KnowledgeController` da T001 já ocupa a rota de categorias): `GET`
-(busca com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201,
+(busca com `term` + filtros de §Busca avançada, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201,
 nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
 404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
 Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
@@ -786,6 +787,37 @@ inventar"). Decisão registrada em **ADR-035**.
   `Completed`, na linha da tabela do Admin e no card do plano próprio)
   com aviso de sucesso apontando para a Base de Conhecimento.
 - Sem migração nova — usa as tabelas/vínculos do K3/K4.
+
+### Busca avançada (F24-T007/K7 — spec docs/32 §13)
+
+`GET api/v1/knowledge/articles` ganhou filtros estruturados AND além
+do `term` (que passa a casar também na **descrição** — título e
+conteúdo já casavam). Todos sobre campos que **existem no modelo**:
+
+- `categoryId` — FK exata (artigo sem categoria só aparece sem filtro);
+- `authorId` — autoria exata (FK SetNull — sem autor não casa);
+- `type` — nome do enum `KnowledgeArticleType` (o binder do MVC aceita
+  o nome mesmo sem `JsonStringEnumConverter`; valor inválido → 400
+  automático do `[ApiController]`);
+- `tag` — casa com a tag normalizada pelo domínio (trim+lowercase; o
+  filtro repete a normalização — "Switch" acha "switch");
+- `pendingReview` — **correção de wiring pega nesta task**: a action
+  `Search` não repassava o parâmetro do K5 (a query string era
+  ignorada — o filtro existia no handler/repositório e nunca saía do
+  endpoint). Repassado agora junto dos demais.
+
+**"Sistema" e "setor" (§13) não existem em nenhuma entidade** (grep no
+domínio: não há `Setor`/`Sector`) — sem filtro, sem chip, documentado
+como ausente (mesmo critério das seções que a K6 deixou fora).
+
+Front (`KnowledgePage`): barra de filtros com select de categoria
+(categorias já carregadas), select de autor (opções derivadas do
+próprio DTO — id + nome resolvidos no backend, sem `/admin/users`;
+autor selecionado sem artigo na página vira opção sintética para o
+filtro não sumir), chips dos 14 tipos (clicar de novo limpa) e chip da
+tag ativa; **a tag e o "Autor:" dos cards viraram botões de filtro**;
+o "Limpar" do header agora zera tudo (term, revisões e os novos).
+Mudança de filtro volta para a página 1.
 
 ### Relacionamentos (F10-T004)
 

@@ -1195,7 +1195,7 @@ orçamento de IA — docs/31 §12). Registrada em **ADR-035**.
   escrita (é assim que "não inventar" vira código). Task: Objetivo
   (descrição/prazo), Resultado, Critérios de aceite (x/ ),
   Fases (posição + estado), Subtarefas (estatísticas do
-  `GetSubtaskStatsAsync` — não há tabela de subtarefas legível), 
+  `GetSubtaskStatsAsync` — não há tabela de subtarefas legível),
   Dificuldades e impedimentos (resolvido/aberto), Evidências
   (arquivo/nota), Comentários (data + autor) e Linha do tempo (últimas
   50, ordenadas por data, com ator e rótulo `TaskTimelineTypes`). PDI:
@@ -1248,3 +1248,67 @@ orçamento de IA — docs/31 §12). Registrada em **ADR-035**.
   teste; "sistema/setor" e seções sem registro (pesquisas/decisões
   literais) ficam de fora até o modelo existir (K7 usa o mesmo
   critério).
+
+## 22. Execução — K7 / F24-T007 (Fase 24, 2026-10-07)
+
+**Busca avançada** (spec docs/32 §13) com o escopo aprovado — "só o
+que existe no modelo". No caminho a task pegou um bug de wiring do K5.
+
+### Design (decisões da task)
+
+- **Filtros estruturados AND** somados ao `SearchAsync` (port →
+  repositório → query → controller): `categoryId` (FK exata),
+  `authorId` (autoria — FK SetNull), `type` (nome do enum; o binder do
+  MVC aceita nome mesmo sem `JsonStringEnumConverter` — inválido vira
+  400 automático do `[ApiController]`) e `tag` (a normalização
+  trim+lowercase do domínio é repetida no filtro — "Switch" acha
+  "switch", coleção primitiva do EF traduz para `ANY`). `term` passa
+  a casar também na **descrição**.
+- **Bug corrigido**: `KnowledgeArticlesController.Search` **não
+  repassava o `PendingReview` do K5** — a query string era ignorada e
+  o filtro nunca saía do endpoint (os testes do K5 cobrem o handler,
+  não a action; sem integração por falta de Docker). A action agora
+  repassa todos os parâmetros. Registrado no comentário do parâmetro
+  para não virar regressão silenciosa.
+- **Ausentes por modelo**: "sistema"/"setor" da §13 não existem em
+  nenhuma entidade (`Setor`/`Sector` não aparecem no domínio) — sem
+  filtro e sem chip, documentado como ausente em docs/04 e no
+  comentário da task (mesmo critério da K6).
+- **Front** (`knowledge.ts` + `KnowledgePage`): barra de filtros com
+  select de categoria (categorias já carregadas), select de autor
+  (opções derivadas do próprio DTO — id + nome vêm do backend, sem
+  `/admin/users`; autor selecionado sem artigo na página vira opção
+  sintética), chips dos 14 tipos (toggle: clicar de novo limpa) e chip
+  da tag ativa; **tag e "Autor:" dos cards viraram botões de filtro**;
+  o "Limpar" do header zera tudo (term, revisões e novos); qualquer
+  mudança de filtro volta para a página 1. `ArticleFilters` +=
+  categoryId/authorId/type/tag.
+
+### Arquivos alterados
+
+- Port `IKnowledgeArticleRepository` + `KnowledgeArticleRepository`
+  (4 filtros + descrição no termo).
+- `KnowledgeArticleQueries` (record += 4 props; handler normaliza a
+  tag antes de chamar o repo).
+- `KnowledgeArticlesController.Search` (+= 5 parâmetros — inclui o fix
+  do pendingReview).
+- Front: `knowledge.ts` (ArticleFilters + query string),
+  `KnowledgePage.tsx` (estado, barra, cards clicáveis, Limpar geral).
+- Testes: **`KnowledgeArticleSearchFilterTests`** (6 — categoria,
+  autor, tipo [exclui artigo sem tipo], tag [caixa], termo na
+  descrição, combinação AND — todos pelo handler).
+- Docs: docs/04 §Busca avançada, docs/31 §22, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1822/1822** (+6) · arch **115/115** · front
+  lint exit 0 / build ✓ · **sem migração** (pendências seguem 12).
+
+### Pendências da K7
+
+- Cobertura do fix do `pendingReview` é por leitura de código — teste
+  de HTTP/exigência da query string depende de Integração (Docker);
+  índices dedicados dos novos filtros = backlog (FKs já têm índice;
+  tag vive em coluna JSON/text[]);
+  "sistema/setor" entra só se o modelo ganhar os campos (requisito
+  novo → task/ADR nova).

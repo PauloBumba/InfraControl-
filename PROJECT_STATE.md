@@ -710,6 +710,31 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   checkpoint), docs/31 §21 · docs/04 §Geração automática · TASKS
   F24-T006 [x].
 
+- Fase 24-T007 / K7 (Knowledge — busca avançada, spec docs/32 §13)
+  concluída (2026-10-07, mesma autorização da Fase 24): escopo
+  aprovado "só o que existe no modelo". Filtros estruturados AND no
+  `GET /knowledge/articles` — `categoryId` (FK exata), `authorId`
+  (autoria), `type` (nome do enum; binder MVC aceita nome sem
+  JsonStringEnumConverter — inválido = 400 automático) e `tag`
+  (normalização trim+lowercase repetida no filtro, coleção primitiva
+  do EF traduz p/ ANY) + `term` passando a casar também na
+  **descrição**. **Bug fix no caminho**: a action `Search` não
+  repassava o `pendingReview` do K5 (query string ignorada; testes do
+  K5 cobriam o handler, não a action — sem Integração p/ pegar).
+  Ausentes por modelo: "sistema"/"setor" da §13 não existem em
+  nenhuma entidade (grep) — sem filtro, documentado como ausente em
+  docs/04. Front: barra de filtros (select de categoria, select de
+  autor com opções do DTO sem /admin/users, chips dos 14 tipos,
+  chip da tag ativa), tag e "Autor:" clicáveis nos cards, "Limpar"
+  zera tudo, filtro muda = página 1; `ArticleFilters` += 4 campos.
+  Testes +6 (`KnowledgeArticleSearchFilterTests` — categoria, autor,
+  tipo [exclui sem tipo], tag [caixa], descrição no termo, AND) →
+  unit **1822/1822** · arch **115/115** · build 0 · front lint/build
+  0 · sem migração. Docs: docs/31 §22 · docs/04 §Busca avançada ·
+  TASKS F24-T007 [x]. **Fase 24 fechada (K1–K7)** — próxima etapa do
+  mandato: investigação Sprint 0 da AI Blueprint (docs/34, §66: só
+  investigação/planejamento) no checkpoint.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

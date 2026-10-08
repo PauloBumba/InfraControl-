@@ -355,7 +355,7 @@ por checkpoint, com aprovação do usuário (mesmo processo da Fase 23).
 - [x] **F24-T004 Rastreabilidade de origem (K4)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §19, docs/04 §Origem): tabela nova knowledge_article_origins (artigo-centro e polimórfica — NÃO estendeu task_knowledge_articles, que é task-centro de USO/§10) com origin_type string (Task/Pdi/Incident — Projetos/documentos/treinamentos fora por não existirem) + origin_id sem FK (validação por tipo no handler, precedente ADR-033) + FK Cascade + chave única; POST/DELETE {id}/origins/{type}/{originId} no molde F10-T004 (400/404 por tipo/409); origins no DTO vindo em lote na busca (sem N+1) e no detalhe; front chips Task/PDI/Chamado. Migração 20261008010616 (script validado, não aplicada — 11 pendentes). Testes +8 → unit 1799/1799 · arch 115/115 · front lint/build 0. -->
 - [x] **F24-T005 Revisão periódica (K5)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §20, docs/04 §Revisão periódica): campos de governança §6 no domínio (NextReviewAt/ReviewIntervalDays 1..3650/ReviewResponsibleId — invariante data⟺intervalo) + PUT {id}/review-schedule (agenda à parte do PUT do artigo para não apagar com cliente antigo) + POST {id}/review/confirm (ação manter, 409 sem agenda); atualizar=PUT reagenda sozinho (PostponeReview), arquivar=status, substituir=PUT+origem K4; alerta = filtro ?pendingReview=true + flag pendingReview no DTO (revisor no batch de nomes) + front toggle "Revisões" e chip "Revisar". Migração 20261008012115 (3 colunas nullable, script validado, não aplicada — 12 pendentes). Testes +9 (envelhecer linha via SQL — sem relógio falso global) → unit 1808/1808 · arch 115/115 · front lint/build 0. -->
 - [x] **F24-T006 Geração automática de rascunho (K6)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §21, docs/04 §Geração automática, ADR-035): decisão aprovada — montagem DETERMINÍSTICA dos registros existentes, sem LLM (§3 "nunca inventar"; repo sem infra de IA). Endpoints Operate POST /tasks/{id}/generate-knowledge (só Resolved/Closed, 409) e /pdi/{userId}/generate-knowledge (dono ou Admin 403, só Completed, 404/409) → artigo nasce Draft (§2 → revisão ADR-034) + v1.0 com motivo de proveniência (K3) + origem Task/Pdi (K4). Composer puro: seção só com registro (Task: objetivo/resultado/critérios/fases/subtarefas-stats/impedimentos/evidências/comentários/timeline ≤50; PDI: plano/objetivos/timeline), banner de proveniência, limites 200/20k. Front: botão "Gerar Knowledge" no detalhe da Task (só concluída, Can operate) e no PDI (só Completed, tabela+card) com aviso. Sem migração. Testes +8 (KnowledgeGenerationTests) → unit 1816/1816 · arch 115/115 · front lint/build 0. -->"
-- [ ] **F24-T007 Busca avançada (K7)** <!-- docs/32 §13: busca por título, conteúdo, categoria, tags, autor, sistema, setor, tipo e palavras-chave (hoje `term` só em Title/Content — docs/31 §12). Escopo: índices/filtros no repositório + front (chips de filtro), testes de query. -->
+- [x] **F24-T007 Busca avançada (K7)** <!-- CONCLUÍDA 2026-10-07 (docs/31 §22, docs/04 §Busca avançada): escopo "só o que existe no modelo". Filtros AND no GET /knowledge/articles: categoryId (FK exata), authorId (autoria), type (nome do enum — binder MVC sem JsonStringEnumConverter, inválido = 400), tag (normalização trim+lowercase repetida, coleção primitiva EF) + term passando a casar na descrição. BUG FIX: a action Search não repassava o pendingReview do K5 (query string ignorada — testes cobriam o handler, não a action). Ausentes por modelo: "sistema"/"setor" da §13 não existem em nenhuma entidade (grep) — sem filtro, documentado. Front: barra com select de categoria/autor (opções do DTO, sem /admin/users), chips dos 14 tipos, chip de tag ativa; tag e "Autor:" clicáveis nos cards; Limpar zera tudo; filtro muda = página 1. Testes +6 (KnowledgeArticleSearchFilterTests, todos pelo handler) → unit 1822/1822 · arch 115/115 · front lint/build 0 · sem migração. -->"
 
 ## Fase 25 — Indicadores e Relatórios (spec docs/33)
 
@@ -481,7 +481,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F24-T004 Knowledge: rastreabilidade de origem (K4) — concluída (2026-10-07)
 - [x] F24-T005 Knowledge: revisão periódica (K5) — concluída (2026-10-07)
 - [x] F24-T006 Knowledge: geração automática de rascunho (K6) — concluída (2026-10-07)
-- [ ] F24-T007 Knowledge: busca avançada (K7)
+- [x] F24-T007 Knowledge: busca avançada (K7) — concluída (2026-10-07)
 - [ ] F25-T001 Indicadores de Tasks/PDI/Knowledge (§2–§4)
 - [ ] F25-T002 Indicadores integrados / cruzamentos (§5)
 - [ ] F25-T003 Dashboards colaborador/gestor/administrativo (§6–§8)
@@ -523,7 +523,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   docker"); scripts das migrações validados. Commit realizado (ver
   entrada acima). Quando houver ambiente: `dotnet test
   tests/InfraControl.IntegrationTests` → `dotnet ef database update`
-  (12 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§21.
+  (12 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§22.
 
 - [x] **Retenção/cleanup de `monitoring_events`** — CONCLUÍDA (2026-10-03,
   janela **90 dias** decidida pelo usuário): 8º tipo `RetentionDataType.
