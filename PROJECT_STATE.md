@@ -864,6 +864,26 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   Testes +11 → unit **1960/1960** · arch **119/119** · build 0.
   Docs: TASKS FAI-T008 [x], docs/35 §11 S7 ✓, docs/ai/01.
 
+- Fase AI — **FAI-T009 (S8): Context Engine + RAG foundation
+  concluída** (2026-10-09, ADR-038): `Application/AI/Context/` com
+  modelos §19 (`Evidence`/`EvidenceSet` — pipeline só emite
+  `Probable`, nunca `Confirmed` sem verificação), contratos
+  (IEmbeddingProvider/IVectorStore/IKeywordSearch/IReranker/
+  IRetrievalService/IContextBuilder/IAiKnowledgeIngestion) e v1:
+  híbrida vetor+keyword com merge por Id e rerank heurístico
+  (degrada para keyword §44 sem store — nunca dado inventado),
+  chunker por artigo (limite 1500 chars documentado), ingesta de
+  Knowledge publicado (só `Published`; command
+  `IngestKnowledgeArticleForAiCommand` já chamável). Infra:
+  `OllamaEmbeddingProvider` (`POST /api/embed`,
+  `Ai:Ollama:EmbeddingModel` = nomic-embed-text) e
+  `KnowledgeKeywordSearch` (term do K7, Published only). pgvector:
+  `postgres:17-alpine` não embute a extensão → avaliação de
+  `pgvector/pgvector:pg17` pendente de Docker; `IVectorStore`
+  deliberadamente fora do DI até o ambiente validar (§46). Testes
+  +14 → unit **1974/1974** · arch **119/119** · build 0. Docs:
+  TASKS FAI-T009 [x], docs/35 §11 S8 ✓, docs/ai/01.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

@@ -6,6 +6,7 @@ using InfraControl.Application.Notifications.WhatsApp;
 using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Context;
 using InfraControl.Application.AI.Health;
 using InfraControl.Application.AI.Tools;
 using InfraControl.Application.Common.Interfaces;
@@ -50,6 +51,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -385,6 +387,24 @@ public static class DependencyInjection
             provider.GetRequiredService<SearchKnowledgeTool>(),
         ]));
         services.AddScoped<IAiToolExecutor, AiToolExecutor>();
+
+        // FAI-T009 (S8): Context Engine + RAG foundation (ADR-038) —
+        // contratos + v1 heurística (rerank por score/recência, chunker
+        // por artigo, ingesta de Knowledge publicado). IVectorStore NÃO
+        // é registrado até o pgvector existir no ambiente (avaliação de
+        // imagem pendente de Docker, §46): a híbrida degrada para
+        // keyword (§44) e a ingesta fica inacessível — sem invenção.
+        services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
+        services.AddScoped<IKeywordSearch, KnowledgeKeywordSearch>();
+        services.AddScoped<IReranker, HeuristicReranker>();
+        services.AddScoped<IContextBuilder, EvidenceSetContextBuilder>();
+        services.AddScoped<IAiKnowledgeIngestion, KnowledgeIngestionService>();
+        services.AddScoped<IRetrievalService>(provider => new KnowledgeHybridRetrievalService(
+            provider.GetRequiredService<IEmbeddingProvider>(),
+            provider.GetService<IVectorStore>(),
+            provider.GetRequiredService<IKeywordSearch>(),
+            provider.GetRequiredService<IReranker>(),
+            provider.GetRequiredService<ILogger<KnowledgeHybridRetrievalService>>()));
 
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no

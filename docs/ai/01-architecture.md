@@ -3,7 +3,7 @@
 > Espelho executivo do diagnóstico `docs/35` (Sprint 0) e dos ADRs
 > 036–041. Atualizado a cada entrega da Fase 0.
 
-## Estado atual (S1–S7 entregues; zero chamada a LLM)
+## Estado atual (S1–S8 entregues; zero chamada a LLM)
 
 - 7 projetos .NET 10 (Clean Architecture + DDD + CQRS/MediatR +
   Vertical Slice + Modular Monolith, ADR-001/006/007/031) com módulos
@@ -38,6 +38,17 @@
   timeout §52, auditoria `AI.Tool.*`) + as duas primeiras tools de
   leitura (`get_active_incidents`, `search_knowledge`) sobre queries
   MediatR existentes. Servidor MCP externo = ADR-039 (futuro).
+- **S8 (2026-10-09)**: Context Engine + RAG foundation (ADR-038) —
+  contratos (`IEmbeddingProvider`/`IVectorStore`/`IRetrievalService`/
+  `IReranker`/`IContextBuilder`), busca híbrida v1 (vetor+keyword →
+  merge → rerank heurístico; degrada p/ keyword §44 sem pgvector),
+  `EvidenceSet` §19 (só `Probable`, nunca `Confirmed`), chunker de
+  Knowledge (limite 1500 chars documentado), ingesta de artigo
+  publicado (command já chamável) e `OllamaEmbeddingProvider`
+  (`POST /api/embed`, `Ai:Ollama:EmbeddingModel`). **Pendências**:
+  avaliação da imagem pgvector (`postgres:17-alpine` não a embute) +
+  `IVectorStore` no DI + trigger de ingesta na publicação — todas
+  condicionadas a ambiente com Docker.
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

@@ -243,6 +243,11 @@ S7 — MCP foundation (contratos internos + registro de tools §21;
    ↓
 S8 — Context Engine + RAG foundation (avaliação pgvector, embedding
      provider, busca híbrida esqueleto, evidence model)
+      ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T009: contratos
+      ADR-038 + híbrida v1 vetor+keyword com degradação §44, rerank
+      heurístico, EvidenceSet §19 (nunca Confirmed), chunker 1500,
+      ingesta de Knowledge publicado; OllamaEmbeddingProvider /api/embed;
+      pgvector = pendência de Docker — IVectorStore fora do DI)
    ↓
 S9 — Evaluation foundation (harness de avaliação §45)
    ↓
