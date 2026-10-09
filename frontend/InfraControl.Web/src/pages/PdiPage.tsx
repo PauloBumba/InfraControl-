@@ -426,16 +426,9 @@ export function PdiPage() {
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
-<<<<<<< HEAD
       {notice && (
         <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />
       )}
-=======
-      {!loading && adminDashboard && (
-        <PdiAdminDashboardPanel dashboard={adminDashboard} />
-      )}
-      {!loading && managerPanel}
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
       {loading ? (
         <LoadingBlock />

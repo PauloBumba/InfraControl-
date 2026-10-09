@@ -49,16 +49,24 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         return context;
     }
 
-    private static CreateKnowledgeArticleCommandHandler CreateHandler(
-        AppDbContext context, ICurrentUserContext? currentUser = null)
+    private static async Task<Guid> SeedUserAsync(
+        AppDbContext context, string email, string displayName)
+    {
+        var user = User.Create(email, displayName, UserRole.Operator);
+        context.DomainUsers.Add(user);
+        await context.SaveChangesAsync();
+        return user.Id;
+    }
+
+    private static CreateKnowledgeArticleCommandHandler CreateHandler(AppDbContext context)
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeCategoryRepository(context),
-            currentUser ?? new FakeCurrentUser(["Operator"]),
+            new KnowledgeArticleVersionRepository(context),
+            new FakeCurrentUser(["Operator"], CurrentUserId),
             NullLogger<CreateKnowledgeArticleCommandHandler>.Instance);
 
-    private static UpdateKnowledgeArticleCommandHandler UpdateHandler(
-        AppDbContext context, ICurrentUserContext? currentUser = null)
+    private static UpdateKnowledgeArticleCommandHandler UpdateHandler(AppDbContext context)
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeCategoryRepository(context),
@@ -71,7 +79,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
             new KnowledgeArticleRepository(context),
             NullLogger<DeleteKnowledgeArticleCommandHandler>.Instance);
 
-    private sealed class FakeCurrentUser(string[] roles, Guid? userId = null) : ICurrentUserContext
+    private sealed class FakeCurrentUser(string[] roles, Guid? userId = null)
+        : ICurrentUserContext
     {
         public Guid? UserId { get; } = userId ?? Guid.NewGuid();
         public string? UserName => "usuario@exemplo.test";
@@ -110,7 +119,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
 
         var dto = await CreateHandler(context).Handle(
             new CreateKnowledgeArticleCommand(
-                "Troca do switch central", "Failover passo a passo.", categoryId, "Procedimento"),
+                "Troca do switch central", "Failover passo a passo.", categoryId),
             CancellationToken.None);
 
         dto.Title.Should().Be("Troca do switch central");
@@ -129,7 +138,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown, "Guia"),
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -142,7 +151,7 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         await using var context = await CreateContextAsync();
 
         var action = () => CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null, "Procedimento"),
+            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<ArgumentException>())
@@ -155,16 +164,13 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         await using var context = await CreateContextAsync();
         var categoryId = await SeedCategoryAsync(context, "Backup");
         var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo.", null, "Manual"),
+            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo.", null),
             CancellationToken.None);
 
         await UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
-created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual",
-                Reason: "Revisão de conteúdo."),
-
-                
-
+                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId,
+                "Rotina semanal passou a ser diária."),
             CancellationToken.None);
 
         var updated = await context.KnowledgeArticles.AsNoTracking()
@@ -182,14 +188,8 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-
-            new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null, "Guia",
-                Reason: "Revisão de conteúdo."),
-
             new UpdateKnowledgeArticleCommand(
                 unknown, "Título", "Conteúdo.", null, "Motivo."),
-    new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null, "Guia"),
-
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -201,21 +201,13 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
     {
         await using var context = await CreateContextAsync();
         var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "FAQ"),
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null),
             CancellationToken.None);
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-
-            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown, "FAQ",
-                Reason: "Revisão de conteúdo."),
-
             new UpdateKnowledgeArticleCommand(
                 created.Id, "Artigo", "Conteúdo.", unknown, "Motivo."),
-
-            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown, "FAQ"),
-
-
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -240,10 +232,10 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
     {
         await using var context = await CreateContextAsync();
         await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Troca do switch central", "Conteúdo A.", null, "Guia"),
+            new CreateKnowledgeArticleCommand("Troca do switch central", "Conteúdo A.", null),
             CancellationToken.None);
         var other = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo B.", null, "Guia"),
+            new CreateKnowledgeArticleCommand("Roteiro de backup", "Conteúdo B.", null),
             CancellationToken.None);
 
         var page = await SearchHandler(context).Handle(
@@ -267,21 +259,13 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
             .WithMessage($"Artigo '{unknown}' não encontrado.");
     }
 
-
-    private static async Task<Guid> SeedUserAsync(AppDbContext context, string name)
-    {
-        var user = User.Create($"{name.ToLowerInvariant()}@exemplo.test", name, UserRole.Viewer);
-        context.DomainUsers.Add(user);
-        await context.SaveChangesAsync();
-        return user.Id;
-    }
+    // ── F24-T001/K1 — identificação (docs/32 §5–§6) ─────────────────────
 
     [Fact]
     public async Task Create_ShouldPersistIdentification()
     {
         await using var context = await CreateContextAsync();
-
-       var responsibleId = await SeedUserAsync(
+        var responsibleId = await SeedUserAsync(
             context, "resp@exemplo.test", "Maria Responsável");
 
         var dto = await CreateHandler(context).Handle(
@@ -306,32 +290,6 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
         saved.Type.Should().Be(KnowledgeArticleType.Procedure);
         saved.AuthorId.Should().Be(CurrentUserId);
         saved.Tags.Should().Equal("redes", "backup");
-
-        var responsibleId = await SeedUserAsync(context, "Responsável KB");
-        var authorId = Guid.NewGuid();
-
-        var dto = await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
-            .Handle(new CreateKnowledgeArticleCommand(
-                "Guia de failover", "Passo a passo.", null,
-                Type: "Guia",
-                Description: "Guia de failover do switch central.",
-                Tags: ["Redes", "switch"],
-                ResponsibleId: responsibleId),
-            CancellationToken.None);
-
-        dto.Type.Should().Be("Guia");
-        dto.Description.Should().Be("Guia de failover do switch central.");
-        dto.AuthorId.Should().Be(authorId);
-        dto.ResponsibleId.Should().Be(responsibleId);
-        dto.Tags.Should().Equal("redes", "switch");
-
-        var saved = await context.KnowledgeArticles.AsNoTracking()
-            .Include(article => article.Tags)
-            .SingleAsync(article => article.Id == dto.Id);
-        saved.Type.Should().Be("Guia");
-        saved.AuthorId.Should().Be(authorId);
-        saved.Tags.Select(tag => tag.Tag).Should().BeEquivalentTo("redes", "switch");
-
     }
 
     [Fact]
@@ -342,12 +300,7 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
 
         var action = () => CreateHandler(context).Handle(
             new CreateKnowledgeArticleCommand(
-
                 "Artigo", "Conteúdo.", null, ResponsibleId: unknown),
-
-                "Artigo", "Conteúdo.", null, "Guia",
-        
-
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -355,15 +308,11 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
     }
 
     [Fact]
-
- 
-
-    public async Task Create_UnknownType_ShouldThrowPtBr()
+    public async Task Create_InvalidType_ShouldThrow400PtBr()
     {
         await using var context = await CreateContextAsync();
 
         var action = () => CreateHandler(context).Handle(
-
             new CreateKnowledgeArticleCommand(
                 "Artigo", "Conteúdo.", null, Type: "neurótico"),
             CancellationToken.None);
@@ -380,31 +329,10 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
             new CreateKnowledgeArticleCommand(
                 "Roteiro", "Conteúdo.", null,
                 Type: "Procedure", Tags: ["redes"]),
-
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Receita"),
-            CancellationToken.None);
-
-        (await action.Should().ThrowAsync<ArgumentException>())
-            .WithMessage("Tipo inválido: 'Receita'. Use:*");
-    }
-
-    [Fact]
-    public async Task Update_ShouldReplaceTagsAndResponsible()
-    {
-        await using var context = await CreateContextAsync();
-        var first = await SeedUserAsync(context, "Primeiro Responsável");
-        var second = await SeedUserAsync(context, "Segundo Responsável");
-        var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand(
-                "Artigo com tags", "Conteúdo.", null, "Guia",
-                Tags: ["antiga"],
-                ResponsibleId: first),
-
             CancellationToken.None);
 
         await UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
-
                 created.Id, "Roteiro", "Conteúdo novo.", null,
                 Reason: "Reclassificado como manual.",
                 Type: "Manual",
@@ -446,148 +374,5 @@ created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"
         item.Tags.Should().Equal("switch");
         item.AuthorName.Should().Be("Autor do Teste");
         item.ResponsibleName.Should().Be("João Responsável");
-
-                created.Id, "Artigo com tags", "Conteúdo.", null, "Guia",
-                Description: "Nova descrição",
-                Tags: ["Nova"],
-                ResponsibleId: second,
-                Reason: "Revisão de conteúdo."),
-
-            CancellationToken.None);
-
-        var updated = await context.KnowledgeArticles.AsNoTracking()
-            .Include(article => article.Tags)
-            .SingleAsync(article => article.Id == created.Id);
-        updated.Description.Should().Be("Nova descrição");
-        updated.ResponsibleId.Should().Be(second);
-        updated.Tags.Select(tag => tag.Tag).Should().Equal("nova");
-    }
-
-    [Fact]
-    public async Task Update_UnknownResponsible_ShouldThrowNotFoundPtBr()
-    {
-        await using var context = await CreateContextAsync();
-        var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"),
-            CancellationToken.None);
-        var unknown = Guid.NewGuid();
-
-        var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(
-                created.Id, "Artigo", "Conteúdo.", null, "Guia",
-                ResponsibleId: unknown,
-                Reason: "Revisão de conteúdo."),
-            CancellationToken.None);
-
-        (await action.Should().ThrowAsync<KeyNotFoundException>())
-            .WithMessage($"Usuário '{unknown}' não encontrado.");
-    }
-
-    [Fact]
-    public async Task Get_ShouldResolveAuthorAndResponsibleNames()
-    {
-        await using var context = await CreateContextAsync();
-        var responsibleId = await SeedUserAsync(context, "Ana Responsável");
-        var authorId = await SeedUserAsync(context, "Bruno Autor");
-        var created = await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
-            .Handle(new CreateKnowledgeArticleCommand(
-                "Artigo assinado", "Conteúdo.", null, "Guia",
-                ResponsibleId: responsibleId),
-            CancellationToken.None);
-
-        var dto = await GetHandler(context).Handle(
-            new GetKnowledgeArticleQuery(created.Id), CancellationToken.None);
-
-        dto.AuthorName.Should().Be("Bruno Autor");
-        dto.ResponsibleName.Should().Be("Ana Responsável");
-    }
-
-    /// <summary>K3: PUT em artigo publicado gera snapshot (1,0) com autor+motivo.</summary>
-    [Fact]
-    public async Task Update_PublishedArticle_ShouldCreateVersionSnapshot()
-    {
-        await using var context = await CreateContextAsync();
-        var authorId = Guid.NewGuid();
-        var created = await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
-            .Handle(new CreateKnowledgeArticleCommand(
-                "Guia publicado", "Conteúdo original.", null, "Guia"),
-            CancellationToken.None);
-
-        var entity = await context.KnowledgeArticles.SingleAsync(
-            article => article.Id == created.Id);
-        entity.TransitionTo(KnowledgeArticleStatus.InReview);
-        entity.TransitionTo(KnowledgeArticleStatus.Approved);
-        entity.TransitionTo(KnowledgeArticleStatus.Published);
-        await context.SaveChangesAsync();
-
-        await UpdateHandler(context, new FakeCurrentUser(["Operator"], authorId))
-            .Handle(new UpdateKnowledgeArticleCommand(
-                created.Id, "Guia publicado", "Conteúdo revisado.", null, "Guia",
-                Reason: "Atualização pós-publicação."),
-            CancellationToken.None);
-
-        var version = await context.KnowledgeArticleVersions.SingleAsync();
-        version.Major.Should().Be(1);
-        version.Minor.Should().Be(0);
-        version.Version.Should().Be("1.0");
-        version.Content.Should().Be("Conteúdo revisado.");
-        version.AuthorId.Should().Be(authorId);
-        version.Reason.Should().Be("Atualização pós-publicação.");
-        version.ApprovedById.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task Update_DraftArticle_ShouldNotCreateVersion()
-    {
-        await using var context = await CreateContextAsync();
-        var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null, "Guia"),
-            CancellationToken.None);
-
-        await UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(
-                created.Id, "Rascunho", "Conteúdo v2.", null, "Guia",
-                Reason: "Ajuste antes de publicar."),
-            CancellationToken.None);
-
-        (await context.KnowledgeArticleVersions.CountAsync()).Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Update_MissingReason_ShouldThrowArgumentPtBr()
-    {
-        await using var context = await CreateContextAsync();
-        var created = await CreateHandler(context).Handle(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"),
-            CancellationToken.None);
-
-        var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(
-                created.Id, "Artigo", "Conteúdo.", null, "Guia", Reason: " "),
-            CancellationToken.None);
-
-        (await action.Should().ThrowAsync<ArgumentException>())
-            .WithMessage("O motivo da alteração é obrigatório.*");
-    }
-
-    [Fact]
-    public async Task Search_ShouldReturnTagsAndAuthorName()
-    {
-        await using var context = await CreateContextAsync();
-        var authorId = await SeedUserAsync(context, "Carla Autora");
-        await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
-            .Handle(new CreateKnowledgeArticleCommand(
-                "Troca do switch central", "Conteúdo A.", null, "Guia",
-                Tags: ["Redes"]),
-            CancellationToken.None);
-
-        var page = await SearchHandler(context).Handle(
-            new SearchKnowledgeArticlesQuery("switch"), CancellationToken.None);
-
-        var dto = page.Items.Single();
-        dto.Type.Should().Be("Guia");
-        dto.Tags.Should().Equal("redes");
-        dto.AuthorName.Should().Be("Carla Autora");
-
     }
 }

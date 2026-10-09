@@ -53,4 +53,45 @@ public sealed class UnifiIntegrationController(
 
         return Ok(ApiResponse.Ok<object>(new { status = "up" }));
     }
+
+    /// <summary>
+    /// F26 Fase 2.2: configuração atual (nunca expõe a senha — só se
+    /// está definida e de qual fonte vem: banco ou env).
+    /// </summary>
+    [HttpGet("config")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> GetConfig(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetUniFiSettingsQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// F26 Fase 2.2: cria/atualiza a configuração persistida. Senha em
+    /// texto puro no request, cifrada imediatamente (AES-GCM) e nunca
+    /// devolvida; omitir a senha mantém a já gravada.
+    /// </summary>
+    [HttpPut("config")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> SaveConfig(
+        [FromBody] SaveUniFiSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new SaveUniFiSettingsCommand(request), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// F26 Fase 2.2: teste de conexão com a configuração efetiva (banco →
+    /// env). Nunca lança por falha de conexão — o erro identificável vem no
+    /// resultado.
+    /// </summary>
+    [HttpPost("test-connection")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> TestConnection(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new TestUniFiConnectionCommand(), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
 }

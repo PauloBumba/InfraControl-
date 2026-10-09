@@ -16,6 +16,14 @@ public sealed class UnifiIntegrationOptions
     /// <summary>Site do Controller (default do UniFi: "default").</summary>
     public string Site { get; set; } = "default";
 
+    /// <summary>
+    /// Fase 1 (F26-T001): aceita certificado TLS inválido (self-signed —
+    /// docs/35 §2). Default <c>false</c> = validação estrita do runtime;
+    /// ligar só para controlador local de teste via env
+    /// <c>UNIFI_ALLOW_INVALID_TLS</c>.
+    /// </summary>
+    public bool AllowInvalidTlsCertificate { get; set; }
+
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(BaseUrl) &&
         !string.IsNullOrWhiteSpace(Username) &&

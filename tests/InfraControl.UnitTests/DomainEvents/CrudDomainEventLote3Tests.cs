@@ -17,18 +17,17 @@ public sealed class CrudDomainEventLote3Tests
     [Fact]
     public void KnowledgeArticle_ShouldRaiseCreatedUpdatedDeleted()
     {
-        var article = KnowledgeArticle.Create("Como resetar switch", "passo 1", null, "Procedimento");
+        var article = KnowledgeArticle.Create("Como resetar switch", "passo 1", null);
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleCreatedDomainEvent>()
             .Which.Title.Should().Be("Como resetar switch");
 
         article.ClearDomainEvents();
-        article.Update("Como resetar switch (v2)", "passo 2", null, "Procedimento");
+        article.Update("Como resetar switch (v2)", "passo 2", null);
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleUpdatedDomainEvent>();
 
         article.ClearDomainEvents();
-<<<<<<< HEAD
         // F24-T002/K2: publicar exige a cadeia (ADR-034) — cada passo
         // levanta Updated; limpamos entre eles para isolar o do publish.
         article.TransitionTo(KnowledgeArticleStatus.InReview);
@@ -36,12 +35,9 @@ public sealed class CrudDomainEventLote3Tests
         article.TransitionTo(KnowledgeArticleStatus.Approved);
         article.ClearDomainEvents();
         article.TransitionTo(KnowledgeArticleStatus.Published);
-=======
-        article.TransitionTo(KnowledgeArticleStatus.InReview);
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleUpdatedDomainEvent>()
-            .Which.Status.Should().Be(KnowledgeArticleStatus.InReview);
+            .Which.Status.Should().Be(KnowledgeArticleStatus.Published);
 
         article.ClearDomainEvents();
         article.Delete();

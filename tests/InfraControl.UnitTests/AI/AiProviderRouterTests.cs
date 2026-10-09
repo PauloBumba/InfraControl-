@@ -1,6 +1,5 @@
 using FluentAssertions;
 using InfraControl.Application.AI;
-using InfraControl.Application.AI.Exceptions;
 using Moq;
 
 namespace InfraControl.UnitTests.AI;

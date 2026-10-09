@@ -1,8 +1,9 @@
 # 34. Plano de execução — Integração UniFi no InfraControl (spec)
 
 - **Tipo:** spec de execução (não é ADR — decisões arquiteturais seguem ADR-028)
-- **Status:** documentado (2026-10-08) — **não iniciado**; aguarda autorização do
-  usuário para executar as fases
+- **Status:** em execução — **Fase 0 concluída (2026-10-08)**, evidências em
+  `docs/35-AUDITORIA-UNIFI-FASE0.md`; Fase 1+ aguardam autorização do usuário
+  (ver §7)
 - **Pedido:** "documenta isso antes de executar"
 - **Estado atual da integração:** `docs/29-INTEGRACAO-UNIFI.md` (F20-T001
   concluída) · `TASKS.md` §Fase 20 (F20-T002/T003 pendentes) ·
@@ -95,24 +96,42 @@ interface. **Não criar uma aplicação paralela.**
 
 **Objetivo:** entender a instalação existente antes de escrever código.
 
+> **✅ Concluída (2026-10-08)** — evidências e resultado em
+> [`docs/35-AUDITORIA-UNIFI-FASE0.md`](35-AUDITORIA-UNIFI-FASE0.md).
+> Resumo: UniFi Network **10.4.57** standalone (Docker local; `/api` na raiz,
+> `/proxy/network` e `/v1` = 404), login `POST /api/login` + cookie
+> `unifises`, 6 endpoints `GET` autenticados validados (sites/devices/clients/
+> networks/sysinfo/health), rede alcançável da rede da API, TLS self-signed —
+> 3 gaps no `UnifiApiClient` atual documentados para a Fase 1 (§6 do
+> documento).
+
 Tarefas:
 
-- [ ] Identificar a versão do UniFi Network.
-- [ ] Identificar onde o controlador está hospedado.
-- [ ] Verificar se a API oficial está disponível.
-- [ ] Confirmar acesso de rede entre o InfraControl e o controlador.
-- [ ] Verificar TLS, DNS, portas e certificados.
-- [ ] Consultar a documentação da API correspondente à versão.
-- [ ] Identificar os endpoints disponíveis para sites, dispositivos, clientes,
-  redes, estatísticas e portas.
-- [ ] Investigar o módulo de inventário existente no InfraControl.
-- [ ] Definir quais dados serão importados e quais serão apenas consultados.
+- [x] Identificar a versão do UniFi Network. (10.4.57 — `GET /status`)
+- [x] Identificar onde o controlador está hospedado. (Docker
+  `lscr.io/linuxserver/unifi-network-application` + `unifi-mongodb`)
+- [x] Verificar se a API oficial está disponível. (legada `/api` sim;
+  oficial `/v1` e `/proxy/network` não, nesta instalação standalone)
+- [x] Confirmar acesso de rede entre o InfraControl e o controlador.
+  (200 via gateway `172.21.0.1:8443` de container na rede da API)
+- [x] Verificar TLS, DNS, portas e certificados. (self-signed `CN=unifi`
+  2026→2036; portas 8443/8080/8843/8880/3478/10001)
+- [x] Consultar a documentação da API correspondente à versão.
+  (`developer.ui.com/network/v10.4.57`)
+- [x] Identificar os endpoints disponíveis para sites, dispositivos,
+  clientes, redes, estatísticas e portas. (todos validados com `GET`
+  real — docs/35 §4)
+- [x] Investigar o módulo de inventário existente no InfraControl.
+  (docs/29 — `Device` + `ExternalDeviceReference`, REGRA 8)
+- [x] Definir quais dados serão importados e quais serão apenas
+  consultados. (docs/35 §5 — mantida REGRA 8)
 
 **Entrega:** documento técnico com versão, endpoints validados, permissões
-necessárias e limitações conhecidas.
+necessárias e limitações conhecidas → **`docs/35-AUDITORIA-UNIFI-FASE0.md`**.
 
 **Critério de saída:** a equipe consegue realizar pelo menos uma consulta real à
-API sem modificar a rede.
+API sem modificar a rede → **cumprido** (6 consultas `GET` autenticadas, zero
+escritas).
 
 ### Fase 1 — Fundação da integração
 

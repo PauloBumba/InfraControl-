@@ -78,10 +78,7 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         await sender.Send(
             new UpdateKnowledgeArticleCommand(
                 id, model.Title, model.Content, model.CategoryId,
-<<<<<<< HEAD
                 model.Reason,
-=======
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                 model.Type, model.Description, model.Tags, model.ResponsibleId),
             cancellationToken);
         return NoContent();

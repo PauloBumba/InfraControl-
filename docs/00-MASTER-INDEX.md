@@ -36,6 +36,9 @@
 32. [Plano de módulo Knowledge (spec)](32-PLANO-MODULO-KNOWLEDGE.md)
 33. [Plano de Indicadores e Relatórios (spec)](33-PLANO-INDICADORES-RELATORIOS.md)
 34. [Plano de execução — Integração UniFi (spec)](34-PLANO-INTEGRACAO-UNIFI.md)
+35. [Auditoria UniFi — Fase 0](35-AUDITORIA-UNIFI-FASE0.md)
+36. [F26 — Integração UniFi completa (checklist vivo)](36-F26-INTEGRACAO-UNIFI.md)
+37. [F27 — Monitoramento completo da infraestrutura com Zabbix (checklist vivo)](37-F27-MONITORAMENTO-ZABBIX.md)
 
 ## ADRs
 

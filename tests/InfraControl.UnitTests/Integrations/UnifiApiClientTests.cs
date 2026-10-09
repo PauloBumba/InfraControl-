@@ -93,6 +93,101 @@ public sealed class UnifiApiClientTests
             .WithMessage("*Credenciais*UniFi*");
     }
 
+    // ── Fase 1 (F26-T001): controlador standalone (docs/35 §3) ─────
+
+    [Fact]
+    public async Task ListDevicesAsync_OnStandaloneController_ShouldFallbackToApiLoginAndCallRootPath()
+    {
+        var handler = new ScriptedHandler();
+        // standalone: /api/auth/login responde 401 mesmo com credenciais válidas
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.Unauthorized));
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-standalone; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/s/default/stat/device",
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"mac":"aa:bb:cc:dd:ee:09","name":"ap-lab","model":"U7PG2","type":"uap","ip":"192.168.1.10"}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var devices = await client.ListDevicesAsync();
+
+        devices.Should().HaveCount(1);
+        devices[0].Model.Should().Be("U7PG2");
+        handler.Requests.Should().HaveCount(3, "auth/login + api/login + stat/device");
+        handler.Requests[2].RequestUri!.AbsolutePath.Should().Be("/api/s/default/stat/device",
+            "standalone não usa o prefixo /proxy/network");
+        handler.Requests[2].Headers.GetValues("Cookie")
+            .Single().Should().Contain("unifises=sess-standalone");
+    }
+
+    [Fact]
+    public async Task ListDevicesAsync_OnStandalone_ShouldReauthenticateViaApiLoginOn401()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.Unauthorized));
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=s1; Path=/"),
+                 _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=s2; Path=/"));
+        var statCalls = 0;
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/s/default/stat/device", _ =>
+        {
+            statCalls++;
+            return statCalls == 1
+                ? Response(HttpStatusCode.Unauthorized)
+                : Response(HttpStatusCode.OK,
+                    """{"meta":{"rc":"ok"},"data":[{"mac":"aa:bb:cc:dd:ee:10","name":"sw-lab","model":"USW-8","type":"usw","ip":"192.168.1.11"}]}""");
+        });
+
+        var client = CreateClient(handler);
+
+        var devices = await client.ListDevicesAsync();
+
+        devices.Should().HaveCount(1);
+        statCalls.Should().Be(2);
+        handler.Requests.Count(r => r.RequestUri!.AbsolutePath == "/api/login")
+            .Should().Be(2, "o estilo standalone detectado é reusado na re-autenticação");
+        handler.Requests.Should().NotContain(r =>
+            r.RequestUri!.AbsolutePath.StartsWith("/proxy/network"),
+            "nunca usar o prefixo UniFi OS em controlador standalone");
+    }
+
+    [Fact]
+    public async Task Login_WhenBothLoginEndpointsReject_ShouldThrowPtBrCredentials()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.Unauthorized));
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/login",
+            _ => Response(HttpStatusCode.Unauthorized));
+
+        var client = CreateClient(handler);
+
+        var send = () => client.ListDevicesAsync();
+
+        (await send.Should().ThrowAsync<UnauthorizedAccessException>())
+            .WithMessage("*Credenciais*UniFi*");
+    }
+
+    [Fact]
+    public async Task Login_WhenNoCompatibleLoginEndpointExists_ShouldThrowInvalidOperationPtBr()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath is "/api/auth/login" or "/api/login",
+            _ => Response(HttpStatusCode.NotFound));
+
+        var client = CreateClient(handler);
+
+        var send = () => client.ListDevicesAsync();
+
+        (await send.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("*API de login*compatível*");
+    }
+
     [Fact]
     public async Task ListDevicesAsync_WhenNotConfigured_ShouldThrowPtBr()
     {

@@ -207,6 +207,25 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             KnowledgeArticleIncidentRepository>();
         services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleServiceRepository,
             KnowledgeArticleServiceRepository>();
+        // F24-T003/K3: snapshots de versão — Create/Update de artigo
+        // injetam o repo de versões (handler exige).
+        services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleVersionRepository,
+            KnowledgeArticleVersionRepository>();
+        // K5/K6: origens vinculadas (auto-detecção de duplicidade) +
+        // repositórios usados pelos handlers de Knowledge/PDI/Tasks que
+        // o host manual registrava incompleto após o merge K3.
+        services.AddScoped<InfraControl.Application.Knowledge.Articles.Ports.IKnowledgeArticleOriginRepository,
+            KnowledgeArticleOriginRepository>();
+        services.AddScoped<InfraControl.Application.Pdi.Ports.IPdiRepository,
+            PdiRepository>();
+        services.AddScoped<InfraControl.Application.Pdi.Ports.IPdiStructureRepository,
+            PdiStructureRepository>();
+        services.AddScoped<InfraControl.Application.Tasks.Ports.ITaskEvidenceRepository,
+            TaskEvidenceRepository>();
+        services.AddScoped<InfraControl.Application.Tasks.Ports.ITaskImpedimentRepository,
+            TaskImpedimentRepository>();
+        services.AddScoped<InfraControl.Application.Tasks.Ports.ITaskPhaseRepository,
+            TaskPhaseRepository>();
         // F4-T001/T002: leitura de discovery (a base não faz varredura automática)
         services.AddScoped<InfraControl.Application.Discovery.Runs.Ports.IDiscoveryRunRepository, DiscoveryRunRepository>();
         services.AddScoped<InfraControl.Application.Discovery.Results.Ports.IDiscoveryResultRepository, DiscoveryResultRepository>();

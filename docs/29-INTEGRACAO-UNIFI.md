@@ -65,21 +65,34 @@ persistência**:
 
 ## 3. Autenticação com o Controller
 
-1. `POST {BaseUrl}/api/auth/login` com `{"username","password"}` →
-   `Set-Cookie: unifises=…` (a única sessão usada).
-2. Todas as chamadas seguem com header `Cookie: unifises=…`.
-3. Se o Controller responder **401**, o cliente re-autentica **uma vez** e
-   repete a chamada; ainda 401 → `UnauthorizedAccessException`.
-4. Credencial recusada no login (401/403) → `UnauthorizedAccessException`
-   ("Credenciais do UniFi Controller inváladas ou sessão recusada.").
+**Fase 1 (F26-T001, 2026-10-08): detecção automática do estilo do
+controlador** — auditado em `docs/35-AUDITORIA-UNIFI-FASE0.md` §3:
 
-Endpoints consumidos:
+1. Na **primeira** autenticação o cliente tenta `POST {BaseUrl}/api/auth/login`
+   (estilo **UniFi OS** — UDM/Cloud Key). Sucesso → estilo `UniFiOs`.
+2. Se rejeitado (**401/403** — standalone responde 401 até com credenciais
+   válidas — ou **404/405** — endpoint inexistente), tenta
+   `POST {BaseUrl}/api/login` (estilo **standalone** UniFi Network
+   Application). Sucesso → estilo `Standalone`.
+3. Payload `{"username","password"}` nos dois → `Set-Cookie: unifises=…`
+   (a única sessão usada). Estilo ficou memorizado no cliente (log
+   `Information` "identificado como {Style}").
+4. Se **qualquer** tentativa devolve 401/403 → `UnauthorizedAccessException`
+   ("Credenciais do UniFi Controller inváladas ou sessão recusada."). Se os
+   dois endpoints não existem (404/405) → `InvalidOperationException`
+   ("…não expôs API de login compatível…").
+5. Todas as chamadas seguem com header `Cookie: unifises=…`.
+6. Se o Controller responder **401** numa chamada, o cliente re-autentica
+   **uma vez** (pelo endpoint do estilo detectado) e repete; ainda 401 →
+   `UnauthorizedAccessException`.
 
-| Uso | Endpoint |
-| --- | --- |
-| Login | `POST /api/auth/login` |
-| Dispositivos (sync) | `GET /proxy/network/api/s/{site}/stat/device` → `{meta:{rc},data:[…]}` |
-| Health | `GET /api/self` |
+Endpoints consumidos (prefixo pela API detectada):
+
+| Uso | UniFi OS (`UniFiOs`) | Standalone (`Standalone`) |
+| --- | --- | --- |
+| Login | `POST /api/auth/login` | `POST /api/login` |
+| Dispositivos (sync) | `GET /proxy/network/api/s/{site}/stat/device` | `GET /api/s/{site}/stat/device` |
+| Health | `GET /api/self` (raiz, nos dois) | idem |
 
 ## 4. Mapeamento UniFi → cadastro local
 
@@ -107,7 +120,8 @@ apontando para outro device) **não é realocada automaticamente** — conta com
 | --- | --- | --- |
 | `UNIFI_BASE_URL` | vazio | **vazio = integração desligada** (nada é chamado) |
 | `UNIFI_USERNAME` / `UNIFI_PASSWORD` | vazio | credencial do Controller — só via `.env`, nunca no repositório |
-| `UNIFI_SITE` | `default` | site do Controller no caminho do proxy |
+| `UNIFI_SITE` | `default` | site do Controller no caminho da API |
+| `UNIFI_ALLOW_INVALID_TLS` | `false` | **Fase 1:** `true` aceita certificado TLS self-signed (controlador local — docs/35 §2); handler `UnifiHttpMessageHandler` só instala o bypass quando ligado; manter `false` em produção |
 
 Registrado no `Program.cs` (`AddOptions<UnifiIntegrationOptions>().Bind`) e
 no `docker-compose.yml` (`.env.example` §F20-T001).
@@ -122,12 +136,14 @@ não substitui a re-autenticação em 401).
 
 ## 7. Limitações conhecidas / pendências
 
-- **Sem UniFi Controller real em dev:** os testes usam `HttpMessageHandler`
-  fake (`ScriptedHandler`) cobrindo login, cookie, re-auth 401, parse e
-  health — a validação ponta-a-ponta com um Controller real depende de
-  ambiente do usuário.
-- Agregado persistido de integração (tabela + painel) = task própria
-  (decisão 03/10/2026); telemetria sob demanda = F20-T003; webhooks de
-  estado = F20-T002.
+- **Validação real (Fase 1/11):** controlador local UniFi Network **10.4.57**
+  auditado em `docs/35` com consultas `GET` autenticadas — a validação
+  ponta-a-ponta do *sync* contra esse controlador (com `UNIFI_*` + TLS) é da
+  Fase 11; os testes unitários seguem com `HttpMessageHandler` fake
+  (`ScriptedHandler`) cobrindo os dois estilos de login, cookie, re-auth 401,
+  parse, health e o handler TLS.
+- Agregado persistido de integração (tabela + painel) = Fase 2 do plano
+  `docs/34`; telemetria sob demanda = F20-T003; webhooks de estado =
+  F20-T002.
 - `AlertCreated` (notificação de alerta novo) segue como pendência aberta da
   revisão F19/F20/F21 (TASKS §notificações).

@@ -13,6 +13,7 @@ using InfraControl.Application.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Sessions;
+using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Ports;
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
@@ -47,6 +48,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace InfraControl.Infrastructure.Services;
@@ -119,15 +121,32 @@ public static class DependencyInjection
                 "n8n-webhook",
                 static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
 
-        // F20-T001/ADR-028 §2/§6: cliente REST de saída do UniFi Controller —
-        // login POST /api/auth/login → cookie unifises + re-autenticação em
-        // 401 ficam no próprio client; aqui só o named client com a MESMA
-        // política Polly do dispatcher n8n (retry/backoff + circuit breaker).
+        // F20-T001/ADR-028 §2/§6 + Fase 1 (F26-T001): cliente REST de saída
+        // do UniFi Controller — login/detecção de estilo (UniFi OS ×
+        // standalone) + re-autenticação em 401 ficam no próprio client; aqui o
+        // named client com a MESMA política Polly do dispatcher n8n (retry/
+        // backoff + circuit breaker) e o handler primário que honra a opção
+        // AllowInvalidTlsCertificate (self-signed de controlador local —
+        // docs/35 §2; default = validação estrita).
         services.AddScoped<IUnifiApiClient, UnifiApiClient>();
         services.AddHttpClient(UnifiApiClient.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+            {
+                var options = serviceProvider
+                    .GetRequiredService<IOptions<UnifiIntegrationOptions>>().Value;
+                return UnifiHttpMessageHandler.CreatePrimaryHandler(
+                    options.AllowInvalidTlsCertificate);
+            })
             .AddResilienceHandler(
                 "unifi",
                 static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
+
+        // F26 Fase 2.2: config administrativa persistida (linha única no
+        // banco, senha AES-GCM) + fábrica de cliente com opções específicas;
+        // env continua como fallback enquanto não houver linha no banco.
+        services.AddScoped<IUniFiSettingsRepository, UniFiSettingsRepository>();
+        services.AddScoped<IUnifiEnvOptionsAccessor, UnifiEnvOptionsAccessor>();
+        services.AddScoped<IUnifiClientFactory, UnifiClientFactory>();
 
         services.AddScoped<ISlackNotificationDispatcher, LoggingSlackNotificationDispatcher>();
         services.AddScoped<ITelegramNotificationDispatcher, LoggingTelegramNotificationDispatcher>();
@@ -306,6 +325,18 @@ public static class DependencyInjection
         // Configuração de IA: Ollama + roteamento por capacidade
         services.Configure<AiOllamaOptions>(configuration.GetSection("Ai:Ollama"));
         services.Configure<AiRoutingOptionsConfiguration>(configuration.GetSection("Ai:Routing"));
+        // AiProviderRouter injeta o record concreto (não IOptions) — o
+        // binding acima já cobre a seção; seção ausente vira defaults
+        // vazios e o router lança AiProviderNotConfiguredException no
+        // Resolve (estado degradado desejado, ADR-037 §44).
+        var aiRouting = configuration.GetSection("Ai:Routing").Get<AiRoutingOptionsConfiguration>()
+            ?? new AiRoutingOptionsConfiguration(
+                new AiRoutingModelOptions(string.Empty),
+                new AiRoutingModelOptions(string.Empty),
+                new AiRoutingModelOptions(string.Empty),
+                new AiRoutingModelOptions(string.Empty),
+                new AiRoutingModelOptions(string.Empty));
+        services.AddSingleton(aiRouting);
 
         // HttpClient do Ollama (named client)
         services.AddHttpClient("ollama");

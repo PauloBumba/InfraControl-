@@ -22,7 +22,6 @@ import {
   typeOptions,
 } from "@/components/knowledge/knowledgeCatalogs";
 import {
-<<<<<<< HEAD
   KNOWLEDGE_TYPE_OPTIONS,
   knowledgeTypeLabel,
 } from "@/components/knowledge/knowledgeCatalogs";
@@ -36,8 +35,6 @@ import {
   ARTICLE_STATUS_PUBLISHED,
   ARTICLE_STATUS_REJECTED,
   ARTICLE_STATUS_UPDATED,
-=======
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
   createArticle,
   createCategory,
   changeArticleStatus,
@@ -60,7 +57,6 @@ import {
 } from "@/hooks/queries";
 
 /**
-<<<<<<< HEAD
  * F17-T004 — KnowledgePage conectada ao backend (substitui o mock de
  * `data/dashboardData`). Mudanças de contrato: `category` é um `categoryId`
  * (resolvido contra GET /knowledge/categories — o DTO de artigo não traz o
@@ -74,21 +70,10 @@ import {
  * tipo (catálogo em `knowledgeCatalogs.ts`), descrição, tags, autor e
  * responsável (nomes já resolvidos pelo backend); o formulário de
  * criação ganhou os campos e o card mostra tudo.
-=======
- * F17-T004 + ADR-030 Fase 5 — KnowledgePage com React Query e visões
- * tabela/grid/kanban (preferência persistida por entidade). Kanban de
- * artigos agrupa por status (8 estados de docs/32 §7); transição de status
- * usa `POST /articles/{id}/status` (Draft/Published/Archived — 400 pt-BR
- * com as opções válidas vira banner). CRUD de artigos completo (create
- * duplo do form + PUT + DELETE) e abas Artigos/Categorias com CRUD de
- * categorias (409 com artigos vinculados). Escrita atrás de `Can operate`
- * (exibição; policy Operate + antiforgery continuam sendo a autoridade).
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
  */
 
 const PAGE_SIZE = 20;
 
-<<<<<<< HEAD
 // F24-T002/K2 (ADR-034): rótulos verbatim da spec docs/32 §7 —
 // "Publicada"/"Arquivada" feminino mudou do legado "Publicado"/
 // "Arquivado". Números = knowledge.ts (0–2 legados, 3–7 novos).
@@ -110,12 +95,6 @@ const statusConfig: Record<number, { label: string; bg: string; color: string }>
   [ARTICLE_STATUS_OBSOLETE]: { label: "Obsoleta", bg: "#e2e8f0", color: "#64748b" },
   [ARTICLE_STATUS_REJECTED]: { label: "Rejeitada", bg: "#fee2e2", color: "#dc2626" },
 };
-=======
-/** Colunas do kanban = os 8 estados do workflow (rótulos pt-BR). */
-const statusColumns = Object.entries(articleStatusConfig).map(
-  ([status, config]) => ({ key: status, label: config.label }),
-);
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
 /** Transições aceitas pelo endpoint de status (contrato do service). */
 const statusTransitionOptions = [
@@ -159,7 +138,6 @@ export function KnowledgePage() {
   const [authorFilter, setAuthorFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
 
-<<<<<<< HEAD
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -171,29 +149,9 @@ export function KnowledgePage() {
   const [responsibleId, setResponsibleId] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [saving, setSaving] = useState(false);
-=======
-  const articles = usePagedQuery<KnowledgeArticle>(["knowledge", page, term], () =>
-    listArticles({ term: term || undefined, page, pageSize: PAGE_SIZE }),
-  );
-  const categories = useListQuery<KnowledgeCategory>(["knowledgeCategories"], () =>
-    listCategories().then((result) => result.items),
-  );
-  const users = useListQuery<AdminUser>(["users"], () =>
-    // 403 de Viewer em /admin/users silencia — select fica só com "Sem".
-    listUsers().catch(() => [] as AdminUser[]),
-  );
-
-  const [notice, setNotice] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const [articleFormOpen, setArticleFormOpen] = useState(false);
-  const [articleForm, setArticleForm] = useState<ArticleFormState>({ mode: "create", target: null });
-  const [values, setValues] = useState(emptyArticleForm);
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteArticleTarget, setDeleteArticleTarget] = useState<KnowledgeArticle | null>(null);
 
-<<<<<<< HEAD
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -230,85 +188,6 @@ export function KnowledgePage() {
       .then((result) => setCategories(result.items))
       .catch(() => undefined);
   }, []);
-=======
-  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
-  const [categoryForm, setCategoryForm] = useState<{ mode: "create" | "edit"; target: KnowledgeCategory | null }>({
-    mode: "create",
-    target: null,
-  });
-  const [categoryValues, setCategoryValues] = useState(emptyCategoryForm);
-  const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<KnowledgeCategory | null>(null);
-
-  const createArticleMutation = useCreateMutation({
-    invalidate: ["knowledge"],
-    mutationFn: (input: Parameters<typeof createArticle>[0]) => createArticle(input),
-    onSuccess: () => setNotice("Artigo criado como rascunho — publique pela troca de status."),
-  });
-  const updateArticleMutation = useUpdateMutation({
-    invalidate: ["knowledge"],
-    mutationFn: (input: { id: string } & Parameters<typeof updateArticle>[1]) => {
-      const { id, ...rest } = input;
-      return updateArticle(id, rest);
-    },
-    onSuccess: () => setNotice("Artigo atualizado."),
-  });
-  const deleteArticleMutation = useDeleteMutation({
-    invalidate: ["knowledge"],
-    mutationFn: (id: string) => deleteArticle(id),
-    onSuccess: () => setNotice("Artigo excluído."),
-  });
-  const statusMutation = useUpdateMutation({
-    invalidate: ["knowledge"],
-    mutationFn: (input: { id: string; status: "Draft" | "Published" | "Archived" }) =>
-      changeArticleStatus(input.id, input.status),
-    onSuccess: (_data, vars) => {
-      setActionError(null);
-      setNotice(`Status alterado para ${statusTransitionOptions.find((o) => o.value === vars.status)?.label ?? vars.status}.`);
-    },
-    onError: (error) => setActionError(mutationErrorMessage(error)),
-  });
-
-  const createCategoryMutation = useCreateMutation({
-    invalidate: ["knowledgeCategories"],
-    mutationFn: (input: { name: string; description?: string }) => createCategory(input),
-    onSuccess: () => setNotice("Categoria criada."),
-  });
-  const updateCategoryMutation = useUpdateMutation({
-    invalidate: ["knowledgeCategories"],
-    mutationFn: (input: { id: string; name: string; description?: string }) =>
-      updateCategory(input.id, { name: input.name, description: input.description }),
-    onSuccess: () => setNotice("Categoria atualizada."),
-  });
-  const deleteCategoryMutation = useDeleteMutation({
-    invalidate: ["knowledgeCategories"],
-    mutationFn: (id: string) => deleteCategory(id),
-    onSuccess: () => setNotice("Categoria excluída."),
-    onError: (error) => setActionError(mutationErrorMessage(error)),
-  });
-
-  // Tags (K1): Enter/botão adiciona; validação local espelha o domínio
-  // (10 tags, 30 chars, dedupe case-insensitive) — o servidor continua
-  // sendo a autoridade.
-  function addTag() {
-    const tag = values.tagInput.trim();
-    if (!tag) return;
-    if (tag.length > TAG_MAX_LENGTH) {
-      setFormError(`A tag pode ter no máximo ${TAG_MAX_LENGTH} caracteres.`);
-      return;
-    }
-    if (values.tags.length >= MAX_TAGS) {
-      setFormError(`O artigo pode ter no máximo ${MAX_TAGS} tags.`);
-      return;
-    }
-    if (values.tags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) {
-      setValues((current) => ({ ...current, tagInput: "" }));
-      setFormError(null);
-      return;
-    }
-    setValues((current) => ({ ...current, tags: [...current.tags, tag], tagInput: "" }));
-    setFormError(null);
-  }
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
   // F24-T001/K1: select de responsável (policy Operate — mesma policy do
   // form). Falha aqui deixa o select vazio; o campo é opcional.
@@ -324,7 +203,6 @@ export function KnowledgePage() {
     setPage(1);
   }
 
-<<<<<<< HEAD
   // F24-T007/K7 — um lugar só para desligar qualquer filtro (o botão
   // "Limpar" do header passa a valer para todos).
   const anyFilterActive = Boolean(
@@ -351,32 +229,6 @@ export function KnowledgePage() {
   });
 
   async function submitCreate(event: FormEvent) {
-=======
-  function openArticleCreate() {
-    setArticleForm({ mode: "create", target: null });
-    setValues(emptyArticleForm);
-    setFormError(null);
-    setArticleFormOpen(true);
-  }
-
-  function openArticleEdit(article: KnowledgeArticle) {
-    setArticleForm({ mode: "edit", target: article });
-    setValues({
-      title: article.title,
-      content: article.content,
-      categoryId: article.categoryId ?? "",
-      type: article.type ?? "",
-      description: article.description ?? "",
-      tags: [...article.tags],
-      tagInput: "",
-      responsibleId: article.responsibleId ?? "",
-    });
-    setFormError(null);
-    setArticleFormOpen(true);
-  }
-
-  async function submitArticleForm(event: FormEvent) {
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     event.preventDefault();
     setFormError(null);
     const title = values.title.trim();
@@ -436,7 +288,6 @@ export function KnowledgePage() {
     }
     setFormError(null);
     try {
-<<<<<<< HEAD
       // F24-T001/K1: tags como chips por vírgula (o domínio normaliza
       // trim/lowercase/dedup e valida os limites em pt-BR → 400).
       const tags = tagsInput
@@ -462,18 +313,6 @@ export function KnowledgePage() {
       setResponsibleId("");
       setNotice("Artigo criado como rascunho — publique pela troca de status.");
       await load();
-=======
-      if (categoryForm.mode === "create") {
-        await createCategoryMutation.mutateAsync({ name, description: categoryValues.description });
-      } else if (categoryForm.target) {
-        await updateCategoryMutation.mutateAsync({
-          id: categoryForm.target.id,
-          name,
-          description: categoryValues.description,
-        });
-      }
-      setCategoryFormOpen(false);
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     } catch (caught) {
       setFormError(mutationErrorMessage(caught as Error));
     }
@@ -556,7 +395,6 @@ export function KnowledgePage() {
         title="Base de Conhecimento"
         subtitle={subtitle}
         actions={
-<<<<<<< HEAD
           <div style={{ display: "flex", gap: 8 }}>
             <form onSubmit={applyTerm} style={{ display: "flex", gap: 6 }}>
               <SearchInput
@@ -590,26 +428,10 @@ export function KnowledgePage() {
                 <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
               </Button>
               {anyFilterActive && (
-=======
-          <div className="flex align-items-center gap-2 flex-wrap">
-            {isArticlesTab && (
-              <form onSubmit={applyTerm} style={{ display: "flex", gap: 6 }}>
-                <SearchInput
-                  value={termInput}
-                  onChange={setTermInput}
-                  placeholder="Buscar artigos..."
-                  variant="muted"
-                  width={160}
-                  onEnter={() => { setTerm(termInput.trim()); setPage(1); }}
-                />
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                 <Button
                   type="submit"
                   variant="ghost"
-<<<<<<< HEAD
                   onClick={clearFilters}
-=======
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                   style={{ padding: "5px 10px" }}
                 >
                   Filtrar
@@ -697,7 +519,6 @@ export function KnowledgePage() {
         />
       )}
 
-<<<<<<< HEAD
       {/* F24-T007/K7 — busca avançada (docs/32 §13): filtros sobre os
           campos que existem no modelo (categoria, autor, tipo, tag).
           "Sistema"/"setor" da spec não existem no modelo — sem chip. */}
@@ -779,238 +600,6 @@ export function KnowledgePage() {
       {creating && (
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Novo artigo</div>
-=======
-      {isArticlesTab ? (
-        <EntityView<KnowledgeArticle>
-          mode={articleView}
-          items={articlesList}
-          getKey={(article) => article.id}
-          emptyMessage={listError ? "—" : "Nenhum artigo encontrado"}
-          kanban={{ groupOf: (article) => String(article.status), columns: statusColumns }}
-          table={
-            <DataTablePanel value={articlesList} dataKey="id" emptyMessage={listError ? "—" : "Nenhum artigo encontrado"}>
-              <Column header="Título" body={(article: KnowledgeArticle) => (
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>{article.title}</div>
-                  {article.description && (
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{article.description}</div>
-                  )}
-                </div>
-              )} />
-              <Column header="Categoria" body={(article: KnowledgeArticle) => categoryName(article.categoryId)} style={{ width: 150 }} />
-              <Column header="Tipo" body={(article: KnowledgeArticle) => article.type ?? "—"} style={{ width: 170 }} />
-              <Column header="Status" body={(article: KnowledgeArticle) => {
-                const status = articleStatusConfig[article.status] ?? {
-                  label: String(article.status), bg: "#f1f5f9", color: "#64748b",
-                };
-                return <StatusChip label={status.label} background={status.bg} color={status.color} fontSize={10} fontWeight={600} />;
-              }} style={{ width: 115 }} />
-              <Column header="Responsável" body={(article: KnowledgeArticle) => article.responsibleName ?? "—"} style={{ width: 150 }} />
-              <Column
-                header=""
-                style={{ width: 240 }}
-                body={(article: KnowledgeArticle) => (
-                  <Can level="operate">
-                    <div className="flex gap-1 align-items-center">
-                      <Button variant="ghost" onClick={() => openArticleEdit(article)}>
-                        Editar
-                      </Button>
-                      <Button variant="ghost" onClick={() => setDeleteArticleTarget(article)}>
-                        Excluir
-                      </Button>
-                      {statusSelect(article, 140)}
-                    </div>
-                  </Can>
-                )}
-              />
-            </DataTablePanel>
-          }
-          renderCard={(article) => (
-            <div style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <StatusChip
-                    label={categoryName(article.categoryId)}
-                    background="#eff6ff"
-                    color="#3b82f6"
-                    fontSize={10}
-                    fontWeight={600}
-                  />
-                  {article.type && (
-                    <StatusChip
-                      label={article.type}
-                      background="#f1f5f9"
-                      color="#475569"
-                      fontSize={10}
-                      fontWeight={600}
-                    />
-                  )}
-                </div>
-                {(() => {
-                  const status = articleStatusConfig[article.status] ?? {
-                    label: String(article.status), bg: "#f1f5f9", color: "#64748b",
-                  };
-                  return (
-                    <StatusChip
-                      label={status.label}
-                      background={status.bg}
-                      color={status.color}
-                      fontSize={10}
-                      fontWeight={600}
-                    />
-                  );
-              })()}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{article.title}</div>
-              {article.description && (
-                <div style={{
-                  fontSize: 12, color: "#6b7280", fontStyle: "italic",
-                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-                }}>
-                  {article.description}
-                </div>
-              )}
-              <div style={{
-                fontSize: 12, color: "#6b7280", lineHeight: 1.4,
-                display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
-              }}>
-                {article.content}
-              </div>
-              {article.tags.length > 0 && (
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {article.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      style={{ background: "#eef2ff", color: "#6366f1", borderRadius: 999, padding: "1px 7px", fontSize: 10, fontWeight: 600 }}
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {(article.authorName || article.responsibleName) && (
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                  {[
-                    article.authorName ? `por ${article.authorName}` : null,
-                    article.responsibleName ? `resp. ${article.responsibleName}` : null,
-                  ].filter(Boolean).join(" · ")}
-                </div>
-              )}
-              <Can level="operate">
-                <div className="flex gap-1 align-items-center" style={{ marginTop: 4, borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
-                  <Button variant="ghost" onClick={() => openArticleEdit(article)}>
-                    Editar
-                  </Button>
-                  <Button variant="ghost" onClick={() => setDeleteArticleTarget(article)}>
-                    Excluir
-                  </Button>
-                </div>
-                <div style={{ marginTop: 6 }}>
-                  {statusSelect(article)}
-                </div>
-              </Can>
-            </div>
-          )}
-        />
-      ) : (
-        <EntityView<KnowledgeCategory>
-          mode={categoryView}
-          items={categories.items}
-          getKey={(category) => category.id}
-          emptyMessage={listError ? "—" : "Nenhuma categoria cadastrada"}
-          table={
-            <DataTablePanel value={categories.items} dataKey="id" emptyMessage={listError ? "—" : "Nenhuma categoria cadastrada"}>
-              <Column header="Nome" body={(category: KnowledgeCategory) => category.name} />
-              <Column header="Descrição" body={(category: KnowledgeCategory) => category.description ?? "—"} />
-              <Column
-                header="Artigos"
-                style={{ width: 110 }}
-                body={(category: KnowledgeCategory) =>
-                  articlesList.filter((article) => article.categoryId === category.id).length
-                }
-              />
-              <Column
-                header=""
-                style={{ width: 150 }}
-                body={(category: KnowledgeCategory) => (
-                  <Can level="operate">
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setCategoryForm({ mode: "edit", target: category });
-                          setCategoryValues({ name: category.name, description: category.description ?? "" });
-                          setFormError(null);
-                          setCategoryFormOpen(true);
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      <Button variant="ghost" onClick={() => setDeleteCategoryTarget(category)}>
-                        Excluir
-                      </Button>
-                    </div>
-                  </Can>
-                )}
-              />
-            </DataTablePanel>
-          }
-          renderCard={(category) => (
-            <div className="uni-panel" style={{ padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>
-                  <i className="pi pi-folder" style={{ marginRight: 6, color: "#3b82f6" }} />
-                  {category.name}
-                </span>
-                <StatusChip
-                  label={`${articlesList.filter((article) => article.categoryId === category.id).length} artigo(s)`}
-                  background="#eff6ff"
-                  color="#3b82f6"
-                  fontSize={10}
-                  fontWeight={600}
-                />
-              </div>
-              <p style={{ fontSize: 12, color: "#64748b" }}>{category.description ?? "—"}</p>
-              <Can level="operate">
-                <div className="flex gap-1" style={{ marginTop: 8 }}>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setCategoryForm({ mode: "edit", target: category });
-                      setCategoryValues({ name: category.name, description: category.description ?? "" });
-                      setFormError(null);
-                      setCategoryFormOpen(true);
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button variant="ghost" onClick={() => setDeleteCategoryTarget(category)}>
-                    Excluir
-                  </Button>
-                </div>
-              </Can>
-            </div>
-          )}
-        />
-      )}
-
-      {isArticlesTab && totalCount > PAGE_SIZE && (
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          disabled={articles.isFetching}
-          onPage={setPage}
-        />
-      )}
-
-      <Dialog
-        visible={articleFormOpen}
-        onHide={() => setArticleFormOpen(false)}
-        header={articleForm.mode === "create" ? "Novo artigo" : `Editar — ${articleForm.target?.title ?? ""}`}
-        style={{ width: "min(720px, 95vw)" }}
-      >
-        <form onSubmit={submitArticleForm} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
           <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 10 }}>
             <FormField label="Título" error={null}>
               <input
@@ -1062,7 +651,6 @@ export function KnowledgePage() {
               />
             </FormField>
           </div>
-<<<<<<< HEAD
           {/* F24-T001/K1 — identificação (docs/32 §5–§6). */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <SelectField
@@ -1109,60 +697,6 @@ export function KnowledgePage() {
             rows={6}
             style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
           />
-=======
-          <FormField label="Descrição (máx. 500)" error={null}>
-            <input
-              value={values.description}
-              onChange={(event) => setValues((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Descrição (máx. 500)"
-              maxLength={500}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
-            />
-          </FormField>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              value={values.tagInput}
-              onChange={(event) => setValues((current) => ({ ...current, tagInput: event.target.value }))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addTag();
-                }
-              }}
-              placeholder={`Tags — Enter para adicionar (máx. ${MAX_TAGS})`}
-              maxLength={TAG_MAX_LENGTH}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: 260 }}
-            />
-            <Button type="button" variant="ghost" onClick={addTag} style={{ padding: "5px 10px" }}>
-              Adicionar
-            </Button>
-            {values.tags.map((tag) => (
-              <span
-                key={tag}
-                style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#eef2ff", color: "#6366f1", borderRadius: 999, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}
-              >
-                #{tag}
-                <button
-                  type="button"
-                  onClick={() => setValues((current) => ({ ...current, tags: current.tags.filter((existing) => existing !== tag) }))}
-                  aria-label={`Remover tag ${tag}`}
-                  style={{ border: "none", background: "transparent", color: "#6366f1", cursor: "pointer", padding: 0, fontSize: 11 }}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-          <FormField label="Conteúdo" error={null}>
-            <textarea
-              value={values.content}
-              onChange={(event) => setValues((current) => ({ ...current, content: event.target.value }))}
-              placeholder="Conteúdo * (máx. 20000)"
-              rows={6}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit", width: "100%" }}
-            />
-          </FormField>
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
           {formError && <FormError message={formError} />}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
@@ -1187,7 +721,6 @@ export function KnowledgePage() {
         </form>
       </Dialog>
 
-<<<<<<< HEAD
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
         {articles.map((article) => {
           const status = statusConfig[article.status] ?? {
@@ -1306,39 +839,6 @@ export function KnowledgePage() {
         {!loading && articles.length === 0 && (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
             {error ? "—" : "Nenhum artigo encontrado"}
-=======
-      <Dialog
-        visible={categoryFormOpen}
-        onHide={() => setCategoryFormOpen(false)}
-        header={categoryForm.mode === "create" ? "Nova categoria" : `Editar — ${categoryForm.target?.name ?? ""}`}
-      >
-        <form onSubmit={submitCategoryForm} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FormField label="Nome" error={null}>
-            <input
-              autoFocus
-              value={categoryValues.name}
-              onChange={(event) => setCategoryValues((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Nome da categoria"
-              style={{ padding: "8px 10px", fontSize: 13, border: "1px solid #e2e8f0", borderRadius: 6, width: "100%" }}
-            />
-          </FormField>
-          <FormField label="Descrição (opcional)" error={null}>
-            <input
-              value={categoryValues.description}
-              onChange={(event) => setCategoryValues((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Descrição"
-              style={{ padding: "8px 10px", fontSize: 13, border: "1px solid #e2e8f0", borderRadius: 6, width: "100%" }}
-            />
-          </FormField>
-          {formError && <FormError message={formError} />}
-          <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
-            <Button variant="ghost" onClick={() => setCategoryFormOpen(false)}>
-              Cancelar
-            </Button>
-            <Button variant="primary" type="submit">
-              {categoryForm.mode === "create" ? "Criar" : "Salvar"}
-            </Button>
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
           </div>
         </form>
       </Dialog>

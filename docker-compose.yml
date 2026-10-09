@@ -397,11 +397,8 @@ volumes:
   zabbix_db_data:
   zabbix_server_snmptraps:
   zabbix_server_mibs:
-<<<<<<< HEAD
   ollama_data:
-=======
   pdi-evidence:
->>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
 networks:
   infracontrol:

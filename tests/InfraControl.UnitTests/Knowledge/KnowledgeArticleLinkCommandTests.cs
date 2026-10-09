@@ -99,7 +99,7 @@ public sealed class KnowledgeArticleLinkCommandTests : IDisposable
     private static async Task<(Guid ArticleId, Guid DeviceId, Guid IncidentId, Guid ServiceId)>
         SeedAllAsync(AppDbContext context, string ip = "192.0.2.74")
     {
-        var article = KnowledgeArticle.Create("Artigo de vinculo", "Conteudo.", null, "Guia");
+        var article = KnowledgeArticle.Create("Artigo de vinculo", "Conteudo.", null);
         context.KnowledgeArticles.Add(article);
 
         var location = Location.Create("Sala F10T004");

@@ -1,5 +1,3 @@
-using InfraControl.Application.AI.Exceptions;
-
 namespace InfraControl.Application.AI;
 
 /// <summary>
@@ -22,7 +20,7 @@ public sealed class ConfigurationProviderRegistry : IAiProviderRegistry
     /// </summary>
     public IAiProvider Get(string providerName)
     {
-        return providerName.ToLowerInvariant() switch
+        return providerName?.ToLowerInvariant() switch
         {
             "ollama" => _ollamaProvider,
             _ => throw new AiProviderNotConfiguredException(

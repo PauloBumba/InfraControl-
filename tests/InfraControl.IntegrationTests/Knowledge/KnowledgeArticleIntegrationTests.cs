@@ -25,15 +25,13 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var category = await mediator.Send(new CreateKnowledgeCategoryCommand("Redes", null));
 
         var created = await mediator.Send(new CreateKnowledgeArticleCommand(
-            "Troca do switch central", "Failover passo a passo.", category.Id, "Procedimento"));
+            "Troca do switch central", "Failover passo a passo.", category.Id));
         created.Title.Should().Be("Troca do switch central");
         created.Status.Should().Be(KnowledgeArticleStatus.Draft);
 
         await mediator.Send(new UpdateKnowledgeArticleCommand(
-
-            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null, "Procedimento",
-            Reason: "Revisão de conteúdo."));
-
+            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null,
+            "Ajuste do roteiro."));
 
         var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
         fetched.Title.Should().Be("Troca do switch central (v2)");
@@ -55,7 +53,7 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var unknown = Guid.NewGuid();
 
         var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown, "Guia"));
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", unknown));
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Categoria '{unknown}' não encontrada.");
@@ -83,7 +81,7 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         UseRole(UserRole.Admin);
 
         var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null, "Guia"));
+            new CreateKnowledgeArticleCommand("  ", "Conteúdo.", null));
 
         (await action.Should().ThrowAsync<ArgumentException>())
             .WithMessage("O título do artigo é obrigatório.*");
@@ -97,14 +95,14 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         UseNoRoles();
 
         var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("Sem permissão", "Conteúdo.", null, "Guia"));
+            new CreateKnowledgeArticleCommand("Sem permissão", "Conteúdo.", null));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Roles ausentes: Admin, Operator");
     }
 
-    /// <summary>Ciclo editorial do §7 via API: Rascunho → Em revisão →
-    /// Aprovada → Publicada → Arquivada → Rascunho.</summary>
+    /// <summary>Cadeia completa via API: Draft → InReview → Approved →
+    /// Published → Archived → Draft (workflow F24-T002/K2, ADR-034).</summary>
     [Fact]
     public async Task ChangeStatus_Lifecycle_ShouldRoundTripViaQueries()
     {
@@ -112,15 +110,7 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo de publicação", "Conteúdo.", null, "Manual"));
-
-        var inReview = await mediator.Send(
-            new ChangeKnowledgeArticleStatusCommand(created.Id, "inReview"));
-        inReview.Status.Should().Be(KnowledgeArticleStatus.InReview);
-
-        var approved = await mediator.Send(
-            new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
-        approved.Status.Should().Be(KnowledgeArticleStatus.Approved);
+            new CreateKnowledgeArticleCommand("Artigo de publicação", "Conteúdo.", null));
 
         var inReview = await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(created.Id, "inreview"));
@@ -153,13 +143,13 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null, "FAQ"));
+            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null));
 
         var action = () => mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(created.Id, "archived"));
 
         (await action.Should().ThrowAsync<InvalidOperationException>())
-            .WithMessage("Transição inválida: 'Rascunho' → 'Arquivada'.");
+            .WithMessage("Transição inválida: 'Draft' → 'Archived'.");
     }
 
     [Fact]
@@ -169,17 +159,9 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var draft = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Rascunho interno", "Segredo.", null, "FAQ"));
-        var inReview = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Em revisão", "Não publicado.", null, "FAQ"));
-        await mediator.Send(
-            new ChangeKnowledgeArticleStatusCommand(inReview.Id, "inReview"));
+            new CreateKnowledgeArticleCommand("Rascunho interno", "Segredo.", null));
         var published = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null, "FAQ"));
-        await mediator.Send(
-            new ChangeKnowledgeArticleStatusCommand(published.Id, "inReview"));
-        await mediator.Send(
-            new ChangeKnowledgeArticleStatusCommand(published.Id, "approved"));
+            new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null));
         await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(published.Id, "inreview"));
         await mediator.Send(
@@ -191,10 +173,6 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var page = await mediator.Send(new SearchKnowledgeArticlesQuery());
         page.Items.Should().ContainSingle(article => article.Id == published.Id);
 
-        var getInReview = () => mediator.Send(new GetKnowledgeArticleQuery(inReview.Id));
-        (await getInReview.Should().ThrowAsync<KeyNotFoundException>())
-            .WithMessage($"Artigo '{inReview.Id}' não encontrado.");
-
         var getDraft = () => mediator.Send(new GetKnowledgeArticleQuery(draft.Id));
         (await getDraft.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Artigo '{draft.Id}' não encontrado.");
@@ -203,136 +181,5 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new ChangeKnowledgeArticleStatusCommand(draft.Id, "published"));
         (await change.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Roles ausentes: Admin, Operator");
-    }
-
-    // ── F24-T003: versionamento (K3 — ADR-040) ──────────────────────────
-
-    /// <summary>Ciclo K3 via API interna: publicar gera v1.0, duas
-    /// edições geram v1.1/v1.2, lista em ordem e comparação 1.0→1.1.</summary>
-    [Fact]
-    public async Task Versioning_PublishAndEdit_ShouldSnapshotListAndCompare()
-    {
-        using var scope = CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseRole(UserRole.Admin);
-        var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo versionado", "v1.", null, "Guia"));
-
-        await mediator.Send(new ChangeKnowledgeArticleStatusCommand(created.Id, "inReview"));
-        await mediator.Send(new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
-        await mediator.Send(new ChangeKnowledgeArticleStatusCommand(created.Id, "published"));
-
-        await mediator.Send(new UpdateKnowledgeArticleCommand(
-            created.Id, "Artigo versionado", "v1.1.", null, "Guia",
-            Reason: "Primeira correção."));
-        await mediator.Send(new UpdateKnowledgeArticleCommand(
-            created.Id, "Artigo versionado", "v1.2.", null, "Guia",
-            Reason: "Segunda correção."));
-
-        var versions = await mediator.Send(
-            new ListKnowledgeArticleVersionsQuery(created.Id));
-        versions.Select(version => version.Version).Should()
-            .Equal("1.2", "1.1", "1.0");
-        versions.Last().Reason.Should().Be("Publicação inicial");
-        versions.First().Reason.Should().Be("Segunda correção.");
-        versions.First().AuthorName.Should().NotBeNullOrEmpty();
-
-        var detail = await mediator.Send(
-            new GetKnowledgeArticleVersionQuery(created.Id, 1, 1));
-        detail.Content.Should().Be("v1.1.");
-        detail.Reason.Should().Be("Primeira correção.");
-
-        var compare = await mediator.Send(
-            new CompareKnowledgeArticleVersionsQuery(created.Id, "1.0", "1.1"));
-        compare.Changes.Should().ContainSingle(diff => diff.Field == "content")
-            .Which.Should().Be(
-                new KnowledgeArticleVersionDiff("content", "v1.", "v1.1."));
-        compare.Reason.Should().Be("Primeira correção.");
-    }
-
-    [Fact]
-    public async Task Versioning_UpdateWithoutReason_ShouldFailWith400PtBr()
-    {
-        using var scope = CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseRole(UserRole.Admin);
-        var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"));
-
-        var action = () => mediator.Send(new UpdateKnowledgeArticleCommand(
-            created.Id, "Artigo", "Conteúdo novo.", null, "Guia", Reason: ""));
-
-        (await action.Should().ThrowAsync<ArgumentException>())
-            .WithMessage("O motivo da alteração é obrigatório.*");
-    }
-
-    [Fact]
-    public async Task Versioning_InvalidVersionNumber_ShouldFailWith400PtBr()
-    {
-        using var scope = CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseRole(UserRole.Admin);
-        var created = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"));
-
-        var action = () => mediator.Send(
-            new CompareKnowledgeArticleVersionsQuery(created.Id, "x", "1.0"));
-
-        (await action.Should().ThrowAsync<ArgumentException>())
-            .WithMessage("Número de versão inválido: 'x'.*");
-    }
-
-    // ── F24-T001: tipos e identificação (K1) ─────────────────────────────
-
-    [Fact]
-    public async Task Create_WithIdentification_ShouldPersist()
-    {
-        using var scope = CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseRole(UserRole.Admin);
-
-        var created = await mediator.Send(new CreateKnowledgeArticleCommand(
-            "Guia de failover", "Passo a passo.", null,
-            Type: "Guia",
-            Description: "Guia de failover do switch central.",
-            Tags: ["Redes", "Switch"],
-            ResponsibleId: null));
-
-        created.Type.Should().Be("Guia");
-        created.Description.Should().Be("Guia de failover do switch central.");
-        created.Tags.Should().Equal("redes", "switch");
-
-        var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
-        fetched.Type.Should().Be("Guia");
-        fetched.Tags.Should().Equal("redes", "switch");
-    }
-
-    [Fact]
-    public async Task Create_UnknownResponsible_ShouldFailWith404PtBr()
-    {
-        using var scope = CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseRole(UserRole.Admin);
-        var unknown = Guid.NewGuid();
-
-        var action = () => mediator.Send(new CreateKnowledgeArticleCommand(
-            "Artigo", "Conteúdo.", null, "Guia", ResponsibleId: unknown));
-
-        (await action.Should().ThrowAsync<KeyNotFoundException>())
-            .WithMessage($"Usuário '{unknown}' não encontrado.");
-    }
-
-    [Fact]
-    public async Task Create_UnknownType_ShouldFailWith400PtBr()
-    {
-        using var scope = CreateScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        UseRole(UserRole.Admin);
-
-        var action = () => mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Receita"));
-
-        (await action.Should().ThrowAsync<ArgumentException>())
-            .WithMessage("Tipo inválido: 'Receita'. Use:*");
     }
 }

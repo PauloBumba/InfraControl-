@@ -6,6 +6,7 @@ using Moq;
 using Moq.Protected;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 
 namespace InfraControl.UnitTests.AI;
@@ -17,7 +18,8 @@ namespace InfraControl.UnitTests.AI;
 /// </summary>
 public sealed class OllamaProviderTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private static Mock<HttpMessageHandler>? _lastHandlerMock;
 
     [Fact]
     public void Constructor_deve_configurar_base_url()
@@ -37,13 +39,13 @@ public sealed class OllamaProviderTests
             (request, response) =>
             {
                 response.StatusCode = HttpStatusCode.OK;
-                response.Content = JsonContent.Serialize(new
+                response.Content = Json(new
                 {
                     response = "resposta gerada",
                     prompt_eval_count = 10,
                     eval_count = 20,
                     done = true
-                }, JsonOptions);
+                });
             });
 
         var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
@@ -65,13 +67,13 @@ public sealed class OllamaProviderTests
             (request, response) =>
             {
                 response.StatusCode = HttpStatusCode.OK;
-                response.Content = JsonContent.Serialize(new
+                response.Content = Json(new
                 {
                     response = "resposta",
                     prompt_eval_count = 5,
                     eval_count = 10,
                     done = true
-                }, JsonOptions);
+                });
             });
 
         var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
@@ -94,13 +96,13 @@ public sealed class OllamaProviderTests
             (request, response) =>
             {
                 response.StatusCode = HttpStatusCode.OK;
-                response.Content = JsonContent.Serialize(new
+                response.Content = Json(new
                 {
                     response = "resposta",
                     prompt_eval_count = 5,
                     eval_count = 10,
                     done = true
-                }, JsonOptions);
+                });
             });
 
         var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
@@ -163,14 +165,14 @@ public sealed class OllamaProviderTests
             (request, response) =>
             {
                 response.StatusCode = HttpStatusCode.OK;
-                response.Content = JsonContent.Serialize(new
+                response.Content = Json(new
                 {
                     models = new[]
                     {
                         new { name = "qwen2.5-coder:1.5b", digest = "abc123", size = 12345L, modified_at = DateTime.UtcNow },
                         new { name = "llama3:8b", digest = "def456", size = 67890L, modified_at = DateTime.UtcNow }
                     }
-                }, JsonOptions);
+                });
             });
 
         var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
@@ -190,7 +192,7 @@ public sealed class OllamaProviderTests
             (request, response) =>
             {
                 response.StatusCode = HttpStatusCode.OK;
-                response.Content = JsonContent.Serialize(new { models = Array.Empty<object>() }, JsonOptions);
+                response.Content = Json(new { models = Array.Empty<object>() });
             });
 
         var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
@@ -256,6 +258,7 @@ public sealed class OllamaProviderTests
         Action<HttpRequestMessage, HttpResponseMessage>? configureResponse = null)
     {
         var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        _lastHandlerMock = mockHttpMessageHandler;
         mockHttpMessageHandler
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -278,14 +281,12 @@ public sealed class OllamaProviderTests
         return mockHttpClientFactory.Object;
     }
 
+    private static StringContent Json(object payload) =>
+        new(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
     private static HttpRequestMessage GetLastRequest(IHttpClientFactory factory)
     {
-        var mockFactory = (Mock<IHttpClientFactory>)factory;
-        var httpClient = mockFactory.Object.CreateClient("ollama");
-        var handlerField = typeof(HttpClient).GetField("_handler", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var handler = (HttpMessageHandler)handlerField!.GetValue(httpClient)!;
-        var mockHandler = (Mock<HttpMessageHandler>)handler;
-        var invocations = mockHandler.Invocations;
+        var invocations = _lastHandlerMock!.Invocations;
         var invocation = invocations.FirstOrDefault(i => i.Method.Name == "SendAsync");
         return invocation?.Arguments[0] as HttpRequestMessage
             ?? throw new InvalidOperationException("Nenhuma requisição foi feita.");

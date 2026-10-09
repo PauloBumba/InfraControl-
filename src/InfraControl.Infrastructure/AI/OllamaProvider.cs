@@ -13,6 +13,12 @@ namespace InfraControl.Infrastructure.AI;
 /// </summary>
 public sealed class OllamaProvider : IAiProvider
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.General)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
 
@@ -55,7 +61,15 @@ public sealed class OllamaProvider : IAiProvider
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        var ollamaResponse = JsonSerializer.Deserialize<OllamaGenerateResponse>(json);
+        OllamaGenerateResponse? ollamaResponse;
+        try
+        {
+            ollamaResponse = JsonSerializer.Deserialize<OllamaGenerateResponse>(json, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("Resposta inválida do Ollama.", ex);
+        }
 
         if (ollamaResponse == null)
         {
@@ -82,9 +96,9 @@ public sealed class OllamaProvider : IAiProvider
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        var ollamaResponse = JsonSerializer.Deserialize<OllamaTagsResponse>(json);
+        var ollamaResponse = JsonSerializer.Deserialize<OllamaTagsResponse>(json, JsonOptions);
 
-        return ollamaResponse?.Models ?? Array.Empty<OllamaModel>();
+        return ollamaResponse?.Models ?? new List<OllamaModel>();
     }
 
     /// <summary>
@@ -117,7 +131,7 @@ public sealed class OllamaProvider : IAiProvider
     private sealed record OllamaTagsResponse(
         List<OllamaModel>? Models);
 
-    private sealed record OllamaModel(
+    public sealed record OllamaModel(
         string Name,
         string? Digest,
         long? Size,
