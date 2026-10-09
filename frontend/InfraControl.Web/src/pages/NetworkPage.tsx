@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Can } from "@/components/auth/Can";
-import { NETWORK_PAGE_SIZE, createVlan, listVlans, type Paged, type VlanItem } from "@/services/api/network";
+import {
+  NETWORK_PAGE_SIZE,
+  createVlan,
+  deleteVlan,
+  listVlans,
+  updateVlan,
+  type VlanItem,
+} from "@/services/api/network";
 import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
@@ -8,59 +15,95 @@ import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { FormField, FormError } from "@/components/ui/FormField";
-
+import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { Column } from "primereact/column";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+import {
+  useCreateMutation,
+  useDeleteMutation,
+  usePagedQuery,
+  useUpdateMutation,
+  mutationErrorMessage,
+} from "@/hooks/queries";
 
 /**
- * F17-T008 — NetworkPage conectada ao backend (substitui `vlans`,
- * `dhcpLeases`, `routes` e `firewallRules` de `data/dashboardData`).
+ * F17-T008 + ADR-030 Fase 5 — NetworkPage (VLANs) com CRUD completo
+ * (Operate) e visões tabela/grid (preferência persistida). Kanban não se
+ * aplica: VLAN não tem campo de estado (EntityView sem config → grid).
  *
- * Contrato real: `GET/POST /api/v1/network/vlans` (`VlanDto` = nome,
- * número 802.1Q e descrição). Divergências do protótipo: "VLAN {id}" vira
- * **VLAN {vlanNumber}** (o número real); `color`, `devices`, `subnet`,
- * `gateway` e `dhcp` do card não existem no DTO (saíram). As abas DHCP,
- * Rotas e Firewall **foram removidas — não há endpoint no backend** (F3
- * cobre switches/ports/VLANs/conexões/topologia; DHCP/rotas/firewall não
- * têm slice). A vinculação N:N de portas (SwitchPortVlan) também não tem
- * UI nesta task.
+ * Contrato real: `GET/POST/PUT/DELETE /api/v1/network/vlans`. As abas
+ * DHCP/Rotas/Firewall do protótipo não existem no backend (sem slice).
  */
 
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
 export function NetworkPage() {
-  const [pageData, setPageData] = useState<Paged<VlanItem> | null>(null);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useEntityViewMode("vlans", "grid");
+
+  const vlans = usePagedQuery<VlanItem>(["vlans", page], () => listVlans(page));
+  const totalCount = vlans.totalCount;
+
   const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<VlanItem | null>(null);
+  const [deleting, setDeleting] = useState<VlanItem | null>(null);
   const [name, setName] = useState("");
   const [vlanNumber, setVlanNumber] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setPageData(await listVlans(page));
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setLoading(false);
-    }
-  }, [page]);
+  const createMutation = useCreateMutation({
+    invalidate: ["vlans"],
+    mutationFn: (input: { name: string; vlanNumber: number; description?: string }) =>
+      createVlan(input),
+  });
+  const updateMutation = useUpdateMutation({
+    invalidate: ["vlans"],
+    mutationFn: (input: {
+      id: string;
+      name: string;
+      vlanNumber: number;
+      description?: string;
+    }) =>
+      updateVlan(input.id, {
+        name: input.name,
+        vlanNumber: input.vlanNumber,
+        description: input.description,
+      }),
+  });
+  const deleteMutation = useDeleteMutation({
+    invalidate: ["vlans"],
+    mutationFn: (id: string) => deleteVlan(id),
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  function openCreate() {
+    setEditing(null);
+    setCreating(true);
+    setName("");
+    setVlanNumber("");
+    setDescription("");
+    setFormError(null);
+  }
 
-  async function submitCreate(event: FormEvent) {
+  function openEdit(vlan: VlanItem) {
+    setCreating(false);
+    setEditing(vlan);
+    setName(vlan.name);
+    setVlanNumber(String(vlan.vlanNumber));
+    setDescription(vlan.description ?? "");
+    setFormError(null);
+  }
+
+  function closeForm() {
+    setCreating(false);
+    setEditing(null);
+    setFormError(null);
+  }
+
+  async function submitForm(event: FormEvent) {
     event.preventDefault();
     const trimmedName = name.trim();
     const number = Number(vlanNumber);
@@ -75,132 +118,167 @@ export function NetworkPage() {
     setSaving(true);
     setFormError(null);
     try {
-      await createVlan({
-        name: trimmedName,
-        vlanNumber: number,
-        description: description.trim() || undefined,
-      });
-      setCreating(false);
-      setName("");
-      setVlanNumber("");
-      setDescription("");
-      setNotice(`VLAN "${trimmedName}" (${number}) criada.`);
-      await load();
+      if (editing) {
+        await updateMutation.mutateAsync({
+          id: editing.id,
+          name: trimmedName,
+          vlanNumber: number,
+          description: description.trim() || undefined,
+        });
+        setNotice(`VLAN "${trimmedName}" (${number}) atualizada.`);
+      } else {
+        await createMutation.mutateAsync({
+          name: trimmedName,
+          vlanNumber: number,
+          description: description.trim() || undefined,
+        });
+        setNotice(`VLAN "${trimmedName}" (${number}) criada.`);
+      }
+      closeForm();
     } catch (caught) {
-      setFormError(messageFor(caught));
+      setFormError(mutationErrorMessage(caught as Error));
     } finally {
       setSaving(false);
     }
   }
 
-  const vlans = pageData?.items ?? [];
-  const totalCount = pageData?.totalCount ?? 0;
+  async function confirmDelete() {
+    if (!deleting) return;
+    try {
+      await deleteMutation.mutateAsync(deleting.id);
+      setNotice(`VLAN "${deleting.name}" excluída.`);
+      setActionError(null);
+    } catch (caught) {
+      setActionError(mutationErrorMessage(caught as Error));
+    }
+  }
+
+  const loading = vlans.isLoading;
+  const formVisible = creating || editing !== null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
         title="Rede"
-        subtitle={loading
-          ? "Carregando…"
-          : `${totalCount} ${totalCount === 1 ? "VLAN" : "VLANs"} cadastradas`}
+        subtitle={
+          loading
+            ? "Carregando…"
+            : `${totalCount} ${totalCount === 1 ? "VLAN" : "VLANs"} cadastradas`
+        }
         actions={
-          <Can level="operate">
-            <Button
-              variant="primary"
-              onClick={() => { setCreating((value) => !value); setFormError(null); }}
-              style={{ padding: "6px 14px" }}
-            >
-              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-            </Button>
-          </Can>
+          <div className="flex align-items-center gap-2 flex-wrap">
+            <ViewSwitcher mode={view} onChange={setView} />
+            <Can level="operate">
+              <Button variant="primary" onClick={openCreate} style={{ padding: "6px 14px" }}>
+                <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+              </Button>
+            </Can>
+          </div>
         }
       />
 
       {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
-
-      {creating && (
-        <form onSubmit={submitCreate} style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8, flexWrap: "wrap" }}>
-          <FormField label="Nome *" width={180}>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Ex.: Voz"
-              autoFocus
-              maxLength={120}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-          </FormField>
-          <FormField label="Número (1–4094) *" width={130}>
-            <input
-              type="number"
-              min={1}
-              max={4094}
-              value={vlanNumber}
-              onChange={(event) => setVlanNumber(event.target.value)}
-              placeholder="100"
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-          </FormField>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#64748b", flex: 1, minWidth: 200 }}>
-            Descrição
-            <input
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Opcional"
-              maxLength={500}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-          </div>
-          <FormError message={formError ?? ""} style={{ alignSelf: "center" }} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => { setCreating(false); setFormError(null); }}
-              style={{ padding: "6px 14px" }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={saving}
-              style={{ padding: "6px 14px" }}
-            >
-              {saving ? "Salvando…" : "Criar VLAN"}
-            </Button>
-          </div>
-        </form>
+      {(actionError || vlans.error) && (
+        <ErrorBanner
+          message={
+            actionError ??
+            mutationErrorMessage(vlans.error as Error) ??
+            "Não foi possível falar com o servidor. Tente novamente."
+          }
+          onRetry={() => {
+            setActionError(null);
+            void vlans.refetch();
+          }}
+        />
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-        {vlans.map((vlan) => (
-          <div key={vlan.id} style={{ background: "white", borderRadius: 8, border: "1px solid #e5e7eb", padding: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#3b82f6" }} />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{vlan.name}</div>
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>VLAN {vlan.vlanNumber}</div>
+      {loading && vlans.items.length === 0 ? (
+        <LoadingBlock style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
+      ) : (
+        <EntityView<VlanItem>
+          mode={view}
+          items={vlans.items}
+          getKey={(vlan) => vlan.id}
+          emptyMessage={vlans.error ? "—" : "Nenhuma VLAN cadastrada"}
+          table={
+            <DataTablePanel value={vlans.items} dataKey="id" emptyMessage="Nenhuma VLAN cadastrada">
+              <Column
+                header="Número"
+                style={{ width: 100 }}
+                body={(vlan: VlanItem) => (
+                  <span style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12 }}>
+                    {vlan.vlanNumber}
+                  </span>
+                )}
+              />
+              <Column header="Nome" body={(vlan: VlanItem) => vlan.name} />
+              <Column header="Descrição" body={(vlan: VlanItem) => vlan.description ?? "—"} />
+              <Column
+                header=""
+                style={{ width: 150 }}
+                body={(vlan: VlanItem) => (
+                  <Can level="operate">
+                    <div className="flex gap-1">
+                      <Button variant="ghost" onClick={() => openEdit(vlan)}>
+                        Editar
+                      </Button>
+                      <Button variant="ghost" onClick={() => setDeleting(vlan)}>
+                        Excluir
+                      </Button>
+                    </div>
+                  </Can>
+                )}
+              />
+            </DataTablePanel>
+          }
+          renderCard={(vlan) => (
+            <div
+              style={{
+                background: "white",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                padding: 16,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div
+                    style={{ width: 10, height: 10, borderRadius: "50%", background: "#3b82f6" }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{vlan.name}</div>
+                    <div style={{ fontSize: 10, color: "#9ca3af" }}>
+                      VLAN {vlan.vlanNumber}
+                    </div>
+                  </div>
                 </div>
               </div>
+              {vlan.description && (
+                <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4 }}>
+                  {vlan.description}
+                </div>
+              )}
+              <Can level="operate">
+                <div className="flex gap-1" style={{ marginTop: 12 }}>
+                  <Button variant="ghost" onClick={() => openEdit(vlan)}>
+                    Editar
+                  </Button>
+                  <Button variant="ghost" onClick={() => setDeleting(vlan)}>
+                    Excluir
+                  </Button>
+                </div>
+              </Can>
             </div>
-            {vlan.description && (
-              <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4 }}>{vlan.description}</div>
-            )}
-          </div>
-        ))}
-        {!loading && vlans.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-            {error ? "—" : "Nenhuma VLAN cadastrada"}
-          </div>
-        )}
-        {loading && vlans.length === 0 && (
-          <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
-        )}
-      </div>
+          )}
+        />
+      )}
 
       {totalCount > NETWORK_PAGE_SIZE && (
         <Pagination
@@ -210,6 +288,82 @@ export function NetworkPage() {
           onPage={setPage}
         />
       )}
+
+      <Dialog
+        visible={formVisible}
+        onHide={closeForm}
+        header={editing ? "Editar VLAN" : "Nova VLAN"}
+      >
+        <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FormField label="Nome *" error={null}>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Ex.: Voz"
+              autoFocus
+              maxLength={120}
+              style={{
+                padding: "7px 10px",
+                fontSize: 13,
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+              }}
+            />
+          </FormField>
+          <FormField label="Número (1–4094) *" error={null}>
+            <input
+              type="number"
+              min={1}
+              max={4094}
+              value={vlanNumber}
+              onChange={(event) => setVlanNumber(event.target.value)}
+              placeholder="100"
+              style={{
+                padding: "7px 10px",
+                fontSize: 13,
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+              }}
+            />
+          </FormField>
+          <FormField label="Descrição" error={null}>
+            <input
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Opcional"
+              maxLength={500}
+              style={{
+                padding: "7px 10px",
+                fontSize: 13,
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+              }}
+            />
+          </FormField>
+          <FormError message={formError ?? ""} />
+          <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
+            <Button type="button" variant="ghost" onClick={closeForm}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary" disabled={saving}>
+              {saving ? "Salvando…" : editing ? "Salvar" : "Criar VLAN"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      <ConfirmDialog
+        visible={deleting !== null}
+        onHide={() => setDeleting(null)}
+        onConfirm={() => void confirmDelete()}
+        header="Excluir VLAN"
+        message={
+          deleting
+            ? `Excluir "${deleting.name}" (VLAN ${deleting.vlanNumber})? Vínculos de porta bloqueiam a exclusão com 409.`
+            : ""
+        }
+        confirmLabel="Excluir"
+      />
     </div>
   );
 }

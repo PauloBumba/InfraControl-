@@ -97,6 +97,52 @@ ficam publicados no bus aguardando consumidores futuros.
     `TaskItem` update já existia, `SloMeasurement`/`SloBudget` sem PUT.
     Ajuste estrutural: `Invitation.RoleAssignments` expõe a `List` real
     (não `AsReadOnly()`) — o fixup do EF precisa escrever na coleção.
+  - [x] Fase 3 concluída (2026-10-06): eventos Created/Updated/Deleted em
+    todas as operacionais (Inventory, Network, Tasks, Monitoring, Incident,
+    RemoteAccess, Knowledge, SLA/Service/Slo, Invitation — lotes 1–3),
+    `{var}.Delete()` nos delete handlers (evento na mesma transação),
+    `Incident.ChangeStatus` → `IncidentUpdatedDomainEvent`,
+    `Invitation.SetRoles`/`Cancel` → `InvitationUpdatedDomainEvent`,
+    `Create` que delega a `Update` limpa o Updated transitório
+    (`ClearDomainEvents`) antes do Created. Suítes: unit 1594,
+    arch 117, integration 193.
+  - [x] Fase 4 concluída (2026-10-06): contrato outbox validado por
+    teste — todo evento em `InfraControl.Domain.Events` resolve no
+    constraint do `OutboxDispatcherWorker.ResolveEventType` e o payload
+    round-trippa com `OutboxJson.Options` preservando `EventId`
+    (fix: `DomainEvent.EventId`/`OccurredAt` viraram `{ get; init; }` —
+    com `{ get; }` puro o STJ descartava o GUID e a idempotência do
+    inbox EventId+Consumer quebrava); CRUD Location ponta-a-ponta na
+    outbox (`CrudOutboxIntegrationTests`). **Decisão de consumers**:
+    nenhum consumer novo — os eventos CRUD (Created/Updated/Delete das
+    operacionais) não têm destinatário claro (ADR-012); ficam
+    publicados no bus aguardando consumidores futuros. O
+    `NotificationEventConsumer` mantém o escopo atual (User, Invitation,
+    Incident, Alert, Pdi).
+  - [x] Fase 5 concluída (2026-10-08): frontend espelha a matriz com
+    componente de visão reutilizável + React Query. Infra nova:
+    `components/ui/EntityView.tsx` (`EntityView<T>` com visões
+    tabela/grid/kanban, `ViewSwitcher` de 3 ícones e
+    `useEntityViewMode(entityKey, fallback)` persistindo a preferência por
+    entidade em `localStorage entityView:<key>` com sync entre abas) e
+    `hooks/queries.ts` (`usePagedQuery`/`useListQuery` + mutações
+    `useCreate/Update/DeleteMutation` que invalidam por prefixo de
+    queryKey, `mutationErrorMessage`, `asApiError`). 10 páginas migradas
+    de `useState+useEffect+load()` para React Query com CRUD completo
+    espelhando a matriz: Locations/Racks, Devices, Switches, Network
+    (VLANs), Tasks (kanban por `TaskState`, identificação, exclusão),
+    Incidents (kanban por status + `PUT {id}/status` + acknowledge, sem
+    DELETE), Knowledge (abas artigos/categorias com edit/delete/status),
+    SLA (abas serviços/políticas/SLOs + Error Budget), Invitations
+    (roles/cancelar atrás de `Can administer`) e Remote Sessions
+    (abrir/encerrar SSH-RDP); escrita sempre atrás de
+    `<Can level="operate|administer">` (exibição — backend continua
+    autorizando). Validação: `tsc -b`/`eslint`/`vite build` verdes;
+    backend intocado — unit 1852, arch 119, integration 194, 0 falhas.
+  - [x] Fase 6 concluída (2026-10-08): docs — este ADR com as Fases 1–6
+    marcadas, entrada no `PROJECT_STATE.md` e `docs/28` atualizado com os
+    componentes novos (`EntityView`/`ViewSwitcher`/`useEntityViewMode`,
+    camada React Query) e o estado das páginas migradas.
 
 ## Referências
 

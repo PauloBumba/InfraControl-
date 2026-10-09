@@ -68,3 +68,20 @@ export function createIncident(input: {
     deviceId: input.deviceId || undefined,
   });
 }
+
+/**
+ * Troca de status (PUT /incidents/{id}/status) — ciclo por estado no
+ * backend (409/400 pt-BR quando a transição não é permitida). Sem DELETE
+ * (ADR-030: ciclo por estado, exclusão não existe).
+ */
+export async function changeIncidentStatus(
+  id: string,
+  status: string,
+): Promise<IncidentItem | null> {
+  return api.put<IncidentItem>(`/incidents/${id}/status`, { status });
+}
+
+/** Acknowledge (POST /incidents/{id}/acknowledge) — Open → Investigating. */
+export async function acknowledgeIncident(id: string): Promise<IncidentItem | null> {
+  return api.post<IncidentItem>(`/incidents/${id}/acknowledge`);
+}

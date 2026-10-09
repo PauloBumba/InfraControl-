@@ -110,3 +110,90 @@ export function createService(input: {
     description: input.description || undefined,
   });
 }
+
+/** Atualiza serviço (PUT /sla/services/{id}; 409 com vínculos). */
+export async function updateService(
+  id: string,
+  input: { name: string; description?: string },
+): Promise<null> {
+  return api.put<null>(`/sla/services/${id}`, {
+    name: input.name,
+    description: input.description ?? null,
+  });
+}
+
+/** Exclui serviço (DELETE /sla/services/{id}; 409 se houver SLOs/políticas). */
+export async function deleteService(id: string): Promise<null> {
+  return api.delete<null>(`/sla/services/${id}`);
+}
+
+/** Cria política de SLA (Operate). */
+export function createSlaPolicy(input: {
+  name: string;
+  responseMinutes: number;
+  resolutionMinutes: number;
+  serviceId?: string;
+}): Promise<SlaPolicyItem | null> {
+  return api.post<SlaPolicyItem>("/sla/policies", {
+    name: input.name,
+    responseMinutes: input.responseMinutes,
+    resolutionMinutes: input.resolutionMinutes,
+    serviceId: input.serviceId || null,
+  });
+}
+
+/** Atualiza política de SLA (PUT /sla/policies/{id}). */
+export async function updateSlaPolicy(
+  id: string,
+  input: {
+    name: string;
+    responseMinutes: number;
+    resolutionMinutes: number;
+    serviceId?: string;
+  },
+): Promise<null> {
+  return api.put<null>(`/sla/policies/${id}`, {
+    name: input.name,
+    responseMinutes: input.responseMinutes,
+    resolutionMinutes: input.resolutionMinutes,
+    serviceId: input.serviceId || null,
+  });
+}
+
+/** Exclui política de SLA (DELETE /sla/policies/{id}). */
+export async function deleteSlaPolicy(id: string): Promise<null> {
+  return api.delete<null>(`/sla/policies/${id}`);
+}
+
+/** Cria SLO (Operate; serviceId obrigatório). */
+export function createSlo(input: {
+  name: string;
+  targetPercent: number;
+  windowDays: number;
+  serviceId: string;
+}): Promise<SloItem | null> {
+  return api.post<SloItem>("/sla/slos", {
+    name: input.name,
+    targetPercent: input.targetPercent,
+    windowDays: input.windowDays,
+    serviceId: input.serviceId,
+  });
+}
+
+/** Atualiza SLO (PUT /sla/slos/{id}). */
+export async function updateSlo(
+  id: string,
+  input: { name: string; targetPercent: number; windowDays: number; serviceId: string },
+): Promise<null> {
+  return api.put<null>(`/sla/slos/${id}`, {
+    name: input.name,
+    targetPercent: input.targetPercent,
+    windowDays: input.windowDays,
+    serviceId: input.serviceId,
+  });
+}
+
+/** Exclui SLO (DELETE /sla/slos/{id}). */
+export async function deleteSlo(id: string): Promise<null> {
+  return api.delete<null>(`/sla/slos/${id}`);
+}

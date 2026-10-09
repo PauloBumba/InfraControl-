@@ -35,6 +35,7 @@
 31. [Tasks — Plano de Execução (gap analysis)](31-TASKS-PLANO-EXECUCAO.md)
 32. [Plano de módulo Knowledge (spec)](32-PLANO-MODULO-KNOWLEDGE.md)
 33. [Plano de Indicadores e Relatórios (spec)](33-PLANO-INDICADORES-RELATORIOS.md)
+34. [Plano de execução — Integração UniFi (spec)](34-PLANO-INTEGRACAO-UNIFI.md)
 
 ## ADRs
 

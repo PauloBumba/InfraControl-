@@ -1011,3 +1011,36 @@ Não considerar arquitetura ou código como concluído somente porque foi planej
   Docs: ADR-039, docs/04 §Publicação e workflow, docs/31 §12 (§7 →
   concluído), TASKS [x] F24-T002. Checkpoint — commit/push autorizados
   pelo usuário; próxima: F24-T003 (K3) aguarda aprovação.
+
+- Após ADR-030 — Fases 5+6, frontend CRUD com visão reutilizável + React
+  Query e docs (2026-10-08, plano de 6 fases aprovado sem checkpoint;
+  Fases 0–4 concluídas em sessões anteriores). **Fase 5**: componente de
+  visão `components/ui/EntityView.tsx` — `EntityView<T>` (tabela/grid/
+  kanban com `kanban={{groupOf, columns, overflowColumnKey}}`),
+  `ViewSwitcher` (3 ícones) e `useEntityViewMode(entityKey, fallback)`
+  persistindo a preferência por entidade em `localStorage entityView:<key>`
+  com sync entre abas; camada React Query v5 em `hooks/queries.ts`
+  (`usePagedQuery`/`useListQuery` + `useCreate/Update/DeleteMutation`
+  com invalidação por prefixo de queryKey, `mutationErrorMessage`/`asApiError`);
+  10 páginas migradas de `useState+useEffect+load()` para React Query com
+  CRUD completo espelhando a matriz do ADR-030, escrita atrás de
+  `<Can level="operate|administer">` (só esconde; backend autoriza):
+  Locations/Racks, Devices, Switches (leitura + portas), Network (VLANs),
+  Tasks (default kanban por TaskState + identificação/exclusão), Incidents
+  (kanban por status, `PUT {id}/status` + acknowledge, **sem DELETE**),
+  Knowledge (abas artigos/categorias, edit/delete/status), SLA (abas
+  serviços/políticas/SLOs + Error Budget), Invitations (roles/cancelar
+  atrás de `Can administer`) e Remote Sessions (abrir/encerrar SSH-RDP);
+  padrão de serviços com mutations CRUD em `services/api/{inventory,
+  network,knowledge,sla,incidents,invitations,tasks}.ts`. Páginas fora de
+  escopo (detalhe/leitura/login/outros domínios): Alerts, Audit, Clients,
+  Dashboard, DeviceDetail, Health, Insights, Logs, Notifications, Pdi
+  (sessão paralela), Sessions, Settings, TaskDetail, Topology, WiFi, Users.
+  **Fase 6**: ADR-030 com Fases 1–6 marcadas, docs/28 §11.8 (EntityView +
+  React Query + páginas migradas) e esta entrada. **Validação**:
+  backend intocado — build 0 erros · **unit 1852/1852 · arch 119/119 ·
+  integration 194/194** (4m39s), 0 falhas; front `npx tsc -b` 0 ·
+  `npm run lint` 0 · `npm run build` ok. Colisões com a sessão paralela
+  (PDI/Monitoring) estabilizaram sozinhas; `stash@{0}` da outra sessão
+  deixado intacto. Checkpoint — nada commitado (push/commit só com pedido
+  explícito do usuário).

@@ -1,22 +1,35 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { SelectField } from "@/components/ui/SelectField";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { Column } from "primereact/column";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 
 import { useNavigate } from "react-router-dom";
 import { Can } from "@/components/auth/Can";
 import {
+  useCreateMutation,
+  useDeleteMutation,
+  useListQuery,
+  usePagedQuery,
+  useUpdateMutation,
+  mutationErrorMessage,
+} from "@/hooks/queries";
+import {
   INVENTORY_PAGE_SIZE,
   createDevice,
+  deleteDevice,
   listDevices,
   listLocations,
   listSwitchPorts,
+  updateDevice,
   type DeviceItem,
   type LocationItem,
-  type Paged,
   type SwitchPortItem,
 } from "@/services/api/inventory";
 
@@ -91,18 +104,26 @@ function messageFor(error: unknown): string {
 
 export function DevicesPage() {
   const navigate = useNavigate();
-  const [pageData, setPageData] = useState<Paged<DeviceItem> | null>(null);
-  const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [view, setView] = useEntityViewMode("devices", "grid");
+
+  const devices = usePagedQuery<DeviceItem>(["devices"], () => listDevices());
+  const locationsQuery = useListQuery<LocationItem>(["locations"], () =>
+    listLocations().then((page) => page.items),
+  );
+  const locations = locationsQuery.items;
+
   const [portsBySwitch, setPortsBySwitch] = useState<Map<string, SwitchPortItem[]>>(new Map());
   const [portsLoading, setPortsLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [tab, setTab] = useState<"inventory" | "sector" | "switch">("inventory");
   const [filter, setFilter] = useState("all");
 
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<DeviceItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeviceItem | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [locationId, setLocationId] = useState("");
@@ -110,35 +131,45 @@ export function DevicesPage() {
   const [model, setModel] = useState("");
   const [vendor, setVendor] = useState("");
   const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [devicePage, locationPage] = await Promise.all([
-        listDevices(),
-        listLocations(),
-      ]);
-      setPageData(devicePage);
-      setLocations(locationPage.items);
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const createMutation = useCreateMutation({
+    invalidate: ["devices"],
+    mutationFn: (input: Parameters<typeof createDevice>[0]) => createDevice(input),
+    onSuccess: (_data, vars) => {
+      setNotice(`Dispositivo "${vars.name}" criado.`);
+      setActionError(null);
+    },
+  });
+  const updateMutation = useUpdateMutation({
+    invalidate: ["devices"],
+    mutationFn: (input: { id: string } & Parameters<typeof updateDevice>[1]) => {
+      const { id, ...rest } = input;
+      return updateDevice(id, rest);
+    },
+    onSuccess: () => {
+      setNotice("Dispositivo atualizado.");
+      setActionError(null);
+    },
+  });
+  const deleteMutation = useDeleteMutation({
+    invalidate: ["devices"],
+    mutationFn: (id: string) => deleteDevice(id),
+    onSuccess: () => {
+      setNotice("Dispositivo excluído.");
+      setActionError(null);
+    },
+    onError: (err) => setActionError(mutationErrorMessage(err)),
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const loading = devices.isLoading || locationsQuery.isLoading;
+  const loadingDevices = devices.isLoading;
 
   // Portas por switch: só quando a aba "Por Switch" é aberta (1 pedido por
   // switch; `cancelled` evita estado obsoleto se a aba mudar no meio).
   useEffect(() => {
     if (tab !== "switch") return;
-    const switches = (pageData?.items ?? []).filter((device) => device.type === "Switch");
+    const switches = devices.items.filter((device) => device.type === "Switch");
     if (switches.length === 0) {
       setPortsBySwitch(new Map());
       return;
@@ -163,9 +194,36 @@ export function DevicesPage() {
     return () => {
       cancelled = true;
     };
-  }, [tab, pageData]);
+  }, [tab, devices.items]);
 
-  async function submitCreate(event: FormEvent) {
+  function openCreate() {
+    setEditing(null);
+    setName("");
+    setType("");
+    setLocationId("");
+    setIp("");
+    setModel("");
+    setVendor("");
+    setDescription("");
+    setFormError(null);
+    setCreating(true);
+  }
+
+  function openEdit(device: DeviceItem) {
+    setCreating(false);
+    setEditing(device);
+    setName(device.name);
+    setType(device.type);
+    setLocationId(device.locationId);
+    setIp(device.ip ?? "");
+    setModel(device.model ?? "");
+    setVendor(device.vendor ?? "");
+    setDescription(device.description ?? "");
+    setFormError(null);
+    setCreating(true);
+  }
+
+  async function submitForm(event: FormEvent) {
     event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -176,41 +234,53 @@ export function DevicesPage() {
       setFormError("Selecione o tipo do dispositivo.");
       return;
     }
-    if (!locationId) {
+    if (!editing && !locationId) {
       setFormError("Selecione a localização do dispositivo.");
       return;
     }
-    setSaving(true);
     setFormError(null);
     try {
-      await createDevice({
-        locationId,
-        name: trimmedName,
-        type,
-        ip: ip.trim() || undefined,
-        model: model.trim() || undefined,
-        vendor: vendor.trim() || undefined,
-        description: description.trim() || undefined,
-      });
+      if (editing) {
+        await updateMutation.mutateAsync({
+          id: editing.id,
+          name: trimmedName,
+          type,
+          ip: ip.trim() || undefined,
+          model: model.trim() || undefined,
+          vendor: vendor.trim() || undefined,
+          description: description.trim() || undefined,
+        });
+      } else {
+        await createMutation.mutateAsync({
+          locationId,
+          name: trimmedName,
+          type,
+          ip: ip.trim() || undefined,
+          model: model.trim() || undefined,
+          vendor: vendor.trim() || undefined,
+          description: description.trim() || undefined,
+        });
+      }
       setCreating(false);
-      setName("");
-      setType("");
-      setLocationId("");
-      setIp("");
-      setModel("");
-      setVendor("");
-      setDescription("");
-      setNotice(`Dispositivo "${trimmedName}" criado.`);
-      await load();
+      setEditing(null);
     } catch (caught) {
-      setFormError(messageFor(caught));
-    } finally {
-      setSaving(false);
+      setFormError(mutationErrorMessage(caught as Error));
     }
   }
 
-  const items = pageData?.items ?? [];
-  const totalCount = pageData?.totalCount ?? 0;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+      setActionError(null);
+    } catch (caught) {
+      setActionError(mutationErrorMessage(caught as Error));
+    }
+  }
+
+  const items = devices.items;
+  const totalCount = devices.totalCount;
   const locationName = (id: string): string =>
     locations.find((location) => location.id === id)?.name ?? "Sem localização";
 
@@ -238,25 +308,44 @@ export function DevicesPage() {
           )
         }
         actions={
-          <Can level="operate">
-            <Button
-              variant="primary"
-              onClick={() => { setCreating((value) => !value); setFormError(null); }}
-              style={{ padding: "6px 14px" }}
-            >
-              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-            </Button>
-          </Can>
+          <div className="flex align-items-center gap-2 flex-wrap">
+            {tab === "inventory" && <ViewSwitcher mode={view} onChange={setView} />}
+            <Can level="operate">
+              <Button
+                variant="primary"
+                onClick={openCreate}
+                style={{ padding: "6px 14px" }}
+              >
+                <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+              </Button>
+            </Can>
+          </div>
         }
       />
 
       {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+      {(error || actionError || devices.error || locationsQuery.error) && (
+        <ErrorBanner
+          message={
+            actionError ??
+            error ??
+            mutationErrorMessage(devices.error as Error | null) ??
+            mutationErrorMessage(locationsQuery.error as Error | null) ??
+            "Não foi possível falar com o servidor. Tente novamente."
+          }
+          onRetry={() => {
+            setActionError(null);
+            setError(null);
+            void devices.refetch();
+            void locationsQuery.refetch();
+          }}
+        />
+      )}
 
       {creating && (
-        <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Novo dispositivo</div>
+        <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{editing ? `Editar — ${editing.name}` : "Novo dispositivo"}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
             <input
               value={name}
@@ -280,6 +369,8 @@ export function DevicesPage() {
             <SelectField
               value={locationId}
               onChange={setLocationId}
+              disabled={Boolean(editing)}
+              title={editing ? "A localização de um dispositivo não muda pelo PUT" : undefined}
               placeholder="Localização *"
               options={[
                 { value: "", label: "Localização *" },
@@ -320,7 +411,7 @@ export function DevicesPage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => { setCreating(false); setFormError(null); }}
+              onClick={() => { setCreating(false); setEditing(null); setFormError(null); }}
               style={{ padding: "6px 14px" }}
             >
               Cancelar
@@ -328,10 +419,12 @@ export function DevicesPage() {
             <Button
               type="submit"
               variant="primary"
-              disabled={saving}
+              disabled={createMutation.isPending || updateMutation.isPending}
               style={{ padding: "6px 14px" }}
             >
-              {saving ? "Salvando…" : "Criar dispositivo"}
+              {createMutation.isPending || updateMutation.isPending
+                ? "Salvando…"
+                : editing ? "Salvar" : "Criar dispositivo"}
             </Button>
           </div>
         </form>
@@ -378,11 +471,63 @@ export function DevicesPage() {
               </button>
             ))}
           </div>
-          <div className="uni-devices-grid">
-            {filtered.map((device) => {
+          <EntityView<DeviceItem>
+            mode={view}
+            items={filtered}
+            getKey={(device) => device.id}
+            emptyMessage={error || actionError ? "—" : "Nenhum dispositivo encontrado"}
+            kanban={{
+              groupOf: (device) => device.type,
+              columns: presentTypes.map((deviceType) => ({
+                key: deviceType,
+                label: typeNames[deviceType] ?? deviceType,
+              })),
+              overflowColumnKey: "Other",
+            }}
+            table={
+              <DataTablePanel
+                value={filtered}
+                dataKey="id"
+                loading={loadingDevices}
+                emptyMessage={error || actionError ? "—" : "Nenhum dispositivo encontrado"}
+              >
+                <Column
+                  header="Nome"
+                  body={(device: DeviceItem) => (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <i
+                        className={typeIcons[device.type] ?? "pi pi-circle"}
+                        style={{ color: typeColors[device.type] ?? "#94a3b8" }}
+                      />
+                      <span style={{ fontWeight: 500 }}>{device.name}</span>
+                    </div>
+                  )}
+                  style={{ minWidth: 200 }}
+                />
+                <Column header="Tipo" body={(device: DeviceItem) => typeNames[device.type] ?? device.type} style={{ width: 150 }} />
+                <Column header="IP" body={(device: DeviceItem) => device.ip ?? "—"} style={{ width: 130 }} />
+                <Column header="Localização" body={(device: DeviceItem) => locationName(device.locationId)} style={{ minWidth: 150 }} />
+                <Column header="Fabricante" body={(device: DeviceItem) => device.vendor ?? "—"} style={{ width: 130 }} />
+                <Column header="Modelo" body={(device: DeviceItem) => device.model ?? "—"} style={{ width: 140 }} />
+                <Column header="Serial" body={(device: DeviceItem) => device.serial ?? "—"} style={{ width: 140 }} />
+                <Column
+                  header=""
+                  style={{ width: 150 }}
+                  body={(device: DeviceItem) => (
+                    <Can level="operate">
+                      <div className="flex gap-1">
+                        <Button variant="ghost" onClick={() => openEdit(device)}>Editar</Button>
+                        <Button variant="ghost" onClick={() => setDeleteTarget(device)}>Excluir</Button>
+                      </div>
+                    </Can>
+                  )}
+                />
+              </DataTablePanel>
+            }
+            renderCard={(device) => {
               const color = typeColors[device.type] ?? "#94a3b8";
               return (
-                <div key={device.id} className="uni-device-card" onClick={() => navigate(`/devices/${device.id}`)}>
+                <div className="uni-device-card" onClick={() => navigate(`/devices/${device.id}`)}>
                   <div className="uni-device-top">
                     <div className={`uni-device-icon ${device.type}`} style={{ background: `${color}15`, color }}>
                       <i className={typeIcons[device.type] ?? "pi pi-circle"} />
@@ -404,18 +549,20 @@ export function DevicesPage() {
                     {device.model && <div className="uni-device-stat"><i className="pi pi-server" />{device.model}</div>}
                     {device.serial && <div className="uni-device-stat"><i className="pi pi-hashtag" />{device.serial}</div>}
                   </div>
+                  <Can level="operate">
+                    <div
+                      className="flex gap-1"
+                      style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6" }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Button variant="ghost" onClick={() => openEdit(device)}>Editar</Button>
+                      <Button variant="ghost" onClick={() => setDeleteTarget(device)}>Excluir</Button>
+                    </div>
+                  </Can>
                 </div>
               );
-            })}
-            {!loading && filtered.length === 0 && (
-              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
-                {error ? "—" : "Nenhum dispositivo encontrado"}
-              </div>
-            )}
-            {loading && filtered.length === 0 && (
-              <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
-            )}
-          </div>
+            }}
+          />
         </div>
       )}
 
@@ -549,6 +696,19 @@ export function DevicesPage() {
           Exibindo até {INVENTORY_PAGE_SIZE} dispositivos por página (o endpoint não expõe navegação além disso — use os filtros por tipo).
         </div>
       )}
+
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        onHide={() => setDeleteTarget(null)}
+        onConfirm={() => void confirmDelete()}
+        header="Excluir dispositivo"
+        message={
+          deleteTarget
+            ? `Excluir "${deleteTarget.name}"? Vínculos ativos (racks/monitoramento) bloqueiam a exclusão com 409.`
+            : ""
+        }
+        confirmLabel="Excluir"
+      />
     </div>
   );
 }

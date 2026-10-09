@@ -52,3 +52,24 @@ export async function acceptInvitation(invitationId: string): Promise<void> {
 export async function rejectInvitation(invitationId: string): Promise<void> {
   await api.post(`/invitations/${invitationId}/reject`);
 }
+
+/** Convite por id (GET /admin/invitations/{id}; Administer). */
+export async function getInvitation(invitationId: string): Promise<InvitationItem | null> {
+  return api.get<InvitationItem>(`/admin/invitations/${invitationId}`);
+}
+
+/**
+ * Atualiza as funções do convite (PUT /admin/invitations/{id}; Administer).
+ * Só pendente no backend (409 pt-BR caso contrário); lista não vazia (400).
+ */
+export async function updateInvitationRoles(
+  invitationId: string,
+  roles: string[],
+): Promise<InvitationItem | null> {
+  return api.put<InvitationItem>(`/admin/invitations/${invitationId}`, { roles });
+}
+
+/** Cancela convite (DELETE /admin/invitations/{id}; Administer; só pendente). */
+export async function cancelInvitation(invitationId: string): Promise<null> {
+  return api.delete<null>(`/admin/invitations/${invitationId}`);
+}

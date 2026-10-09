@@ -1,205 +1,503 @@
-import { useCallback, useEffect, useState } from "react";
-import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
+import { FormField, FormError } from "@/components/ui/FormField";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { Column } from "primereact/column";
+import { Can } from "@/components/auth/Can";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import {
+  useCreateMutation,
+  useDeleteMutation,
+  usePagedQuery,
+  useUpdateMutation,
+  mutationErrorMessage,
+} from "@/hooks/queries";
+import {
+  createLocation,
+  createRack,
+  deleteLocation,
+  deleteRack,
   listDevices,
   listLocations,
   listRacks,
-  type DeviceItem,
+  updateLocation,
+  updateRack,
   type LocationItem,
   type RackItem,
 } from "@/services/api/inventory";
 
 /**
- * F17-T018 — Locations & Racks conectada ao backend (substitui
- * `locations`/`racks` de `data/dashboardData`).
+ * F17-T018 + ADR-030 Fase 5 — Locations & Racks com CRUD completo
+ * (Operate) e visões tabela/grid/kanban (preferência persistida por
+ * entidade). Leitura/mutations via React Query (`usePagedQuery` +
+ * `use*Mutation` com invalidação por prefixo da chave).
  *
- * Fontes reais (3 pedidos de leitura, página única de 100 — clamp do
- * endpoint, 1..100):
- * - `GET /inventory/locations` (F2-T001) — `{id, name, description}`;
- * - `GET /inventory/racks` (F2-T002) — `{id, locationId, name, description}`;
- * - `GET /inventory/devices` — só para as **contagens por local**
- *   (agrupamento local por `locationId`; não existe endpoint agregado).
- *
- * Divergências do protótipo: `type` do local (não existe no DTO); em racks
- * saíram a barra de uso de U (`usedUnits`/`units`), potência, temperatura
- * e a lista de devices da rack — **nenhuma dessas métricas tem backend**;
- * o nome do local do rack é resolvido pelo agrupamento de `locationId`.
- * Quando a contagem usa a primeira página truncada (total > 100), os
- * valores por card ganham `~` e um rodapé explica. Sem mutations (o mock
- * era somente leitura).
+ * Kanban: racks agrupados por local (colunas = locais); locations não têm
+ * campo de estado, então o kanban cai no grid (EntityView sem config).
+ * Exclusão bloqueada pelo backend (409: racks/devices vinculados).
  */
 
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
+interface FormState {
+  mode: "create" | "edit";
+  /** `null` = criação. */
+  target: LocationItem | RackItem | null;
 }
+
+const emptyForm = { name: "", description: "" };
 
 export function LocationsPage() {
   const [tab, setTab] = useState<"locations" | "racks">("locations");
+  const [locationView, setLocationView] = useEntityViewMode("locations", "grid");
+  const [rackView, setRackView] = useEntityViewMode("racks", "grid");
 
-  const [locationItems, setLocationItems] = useState<LocationItem[]>([]);
-  const [locationTotal, setLocationTotal] = useState(0);
-  const [rackItems, setRackItems] = useState<RackItem[]>([]);
-  const [rackTotal, setRackTotal] = useState(0);
-  const [deviceItems, setDeviceItems] = useState<DeviceItem[]>([]);
-  const [deviceTotal, setDeviceTotal] = useState(0);
+  const locations = usePagedQuery(["locations"], () => listLocations());
+  const racks = usePagedQuery(["racks"], () => listRacks());
+  const devices = usePagedQuery(["devices"], () => listDevices());
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<FormState>({ mode: "create", target: null });
+  const [values, setValues] = useState(emptyForm);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<
+    { kind: "location" | "rack"; target: LocationItem | RackItem } | null
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [locations, racks, devices] = await Promise.all([
-        listLocations(),
-        listRacks(),
-        listDevices(),
-      ]);
-      setLocationItems(locations.items);
-      setLocationTotal(locations.totalCount);
-      setRackItems(racks.items);
-      setRackTotal(racks.totalCount);
-      setDeviceItems(devices.items);
-      setDeviceTotal(devices.totalCount);
-    } catch (caught) {
-      setError(messageFor(caught));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const createLocationMutation = useCreateMutation({
+    invalidate: ["locations"],
+    mutationFn: (input: { name: string; description?: string }) => createLocation(input),
+  });
+  const updateLocationMutation = useUpdateMutation({
+    invalidate: ["locations"],
+    mutationFn: (input: { id: string; name: string; description?: string }) =>
+      updateLocation(input.id, { name: input.name, description: input.description }),
+  });
+  const deleteLocationMutation = useDeleteMutation({
+    invalidate: ["locations"],
+    mutationFn: (id: string) => deleteLocation(id),
+  });
+  const createRackMutation = useCreateMutation({
+    invalidate: ["racks"],
+    mutationFn: (input: { locationId: string; name: string; description?: string }) =>
+      createRack(input),
+  });
+  const updateRackMutation = useUpdateMutation({
+    invalidate: ["racks"],
+    mutationFn: (input: { id: string; name: string; description?: string }) =>
+      updateRack(input.id, { name: input.name, description: input.description }),
+  });
+  const deleteRackMutation = useDeleteMutation({
+    invalidate: ["racks"],
+    mutationFn: (id: string) => deleteRack(id),
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const racksTruncated = rackTotal > rackItems.length;
-  const devicesTruncated = deviceTotal > deviceItems.length;
+  const racksTruncated = racks.totalCount > racks.items.length;
+  const devicesTruncated = devices.totalCount > devices.items.length;
   const countsTruncated = racksTruncated || devicesTruncated;
 
   const countFor = (list: Array<{ locationId: string }>, locationId: string): number =>
     list.filter((entry) => entry.locationId === locationId).length;
 
-  if (loading) {
+  const locationName = (id: string): string =>
+    locations.items.find((loc) => loc.id === id)?.name ?? id;
+
+  const kanbanColumns = useMemo(
+    () => [
+      ...locations.items.map((loc) => ({ key: loc.id, label: loc.name })),
+      { key: "none", label: "Sem local" },
+    ],
+    [locations.items],
+  );
+
+  if (locations.isLoading || racks.isLoading) {
     return <LoadingBlock />;
   }
 
-  if (!loading && locationItems.length === 0 && locationTotal === 0 && error) {
-    return (
-      <div className="uni-page-empty">
-        <i className="pi pi-exclamation-circle" />
-        <h2>{error}</h2>
-        <Button variant="primary" onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px" }}>
-          Tentar de novo
-        </Button>
-      </div>
-    );
+  const isLocationTab = tab === "locations";
+  const total = isLocationTab ? locations.totalCount : racks.totalCount;
+  const subtitle = isLocationTab
+    ? `${locations.totalCount} locais · ${racks.totalCount} racks · ${devices.totalCount} dispositivos`
+    : `${racks.totalCount} racks · ${locations.totalCount} locais`;
+
+  function openCreate() {
+    setForm({ mode: "create", target: null });
+    setValues(emptyForm);
+    setFormError(null);
+    setFormOpen(true);
   }
+
+  function openEdit(target: LocationItem | RackItem) {
+    setForm({ mode: "edit", target });
+    setValues({ name: target.name, description: target.description ?? "" });
+    setFormError(null);
+    setFormOpen(true);
+  }
+
+  async function submitForm(event: FormEvent) {
+    event.preventDefault();
+    setFormError(null);
+    const name = values.name.trim();
+    if (!name) {
+      setFormError("O nome é obrigatório.");
+      return;
+    }
+
+    try {
+      if (isLocationTab) {
+        if (form.mode === "create") {
+          await createLocationMutation.mutateAsync({ name, description: values.description });
+        } else if (form.target) {
+          await updateLocationMutation.mutateAsync({
+            id: form.target.id,
+            name,
+            description: values.description,
+          });
+        }
+      } else if (form.mode === "create") {
+        const primary = locations.items[0];
+        if (!primary) {
+          setFormError("Cadastre um local antes de criar racks.");
+          return;
+        }
+        await createRackMutation.mutateAsync({
+          locationId: primary.id,
+          name,
+          description: values.description,
+        });
+      } else if (form.target) {
+        await updateRackMutation.mutateAsync({
+          id: form.target.id,
+          name,
+          description: values.description,
+        });
+      }
+      setFormOpen(false);
+    } catch (caught) {
+      setFormError(mutationErrorMessage(caught as Error));
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.kind === "location") {
+        await deleteLocationMutation.mutateAsync(deleteTarget.target.id);
+      } else {
+        await deleteRackMutation.mutateAsync(deleteTarget.target.id);
+      }
+      setActionError(null);
+    } catch (caught) {
+      setActionError(mutationErrorMessage(caught as Error));
+    }
+  }
+
+  const formTitle =
+    isLocationTab
+      ? form.mode === "create" ? "Novo local" : "Editar local"
+      : form.mode === "create" ? "Novo rack" : "Editar rack";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Locations & Racks</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>
-            {locationTotal} locais · {rackTotal} racks · {deviceTotal} dispositivos
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
-          {([
-            { id: "locations", label: "Locations" },
-            { id: "racks", label: "Racks" },
-          ] as const).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                padding: "8px 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                color: tab === t.id ? "#3b82f6" : "#64748b",
-                background: "none",
-                border: "none",
-                borderBottom: tab === t.id ? "2px solid #3b82f6" : "2px solid transparent",
-                marginBottom: -1,
-                cursor: "pointer",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <PageHeader
+        title="Locations & Racks"
+        subtitle={
+          <>
+            {subtitle}
+            <span style={{ display: "block", fontSize: 12, marginTop: 2 }}>
+              {total} registro(s) nesta aba
+            </span>
+          </>
+        }
+        actions={
+          <div className="flex align-items-center gap-2 flex-wrap">
+            <ViewSwitcher
+              mode={isLocationTab ? locationView : rackView}
+              onChange={isLocationTab ? setLocationView : setRackView}
+            />
+            <Can level="operate">
+              <Button variant="primary" onClick={openCreate}>
+                <i className="pi pi-plus" /> {isLocationTab ? "Novo local" : "Novo rack"}
+              </Button>
+            </Can>
+          </div>
+        }
+      />
+
+      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
+        {([
+          { id: "locations", label: "Locations" },
+          { id: "racks", label: "Racks" },
+        ] as const).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: tab === t.id ? "#3b82f6" : "#64748b",
+              background: "none",
+              border: "none",
+              borderBottom: tab === t.id ? "2px solid #3b82f6" : "2px solid transparent",
+              marginBottom: -1,
+              cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+      {(actionError || locations.error || racks.error) && (
+        <ErrorBanner
+          message={
+            actionError ??
+            mutationErrorMessage((locations.error ?? racks.error) as Error) ??
+            "Não foi possível falar com o servidor. Tente novamente."
+          }
+          onRetry={() => {
+            setActionError(null);
+            void locations.refetch();
+            void racks.refetch();
+          }}
+        />
+      )}
 
       {countsTruncated && (
         <p style={{ fontSize: 11, color: "#94a3b8" }}>
-          Contagens por local calculadas sobre os primeiros {rackItems.length} racks e {deviceItems.length} dispositivos (marcados com ~)
+          Contagens por local calculadas sobre os primeiros {racks.items.length} racks e{" "}
+          {devices.items.length} dispositivos (marcados com ~)
         </p>
       )}
 
-      {tab === "locations" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-          {locationItems.map((loc) => (
-            <div key={loc.id} className="uni-panel" style={{ padding: 16 }}>
+      {isLocationTab ? (
+        <EntityView<LocationItem>
+          mode={locationView}
+          items={locations.items}
+          getKey={(loc) => loc.id}
+          emptyMessage="Nenhum local cadastrado"
+          table={
+            <DataTablePanel value={locations.items} dataKey="id" emptyMessage="Nenhum local cadastrado">
+              <Column header="Nome" body={(loc: LocationItem) => loc.name} />
+              <Column header="Descrição" body={(loc: LocationItem) => loc.description ?? "—"} />
+              <Column
+                header="Racks"
+                style={{ width: 90 }}
+                body={(loc: LocationItem) =>
+                  `${racksTruncated ? "~" : ""}${countFor(racks.items, loc.id)}`
+                }
+              />
+              <Column
+                header="Dispositivos"
+                style={{ width: 120 }}
+                body={(loc: LocationItem) =>
+                  `${devicesTruncated ? "~" : ""}${countFor(devices.items, loc.id)}`
+                }
+              />
+              <Column
+                header=""
+                style={{ width: 150 }}
+                body={(loc: LocationItem) => (
+                  <Can level="operate">
+                    <div className="flex gap-1">
+                      <Button variant="ghost" onClick={() => openEdit(loc)}>
+                        Editar
+                      </Button>
+                      <Button variant="ghost" onClick={() => setDeleteTarget({ kind: "location", target: loc })}>
+                        Excluir
+                      </Button>
+                    </div>
+                  </Can>
+                )}
+              />
+            </DataTablePanel>
+          }
+          renderCard={(loc) => (
+            <div className="uni-panel" style={{ padding: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: "#eff6ff", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: "#eff6ff",
+                    color: "#3b82f6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <i className="pi pi-map-marker" />
                 </div>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{loc.name}</div>
               </div>
-              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>{loc.description ?? "—"}</p>
+              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+                {loc.description ?? "—"}
+              </p>
               <div style={{ display: "flex", gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 10, color: "#94a3b8" }}>Racks</div>
                   <div style={{ fontSize: 16, fontWeight: 700 }}>
-                    {racksTruncated ? "~" : ""}{countFor(rackItems, loc.id)}
+                    {racksTruncated ? "~" : ""}
+                    {countFor(racks.items, loc.id)}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: "#94a3b8" }}>Dispositivos</div>
                   <div style={{ fontSize: 16, fontWeight: 700 }}>
-                    {devicesTruncated ? "~" : ""}{countFor(deviceItems, loc.id)}
+                    {devicesTruncated ? "~" : ""}
+                    {countFor(devices.items, loc.id)}
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-          {locationItems.length === 0 && !error && (
-            <div className="uni-panel" style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-              Nenhum local cadastrado
+              <Can level="operate">
+                <div className="flex gap-1" style={{ marginTop: 12 }}>
+                  <Button variant="ghost" onClick={() => openEdit(loc)}>
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setDeleteTarget({ kind: "location", target: loc })}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </Can>
             </div>
           )}
-        </div>
-      )}
-
-      {tab === "racks" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-          {rackItems.map((rack) => (
-            <div key={rack.id} className="uni-panel" style={{ padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        />
+      ) : (
+        <EntityView<RackItem>
+          mode={rackView}
+          items={racks.items}
+          getKey={(rack) => rack.id}
+          emptyMessage="Nenhum rack cadastrado"
+          kanban={{
+            groupOf: (rack) => rack.locationId || "none",
+            columns: kanbanColumns,
+            overflowColumnKey: "none",
+          }}
+          table={
+            <DataTablePanel value={racks.items} dataKey="id" emptyMessage="Nenhum rack cadastrado">
+              <Column header="Nome" body={(rack: RackItem) => rack.name} />
+              <Column header="Local" body={(rack: RackItem) => locationName(rack.locationId)} />
+              <Column header="Descrição" body={(rack: RackItem) => rack.description ?? "—"} />
+              <Column
+                header=""
+                style={{ width: 150 }}
+                body={(rack: RackItem) => (
+                  <Can level="operate">
+                    <div className="flex gap-1">
+                      <Button variant="ghost" onClick={() => openEdit(rack)}>
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setDeleteTarget({ kind: "rack", target: rack })}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </Can>
+                )}
+              />
+            </DataTablePanel>
+          }
+          renderCard={(rack) => (
+            <div className="uni-panel" style={{ padding: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <i className="pi pi-server" style={{ color: "#8b5cf6" }} />
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{rack.name}</span>
                 </div>
                 <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                  {locationItems.find((loc) => loc.id === rack.locationId)?.name ?? rack.locationId}
+                  {locationName(rack.locationId)}
                 </span>
               </div>
               <p style={{ fontSize: 12, color: "#64748b" }}>{rack.description ?? "—"}</p>
-            </div>
-          ))}
-          {rackItems.length === 0 && !error && (
-            <div className="uni-panel" style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-              Nenhum rack cadastrado
+              <Can level="operate">
+                <div className="flex gap-1" style={{ marginTop: 12 }}>
+                  <Button variant="ghost" onClick={() => openEdit(rack)}>
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setDeleteTarget({ kind: "rack", target: rack })}
+                  >
+                    Excluir
+                  </Button>
+                </div>
+              </Can>
             </div>
           )}
-        </div>
+        />
       )}
+
+      <Dialog visible={formOpen} onHide={() => setFormOpen(false)} header={formTitle}>
+        <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FormField label="Nome" error={null}>
+            <input
+              autoFocus
+              value={values.name}
+              onChange={(event) => setValues((v) => ({ ...v, name: event.target.value }))}
+              placeholder={isLocationTab ? "Sala Rack A" : "Rack 01"}
+              style={{
+                padding: "8px 10px",
+                fontSize: 13,
+                border: "1px solid #e2e8f0",
+                borderRadius: 6,
+              }}
+            />
+          </FormField>
+          <FormField label="Descrição (opcional)" error={null}>
+            <input
+              value={values.description}
+              onChange={(event) => setValues((v) => ({ ...v, description: event.target.value }))}
+              placeholder="Andar 1"
+              style={{
+                padding: "8px 10px",
+                fontSize: 13,
+                border: "1px solid #e2e8f0",
+                borderRadius: 6,
+              }}
+            />
+          </FormField>
+          {formError && <FormError message={formError} />}
+          <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
+            <Button variant="ghost" onClick={() => setFormOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit">
+              {form.mode === "create" ? "Criar" : "Salvar"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        onHide={() => setDeleteTarget(null)}
+        onConfirm={() => void confirmDelete()}
+        header={deleteTarget?.kind === "location" ? "Excluir local" : "Excluir rack"}
+        message={
+          deleteTarget
+            ? `Excluir "${deleteTarget.target.name}"? Vínculos (racks/devices) bloqueiam a exclusão com 409.`
+            : ""
+        }
+        confirmLabel="Excluir"
+      />
     </div>
   );
 }

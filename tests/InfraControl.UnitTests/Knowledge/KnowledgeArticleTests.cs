@@ -94,7 +94,8 @@ public sealed class KnowledgeArticleTests
         var article = KnowledgeArticle.Create("Roteiro", "Conteúdo original.", null, "Procedimento");
         var categoryId = Guid.NewGuid();
 
-        article.Update("Roteiro atualizado", "Conteúdo novo.", categoryId, "Manual");
+        article.Update("Roteiro atualizado", "Conteúdo novo.", categoryId, "Manual",
+            reason: "Atualização de teste.");
 
         article.Title.Should().Be("Roteiro atualizado");
         article.Content.Should().Be("Conteúdo novo.");
@@ -257,6 +258,31 @@ public sealed class KnowledgeArticleTests
         KnowledgeArticleStatus status, bool visible)
         => status.IsVisibleToReaders().Should().Be(visible);
 
+    [Fact]
+    public void Update_MissingReason_ShouldThrowArgumentPtBr()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Guia");
+
+        var act = () => article.Update(
+            "Roteiro", "Conteúdo.", null, "Guia", reason: "   ");
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("O motivo da alteração é obrigatório.*");
+        article.Title.Should().Be("Roteiro");
+    }
+
+    [Fact]
+    public void Update_ReasonTooLong_ShouldThrowArgumentPtBr()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Guia");
+
+        var act = () => article.Update(
+            "Roteiro", "Conteúdo.", null, "Guia", reason: new string('x', 501));
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("O motivo da alteração pode ter no máximo 500 caracteres.*");
+    }
+
     // ── F24-T001: tipos e identificação (K1 — docs/32 §5–§6) ──────────────
 
     [Fact]
@@ -375,7 +401,8 @@ public sealed class KnowledgeArticleTests
             type: "Política",
             description: null,
             tags: ["Nova", "nova"],
-            responsibleId: responsibleId);
+            responsibleId: responsibleId,
+            reason: "Troca de tipo e tags.");
 
         article.Type.Should().Be("Política");
         article.Description.Should().BeNull();
@@ -388,7 +415,8 @@ public sealed class KnowledgeArticleTests
     {
         var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Guia");
 
-        var act = () => article.Update("Roteiro", "Conteúdo.", null, "OutroTipo");
+        var act = () => article.Update("Roteiro", "Conteúdo.", null, "OutroTipo",
+            reason: "Motivo.");
 
         act.Should().Throw<ArgumentException>()
             .WithMessage("Tipo inválido: 'OutroTipo'. Use:*");
@@ -399,7 +427,8 @@ public sealed class KnowledgeArticleTests
     {
         var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Guia");
 
-        var act = () => article.Update("Roteiro", "Conteúdo.", null, "  ");
+        var act = () => article.Update("Roteiro", "Conteúdo.", null, "  ",
+            reason: "Motivo.");
 
         act.Should().Throw<ArgumentException>()
             .WithMessage("O tipo do artigo é obrigatório.*");

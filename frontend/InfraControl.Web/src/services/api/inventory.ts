@@ -83,6 +83,38 @@ export async function listLocations(): Promise<Paged<LocationItem>> {
   return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
 }
 
+/** Local por id (GET /inventory/locations/{id}). */
+export async function getLocation(id: string): Promise<LocationItem | null> {
+  return api.get<LocationItem>(`/inventory/locations/${id}`);
+}
+
+/** Cria local (Operate + antiforgery). Erros de validação vêm em pt-BR. */
+export async function createLocation(input: {
+  name: string;
+  description?: string;
+}): Promise<LocationItem | null> {
+  return api.post<LocationItem>("/inventory/locations", {
+    name: input.name,
+    description: input.description || null,
+  });
+}
+
+/** Atualiza local (PUT /inventory/locations/{id}). */
+export async function updateLocation(
+  id: string,
+  input: { name: string; description?: string },
+): Promise<null> {
+  return api.put<null>(`/inventory/locations/${id}`, {
+    name: input.name,
+    description: input.description || null,
+  });
+}
+
+/** Exclui local (DELETE /inventory/locations/{id}; 409 se houver racks). */
+export async function deleteLocation(id: string): Promise<null> {
+  return api.delete<null>(`/inventory/locations/${id}`);
+}
+
 /**
  * F17-T018 — racks (`GET /inventory/racks`, F2-T002). `locationId` é
  * parâmetro real do endpoint. Mesmo `RackDto` da API: **sem** units/
@@ -106,6 +138,40 @@ export async function listRacks(
 
   const data = await api.get<Paged<RackItem>>(`/inventory/racks?${params}`);
   return data ?? { items: [], totalCount: 0, page: 1, pageSize: INVENTORY_PAGE_SIZE };
+}
+
+/** Rack por id (GET /inventory/racks/{id}). */
+export async function getRack(id: string): Promise<RackItem | null> {
+  return api.get<RackItem>(`/inventory/racks/${id}`);
+}
+
+/** Cria rack (Operate + antiforgery). */
+export async function createRack(input: {
+  locationId: string;
+  name: string;
+  description?: string;
+}): Promise<RackItem | null> {
+  return api.post<RackItem>("/inventory/racks", {
+    locationId: input.locationId,
+    name: input.name,
+    description: input.description || null,
+  });
+}
+
+/** Atualiza rack (PUT /inventory/racks/{id}). */
+export async function updateRack(
+  id: string,
+  input: { name: string; description?: string },
+): Promise<null> {
+  return api.put<null>(`/inventory/racks/${id}`, {
+    name: input.name,
+    description: input.description || null,
+  });
+}
+
+/** Exclui rack (DELETE /inventory/racks/{id}; 409 se houver devices). */
+export async function deleteRack(id: string): Promise<null> {
+  return api.delete<null>(`/inventory/racks/${id}`);
 }
 
 /**
@@ -142,6 +208,36 @@ export function createDevice(input: {
     vendor: input.vendor || undefined,
     description: input.description || undefined,
   });
+}
+
+/**
+ * Atualiza device (PUT /inventory/devices/{id}). `locationId` não muda
+ * (o UpdateDeviceViewModel não o expõe — troca de local é outro fluxo).
+ */
+export async function updateDevice(
+  id: string,
+  input: {
+    name: string;
+    type: string;
+    ip?: string;
+    model?: string;
+    vendor?: string;
+    description?: string;
+  },
+): Promise<null> {
+  return api.put<null>(`/inventory/devices/${id}`, {
+    name: input.name,
+    type: input.type,
+    ip: input.ip || null,
+    model: input.model || null,
+    vendor: input.vendor || null,
+    description: input.description || null,
+  });
+}
+
+/** Exclui device (DELETE /inventory/devices/{id}; 409 com vínculos ativos). */
+export async function deleteDevice(id: string): Promise<null> {
+  return api.delete<null>(`/inventory/devices/${id}`);
 }
 
 // ============ F17-T017 — detalhe do device ============

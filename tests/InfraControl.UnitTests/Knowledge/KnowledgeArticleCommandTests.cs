@@ -46,10 +46,12 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
             currentUser ?? new FakeCurrentUser(["Operator"]),
             NullLogger<CreateKnowledgeArticleCommandHandler>.Instance);
 
-    private static UpdateKnowledgeArticleCommandHandler UpdateHandler(AppDbContext context)
+    private static UpdateKnowledgeArticleCommandHandler UpdateHandler(
+        AppDbContext context, ICurrentUserContext? currentUser = null)
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeCategoryRepository(context),
+            currentUser ?? new FakeCurrentUser(["Operator"]),
             NullLogger<UpdateKnowledgeArticleCommandHandler>.Instance);
 
     private static DeleteKnowledgeArticleCommandHandler DeleteHandler(AppDbContext context)
@@ -144,7 +146,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
 
         await UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
-                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual"),
+                created.Id, "Roteiro de backup diário", "Conteúdo novo.", categoryId, "Manual",
+                Reason: "Revisão de conteúdo."),
             CancellationToken.None);
 
         var updated = await context.KnowledgeArticles.AsNoTracking()
@@ -162,7 +165,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null, "Guia"),
+            new UpdateKnowledgeArticleCommand(unknown, "Título", "Conteúdo.", null, "Guia",
+                Reason: "Revisão de conteúdo."),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -179,7 +183,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var unknown = Guid.NewGuid();
 
         var action = () => UpdateHandler(context).Handle(
-            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown, "FAQ"),
+            new UpdateKnowledgeArticleCommand(created.Id, "Artigo", "Conteúdo.", unknown, "FAQ",
+                Reason: "Revisão de conteúdo."),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -318,7 +323,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
                 created.Id, "Artigo com tags", "Conteúdo.", null, "Guia",
                 Description: "Nova descrição",
                 Tags: ["Nova"],
-                ResponsibleId: second),
+                ResponsibleId: second,
+                Reason: "Revisão de conteúdo."),
             CancellationToken.None);
 
         var updated = await context.KnowledgeArticles.AsNoTracking()
@@ -341,7 +347,8 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
         var action = () => UpdateHandler(context).Handle(
             new UpdateKnowledgeArticleCommand(
                 created.Id, "Artigo", "Conteúdo.", null, "Guia",
-                ResponsibleId: unknown),
+                ResponsibleId: unknown,
+                Reason: "Revisão de conteúdo."),
             CancellationToken.None);
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
@@ -365,6 +372,74 @@ public sealed class KnowledgeArticleCommandTests : IDisposable
 
         dto.AuthorName.Should().Be("Bruno Autor");
         dto.ResponsibleName.Should().Be("Ana Responsável");
+    }
+
+    /// <summary>K3: PUT em artigo publicado gera snapshot (1,0) com autor+motivo.</summary>
+    [Fact]
+    public async Task Update_PublishedArticle_ShouldCreateVersionSnapshot()
+    {
+        await using var context = await CreateContextAsync();
+        var authorId = Guid.NewGuid();
+        var created = await CreateHandler(context, new FakeCurrentUser(["Operator"], authorId))
+            .Handle(new CreateKnowledgeArticleCommand(
+                "Guia publicado", "Conteúdo original.", null, "Guia"),
+            CancellationToken.None);
+
+        var entity = await context.KnowledgeArticles.SingleAsync(
+            article => article.Id == created.Id);
+        entity.TransitionTo(KnowledgeArticleStatus.InReview);
+        entity.TransitionTo(KnowledgeArticleStatus.Approved);
+        entity.TransitionTo(KnowledgeArticleStatus.Published);
+        await context.SaveChangesAsync();
+
+        await UpdateHandler(context, new FakeCurrentUser(["Operator"], authorId))
+            .Handle(new UpdateKnowledgeArticleCommand(
+                created.Id, "Guia publicado", "Conteúdo revisado.", null, "Guia",
+                Reason: "Atualização pós-publicação."),
+            CancellationToken.None);
+
+        var version = await context.KnowledgeArticleVersions.SingleAsync();
+        version.Major.Should().Be(1);
+        version.Minor.Should().Be(0);
+        version.Version.Should().Be("1.0");
+        version.Content.Should().Be("Conteúdo revisado.");
+        version.AuthorId.Should().Be(authorId);
+        version.Reason.Should().Be("Atualização pós-publicação.");
+        version.ApprovedById.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Update_DraftArticle_ShouldNotCreateVersion()
+    {
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateKnowledgeArticleCommand("Rascunho", "Conteúdo.", null, "Guia"),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateKnowledgeArticleCommand(
+                created.Id, "Rascunho", "Conteúdo v2.", null, "Guia",
+                Reason: "Ajuste antes de publicar."),
+            CancellationToken.None);
+
+        (await context.KnowledgeArticleVersions.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Update_MissingReason_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"),
+            CancellationToken.None);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateKnowledgeArticleCommand(
+                created.Id, "Artigo", "Conteúdo.", null, "Guia", Reason: " "),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("O motivo da alteração é obrigatório.*");
     }
 
     [Fact]

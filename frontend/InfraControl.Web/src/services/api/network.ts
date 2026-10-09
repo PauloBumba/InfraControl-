@@ -52,6 +52,28 @@ export function createVlan(input: {
   });
 }
 
+/** VLAN por id (GET /network/vlans/{id}). */
+export async function getVlan(id: string): Promise<VlanItem | null> {
+  return api.get<VlanItem>(`/network/vlans/${id}`);
+}
+
+/** Atualiza VLAN (PUT /network/vlans/{id}; 409 em nome/número duplicado). */
+export async function updateVlan(
+  id: string,
+  input: { name: string; vlanNumber: number; description?: string },
+): Promise<null> {
+  return api.put<null>(`/network/vlans/${id}`, {
+    name: input.name,
+    vlanNumber: input.vlanNumber,
+    description: input.description ?? null,
+  });
+}
+
+/** Exclui VLAN (DELETE /network/vlans/{id}; 409 se houver vínculos). */
+export async function deleteVlan(id: string): Promise<null> {
+  return api.delete<null>(`/network/vlans/${id}`);
+}
+
 // ============ F17-T020 — SwitchesPage ============
 
 /**

@@ -38,17 +38,19 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
         return context;
     }
 
-    private sealed class FakeCurrentUser(string[] roles) : ICurrentUserContext
+    private sealed class FakeCurrentUser(string[] roles, Guid? userId = null) : ICurrentUserContext
     {
-        public Guid? UserId { get; } = Guid.NewGuid();
+        public Guid? UserId { get; } = userId ?? Guid.NewGuid();
         public string? UserName => "usuario@exemplo.test";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles => roles;
     }
 
-    private static ChangeKnowledgeArticleStatusCommandHandler ChangeStatusHandler(AppDbContext context)
+    private static ChangeKnowledgeArticleStatusCommandHandler ChangeStatusHandler(
+        AppDbContext context, ICurrentUserContext? currentUser = null)
         => new(
             new KnowledgeArticleRepository(context),
+            currentUser ?? new FakeCurrentUser(["Operator"]),
             NullLogger<ChangeKnowledgeArticleStatusCommandHandler>.Instance);
 
     private static SearchKnowledgeArticlesQueryHandler SearchHandler(AppDbContext context, string[] roles)
@@ -218,6 +220,75 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
 
         (await action.Should().ThrowAsync<ArgumentException>())
             .WithMessage("Status inválido: '99'.*");
+    }
+
+    /// <summary>K3: a 1ª publicação cria o snapshot (1,0) com aprovador.</summary>
+    [Fact]
+    public async Task ChangeStatus_FirstPublish_ShouldCreateVersion10()
+    {
+        await using var context = await CreateContextAsync();
+        var approverId = Guid.NewGuid();
+        var articleId = await SeedArticleAsync(context);
+        var handler = ChangeStatusHandler(
+            context, new FakeCurrentUser(["Operator"], approverId));
+
+        await handler.Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
+            CancellationToken.None);
+        await handler.Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "approved"),
+            CancellationToken.None);
+        await handler.Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "published"),
+            CancellationToken.None);
+
+        var version = await context.KnowledgeArticleVersions.SingleAsync();
+        version.Major.Should().Be(1);
+        version.Minor.Should().Be(0);
+        version.ApprovedById.Should().Be(approverId);
+        version.AuthorId.Should().Be(approverId);
+        version.Reason.Should().Be("Publicação inicial");
+        version.Status.Should().Be(KnowledgeArticleStatus.Published);
+    }
+
+    /// <summary>K3: re-publicação após revisão = major+1 (o v2.0 do §8).</summary>
+    [Fact]
+    public async Task ChangeStatus_Republish_ShouldCreateNextMajor()
+    {
+        await using var context = await CreateContextAsync();
+        var approverId = Guid.NewGuid();
+        var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.Published);
+        var handler = ChangeStatusHandler(
+            context, new FakeCurrentUser(["Operator"], approverId));
+
+        await handler.Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
+            CancellationToken.None);
+        await handler.Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "approved"),
+            CancellationToken.None);
+        await handler.Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "published"),
+            CancellationToken.None);
+
+        var version = await context.KnowledgeArticleVersions.SingleAsync();
+        version.Major.Should().Be(2);
+        version.Minor.Should().Be(0);
+        version.ApprovedById.Should().Be(approverId);
+        version.Reason.Should().Be("Publicação após revisão");
+    }
+
+    [Fact]
+    public async Task ChangeStatus_NonPublishTransition_ShouldNotCreateVersion()
+    {
+        await using var context = await CreateContextAsync();
+        var articleId = await SeedArticleAsync(context);
+
+        await ChangeStatusHandler(context).Handle(
+            new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
+            CancellationToken.None);
+
+        (await context.KnowledgeArticleVersions.CountAsync()).Should().Be(0);
     }
 
     [Fact]

@@ -349,3 +349,34 @@ Execução desta leva: wrappers reutilizáveis + adoção SelectField/SwitchFiel
 - `ProgressBar` mostra a conclusão agregada do quadro de tarefas. Não há
   percentual individual no contrato, então esse componente não cria um dado
   novo: usa somente os estados `Resolved` e `Closed` retornados pela listagem.
+
+### 11.8 Execução — ADR-030 Fase 5 (2026-10-08)
+
+- `components/ui/EntityView.tsx` expõe o seletor de visão reutilizável das
+  páginas índice: `EntityView<T>` renderiza **tabela** (o `<DataTablePanel>`
+  da página), **grid** de cards ou **kanban** (colunas por estado via
+  `kanban={{ groupOf, columns, overflowColumnKey }}`; sem config cai no
+  grid), `ViewSwitcher` de 3 ícones e `useEntityViewMode(entityKey,
+  fallback)` que persiste a preferência **por entidade** em
+  `localStorage entityView:<key>` (defensivo + sync entre abas via evento
+  `storage`).
+- `hooks/queries.ts` é a camada React Query (v5) do dashboard:
+  `usePagedQuery`/`useListQuery` para leitura com chave por domínio e
+  `useCreateMutation`/`useUpdateMutation`/`useDeleteMutation` que invalidam
+  por prefixo da queryKey (criar/editar/excluir dispara refetch automático);
+  `mutationErrorMessage`/`asApiError` preenchem `ErrorBanner`/formulários
+  com a mensagem pt-BR do envelope.
+- 10 páginas migradas de `useState+useEffect+load()` para React Query com
+  CRUD completo espelhando a matriz do ADR-030 (escrita atrás de
+  `<Can level="operate|administer">` — só esconde; o backend autoriza):
+  **Locations/Racks** (kanban de racks por local), **Devices** (kanban por
+  tipo + editar/excluir com `updateDevice`/`deleteDevice`), **Switches**
+  (kanban por localização; CRUD vive na DevicesPage), **Network** (VLANs),
+  **Tasks** (default kanban por `TaskState`, identificação + exclusão),
+  **Incidents** (kanban por status + `PUT {id}/status`/acknowledge, sem
+  DELETE), **Knowledge** (abas artigos/categorias, edit/delete/status),
+  **SLA** (abas serviços/políticas/SLOs + Error Budget), **Invitations**
+  (editar roles/cancelar atrás de `Can administer`) e **Remote Sessions**
+  (abrir/encerrar SSH-RDP, kanban por status da sessão).
+- Validação: `npx tsc -b` · `npm run lint` · `npm run build` verdes;
+  backend intocado — unit 1852 · arch 119 · integration 194, 0 falhas.

@@ -30,7 +30,8 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         created.Status.Should().Be(KnowledgeArticleStatus.Draft);
 
         await mediator.Send(new UpdateKnowledgeArticleCommand(
-            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null, "Procedimento"));
+            created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null, "Procedimento",
+            Reason: "Revisão de conteúdo."));
 
         var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
         fetched.Title.Should().Be("Troca do switch central (v2)");
@@ -188,6 +189,83 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new ChangeKnowledgeArticleStatusCommand(draft.Id, "published"));
         (await change.Should().ThrowAsync<UnauthorizedAccessException>())
             .WithMessage("Roles ausentes: Admin, Operator");
+    }
+
+    // ── F24-T003: versionamento (K3 — ADR-040) ──────────────────────────
+
+    /// <summary>Ciclo K3 via API interna: publicar gera v1.0, duas
+    /// edições geram v1.1/v1.2, lista em ordem e comparação 1.0→1.1.</summary>
+    [Fact]
+    public async Task Versioning_PublishAndEdit_ShouldSnapshotListAndCompare()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var created = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Artigo versionado", "v1.", null, "Guia"));
+
+        await mediator.Send(new ChangeKnowledgeArticleStatusCommand(created.Id, "inReview"));
+        await mediator.Send(new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
+        await mediator.Send(new ChangeKnowledgeArticleStatusCommand(created.Id, "published"));
+
+        await mediator.Send(new UpdateKnowledgeArticleCommand(
+            created.Id, "Artigo versionado", "v1.1.", null, "Guia",
+            Reason: "Primeira correção."));
+        await mediator.Send(new UpdateKnowledgeArticleCommand(
+            created.Id, "Artigo versionado", "v1.2.", null, "Guia",
+            Reason: "Segunda correção."));
+
+        var versions = await mediator.Send(
+            new ListKnowledgeArticleVersionsQuery(created.Id));
+        versions.Select(version => version.Version).Should()
+            .Equal("1.2", "1.1", "1.0");
+        versions.Last().Reason.Should().Be("Publicação inicial");
+        versions.First().Reason.Should().Be("Segunda correção.");
+        versions.First().AuthorName.Should().NotBeNullOrEmpty();
+
+        var detail = await mediator.Send(
+            new GetKnowledgeArticleVersionQuery(created.Id, 1, 1));
+        detail.Content.Should().Be("v1.1.");
+        detail.Reason.Should().Be("Primeira correção.");
+
+        var compare = await mediator.Send(
+            new CompareKnowledgeArticleVersionsQuery(created.Id, "1.0", "1.1"));
+        compare.Changes.Should().ContainSingle(diff => diff.Field == "content")
+            .Which.Should().Be(
+                new KnowledgeArticleVersionDiff("content", "v1.", "v1.1."));
+        compare.Reason.Should().Be("Primeira correção.");
+    }
+
+    [Fact]
+    public async Task Versioning_UpdateWithoutReason_ShouldFailWith400PtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var created = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"));
+
+        var action = () => mediator.Send(new UpdateKnowledgeArticleCommand(
+            created.Id, "Artigo", "Conteúdo novo.", null, "Guia", Reason: ""));
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("O motivo da alteração é obrigatório.*");
+    }
+
+    [Fact]
+    public async Task Versioning_InvalidVersionNumber_ShouldFailWith400PtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+        var created = await mediator.Send(
+            new CreateKnowledgeArticleCommand("Artigo", "Conteúdo.", null, "Guia"));
+
+        var action = () => mediator.Send(
+            new CompareKnowledgeArticleVersionsQuery(created.Id, "x", "1.0"));
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("Número de versão inválido: 'x'.*");
     }
 
     // ── F24-T001: tipos e identificação (K1) ─────────────────────────────
