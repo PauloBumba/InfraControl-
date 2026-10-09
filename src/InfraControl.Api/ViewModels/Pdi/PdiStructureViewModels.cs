@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+using InfraControl.Domain.Enums;
+
 namespace InfraControl.Api.ViewModels.Pdi;
 
 /// <summary>
 /// Estrutura do PDI (docs/30 §5-§8, Fase 2, ADR-032) — datas em
 /// "yyyy-MM-dd" (DateOnly); <c>Status</c> da fase aceita case-insensitive
-/// (NotStarted, InProgress, Completed) e o domínio responde 400 pt-BR.
+/// (NotStarted, InProgress, PendingValidation, Completed) e o domínio
+/// responde 400 pt-BR.
 /// </summary>
 public sealed record PdiCompetencyViewModel(
     string Name,
@@ -59,6 +63,18 @@ public sealed record UpdatePdiPhaseViewModel(
     string? CompletionCriteria = null,
     string Status = "NotStarted",
     int Percent = 0);
+
+/// <summary>
+/// Validação da fase pelo gestor (§15 — Fase 5, ADR-035):
+/// <c>Decision</c> "Validated"/"Rejected" (converter explícito, como a
+/// revisão de evidência); <c>Reason</c> obrigatório quando Rejected (a
+/// regra fica no handler — 400 pt-BR).
+/// </summary>
+public sealed record ValidatePdiPhaseViewModel(
+    [property: JsonConverter(
+        typeof(JsonStringEnumConverter<PdiPhaseValidationDecision>))]
+    PdiPhaseValidationDecision Decision,
+    string? Reason = null);
 
 public sealed record CreatePdiActivityViewModel(
     Guid PhaseId,

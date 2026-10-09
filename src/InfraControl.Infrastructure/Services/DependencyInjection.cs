@@ -5,6 +5,7 @@ using InfraControl.Application.Notifications.Telegram;
 using InfraControl.Application.Notifications.WhatsApp;
 using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
+using InfraControl.Application.AI;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Discovery.Runs;
@@ -25,10 +26,12 @@ using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.Application.Monitoring.Polling;
 using InfraControl.Application.Monitoring.Results.Ports;
+using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
 using InfraControl.Domain.Common;
+using InfraControl.Infrastructure.AI;
 using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Persistence;
@@ -141,6 +144,12 @@ public static class DependencyInjection
         // F1-T016a (ADR-019): tolerância do TOTP é política de configuração,
         // não de código — padrão ±1 período de 30s.
         services.Configure<MfaOptions>(configuration.GetSection(MfaOptions.SectionName));
+
+        // Fase 4 (ADR-034): upload de evidências do PDI em disco local —
+        // caminho em PdiEvidence:StoragePath.
+        services.Configure<PdiEvidenceOptions>(
+            configuration.GetSection(PdiEvidenceOptions.SectionName));
+        services.AddScoped<IPdiEvidenceFileStore, PhysicalPdiEvidenceFileStore>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
@@ -292,6 +301,23 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringCheckRepository, MonitoringCheckRepository>();
         services.AddScoped<IMonitoringResultRepository, MonitoringResultRepository>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
+
+        // Fase AI — FAI-T005 (S4): Provider & Model Manager v1 (ADR-037)
+        // Configuração de IA: Ollama + roteamento por capacidade
+        services.Configure<AiOllamaOptions>(configuration.GetSection("Ai:Ollama"));
+        services.Configure<AiRoutingOptionsConfiguration>(configuration.GetSection("Ai:Routing"));
+
+        // HttpClient do Ollama (named client)
+        services.AddHttpClient("ollama");
+
+        // Registry de providers v1 (configuração)
+        services.AddScoped<IAiProviderRegistry, ConfigurationProviderRegistry>();
+
+        // Provider Ollama
+        services.AddScoped<IAiProvider, OllamaProvider>();
+
+        // Router de capacidade
+        services.AddScoped<IAiProviderRouter, AiProviderRouter>();
 
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no

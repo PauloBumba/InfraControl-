@@ -34,7 +34,21 @@ export interface Pdi {
   updateDateTime: string;
 }
 
-export type PdiHistoryType = "Created" | "Updated" | "StatusChanged";
+export type PdiHistoryType =
+  | "Created"
+  | "Updated"
+  | "StatusChanged"
+  | "EvidenceAdded"
+  | "EvidenceReviewed"
+  | "PhaseStarted"
+  | "PhaseSubmitted"
+  | "PhaseValidated"
+  | "PhaseRejected"
+  | "CheckInCreated"
+  | "ImpedimentCreated"
+  | "ImpedimentResolved"
+  | "AssessmentCreated"
+  | "ResultFinalized";
 
 export interface PdiHistoryEntry {
   id: string;
@@ -82,7 +96,8 @@ export const PDI_NEXT_STATUS: Record<PdiStatus, readonly PdiStatus[]> = {
   AwaitingAcceptance: ["Active"],
   Active: ["InProgress", "Replanned", "Cancelled"],
   InProgress: ["UnderEvaluation"],
-  UnderEvaluation: ["Completed"],
+  // ADR-036 (Fase 6): resultado "Replanejado" devolve o plano ao ciclo.
+  UnderEvaluation: ["Completed", "Replanned"],
   Replanned: ["Active"],
   Completed: [],
   Cancelled: [],
@@ -92,6 +107,17 @@ export const PDI_HISTORY_TYPE_LABEL: Record<PdiHistoryType, string> = {
   Created: "Plano criado",
   Updated: "Campos atualizados",
   StatusChanged: "Status alterado",
+  EvidenceAdded: "Evidência anexada",
+  EvidenceReviewed: "Evidência revisada",
+  PhaseStarted: "Fase iniciada",
+  PhaseSubmitted: "Fase enviada para validação",
+  PhaseValidated: "Fase validada",
+  PhaseRejected: "Fase rejeitada",
+  CheckInCreated: "Check-in registrado",
+  ImpedimentCreated: "Impedimento registrado",
+  ImpedimentResolved: "Impedimento resolvido",
+  AssessmentCreated: "Avaliação registrada",
+  ResultFinalized: "Resultado final",
 };
 
 export const PDI_STATUS_LABEL: Record<PdiStatus, string> =
@@ -151,7 +177,15 @@ export async function generatePdiKnowledge(
 // escrita dono ou Admin (403), exclusão com children → 409.
 // ---------------------------------------------------------------------------
 
-export type PdiPhaseStatus = "NotStarted" | "InProgress" | "Completed";
+/** Aprovação de fase (§15 — Fase 5, ADR-035): status inclui PendingValidation. */
+export type PdiPhaseStatus =
+  | "NotStarted"
+  | "InProgress"
+  | "PendingValidation"
+  | "Completed";
+
+/** Decisão do gestor na validação da fase (§15 — Fase 5). */
+export type PdiPhaseValidationDecision = "Validated" | "Rejected";
 
 export interface PdiCompetency {
   id: string;
@@ -216,6 +250,7 @@ export const PDI_PHASE_STATUS_OPTIONS: {
 }[] = [
   { value: "NotStarted", label: "Não iniciada" },
   { value: "InProgress", label: "Em andamento" },
+  { value: "PendingValidation", label: "Aguardando validação" },
   { value: "Completed", label: "Concluída" },
 ];
 
@@ -230,6 +265,7 @@ export const PDI_PHASE_STATUS_STYLE: Record<
 > = {
   NotStarted: { background: "#f1f5f9", color: "#64748b" },
   InProgress: { background: "#dbeafe", color: "#1d4ed8" },
+  PendingValidation: { background: "#fef3c7", color: "#b45309" },
   Completed: { background: "#dcfce7", color: "#15803d" },
 };
 
@@ -368,6 +404,32 @@ export async function deletePdiPhase(id: string): Promise<void> {
   await api.delete(`/pdi/phases/${id}`);
 }
 
+/**
+ * Conclui a fase e envia para validação do gestor (§15 — Fase 5).
+ * Só dono/Admin; fase precisa estar InProgress (409 pt-BR).
+ */
+export async function submitPdiPhase(id: string): Promise<void> {
+  await api.post(`/pdi/phases/${id}/submit`);
+}
+
+/**
+ * Valida ou rejeita a fase concluída (§15 — Fase 5). Rejeição exige
+ * motivo (400 pt-BR) e a fase volta para InProgress; validação conclui
+ * e auto-inicia a próxima fase.
+ */
+export async function validatePdiPhase(
+  id: string,
+  input: {
+    decision: PdiPhaseValidationDecision;
+    reason?: string | null;
+  },
+): Promise<void> {
+  await api.put(`/pdi/phases/${id}/validation`, {
+    decision: input.decision,
+    reason: input.reason ?? null,
+  });
+}
+
 // ---- Atividades ----------------------------------------------------------
 
 export interface PdiActivityInput {
@@ -468,6 +530,7 @@ export interface PdiAccompaniment {
   checkIns: PdiCheckIn[];
   impediments: PdiImpediment[];
   feedbacks: PdiFeedback[];
+  evidences: PdiEvidence[];
 }
 
 export const PDI_IMPEDIMENT_STATUS_LABEL: Record<
@@ -497,7 +560,7 @@ export async function getPdiAccompaniment(
   userId: string,
 ): Promise<PdiAccompaniment> {
   const data = await api.get<PdiAccompaniment>(`/pdi/${userId}/accompaniment`);
-  return data ?? { userId, progresses: [], checkIns: [], impediments: [], feedbacks: [] };
+  return data ?? { userId, progresses: [], checkIns: [], impediments: [], feedbacks: [], evidences: [] };
 }
 
 // ---- Progresso (§9 — relato + comentário, append-only) ------------------
@@ -593,4 +656,535 @@ export async function createPdiFeedback(input: {
 
 export async function deletePdiFeedback(id: string): Promise<void> {
   await api.delete(`/pdi/feedbacks/${id}`);
+}
+
+// ---- Evidências (§12 — upload, tipos fixos, validação/rejeição) ----------
+
+export type PdiEvidenceType =
+  | "Certificate"
+  | "Document"
+  | "Image"
+  | "File"
+  | "CompletedActivity"
+  | "Assessment"
+  | "Feedback"
+  | "Result"
+  | "Other";
+
+export type PdiEvidenceStatus = "Pending" | "Validated" | "Rejected";
+
+export type PdiEvidenceReviewDecision = "Validated" | "Rejected";
+
+export interface PdiEvidence {
+  id: string;
+  phaseId: string;
+  type: PdiEvidenceType;
+  status: PdiEvidenceStatus;
+  description: string | null;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  createdBy: string;
+  createdByName: string | null;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+}
+
+export const PDI_EVIDENCE_TYPE_LABEL: Record<PdiEvidenceType, string> = {
+  Certificate: "Certificado",
+  Document: "Documento",
+  Image: "Imagem",
+  File: "Arquivo",
+  CompletedActivity: "Atividade realizada",
+  Assessment: "Avaliação",
+  Feedback: "Feedback",
+  Result: "Resultado",
+  Other: "Outro",
+};
+
+export const PDI_EVIDENCE_STATUS_LABEL: Record<PdiEvidenceStatus, string> = {
+  Pending: "Pendente",
+  Validated: "Validada",
+  Rejected: "Rejeitada",
+};
+
+export const PDI_EVIDENCE_STATUS_STYLE: Record<
+  PdiEvidenceStatus,
+  { background: string; color: string }
+> = {
+  Pending: { background: "#fef3c7", color: "#b45309" },
+  Validated: { background: "#dcfce7", color: "#15803d" },
+  Rejected: { background: "#fee2e2", color: "#b91c1c" },
+};
+
+export function parsePdiEvidenceStatus(value: string): PdiEvidenceStatus {
+  return value.toLowerCase() === "validated"
+    ? "Validated"
+    : value.toLowerCase() === "rejected"
+      ? "Rejected"
+      : "Pending";
+}
+
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Upload multipart (arquivo + phaseId + type + description) — XSRF via header. */
+export async function uploadPdiEvidence(input: {
+  phaseId: string;
+  type: PdiEvidenceType;
+  description?: string | null;
+  file: File;
+}): Promise<void> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("phaseId", input.phaseId);
+  form.append("type", input.type);
+  if (input.description) form.append("description", input.description);
+  await api.post("/pdi/evidences", form);
+}
+
+/** Revisão única do gestor: validada ou rejeitada com motivo. */
+export async function reviewPdiEvidence(
+  id: string,
+  input: {
+    decision: PdiEvidenceReviewDecision;
+    rejectionReason?: string | null;
+  },
+): Promise<void> {
+  await api.put(`/pdi/evidences/${id}/review`, {
+    decision: input.decision,
+    rejectionReason: input.rejectionReason ?? null,
+  });
+}
+
+/** Download autenticado — blob → objectURL → clique no link temporário. */
+export async function downloadPdiEvidence(
+  id: string,
+  fileName: string,
+): Promise<void> {
+  const blob = await api.download(`/pdi/evidences/${id}/download`);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ------------------------------------------------------------------
+// Avaliação final (docs/30 §15.3/§16 — Fase 6, ADR-036)
+// ------------------------------------------------------------------
+
+export type PdiAssessmentSide = "Self" | "Manager";
+
+export interface PdiAssessment {
+  id: string;
+  planUserId: string;
+  side: PdiAssessmentSide;
+  authorId: string;
+  authorName: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PdiResultOutcome =
+  | "Atingido"
+  | "ParcialmenteAtingido"
+  | "NaoAtingido"
+  | "Replanejado";
+
+export interface PdiResult {
+  id: string;
+  planUserId: string;
+  outcome: PdiResultOutcome;
+  notes: string | null;
+  finalizedById: string;
+  finalizedName: string | null;
+  finalizedAt: string;
+}
+
+export interface PdiEvaluation {
+  userId: string;
+  status: PdiStatus;
+  strategy: string;
+  targetDate: string;
+  managerId: string | null;
+  managerName: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  selfAssessment: PdiAssessment | null;
+  managerAssessment: PdiAssessment | null;
+  result: PdiResult | null;
+}
+
+export const PDI_RESULT_OUTCOME_OPTIONS: {
+  value: PdiResultOutcome;
+  label: string;
+}[] = [
+  { value: "Atingido", label: "Atingido" },
+  { value: "ParcialmenteAtingido", label: "Parcialmente atingido" },
+  { value: "NaoAtingido", label: "Não atingido" },
+  { value: "Replanejado", label: "Replanejado" },
+];
+
+export const PDI_RESULT_OUTCOME_LABEL: Record<PdiResultOutcome, string> =
+  Object.fromEntries(
+    PDI_RESULT_OUTCOME_OPTIONS.map((option) => [option.value, option.label]),
+  ) as Record<PdiResultOutcome, string>;
+
+/** Avaliação final: plano + as duas avaliações + resultado (§16). */
+export async function getPdiEvaluation(
+  userId: string,
+): Promise<PdiEvaluation> {
+  const data = await api.get<PdiEvaluation>(`/pdi/${userId}/evaluation`);
+  return data as PdiEvaluation;
+}
+
+/**
+ * Salva a avaliação do lado do ator (§15.3): dono grava a
+ * autoavaliação (leva o plano a Em avaliação), gestor/Admin grava a
+ * avaliação do gestor — o servidor determina o lado.
+ */
+export async function savePdiAssessment(
+  userId: string,
+  content: string,
+): Promise<void> {
+  await api.put(`/pdi/${userId}/assessment`, { content });
+}
+
+/** Resultado final (§16, Admin/gestor) — único por plano (2ª → 409). */
+export async function finalizePdiResult(
+  userId: string,
+  outcome: PdiResultOutcome,
+  notes?: string | null,
+): Promise<void> {
+  await api.put(`/pdi/${userId}/result`, {
+    outcome,
+    notes: notes ?? null,
+  });
+}
+
+// ------------------------------------------------------------------
+// Dashboards (Fase 7 — docs/30 §18, §19, §20, ADR-037)
+// ------------------------------------------------------------------
+
+/** Linha de fase do dashboard do colaborador (§18). */
+export interface PdiDashboardPhase {
+  id: string;
+  title: string;
+  status: PdiPhaseStatus;
+}
+
+/** §18 — "Meu PDI": progresso, fases, próximo prazo, pendências e totais. */
+export interface PdiDashboard {
+  userId: string;
+  status: PdiStatus;
+  progressPercent: number;
+  phases: PdiDashboardPhase[];
+  nextDueDate: string | null;
+  openImpediments: number;
+  totalEvidences: number;
+  totalCheckIns: number;
+}
+
+/** Plano gerenciado com a classificação do §19 (acesso direto aos casos). */
+export interface PdiManagerPlan {
+  userId: string;
+  ownerName: string;
+  status: PdiStatus;
+  targetDate: string;
+  overdue: boolean;
+  needsAttention: boolean;
+}
+
+/** §19 — "Meus PDIs": 🟢/🟡/🔴 + agregados + lista de casos. */
+export interface PdiManagerDashboard {
+  totalPlans: number;
+  onTrack: number;
+  needsAttention: number;
+  overdue: number;
+  phasesDueSoon: number;
+  openImpediments: number;
+  pendingEvidences: number;
+  plans: PdiManagerPlan[];
+}
+
+/** §20 — visão administrativa: contagens globais e taxa de conclusão. */
+export interface PdiAdminDashboard {
+  totalPlans: number;
+  completedPlans: number;
+  inProgressPlans: number;
+  replannedPlans: number;
+  cancelledPlans: number;
+  completionRatePercent: number;
+  completedPhases: number;
+  totalCheckIns: number;
+  totalEvidences: number;
+  totalImpediments: number;
+}
+
+/** Dashboard do colaborador (§18) — leitura Admin/dono/gestor. */
+export async function getPdiDashboard(
+  userId: string,
+): Promise<PdiDashboard> {
+  const data = await api.get<PdiDashboard>(`/pdi/${userId}/dashboard`);
+  return data as PdiDashboard;
+}
+
+/** Dashboard do gestor (§19) — planos em que sou gestor. */
+export async function getPdiManagerDashboard(): Promise<PdiManagerDashboard> {
+  const data = await api.get<PdiManagerDashboard>(`/pdi/manager/dashboard`);
+  return data as PdiManagerDashboard;
+}
+
+/** Dashboard administrativo (§20) — somente Admin (403 no backend). */
+export async function getPdiAdminDashboard(): Promise<PdiAdminDashboard> {
+  const data = await api.get<PdiAdminDashboard>(`/pdi/admin/dashboard`);
+  return data as PdiAdminDashboard;
+}
+
+// ------------------------------------------------------------------
+// Analytics (Fase 8 — docs/30 §21, §22, ADR-038)
+// ------------------------------------------------------------------
+
+/** §21 execução: planos, conclusão, atraso e fases (escopo = período). */
+export interface PdiExecutionIndicators {
+  totalPlans: number;
+  completedPlans: number;
+  completionRatePercent: number;
+  overduePlans: number;
+  phasesCompleted: number;
+  phasesOverdue: number;
+  avgCompletionDays: number | null;
+}
+
+/** Evolução por competência (objetivo → estratégia → fase). */
+export interface PdiEvolutionItem {
+  name: string;
+  objectives: number;
+  avgPhasePercent: number;
+}
+
+/** §21 desenvolvimento: competências, objetivos e resultados (§16). */
+export interface PdiDevelopmentIndicators {
+  competenciesWorked: number;
+  objectivesTotal: number;
+  resultsAtingido: number;
+  resultsParcial: number;
+  resultsNaoAtingido: number;
+  resultsReplanejado: number;
+  evolutionByCompetency: PdiEvolutionItem[];
+}
+
+/** §21 acompanhamento: check-ins, feedbacks e evidências validadas. */
+export interface PdiAccompanimentIndicators {
+  checkIns: number;
+  checkInsPerPlan: number;
+  feedbacks: number;
+  evidencesValidated: number;
+}
+
+/** Fatia por tipo de impedimento (texto livre) — % do total do escopo. */
+export interface PdiDifficultyShare {
+  type: string;
+  count: number;
+  percent: number;
+}
+
+/** §21 dificuldades: total, distribuição e tempo médio de resolução. */
+export interface PdiDifficultyIndicators {
+  totalImpediments: number;
+  byType: PdiDifficultyShare[];
+  avgResolutionDays: number | null;
+}
+
+/** §21 — indicadores consolidados nos 4 blocos. */
+export interface PdiIndicators {
+  execution: PdiExecutionIndicators;
+  development: PdiDevelopmentIndicators;
+  accompaniment: PdiAccompanimentIndicators;
+  difficulties: PdiDifficultyIndicators;
+}
+
+/** §22 — relatório individual: dados + estrutura + acompanhamento + avaliação. */
+export interface PdiIndividualReport {
+  ownerName: string;
+  ownerEmail: string;
+  managerName: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  structure: PdiStructure;
+  accompaniment: PdiAccompaniment;
+  evaluation: PdiEvaluation;
+}
+
+/** Comparação da janela atual com a anterior de mesmo tamanho. */
+export interface PdiSemesterComparison {
+  previousPlansInPeriod: number;
+  previousCompleted: number;
+  previousCompletionRatePercent: number;
+  plansDelta: number;
+  completedDelta: number;
+  completionRateDelta: number;
+}
+
+export interface PdiSemesterManager {
+  managerName: string;
+  plans: number;
+  completed: number;
+}
+
+export interface PdiSemesterCompetency {
+  name: string;
+  objectives: number;
+  avgPhasePercent: number;
+}
+
+/** §22 — relatório semestral: consolido + tendências + gestores/competências. */
+export interface PdiSemesterReport {
+  label: string;
+  from: string | null;
+  to: string | null;
+  plansInPeriod: number;
+  plansCreatedInPeriod: number;
+  completedInPeriod: number;
+  completionRatePercent: number;
+  avgCompletionDays: number | null;
+  trends: PdiSemesterComparison;
+  managers: PdiSemesterManager[];
+  competencies: PdiSemesterCompetency[];
+  difficulties: PdiDifficultyShare[];
+}
+
+/** §22 — relatório de dificuldades por tipo no período. */
+export interface PdiDifficultiesReport {
+  from: string | null;
+  to: string | null;
+  total: number;
+  byType: PdiDifficultyShare[];
+  resolved: number;
+  avgResolutionDays: number | null;
+}
+
+function periodQuery(from?: string, to?: string): string {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+/** §21 — indicadores (Admin; filtro de período opcional). */
+export async function getPdiIndicators(
+  from?: string,
+  to?: string,
+): Promise<PdiIndicators> {
+  const data = await api.get<PdiIndicators>(
+    `/pdi/indicators${periodQuery(from, to)}`,
+  );
+  return data as PdiIndicators;
+}
+
+/** §22 — relatório individual (Admin/dono/gestor). */
+export async function getPdiIndividualReport(
+  userId: string,
+): Promise<PdiIndividualReport> {
+  const data = await api.get<PdiIndividualReport>(
+    `/pdi/reports/individual/${userId}`,
+  );
+  return data as PdiIndividualReport;
+}
+
+/** §22 — relatório semestral (Admin; padrão = semestre corrente). */
+export async function getPdiSemesterReport(
+  from?: string,
+  to?: string,
+): Promise<PdiSemesterReport> {
+  const data = await api.get<PdiSemesterReport>(
+    `/pdi/reports/semester${periodQuery(from, to)}`,
+  );
+  return data as PdiSemesterReport;
+}
+
+/** §22 — relatório de dificuldades (Admin; filtro de período opcional). */
+export async function getPdiDifficultiesReport(
+  from?: string,
+  to?: string,
+): Promise<PdiDifficultiesReport> {
+  const data = await api.get<PdiDifficultiesReport>(
+    `/pdi/reports/difficulties${periodQuery(from, to)}`,
+  );
+  return data as PdiDifficultiesReport;
+}
+
+export type PdiReportFormat = "pdf" | "xlsx";
+
+function exportQuery(
+  format: PdiReportFormat,
+  from?: string,
+  to?: string,
+): string {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  params.set("format", format);
+  return `?${params.toString()}`;
+}
+
+/** Download autenticado de relatório — blob → objectURL → clique temporário. */
+async function downloadPdiReport(
+  path: string,
+  fileName: string,
+): Promise<void> {
+  const blob = await api.download(path);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadPdiIndividualReport(
+  userId: string,
+  format: PdiReportFormat,
+): Promise<void> {
+  return downloadPdiReport(
+    `/pdi/reports/individual/${userId}/export${exportQuery(format)}`,
+    `pdi-relatorio-individual-${userId}.${format}`,
+  );
+}
+
+export function downloadPdiSemesterReport(
+  format: PdiReportFormat,
+  from?: string,
+  to?: string,
+): Promise<void> {
+  return downloadPdiReport(
+    `/pdi/reports/semester/export${exportQuery(format, from, to)}`,
+    `pdi-relatorio-semestral.${format}`,
+  );
+}
+
+export function downloadPdiDifficultiesReport(
+  format: PdiReportFormat,
+  from?: string,
+  to?: string,
+): Promise<void> {
+  return downloadPdiReport(
+    `/pdi/reports/difficulties/export${exportQuery(format, from, to)}`,
+    `pdi-relatorio-dificuldades.${format}`,
+  );
 }

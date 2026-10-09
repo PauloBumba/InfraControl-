@@ -72,5 +72,9 @@ código compilou.
   (execução/health check pendentes de ambiente sem Docker — §46).
 - **S3 (AI Gateway mínimo) concluído em 2026-10-08** (FAI-T004):
   contratos + `AiGateway` em `Application/AI/`, ainda sem provider
-  real registrado nem endpoint. Próximo: S4 (Provider & Model
-  Manager) mediante autorização.
+  real registrado nem endpoint.
+- **S4 (Provider & Model Manager v1 concluído em 2026-10-08)**
+  (FAI-T005): ConfigurationProviderRegistry, OllamaProvider (HTTP puro),
+  AiProviderRouter (mapeamento por capacidade), model discovery
+  GET /api/tags, teste de conexão, DI, appsettings, testes unit.
+  Próximo: S5 (Runtime health + observabilidade).

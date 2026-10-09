@@ -15,11 +15,13 @@ import {
   PDI_PHASE_STATUS_LABEL,
   PDI_PHASE_STATUS_OPTIONS,
   PDI_PHASE_STATUS_STYLE,
+  submitPdiPhase,
   updatePdiActivity,
   updatePdiCompetency,
   updatePdiObjective,
   updatePdiPhase,
   updatePdiStrategy,
+  validatePdiPhase,
   type Pdi,
   type PdiActivityNode,
   type PdiCompetency,
@@ -45,6 +47,9 @@ import { StatusChip } from "@/components/ui/StatusChip";
  * árvore objetivo → estratégia → fase → atividade + catálogo de
  * competências (escrita Admin). Escrita permitida a dono do plano ou
  * Admin (o backend responde 403/409 pt-BR — aqui só exibimos).
+ * Aprovação de fase (§15 — Fase 5, ADR-035): dono/Admin conclui e
+ * envia; gestor/Admin valida/rejeita — o status de governance não
+ * aparece no seletor do não-Admin (o PUT bloqueia 400).
  * Datas "yyyy-MM-dd" formatadas à mão (anti-fuso, mesmo critério do
  * PdiPage). Após qualquer mutação a árvore é recarregada por inteiro.
  */
@@ -145,6 +150,14 @@ export function PdiStructureDialog({
 }: PdiStructureDialogProps) {
   const planUserId = plan?.userId ?? null;
 
+  // Aprovação de fase (§15 — Fase 5, ADR-035): concluir = dono/Admin;
+  // validar/rejeitar = gestor do plano/Admin (espelho do backend).
+  const isOwner = !!currentUserId && currentUserId === planUserId;
+  const isManager =
+    !!currentUserId && !!plan?.managerId && currentUserId === plan.managerId;
+  const canSubmitPhase = isAdmin || isOwner;
+  const canValidatePhase = isAdmin || isManager;
+
   const [structure, setStructure] = useState<PdiStructure | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,6 +177,12 @@ export function PdiStructureDialog({
   // Acompanhamento da fase (Fase 3 — ADR-033).
   const [accompaniedPhase, setAccompaniedPhase] =
     useState<PdiPhaseNode | null>(null);
+
+  // Rejeição de fase com motivo (§15 — Fase 5, ADR-035).
+  const [rejectPhase, setRejectPhase] = useState<PdiPhaseNode | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
+  const [rejectSaving, setRejectSaving] = useState(false);
 
   // Catálogo de competências (Admin).
   const [catalogVisible, setCatalogVisible] = useState(false);
@@ -457,6 +476,53 @@ export function PdiStructureDialog({
     }
   };
 
+  // ---- Aprovação de fase (§15 — Fase 5) --------------------------
+
+  const submitPhase = async (phase: PdiPhaseNode) => {
+    try {
+      setError(null);
+      await submitPdiPhase(phase.id);
+      await reload();
+    } catch (caught) {
+      setError(messageFor(caught));
+    }
+  };
+
+  const approvePhase = async (phase: PdiPhaseNode) => {
+    try {
+      setError(null);
+      await validatePdiPhase(phase.id, { decision: "Validated" });
+      await reload();
+    } catch (caught) {
+      setError(messageFor(caught));
+    }
+  };
+
+  const rejectSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!rejectPhase) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError("O motivo da rejeição é obrigatório.");
+      return;
+    }
+    setRejectSaving(true);
+    setRejectError(null);
+    try {
+      await validatePdiPhase(rejectPhase.id, {
+        decision: "Rejected",
+        reason,
+      });
+      setRejectPhase(null);
+      setRejectReason("");
+      await reload();
+    } catch (caught) {
+      setRejectError(messageFor(caught));
+    } finally {
+      setRejectSaving(false);
+    }
+  };
+
   const responsibleOptions = isAdmin
     ? users.map((candidate) => ({
         value: candidate.userId,
@@ -478,6 +544,27 @@ export function PdiStructureDialog({
       color={PDI_PHASE_STATUS_STYLE[value]?.color ?? "#64748b"}
     />
   );
+
+  // Status vigente da fase em edição (para restringir o seletor do
+  // não-Admin: PendingValidation/Completed só pelo fluxo de aprovação).
+  const isGovernanceStatus = (value: PdiPhaseStatus) =>
+    value === "PendingValidation" || value === "Completed";
+
+  const currentPhaseStatus = (() => {
+    if (!structure || !form || form.kind !== "phase" || !form.id) return null;
+    for (const objective of structure.objectives)
+      for (const strategy of objective.strategies)
+        for (const phase of strategy.phases)
+          if (phase.id === form.id) return phase.status;
+    return null;
+  })();
+
+  const phaseStatusOptions = PDI_PHASE_STATUS_OPTIONS.filter((option) => {
+    if (isAdmin) return true;
+    if (isGovernanceStatus(option.value) || isGovernanceStatus(currentPhaseStatus ?? "NotStarted"))
+      return option.value === currentPhaseStatus;
+    return true;
+  });
 
   const renderActivity = (phase: PdiPhaseNode, activity: PdiActivityNode) => (
     <div
@@ -564,6 +651,28 @@ export function PdiStructureDialog({
           </span>
         )}
         <span style={{ flex: 1 }} />
+        {canSubmitPhase && phase.status === "InProgress" && (
+          <Button variant="ghost" onClick={() => void submitPhase(phase)}>
+            Concluir
+          </Button>
+        )}
+        {canValidatePhase && phase.status === "PendingValidation" && (
+          <>
+            <Button variant="ghost" onClick={() => void approvePhase(phase)}>
+              Validar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRejectReason("");
+                setRejectError(null);
+                setRejectPhase(phase);
+              }}
+            >
+              Rejeitar
+            </Button>
+          </>
+        )}
         <Button
           variant="ghost"
           onClick={() => setAccompaniedPhase(phase)}
@@ -1004,7 +1113,7 @@ export function PdiStructureDialog({
                           status: value as PdiPhaseStatus,
                         })
                       }
-                      options={[...PDI_PHASE_STATUS_OPTIONS]}
+                      options={[...phaseStatusOptions]}
                       aria-label="Status da fase"
                     />
                   </FormField>
@@ -1231,6 +1340,48 @@ export function PdiStructureDialog({
             </div>
           </form>
         </div>
+      </Dialog>
+
+      <Dialog
+        visible={rejectPhase !== null}
+        onHide={() => setRejectPhase(null)}
+        header={`Rejeitar fase · ${rejectPhase?.title ?? ""}`}
+        width={460}
+      >
+        <form
+          onSubmit={(event) => void rejectSubmit(event)}
+          style={{ display: "flex", flexDirection: "column", gap: 12 }}
+        >
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            A fase volta para "Em andamento" e o motivo fica no histórico
+            (§15 — aprovação de fase).
+          </div>
+          <FormField label="Motivo da rejeição">
+            <textarea
+              value={rejectReason}
+              onChange={(event) => setRejectReason(event.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Ex.: faltam as evidências do curso."
+              style={textAreaStyle}
+            />
+          </FormField>
+          {rejectError && <FormError message={rejectError} />}
+          <div
+            style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
+          >
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setRejectPhase(null)}
+            >
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" disabled={rejectSaving}>
+              {rejectSaving ? "Rejeitando…" : "Rejeitar"}
+            </Button>
+          </div>
+        </form>
       </Dialog>
 
       <ConfirmDialog

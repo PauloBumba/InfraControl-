@@ -13,12 +13,26 @@ import {
   PDI_STATUS_LABEL,
   PDI_STATUS_OPTIONS,
   PDI_STATUS_STYLE,
+  getPdiDashboard,
+  getPdiManagerDashboard,
+  getPdiAdminDashboard,
   type Pdi,
+  type PdiAdminDashboard,
+  type PdiDashboard,
   type PdiHistoryEntry,
+  type PdiManagerDashboard,
+  type PdiManagerPlan,
   type PdiStatus,
 } from "@/services/api/pdi";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { PdiStructureDialog } from "@/components/pdi/PdiStructureDialog";
+import { PdiEvaluationDialog } from "@/components/pdi/PdiEvaluationDialog";
+import { PdiReportsDialog } from "@/components/pdi/PdiReportsDialog";
+import {
+  PdiAdminDashboardPanel,
+  PdiManagerDashboardPanel,
+  PdiOwnDashboardPanel,
+} from "@/components/pdi/PdiDashboardPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
@@ -34,11 +48,14 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
  * ADR-029). Ciclo de 9 estados: o seletor de status mostra só os
  * próximos estados válidos (tabela docs/30 §3 — backend revalida);
  * Admin define gestor/período e transiciona tudo, Operador só edita
- * campos e o aceite (AwaitingAcceptance → Active); motivo opcional vira
- * entrada do timeline (histórico por plano). Criação é exclusiva do
- * Admin e começa em Rascunho. Rota nível `operate` (Viewer não
- * alcança). Datas em `yyyy-MM-dd` (DateOnly) formatadas à mão para não
- * sofrer deslocamento de fuso do `Date`.
+ * campos e o aceite (AwaitingAcceptance → Active). §14 (Fase 5,
+ * ADR-035): mudar campos (estratégia/prazo/gestor/período) exige o
+ * motivo — obrigatório no formulário, com valor anterior → novo no
+ * timeline; transição de status sozinha mantém o motivo opcional
+ * (§15 aceite). Criação é exclusiva do Admin e começa em Rascunho.
+ * Rota nível `operate` (Viewer não alcança). Datas em `yyyy-MM-dd`
+ * (DateOnly) formatadas à mão para não sofrer deslocamento de fuso do
+ * `Date`.
  */
 function messageFor(error: unknown): string {
   return error instanceof Error
@@ -80,7 +97,7 @@ export function PdiPage() {
   // Dialog unificado: criar (admin, com dono) e editar (admin ou dono).
   const [dialogVisible, setDialogVisible] = useState(false);
   const [editUserId, setEditUserId] = useState<string | null>(null);
-  const [originalStatus, setOriginalStatus] = useState<PdiStatus | null>(null);
+  const [original, setOriginal] = useState<Pdi | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [ownerId, setOwnerId] = useState("");
   const [strategy, setStrategy] = useState("");
@@ -103,6 +120,20 @@ export function PdiPage() {
   // Estrutura do desenvolvimento (docs/30 §5-§8, Fase 2).
   const [structurePlan, setStructurePlan] = useState<Pdi | null>(null);
 
+  // Avaliação final (docs/30 §15.3/§16, Fase 6).
+  const [evaluationPlan, setEvaluationPlan] = useState<Pdi | null>(null);
+
+  // Relatórios/indicadores (docs/30 §21, §22 — Fase 8, ADR-038).
+  const [reportsVisible, setReportsVisible] = useState(false);
+
+  // Dashboards (docs/30 §18-§20, Fase 7) — painéis opcionais: um erro
+  // em um deles não derruba a página.
+  const [ownDashboard, setOwnDashboard] = useState<PdiDashboard | null>(null);
+  const [managerDashboard, setManagerDashboard] =
+    useState<PdiManagerDashboard | null>(null);
+  const [adminDashboard, setAdminDashboard] =
+    useState<PdiAdminDashboard | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -119,9 +150,33 @@ export function PdiPage() {
     void load();
   }, [load]);
 
+  const ownPdiId = !isAdmin ? (items[0]?.userId ?? null) : null;
+
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    void (async () => {
+      const loadOwn = ownPdiId
+        ? getPdiDashboard(ownPdiId).catch(() => null)
+        : Promise.resolve(null);
+      const [own, managed, admin] = await Promise.all([
+        loadOwn,
+        getPdiManagerDashboard().catch(() => null),
+        isAdmin ? getPdiAdminDashboard().catch(() => null) : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+      setOwnDashboard(own);
+      setManagerDashboard(managed);
+      setAdminDashboard(admin);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, ownPdiId, isAdmin]);
+
   const resetDialog = () => {
     setEditUserId(null);
-    setOriginalStatus(null);
+    setOriginal(null);
     setStrategy("");
     setTargetDate("");
     setStatus("Draft");
@@ -146,7 +201,7 @@ export function PdiPage() {
   const openEdit = async (plan: Pdi) => {
     resetDialog();
     setEditUserId(plan.userId);
-    setOriginalStatus(plan.status);
+    setOriginal(plan);
     setStrategy(plan.strategy);
     setTargetDate(plan.targetDate);
     setStatus(plan.status);
@@ -178,15 +233,29 @@ export function PdiPage() {
     }
   };
 
-  const statusOptions = originalStatus
+  const statusOptions = original
     ? PDI_STATUS_OPTIONS.filter(
         (option) =>
-          option.value === originalStatus ||
-          PDI_NEXT_STATUS[originalStatus].includes(option.value),
+          option.value === original.status ||
+          PDI_NEXT_STATUS[original.status].includes(option.value),
       )
     : PDI_STATUS_OPTIONS;
 
-  const showReason = originalStatus !== null && status !== originalStatus;
+  const statusChanged = !!original && status !== original.status;
+
+  // §14 (Fase 5): campos alterados ⇒ motivo obrigatório. Gestor/período
+  // só o Admin envia (o Operador nem inclui no payload).
+  const fieldsChanged =
+    !!original &&
+    (strategy !== original.strategy ||
+      targetDate !== original.targetDate ||
+      (isAdmin &&
+        (managerId !== (original.managerId ?? "") ||
+          periodStart !== (original.periodStart ?? "") ||
+          periodEnd !== (original.periodEnd ?? ""))));
+
+  const needsReason = fieldsChanged;
+  const showReason = fieldsChanged || statusChanged;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -201,6 +270,10 @@ export function PdiPage() {
     }
     if (periodStart && periodEnd && periodEnd < periodStart) {
       setFormError("O fim do período não pode ser anterior ao início.");
+      return;
+    }
+    if (needsReason && !reason.trim()) {
+      setFormError("O motivo da alteração é obrigatório.");
       return;
     }
     setSaving(true);
@@ -218,7 +291,7 @@ export function PdiPage() {
         payload.periodStart = periodStart || null;
         payload.periodEnd = periodEnd || null;
       }
-      if (showReason && reason.trim()) payload.reason = reason.trim();
+      if (reason.trim()) payload.reason = reason.trim();
       await upsertPdi(targetUserId, payload);
       setDialogVisible(false);
       await load();
@@ -230,6 +303,37 @@ export function PdiPage() {
   };
 
   const ownPdi: Pdi | null = isAdmin ? null : (items[0] ?? null);
+
+  // §19 — "acesso direto aos casos": abre o diálogo de avaliação do
+  // plano gerenciado (leitura permitida ao gestor — ADR-037).
+  const openManagedPlan = (plan: PdiManagerPlan) => {
+    const known = items.find((item) => item.userId === plan.userId);
+    if (known) {
+      setEvaluationPlan(known);
+      return;
+    }
+    setEvaluationPlan({
+      userId: plan.userId,
+      ownerName: plan.ownerName,
+      ownerEmail: "",
+      strategy: "",
+      targetDate: plan.targetDate,
+      status: plan.status,
+      managerId: user?.id ?? null,
+      managerName: null,
+      periodStart: null,
+      periodEnd: null,
+      updateDateTime: new Date().toISOString(),
+    });
+  };
+
+  const managerPanel =
+    managerDashboard && managerDashboard.totalPlans > 0 ? (
+      <PdiManagerDashboardPanel
+        dashboard={managerDashboard}
+        onOpenPlan={openManagedPlan}
+      />
+    ) : null;
 
   const statusChip = (value: PdiStatus) => (
     <StatusChip
@@ -272,6 +376,9 @@ export function PdiPage() {
       <Button variant="ghost" onClick={() => setStructurePlan(plan)}>
         Estrutura
       </Button>
+      <Button variant="ghost" onClick={() => setEvaluationPlan(plan)}>
+        Avaliar
+      </Button>
       <Button variant="ghost" onClick={() => void openHistory(plan)}>
         Histórico
       </Button>
@@ -304,19 +411,31 @@ export function PdiPage() {
         }
         actions={
           isAdmin ? (
-            <Button variant="primary" onClick={() => void openCreate()}>
-              <i className="pi pi-plus" style={{ fontSize: 11 }} />
-              Novo PDI
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="ghost" onClick={() => setReportsVisible(true)}>
+                Relatórios
+              </Button>
+              <Button variant="primary" onClick={() => void openCreate()}>
+                <i className="pi pi-plus" style={{ fontSize: 11 }} />
+                Novo PDI
+              </Button>
+            </div>
           ) : undefined
         }
       />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
+<<<<<<< HEAD
       {notice && (
         <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />
       )}
+=======
+      {!loading && adminDashboard && (
+        <PdiAdminDashboardPanel dashboard={adminDashboard} />
+      )}
+      {!loading && managerPanel}
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
       {loading ? (
         <LoadingBlock />
@@ -366,8 +485,14 @@ export function PdiPage() {
             <div style={{ fontWeight: 600 }}>Meu plano</div>
             <div className="flex align-items-center gap-2">
               {statusChip(ownPdi.status)}
+              <Button variant="ghost" onClick={() => setReportsVisible(true)}>
+                Relatório
+              </Button>
               <Button variant="ghost" onClick={() => setStructurePlan(ownPdi)}>
                 Estrutura
+              </Button>
+              <Button variant="ghost" onClick={() => setEvaluationPlan(ownPdi)}>
+                Avaliar
               </Button>
               <Button variant="ghost" onClick={() => void openHistory(ownPdi)}>
                 Histórico
@@ -394,6 +519,7 @@ export function PdiPage() {
           <div style={{ fontSize: 12, color: "#64748b" }}>
             Atualizado em {formatDateTime(new Date(ownPdi.updateDateTime))}
           </div>
+          {ownDashboard && <PdiOwnDashboardPanel dashboard={ownDashboard} />}
         </div>
       ) : (
         <NoticeBanner
@@ -466,13 +592,19 @@ export function PdiPage() {
           </div>
 
           {showReason && (
-            <FormField label="Motivo da transição (opcional)">
+            <FormField
+              label={
+                needsReason
+                  ? "Motivo da alteração"
+                  : "Motivo da transição (opcional)"
+              }
+            >
               <input
                 type="text"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 maxLength={500}
-                placeholder="Ex.: aprovado pelo gestor no ciclo semestral."
+                placeholder="Ex.: replanejado com o gestor no ciclo semestral."
                 style={dateInputStyle}
               />
             </FormField>
@@ -567,7 +699,11 @@ export function PdiPage() {
                   {entry.actorName ?? "Usuário removido"} · {formatDateTime(new Date(entry.occurredAt))}
                 </div>
                 {entry.detail && (
-                  <div style={{ fontSize: 12, color: "#334155" }}>Campos: {entry.detail}</div>
+                  <div style={{ fontSize: 12, color: "#334155" }}>
+                    {entry.type === "Updated"
+                      ? `Campos: ${entry.detail}`
+                      : entry.detail}
+                  </div>
                 )}
                 {entry.reason && (
                   <div style={{ fontSize: 12, color: "#334155" }}>Motivo: {entry.reason}</div>
@@ -578,10 +714,26 @@ export function PdiPage() {
         )}
       </Dialog>
 
+      <PdiReportsDialog
+        visible={reportsVisible}
+        onHide={() => setReportsVisible(false)}
+        isAdmin={isAdmin}
+        plans={items}
+        ownUserId={ownPdi?.userId ?? null}
+      />
+
       <PdiStructureDialog
         visible={structurePlan !== null}
         onHide={() => setStructurePlan(null)}
         plan={structurePlan}
+        isAdmin={isAdmin}
+        currentUserId={user?.id ?? null}
+      />
+
+      <PdiEvaluationDialog
+        visible={evaluationPlan !== null}
+        onHide={() => setEvaluationPlan(null)}
+        plan={evaluationPlan}
         isAdmin={isAdmin}
         currentUserId={user?.id ?? null}
       />

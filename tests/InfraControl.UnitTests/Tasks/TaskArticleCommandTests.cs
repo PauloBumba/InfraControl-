@@ -54,7 +54,7 @@ public sealed class TaskArticleCommandTests : IDisposable
 
         var article = KnowledgeArticle.Create(
             "Configuração SNMP de impressoras",
-            "Procedimento de configuração SNMP.", null);
+            "Procedimento de configuração SNMP.", null, "Configuração");
         context.KnowledgeArticles.Add(article);
         await context.SaveChangesAsync();
         return (task.Id, article.Id);

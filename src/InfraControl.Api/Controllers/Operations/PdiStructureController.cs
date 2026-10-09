@@ -13,7 +13,8 @@ namespace InfraControl.Api.Controllers.Operations;
 /// <summary>
 /// Estrutura do desenvolvimento (docs/30 §5-§8, Fase 2, ADR-032):
 /// competências (catálogo Admin) + árvore objetivo → estratégia →
-/// fase → atividade. Operate no controller; dono do plano ou Admin no
+/// fase → atividade; aprovação de fase (concluir → validar/rejeitar,
+/// Fase 5, ADR-035). Operate no controller; dono do plano ou Admin no
 /// handler (403); exclusão com children → 409; falhas embrulhadas pelo
 /// GlobalExceptionHandler.
 /// </summary>
@@ -194,6 +195,35 @@ public sealed class PdiStructureController(ISender sender) : BaseController
         Guid id, CancellationToken cancellationToken)
     {
         await sender.Send(new DeletePdiPhaseCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Conclui a fase e envia para validação do gestor (§15 — Fase 5).
+    /// </summary>
+    [HttpPost("phases/{id:guid}/submit")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SubmitPhase(
+        Guid id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new SubmitPdiPhaseCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Valida ou rejeita a fase concluída (§15 — Fase 5); rejeição com
+    /// motivo obrigatório (400 pt-BR) volta a fase para InProgress.
+    /// </summary>
+    [HttpPut("phases/{id:guid}/validation")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ValidatePhase(
+        Guid id,
+        [FromBody] ValidatePdiPhaseViewModel model,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new ValidatePdiPhaseCommand(id, model.Decision, model.Reason),
+            cancellationToken);
         return NoContent();
     }
 

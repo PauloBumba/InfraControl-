@@ -52,6 +52,30 @@ public sealed class PdiRepository(AppDbContext dbContext)
             .ToArray();
     }
 
+    public async Task<IReadOnlyCollection<PdiWithOwner>> ListByManagerAsync(
+        Guid managerId, CancellationToken cancellationToken = default)
+    {
+        var query =
+            from plan in dbContext.IndividualDevelopmentPlans.AsNoTracking()
+            join owner in dbContext.DomainUsers.AsNoTracking()
+                on plan.UserId equals owner.Id
+            where plan.ManagerId == managerId
+            orderby owner.DisplayName
+            select new
+            {
+                Plan = plan,
+                owner.DisplayName,
+                owner.Email
+            };
+
+        var rows = await query.ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new PdiWithOwner(
+                row.Plan, row.DisplayName, row.Email, ManagerName: null))
+            .ToArray();
+    }
+
     public async Task<PlanOwner?> GetOwnerAsync(
         Guid userId, CancellationToken cancellationToken = default)
         => await dbContext.DomainUsers

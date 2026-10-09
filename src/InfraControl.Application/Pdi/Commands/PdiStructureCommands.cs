@@ -27,8 +27,9 @@ public sealed record CreatePdiObjectiveCommand(
     string? DesiredSituation = null,
     string? ExpectedResult = null,
     string? Indicator = null,
-    DateOnly? TargetDate = null) : BaseCommand<PdiObjectiveNodeDto>, IAuthorizedRequest
+    DateOnly? TargetDate = null) : BaseCommand<PdiObjectiveNodeDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -88,8 +89,9 @@ public sealed record UpdatePdiObjectiveCommand(
     string? DesiredSituation = null,
     string? ExpectedResult = null,
     string? Indicator = null,
-    DateOnly? TargetDate = null) : BaseCommand, IAuthorizedRequest
+    DateOnly? TargetDate = null) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -129,8 +131,9 @@ public sealed class UpdatePdiObjectiveCommandHandler(
     }
 }
 
-public sealed record DeletePdiObjectiveCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiObjectiveCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -170,8 +173,9 @@ public sealed class DeletePdiObjectiveCommandHandler(
 public sealed record CreatePdiStrategyCommand(
     Guid ObjectiveId,
     string Title,
-    string? Description = null) : BaseCommand<PdiStrategyNodeDto>, IAuthorizedRequest
+    string? Description = null) : BaseCommand<PdiStrategyNodeDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -210,8 +214,9 @@ public sealed class CreatePdiStrategyCommandHandler(
 public sealed record UpdatePdiStrategyCommand(
     Guid Id,
     string Title,
-    string? Description = null) : BaseCommand, IAuthorizedRequest
+    string? Description = null) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -242,8 +247,9 @@ public sealed class UpdatePdiStrategyCommandHandler(
     }
 }
 
-public sealed record DeletePdiStrategyCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiStrategyCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -289,8 +295,9 @@ public sealed record CreatePdiPhaseCommand(
     DateOnly? EndDate = null,
     string? CompletionCriteria = null,
     string Status = "NotStarted",
-    int Percent = 0) : BaseCommand<PdiPhaseNodeDto>, IAuthorizedRequest
+    int Percent = 0) : BaseCommand<PdiPhaseNodeDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -335,7 +342,7 @@ public sealed class CreatePdiPhaseCommandHandler(
         if (!Enum.TryParse<PdiPhaseStatus>(status, ignoreCase: true, out var parsed)
             || !Enum.IsDefined(parsed))
             throw new ArgumentException(
-                "Status da fase inválido (use NotStarted, InProgress ou Completed).",
+                "Status da fase inválido (use NotStarted, InProgress, PendingValidation ou Completed).",
                 nameof(status));
         return parsed;
     }
@@ -368,8 +375,9 @@ public sealed record UpdatePdiPhaseCommand(
     DateOnly? EndDate = null,
     string? CompletionCriteria = null,
     string Status = "NotStarted",
-    int Percent = 0) : BaseCommand, IAuthorizedRequest
+    int Percent = 0) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -392,6 +400,21 @@ public sealed class UpdatePdiPhaseCommandHandler(
             ?? throw new KeyNotFoundException($"Fase '{request.Id}' não encontrada.");
 
         var status = CreatePdiPhaseCommandHandler.ParseStatus(request.Status);
+
+        // Aprovação de fase (§15 — Fase 5, ADR-035): PendingValidation e
+        // Completed só entram/saem pelo fluxo (submit/validate) — o PUT
+        // genérico não é atalho do não-Admin para concluir nem para
+        // rebaixar status de governance (no-op do status vigente ok).
+        if (!PdiAccess.IsAdmin(currentUser)
+            && status != phase.Status
+            && (status is PdiPhaseStatus.PendingValidation
+                    or PdiPhaseStatus.Completed
+                || phase.Status is PdiPhaseStatus.PendingValidation
+                    or PdiPhaseStatus.Completed))
+            throw new ArgumentException(
+                "A conclusão e a reabertura de fase exigem o fluxo de aprovação.",
+                nameof(status));
+
         _ = await CreatePdiPhaseCommandHandler.ResolveResponsibleAsync(
             plans, request.ResponsibleId, cancellationToken);
 
@@ -406,8 +429,9 @@ public sealed class UpdatePdiPhaseCommandHandler(
     }
 }
 
-public sealed record DeletePdiPhaseCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiPhaseCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -441,14 +465,127 @@ public sealed class DeletePdiPhaseCommandHandler(
 }
 
 // ------------------------------------------------------------------
+// Aprovação de fase (§15 — Fase 5, ADR-035)
+// ------------------------------------------------------------------
+
+public sealed record SubmitPdiPhaseCommand(
+    Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
+{
+    public string AuditResource => "PDI";
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class SubmitPdiPhaseCommandHandler(
+    IPdiStructureRepository repository,
+    IPdiRepository plans,
+    ICurrentUserContext currentUser,
+    ILogger<SubmitPdiPhaseCommandHandler> logger)
+    : IRequestHandler<SubmitPdiPhaseCommand>
+{
+    public async Task Handle(
+        SubmitPdiPhaseCommand request, CancellationToken cancellationToken)
+    {
+        var plan = await PdiStructureLookup.PlanForPhaseAsync(
+            repository, plans, request.Id, cancellationToken);
+        PdiAccess.EnsureCanReport(currentUser, plan);
+
+        var phase = await repository.GetPhaseAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Fase '{request.Id}' não encontrada.");
+
+        phase.Submit();
+
+        plan.RecordPhaseSubmitted(currentUser.UserId!.Value, phase.Title);
+        plans.AddHistoryRange(plan.DrainPendingHistory());
+        await repository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "PDI phase {Id} submitted for validation by {UserId}.",
+            phase.Id, currentUser.UserId);
+    }
+}
+
+public sealed record ValidatePdiPhaseCommand(
+    Guid Id,
+    PdiPhaseValidationDecision Decision,
+    string? Reason = null) : BaseCommand, IAuthorizedRequest, IAuditableRequest
+{
+    public string AuditResource => "PDI";
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class ValidatePdiPhaseCommandHandler(
+    IPdiStructureRepository repository,
+    IPdiRepository plans,
+    ICurrentUserContext currentUser,
+    ILogger<ValidatePdiPhaseCommandHandler> logger)
+    : IRequestHandler<ValidatePdiPhaseCommand>
+{
+    public async Task Handle(
+        ValidatePdiPhaseCommand request, CancellationToken cancellationToken)
+    {
+        var plan = await PdiStructureLookup.PlanForPhaseAsync(
+            repository, plans, request.Id, cancellationToken);
+        PdiAccess.EnsureCanValidatePhase(currentUser, plan);
+
+        var phase = await repository.GetPhaseAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Fase '{request.Id}' não encontrada.");
+
+        if (request.Decision == PdiPhaseValidationDecision.Rejected)
+        {
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                throw new ArgumentException(
+                    "O motivo da rejeição da fase é obrigatório.",
+                    nameof(request.Reason));
+
+            phase.Reject();
+            plan.RecordPhaseRejected(
+                currentUser.UserId!.Value, phase.Title, request.Reason);
+        }
+        else if (request.Decision == PdiPhaseValidationDecision.Validated)
+        {
+            phase.Validate();
+            plan.RecordPhaseValidated(currentUser.UserId!.Value, phase.Title);
+
+            // Validada → a próxima fase (ordem) começa automaticamente (§15).
+            var phases = await repository.ListPhasesAsync(
+                phase.StrategyId, cancellationToken);
+            var next = phases.FirstOrDefault(
+                candidate => candidate.Status == PdiPhaseStatus.NotStarted);
+
+            if (next is not null)
+            {
+                next.Start();
+                plan.RecordPhaseStarted(currentUser.UserId!.Value, next.Title);
+            }
+        }
+        else
+        {
+            throw new ArgumentException(
+                "A decisão de validação da fase é inválida.",
+                nameof(request.Decision));
+        }
+
+        plans.AddHistoryRange(plan.DrainPendingHistory());
+        await repository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "PDI phase {Id} {Decision} by {UserId}.",
+            phase.Id, request.Decision, currentUser.UserId);
+    }
+}
+
+// ------------------------------------------------------------------
 // Atividades
 // ------------------------------------------------------------------
 
 public sealed record CreatePdiActivityCommand(
     Guid PhaseId,
     string Title,
-    DateOnly? DueDate = null) : BaseCommand<PdiActivityNodeDto>, IAuthorizedRequest
+    DateOnly? DueDate = null) : BaseCommand<PdiActivityNodeDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -489,8 +626,9 @@ public sealed record UpdatePdiActivityCommand(
     Guid Id,
     string Title,
     DateOnly? DueDate = null,
-    bool Completed = false) : BaseCommand, IAuthorizedRequest
+    bool Completed = false) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }
@@ -520,8 +658,9 @@ public sealed class UpdatePdiActivityCommandHandler(
     }
 }
 
-public sealed record DeletePdiActivityCommand(Guid Id) : BaseCommand, IAuthorizedRequest
+public sealed record DeletePdiActivityCommand(Guid Id) : BaseCommand, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }

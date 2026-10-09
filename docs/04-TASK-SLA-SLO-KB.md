@@ -576,6 +576,7 @@ nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
 404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
 Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
 
+<<<<<<< HEAD
 ### Identificação (F24-T001/K1)
 
 Spec `docs/32` §5–§6 — campos de identificação do artigo (Fase 24):
@@ -818,6 +819,75 @@ filtro não sumir), chips dos 14 tipos (clicar de novo limpa) e chip da
 tag ativa; **a tag e o "Autor:" dos cards viraram botões de filtro**;
 o "Limpar" do header agora zera tudo (term, revisões e os novos).
 Mudança de filtro volta para a página 1.
+=======
+### Tipos e identificação (F24-T001/K1)
+
+Identificação do artigo (docs/32 §5–§6) — colunas novas em
+`knowledge_articles` + tabela `knowledge_article_tags` (migration
+`AddKnowledgeArticleIdentification`, colunas **nullable**: artigos
+legados ficam sem tipo até a primeira edição, e o `PUT` passa a exigir):
+
+- **`type`** (50): conjunto fechado dos **14 tipos** de §5 —
+  "Procedimento", "Manual", "Guia", "FAQ", "Solução conhecida",
+  "Configuração", "Documentação técnica", "Boas práticas", "Política",
+  "Norma interna", "Troubleshooting", "Conhecimento de sistema",
+  "Conhecimento de infraestrutura", "Conhecimento operacional".
+  Obrigatório no `POST`/`PUT` (VM `[Required]` → 400 pt-BR); fora do
+  conjunto = 400 `Tipo inválido: 'X'. Use: 'Procedimento', ...`
+  (case-insensitive → valor canônico; precedente do status F10-T003).
+- **`description`** (500, opcional) — VM `[MaxLength]` → 400 pt-BR.
+- **`author_id`**: automático no Create (= usuário autenticado via
+  `ICurrentUserContext`), não vem do cliente e é **imutável**.
+- **`responsible_id`**: editável no `POST`/`PUT`; inexistente = 404
+  `Usuário '{id}' não encontrado.` (precedente F23-T001).
+- **tags** (`knowledge_article_tags`, PK `(article_id, tag)`, FK
+  cascade): no máximo **10** de **30 chars**, trim + lowercase +
+  dedupe case-insensitive — limites no domínio → 400 pt-BR; o `PUT`
+  **substitui o conjunto inteiro** (diff por instância, sem conflito
+  de chave no EF).
+
+`GET`/busca devolvem `type`, `description`, `tags`, `authorId`/
+`responsibleId` + `authorName`/`responsibleName` resolvidos em lote
+(join em DomainUsers — 1 chamada por request, sem N+1). Front:
+catálogo único em `components/knowledge/knowledgeCatalogs.ts` (os 14),
+form de criação com tipo (obrigatório)/responsável (`listUsers` com
+fallback 403)/descrição/tags (chips) e card com chip de tipo, chips de
+tags e assinatura "por X · resp. Y".
+
+### Publicação e workflow (F10-T003, F24-T002/K2)
+
+Transições de status em `POST api/v1/knowledge/articles/{id}/status`
+(corpo `{"status": "..."}`, `RoleAccess.Operate`, 200 devolve o artigo
+com o status novo). Workflow editorial de **8 estados** (ADR-039,
+docs/32 §7; o enum viaja como **número** no JSON — os valores 0–2 do
+F10-T003 ficam fixos e os novos entram por append):
+
+```text
+RASCUNHO (0)    → EM REVISÃO (3)
+EM REVISÃO (3)  → APROVADA (4) | ATUALIZADA (5) | REJEITADA (7)
+APROVADA (4)    → PUBLICADA (1)
+PUBLICADA (1)   → EM REVISÃO (3) | ARQUIVADA (2) | OBSOLETA (6)
+ATUALIZADA (5)  → EM REVISÃO (3) | ARQUIVADA (2) | OBSOLETA (6)
+ARQUIVADA (2) / OBSOLETA (6) / REJEITADA (7) → RASCUNHO (0)
+```
+
+Qualquer outra transição (incluindo repetir o mesmo estado) = **409**
+`Transição inválida: 'X' → 'Y'.` com **rótulos pt-BR** (ex.:
+`Transição inválida: 'Rascunho' → 'Arquivada'.` — o ciclo antigo
+`Draft → Published` **não existe mais**: publicar exige revisão). Status
+fora do enum (string desconhecida **ou numérico**, ex.: `"99"`) = **400**
+`Status inválido: 'X'. Use 'draft', 'inReview', 'approved', 'published',
+'updated', 'archived', 'obsolete' ou 'rejected'.` (case-insensitive).
+
+**Estados não publicados só para quem escreve**: para quem não tem
+nível de escrita (ADR-016 ≡ `RoleAccess.Operate`), a busca exclui
+`Rascunho`, `Em revisão`, `Aprovada` e `Rejeitada` e o `GET/{id}` deles
+responde **404 como se não existisse** — não vaza o que está em
+revisão. `Publicada`/`Atualizada`/`Arquivada`/`Obsoleta` continuam
+visíveis para todo mundo com `RoleAccess.Read`. Front: chips dos 8
+rótulos em `components/knowledge/knowledgeCatalogs.ts`
+(`articleStatusConfig`); troca de estado é **via API** (sem UI).
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
 ### Relacionamentos (F10-T004)
 

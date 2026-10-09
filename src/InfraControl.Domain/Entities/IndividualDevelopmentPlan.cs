@@ -89,26 +89,40 @@ public sealed class IndividualDevelopmentPlan : AggregateRoot
             PeriodStart,
             PeriodEnd);
 
-        Apply(changes);
+        // Validações puras (mesmas mensagens do Create) antes de cobrar
+        // o motivo — precedence de erro preservada, estado intacto.
+        var normalizedStrategy = RequireStrategy(changes.Strategy);
+        EnsureValid(changes);
+
+        // §14 (Fase 5, ADR-035): mudar campos exige motivo; transição
+        // de status sozinha mantém o motivo opcional (§15 aceite).
+        var fieldChanges = DescribeFieldChanges(
+            before.Strategy, before.TargetDate, before.ManagerId,
+            before.PeriodStart, before.PeriodEnd,
+            normalizedStrategy, changes);
+
+        if (fieldChanges.Count > 0 && string.IsNullOrWhiteSpace(changes.Reason))
+            throw new ArgumentException(
+                "O motivo da alteração é obrigatório.", nameof(changes));
+
+        Strategy = normalizedStrategy;
+        TargetDate = changes.TargetDate;
+        Status = changes.Status;
+        ManagerId = changes.ManagerId;
+        PeriodStart = changes.PeriodStart;
+        PeriodEnd = changes.PeriodEnd;
+        Touch();
 
         if (changes.Status != before.Status)
             _pendingHistory.Add(PdiHistoryEntry.ForStatusChanged(
                 UserId, before.Status, changes.Status, actor.Id,
                 changes.Reason));
 
-        List<string>? changed = null;
-        if (Strategy != before.Strategy)
-            (changed ??= []).Add("estratégia");
-        if (TargetDate != before.TargetDate)
-            (changed ??= []).Add("prazo");
-        if (ManagerId != before.ManagerId)
-            (changed ??= []).Add("gestor");
-        if (PeriodStart != before.PeriodStart || PeriodEnd != before.PeriodEnd)
-            (changed ??= []).Add("período");
-
-        if (changed is not null)
+        if (fieldChanges.Count > 0)
             _pendingHistory.Add(PdiHistoryEntry.ForUpdated(
-                UserId, actor.Id, string.Join(", ", changed)));
+                UserId, actor.Id,
+                detail: string.Join("; ", fieldChanges),
+                reason: changes.Reason));
 
         RaiseDomainEvent(new PdiUpdatedDomainEvent(
             UserId, TargetDate, Status,
@@ -129,10 +143,101 @@ public sealed class IndividualDevelopmentPlan : AggregateRoot
         return drained;
     }
 
+    /// <summary>Evidência anexada a uma fase (docs/30 §12, §17 — Fase 4).</summary>
+    public void RecordEvidenceAdded(
+        Guid actorId, PdiEvidenceType type, string? description)
+    {
+        var detail = description is null
+            ? $"evidência anexada: {type.ToDisplayLabel()}"
+            : $"evidência anexada: {type.ToDisplayLabel()} — {description}";
+
+        _pendingHistory.Add(PdiHistoryEntry.ForEvidenceAdded(
+            UserId, actorId, detail));
+    }
+
+    /// <summary>Evidência revisada pelo gestor (§12 — validada/rejeitada).</summary>
+    public void RecordEvidenceReviewed(
+        Guid actorId, bool approved, string? rejectionReason)
+    {
+        _pendingHistory.Add(PdiHistoryEntry.ForEvidenceReviewed(
+            UserId, actorId,
+            approved ? "validada" : "rejeitada",
+            approved ? null : rejectionReason));
+    }
+
+    /// <summary>Fase iniciada (auto-start da próxima ao validar, §15/§17 — Fase 5).</summary>
+    public void RecordPhaseStarted(Guid actorId, string phaseTitle)
+        => _pendingHistory.Add(PdiHistoryEntry.ForPhaseEvent(
+            UserId, actorId, PdiHistoryType.PhaseStarted,
+            $"fase iniciada: {phaseTitle}"));
+
+    /// <summary>Fase concluída e enviada para validação pelo dono (§15 — Fase 5).</summary>
+    public void RecordPhaseSubmitted(Guid actorId, string phaseTitle)
+        => _pendingHistory.Add(PdiHistoryEntry.ForPhaseEvent(
+            UserId, actorId, PdiHistoryType.PhaseSubmitted,
+            $"fase concluída e enviada para validação: {phaseTitle}"));
+
+    /// <summary>Fase validada pelo gestor (§15 — Fase 5).</summary>
+    public void RecordPhaseValidated(Guid actorId, string phaseTitle)
+        => _pendingHistory.Add(PdiHistoryEntry.ForPhaseEvent(
+            UserId, actorId, PdiHistoryType.PhaseValidated,
+            $"fase validada: {phaseTitle}"));
+
+    /// <summary>Fase rejeitada pelo gestor — motivo obrigatório (§15 — Fase 5).</summary>
+    public void RecordPhaseRejected(
+        Guid actorId, string phaseTitle, string reason)
+        => _pendingHistory.Add(PdiHistoryEntry.ForPhaseEvent(
+            UserId, actorId, PdiHistoryType.PhaseRejected,
+            $"fase rejeitada: {phaseTitle}", reason));
+
+    /// <summary>Check-in registrado na fase (§17 — Fase 5).</summary>
+    public void RecordCheckInCreated(
+        Guid actorId, DateOnly checkInDate, string whatDone)
+        => _pendingHistory.Add(PdiHistoryEntry.ForCheckInCreated(
+            UserId, actorId,
+            $"check-in de {checkInDate:yyyy-MM-dd}: {whatDone}"));
+
+    /// <summary>Impedimento registrado (§17 — Fase 5).</summary>
+    public void RecordImpedimentCreated(
+        Guid actorId, string type, string description)
+        => _pendingHistory.Add(PdiHistoryEntry.ForImpediment(
+            UserId, actorId, PdiHistoryType.ImpedimentCreated,
+            $"impedimento registrado ({type}): {description}"));
+
+    /// <summary>Impedimento resolvido (§17 — Fase 5).</summary>
+    public void RecordImpedimentResolved(Guid actorId, string description)
+        => _pendingHistory.Add(PdiHistoryEntry.ForImpediment(
+            UserId, actorId, PdiHistoryType.ImpedimentResolved,
+            $"impedimento resolvido: {description}"));
+
+    /// <summary>Avaliação registrada — autoavaliação ou do gestor (§15.3/§17 — Fase 6).</summary>
+    public void RecordAssessmentCreated(Guid actorId, PdiAssessmentSide side)
+        => _pendingHistory.Add(PdiHistoryEntry.ForAssessmentCreated(
+            UserId, actorId,
+            side == PdiAssessmentSide.Self
+                ? "autoavaliação"
+                : "avaliação do gestor"));
+
+    /// <summary>Resultado final definido (§16/§17 — Fase 6).</summary>
+    public void RecordResultFinalized(Guid actorId, PdiResultOutcome outcome)
+        => _pendingHistory.Add(PdiHistoryEntry.ForResultFinalized(
+            UserId, actorId, outcome.ToDisplayLabel()));
+
     private void Apply(PdiChanges changes)
     {
         Strategy = RequireStrategy(changes.Strategy);
+        EnsureValid(changes);
 
+        TargetDate = changes.TargetDate;
+        Status = changes.Status;
+        ManagerId = changes.ManagerId;
+        PeriodStart = changes.PeriodStart;
+        PeriodEnd = changes.PeriodEnd;
+        Touch();
+    }
+
+    private static void EnsureValid(PdiChanges changes)
+    {
         if (changes.TargetDate == default)
             throw new ArgumentException(
                 "O prazo do PDI é obrigatório.", nameof(changes));
@@ -146,14 +251,54 @@ public sealed class IndividualDevelopmentPlan : AggregateRoot
             throw new ArgumentException(
                 "O fim do período do PDI não pode ser anterior ao início.",
                 nameof(changes.PeriodEnd));
-
-        TargetDate = changes.TargetDate;
-        Status = changes.Status;
-        ManagerId = changes.ManagerId;
-        PeriodStart = changes.PeriodStart;
-        PeriodEnd = changes.PeriodEnd;
-        Touch();
     }
+
+    /// <summary>
+    /// Campos alterados com valor anterior → novo, em pt-BR (§14,
+    /// Fase 5/ADR-035) — base do <c>Detail</c> do histórico
+    /// <c>Updated</c> e da exigência de motivo.
+    /// </summary>
+    private static List<string> DescribeFieldChanges(
+        string beforeStrategy,
+        DateOnly beforeTargetDate,
+        Guid? beforeManagerId,
+        DateOnly? beforePeriodStart,
+        DateOnly? beforePeriodEnd,
+        string normalizedStrategy,
+        PdiChanges changes)
+    {
+        List<string>? changed = null;
+
+        if (!string.Equals(beforeStrategy, normalizedStrategy, StringComparison.Ordinal))
+            (changed ??= []).Add(
+                $"estratégia: \"{TruncateValue(beforeStrategy)}\" → \"{TruncateValue(normalizedStrategy)}\"");
+
+        if (beforeTargetDate != changes.TargetDate)
+            (changed ??= []).Add(
+                $"prazo: {beforeTargetDate:yyyy-MM-dd} → {changes.TargetDate:yyyy-MM-dd}");
+
+        if (beforeManagerId != changes.ManagerId)
+            (changed ??= []).Add(
+                $"gestor: {FormatId(beforeManagerId)} → {FormatId(changes.ManagerId)}");
+
+        if (beforePeriodStart != changes.PeriodStart
+            || beforePeriodEnd != changes.PeriodEnd)
+            (changed ??= []).Add(
+                $"período: {FormatPeriod(beforePeriodStart, beforePeriodEnd)} → {FormatPeriod(changes.PeriodStart, changes.PeriodEnd)}");
+
+        return changed ?? [];
+    }
+
+    private static string TruncateValue(string value)
+        => value.Length <= 80 ? value : value[..79] + "…";
+
+    private static string FormatId(Guid? id)
+        => id?.ToString() ?? "sem gestor";
+
+    private static string FormatPeriod(DateOnly? start, DateOnly? end)
+        => start is null && end is null
+            ? "sem período"
+            : $"{start?.ToString("yyyy-MM-dd") ?? "—"}..{end?.ToString("yyyy-MM-dd") ?? "—"}";
 
     private static string RequireStrategy(string strategy)
     {

@@ -22,8 +22,9 @@ public sealed record UpsertPdiCommand(
     Guid? ManagerId = null,
     DateOnly? PeriodStart = null,
     DateOnly? PeriodEnd = null,
-    string? Reason = null) : BaseCommand<PdiDto>, IAuthorizedRequest
+    string? Reason = null) : BaseCommand<PdiDto>, IAuthorizedRequest, IAuditableRequest
 {
+    public string AuditResource => "PDI";
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
 }

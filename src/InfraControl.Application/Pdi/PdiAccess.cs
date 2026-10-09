@@ -83,6 +83,59 @@ internal static class PdiAccess
             "Você só pode editar o acompanhamento do seu próprio PDI.");
     }
 
+    /// <summary>
+    /// Revisão da evidência (§12 — Fase 4): Admin ou gestor definido
+    /// no plano. O colaborador não revisa o próprio envio (sem gestor
+    /// no plano, só o Admin).
+    /// </summary>
+    internal static void EnsureCanReview(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser))
+            return;
+
+        if (plan.ManagerId is { } managerId && currentUser.UserId == managerId)
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Apenas o gestor ou um administrador pode revisar evidências.");
+    }
+
+    /// <summary>
+    /// Validação/rejeição de fase (§15 — Fase 5): Admin ou o gestor
+    /// definido no plano. O colaborador não valida a própria fase.
+    /// </summary>
+    internal static void EnsureCanValidatePhase(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser))
+            return;
+
+        if (plan.ManagerId is { } managerId && currentUser.UserId == managerId)
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Apenas o gestor ou um administrador pode validar esta fase.");
+    }
+
+    /// <summary>
+    /// Avaliação do gestor e resultado final (§15.3/§16 — Fase 6):
+    /// Admin ou o gestor definido no plano. O colaborador avalia pelo
+    /// lado próprio (Self), nunca pelo lado gestor.
+    /// </summary>
+    internal static void EnsureCanEvaluate(
+        ICurrentUserContext currentUser, IndividualDevelopmentPlan plan)
+    {
+        if (IsAdmin(currentUser))
+            return;
+
+        if (plan.ManagerId is { } managerId && currentUser.UserId == managerId)
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Apenas o gestor ou um administrador pode avaliar este PDI.");
+    }
+
     /// <summary>Admin exclusivo (feedback é histórico — ADR-033 §6).</summary>
     internal static void EnsureIsAdmin(ICurrentUserContext currentUser)
     {
@@ -91,6 +144,6 @@ internal static class PdiAccess
                 "Apenas administradores podem excluir feedbacks.");
     }
 
-    private static bool IsAdmin(ICurrentUserContext currentUser)
+    internal static bool IsAdmin(ICurrentUserContext currentUser)
         => currentUser.Roles.Contains(UserRole.Admin.ToString());
 }

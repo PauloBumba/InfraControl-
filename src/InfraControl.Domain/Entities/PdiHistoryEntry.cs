@@ -13,7 +13,40 @@ public enum PdiHistoryType
     Updated = 2,
 
     /// <summary>Mudança de status — <see cref="PdiHistoryEntry.FromStatus"/>/<see cref="PdiHistoryEntry.ToStatus"/> + motivo opcional.</summary>
-    StatusChanged = 3
+    StatusChanged = 3,
+
+    /// <summary>Evidência anexada — <see cref="PdiHistoryEntry.Detail"/> com o tipo (§17 "certificado anexado").</summary>
+    EvidenceAdded = 4,
+
+    /// <summary>Evidência revisada — <see cref="PdiHistoryEntry.Detail"/> "validada"/"rejeitada" + <see cref="PdiHistoryEntry.Reason"/> na rejeição (§17).</summary>
+    EvidenceReviewed = 5,
+
+    /// <summary>Fase iniciada (auto-start da próxima ao validar, §15/§17 — Fase 5).</summary>
+    PhaseStarted = 6,
+
+    /// <summary>Fase concluída e enviada para validação pelo dono (§15/§17 — Fase 5).</summary>
+    PhaseSubmitted = 7,
+
+    /// <summary>Fase validada pelo gestor (§15/§17 — Fase 5).</summary>
+    PhaseValidated = 8,
+
+    /// <summary>Fase rejeitada pelo gestor — <see cref="PdiHistoryEntry.Reason"/> obrigatório (§15/§17 — Fase 5).</summary>
+    PhaseRejected = 9,
+
+    /// <summary>Check-in registrado — <see cref="PdiHistoryEntry.Detail"/> (§17 — Fase 5).</summary>
+    CheckInCreated = 10,
+
+    /// <summary>Impedimento registrado — <see cref="PdiHistoryEntry.Detail"/> (§17 — Fase 5).</summary>
+    ImpedimentCreated = 11,
+
+    /// <summary>Impedimento resolvido — <see cref="PdiHistoryEntry.Detail"/> (§17 — Fase 5).</summary>
+    ImpedimentResolved = 12,
+
+    /// <summary>Avaliação registrada — <see cref="PdiHistoryEntry.Detail"/> "autoavaliação"/"avaliação do gestor" (§15.3/§17 — Fase 6).</summary>
+    AssessmentCreated = 13,
+
+    /// <summary>Resultado final definido — <see cref="PdiHistoryEntry.Detail"/> "resultado: …" (§16/§17 — Fase 6).</summary>
+    ResultFinalized = 14
 }
 
 /// <summary>
@@ -71,13 +104,87 @@ public sealed class PdiHistoryEntry : Entity
         };
 
     internal static PdiHistoryEntry ForUpdated(
-        Guid userId, Guid actorId, string detail)
+        Guid userId, Guid actorId, string detail, string? reason = null)
         => new()
         {
             UserId = userId,
             Type = PdiHistoryType.Updated,
             ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength),
+            Reason = Truncate(reason, MaxReasonLength)
+        };
+
+    internal static PdiHistoryEntry ForEvidenceAdded(
+        Guid userId, Guid actorId, string detail)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.EvidenceAdded,
+            ActorId = actorId,
             Detail = Truncate(detail, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForEvidenceReviewed(
+        Guid userId, Guid actorId, string detail, string? reason)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.EvidenceReviewed,
+            ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength),
+            Reason = Truncate(reason, MaxReasonLength)
+        };
+
+    internal static PdiHistoryEntry ForPhaseEvent(
+        Guid userId, Guid actorId, PdiHistoryType type, string detail,
+        string? reason = null)
+        => new()
+        {
+            UserId = userId,
+            Type = type,
+            ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength),
+            Reason = Truncate(reason, MaxReasonLength)
+        };
+
+    internal static PdiHistoryEntry ForCheckInCreated(
+        Guid userId, Guid actorId, string detail)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.CheckInCreated,
+            ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForImpediment(
+        Guid userId, Guid actorId, PdiHistoryType type, string detail)
+        => new()
+        {
+            UserId = userId,
+            Type = type,
+            ActorId = actorId,
+            Detail = Truncate(detail, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForAssessmentCreated(
+        Guid userId, Guid actorId, string sideLabel)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.AssessmentCreated,
+            ActorId = actorId,
+            Detail = Truncate(sideLabel, MaxDetailLength)
+        };
+
+    internal static PdiHistoryEntry ForResultFinalized(
+        Guid userId, Guid actorId, string outcomeLabel)
+        => new()
+        {
+            UserId = userId,
+            Type = PdiHistoryType.ResultFinalized,
+            ActorId = actorId,
+            Detail = Truncate($"resultado: {outcomeLabel}", MaxDetailLength)
         };
 
     private static string? Truncate(string? value, int max)

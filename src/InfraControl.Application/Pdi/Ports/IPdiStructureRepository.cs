@@ -40,6 +40,10 @@ public interface IPdiStructureRepository
     Task<PdiPhase?> GetPhaseAsync(
         Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Fases de uma estratégia em ordem (auto-start, §15 — Fase 5).</summary>
+    Task<IReadOnlyList<PdiPhase>> ListPhasesAsync(
+        Guid strategyId, CancellationToken cancellationToken = default);
+
     Task<PdiActivity?> GetActivityAsync(
         Guid id, CancellationToken cancellationToken = default);
 
@@ -95,6 +99,22 @@ public interface IPdiStructureRepository
     Task<IReadOnlyList<PdiFeedback>> ListFeedbacksAsync(
         IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
 
+    // ---- Evidências (Fase 4, ADR-034) ----
+    Task<PdiEvidence?> GetEvidenceAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PdiEvidence>> ListEvidenceAsync(
+        IReadOnlyCollection<Guid> phaseIds, CancellationToken cancellationToken = default);
+
+    // ---- Avaliação (Fase 6, ADR-036) — filhas do plano ----
+    Task<PdiAssessment?> GetAssessmentAsync(
+        Guid planId,
+        Domain.Enums.PdiAssessmentSide side,
+        CancellationToken cancellationToken = default);
+
+    Task<PdiResult?> GetResultAsync(
+        Guid planId, CancellationToken cancellationToken = default);
+
     // ---- Escrita ----
     void AddObjective(PdiObjective objective);
     void AddStrategy(PdiStrategy strategy);
@@ -104,6 +124,9 @@ public interface IPdiStructureRepository
     void AddCheckIn(PdiCheckIn checkIn);
     void AddImpediment(PdiImpediment impediment);
     void AddFeedback(PdiFeedback feedback);
+    void AddEvidence(PdiEvidence evidence);
+    void AddAssessment(PdiAssessment assessment);
+    void AddResult(PdiResult result);
 
     void RemoveObjective(PdiObjective objective);
     void RemoveStrategy(PdiStrategy strategy);

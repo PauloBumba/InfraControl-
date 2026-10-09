@@ -10,17 +10,29 @@ namespace InfraControl.Application.Knowledge.Articles.Commands;
 
 // F10-T002: CRUD de KnowledgeArticle — 400 (título/conteúdo), 404
 // (artigo ou categoria de destino inexistente). Create nasce Draft.
+<<<<<<< HEAD
 // F10-T003 + F24-T002/K2: ChangeKnowledgeArticleStatus — workflow de 8
 // status (ADR-034; 409 fora da matriz, status fora do enum = 400).
 // F24-T003/K3: toda versão registra o motivo (spec docs/32 §8).
+=======
+// F10-T003: ChangeKnowledgeArticleStatus — ciclo Draft → Published →
+// Archived → Draft (409 fora do ciclo), status fora do enum = 400.
+// F24-T001/K1: tipo obrigatório (400 pt-BR), tags (limite/normalização
+// no domínio) e responsável inexistente = 404; autor vem do usuário
+// autenticado e é imutável.
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
 public sealed record CreateKnowledgeArticleCommand(
     string Title,
     string Content,
     Guid? CategoryId,
+<<<<<<< HEAD
     // F24-T001/K1 — identificação (docs/32 §6); opcional para não
     // quebrar os chamadores antigos.
     string? Type = null,
+=======
+    string Type,
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     string? Description = null,
     IReadOnlyCollection<string>? Tags = null,
     Guid? ResponsibleId = null) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
@@ -32,7 +44,10 @@ public sealed record CreateKnowledgeArticleCommand(
 public sealed class CreateKnowledgeArticleCommandHandler(
     IKnowledgeArticleRepository repository,
     IKnowledgeCategoryRepository categoryRepository,
+<<<<<<< HEAD
     IKnowledgeArticleVersionRepository versionRepository,
+=======
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     ICurrentUserContext currentUser,
     ILogger<CreateKnowledgeArticleCommandHandler> logger)
     : IRequestHandler<CreateKnowledgeArticleCommand, KnowledgeArticleDto>
@@ -48,9 +63,20 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             repository, request.ResponsibleId, cancellationToken);
 
         var article = KnowledgeArticle.Create(
+<<<<<<< HEAD
             request.Title, request.Content, request.CategoryId,
             type, request.Description, request.Tags, request.ResponsibleId,
             currentUser.UserId);
+=======
+            request.Title,
+            request.Content,
+            request.CategoryId,
+            request.Type,
+            request.Description,
+            request.Tags,
+            authorId: currentUser.UserId,
+            responsibleId: request.ResponsibleId);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
         await repository.AddAsync(article, cancellationToken);
 
@@ -67,6 +93,7 @@ public sealed class CreateKnowledgeArticleCommandHandler(
         logger.LogInformation(
             "KnowledgeArticle {ArticleId} created ({Title}).", article.Id, article.Title);
 
+<<<<<<< HEAD
         return await KnowledgeArticleDto.FromAsync(
             article, repository, cancellationToken);
     }
@@ -90,6 +117,14 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             + "'bestpractices', 'policy', 'internalstandard', 'troubleshooting', "
             + "'systemknowledge', 'infrastructureknowledge' ou 'operacionalknowledge'.",
             nameof(type));
+=======
+        return new KnowledgeArticleDto(
+            article.Id, article.Title, article.Content, article.CategoryId, article.Status,
+            article.Type, article.Description, article.AuthorId, article.ResponsibleId)
+        {
+            Tags = article.Tags.Select(tag => tag.Tag).ToArray(),
+        };
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     }
 
     /// <summary>
@@ -112,8 +147,13 @@ public sealed class CreateKnowledgeArticleCommandHandler(
     }
 
     /// <summary>
+<<<<<<< HEAD
     /// Responsável do artigo (F24-T001/K1): id desconhecido = 404
     /// pt-BR — mesma frase do responsável de Task.
+=======
+    /// Responsável precisa existir (404 pt-BR antes de persistir) —
+    /// precedente F23-T001 (CreateTaskCommand).
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     /// </summary>
     internal static async Task EnsureResponsibleExistsAsync(
         IKnowledgeArticleRepository repository,
@@ -134,12 +174,16 @@ public sealed record UpdateKnowledgeArticleCommand(
     string Title,
     string Content,
     Guid? CategoryId,
+<<<<<<< HEAD
     // F24-T003/K3 — motivo obrigatório (spec docs/32 §8: toda versão
     // registra o motivo); vem antes dos opcionais da K1 (C# exige
     // opcionais no fim).
     string Reason,
     // F24-T001/K1 — identificação (docs/32 §6).
     string? Type = null,
+=======
+    string Type,
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     string? Description = null,
     IReadOnlyCollection<string>? Tags = null,
     Guid? ResponsibleId = null) : BaseCommand, IAuthorizedRequest
@@ -170,6 +214,7 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
         await CreateKnowledgeArticleCommandHandler.EnsureResponsibleExistsAsync(
             repository, request.ResponsibleId, cancellationToken);
 
+<<<<<<< HEAD
         article.Update(request.Title, request.Content, request.CategoryId);
         // Autor imutável (K1): SetIdentification não toca AuthorId.
         article.SetIdentification(
@@ -188,6 +233,16 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
                 article, request.Reason, currentUser.UserId),
             cancellationToken);
 
+=======
+        article.Update(
+            request.Title,
+            request.Content,
+            request.CategoryId,
+            request.Type,
+            request.Description,
+            request.Tags,
+            request.ResponsibleId);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -223,8 +278,8 @@ public sealed class DeleteKnowledgeArticleCommandHandler(
     }
 }
 
-// F10-T003: transição de status — ciclo Draft → Published → Archived →
-// Draft no domínio; fora do ciclo = 409, status fora do enum = 400 pt-BR.
+// F10-T003/F24-T002 (K2): transição de status — matriz de 8 estados no
+// domínio (ADR-039); fora da matriz = 409, status fora do enum = 400 pt-BR.
 
 public sealed record ChangeKnowledgeArticleStatusCommand(
     Guid Id,
@@ -244,11 +299,20 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
     public async Task<KnowledgeArticleDto> Handle(
         ChangeKnowledgeArticleStatusCommand request, CancellationToken cancellationToken)
     {
+        // TryParse aceita dígitos ("99") — IsDefined mantém o contrato
+        // "fora do enum = 400" (K2/ADR-039 §4).
         if (!Enum.TryParse<KnowledgeArticleStatus>(
-                request.Status, ignoreCase: true, out var target))
+                request.Status, ignoreCase: true, out var target)
+            || !Enum.IsDefined(target))
             throw new ArgumentException(
+<<<<<<< HEAD
                 $"Status inválido: '{request.Status}'. Use 'draft', 'inreview', "
                 + "'approved', 'published', 'updated', 'archived', 'obsolete' ou 'rejected'.",
+=======
+                $"Status inválido: '{request.Status}'. Use 'draft', 'inReview', " +
+                "'approved', 'published', 'updated', 'archived', 'obsolete' " +
+                "ou 'rejected'.",
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                 nameof(request.Status));
 
         var article = await repository.GetByIdAsync(request.Id, cancellationToken)
@@ -275,7 +339,17 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
             "KnowledgeArticle {ArticleId} status changed to {Status}.",
             article.Id, article.Status);
 
+<<<<<<< HEAD
         return await KnowledgeArticleDto.FromAsync(
             article, repository, cancellationToken);
+=======
+        // Nomes de autor/responsável ficam com as queries Search/Get (K1).
+        return new KnowledgeArticleDto(
+            article.Id, article.Title, article.Content, article.CategoryId, article.Status,
+            article.Type, article.Description, article.AuthorId, article.ResponsibleId)
+        {
+            Tags = article.Tags.Select(tag => tag.Tag).ToArray(),
+        };
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     }
 }

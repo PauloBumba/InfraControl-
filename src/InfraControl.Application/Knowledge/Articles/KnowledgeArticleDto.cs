@@ -7,20 +7,33 @@ namespace InfraControl.Application.Knowledge.Articles;
 
 /// <summary>
 /// Payload de KnowledgeArticle devolvido pela API (F10-T002/T004;
+<<<<<<< HEAD
 /// identificação F24-T001/K1 — docs/32 §5–§6). Os ids dos vínculos
 /// (F10-T004) só vêm no GET de detalhe — a busca não detalha (evita
 /// N+1 por página).
+=======
+/// tipos e identificação K1 — F24-T001). Os ids dos vínculos (F10-T004)
+/// só vêm no GET de detalhe — a busca não detalha (evita N+1 por página).
+/// Nomes de autor/responsável são resolvidos só nas queries Search/Get
+/// (join em DomainUsers, mesmo precedente de Tasks/PDI).
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 /// </summary>
 public sealed record KnowledgeArticleDto(
     Guid Id,
     string Title,
     string Content,
     Guid? CategoryId,
-    KnowledgeArticleStatus Status)
+    KnowledgeArticleStatus Status,
+    string? Type = null,
+    string? Description = null,
+    Guid? AuthorId = null,
+    Guid? ResponsibleId = null)
 {
+    public IReadOnlyCollection<string> Tags { get; init; } = [];
     public IReadOnlyCollection<Guid> DeviceIds { get; init; } = [];
     public IReadOnlyCollection<Guid> IncidentIds { get; init; } = [];
     public IReadOnlyCollection<Guid> ServiceIds { get; init; } = [];
+<<<<<<< HEAD
 
     // F24-T004/K4 — origens (spec docs/32 §9): tipo + id
     // ("Task"/"Pdi"/"Incident" — §9 desenha "Task #0042"). Vem em
@@ -118,4 +131,8 @@ public sealed record KnowledgeArticleDto(
             article.ResponsibleId,
             article.ReviewResponsibleId,
         }.OfType<Guid>().Distinct()];
+=======
+    public string? AuthorName { get; init; }
+    public string? ResponsibleName { get; init; }
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 }

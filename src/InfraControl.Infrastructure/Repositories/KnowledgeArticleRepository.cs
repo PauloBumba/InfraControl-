@@ -21,6 +21,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
     public Task<KnowledgeArticle?> GetByIdAsync(
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.KnowledgeArticles
+            .Include(article => article.Tags) // K1: substituição no PUT precisa das atuais
             .SingleOrDefaultAsync(article => article.Id == id, cancellationToken);
 
     public void Remove(KnowledgeArticle article)
@@ -31,14 +32,20 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         int page,
         int pageSize,
         bool includeUnpublished,
+<<<<<<< HEAD
         bool pendingReview,
         Guid? categoryId = null,
         Guid? authorId = null,
         KnowledgeArticleType? type = null,
         string? tag = null,
+=======
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
         CancellationToken cancellationToken = default)
     {
-        var query = dbContext.KnowledgeArticles.AsNoTracking().AsQueryable();
+        var query = dbContext.KnowledgeArticles
+            .AsNoTracking()
+            .Include(article => article.Tags) // K1: dto traz as tags (1 query)
+            .AsQueryable();
 
         // F24-T007/K7 (docs/32 §13): termo também casa na descrição
         // (resumo do que o artigo cobre) — campo que existe no modelo.
@@ -52,6 +59,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
                     && article.Description.ToLower().Contains(normalized)));
         }
 
+<<<<<<< HEAD
         // F24-T007/K7: filtros estruturados AND — só campos que existem
         // no modelo (sistema/setor, da spec §13, não existem — fora).
         if (categoryId is not null)
@@ -86,6 +94,12 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
             query = query.Where(article =>
                 article.NextReviewAt != null && article.NextReviewAt <= now);
         }
+=======
+        if (!includeUnpublished)
+            query = query.Where(article =>
+                !KnowledgeArticleStatusExtensions.HiddenFromReaders
+                    .Contains(article.Status));
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
@@ -100,6 +114,7 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 
+<<<<<<< HEAD
     // F24-T001/K1 — identificação: responsável (404 pt-BR no command) e
     // nomes de autor/responsável resolvidos no backend (DisplayName,
     // fallback e-mail; id sem usuário sai do mapa → nome null).
@@ -109,10 +124,16 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
         => dbContext.DomainUsers.AnyAsync(
             user => user.Id == userId, cancellationToken);
 
+=======
+    // F24-T001/K1 — precedente TaskAssigneeRepository.GetUserNamesAsync:
+    // usuário excluído some do dicionário, o chamador trata como nome não
+    // encontrado.
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
         IReadOnlyCollection<Guid> userIds,
         CancellationToken cancellationToken = default)
     {
+<<<<<<< HEAD
         var ids = userIds.Distinct().ToArray();
         if (ids.Length == 0)
             return new Dictionary<Guid, string>();
@@ -128,4 +149,21 @@ public sealed class KnowledgeArticleRepository(AppDbContext dbContext)
                 ? user.Email
                 : user.DisplayName);
     }
+=======
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(user => user.Id, user => user.DisplayName);
+    }
+
+    public Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => dbContext.DomainUsers.AsNoTracking()
+            .AnyAsync(user => user.Id == userId, cancellationToken);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 }

@@ -35,7 +35,25 @@ public sealed class GetPdiStructureQueryHandler(
             ?? throw new KeyNotFoundException(
                 $"PDI do usuário '{request.UserId}' não encontrado.");
 
-        var rows = await repository.GetTreeAsync(request.UserId, cancellationToken);
+        return await PdiStructureBuilder.BuildAsync(
+            repository, plans, request.UserId, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Constrói a árvore objetivos → estratégias → fases → atividades
+/// (leitura pura, sem guard de acesso) — usada pelo GET structure e
+/// pelo relatório individual (§22 — Fase 8).
+/// </summary>
+internal static class PdiStructureBuilder
+{
+    internal static async Task<PdiStructureDto> BuildAsync(
+        IPdiStructureRepository repository,
+        IPdiRepository plans,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await repository.GetTreeAsync(userId, cancellationToken);
 
         var competencies = await repository.ListCompetenciesAsync(cancellationToken);
         var competencyNames = competencies.ToDictionary(
@@ -147,7 +165,7 @@ public sealed class GetPdiStructureQueryHandler(
             })
             .ToList();
 
-        return new PdiStructureDto(request.UserId, objectives);
+        return new PdiStructureDto(userId, objectives);
     }
 }
 

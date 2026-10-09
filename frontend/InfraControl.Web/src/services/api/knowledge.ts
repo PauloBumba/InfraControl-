@@ -48,6 +48,16 @@ export interface KnowledgeArticle {
   deviceIds: string[];
   incidentIds: string[];
   serviceIds: string[];
+  /** F24-T001/K1 — null = artigo legado (criado antes do K1). */
+  type: string | null;
+  description: string | null;
+  authorId: string | null;
+  responsibleId: string | null;
+  /** Tags normalizadas (lowercase) — substituição total no PUT. */
+  tags: string[];
+  /** Resolvidos nas queries Search/Get (join em DomainUsers). */
+  authorName?: string | null;
+  responsibleName?: string | null;
 }
 
 export interface KnowledgeCategory {
@@ -64,9 +74,14 @@ export interface Paged<T> {
   pageSize: number;
 }
 
+<<<<<<< HEAD
 // F24-T002/K2 (ADR-034, spec docs/32 §7): 8 status. Os 3 primeiros
 // números são o contrato legado do F10 (estáveis); os novos entram
 // 3–7 — o MVC serializa enum como número (sem JsonStringEnumConverter).
+=======
+// F24-T002/K2 (ADR-039 §1): enum exposto como número no JSON — 0–2 são
+// contrato antigo (F10-T003) e ficam fixos; os 5 novos entram por append.
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 export const ARTICLE_STATUS_DRAFT = 0;
 export const ARTICLE_STATUS_PUBLISHED = 1;
 export const ARTICLE_STATUS_ARCHIVED = 2;
@@ -137,8 +152,13 @@ export function createArticle(input: {
   title: string;
   content: string;
   categoryId?: string;
+<<<<<<< HEAD
   /** Nome do enum KnowledgeArticleType (catálogo em knowledgeCatalogs). */
   type?: string;
+=======
+  /** F24-T001/K1 — obrigatório (14 tipos, catálogo em knowledgeCatalogs). */
+  type: string;
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
   description?: string;
   tags?: string[];
   responsibleId?: string;
@@ -147,9 +167,80 @@ export function createArticle(input: {
     title: input.title,
     content: input.content,
     categoryId: input.categoryId || undefined,
+<<<<<<< HEAD
     type: input.type || undefined,
+=======
+    type: input.type,
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     description: input.description || undefined,
     tags: input.tags?.length ? input.tags : undefined,
     responsibleId: input.responsibleId || undefined,
   });
+}
+
+/** Atualiza artigo (PUT /knowledge/articles/{id}; substituição total de tags). */
+export async function updateArticle(
+  id: string,
+  input: {
+    title: string;
+    content: string;
+    categoryId?: string;
+    type: string;
+    description?: string;
+    tags?: string[];
+    responsibleId?: string;
+  },
+): Promise<null> {
+  return api.put<null>(`/knowledge/articles/${id}`, {
+    title: input.title,
+    content: input.content,
+    categoryId: input.categoryId || null,
+    type: input.type,
+    description: input.description || null,
+    tags: input.tags ?? [],
+    responsibleId: input.responsibleId || null,
+  });
+}
+
+/** Exclui artigo (DELETE /knowledge/articles/{id}; ciclo Draft→Published→Archived). */
+export async function deleteArticle(id: string): Promise<null> {
+  return api.delete<null>(`/knowledge/articles/${id}`);
+}
+
+/**
+ * Transição de status (POST /knowledge/articles/{id}/status). O handler
+ * valida a transição e devolve 400 pt-BR com as opções válidas.
+ */
+export async function changeArticleStatus(
+  id: string,
+  status: "Draft" | "Published" | "Archived",
+): Promise<null> {
+  return api.post<null>(`/knowledge/articles/${id}/status`, { status });
+}
+
+/** Cria categoria (Operate). */
+export function createCategory(input: {
+  name: string;
+  description?: string;
+}): Promise<KnowledgeCategory | null> {
+  return api.post<KnowledgeCategory>("/knowledge/categories", {
+    name: input.name,
+    description: input.description || null,
+  });
+}
+
+/** Atualiza categoria (PUT /knowledge/categories/{id}). */
+export async function updateCategory(
+  id: string,
+  input: { name: string; description?: string },
+): Promise<null> {
+  return api.put<null>(`/knowledge/categories/${id}`, {
+    name: input.name,
+    description: input.description || null,
+  });
+}
+
+/** Exclui categoria (DELETE /knowledge/categories/{id}; 409 com artigos). */
+export async function deleteCategory(id: string): Promise<null> {
+  return api.delete<null>(`/knowledge/categories/${id}`);
 }

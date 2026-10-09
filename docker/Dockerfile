@@ -37,6 +37,10 @@ RUN dotnet publish src/InfraControl.Workers/InfraControl.Workers.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS api
 WORKDIR /app
 COPY --from=api-build /out/api ./
+# Storage de evidências do PDI (ADR-034): o processo roda como $APP_UID
+# (não-root) e o caminho é relativo a /app — mkdir/chown aqui para o named
+# volume do compose herdar a ownership na primeira montagem.
+RUN mkdir -p /app/var/pdi-evidence && chown -R $APP_UID /app/var
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 USER $APP_UID

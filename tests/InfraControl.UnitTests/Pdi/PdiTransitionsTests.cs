@@ -21,6 +21,8 @@ public sealed class PdiTransitionsTests
         { PdiStatus.Active, PdiStatus.Cancelled },
         { PdiStatus.InProgress, PdiStatus.UnderEvaluation },
         { PdiStatus.UnderEvaluation, PdiStatus.Completed },
+        // ADR-036 (Fase 6): resultado "Replanejado" devolve o plano ao ciclo.
+        { PdiStatus.UnderEvaluation, PdiStatus.Replanned },
         { PdiStatus.Replanned, PdiStatus.Active }
     };
 

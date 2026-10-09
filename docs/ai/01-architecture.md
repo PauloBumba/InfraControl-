@@ -3,16 +3,19 @@
 > Espelho executivo do diagnóstico `docs/35` (Sprint 0) e dos ADRs
 > 036–041. Atualizado a cada entrega da Fase 0.
 
-## Estado atual (S1–S3 entregues; zero chamada a LLM)
+## Estado atual (S1–S4 entregues; zero chamada a LLM)
 
 - 7 projetos .NET 10 (Clean Architecture + DDD + CQRS/MediatR +
   Vertical Slice + Modular Monolith, ADR-001/006/007/031) com módulos
   como pastas em `Application/` (16 módulos) e front React+TS+Vite.
 - **Sprint 0 (docs/35 §1): zero código AI/LLM/MCP/RAG** — nada a
-  desfazer. Desde então: ADRs 036–041 (2026-10-08) e o **S3** criou os
-  primeiros contratos + `AiGateway` em `Application/AI/` (sem provider
-  real registrado, sem endpoint — S4+). Nenhuma chamada a LLM existe
-  ainda; a integração gateway↔Ollama é pendência de ambiente (§12).
+  desfazer. Desde então: ADRs 036–041 (2026-10-08) e o **S3**
+  criou os primeiros contratos + `AiGateway` em `Application/AI/`.
+- **S4 (2026-10-08)**: ConfigurationProviderRegistry (v1 por config),
+  OllamaProvider (HTTP puro sem SDK), AiProviderRouter (mapeamento por
+  capacidade), model discovery GET /api/tags, teste de conexão,
+  DI, appsettings, testes unit. Nenhuma chamada a LLM existe ainda;
+  a integração gateway↔Ollama é pendência de ambiente (§12).
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

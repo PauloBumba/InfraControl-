@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-07
+**Última atualização:** 2026-10-08
 
 ## Regra operacional
 
@@ -120,7 +120,7 @@ Novas Tasks: `F2-T008 DeviceProfile` (ADR antes) e `F11-T006 Credential Store`.
 F2-T003 Device concluído (2026-09-24) com seed fictício RFC 5737 em `docs/database/seed-fictitious-devices.sql`.
 F2-T008 DeviceProfile concluído (2026-09-24) com ADR-014 Accepted; defaults por tipo materializados no create; override via `PUT /devices/{id}/profile`.
 F5-T003 Ping concluído (2026-09-24): ping ICMP sob demanda (1 device + todos), provider `PingMonitoringProvider` com seam `IIcmpClient`, endpoints em `/api/v1/monitoring/ping*` (policy `MonitoringRead`).
-Próxima Task planejada (quando autorizada): **F10-T002 Article** (Fase 9 COMPLETA F9-T001→T010; F10-T001 concluída; Fase 8 completa F8-T001→T007); todas as restantes autorizadas pelo usuário (2026-09-26: "pode fazer todas as task e subir na main"; ordem F6 → F7 → F8 → F9 → F10; F0-T010 bloqueada até 01/10). **FASE 6 COMPLETA (F6-T001→T006)**; F5 completa F5-T001→T008.
+Próxima Task planejada (quando autorizada): **F24-T003 Versionamento (K3)** (Fase 24 em curso — F24-T001+T002 concluídas; Fase 10 COMPLETA F10-T001→T004; Fase 9 COMPLETA; Fase 8 completa F8-T001→T007); todas as restantes autorizadas pelo usuário (2026-09-26: "pode fazer todas as task e subir na main"; ordem F6 → F7 → F8 → F9 → F10; F0-T010 bloqueada até 01/10). **FASE 6 COMPLETA (F6-T001→T006)**; F5 completa F5-T001→T008.
 
 ## Próxima fase
 
@@ -804,7 +804,7 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   `PdiCheckIn` (bilateral: relato do dono + resposta do gestor,
   `RespondedAt/RespondedById` só no lado resposta), `PdiImpediment`
   (§11 com status `Open→Resolved` + `ResolvedAt` derivado; tipo texto
-  livre — lookup = Fase 8), `PdiFeedback` (§13 histórico; excluir =
+  livre — lookup fora do escopo, pendente — ADR-038), `PdiFeedback` (§13 histórico; excluir =
   só Admin). Application: `PdiAccess` estendido com permissão **por
   ação** (View=Admin/dono/gestor · Report=Admin/dono · Respond=Admin/
   gestor · Assist=Admin/dono/gestor · IsAdmin), +12 métodos em
@@ -834,6 +834,145 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   (lacuna conhecida no código do Identity da sessão paralela;
   resíduo + planos órfãos de E2E removidos via SQL). Docs: ADR-033,
   docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 4 — Evidências concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §12): **ADR-034**
+  (`docs/adr/ADR-034-PDI-EVIDENCE.md`). Domínio: `PdiEvidence`
+  (`pdi_evidences` sob a fase, FK `Restrict`) com os **9 tipos** do §12
+  (enum + rótulos pt-BR), status `Pending→Validated/Rejected` —
+  revisão **única** (2ª → 409), rejeição com motivo obrigatório,
+  arquivo ≤10 MB com nome saneado (`../evil.sh` → `evil.sh`), histórico
+  `EvidenceAdded`/`EvidenceReviewed` (conversion string, sem migração).
+  Application: porta `IPdiEvidenceFileStore`, `PdiAccess.
+  EnsureCanReview` (Admin/gestor), +3 métodos no repositório, comando
+  de upload (arquivo antes do DB com rollback best-effort) + revisão,
+  query de download, 5ª lista no `GET /pdi/{userId}/accompaniment`.
+  Infra: `PhysicalPdiEvidenceFileStore` (`var/pdi-evidence` relativo à
+  base), config `PdiEvidence`, migração `20261007015235_PdiEvidence`
+  aplicada no dev. Api: `PdiEvidenceController` (POST multipart / PUT
+  review / GET download com nosniff) + VMs — `JsonStringEnumConverter`
+  explícito na decisão da revisão. Front: `client.ts` com FormData e
+  `download()` Blob, 5ª aba **"Evidências"** no
+  `PdiAccompanimentDialog` (upload, revisão, chips, motivo). Testes:
+  `PdiEvidenceTests` **10/10** · PDI **139/139** · unit **1594/1594** ·
+  arch **117/117** · front tsc/lint/build verdes · containers
+  reconstruídos healthy · E2E **50/50** (`pdi_fase4_e2e.py`: upload/400s
+  /traversal, download íntegro, revisão completa incl. 409 e 400 sem
+  XSRF, histórico, 4×403 de operador, purga de resíduo). **Descobertas
+  do E2E (corrigidas)**: storage `/app/var` não-gravável pelo UID da API
+  → `mkdir/chown` + named volume `pdi-evidence`; nginx
+  `client_max_body_size` 1 MB → 413 nos uploads de 10 MB → `16m`; enum
+  de revisão sem conversor de string → 400 em toda revisão; e o purge
+  de resíduo de E2E precisava incluir `DomainUsers`/`DomainUserRoles`
+  (sem isso o accept de convite ia pelo caminho "conta existente" e o
+  Identity nunca era provisionado). Docs: ADR-034, docs/30
+  (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 5 — Governança concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §14, §15, §17): **ADR-035**
+  (`docs/adr/ADR-035-PDI-GOVERNANCE.md`). Domínio: §14 — `Update` do
+  plano exige **motivo** em mudança de campo (status-only opcional) e
+  o histórico `Updated` guarda `valor anterior → novo` (estratégia/
+  prazo/gestor/período) + motivo; §15.2 — `PdiPhaseStatus.
+  PendingValidation` + `SubmitPdiPhaseCommand` (dono/Admin) /
+  `ValidatePdiPhaseCommand` (Admin/gestor, rejeição com motivo →
+  `InProgress`, validação → `Completed` + **auto-start** da próxima),
+  guard no PUT genérico (não-Admin não conclui/reabre fase → 400);
+  §17 — +7 tipos de timeline (fases/check-in/impedimento, sem
+  migração). Application: 2 comandos novos, `EnsureCanValidatePhase`,
+  `ListPhasesAsync`, histórico nos handlers de acompanhamento,
+  `IAuditableRequest` nos **30** comandos PDI (`AuditResource =
+  "PDI"`). Api: `POST /pdi/phases/{id}/submit` +
+  `PUT .../validation`. Front: botões Concluir/Validar/Rejeitar com
+  diálogo de motivo (`PdiStructureDialog`) e motivo obrigatório no
+  plano quando campo difere (`PdiPage`). Testes: `PdiGovernanceTests`
+  **11/11** · PDI **150/150** · unit **1605/1605** · arch **117/117**
+  · front tsc/lint/build verdes · containers reconstruídos healthy ·
+  E2E **63/63** (`pdi_fase5_e2e.py`) + regressão Fase 4 **50/50**.
+  **Descobertas do E2E**: fase responde **204** (asserções 200) e PUT
+  do Admin omitindo gestor/período **limpa** os campos (semântica
+  pré-existente — sem isso o motivo é exigido pela própria limpeza).
+  Docs: ADR-035, docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 6 — Avaliação concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §15.3, §16, §17, §23):
+  **ADR-036** (`docs/adr/ADR-036-PDI-EVALUATION.md`). Domínio:
+  `PdiAssessment` (1 linha por lado `Self`/`Manager`, upsert, autor,
+  conteúdo ≤4000) + `PdiResult` único (4 desfechos do §16 + nota
+  opcional + finalizador), **seta nova** `UnderEvaluation →
+  Replanned` (resultado "Replanejado" devolve o plano ao ciclo —
+  demais vão a `Completed`), histórico `AssessmentCreated`/
+  `ResultFinalized` (sem migração de dados). Application: fluxo do
+  §15.3 imposto no servidor (autoavaliação → plano `UnderEvaluation`
+  com `StatusChanged`; gestor exige autoavaliação 400 e plano em
+  avaliação 409; resultado exige as duas avaliações, é único e
+  congela o plano — 409), `EnsureCanEvaluate`, `GET
+  /pdi/{userId}/evaluation` + `PUT .../assessment` + `PUT
+  .../result`, `IAuditableRequest` (32 comandos PDI). Infra: migração
+  `20261007233505_PdiEvaluation` aplicada no dev (via script SQL —
+  o design-time factory aponta outra instância em 5432). Front:
+  botão **"Avaliar"** + `PdiEvaluationDialog` (snapshot, 2
+  avaliações, resultado; leitura após finalizar) e
+  `UnderEvaluation: ["Completed","Replanned"]` no seletor. Testes:
+  `PdiEvaluationTests` **15/15** · PDI **166/166** · unit
+  **1621/1621** · arch **117/117** · front tsc/lint/build verdes ·
+  containers reconstruídos healthy · E2E **31/31**
+  (`pdi_fase6_e2e.py`) + regressão Fase 5 **63/63**. **Descobertas
+  do E2E**: guarda de status precede o da avaliação (ordem do fluxo),
+  purge com `UNION`, e Admin no próprio plano só grava o lado Self
+  (plano sem gestor não fecha o ciclo — mesma lacuna da Fase 5).
+  Docs: ADR-036, docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 7 — Gestão concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §18, §19, §20): **ADR-037**
+  (`docs/adr/ADR-037-PDI-DASHBOARDS.md`). 3 dashboards de leitura
+  **sem migração**: §18 `GET /pdi/{userId}/dashboard` (progresso =
+  média dos % das fases, chips de fase, próximo prazo = menor
+  `EndDate` não concluída, pendências/totais; `EnsureCanView` + 404/
+  403), §19 `GET /pdi/manager/dashboard` (novo `ListByManagerAsync`;
+  partição exata 🔴 atrasado × 🟡 atenção (impedimento aberto |
+  evidência pendente | fase aguardando validação) × 🟢 dentro do
+  prazo; fases a vencer em 7 dias; `Plans[]` = acesso direto aos
+  casos), §20 `GET /pdi/admin/dashboard` (`Administer` + check no
+  handler; contagens por status em partição exata, taxa de conclusão,
+  agregados globais). Front `PdiDashboardPanels.tsx` (faixa do card
+  "Meu plano", card "Meus PDIs" 🟢/🟡/🔴 com "Abrir" → avaliação,
+  card "visão administrativa"); painéis opcionais (erro não derruba a
+  página); período/filtros do mock ficam para a Fase 8. Testes:
+  `PdiDashboardTests` **7/7** · PDI **173/173** · unit **1628/1628** ·
+  arch **117/117** · front tsc/lint/build verdes · containers
+  reconstruídos healthy (sem migração) · E2E **32/32**
+  (`pdi_fase7_e2e.py`) + regressão Fase 6 **31/31** e Fase 5
+  **63/63**. Docs: ADR-037, docs/30 (situação+§25), docs/29 §8, TASKS.
+
+- PDI Fase 8 — Analytics concluída (2026-10-07, mesma autorização
+  "todas as fases 2→8"; escopo docs/30 §21, §22): **ADR-038**
+  (`docs/adr/ADR-038-PDI-ANALYTICS.md`). 4 queries de leitura **sem
+  migração** com escopo de período único (`TargetDate ∈ [de..até]`;
+  `'de' > 'até'` ou data fora de AAAA-MM-DD = 400): §21 `GET
+  /pdi/indicators` (4 blocos execução/desenvolvimento/acompanha
+  mento/dificuldades, `AvgCompletionDays` do timeline, evolução por
+  competência; Administer + `EnsureAdmin`), §22 `GET
+  /pdi/reports/individual/{userId}` (estrutura + acompanhamento +
+  avaliação via builders extraídos; Operate + `EnsureCanView` →
+  404/403), `GET /pdi/reports/semester` (semestre corrente, rótulo
+  "Nº SEMESTRE YYYY", tendências vs. janela anterior, gestores/
+  competências/dificuldades), `GET /pdi/reports/difficulties` (% por
+  tipo + resolvidos + média de resolução); 6 exports **PDF/Excel**
+  (`?format`, QuestPDF 2026.9.1 + ClosedXML 0.105.1 em
+  `Api/Reporting/`, inválido = 400); `GET /pdi/admin/dashboard`
+  ganhou `from`/`to` (deferido da Fase 7). Front `PdiReportsDialog`
+  (4 abas, filtros De/Até, PDF/Excel; não-admin só a aba Individual)
+  com botões "Relatórios"/"Relatório" no `PdiPage`. Escopos:
+  lookup de tipo de impedimento (texto livre — pendente) e setores
+  (sem campo no domínio) fora. Testes: `PdiAnalyticsTests`
+  **16/16** · PDI **189/189** · unit **1644/1644** · arch
+  **119/119** · front tsc/lint/build verdes · containers
+  reconstruídos healthy (sem migração) · E2E **76/76**
+  (`pdi_fase8_e2e.py`) + regressão Fase 7 **32/32**, Fase 6
+  **31/31**, Fase 5 **63/63** e Fase 4 **50/50**. Docs: ADR-038,
+  docs/30 (situação+§25), docs/29 §8, TASKS. **§25 concluído —
+  módulo PDI completo.**
 
 
 
@@ -1079,3 +1218,51 @@ Não considerar arquitetura ou código como concluído somente porque foi planej
 - Após F20-T001 — Cliente API REST UniFi Controller & descoberta leve (2026-10-03, ordem do usuário: "próxima task" após o HANDOFF da sessão paralela + "foca na tua task, esqueça o que está rodando em paralelo"; plano em 3 partes aprovado e as 3 decisões respondidas: gateway→`Firewall`, location default do sync = criar/reusar local **"UniFi"**, agregado Integration (ADR-028 §4) fica para task própria — health desta task = sondagem ao vivo). **Parte 1 — cliente**: `UnifiApiClient` (Infrastructure/Integrations/Unifi) — `POST /api/auth/login` → cookie `unifises`, re-autenticação automática 1× em 401 (`LoginAsync(invalidateSession)` invalida a sessão velha), credencial recusada → `UnauthorizedAccessException` pt-BR, sem config → `InvalidOperationException` ("Integração UniFi não configurada"); `GET /proxy/network/api/s/{site}/stat/device` (parse `{meta,data}` defensivo) e `GET /api/self` (health, false em qualquer falha); porta `IUnifiApiClient` + `UnifiDeviceDto` + `UnifiIntegrationOptions` (`Integrations:Unifi`, vazio = desligado); named client **`unifi`** no `Services/DependencyInjection.cs` reusando `HttpWebhookNotificationDispatcher.ConfigureResilience` (mesma Polly do n8n) + bind no `Program.cs` + envs `UNIFI_BASE_URL/USERNAME/PASSWORD/SITE` no compose/`.env.example`. **Parte 2 — sync**: `SyncUnifiInventoryCommand` (Operate via `IAuthorizedRequest` + auditoria `UniFiSync`) — upsert `Device` por MAC (`GetByMacAsync`) + upsert `ExternalDeviceReference(Source=UniFi)` com **ExternalId = MAC lowercase SEM separadores (ADR-028 §7)**, location "UniFi" auto-criada, mapeamento `udm/ugw/usg/uxg/usgw→Firewall`, `usw→Switch`, `uap→AccessPoint`, resto→Other, **REGRA 8: só cadastro persistido** (zero telemetria), erro por device não derruba o sync, divergência de dono da referência contada como erro (sem realocação automática), inventário vazio = zeros sem criar location. **Parte 3 — HTTP/docs**: `UnifiIntegrationController` (`[Authorize]` sem literal de role — arch test; `POST sync` → envelope `{created,updated,references,errors}` + `GET health` → 200/503 via `ApiResponse`) e **docs/29-INTEGRACAO-UNIFI.md** (contrato, auth, mapeamento com decisões, envs, Polly, limitações). TDD: RED→GREEN nos 3 suítes (**17 testes** novos) — `ScriptedHandler` fake para o HTTP (sem Controller UniFi real em dev, limitação registrada); bugs capturados pelo teste: contagem de referência existente como nova + MACs nos matchers. **Colisão com a sessão paralela**: build quebrou por `PdiRepository` sem o `DbSet<IndividualDevelopmentPlan>` no `AppDbContext` — a outra sessão adicionou o DbSet durante meu diagnóstico (removi minha duplicata; nenhuma alteração minha no código PDI). Validação final: **build 0 erros · unit 1444/1444 (1429+17 Unifi… total inclui +6/+8/+3) · arch 108/108 · compose ok**. TASKS F20-T001 `[x]`. Pendências: validação real com Controller do usuário; F20-T002 (webhooks) e F20-T003 (telemetria sob demanda/Redis) seguem na fila. Checkpoint — nada commitado (merge resolvido da sessão paralela segue aguardando decisão do usuário).
 
 - Após ADR-030 — Fases 0+1 do plano "CRUD + autorização por role + outbox/eventos" e 6 `GET /{id}` (2026-10-04, ordem do usuário: CRUD em todas as entidades com Admin= tudo / Operator = por entidade, segundo a arquitetura atual, com outbox/eventos de domínio, plano de execução; depois "lembra de usar também getbyid em todas as entidades, documenta e começa a executar"; decisões no questionário: escopo operacionais+parciais, matriz proposta e aprovada, eventos Created/Updated/Deleted nas operacionais, execução por fases aprovadas uma a uma). **Plano em 6 fases** (0 matriz → 1 gaps → 2 CRUD parcial → 3 eventos/outbox → 4 consumers → 5 frontend → 6 docs) registrado em **docs/adr/ADR-030-ROLE-CRUD-MATRIX.md**: matriz por entidade (Administer: users/roles/sessões alheias/convites/auditoria/retenção/credenciais · Operate: inventory/network/tasks/incidents/knowledge/SLA/checks/discovery/remote/integrações · Read: alerts/telemetria/feed/history · self-service: PDI/préferências/sessões/convites próprios · sem API: infra de mensageria), regra `GET /{id}` obrigatório, duas camadas de autorização com o mesmo nível, eventos `Created/Updated/Deleted` nas operacionais (namespace `InfraControl.Domain.Events`, ADR-005). **Fase 1 executada (TDD, `AuthorizationGapTests` 6/6)**: `RunCheckCommand`/`RunAllChecksCommand` `RoleAccess.Read`→`Operate` + policy `Operate` nas actions do `MonitoringController` (**bug real: Viewer disparava check**), `POST /integrations/unifi/sync` e `PUT/DELETE /notifications/preferences` ganharam policy HTTP `Operate` (1ª camada passou a declarar o mesmo que a 2ª); testes de integração ajustados (Viewer→Operator em Monitoring/Alert + teste novo `RunCheck_WithViewerRole_ShouldThrowUnauthorizedPtBr`). **6 `GET /{id}` do gap (ADR-030 §2)**: `GET /admin/users/{id}` (`IIdentityAdministrationService.GetUserAsync` + privado renomeado `LoadUserAsync`), `GET /admin/invitations/{id}` (`GetInvitationQuery`, Administer, `InvitationDto` reusado), `GET /notifications/{id}` (`GetNotificationQuery` + `INotificationFeedRepository.GetForUserAsync` — mesma visibilidade do feed, fora = 404), `GET /network/switch-port-vlans/{id}` (`GetSwitchPortVlanQuery` + `SwitchPortVlanDto`), `GET .../remote/sessions/{id}` (`GetRemoteSessionQuery` — sessão precisa ser do device da rota), `GET /auth/sessions/{id}` (`ISessionService.GetAsync` — só ativas próprias, alheia/expirada = MESMO 404 do revoke). Guarda de arquitetura nova: `GetByIdEndpointTests` (arch) trava os 6 endpoints contra regressão. TDD: RED (4 erros de compilação) → GREEN. **Validação: build 0 erros · unit 1495/1495 · arch 111/111 · integration subsets Monitoring+Alert 13/13 e Identity/Session/Invitation/Notification 42/42** (suíte completa não rodada). Colisão transitória: build quebrado por `PdiCommands`×`IndividualDevelopmentPlan.Create(periodStart)` no meio da edição da outra sessão — estabilizou sozinho, não mexi no código PDI. Checkpoint — nada commitado; Fases 2–6 aguardam aprovação.
+
+- F24-T001 — Knowledge K1: tipos e identificação concluída (2026-10-08,
+  pedido "segue" + aprovação "Aprovado como planejado" no checkpoint da
+  Fase 24 — processo F23, uma task por checkpoint; escopo docs/32
+  §5–§6). `KnowledgeArticle` ganhou `type` (14 tipos, conjunto fechado,
+  400 pt-BR `Tipo inválido: 'X'. Use: ...`), `description` (500),
+  `author_id` (automático via `ICurrentUserContext`, imutável),
+  `responsible_id` (404 `Usuário '{id}' não encontrado.` — precedente
+  F23-T001) e `tags` (nova tabela `knowledge_article_tags`, PK
+  (article_id, tag) + FK cascade; ≤10 de 30 chars, trim/lowercase/
+  dedupe no domínio; PUT substitui por diff sem conflito de chave).
+  Colunas nullable — artigos legados ficam sem tipo até a 1ª edição.
+  Migration `20261008020607_AddKnowledgeArticleIdentification` gerada,
+  script validado e **aplicada no dev DB**. DTO/queries: tags + nomes
+  de autor/responsável resolvidos em lote (novo `GetUserNamesAsync`/
+  `UserExistsAsync` no `IKnowledgeArticleRepository` — precedente
+  Tasks/PDI: cada módulo resolve os seus). Front: `knowledgeCatalogs.ts`
+  (catálogo único dos 14), form com tipo/responsável/descrição/tags e
+  card com chips + assinatura. Validação: **build 0 erros · unit
+  1838/1838 · arch 119/119 · integração 193/193 (1ª execução completa
+  com Docker)** · front tsc/lint/build verdes · E2E K1 **34/34**
+  (`/tmp/opencode/k1_e2e.py`) + regressão PDI fase7 32/32 · containers
+  reconstruídos healthy. Docs: docs/04 §Tipos e identificação, docs/31
+  §12 (§5/§6 → concluído), TASKS [x] F24-T001. Checkpoint — nada
+  commitado; F24-T002 (K2) aguarda aprovação.
+
+- F24-T002 — Knowledge K2: workflow dos status concluída (2026-10-08,
+  aprovação "Aprovado como planejado"; **ADR-039** escrito e aceito antes
+  do código — docs/adr/ADR-039-KNOWLEDGE-ARTICLE-WORKFLOW.md; escopo
+  docs/32 §7). Enum de **8 estados append-only** (`Draft=0/Published=1/
+  Archived=2` fixos — JSON numérico é contrato do front, storage string
+  intocado → **sem migração**; +`InReview/Approved/Updated/Obsolete/
+  Rejected` 3–7); matriz de 14 setas em `TransitionTo` com **409 em
+  rótulos pt-BR** ('Rascunho' → 'Arquivada'; ciclo antigo Draft→Published
+  removido — publicar exige revisão); 400 do status com as 8 opções +
+  `Enum.IsDefined` ("99" também 400); visibilidade: `HiddenFromReaders`
+  (Rascunho/Em revisão/Aprovada/Rejeitada) — busca filtra via EF `NOT IN`
+  e `GET/{id}` = 404, `CanSeeDrafts` → `CanSeeUnpublished`. Front: +5
+  constantes em `knowledge.ts`, `articleStatusConfig` (8 rótulos/cores)
+  no `knowledgeCatalogs.ts`, chips "Publicada/Arquivada"; sem UI de
+  troca (via API). Validação: **unit 1850/1850 · arch 119/119 ·
+  integração 193/193** · front tsc/lint/build verdes · E2E K2
+  **31/31** (`/tmp/opencode/k2_e2e.py` — ciclo §7, residuais, 409 ×3,
+  400 string/"99", CONVIDADO Viewer: busca/GET/403) + regressões K1
+  **34/34** e PDI fase 7 **32/32** · containers reconstruídos healthy.
+  Docs: ADR-039, docs/04 §Publicação e workflow, docs/31 §12 (§7 →
+  concluído), TASKS [x] F24-T002. Checkpoint — commit/push autorizados
+  pelo usuário; próxima: F24-T003 (K3) aguarda aprovação.
