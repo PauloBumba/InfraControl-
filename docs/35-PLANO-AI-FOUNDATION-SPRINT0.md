@@ -223,6 +223,10 @@ S4 — Provider & Model Manager v1 (config por env/appsettings conforme
    ↓
 S5 — Runtime health (checks de IA com estado "não configurado") +
      observabilidade (ActivitySource AI, tags §43)
+      ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T006:
+      AiRuntimeHealthService + AiRuntimeHealthCheck no /health com tag
+      "ai" — sempre Healthy/Degraded; AiDiagnostics "InfraControl.AI"
+      com activity ai.complete + métricas requests/duration/tokens)
    ↓
 S6 — Segurança LEVEL 0 (policy, auditoria de requests, limites §55)
    ↓

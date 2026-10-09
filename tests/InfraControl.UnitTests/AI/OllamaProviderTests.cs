@@ -181,8 +181,8 @@ public sealed class OllamaProviderTests
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
         models.Should().HaveCount(2);
-        models[0].Name.Should().Be("qwen2.5-coder:1.5b");
-        models[1].Name.Should().Be("llama3:8b");
+        models[0].Should().Be("qwen2.5-coder:1.5b");
+        models[1].Should().Be("llama3:8b");
     }
 
     [Fact]

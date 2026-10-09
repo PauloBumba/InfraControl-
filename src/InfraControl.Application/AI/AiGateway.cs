@@ -58,6 +58,8 @@ public sealed class AiGateway : IAiGateway
             throw new ArgumentException("O prompt não pode ser vazio.", nameof(request));
 
         var started = Stopwatch.GetTimestamp();
+        using var activity = AiDiagnostics.Source.StartActivity("ai.complete");
+        AiDiagnosticsTag(activity, request, request.TraceId);
         AiProviderSelection? selection = null;
         string? providerUsed = null;
         string? modelUsed = null;
@@ -114,6 +116,11 @@ public sealed class AiGateway : IAiGateway
                 result.CompletionTokens,
                 usedFallback);
 
+            AiDiagnosticsFinish(activity, request.Capability, providerUsed, modelUsed,
+                usedFallback, success: true, error: null);
+            RecordTelemetry(request.Capability, providerUsed, modelUsed, usedFallback,
+                success: true, result.PromptTokens, result.CompletionTokens, started);
+
             await TryRecordAsync(BuildEntry(
                 request, providerUsed, modelUsed, usedFallback,
                 success: true, error: null,
@@ -123,6 +130,11 @@ public sealed class AiGateway : IAiGateway
         }
         catch (Exception failure)
         {
+            AiDiagnosticsFinish(activity, request.Capability, providerUsed, modelUsed,
+                usedFallback, success: false, error: failure.Message);
+            RecordTelemetry(request.Capability, providerUsed, modelUsed, usedFallback,
+                success: false, promptTokens: null, completionTokens: null, started);
+
             await TryRecordAsync(BuildEntry(
                 request, providerUsed, modelUsed, usedFallback,
                 success: false, error: failure.Message,
@@ -148,6 +160,68 @@ public sealed class AiGateway : IAiGateway
             token => provider.CompleteAsync(providerRequest, token),
             new ResilienceOptions(_options.MaxRetries, _options.EffectiveTimeout),
             cancellationToken);
+    }
+
+    // ── Telemetria §43 (S5) ────────────────────────────────────────────
+    private static void AiDiagnosticsTag(
+        System.Diagnostics.Activity? activity,
+        AiCompletionRequest request,
+        string? traceId)
+    {
+        if (activity is null) return;
+        activity.SetTag("ai.capability", request.Capability.ToString());
+        activity.SetTag("ai.trace_id", traceId);
+    }
+
+    private static void AiDiagnosticsFinish(
+        System.Diagnostics.Activity? activity,
+        AiCapability capability,
+        string? provider,
+        string? model,
+        bool usedFallback,
+        bool success,
+        string? error)
+    {
+        if (activity is null) return;
+        activity.SetTag("ai.capability", capability.ToString());
+        activity.SetTag("ai.provider", provider);
+        activity.SetTag("ai.model", model);
+        activity.SetTag("ai.used_fallback", usedFallback);
+        if (success)
+        {
+            activity.SetStatus(System.Diagnostics.ActivityStatusCode.Ok);
+        }
+        else
+        {
+            activity.SetStatus(System.Diagnostics.ActivityStatusCode.Error, error);
+        }
+    }
+
+    private static void RecordTelemetry(
+        AiCapability capability,
+        string? provider,
+        string? model,
+        bool usedFallback,
+        bool success,
+        long? promptTokens,
+        long? completionTokens,
+        long started)
+    {
+        var tags = new System.Diagnostics.TagList
+        {
+            { "ai.capability", capability.ToString() },
+            { "ai.provider", provider ?? "none" },
+            { "ai.model", model ?? "none" },
+            { "ai.used_fallback", usedFallback },
+            { "ai.success", success },
+        };
+
+        AiDiagnostics.Requests.Add(1, tags);
+        AiDiagnostics.DurationMs.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds, tags);
+        if (promptTokens is > 0)
+            AiDiagnostics.PromptTokens.Add(promptTokens.Value, tags);
+        if (completionTokens is > 0)
+            AiDiagnostics.CompletionTokens.Add(completionTokens.Value, tags);
     }
 
     private AiAuditEntry BuildEntry(

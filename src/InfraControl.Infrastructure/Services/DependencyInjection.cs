@@ -6,6 +6,7 @@ using InfraControl.Application.Notifications.WhatsApp;
 using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Health;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Discovery.Runs;
@@ -360,6 +361,12 @@ public static class DependencyInjection
         services.AddSingleton(aiGatewayOptions);
         services.AddScoped<IAiAuditSink, LoggingAiAuditSink>();
         services.AddScoped<IAiGateway, AiGateway>();
+
+        // FAI-T006 (S5): runtime health da camada de IA (§44) —
+        // capacidades sem mapeamento/providers inalcançáveis = degradado,
+        // nunca unhealthy (o host sobe sem Ollama). Consumido pelo
+        // IHealthCheck do host (Infrastructure/AI/AiRuntimeHealthCheck).
+        services.AddScoped<IAiRuntimeHealth, AiRuntimeHealthService>();
 
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no

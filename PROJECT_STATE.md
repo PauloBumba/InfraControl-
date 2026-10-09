@@ -823,6 +823,22 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   sem ambiente Docker, front remoto de Knowledge (CRUD completo +
   transições UI) como evolução futura, push bloqueado por auth.
 
+- Fase AI — **FAI-T006 (S5): Runtime health + observabilidade
+  concluído** (2026-10-09, mandato "executa o plano inteiro sem
+  pedir"): §44 — `IAiRuntimeHealth`/`AiRuntimeHealthService` (linha
+  por capacidade: sem mapeamento = Degraded "não configurado"; teste
+  de conexão §13 por provider com timeout 3s) + `AiRuntimeHealthCheck`
+  no `/health` do Program.cs (tag `ai`; sempre Healthy/Degraded —
+  nunca Unhealthy por falta de Ollama). §43 — `AiDiagnostics`
+  (ActivitySource+Meter `InfraControl.AI` sob o padrão
+  `InfraControl.*` do OTel): gateway emite activity `ai.complete` com
+  tags capability/provider/model/fallback/trace e métricas
+  `ai.requests`/`ai.request.duration`/`ai.tokens.*`. `IAiProvider`
+  ganhou `TestConnectionAsync`/`ListModelsAsync` no contrato (defaults
+  para fakes; OllamaProvider devolve nomes). Testes +10 → unit
+  **1940/1940** · arch **119/119** · build 0. Docs: TASKS FAI-T006
+  [x], docs/35 §11 S5 ✓, docs/ai/01.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

@@ -3,7 +3,7 @@
 > Espelho executivo do diagnóstico `docs/35` (Sprint 0) e dos ADRs
 > 036–041. Atualizado a cada entrega da Fase 0.
 
-## Estado atual (S1–S4 entregues; zero chamada a LLM)
+## Estado atual (S1–S5 entregues; zero chamada a LLM)
 
 - 7 projetos .NET 10 (Clean Architecture + DDD + CQRS/MediatR +
   Vertical Slice + Modular Monolith, ADR-001/006/007/031) com módulos
@@ -19,6 +19,14 @@
   + limites por chamada em `Ai:Gateway` (§55). Nenhuma chamada a LLM
   existe ainda; a integração gateway↔Ollama é pendência de ambiente
   (§12).
+- **S5 (2026-10-09)**: runtime health (§44) — capacidades sem
+  mapeamento = Degraded "não configurado", teste de conexão §13 por
+  provider, `AiRuntimeHealthCheck` no `/health` (tag `ai`; saudável
+  sem Ollama) — e observabilidade (§43) — `AiDiagnostics`
+  "InfraControl.AI": activity `ai.complete` com tags
+  capability/provider/model/fallback/trace + métricas
+  `ai.requests`/`ai.request.duration`/`ai.tokens.*` capturadas pelo
+  OTel existente.
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.
