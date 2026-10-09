@@ -796,6 +796,33 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   Docs: TASKS FAI-T004 [x], docs/35 §11 S3 ✓, docs/ai/00+01
   atualizados. Pendente de ambiente: integração gateway↔Ollama (§12).
 
+- Fase AI — **Reparo do merge do origin/main + FAI-T005 (S4)
+  concluído** (2026-10-09): o pull do origin/main (remoto com
+  reimplementação própria de Knowledge K1+K2, PDI Evidence/Evaluation,
+  F26 UniFi/F27 Zabbix e ADRs remotos em numeração colidida) entrou
+  com **23 arquivos commitados com marcadores de conflito** (outro
+  ator, 08/10). Resolução: lado **nós** no Knowledge (K1–K7 superset;
+  entidade `KnowledgeArticleTag` do remoto descartada), **nós** no
+  PdiController, restauração via `git show fffe600:` + commit
+  `893f2d6 "conflito resilvido"` (outro ator, incluiu restores
+  staged). Pós-merge: **KnowledgePage.tsx remendada com import
+  quebrado + erro de sintaxe** → trio ( página/service/catalogs)
+  restaurado para o nosso fffe600 (backend venceu o nosso — o front
+  remoto mais rico exige alinhamento de contrato, vira pendência);
+  **PdiPage.tsx** com painéis de dashboard remotos meio-wired
+  (busca + componente importados, render apagado pela resolução) →
+  renders `adminDashboard`/`managerPanel` reenxertados na posição
+  exata do e3fcaff. Validação total: build 0 · unit **1930/1930** ·
+  arch **119/119** · front lint 0 · front build 0. **S4 fechado**:
+  código paralelo (registry/router/OllamaProvider + 19 testes) revisado
+  e completado com `LoggingAiAuditSink` (hook de auditoria do S3 →
+  log estruturado), DI com `IAiGateway`+`IAiAuditSink`+binding
+  `Ai:Gateway`, appsettings com limites §55. Docs: TASKS FAI-T005
+  [x] + índice, docs/35 §11 S4 ✓. Pendências: ADRs remotos 034–040
+  em colisão de numeração com nossos (renumerar 042+), 12+ migrações
+  sem ambiente Docker, front remoto de Knowledge (CRUD completo +
+  transições UI) como evolução futura, push bloqueado por auth.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

@@ -350,6 +350,17 @@ public static class DependencyInjection
         // Router de capacidade
         services.AddScoped<IAiProviderRouter, AiProviderRouter>();
 
+        // FAI-T005 (S4): liga o gateway (S3) ao registro/router/providers
+        // acima + hook de auditoria de log (ADR-036/§41 — a persistência
+        // da ação AI.* na auditoria de domínio é do S6/ADR-040). Limites
+        // por chamada (§55) configuráveis em Ai:Gateway (default do
+        // record vale quando a seção não existe).
+        var aiGatewayOptions = configuration.GetSection("Ai:Gateway").Get<AiGatewayOptions>()
+            ?? new AiGatewayOptions();
+        services.AddSingleton(aiGatewayOptions);
+        services.AddScoped<IAiAuditSink, LoggingAiAuditSink>();
+        services.AddScoped<IAiGateway, AiGateway>();
+
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no
         // startup se o par faltar; TryAdd faz qualquer registro manual prevalecer

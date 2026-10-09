@@ -48,16 +48,6 @@ export interface KnowledgeArticle {
   deviceIds: string[];
   incidentIds: string[];
   serviceIds: string[];
-  /** F24-T001/K1 — null = artigo legado (criado antes do K1). */
-  type: string | null;
-  description: string | null;
-  authorId: string | null;
-  responsibleId: string | null;
-  /** Tags normalizadas (lowercase) — substituição total no PUT. */
-  tags: string[];
-  /** Resolvidos nas queries Search/Get (join em DomainUsers). */
-  authorName?: string | null;
-  responsibleName?: string | null;
 }
 
 export interface KnowledgeCategory {
@@ -162,71 +152,4 @@ export function createArticle(input: {
     tags: input.tags?.length ? input.tags : undefined,
     responsibleId: input.responsibleId || undefined,
   });
-}
-
-/** Atualiza artigo (PUT /knowledge/articles/{id}; substituição total de tags). */
-export async function updateArticle(
-  id: string,
-  input: {
-    title: string;
-    content: string;
-    categoryId?: string;
-    type: string;
-    description?: string;
-    tags?: string[];
-    responsibleId?: string;
-  },
-): Promise<null> {
-  return api.put<null>(`/knowledge/articles/${id}`, {
-    title: input.title,
-    content: input.content,
-    categoryId: input.categoryId || null,
-    type: input.type,
-    description: input.description || null,
-    tags: input.tags ?? [],
-    responsibleId: input.responsibleId || null,
-  });
-}
-
-/** Exclui artigo (DELETE /knowledge/articles/{id}; ciclo Draft→Published→Archived). */
-export async function deleteArticle(id: string): Promise<null> {
-  return api.delete<null>(`/knowledge/articles/${id}`);
-}
-
-/**
- * Transição de status (POST /knowledge/articles/{id}/status). O handler
- * valida a transição e devolve 400 pt-BR com as opções válidas.
- */
-export async function changeArticleStatus(
-  id: string,
-  status: "Draft" | "Published" | "Archived",
-): Promise<null> {
-  return api.post<null>(`/knowledge/articles/${id}/status`, { status });
-}
-
-/** Cria categoria (Operate). */
-export function createCategory(input: {
-  name: string;
-  description?: string;
-}): Promise<KnowledgeCategory | null> {
-  return api.post<KnowledgeCategory>("/knowledge/categories", {
-    name: input.name,
-    description: input.description || null,
-  });
-}
-
-/** Atualiza categoria (PUT /knowledge/categories/{id}). */
-export async function updateCategory(
-  id: string,
-  input: { name: string; description?: string },
-): Promise<null> {
-  return api.put<null>(`/knowledge/categories/${id}`, {
-    name: input.name,
-    description: input.description || null,
-  });
-}
-
-/** Exclui categoria (DELETE /knowledge/categories/{id}; 409 com artigos). */
-export async function deleteCategory(id: string): Promise<null> {
-  return api.delete<null>(`/knowledge/categories/${id}`);
 }

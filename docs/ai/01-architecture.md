@@ -11,11 +11,14 @@
 - **Sprint 0 (docs/35 §1): zero código AI/LLM/MCP/RAG** — nada a
   desfazer. Desde então: ADRs 036–041 (2026-10-08) e o **S3**
   criou os primeiros contratos + `AiGateway` em `Application/AI/`.
-- **S4 (2026-10-08)**: ConfigurationProviderRegistry (v1 por config),
-  OllamaProvider (HTTP puro sem SDK), AiProviderRouter (mapeamento por
-  capacidade), model discovery GET /api/tags, teste de conexão,
-  DI, appsettings, testes unit. Nenhuma chamada a LLM existe ainda;
-  a integração gateway↔Ollama é pendência de ambiente (§12).
+- **S4 (2026-10-08; DI completado 2026-10-09)**: ConfigurationProviderRegistry
+  (v1 por config), OllamaProvider (HTTP puro sem SDK), AiProviderRouter
+  (mapeamento por capacidade), model discovery GET /api/tags, teste de
+  conexão, DI, appsettings, testes unit. Em 09/10 o DI foi fechado:
+  `IAiGateway` + `IAiAuditSink` (LoggingAiAuditSink → log estruturado)
+  + limites por chamada em `Ai:Gateway` (§55). Nenhuma chamada a LLM
+  existe ainda; a integração gateway↔Ollama é pendência de ambiente
+  (§12).
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

@@ -217,6 +217,9 @@ S3 — AI Gateway mínimo (IAiProvider, router, timeout/retry/fallback,
    ↓
 S4 — Provider & Model Manager v1 (config por env/appsettings conforme
      ADR-037; admin UI só se o ADR exigir já)
+      ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T005:
+      registry/router/OllamaProvider + DI completo com IAiGateway,
+      LoggingAiAuditSink e Ai:Gateway — unit 1930 · arch 119)
    ↓
 S5 — Runtime health (checks de IA com estado "não configurado") +
      observabilidade (ActivitySource AI, tags §43)
