@@ -673,15 +673,35 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
 
+<<<<<<< HEAD
+                    b.Property<DateTime?>("NextReviewAt")
+                        .HasColumnType("timestamp with time zone");
+
+=======
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                     b.Property<Guid?>("ResponsibleId")
                         .HasColumnType("uuid")
                         .HasColumnName("responsible_id");
 
+<<<<<<< HEAD
+                    b.Property<int?>("ReviewIntervalDays")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ReviewResponsibleId")
+                        .HasColumnType("uuid");
+
+=======
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("status");
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -690,16 +710,39 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnName("title");
 
                     b.Property<string>("Type")
+<<<<<<< HEAD
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+=======
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                         .HasColumnName("type");
 
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("1.0")
+                        .HasColumnName("version");
+
+                    b.Property<int>("_versionMajorFloor")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("version_major_floor");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("AuthorId");
+
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ResponsibleId");
 
                     b.ToTable("knowledge_articles", (string)null);
                 });
@@ -750,6 +793,42 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("knowledge_article_incidents", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleOrigin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("article_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OriginId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("origin_id");
+
+                    b.Property<string>("OriginType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("origin_type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId", "OriginType", "OriginId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_article_origins_article_origin");
+
+                    b.ToTable("knowledge_article_origins", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleService", b =>
                 {
                     b.Property<Guid>("ArticleId")
@@ -773,26 +852,110 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("knowledge_article_services", (string)null);
                 });
 
+<<<<<<< HEAD
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by_id");
+
+=======
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleTag", b =>
                 {
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                     b.Property<Guid>("ArticleId")
                         .HasColumnType("uuid")
                         .HasColumnName("article_id");
 
+<<<<<<< HEAD
+                    b.Property<Guid?>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)")
+                        .HasColumnName("content");
+=======
                     b.Property<string>("Tag")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
                         .HasColumnName("tag");
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+<<<<<<< HEAD
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedById");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("ArticleId", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ux_knowledge_article_versions_article_version");
+
+                    b.ToTable("knowledge_article_versions", (string)null);
+=======
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("ArticleId", "Tag");
 
                     b.ToTable("knowledge_article_tags", (string)null);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeCategory", b =>
@@ -3475,9 +3638,19 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticle", b =>
                 {
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("InfraControl.Domain.Entities.KnowledgeCategory", null)
                         .WithMany()
                         .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ResponsibleId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -3511,6 +3684,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleOrigin", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleService", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
@@ -3526,6 +3708,25 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+<<<<<<< HEAD
+            modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleVersion", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+=======
             modelBuilder.Entity("InfraControl.Domain.Entities.KnowledgeArticleTag", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.KnowledgeArticle", null)
@@ -3533,6 +3734,7 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.MacAddress", b =>

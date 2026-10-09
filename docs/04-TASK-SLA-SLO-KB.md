@@ -566,15 +566,260 @@ obrigatório), `content` (20.000, obrigatório), `category_id` (FK →
 `knowledge_categories`, **SetNull** — apagar a categoria não apaga nem
 bloqueia o artigo) e `status` (`Draft`/`Published`/`Archived`; nasce
 **Draft** — ciclo em §Publicação). Busca por termo no
-título/conteúdo, mais recentes primeiro.
+título/conteúdo/descrição, mais recentes primeiro (filtros
+estruturados em §Busca avançada).
 
 Rotas `api/v1/knowledge/articles` (`KnowledgeArticlesController` — o
 `KnowledgeController` da T001 já ocupa a rota de categorias): `GET`
-(busca com `term`, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201,
+(busca com `term` + filtros de §Busca avançada, `RoleAccess.Read`) + `GET/{id}` (404), `POST` (201,
 nasce Draft), `PUT` (não mexe no status), `DELETE` (`RoleAccess.Operate`;
 404). Categoria de destino inexistente = 404 pt-BR antes de persistir.
 Escrita 400 pt-BR via `[Required]`/`[MaxLength]` no ViewModel.
 
+<<<<<<< HEAD
+### Identificação (F24-T001/K1)
+
+Spec `docs/32` §5–§6 — campos de identificação do artigo (Fase 24):
+
+- **Tipo** — enum `KnowledgeArticleType` com os **14 tipos da §5**
+  (Procedimento, Manual, Guia, FAQ, Solução conhecida, Configuração,
+  Documentação técnica, Boas práticas, Política, Norma interna,
+  Troubleshooting, Conhecimento de sistema, Conhecimento de
+  infraestrutura, Conhecimento operacional), guardado como string
+  (coluna `type` 32). **Opcional**: nulo = artigo ainda não
+  classificado (a spec não define tipo padrão para os existentes).
+  Valor fora da lista = 400 `Tipo inválido: 'x'. Use 'procedure', …`
+  (moldo do status); rótulos pt-BR espelhados em
+  `frontend/src/components/knowledge/knowledgeCatalogs.ts`.
+- **Descrição** (`description`, 500, opcional) — resumo da
+  identificação; o conteúdo segue no `content`.
+- **Tags** (`tags` — coleção primitiva do EF, `text[]` no Postgres/JSON
+  no Sqlite): normalizadas no domínio (trim + lowercase + dedup na
+  ordem), cada uma ≤50 e no máximo 20 — limites em pt-BR → 400.
+- **Autor** (`author_id`) — preenchido no servidor com o usuário
+  corrente no `POST` e **imutável** depois (`SetIdentification` não
+  toca). **Responsável** (`responsável_id`) — opcional, vem do cliente
+  (404 `Usuário '{id}' não encontrado.`).
+- Ambas as FKs para `DomainUsers` são **SetNull** (mesma decisão da
+  categoria: apagar não apaga nem bloqueia o artigo; o produto tem
+  exclusão dura de usuário — `Restrict` do `TaskComment` bloquearia).
+- `KnowledgeArticleDto` expõe `type` (nome do enum em string),
+  `description`, `tags`, `authorId/authorName`,
+  `responsibleId/responsibleName` — **nomes resolvidos no backend**
+  (join em `DomainUsers`): o front não precisa (nem pode, sem a policy
+  do `/admin/users`) resolver por conta própria. Valores novos como
+  init-props: DTOs de mutação antigos seguem intactos.
+- Formulário de criação da `KnowledgePage` ganhou tipo, responsável,
+  descrição e tags (campo por vírgula); o card mostra chip do tipo,
+  descrição, chips de tags e a linha "Autor · Responsável".
+- Migração `20261008001827_AddKnowledgeArticleIdentification` (script
+  validado; não aplicada — Docker).
+
+### Publicação (F10-T003, evolução F24-T002/K2 — ADR-034)
+
+Transições de status em `POST api/v1/knowledge/articles/{id}/status`
+(corpo `{"status": "..."}`, `RoleAccess.Operate`, 200 devolve o artigo
+com o status novo). A spec `docs/32` §7 pede revisão com aprovação — o
+ciclo de 3 estados do F10-T003 virou **workflow de 8 estados**
+(**ADR-034**):
+
+| De | Para |
+|---|---|
+| `Draft` (Rascunho) | `InReview` |
+| `InReview` (Em revisão) | `Approved`, `Updated`, `Rejected`, `Draft` |
+| `Approved` (Aprovada) | `Published`, `Draft` |
+| `Published` (Publicada) | `InReview`, `Archived`, `Obsolete` |
+| `Updated` (Atualizada) | `InReview`, `Archived`, `Obsolete` |
+| `Archived` (Arquivada) | `Draft` |
+| `Obsolete` (Obsoleta) | `Draft` |
+| `Rejected` (Rejeitada) | `Draft` |
+
+Publicar exige a cadeia `Draft → InReview → Approved → Published`;
+revisar o publicado é `Published → InReview → Updated` (`InReview` não
+guarda a origem, por isso aceita os dois fechamentos). Qualquer outra
+transição (incluindo repetir o mesmo estado) = **409**
+`Transição inválida: 'X' → 'Y'.` Status fora do enum = 400
+`Status inválido: 'X'. Use 'draft', 'inreview', 'approved', 'published',
+'updated', 'archived', 'obsolete' ou 'rejected'.`
+
+Armazenado como string (linhas antigas `Draft/Published/Archived`
+valem sem migração); no contrato JSON os valores são **números** (enum
+sem `JsonStringEnumConverter`) — `Draft=0`, `Published=1`,
+`Archived=2` legados estáveis, novos 3–7. Rótulos da UI seguem a §7
+verbatim (feminino: "Publicada", "Arquivada").
+
+**Nunca-publicados (`Draft`, `InReview`, `Approved`, `Rejected`) só
+para quem escreve** (generalização da regra F10-T003 — ADR-034 §4): a
+busca de quem não tem nível de escrita (ADR-016 ≡ `RoleAccess.Operate`)
+exclui esses estados e o `GET/{id}` de um deles responde **404 como se
+não existisse** — não vaza a existência. `Published`/`Updated`/
+`Archived`/`Obsolete` ficam visíveis para todo mundo com
+`RoleAccess.Read`. Consequência: rejeitar a revisão de um artigo
+publicado o tira da vista até republicar (modelo de estado único — se
+a spec pedir "publicado com revisão rejeitada", é histórico de
+revisões + ADR novo).
+
+### Versionamento (F24-T003/K3 — spec docs/32 §8)
+
+Nenhuma versão é perdida: cada edição do artigo abre uma nova linha em
+`knowledge_article_versions` com snapshot completo (título, conteúdo,
+descrição, tipo, tags, categoria) + os 5 campos da §8: **alteração**
+(o próprio snapshot), **autor**, **data** (`CreateDateTime`), **motivo**
+(`reason`, obrigatório) e **aprovador** (`approved_by_id`, carimbado
+quando o status vira `Approved` — ADR-034).
+
+Numeração (domínio, `KnowledgeArticle.BumpVersion`):
+
+- criação = **v1.0** (snapshot semeado junto com o artigo, motivo
+  "Criação do artigo");
+- cada edição abre **minor**: v1.0 → v1.1 → v1.2…;
+- aprovar põe o "piso" do próximo major — a próxima edição abre
+  **v2.0**, depois v3.0… (cadeia da §8: v1.0 → v1.1 → v2.0);
+- o artigo expõe a versão corrente no DTO (`version`); a tabela é
+  única por `(article_id, version)` com FK Cascade (apagar artigo
+  apaga o histórico); autor/aprovador com FK SetNull.
+
+Endpoints (mesma visibilidade do artigo — ADR-034 §4: estado nunca-
+publicado sem escrita = 404):
+
+- `GET api/v1/knowledge/articles/{id}/versions` (`Read`) — lista mais
+  recente primeiro, com autor/aprovador nomeados e `isCurrent`;
+- `GET api/v1/knowledge/articles/{id}/versions/compare?from=1.0&to=1.1`
+  (`Read`) — devolve os dois snapshots lado a lado (o diff é de quem
+  consome); lado inexistente = 404 `Versão 'x' não encontrada.`
+
+PUT (edição) ganhou o campo obrigatório `reason` no corpo (400
+`O motivo da alteração é obrigatório.` via VM; motivo > 500 = 400
+`O motivo da alteração pode ter no máximo 500 caracteres.` no
+domínio). Artigos anteriores à K3 receberam a v1.0 por backfill na
+migration (mesmo conteúdo corrente, motivo fixo "Criação do artigo").
+
+### Origem (F24-T004/K4 — spec docs/32 §9)
+
+O artigo mantém sua origem com **múltiplas origens**: Task, PDI e
+Chamado (a §9 lista também Projetos/documentos/treinamentos — essas
+entidades não existem no repo e não foram inventadas; se nascerem,
+entra valor novo no enum + validação).
+
+- Tabela `knowledge_article_origins` (`article_id` FK **Cascade** +
+  `origin_type` string + `origin_id` **sem FK** — alvo de outro
+  agregado, precedente ADR-033; existência validada no handler por
+  tipo; chave única artigo+tipo+id). Diferente do vínculo de uso
+  (§10/F10-T004/P5a — "esta task usa este artigo"), a origem é
+  artigo-centro ("de onde veio").
+- Endpoints (mesmo molde dos vínculos F10-T004):
+  - `POST api/v1/knowledge/articles/{id}/origins/{type}/{originId}`
+    (`Operate`) — `type` ∈ `task|pdi|incident` (case-insensitive);
+    tipo fora = 400 `Origem inválida: 'x'. Use 'task', 'pdi' ou
+    'incident'.`; alvo inexistente = 404 `Task '{id}' não encontrada.` /
+    `PDI '{id}' não encontrado.` / `Incidente '{id}' não encontrado.`;
+    duplicado = 409 `A origem já está vinculada ao artigo.`;
+  - `DELETE` na mesma rota — vínculo inexistente = 404
+    `Origem '{type}' '{id}' não encontrada para o artigo '{id}'.`
+- `origins` (`[{type, id}]`, tipo como nome do enum) vem embutido no
+  **GET/{id}** e na **busca** (lote por página — round-trip único, sem
+  N+1, diferente dos vínculos F10-T004 que são só do detalhe): o card
+  mostra as origens como chips ("Task"/"PDI"/"Chamado").
+- A figura da §9 fica fechada: origem (K4) + autor (K1) + revisão =
+  aprovador (K2/K3) + versão (K3).
+
+### Revisão periódica (F24-T005/K5 — spec docs/32 §6 + §12)
+
+Governança da §6 ("próxima revisão" + "responsável pela revisão") e a
+revisão periódica da §12 ("Revisar Knowledge a cada 180 dias"):
+
+- **Agenda à parte do PUT do artigo** (evita que um cliente que não
+  envia o campo apague a agenda):
+  - `PUT api/v1/knowledge/articles/{id}/review-schedule` (`Operate`)
+    — `{ intervalDays, reviewResponsibleId }`; `intervalDays` 1..3650
+    (400 `O intervalo de revisão deve estar entre 1 e 3650 dias.` via
+    VM e domínio); `null` limpa a agenda; responsável inexistente =
+    404 `Usuário '{id}' não encontrado.` (mesmo molde do K1);
+  - `POST api/v1/knowledge/articles/{id}/review/confirm` (`Operate`) —
+    ação **manter** da §12: revisão feita sem mudar conteúdo →
+    próxima revisão = hoje + intervalo; sem agenda = 409
+    `O artigo não tem revisão periódica configurada.`
+- As outras ações da §12 já existem: **atualizar** = `PUT` do artigo
+  (reagenda a próxima revisão sozinho), **arquivar** = `POST {id}/status`
+  (ADR-034) e **substituir** = reescrever o conteúdo (`PUT`) ou
+  arquivar + apontar a origem no substituto (K4).
+- **Alerta** "Knowledge necessita de revisão": filtro
+  `GET /knowledge/articles?pendingReview=true` (próxima revisão
+  vencida — `NextReviewAt <= agora`) + flag `pendingReview` no DTO. O
+  card exibe o chip âmbar **"Revisar"** e a barra de busca ganhou o
+  botão **"Revisões"** (toggle) para listar só os pendentes.
+- Campos no DTO: `nextReviewAt`, `reviewIntervalDays`,
+  `reviewResponsibleId`, `reviewResponsibleName` (resolvido no mesmo
+  batch do autor) e `pendingReview`. Invariante do domínio:
+  `nextReviewAt` não-nulo ⟺ `reviewIntervalDays` não-nulo.
+
+### Geração automática de rascunho (F24-T006/K6 — spec docs/32 §2–§4)
+
+"Gerar Knowledge" ao concluir Task/PDI — **montagem determinística dos
+registros existentes**, sem LLM (o repo não tem infra de IA — docs/31
+§12 — e a §3 exige "conteúdo baseado nos registros existentes, nunca
+inventar"). Decisão registrada em **ADR-035**.
+
+- Endpoints (`Operate`):
+  - `POST api/v1/tasks/{taskId}/generate-knowledge` — exige task em
+    `Resolved`/`Closed`; fora disso = 409 `A task precisa estar
+    concluída para gerar Knowledge.`;
+  - `POST api/v1/pdi/{userId}/generate-knowledge` — dono do plano ou
+    Admin (403 `Você só pode gerar Knowledge do seu próprio PDI.`),
+    exige PDI `Completed`; fora disso = 409 `O PDI precisa estar
+    concluído para gerar Knowledge.`
+- Ambos devolvem o `KnowledgeArticleDto` novo, que **nasce Draft** (§2
+  "Knowledge sugerida → Revisão" — nenhum caminho pula o ADR-034), com
+  versão **v1.0** cujo motivo é "Geração automática a partir de …"
+  (K3, §8) e **origem** Task/Pdi (K4, §9) — o vínculo "criada a partir
+  de" aparece na busca e no detalhe.
+- Composição pura em `KnowledgeDraftComposer` (testável sem I/O):
+  **seção só existe se existir registro**. Task → Objetivo
+  (descrição/prazo), Resultado, Critérios de aceite, Fases,
+  Subtarefas (estatísticas do repositório), Dificuldades e
+  impedimentos, Evidências, Comentários e Linha do tempo (últimas 50
+  entradas, com ator e tipo). PDI → Plano (estratégia + prazo),
+  Objetivos (só campos preenchidos + competência) e Linha do tempo.
+  Título: o da task / o do primeiro objetivo do PDI (§4 — sem reescrita
+  mágica); banner de proveniência no topo pede revisão; conteúdo
+  respeita os limites de 200/20k do domínio (corte com aviso).
+- Front: botão **"Gerar Knowledge"** no detalhe da Task (só
+  Resolvida/Fechada, dentro de `<Can operate>`) e no PDI (só
+  `Completed`, na linha da tabela do Admin e no card do plano próprio)
+  com aviso de sucesso apontando para a Base de Conhecimento.
+- Sem migração nova — usa as tabelas/vínculos do K3/K4.
+
+### Busca avançada (F24-T007/K7 — spec docs/32 §13)
+
+`GET api/v1/knowledge/articles` ganhou filtros estruturados AND além
+do `term` (que passa a casar também na **descrição** — título e
+conteúdo já casavam). Todos sobre campos que **existem no modelo**:
+
+- `categoryId` — FK exata (artigo sem categoria só aparece sem filtro);
+- `authorId` — autoria exata (FK SetNull — sem autor não casa);
+- `type` — nome do enum `KnowledgeArticleType` (o binder do MVC aceita
+  o nome mesmo sem `JsonStringEnumConverter`; valor inválido → 400
+  automático do `[ApiController]`);
+- `tag` — casa com a tag normalizada pelo domínio (trim+lowercase; o
+  filtro repete a normalização — "Switch" acha "switch");
+- `pendingReview` — **correção de wiring pega nesta task**: a action
+  `Search` não repassava o parâmetro do K5 (a query string era
+  ignorada — o filtro existia no handler/repositório e nunca saía do
+  endpoint). Repassado agora junto dos demais.
+
+**"Sistema" e "setor" (§13) não existem em nenhuma entidade** (grep no
+domínio: não há `Setor`/`Sector`) — sem filtro, sem chip, documentado
+como ausente (mesmo critério das seções que a K6 deixou fora).
+
+Front (`KnowledgePage`): barra de filtros com select de categoria
+(categorias já carregadas), select de autor (opções derivadas do
+próprio DTO — id + nome resolvidos no backend, sem `/admin/users`;
+autor selecionado sem artigo na página vira opção sintética para o
+filtro não sumir), chips dos 14 tipos (clicar de novo limpa) e chip da
+tag ativa; **a tag e o "Autor:" dos cards viraram botões de filtro**;
+o "Limpar" do header agora zera tudo (term, revisões e os novos).
+Mudança de filtro volta para a página 1.
+=======
 ### Tipos e identificação (F24-T001/K1)
 
 Identificação do artigo (docs/32 §5–§6) — colunas novas em
@@ -642,6 +887,7 @@ revisão. `Publicada`/`Atualizada`/`Arquivada`/`Obsoleta` continuam
 visíveis para todo mundo com `RoleAccess.Read`. Front: chips dos 8
 rótulos em `components/knowledge/knowledgeCatalogs.ts`
 (`articleStatusConfig`); troca de estado é **via API** (sem UI).
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
 ### Relacionamentos (F10-T004)
 

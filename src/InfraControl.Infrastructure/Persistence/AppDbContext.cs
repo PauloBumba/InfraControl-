@@ -72,7 +72,12 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
+<<<<<<< HEAD
+    public DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions => Set<KnowledgeArticleVersion>();
+    public DbSet<KnowledgeArticleOrigin> KnowledgeArticleOrigins => Set<KnowledgeArticleOrigin>();
+=======
     public DbSet<KnowledgeArticleTag> KnowledgeArticleTags => Set<KnowledgeArticleTag>();
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     public DbSet<KnowledgeArticleDevice> KnowledgeArticleDevices => Set<KnowledgeArticleDevice>();
     public DbSet<KnowledgeArticleIncident> KnowledgeArticleIncidents => Set<KnowledgeArticleIncident>();
     public DbSet<KnowledgeArticleService> KnowledgeArticleServices => Set<KnowledgeArticleService>();

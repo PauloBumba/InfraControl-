@@ -50,11 +50,15 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
         AppDbContext context, ICurrentUserContext? currentUser = null)
         => new(
             new KnowledgeArticleRepository(context),
-            currentUser ?? new FakeCurrentUser(["Operator"]),
+            new KnowledgeArticleVersionRepository(context),
+            new FakeCurrentUser(["Operator"]),
             NullLogger<ChangeKnowledgeArticleStatusCommandHandler>.Instance);
 
     private static SearchKnowledgeArticlesQueryHandler SearchHandler(AppDbContext context, string[] roles)
-        => new(new KnowledgeArticleRepository(context), new FakeCurrentUser(roles));
+        => new(
+            new KnowledgeArticleRepository(context),
+            new KnowledgeArticleOriginRepository(context),
+            new FakeCurrentUser(roles));
 
     private static GetKnowledgeArticleQueryHandler GetHandler(AppDbContext context, string[] roles)
         => new(
@@ -62,6 +66,7 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
             new KnowledgeArticleDeviceRepository(context),
             new KnowledgeArticleIncidentRepository(context),
             new KnowledgeArticleServiceRepository(context),
+            new KnowledgeArticleOriginRepository(context),
             new FakeCurrentUser(roles));
 
     private static IReadOnlyList<KnowledgeArticleStatus> PathTo(KnowledgeArticleStatus target)
@@ -90,7 +95,8 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
 
     private static async Task<Guid> SeedArticleAsync(
         AppDbContext context,
-        KnowledgeArticleStatus status = KnowledgeArticleStatus.Draft)
+        KnowledgeArticleStatus status = KnowledgeArticleStatus.Draft,
+        string title = "Artigo de publicação")
     {
         var article = KnowledgeArticle.Create("Artigo de publicação", "Conteúdo.", null, "Manual");
         context.KnowledgeArticles.Add(article);
@@ -114,6 +120,7 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
         var dto = await ChangeStatusHandler(context).Handle(
             new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
             CancellationToken.None);
+        published.Status.Should().Be(KnowledgeArticleStatus.Published);
 
         dto.Status.Should().Be(KnowledgeArticleStatus.InReview);
         var saved = await context.KnowledgeArticles.AsNoTracking()
@@ -127,7 +134,7 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
     public async Task ChangeStatus_FullEditorialFlow_ShouldPersistEachStep()
     {
         await using var context = await CreateContextAsync();
-        var articleId = await SeedArticleAsync(context);
+        var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.Published);
 
         foreach (var (input, expected) in new (string, KnowledgeArticleStatus)[]
         {
@@ -222,75 +229,7 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
             .WithMessage("Status inválido: '99'.*");
     }
 
-    /// <summary>K3: a 1ª publicação cria o snapshot (1,0) com aprovador.</summary>
-    [Fact]
-    public async Task ChangeStatus_FirstPublish_ShouldCreateVersion10()
-    {
-        await using var context = await CreateContextAsync();
-        var approverId = Guid.NewGuid();
-        var articleId = await SeedArticleAsync(context);
-        var handler = ChangeStatusHandler(
-            context, new FakeCurrentUser(["Operator"], approverId));
-
-        await handler.Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
-            CancellationToken.None);
-        await handler.Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "approved"),
-            CancellationToken.None);
-        await handler.Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "published"),
-            CancellationToken.None);
-
-        var version = await context.KnowledgeArticleVersions.SingleAsync();
-        version.Major.Should().Be(1);
-        version.Minor.Should().Be(0);
-        version.ApprovedById.Should().Be(approverId);
-        version.AuthorId.Should().Be(approverId);
-        version.Reason.Should().Be("Publicação inicial");
-        version.Status.Should().Be(KnowledgeArticleStatus.Published);
-    }
-
-    /// <summary>K3: re-publicação após revisão = major+1 (o v2.0 do §8).</summary>
-    [Fact]
-    public async Task ChangeStatus_Republish_ShouldCreateNextMajor()
-    {
-        await using var context = await CreateContextAsync();
-        var approverId = Guid.NewGuid();
-        var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.Published);
-        var handler = ChangeStatusHandler(
-            context, new FakeCurrentUser(["Operator"], approverId));
-
-        await handler.Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
-            CancellationToken.None);
-        await handler.Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "approved"),
-            CancellationToken.None);
-        await handler.Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "published"),
-            CancellationToken.None);
-
-        var version = await context.KnowledgeArticleVersions.SingleAsync();
-        version.Major.Should().Be(2);
-        version.Minor.Should().Be(0);
-        version.ApprovedById.Should().Be(approverId);
-        version.Reason.Should().Be("Publicação após revisão");
-    }
-
-    [Fact]
-    public async Task ChangeStatus_NonPublishTransition_ShouldNotCreateVersion()
-    {
-        await using var context = await CreateContextAsync();
-        var articleId = await SeedArticleAsync(context);
-
-        await ChangeStatusHandler(context).Handle(
-            new ChangeKnowledgeArticleStatusCommand(articleId, "inReview"),
-            CancellationToken.None);
-
-        (await context.KnowledgeArticleVersions.CountAsync()).Should().Be(0);
-    }
-
+    /// <summary>ADR-034 §4: leitor vê só o que já foi publicado.</summary>
     [Fact]
     public async Task Search_WithoutOperateRole_ShouldHideUnpublished()
     {
@@ -303,9 +242,12 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
         var page = await SearchHandler(context, ["Viewer"]).Handle(
             new SearchKnowledgeArticlesQuery(), CancellationToken.None);
 
-        page.TotalCount.Should().Be(1);
-        page.Items.Should().ContainSingle(article =>
-            article.Status == KnowledgeArticleStatus.Published);
+        page.TotalCount.Should().Be(4);
+        page.Items.Should().OnlyContain(article =>
+            article.Status == KnowledgeArticleStatus.Published
+            || article.Status == KnowledgeArticleStatus.Updated
+            || article.Status == KnowledgeArticleStatus.Archived
+            || article.Status == KnowledgeArticleStatus.Obsolete);
     }
 
     [Fact]
@@ -326,6 +268,20 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
     /// <summary>Artigo em revisão sem escrita responde 404 — não vaza a existência.</summary>
     [Fact]
     public async Task Get_UnpublishedAsReader_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.InReview);
+
+        var action = () => GetHandler(context, ["Viewer"]).Handle(
+            new GetKnowledgeArticleQuery(articleId), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Artigo '{articleId}' não encontrado.");
+    }
+
+    /// <summary>Generalização da regra: Em revisão também não vaza.</summary>
+    [Fact]
+    public async Task Get_InReviewAsReader_ShouldThrowNotFoundPtBr()
     {
         await using var context = await CreateContextAsync();
         var articleId = await SeedArticleAsync(context, KnowledgeArticleStatus.InReview);

@@ -5,9 +5,9 @@ using InfraControl.Domain.Enums;
 namespace InfraControl.UnitTests.Knowledge;
 
 /// <summary>
-/// F10-T002: KnowledgeArticle — invariantes pt-BR (docs/04: artigos da
-/// base de conhecimento; estados Draft/Published/Archived — as
-/// transições de status vêm em F10-T003).
+/// F10-T002/T003 + F24-T002/K2: KnowledgeArticle — invariantes pt-BR
+/// (docs/04: artigos da base; estados e workflow de revisão conforme
+/// ADR-034, spec docs/32 §7).
 /// </summary>
 public sealed class KnowledgeArticleTests
 {
@@ -103,10 +103,17 @@ public sealed class KnowledgeArticleTests
         article.Status.Should().Be(KnowledgeArticleStatus.Draft);
     }
 
+<<<<<<< HEAD
+    // ── F24-T002/K2 — workflow da §7 (ADR-034) ──────────────────────────
+
+    [Fact]
+    public void TransitionTo_ApprovalChain_ShouldPublish()
+=======
     // ── F24-T002: workflow de 8 estados (ADR-039, docs/32 §7) ─────────────
 
     [Fact]
     public void TransitionTo_FullEditorialFlow_ShouldPublishAndUpdate()
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     {
         var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Procedimento");
 
@@ -120,6 +127,28 @@ public sealed class KnowledgeArticleTests
     }
 
     [Fact]
+<<<<<<< HEAD
+    public void TransitionTo_ReviewedPublished_ShouldReachUpdated()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.InReview);
+        article.TransitionTo(KnowledgeArticleStatus.Approved);
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        article.TransitionTo(KnowledgeArticleStatus.InReview);
+        article.TransitionTo(KnowledgeArticleStatus.Updated);
+
+        article.Status.Should().Be(KnowledgeArticleStatus.Updated);
+    }
+
+    [Fact]
+    public void TransitionTo_PublishedToArchived_ShouldArchive()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.InReview);
+        article.TransitionTo(KnowledgeArticleStatus.Approved);
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+=======
     public void TransitionTo_PublishedToResidualStates_ShouldArchiveOrObsolete()
     {
         var archived = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Procedimento");
@@ -128,6 +157,7 @@ public sealed class KnowledgeArticleTests
         archived.TransitionTo(KnowledgeArticleStatus.Published);
         archived.TransitionTo(KnowledgeArticleStatus.Archived);
         archived.Status.Should().Be(KnowledgeArticleStatus.Archived);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
         var obsolete = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Procedimento");
         obsolete.TransitionTo(KnowledgeArticleStatus.InReview);
@@ -138,6 +168,15 @@ public sealed class KnowledgeArticleTests
     }
 
     [Fact]
+<<<<<<< HEAD
+    public void TransitionTo_RejectedToDraft_ShouldRework()
+    {
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+        article.TransitionTo(KnowledgeArticleStatus.InReview);
+
+        article.TransitionTo(KnowledgeArticleStatus.Rejected);
+        article.TransitionTo(KnowledgeArticleStatus.Draft);
+=======
     public void TransitionTo_ResidualStatesToDraft_ShouldReopen()
     {
         foreach (var residual in new[]
@@ -161,6 +200,7 @@ public sealed class KnowledgeArticleTests
             }
 
             article.TransitionTo(KnowledgeArticleStatus.Draft);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
             article.Status.Should().Be(KnowledgeArticleStatus.Draft);
         }
@@ -178,6 +218,19 @@ public sealed class KnowledgeArticleTests
         rejected.TransitionTo(KnowledgeArticleStatus.InReview);
         rejected.TransitionTo(KnowledgeArticleStatus.Rejected);
         rejected.Status.Should().Be(KnowledgeArticleStatus.Rejected);
+    }
+
+    [Fact]
+    public void TransitionTo_DraftToPublished_ShouldThrowConflictPtBr()
+    {
+        // K2: publicar exige passar pela revisão (ADR-034 §3).
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+
+        var act = () => article.TransitionTo(KnowledgeArticleStatus.Published);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Transição inválida: 'Draft' → 'Published'.");
+        article.Status.Should().Be(KnowledgeArticleStatus.Draft);
     }
 
     [Fact]
@@ -208,7 +261,11 @@ public sealed class KnowledgeArticleTests
     [Fact]
     public void TransitionTo_PublishedToDraft_ShouldThrowConflictPtBr()
     {
+<<<<<<< HEAD
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+=======
         var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Procedimento");
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
         article.TransitionTo(KnowledgeArticleStatus.InReview);
         article.TransitionTo(KnowledgeArticleStatus.Approved);
         article.TransitionTo(KnowledgeArticleStatus.Published);
@@ -222,7 +279,11 @@ public sealed class KnowledgeArticleTests
     [Fact]
     public void TransitionTo_SameState_ShouldThrowConflictPtBr()
     {
+<<<<<<< HEAD
+        var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null);
+=======
         var article = KnowledgeArticle.Create("Roteiro", "Conteúdo.", null, "Procedimento");
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
         article.TransitionTo(KnowledgeArticleStatus.InReview);
         article.TransitionTo(KnowledgeArticleStatus.Approved);
         article.TransitionTo(KnowledgeArticleStatus.Published);
@@ -432,5 +493,20 @@ public sealed class KnowledgeArticleTests
 
         act.Should().Throw<ArgumentException>()
             .WithMessage("O tipo do artigo é obrigatório.*");
+    }
+
+    /// <summary>ADR-034 §4: quem nunca foi publicado fica de fora dos leitores.</summary>
+    [Fact]
+    public void StatusRules_Unpublished_ShouldMatchAdr034Set()
+    {
+        KnowledgeArticleStatus.Draft.IsUnpublished().Should().BeTrue();
+        KnowledgeArticleStatus.InReview.IsUnpublished().Should().BeTrue();
+        KnowledgeArticleStatus.Approved.IsUnpublished().Should().BeTrue();
+        KnowledgeArticleStatus.Rejected.IsUnpublished().Should().BeTrue();
+
+        KnowledgeArticleStatus.Published.IsUnpublished().Should().BeFalse();
+        KnowledgeArticleStatus.Updated.IsUnpublished().Should().BeFalse();
+        KnowledgeArticleStatus.Archived.IsUnpublished().Should().BeFalse();
+        KnowledgeArticleStatus.Obsolete.IsUnpublished().Should().BeFalse();
     }
 }

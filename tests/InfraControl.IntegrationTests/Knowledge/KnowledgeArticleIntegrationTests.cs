@@ -30,8 +30,10 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         created.Status.Should().Be(KnowledgeArticleStatus.Draft);
 
         await mediator.Send(new UpdateKnowledgeArticleCommand(
+
             created.Id, "Troca do switch central (v2)", "Conteúdo novo.", null, "Procedimento",
             Reason: "Revisão de conteúdo."));
+
 
         var fetched = await mediator.Send(new GetKnowledgeArticleQuery(created.Id));
         fetched.Title.Should().Be("Troca do switch central (v2)");
@@ -120,6 +122,14 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
         approved.Status.Should().Be(KnowledgeArticleStatus.Approved);
 
+        var inReview = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "inreview"));
+        inReview.Status.Should().Be(KnowledgeArticleStatus.InReview);
+
+        var approved = await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(created.Id, "approved"));
+        approved.Status.Should().Be(KnowledgeArticleStatus.Approved);
+
         var published = await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(created.Id, "published"));
         published.Status.Should().Be(KnowledgeArticleStatus.Published);
@@ -168,6 +178,10 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new CreateKnowledgeArticleCommand("Artigo público", "Aberto.", null, "FAQ"));
         await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(published.Id, "inReview"));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "approved"));
+        await mediator.Send(
+            new ChangeKnowledgeArticleStatusCommand(published.Id, "inreview"));
         await mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(published.Id, "approved"));
         await mediator.Send(

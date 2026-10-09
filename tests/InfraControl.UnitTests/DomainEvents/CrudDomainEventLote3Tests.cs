@@ -28,7 +28,17 @@ public sealed class CrudDomainEventLote3Tests
             .Which.Should().BeOfType<KnowledgeArticleUpdatedDomainEvent>();
 
         article.ClearDomainEvents();
+<<<<<<< HEAD
+        // F24-T002/K2: publicar exige a cadeia (ADR-034) — cada passo
+        // levanta Updated; limpamos entre eles para isolar o do publish.
         article.TransitionTo(KnowledgeArticleStatus.InReview);
+        article.ClearDomainEvents();
+        article.TransitionTo(KnowledgeArticleStatus.Approved);
+        article.ClearDomainEvents();
+        article.TransitionTo(KnowledgeArticleStatus.Published);
+=======
+        article.TransitionTo(KnowledgeArticleStatus.InReview);
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
         article.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<KnowledgeArticleUpdatedDomainEvent>()
             .Which.Status.Should().Be(KnowledgeArticleStatus.InReview);

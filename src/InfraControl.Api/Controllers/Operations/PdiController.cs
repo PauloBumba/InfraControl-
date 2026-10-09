@@ -1,6 +1,7 @@
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Pdi;
+using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Pdi;
 using InfraControl.Application.Pdi.Commands;
 using InfraControl.Application.Pdi.Queries;
@@ -52,6 +53,18 @@ public sealed class PdiController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetPdiHistoryQuery(userId), cancellationToken)));
 
+<<<<<<< HEAD
+    // F24-T006/K6 (docs/32 §4, ADR-035): rascunho Knowledge montado dos
+    // registros do PDI concluído — sempre nasce Draft → revisão.
+    /// <summary>Gera rascunho a partir do PDI concluído — 409 se não
+    /// estiver concluído; dono ou Admin (Operate).</summary>
+    [HttpPost("{userId:guid}/generate-knowledge")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> GenerateKnowledge(
+        Guid userId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GeneratePdiKnowledgeCommand(userId), cancellationToken)));
+=======
     /// <summary>
     /// Avaliação final (docs/30 §16, Fase 6): plano + autoavaliação +
     /// avaliação do gestor + resultado. Leitura = Admin/dono/gestor.
@@ -130,4 +143,5 @@ public sealed class PdiController(ISender sender) : BaseController
                 PdiReportsController.ParseDate(from, nameof(from)),
                 PdiReportsController.ParseDate(to, nameof(to))),
             cancellationToken)));
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 }

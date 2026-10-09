@@ -540,6 +540,261 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   integração do módulo Tasks, não do incidente. Origem Chamado→
   Knowledge é escopo de K4 (Fase 24). Registro em docs/31 **§15**;
   TASKS.md F23-T005 marcada [x]. **Nenhum código alterado.**
+  Commits locais desta leva: `72e4fa7` (specs) + `1e7d6ab`
+  (F23-T005 + fases 24/25).
+
+- Fase 24-T001 / K1 (Knowledge — tipos e identificação, spec docs/32
+  §5–§6) concluída (2026-10-07, autorização "F23 (P5c) + Fase 24
+  inteira — paro só no fim da F24"): enum **`KnowledgeArticleType`**
+  com os **14 tipos da §5** (guardado como string; DTO expõe o nome do
+  enum), **descrição** (500), **tags** (coleção primitiva do EF →
+  coluna `text[]`/JSON em vez de tabela N:N — normalização
+  trim/lowercase/dedup no domínio, ≤50×20 pt-BR) e **autor +
+  responsável** (autor = `ICurrentUserContext` no POST, imutável;
+  responsável com 404 pt-BR; **FKs `DomainUsers` SetNull** — molde da
+  categoria, `Restrict` do TaskComment bloquearia a exclusão dura de
+  usuário). DTO com +7 init-props + factory `From/FromAsync` (nomes
+  resolvidos no backend, batch sem N+1 na busca); commands
+  Create/Update estendidos com parâmetros opcionais (14 call sites
+  antigos intactos); VMs/controller repassam; front: contrato +7
+  campos, catálogo **`knowledgeCatalogs.ts`** (14 rótulos pt-BR),
+  form com tipo/responsável/descrição/tags e card com chip de tipo,
+  descrição, chips de tags e rodapé "Autor · Responsável". Migração
+  **`20261008001827_AddKnowledgeArticleIdentification`** (script
+  validado: colunas + FKs SetNull + `tags text[] NOT NULL DEFAULT
+  ARRAY[]` — **não aplicada**). Testes: **+12**
+  (`KnowledgeArticleIdentificationTests` 7 + `KnowledgeArticleCommandTests`
+  5; `CreateContextAsync` semeia o autor — FK SetNull) → unit
+  **1771/1771** · arch **115/115** · build 0 · front lint/build 0.
+  Pendências: migração/integração (Docker); artigos do seed ficam sem
+  tipo. docs/31 §16 · docs/04 "Identificação (F24-T001/K1)".
+
+- Fase 24-T002 / K2 (Knowledge — workflow dos status, spec docs/32 §7)
+  concluída (2026-10-07, mesma autorização da Fase 24 inteira):
+  **ADR-034** (`docs/adr/ADR-034-KNOWLEDGE-STATUS-WORKFLOW.md` — regra
+  de domínio exige ADR antes). **8 estados** (`Draft/InReview/Approved
+  /Published/Updated/Archived/Obsolete/Rejected`; a §7 repete "EM
+  REVISÃO" = um `InReview` só; rótulos verbatim da spec —
+  "Publicada"/"Arquivada" femininos), **números legados estáveis**
+  (0/1/2 preservados, novos 3–7; armazenamento string → sem migração
+  de dados, seed válido). Matriz de **16 pares**: cadeia
+  `Draft→InReview→Approved→Published`, revisão do publicado
+  `Published→InReview→Updated` (`InReview` sem origem — aceita os dois
+  fechamentos, registrado no ADR), `Published/Updated→Archived/
+  Obsolete`, saídas `→Draft`; 409 fora (mecanismo inalterado), 400
+  listando as 8 opções. **Visibilidade generalizada** (F10-T003 →
+  ADR-034 §4): `includeDrafts→includeUnpublished`; fonte única =
+  `KnowledgeArticleStatusRules.UnpublishedStatuses` (Domínio; coleção
+  na expressão LINQ → `IN` traduzível) + `IsUnpublished()` no
+  `GET/{id}` (404); nunca-publicados = Draft/InReview/Approved/
+  Rejected (consequência: rejeição tira artigo publicado da vista —
+  aceito e documentado). Superfície inalterada (`POST {id}/status`,
+  Operate). Front: +5 constantes e 8 chips na `statusConfig`. Testes:
+  reescritos `KnowledgeArticleTests` (transições) e
+  `KnowledgeArticleStatusCommandTests` (12 — seed por `PathTo`),
+  ajustes em `CrudDomainEventLote3Tests` e integração (3 testes na
+  cadeia nova) → unit **1775/1775** · arch **115/115** · build 0 ·
+  front lint/build 0. Sem migração nova. docs/31 §17 · docs/04
+  §Publicação · TASKS F24-T002 [x].
+
+- Fase 24-T003 / K3 (Knowledge — versionamento, spec docs/32 §8)
+  concluída (2026-10-07, mesma autorização da Fase 24 inteira):
+  **nenhuma versão é perdida** — tabela nova
+  **`knowledge_article_versions`** com snapshot completo do documento
+  (title/content/description/type/tags/category = a "alteração" da §8)
+  + os 5 campos da spec: motivo (`reason` obrigatório ≤500 — PUT ganhou
+  `Reason` obrigatório com `[Required]` na VM), autor, data,
+  aprovador (`approved_by_id` carimbado quando o status vira `Approved`
+  — K2; só o primeiro vale). **Numeração no domínio**: criação v1.0,
+  edição abre minor (1.1…), aprovar eleva o piso → próxima edição
+  abre major novo (cadeia §8 v1.0 → v1.1 → v2.0 sem renumerar linha);
+  `version`+`version_major_floor` no artigo (defaults `1.0`/`1`).
+  Endpoints `GET {id}/versions` (ordem numérica major/minor desc —
+  timestamp emparia e "1.10" não ordena com "1.2"; `isCurrent`; nomes
+  em round-trip) e `GET {id}/versions/compare?from=&to` (dois
+  snapshots lado a lado; 404 `Versão 'x' não encontrada.`), ambos
+  `Read` com a visibilidade ADR-034 §4 (nunca-publicado sem escrita =
+  404). Snapshot `KnowledgeArticleVersion.SnapshotOf` valida motivo em
+  pt-BR e copia tags. Infra: config/`KnowledgeArticleVersionRepository`
+  (nova interface casa o RepositoryRegistrar), FK artigo Cascade +
+  autor/aprovador SetNull, chave única `(article_id, version)`; DTO do
+  artigo + `version` (init-prop) e `knowledge.ts` +campo. **Migração
+  `20261008004732_AddKnowledgeArticleVersioning`** com **backfill
+  idempotente** (artigos existentes → v1.0 do histórico, motivo
+  "Criação do artigo") — script validado, **não aplicada** (Docker;
+  lista agora com **10 migrações** pendentes). Testes novos 8+8
+  (`KnowledgeArticleVersionTests` numeração/snapshot/motivos;
+  `KnowledgeArticleVersionCommandTests` handlers/list/compare/
+  visibilidade) → unit **1791/1791** · arch **115/115** · build 0 ·
+  front lint/build 0. Histórico no front = backlog (junto com UI de
+  edição). docs/31 §18 · docs/04 §Versionamento · TASKS F24-T003 [x].
+
+- Fase 24-T004 / K4 (Knowledge — rastreabilidade de origem, spec
+  docs/32 §9) concluída (2026-10-07, mesma autorização da Fase 24
+  inteira): **tabela nova `knowledge_article_origins`** — decisão de
+  design: **não** estender `task_knowledge_articles` (aquele é
+  task-centro de USO/§10; origem é artigo-centro e polimórfica).
+  `origin_type` string (`KnowledgeOriginType` = Task/Pdi/Incident —
+  Projetos/documentos/treinamentos fora por não existirem no repo,
+  AGENTS "não inventar") + `origin_id` **sem FK** (existência validada
+  por tipo no handler: `Task '{id}' não encontrada.`/`PDI '{id}' não
+  encontrado.`/`Incidente '{id}' não encontrado.` — precedente de refs
+  sem FK do ADR-033), FK `article_id` Cascade, chave única (artigo,
+  tipo, id). `KnowledgeArticleOrigin` AggregateRoot + eventos
+  Created/Deleted (molde `KnowledgeArticleDevice`). Endpoints no molde
+  F10-T004: `POST/DELETE {id}/origins/{type}/{originId}` (`Operate`;
+  400 `Origem inválida: 'x'. Use 'task', 'pdi' ou 'incident'.`, 409
+  duplicado). DTO `KnowledgeArticleOriginDto(Type, Id)` (enum em
+  string — decisão K1) com `origins` no artigo vindo **em lote na
+  busca** (round-trip único + group, critério do batch K1 — sem N+1; ≠
+  vínculos F10-T004 que são só do detalhe) e no detalhe; front: chips
+  "Origem: Task/PDI/Chamado" no card (§9 "Task #0042"). Migração
+  **`20261008010616_AddKnowledgeArticleOrigins`** (script validado, não
+  aplicada — lista de pendências agora **11**). Testes novos 8
+  (`KnowledgeArticleOriginCommandTests`: detalhe+busca, múltiplas
+  origens, 400, 404×3, 409, unlink) + helpers de Search/Get em 3
+  arquivos → unit **1799/1799** · arch **115/115** · build 0 · front
+  lint/build 0. Backlog: nome do alvo no card, origem automática na
+  criação. docs/31 §19 · docs/04 §Origem · TASKS F24-T004 [x].
+
+- Fase 24-T005 / K5 (Knowledge — revisão periódica, spec docs/32 §6
+  governança + §12) concluída (2026-10-07, mesma autorização da Fase
+  24 inteira): **campos de governança da §6** no domínio —
+  `NextReviewAt` + `ReviewIntervalDays` (1..3650, 400 pt-BR) +
+  `ReviewResponsibleId` (§6 distingue "responsável" = K1 de
+  "responsável pela revisão" = K5), invariante data⟺intervalo. Dois
+  endpoints novos: `PUT {id}/review-schedule` (**agenda à parte do
+  PUT do artigo** — PUT é full-state com opcionais e clientes antigos
+  apagariam a agenda; mesma reflexão do ADR-033) e `POST
+  {id}/review/confirm` (ação **manter**, 409 `O artigo não tem
+  revisão periódica configurada.`). Ações da §12 sem endpoint novo:
+  atualizar = `PUT` (`PostponeReview()` reagenda sozinho), arquivar =
+  `POST {id}/status` (ADR-034), substituir = conteúdo novo (`PUT`) +
+  origem (K4). **Alerta** "Knowledge necessita de revisão" = filtro
+  `?pendingReview=true` (repo: `NextReviewAt <= now`, capturado fora)
+  + flag `pendingReview` no DTO (+ `nextReviewAt`,
+  `reviewIntervalDays`, `reviewResponsibleId/Name` — revisor no
+  `NameIds` do batch K1). Front: botão "Revisões" (toggle) + chip
+  âmbar "Revisar" no card. Migração **`20261008012115_AddKnowledge-
+  ArticleReview`** (3 colunas nullable, sem backfill; script validado,
+  não aplicada — pendências agora **12**). Testes +9
+  (`KnowledgeArticleReviewTests` — agenda/400/404/limpeza/confirm/409/
+  edição reagenda/filtro; envelhecimento da linha via SQL direto,
+  sem trocar o relógio estático compartilhado) → unit **1808/1808** ·
+  arch **115/115** · build 0 · front lint/build 0. docs/31 §20 ·
+  docs/04 §Revisão periódica · TASKS F24-T005 [x].
+
+- Fase 24-T006 / K6 (Knowledge — geração automática de rascunho,
+  spec docs/32 §2–§4) concluída (2026-10-07, mesma autorização da
+  Fase 24 inteira): decisão de arquitetura aprovada pelo usuário =
+  **montagem determinística dos registros existentes, SEM LLM** (repo
+  sem infra de IA — docs/31 §12; §3 exige "não inventar") →
+  **ADR-035**. Dois endpoints `Operate`: `POST
+  /tasks/{id}/generate-knowledge` (só task Resolvida/Fechada — 409
+  pt-BR) e `POST /pdi/{userId}/generate-knowledge` (dono ou Admin —
+  403; só PDI Completed — 404/409). Artigo nasce **Draft** (§2 →
+  revisão ADR-034) com **v1.0** de proveniência (K3) e **origem**
+  Task/Pdi (K4) — **zero migração nova**. `KnowledgeDraftComposer`
+  puro: seção só com registro (Task: objetivo/resultado/critérios/
+  fases/-stats de subtarefas/impedimentos/evidências/comentários/
+  timeline ≤50 com ator+tipo; PDI: plano/objetivos+competência/
+  timeline), título = task/primeiro objetivo, banner de proveniência,
+  cortes nos limites 200/20k. Front: botão "Gerar Knowledge" no
+  detalhe da Task (só concluída, `<Can operate>`, via `run`) e no PDI
+  (só Completed, tabela Admin + card próprio, `NoticeBanner` novo).
+  Testes +8 (`KnowledgeGenerationTests`: montagem completa, seções
+  omitidas, 409/404/403 de cada porta) → unit **1816/1816** · arch
+  **115/115** · build 0 · front lint/build 0 · sem migração.
+  Docs: **ADR-035**, **docs/34** (blueprint de IA recebida — Fase 0
+  AI Foundation aprovada como próxima fase; investigação Sprint 0 no
+  checkpoint), docs/31 §21 · docs/04 §Geração automática · TASKS
+  F24-T006 [x].
+
+- Fase 24-T007 / K7 (Knowledge — busca avançada, spec docs/32 §13)
+  concluída (2026-10-07, mesma autorização da Fase 24): escopo
+  aprovado "só o que existe no modelo". Filtros estruturados AND no
+  `GET /knowledge/articles` — `categoryId` (FK exata), `authorId`
+  (autoria), `type` (nome do enum; binder MVC aceita nome sem
+  JsonStringEnumConverter — inválido = 400 automático) e `tag`
+  (normalização trim+lowercase repetida no filtro, coleção primitiva
+  do EF traduz p/ ANY) + `term` passando a casar também na
+  **descrição**. **Bug fix no caminho**: a action `Search` não
+  repassava o `pendingReview` do K5 (query string ignorada; testes do
+  K5 cobriam o handler, não a action — sem Integração p/ pegar).
+  Ausentes por modelo: "sistema"/"setor" da §13 não existem em
+  nenhuma entidade (grep) — sem filtro, documentado como ausente em
+  docs/04. Front: barra de filtros (select de categoria, select de
+  autor com opções do DTO sem /admin/users, chips dos 14 tipos,
+  chip da tag ativa), tag e "Autor:" clicáveis nos cards, "Limpar"
+  zera tudo, filtro muda = página 1; `ArticleFilters` += 4 campos.
+  Testes +6 (`KnowledgeArticleSearchFilterTests` — categoria, autor,
+  tipo [exclui sem tipo], tag [caixa], descrição no termo, AND) →
+  unit **1822/1822** · arch **115/115** · build 0 · front lint/build
+  0 · sem migração. Docs: docs/31 §22 · docs/04 §Busca avançada ·
+  TASKS F24-T007 [x]. **Fase 24 fechada (K1–K7)** — próxima etapa do
+  mandato: investigação Sprint 0 da AI Blueprint (docs/34, §66: só
+  investigação/planejamento) no checkpoint.
+
+- AI Blueprint — **investigação Sprint 0 entregue** (2026-10-07, sem
+  implementação — §66): `docs/35-PLANO-AI-FOUNDATION-SPRINT0.md` com
+  diagnóstico (arquitetura, reuso, gaps), conflitos registrados
+  (Docker indisponível → §47/§63 sem evidência, igual às 12
+  migrações; ADRs de IA de **ADR-036** em diante — §59 x repo em 035;
+  compose único ADR-022 → IA como `profiles: [ai]`; ADR-035 coerente
+  com §33), **ADRs 036–041** previstos, plano Docker preparado (não
+  executado), ordem S1–S9 e critérios de aceite separando "executável
+  sem Docker × pendente de ambiente". **Fase 0 — AI Foundation é a
+  próxima fase** (F25-Indicadores fora da fila, exigiria autorização
+  nova) — aguardando autorização para criar tasks/ADRs.
+
+- Fase AI — AI Foundation, **tranche S1+S2 executado** (2026-10-08,
+  escopo aprovado pelo usuário: "ADRs + Docker/config + docs/ai base"):
+  **FAI-T001/T002/T003 [x]**. Foram criados os **6 ADRs de IA
+  036–041** — 036 AI Layer & Gateway (camada em pastas por convenção,
+  sem csproj novo; gateway único caminho p/ LLM), 037 Provider &
+  Model Manager (`IAiProvider`/`OllamaProvider` HTTP sem SDK;
+  `IProviderRegistry` config→banco+UI; capacidades + fallback), 038
+  Context Engine & Hybrid RAG (pgvector no Postgres atual; contratos
+  de embedding/busca/context builder + `EvidenceSet`; fonte inicial =
+  Knowledge publicado), 039 MCP & Tool Contracts (tool registry
+  in-process sobre application services; servidor MCP = evolução),
+  040 Security & Autonomy (**LEVEL 0** Read Only; `LLM → Tool →
+  Policy → Permission`; permissões = RoleAccess existente; audit
+  `AI.*`) e 041 AI Docker Runtime (serviço `ollama` sob `profiles:
+  [ai]` no compose único ADR-022 + `Ai__Ollama__BaseUrl` por DNS de
+  serviço + `.env.example` com `OLLAMA_*`, embedding vazio de
+  propósito). `docs/ai/00-vision.md` e `01-architecture.md` criados
+  (§60). **Sem código C#, sem migração, sem execução**: `docker
+  compose config`/up/health check do Ollama ficam **pendentes de
+  ambiente** (workstation sem Docker — §46: doc ≠ evidência). Docs:
+  TASKS seção "Fase AI" (FAI-T001–T010) + índice + pendência
+  atualizada, docs/35 §11 marcando S1/S2 ✓. Pendente: sprints S3–S9
+  (código) mediante autorização.
+
+- Fase AI — **FAI-T004 (S3): AI Gateway mínimo concluído**
+  (2026-10-08, sequência natural da Fase 0 autorizada): primeiros
+  códigos da camada de IA em `src/InfraControl.Application/AI/` —
+  contratos (`IAiGateway`, `IAiProvider`, `IAiProviderRouter`,
+  `IAiProviderRegistry`, `IAiAuditSink`), `AiCapability` (5
+  capacidades §15), modelos (request sem escolha de modelo pelo
+  chamador — o router decide por capacidade; seleção primário +
+  fallback; audit entry) e exceções pt-BR (`AiProviderNotConfigured`
+  = estado "não configurado" §44, `AiGatewayException` com causa).
+  `AiGateway` orquestra: resolve capacidade → executa pelo
+  **IResilienceExecutor já existente** (policy `ai/{provider}`
+  isolada por provedor; `AiGatewayOptions` MaxRetries=1 / Timeout=30s
+  / FallbackEnabled — §55) → fallback §54 (erro/timeout do primário;
+  cancelamento do chamador NÃO dispara fallback) → exatamente 1
+  entrada de auditoria por request com hook **fail-open**
+  (persistência `AI.*` = S6/ADR-040). **Sem DI/endpoint**: registry +
+  provider chegam no S4 (registro incompleto quebraria o
+  `ValidateOnBuild` do host). Testes +10 (`AiGatewayTests` com fakes:
+  sucesso+audit, fallback, fallback desabilitado, sem fallback,
+  capacidade não mapeada, resgate pelo fallback, opções de
+  resiliência, cancelamento, sink quebrado, prompt vazio pt-BR) →
+  unit **1832/1832** · arch **115/115** · build 0 · sem migração.
+  Docs: TASKS FAI-T004 [x], docs/35 §11 S3 ✓, docs/ai/00+01
+  atualizados. Pendente de ambiente: integração gateway↔Ollama (§12).
 
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):

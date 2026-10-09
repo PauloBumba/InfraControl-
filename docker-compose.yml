@@ -3,6 +3,7 @@
 #   infra (sem profile):        docker compose up -d
 #   aplicação completa:         docker compose --profile app up -d
 #   sistema + observabilidade:  docker compose --profile app --profile obs up -d
+#   IA (Ollama):                docker compose --profile ai up -d   (ADR-041)
 #
 # DNS interno: os serviços se enxergam pelo nome do serviço (api, workers,
 # seq, otel-collector), não por localhost.
@@ -98,6 +99,12 @@ services:
       Serilog__WriteTo__1__Name: Seq
       Serilog__WriteTo__1__Args__serverUrl: http://seq:80
       OpenTelemetry__Endpoint: http://otel-collector:4317
+      # Fase AI (ADR-041): base URL do Ollama DENTRO da rede do compose —
+      # DNS por nome de serviço, nunca localhost entre containers (§48).
+      # Consumido pelo AI Gateway (S3+); sem o profile `ai` a API sobe
+      # normalmente com o runtime "não configurado" (§44) — o serviço é
+      # opcional, por isso não há depends_on aqui.
+      Ai__Ollama__BaseUrl: ${OLLAMA_BASE_URL:-http://ollama:11434}
       Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
       # Bootstrap Admin (opt-in, idempotente; documentado em .env.example e
       # docs/05). Sem repassar aqui a chave nunca chega na API e o primeiro
@@ -358,6 +365,29 @@ services:
     networks:
       - infracontrol
 
+  # ---------------- profile: ai (Fase AI — ADR-041) ----------------
+  # Runtime local de LLM da AI Foundation. Só sobe com --profile ai;
+  # a API NÃO depende dele (estado "não configurado" quando ausente).
+  ollama:
+    image: ollama/ollama:latest
+    container_name: infracontrol-ollama
+    profiles: ["ai"]
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Healthcheck HTTP real em GET /api/tags — mesmo truque de /dev/tcp
+    # da `api`: a imagem do Ollama não garante curl/wget (ADR-041).
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/11434 && printf 'GET /api/tags HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
 
 volumes:
   postgres_data:
@@ -367,7 +397,11 @@ volumes:
   zabbix_db_data:
   zabbix_server_snmptraps:
   zabbix_server_mibs:
+<<<<<<< HEAD
+  ollama_data:
+=======
   pdi-evidence:
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 
 networks:
   infracontrol:

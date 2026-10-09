@@ -55,6 +55,7 @@ public sealed class KnowledgeArticleLinkCommandTests : IDisposable
             DeviceLinkRepo(context),
             IncidentLinkRepo(context),
             ServiceLinkRepo(context),
+            new KnowledgeArticleOriginRepository(context),
             new FakeCurrentUser());
 
     private sealed class FakeCurrentUser : ICurrentUserContext

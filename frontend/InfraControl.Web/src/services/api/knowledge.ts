@@ -18,6 +18,32 @@ export interface KnowledgeArticle {
   categoryId: string | null;
   /** 0=Draft, 1=Published, 2=Archived (KnowledgeArticleStatus). */
   status: number;
+  /** F24-T001/K1 — nome do enum (KnowledgeArticleType); null = sem tipo. */
+  type: string | null;
+  /** F24-T001/K1 — identificação (spec docs/32 §6): descrição, tags e
+   * pessoas; nomes já resolvidos pelo backend (leitura sem /admin/users). */
+  description: string | null;
+  tags: string[];
+  authorId: string | null;
+  authorName: string | null;
+  responsibleId: string | null;
+  responsibleName: string | null;
+  /** F24-T003/K3 — versão corrente ("1.0" na criação); histórico em GET {id}/versions. */
+  version: string;
+  /**
+   * F24-T004/K4 — origens (docs/32 §9): tipo + id, vindo em lote na
+   * busca e no detalhe. Type = "Task" | "Pdi" | "Incident".
+   */
+  origins: { type: string; id: string }[];
+  /**
+   * F24-T005/K5 — governança (docs/32 §6/§12): agenda de revisão
+   * periódica. `pendingReview` = "Knowledge necessita de revisão".
+   */
+  nextReviewAt: string | null;
+  reviewIntervalDays: number | null;
+  reviewResponsibleId: string | null;
+  reviewResponsibleName: string | null;
+  pendingReview: boolean;
   /** Vínculos F10-T004 — só populados no GET/{id}; a busca devolve []. */
   deviceIds: string[];
   incidentIds: string[];
@@ -48,8 +74,14 @@ export interface Paged<T> {
   pageSize: number;
 }
 
+<<<<<<< HEAD
+// F24-T002/K2 (ADR-034, spec docs/32 §7): 8 status. Os 3 primeiros
+// números são o contrato legado do F10 (estáveis); os novos entram
+// 3–7 — o MVC serializa enum como número (sem JsonStringEnumConverter).
+=======
 // F24-T002/K2 (ADR-039 §1): enum exposto como número no JSON — 0–2 são
 // contrato antigo (F10-T003) e ficam fixos; os 5 novos entram por append.
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
 export const ARTICLE_STATUS_DRAFT = 0;
 export const ARTICLE_STATUS_PUBLISHED = 1;
 export const ARTICLE_STATUS_ARCHIVED = 2;
@@ -63,6 +95,18 @@ export interface ArticleFilters {
   term?: string;
   page?: number;
   pageSize?: number;
+  /** F24-T005/K5 — só artigos com revisão vencida (docs/32 §12). */
+  pendingReview?: boolean;
+  /**
+   * F24-T007/K7 — busca avançada (docs/32 §13): filtros estruturados
+   * AND sobre campos do modelo. `type` = nome do enum; `tag` casa com a
+   * normalização do domínio (trim+lowercase). "Sistema"/"setor" da spec
+   * não existem no modelo e não têm filtro.
+   */
+  categoryId?: string;
+  authorId?: string;
+  type?: string;
+  tag?: string;
 }
 
 /** Busca com `term` (substring no repositório); pageSize clampado 1..100. */
@@ -73,6 +117,11 @@ export async function listArticles(
   if (filters.term) params.set("term", filters.term);
   if (filters.page) params.set("page", String(filters.page));
   if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
+  if (filters.pendingReview) params.set("pendingReview", "true");
+  if (filters.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters.authorId) params.set("authorId", filters.authorId);
+  if (filters.type) params.set("type", filters.type);
+  if (filters.tag) params.set("tag", filters.tag);
 
   const query = params.toString();
   const data = await api.get<Paged<KnowledgeArticle>>(
@@ -96,14 +145,20 @@ export async function listCategories(): Promise<Paged<KnowledgeCategory>> {
 /**
  * Criação de artigo (Operate + antiforgery). As validações `[Required]`/
  * `[MaxLength]` do ViewModel já nascem em pt-BR e chegam no `errors` do
- * envelope.
+ * envelope. F24-T001/K1: identificação opcional (tipo/descrição/tags/
+ * responsável); autor é o usuário corrente, definido no servidor.
  */
 export function createArticle(input: {
   title: string;
   content: string;
   categoryId?: string;
+<<<<<<< HEAD
+  /** Nome do enum KnowledgeArticleType (catálogo em knowledgeCatalogs). */
+  type?: string;
+=======
   /** F24-T001/K1 — obrigatório (14 tipos, catálogo em knowledgeCatalogs). */
   type: string;
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
   description?: string;
   tags?: string[];
   responsibleId?: string;
@@ -112,7 +167,11 @@ export function createArticle(input: {
     title: input.title,
     content: input.content,
     categoryId: input.categoryId || undefined,
+<<<<<<< HEAD
+    type: input.type || undefined,
+=======
     type: input.type,
+>>>>>>> e3fcaff58af6d26d93c6d14fd9c659552852b34c
     description: input.description || undefined,
     tags: input.tags?.length ? input.tags : undefined,
     responsibleId: input.responsibleId || undefined,

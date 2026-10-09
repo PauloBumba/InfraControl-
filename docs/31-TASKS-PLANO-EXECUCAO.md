@@ -769,3 +769,560 @@ módulo novo. Conferência do que os vínculos existentes cobrem:
 P5b (§14) e esta conferência; a única ligação restante do §14
 (task↔chamado reversa) só entraria por pedido explícito do usuário
 (não inventar requisitos).
+
+## 16. Execução — K1 / F24-T001 (Fase 24, 2026-10-07)
+
+**Tipos e identificação** do artigo (spec Knowledge `docs/32` §5–§6) —
+primeira task da Fase 24, na autorização "F23 (P5c) + Fase 24 inteira".
+
+### Decisões de design
+
+- **Tipo**: enum `KnowledgeArticleType` com os 14 valores da §5,
+  guardado como **string** (coluna `type` 32) e exposto no DTO como
+  **nome do enum em string** (`"Procedure"`, …) — contrato explícito
+  apesar do MVC não registrar `JsonStringEnumConverter` (o `status`
+  numérico legado continua como está). **Opcional**: nulo = sem tipo
+  (a spec não define default para os 10 artigos do seed).
+- **Descrição**: `string?` de **500** (campo de identificação, não
+  conteúdo — o limite é decisão da task; spec não número).
+- **Tags**: **coleção primitiva do EF** (`IReadOnlyList<string>` +
+  backing field explícito) → coluna única `text[]` no Postgres/JSON no
+  Sqlite, em vez de tabela N:N — menos peças e o filtro do K7 usa
+  `Contains` (traduzido para `= ANY`/`json_each`). Normalização no
+  domínio (`KnowledgeArticle.NormalizeTags`): trim + lowercase + dedup
+  na ordem; ≤50 por tag e ≤20 no total (pt-BR → 400). Linhas antigas =
+  `[]`/NULL com getter que nunca devolve null.
+- **Autor × responsável**: `AuthorId` vem do **servidor**
+  (`ICurrentUserContext.UserId`) no `POST` e é **imutável**
+  (`SetIdentification` não toca); `ResponsibleId` vem do cliente com
+  validação 404 `Usuário '{id}' não encontrado.` (molde do
+  responsável de Task). As duas FKs para `DomainUsers` são **SetNull**
+  — mesma decisão da categoria do artigo; `Restrict` do `TaskComment`
+  bloquearia a exclusão dura de usuário que o produto tem.
+- **Nomes no DTO** (`authorName`/`responsponsibleName`): resolvidos no
+  backend por `IKnowledgeArticleRepository.GetUserNamesAsync` (join,
+  DisplayName com fallback e-mail) — leitura sem depender da policy do
+  `/admin/users`; a busca resolve a página inteira num round-trip.
+- **DTO por init-props + factory `From/FromAsync`**: os campos novos
+  não quebram nenhuma construção existente e centralizam o mapeamento
+  dos 4 pontos (Create, ChangeStatus, Search, Get).
+- Commands `Create`/`Update` estendidos com parâmetros **opcionais**
+  no fim — os 14 call sites antigos (unidade + integração) seguem
+  compilando; `Update` não mexe no `Status` nem no autor.
+
+### Arquivos alterados
+
+- Domínio: `Enums/KnowledgeArticleType.cs` (novo, 14 valores),
+  `KnowledgeArticle` (+Type/Description/AuthorId/ResponsibleId/Tags,
+  `SetIdentification`, `NormalizeTags`, constantes 500/50/20).
+- Application: `KnowledgeArticleDto` (+7 init-props, `From`/`FromAsync`
+  /`NameIds`), `IKnowledgeArticleRepository` (+`UserExistsAsync`,
+  `GetUserNamesAsync`), `KnowledgeArticleCommands` (Create/Update
+  estendidos, `ParseType`, `EnsureResponsibleExistsAsync`),
+  `KnowledgeArticleQueries` (mapeamento novo com batch de nomes).
+- Infra: `KnowledgeArticleRepository` (+2 métodos),
+  `KnowledgeArticleConfiguration` (+5 colunas, 2 FKs SetNull, `tags`
+  com backing field), migração
+  `20261008001827_AddKnowledgeArticleIdentification` (script validado:
+  `type` 32, `description` 500, FKs SetNull, `tags text[]` — **não
+  aplicada**).
+- Api: ViewModels +`Type`/`Description`/`Tags`/`ResponsibleId`,
+  controller repassa nos 2 endpoints.
+- Front: `knowledge.ts` (+7 campos no tipo, +4 no input de criação),
+  `knowledgeCatalogs.ts` (**novo** — 14 rótulos pt-BR), `KnowledgePage`
+  (form com tipo/responsável/descrição/tags + card com chip de tipo,
+  descrição, chips de tags e rodapé "Autor · Responsável"; select de
+  responsável carrega `listUsers`, falha → select vazio).
+- Testes: `KnowledgeArticleIdentificationTests` (**novo**, 7) +
+  `KnowledgeArticleCommandTests` +5 (criação com identificação,
+  responsável 404, tipo 400, update mantém autor, busca com nomes) —
+  `CreateContextAsync` agora semeia o usuário corrente (FK SetNull) e
+  `FakeCurrentUser` aceita id. Integration tests da K1 **não criados**
+  (critério das fases sem Docker).
+
+### Validação
+
+- build 0 erros · unit **1771/1771** (+12) · arch **115/115** · script
+  da migração OK · front lint exit 0 / build ✓.
+
+### Pendências da K1
+
+- Migração não aplicada + testes de integração não executados (Docker).
+  Os 10 artigos do seed ficam sem tipo/descrição (nulo = "sem tipo").
+
+## 17. Execução — K2 / F24-T002 (Fase 24, 2026-10-07)
+
+**Workflow dos status** (spec `docs/32` §7) — transição de status é
+regra de domínio, então **ADR antes do código** (`AGENTS.md`):
+**ADR-034** (`docs/adr/ADR-034-KNOWLEDGE-STATUS-WORKFLOW.md`).
+
+### Decisões do ADR-034
+
+- **8 estados** (a §7 repete "EM REVISÃO" — é um único `InReview`):
+  `Draft/InReview/Approved/Published/Updated/Archived/Obsolete/
+  Rejected`; rótulos pt-BR **verbatim da §7** ("Publicada"/"Arquivada"
+  — muda o gênero do legado).
+- **Números legados estáveis**: `Draft=0/Published=1/Archived=2`
+  preservados (contrato do front), novos 3–7; armazenamento segue
+  string → **nenhuma migração de dados** (o seed usa os 3 nomes
+  antigos, continua válido).
+- **Matriz de 16 pares válidos**: cadeia `Draft→InReview→Approved→
+  Published`; revisão do publicado `Published→InReview→Updated`;
+  `Published/Updated→Archived/Obsolete`; saídas `Archived/Obsolete/
+  Rejected→Draft`. `InReview` aceita os dois fechamentos (o estado não
+  guarda origem — registrado como consequência). Fora da matriz ou
+  repetir estado = 409 (mecanismo inalterado).
+- **Visibilidade generalizada** (F10-T003 → ADR-034 §4): `includeDrafts`
+  virou **`includeUnpublished`**; a fonte única do conjunto é
+  `KnowledgeArticleStatusRules.UnpublishedStatuses` (Domínio — a
+  coleção entra na expressão LINQ e vira `IN`, traduzível nos dois
+  providers; `IsUnpublished()` extensão para o `GET/{id}` = 404).
+  Nunca-publicados = `Draft/InReview/Approved/Rejected`.
+- 400 com as 8 opções; rota/policy/DTO **inalterados** (superfície
+  continua `POST {id}/status`, `Operate`).
+
+### Arquivos alterados
+
+- Domínio: `KnowledgeArticleStatus` (8 valores, doc por estado),
+  `KnowledgeArticleStatusRules` (**novo**), `KnowledgeArticle.
+  TransitionTo` (matriz nova).
+- Application: mensagem de 400 (8 opções), port/repo
+  `includeDrafts→includeUnpublished`, `CanSeeDrafts→CanSeeUnpublished`,
+  `GET/{id}` por `IsUnpublished()`, cabeçalho das queries.
+- Infra: filtro do `SearchAsync` com o conjunto do domínio (`IN`).
+- Front: `knowledge.ts` +5 constantes (3–7), `KnowledgePage.
+  statusConfig` com 8 chips na ordem da §7 (rótulos femininos).
+- Testes: `KnowledgeArticleTests` transições reescritas (8 → cadeia,
+  revisão, rejeição, 4 conflitos + regra de visibilidade) ;
+  `KnowledgeArticleStatusCommandTests` reescrito (12 — seed por
+  caminho válido `PathTo`, cadeia via handler, revisão→Updated, 409×2,
+  404, 400 com 8 opções, busca oculta/mostra os 4+4, GET InReview 404);
+  `CrudDomainEventLote3Tests` (cadeia até Published);
+  integração `KnowledgeArticleIntegrationTests` (3 testes na cadeia
+  nova — compilam, não executam sem Docker).
+- Docs: **ADR-034** (novo), docs/04 §Publicação reescrita.
+
+### Validação
+
+- build 0 erros · unit **1775/1775** (+4 líquidos) · arch **115/115** ·
+  front lint exit 0 / build ✓.
+
+### Pendências da K2
+
+- Testes de integração não executados (Docker); migração **nenhuma**
+  nova (enum em string).
+
+## 18. Execução — K3 / F24-T003 (Fase 24, 2026-10-07)
+
+**Versionamento** (spec `docs/32` §8 — "uma Knowledge nunca perde
+versões anteriores"). Sem precedente de snapshot no repo (o PDI tem
+timeline de entradas, não cópia de conteúdo); o molde foi o próprio
+`PdiHistoryEntry` para os metadados com ator resolvido.
+
+### Modelo (docs/04 §Versionamento)
+
+- Tabela **`knowledge_article_versions`**: snapshot completo
+  (title/content/description/type/tags/category — a "alteração" da §8)
+  + `reason` (motivo, obrigatório ≤500), `author_id` (autor),
+  `CreateDateTime` (data), `approved_by_id`/`approved_at` (aprovador,
+  carimbado na aprovação do K2). Chave única `(article_id, version)`;
+  FK artigo **Cascade** (apagar apaga o histórico), autor/aprovador
+  **SetNull** (molde K1); `tags` = coleção primitiva (JSON/`text[]`).
+- **Numeração no domínio** (`KnowledgeArticle.BumpVersion` /
+  `MarkVersionApproved`): criação **v1.0**; cada edição abre minor
+  (1.1, 1.2…); aprovar põe o piso → próxima edição abre major novo
+  (2.0, 3.0…) — cadeia da §8 (v1.0 → v1.1 → v2.0) sem renumerar linha
+  já gravada. `version` + `version_major_floor` viram colunas no
+  artigo (defaults `1.0`/`1` preenchem as linhas antigas).
+- **Snapshot `KnowledgeArticleVersion.SnapshotOf`** valida motivo em
+  pt-BR (vazio/`>500` = 400/ArgumentException) e **copia** as tags (o
+  artigo segue vivo). `Approve` carimba só o **primeiro** aprovador.
+
+### Pontos de disparo (handlers)
+
+- `Create` → linha v1.0 (motivo "Criação do artigo");
+- `Update` → `BumpVersion()` + snapshot (command ganhou **`Reason`
+  obrigatório** — posição após `CategoryId`, antes dos opcionais da
+  K1; VM `[Required]` "O motivo da alteração é obrigatório.");
+- `ChangeStatus` → se `Approved`: `MarkVersionApproved()` no artigo +
+  `Approve(currentUserId)` na versão corrente (handlers ganharam
+  `IKnowledgeArticleVersionRepository` + `ICurrentUserContext`).
+- DI automática (RepositoryRegistrar — `IXxxRepository`/`XxxRepository`
+  casam o padrão); DTO do artigo ganhou `version` (init-prop, molde K1)
+  + `knowledge.ts` ganhou o campo no contrato.
+
+### Endpoints (Read, mesma visibilidade ADR-034 §4)
+
+- `GET {id}/versions` → `ListKnowledgeArticleVersionsQuery` — ordenado
+  por **número** (major, minor) desc (o timestamp empataria no mesmo
+  tick e "1.10" não ordena com "1.2"), `isCurrent` = linha == versão
+  corrente, autor/aprovador nomeados num round-trip;
+- `GET {id}/versions/compare?from=&to` →
+  `CompareKnowledgeArticleVersionsQuery` — dois snapshots lado a lado
+  (o diff é de quem consome); lado inexistente = 404
+  `Versão 'x' não encontrada.`; estado nunca-publicado sem escrita =
+  404 (mesmo check do `GET/{id}`).
+
+### Migração `20261008004732_AddKnowledgeArticleVersioning`
+
+- `knowledge_articles` + `version` (`DEFAULT '1.0'`) +
+  `version_major_floor` (`DEFAULT 1`); tabela + 3 índices (único no
+  par artigo/versão); **backfill idempotente** (`INSERT…SELECT` com
+  `NOT EXISTS`): artigos existentes viram a v1.0 do próprio histórico
+  (motivo "Criação do artigo", `tags` com `COALESCE` para `{}`).
+- Script validado (`dotnet ef migrations script`): `ALTER TABLE … ADD
+  version … DEFAULT '1.0'` backfilla as linhas antigas; `gen_random_uuid()`
+  é core do PG13+. **Não aplicada** (Docker).
+
+### Arquivos alterados/criados
+
+- Domínio: `KnowledgeArticle` (Version, `_versionMajorFloor`,
+  `BumpVersion`, `MarkVersionApproved`), **`KnowledgeArticleVersion`**
+  (novo).
+- Application: port **`IKnowledgeArticleVersionRepository`** (novo) +
+  `KnowledgeArticleVersionWithActors`; DTOs
+  **`KnowledgeArticleVersionDto`/`Snapshot`/`Compare`** (novo);
+  **`KnowledgeArticleVersionQueries`** (novo — list/compare);
+  commands (Reason + snapshot + carimbo); `KnowledgeArticleDto.Version`.
+- Infra: **`KnowledgeArticleVersionRepository`** (novo) +
+  `KnowledgeArticleVersionConfiguration` (novo); `KnowledgeArticle`
+  config (+2 colunas); `AppDbContext` (+DbSet); migração.
+- API: VM `Reason` `[Required]`; controller +2 GET (rota
+  `versions/compare` literal).
+- Front: `knowledge.ts` +`version` no contrato (**sem UI de histórico —
+  backlog**, como já é a edição).
+- Testes: **`KnowledgeArticleVersionTests`** (8 — regra de numeração,
+  snapshot imutável, motivos 400 pt-BR, primeiro aprovador) +
+  **`KnowledgeArticleVersionCommandTests`** (8 — v1.0 no create,
+  minor com motivo, motivo vazio não grava, aprovação carimba + abre
+  major, 404 de artigo/lista/compare, visibilidade 404, compare com os
+  dois snapshots); call sites de `Update`/handlers ajustados (Reason +
+  ctor) — integração só compila (Docker).
+- Docs: docs/04 §Versionamento, docs/31 §18, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1791/1791** (+16) · arch **115/115** · script
+  da migração OK (backfill incluso) · front lint exit 0 / build ✓.
+
+### Pendências da K3
+
+- Migração `AddKnowledgeArticleVersioning` não aplicada + testes de
+  integração não executados (Docker); histórico no **front** (listar /
+  comparar versões) = backlog junto com a UI de edição.
+
+## 19. Execução — K4 / F24-T004 (Fase 24, 2026-10-07)
+
+**Rastreabilidade de origem** (spec `docs/32` §9 — "a Knowledge mantém
+sua origem", múltiplas origens: Tasks/PDIs/Chamados/Projetos/documentos/
+treinamentos).
+
+### Design (decisões da task)
+
+- **Tabela nova `knowledge_article_origins`** em vez de estender o
+  vínculo P5a (`task_knowledge_articles`): aquele é task-centro e de
+  USO (§10 "ser utilizada por uma Task"); origem (§9) é artigo-centro
+  e polimórfica (Task/PDI/Chamado) — modelos diferentes, sem sobrepor.
+  Projetos/documentos/treinamentos **não existem** como entidade no
+  repo → fora do enum (AGENTS: não inventar; se nascerem, +1 valor).
+- **Polimórfico sem FK** em `origin_id` (alvo de outro agregado —
+  precedente das refs sem FK do ADR-033); a **existência é validada
+  no handler por tipo** (`ITaskItemRepository`/`IPdiRepository`/
+  `IIncidentRepository`) com 404 pt-BR por tipo. `article_id` FK
+  Cascade; chave única `(article_id, origin_type, origin_id)`;
+  `origin_type` string (enum `KnowledgeOriginType`).
+- `KnowledgeArticleOrigin` = `AggregateRoot` com eventos
+  Created/Deleted (molde `KnowledgeArticleDevice` — ADR-030 §5).
+- **Endpoints** no molde F10-T004: `POST/DELETE
+  {id}/origins/{type}/{originId}` (`Operate`); 400 `Origem inválida:
+  'x'. Use 'task', 'pdi' ou 'incident'.` / 404 (artigo, alvo por
+  tipo, vínculo) / 409 `A origem já está vinculada ao artigo.`
+- **DTO**: `KnowledgeArticleOriginDto(Type, Id)` (enum como string —
+  decisão K1); `origins` no artigo como init-prop vindo **em lote na
+  busca** (round-trip único + group, mesmo critério do batch de nomes
+  do K1 — sem N+1) **e** no detalhe. Diferença dos vínculos F10-T004
+  (só detalhe): §9 pede a origem visível no card.
+- Front: `knowledge.ts` +`origins`; chips "Origem: Task/PDI/Chamado"
+  no card (rótulo Incident→"Chamado" conforme §9).
+
+### Migração `20261008010616_AddKnowledgeArticleOrigins`
+
+- Tabela + FK Cascade + índice único do par (artigo, tipo, id);
+  **script validado** (`dotnet ef migrations script`), **não
+  aplicada** (Docker) — pendências de migração agora **11**.
+
+### Arquivos alterados/criados
+
+- Domínio: `KnowledgeOriginType` (novo), `KnowledgeArticleOrigin`
+  (novo), `KnowledgeDomainEvents` +2 eventos.
+- Application: port `IKnowledgeArticleOriginRepository` (novo),
+  `KnowledgeArticleOriginDto` (novo), `KnowledgeArticleOriginCommands`
+  (novo — Link/Unlink com ParseType compartilhado), `KnowledgeArticleDto
+  .Origins`, Search/Get handlers (+repositório de origem e anexação).
+- Infra: `KnowledgeArticleOriginConfiguration` +
+  `KnowledgeArticleOriginRepository` (novos), `AppDbContext` +DbSet,
+  migração.
+- API: controller +POST/DELETE origins.
+- Front: contrato + chips no card.
+- Testes: **`KnowledgeArticleOriginCommandTests`** (8 — origem no
+  detalhe e na busca, múltiplas origens, 400/404×3/409, unlink);
+  helpers `SearchHandler`/`GetHandler` de 3 arquivos de teste ganharam
+  o repositório de origem.
+- Docs: docs/04 §Origem, docs/31 §19, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1799/1799** (+8) · arch **115/115** · script
+  da migração OK · front lint exit 0 / build ✓.
+
+### Pendências da K4
+
+- Migração `AddKnowledgeArticleOrigins` não aplicada + testes de
+  integração não executados (Docker); nome/título do alvo de origem no
+  card (hoje só tipo+id, como desenha a §9 "Task #0042") = backlog;
+  origem automática ao "criar artigo a partir de uma task" = backlog
+  com a UI de edição.
+
+## 20. Execução — K5 / F24-T005 (Fase 24, 2026-10-07)
+
+**Revisão periódica** (spec `docs/32` §6 governança + §12 — "Revisar
+Knowledge a cada 180 dias" → "Knowledge necessita de revisão" →
+manter/atualizar/substituir/arquivar). Sem precedente de agenda no
+repo; o molde dos endpoints/validação foi o K1 (`EnsureResponsible-
+ExistsAsync` para o responsável) e o do 409, os vínculos.
+
+### Design (decisões da task)
+
+- **Campos de governança da §6** no domínio: `NextReviewAt`,
+  `ReviewIntervalDays` (ex.: 180) e `ReviewResponsibleId` (§6
+  distingue "responsável" do artigo = K1 de "responsável pela
+  revisão" = K5). Invariante: `nextReviewAt` não-nulo ⟺ `interval`
+  não-nulo. Intervalo **1..3650** (`Min/MaxReviewIntervalDays` no
+  domínio; fora = 400 `O intervalo de revisão deve estar entre 1 e
+  3650 dias.` — VM `[Range]` + domínio).
+- **Agenda à parte do PUT do artigo** (`PUT {id}/review-schedule`):
+  o PUT do artigo é full-state com opcionais — mandar `null` não
+  distinguiria "limpar" de "não enviou" e clientes antigos apagariam
+  a agenda (mesma reflexão do ADR-033 sobre presença do campo).
+- **Ações da §12 mapeadas sem inventar endpoint novo**: manter =
+  `POST {id}/review/confirm` (`ConfirmReview` → 409 sem agenda);
+  atualizar = `PUT` do artigo (`PostponeReview()` no handler —
+  reagenda sozinho, no-op sem agenda); substituir = reescrever o
+  conteúdo (`PUT`) ou arquivar + origem no substituto (K4); arquivar =
+  `POST {id}/status` (ADR-034).
+- **Alerta = filtro + flag** (escopo da task: "filtro pendentes de
+  revisão"): `SearchKnowledgeArticlesQuery(+PendingReview)` →
+  repositório `NextReviewAt != null && <= now` (`now` capturado fora —
+  EF não traduz `AppTimeProvider`); DTO ganhou `pendingReview`
+  (comparação no `From`) + `nextReviewAt/reviewIntervalDays/
+  reviewResponsibleId/reviewResponsibleName` (revisor entrou no
+  `NameIds` do batch K1 — round-trip único, sem N+1).
+- **Front**: `knowledge.ts` +5 campos + `ArticleFilters.pendingReview`;
+  KnowledgePage: botão **"Revisões"** (toggle amarelo ao lado de
+  "Filtrar"; "Limpar" reseta) e chip âmbar **"Revisar"** no card quando
+  `pendingReview`.
+- **Testes sem relógio falso global**: `AppTimeProvider.Current` é
+  estático e os testes rodam em paralelo — envelhecer a linha é feito
+  com SQL direto (`UPDATE ... SET "NextReviewAt" = datetime('now',
+  '-1 day')`), não trocando o relógio compartilhado.
+
+### Migração `20261008012115_AddKnowledgeArticleReview`
+
+- 3 colunas nullable em `knowledge_articles` (`"NextReviewAt"`,
+  `"ReviewIntervalDays"`, `"ReviewResponsibleId"`) — sem backfill
+  (agenda nova por artigo); **script validado**, **não aplicada**
+  (Docker) — pendências de migração agora **12**.
+
+### Arquivos alterados/criados
+
+- Domínio: `KnowledgeArticle` (+3 campos, `SetReviewSchedule` /
+  `ConfirmReview` / `PostponeReview`, `Min/MaxReviewIntervalDays`).
+- Application: **`KnowledgeArticleReviewCommands`** (novo — set
+  schedule + confirm), `SearchKnowledgeArticlesQuery(+PendingReview)`,
+  port `SearchAsync(+pendingReview)`, DTO (+5 campos, `NameIds` com
+  revisor, `PendingReview` no `From`).
+- Infra: `KnowledgeArticleRepository.SearchAsync` +filtro; migração.
+- API: VM `SetKnowledgeArticleReviewScheduleViewModel` (`[Range]`) +
+  controller +`PUT {id}/review-schedule` e `POST {id}/review/confirm`.
+- Front: contrato + toggle "Revisões" + chip "Revisar".
+- Testes: **`KnowledgeArticleReviewTests`** (9 — agenda calculada +
+  responsável nomeado, 400 de intervalo ×2, 404 de responsável,
+  limpeza, confirm reagenda, 409 sem agenda, edição reagenda, filtro
+  pendentes).
+- Docs: docs/04 §Revisão periódica, docs/31 §20, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1808/1808** (+9) · arch **115/115** · script
+  da migração OK · front lint exit 0 / build ✓.
+
+### Pendências da K5
+
+- Migração `AddKnowledgeArticleReview` não aplicada + testes de
+  integração não executados (Docker); ação **substituir** por outro
+  artigo com destaque/redirect = backlog (hoje = conteúdo novo via
+  PUT + origem K4); notificação push/e-mail do alerta (o §12 só diz
+  "alerta") = backlog.
+
+## 21. Execução — K6 / F24-T006 (Fase 24, 2026-10-07)
+
+**Geração automática de rascunho** (spec docs/32 §2–§4 — "Gerar
+Knowledge" ao concluir Task/PDI"). A task bloqueava por arquitetura ("sem
+infra de IA no repo — definir antes, possível ADR"): decisão apresentada
+ao usuário e **aprovada em 2026-10-07** → montagem **determinística** dos
+registros existentes, **sem LLM** (a §3 exige "conteúdo baseado nos
+registros existentes / não inventar"; o repo não tem provedor, chave ou
+orçamento de IA — docs/31 §12). Registrada em **ADR-035**.
+
+### Design (decisões da task)
+
+- **Endpoints explícitos** (nada roda sozinho na conclusão — a §2 diz
+  "o sistema poderá disponibilizar"):
+  - `POST /api/v1/tasks/{taskId}/generate-knowledge` (Operate) — só
+    `Resolved`/`Closed` ("ao concluir"); 409
+    `A task precisa estar concluída para gerar Knowledge.`;
+  - `POST /api/v1/pdi/{userId}/generate-knowledge` (Operate) — dono
+    ou Admin (mesma checagem de dono dos endpoints de PDI: 403
+    `Você só pode gerar Knowledge do seu próprio PDI.`), só
+    `Completed`; 404 `PDI do usuário '{id}' não encontrado.`
+- **Nasce Draft** (§2 "Knowledge sugerida → Revisão" — nenhum caminho
+  pula o ADR-034), **versão v1.0** com motivo de proveniência
+  "Geração automática a partir de …" (K3, §8) e **origem** Task/Pdi
+  (K4, §9) — nos dois casos reaproveitando os repositórios/rotas
+  existentes, **zero migração nova**.
+- **`KnowledgeDraftComposer`** (função pura em Application, testável
+  sem I/O): seção só entra se houver registro — seção vazia nunca é
+  escrita (é assim que "não inventar" vira código). Task: Objetivo
+  (descrição/prazo), Resultado, Critérios de aceite (x/ ),
+  Fases (posição + estado), Subtarefas (estatísticas do
+  `GetSubtaskStatsAsync` — não há tabela de subtarefas legível),
+  Dificuldades e impedimentos (resolvido/aberto), Evidências
+  (arquivo/nota), Comentários (data + autor) e Linha do tempo (últimas
+  50, ordenadas por data, com ator e rótulo `TaskTimelineTypes`). PDI:
+  Plano (estratégia + prazo), Objetivos (só campos preenchidos,
+  competência resolvida no catálogo) e Linha do tempo (tipo/detalhe/
+  motivo). Título: task.Title / primeiro objetivo (§4 — ex.: o PDI
+  "Conhecer funcionamento do sistema de Tomografia" vira artigo com
+  esse título, sem reescrita mágica); banner `> Rascunho gerado
+  automaticamente…` no topo; cortes nos limites do domínio (200/20k,
+  sem surrogate solto).
+- **Front**: `tasks.ts`/`pdi.ts` +`generateTaskKnowledge`/
+  `generatePdiKnowledge` (retornam o artigo; throw em resposta vazia,
+  molde `upsertPdi`); TaskDetailPage: botão **"Gerar Knowledge"** no
+  header, renderizado só quando `state` é Resolvida/Fechada, dentro de
+  `<Can operate>`, via `run()` (aviso pt-BR + recarga); PdiPage: botão
+  na linha da tabela (Admin) e no card do plano próprio, só
+  `status === "Completed"`, com `NoticeBanner` novo (estado `notice`).
+- **Testes** (8, `KnowledgeGenerationTests`): task concluída monta
+  todas as seções + v1.0 + origem Task; task aberta = 409; task
+  inexistente = 404; task sem registros omite seções vazias (§3);
+  PDI concluído monta do objetivo + origem Pdi; PDI em Draft = 409;
+  PDI inexistente = 404 (Admin); PDI de outro usuário = 403.
+
+### Arquivos alterados/criados
+
+- **`docs/adr/ADR-035-KNOWLEDGE-POR-MONTAGEM-DETERMINISTICA.md`** (novo).
+- **`docs/34-PLANO-AI-ENGINEERING-BLUEPRINT.md`** (novo — blueprint de
+  IA recebida do usuário em 2026-10-07, arquivada integralmente;
+  investigação/ plano da Fase 0 sai no checkpoint da Fase 24 — usuário
+  aprovou Fase 0 como próxima fase; ADRs de IA continuarão de ADR-036).
+- Application: **`KnowledgeDraftComposer`** (novo) +
+  **`KnowledgeGenerationCommands`** (novo — 2 commands + handlers com
+  12 ports no total).
+- API: `TasksController` +`POST {taskId}/generate-knowledge`;
+  `PdiController` +`POST {userId}/generate-knowledge`.
+- Front: `tasks.ts`, `pdi.ts`, `TaskDetailPage.tsx`, `PdiPage.tsx`.
+- Testes: **`KnowledgeGenerationTests`** (8).
+- Docs: docs/04 §Geração automática, docs/31 §21, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1816/1816** (+8) · arch **115/115** · front
+  lint exit 0 / build ✓ · **sem migração** (pendências continuam 12).
+
+### Pendências da K6
+
+- Sem Docker: Ollama/health checks da blueprint ficam para a Fase 0 com
+  ambiente pendente (igual às migrações); evidência de execução do
+  endpoint via Integração (Playwright/API) depende do ambiente de
+  teste; "sistema/setor" e seções sem registro (pesquisas/decisões
+  literais) ficam de fora até o modelo existir (K7 usa o mesmo
+  critério).
+
+## 22. Execução — K7 / F24-T007 (Fase 24, 2026-10-07)
+
+**Busca avançada** (spec docs/32 §13) com o escopo aprovado — "só o
+que existe no modelo". No caminho a task pegou um bug de wiring do K5.
+
+### Design (decisões da task)
+
+- **Filtros estruturados AND** somados ao `SearchAsync` (port →
+  repositório → query → controller): `categoryId` (FK exata),
+  `authorId` (autoria — FK SetNull), `type` (nome do enum; o binder do
+  MVC aceita nome mesmo sem `JsonStringEnumConverter` — inválido vira
+  400 automático do `[ApiController]`) e `tag` (a normalização
+  trim+lowercase do domínio é repetida no filtro — "Switch" acha
+  "switch", coleção primitiva do EF traduz para `ANY`). `term` passa
+  a casar também na **descrição**.
+- **Bug corrigido**: `KnowledgeArticlesController.Search` **não
+  repassava o `PendingReview` do K5** — a query string era ignorada e
+  o filtro nunca saía do endpoint (os testes do K5 cobrem o handler,
+  não a action; sem integração por falta de Docker). A action agora
+  repassa todos os parâmetros. Registrado no comentário do parâmetro
+  para não virar regressão silenciosa.
+- **Ausentes por modelo**: "sistema"/"setor" da §13 não existem em
+  nenhuma entidade (`Setor`/`Sector` não aparecem no domínio) — sem
+  filtro e sem chip, documentado como ausente em docs/04 e no
+  comentário da task (mesmo critério da K6).
+- **Front** (`knowledge.ts` + `KnowledgePage`): barra de filtros com
+  select de categoria (categorias já carregadas), select de autor
+  (opções derivadas do próprio DTO — id + nome vêm do backend, sem
+  `/admin/users`; autor selecionado sem artigo na página vira opção
+  sintética), chips dos 14 tipos (toggle: clicar de novo limpa) e chip
+  da tag ativa; **tag e "Autor:" dos cards viraram botões de filtro**;
+  o "Limpar" do header zera tudo (term, revisões e novos); qualquer
+  mudança de filtro volta para a página 1. `ArticleFilters` +=
+  categoryId/authorId/type/tag.
+
+### Arquivos alterados
+
+- Port `IKnowledgeArticleRepository` + `KnowledgeArticleRepository`
+  (4 filtros + descrição no termo).
+- `KnowledgeArticleQueries` (record += 4 props; handler normaliza a
+  tag antes de chamar o repo).
+- `KnowledgeArticlesController.Search` (+= 5 parâmetros — inclui o fix
+  do pendingReview).
+- Front: `knowledge.ts` (ArticleFilters + query string),
+  `KnowledgePage.tsx` (estado, barra, cards clicáveis, Limpar geral).
+- Testes: **`KnowledgeArticleSearchFilterTests`** (6 — categoria,
+  autor, tipo [exclui artigo sem tipo], tag [caixa], termo na
+  descrição, combinação AND — todos pelo handler).
+- Docs: docs/04 §Busca avançada, docs/31 §22, TASKS, PROJECT_STATE.
+
+### Validação
+
+- build 0 erros · unit **1822/1822** (+6) · arch **115/115** · front
+  lint exit 0 / build ✓ · **sem migração** (pendências seguem 12).
+
+### Pendências da K7
+
+- Cobertura do fix do `pendingReview` é por leitura de código — teste
+  de HTTP/exigência da query string depende de Integração (Docker);
+  índices dedicados dos novos filtros = backlog (FKs já têm índice;
+  tag vive em coluna JSON/text[]);
+  "sistema/setor" entra só se o modelo ganhar os campos (requisito
+  novo → task/ADR nova).
+
+## 23. Entrega — Investigação Sprint 0 da AI Blueprint (2026-10-07)
+
+Fim do mandato da Fase 24: blueprint arquivada em **docs/34** (§66 —
+"só investigação e planejamento, NÃO implementar") e investigação
+entregue em **docs/35-PLANO-AI-FOUNDATION-SPRINT0.md**: arquitetura
+encontrada, componentes reutilizáveis/inexistentes, Docker existente,
+dependências, gaps e conflitos (Docker indisponível → §47/§63 sem
+evidência; ADRs de IA de **ADR-036**; `profiles: [ai]` × ADR-022;
+ADR-035 × §33), riscos, **ADRs 036–041**, plano Docker preparado
+(não executado), ordem S1–S9 e critérios de aceite do §63/§67
+separando executável sem Docker × pendente de ambiente. **Zero código
+de IA escrito nesta etapa.** Fase 0 — AI Foundation = próxima fase,
+aguardando autorização para abrir tasks.
