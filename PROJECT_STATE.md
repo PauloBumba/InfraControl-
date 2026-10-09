@@ -839,6 +839,19 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   **1940/1940** · arch **119/119** · build 0. Docs: TASKS FAI-T006
   [x], docs/35 §11 S5 ✓, docs/ai/01.
 
+- Fase AI — **FAI-T007 (S6): Segurança LEVEL 0 concluída**
+  (2026-10-09): auditoria `AI.*` no mecanismo existente —
+  `AuditAiAuditSink` grava UMA entrada por request via
+  `IAuditWriter`+`IUnitOfWork` (F0-T014, sem migração): action
+  `AI.{capacidade}`, outcome Succeeded/SucceededViaFallback/Failed,
+  ator (§41 — `Actor` novo em `AiCompletionRequest`), trace (§43) e
+  motivo da troca (§54 — `FallbackReason` em `AiAuditEntry`).
+  Limites §55 no gateway: `MaxPromptCharacters` (default 12000,
+  recusa auditada antes de gastar tokens) + `MaxCompletionTokens`
+  (vira `num_predict` no Ollama quando o chamador não define
+  geração). Testes +9 → unit **1949/1949** · arch **119/119** ·
+  build 0. Docs: TASKS FAI-T007 [x], docs/35 §11 S6 ✓, docs/ai/01.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

@@ -3,7 +3,7 @@
 > Espelho executivo do diagnóstico `docs/35` (Sprint 0) e dos ADRs
 > 036–041. Atualizado a cada entrega da Fase 0.
 
-## Estado atual (S1–S5 entregues; zero chamada a LLM)
+## Estado atual (S1–S6 entregues; zero chamada a LLM)
 
 - 7 projetos .NET 10 (Clean Architecture + DDD + CQRS/MediatR +
   Vertical Slice + Modular Monolith, ADR-001/006/007/031) com módulos
@@ -27,6 +27,12 @@
   capability/provider/model/fallback/trace + métricas
   `ai.requests`/`ai.request.duration`/`ai.tokens.*` capturadas pelo
   OTel existente.
+- **S6 (2026-10-09)**: segurança LEVEL 0 (ADR-040) — `AuditAiAuditSink`
+  persiste UMA entrada `AI.{capacidade}` por request na auditoria de
+  domínio existente (ator §41 via `Actor` do request, motivo de
+  fallback §54, trace §43) e o gateway aplica os limites §55
+  (`MaxPromptCharacters` recusado auditado; `MaxCompletionTokens` →
+  `num_predict`).
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

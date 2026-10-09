@@ -229,6 +229,10 @@ S5 — Runtime health (checks de IA com estado "não configurado") +
       com activity ai.complete + métricas requests/duration/tokens)
    ↓
 S6 — Segurança LEVEL 0 (policy, auditoria de requests, limites §55)
+      ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T007:
+      AuditAiAuditSink persiste AI.* na auditoria existente (§41 ator,
+      §54 motivo de fallback) + limites §55 no gateway — prompt recusado
+      auditado e MaxCompletionTokens → num_predict)
    ↓
 S7 — MCP foundation (contratos internos + registro de tools §21;
      exposição conforme ADR-039)

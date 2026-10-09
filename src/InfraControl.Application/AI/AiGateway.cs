@@ -18,11 +18,14 @@ namespace InfraControl.Application.AI;
 /// - exatamente UMA entrada de auditoria por request (sucesso ou
 ///   falha), emitida pelo hook <see cref="IAiAuditSink"/> antes de
 ///   devolver; o hook é fail-open (falha de observabilidade não derruba
-///   a chamada). Persistência da auditoria é do S6 (ADR-040).
+///   a chamada) e, desde o S6, persiste a ação <c>AI.*</c> na auditoria
+///   de domínio existente (<c>AuditAiAuditSink</c> · ADR-040);
+/// - limites §55 (S6): prompt acima de <c>MaxPromptCharacters</c> é
+///   recusado antes de gastar tokens (auditorado) e
+///   <c>MaxCompletionTokens</c> vira <c>num_predict</c> no provider
+///   quando o chamador não define geração.
 ///
-/// O registro de providers/router ainda não está no DI (S4 — chega com
-/// o <c>ConfigurationProviderRegistry</c>); aqui a classe nasce com
-/// injeção direta para ser testável sem Docker.
+/// Providers/router chegam por DI (S4 — <c>ConfigurationProviderRegistry</c>).
 /// </summary>
 public sealed class AiGateway : IAiGateway
 {
@@ -64,9 +67,18 @@ public sealed class AiGateway : IAiGateway
         string? providerUsed = null;
         string? modelUsed = null;
         var usedFallback = false;
+        string? fallbackReason = null;
 
         try
         {
+            // §55: limite de tamanho do prompt — recusa ANTES de gastar
+            // tokens, com auditoria (o throw cai no catch e é registrado).
+            if (request.Prompt.Length > _options.MaxPromptCharacters)
+            {
+                throw new AiGatewayException(
+                    $"Prompt excede o limite de {_options.MaxPromptCharacters} caracteres (§55).");
+            }
+
             selection = _router.Resolve(request.Capability);
             providerUsed = selection.Provider;
             modelUsed = selection.Model;
@@ -91,6 +103,9 @@ public sealed class AiGateway : IAiGateway
                 }
 
                 usedFallback = true;
+                // §54: registrar o motivo da troca (vira FallbackReason
+                // na auditoria).
+                fallbackReason = primaryFailure.Message;
                 providerUsed = selection.FallbackProvider;
                 modelUsed = selection.FallbackModel;
 
@@ -124,7 +139,7 @@ public sealed class AiGateway : IAiGateway
             await TryRecordAsync(BuildEntry(
                 request, providerUsed, modelUsed, usedFallback,
                 success: true, error: null,
-                result.PromptTokens, result.CompletionTokens, started));
+                result.PromptTokens, result.CompletionTokens, started, fallbackReason));
 
             return completion;
         }
@@ -138,7 +153,7 @@ public sealed class AiGateway : IAiGateway
             await TryRecordAsync(BuildEntry(
                 request, providerUsed, modelUsed, usedFallback,
                 success: false, error: failure.Message,
-                promptTokens: null, completionTokens: null, started));
+                promptTokens: null, completionTokens: null, started, fallbackReason));
 
             throw;
         }
@@ -151,7 +166,15 @@ public sealed class AiGateway : IAiGateway
         CancellationToken cancellationToken)
     {
         var provider = _registry.Get(providerName);
-        var providerRequest = request with { Model = model };
+
+        // §55: limite de conclusão — quando o chamador não especificou,
+        // o cap do gateway (Ai:Gateway:MaxCompletionTokens) vira o
+        // MaxTokens da geração (provider mapeia para num_predict).
+        var providerRequest = request with
+        {
+            Model = model,
+            Generation = request.Generation ?? EffectiveGenerationOptions(),
+        };
 
         // Policy por provider: o circuit breaker fica isolado por
         // provedor (ResilienceExecutor usa o nome como chave).
@@ -161,6 +184,12 @@ public sealed class AiGateway : IAiGateway
             new ResilienceOptions(_options.MaxRetries, _options.EffectiveTimeout),
             cancellationToken);
     }
+
+    // ── Limites §55 (S6) ───────────────────────────────────────────────
+    private AiGenerationOptions? EffectiveGenerationOptions() =>
+        _options.MaxCompletionTokens is int maxTokens
+            ? new AiGenerationOptions(MaxTokens: maxTokens)
+            : null;
 
     // ── Telemetria §43 (S5) ────────────────────────────────────────────
     private static void AiDiagnosticsTag(
@@ -233,7 +262,8 @@ public sealed class AiGateway : IAiGateway
         string? error,
         long? promptTokens,
         long? completionTokens,
-        long started) =>
+        long started,
+        string? fallbackReason) =>
         new(
             request.Capability,
             providerName,
@@ -245,7 +275,9 @@ public sealed class AiGateway : IAiGateway
             completionTokens,
             error,
             request.TraceId,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            request.Actor,
+            fallbackReason);
 
     private async Task TryRecordAsync(AiAuditEntry entry)
     {

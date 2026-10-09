@@ -16,9 +16,11 @@ public sealed record AiCompletion(
     bool UsedFallback);
 
 /// <summary>
-/// Entrada de auditoria de 1 request de IA (ADR-036/040 · §41/§43):
-/// capacidade, provider/modelo usados, se caiu para o fallback, latência,
-/// tokens, sucesso/erro e traceId. Persistência = S6.
+/// Entrada de auditoria de 1 request de IA (ADR-036/040 · §41/§43/§54):
+/// capacidade, provider/modelo usados, se caiu para o fallback e por
+/// quê (§54 "registrar o motivo da troca"), quem perguntou (§41),
+/// latência, tokens, sucesso/erro e traceId. Persistida por
+/// <c>AuditAiAuditSink</c> (S6) na auditoria de domínio existente.
 /// </summary>
 public sealed record AiAuditEntry(
     AiCapability Capability,
@@ -31,4 +33,6 @@ public sealed record AiAuditEntry(
     long? CompletionTokens,
     string? Error,
     string? TraceId,
-    DateTimeOffset TimestampUtc);
+    DateTimeOffset TimestampUtc,
+    string? Actor = null,
+    string? FallbackReason = null);

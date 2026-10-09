@@ -359,7 +359,10 @@ public static class DependencyInjection
         var aiGatewayOptions = configuration.GetSection("Ai:Gateway").Get<AiGatewayOptions>()
             ?? new AiGatewayOptions();
         services.AddSingleton(aiGatewayOptions);
-        services.AddScoped<IAiAuditSink, LoggingAiAuditSink>();
+        // FAI-T007 (S6): hook de auditoria persiste a ação AI.* na
+        // auditoria de domínio existente (F0-T014, sem migração) +
+        // log estruturado (ADR-040 · §41/§54).
+        services.AddScoped<IAiAuditSink, AuditAiAuditSink>();
         services.AddScoped<IAiGateway, AiGateway>();
 
         // FAI-T006 (S5): runtime health da camada de IA (§44) —
