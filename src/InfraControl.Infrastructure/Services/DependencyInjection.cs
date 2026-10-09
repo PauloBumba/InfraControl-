@@ -7,6 +7,7 @@ using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.AI;
 using InfraControl.Application.AI.Health;
+using InfraControl.Application.AI.Tools;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Discovery.Runs;
@@ -370,6 +371,20 @@ public static class DependencyInjection
         // nunca unhealthy (o host sobe sem Ollama). Consumido pelo
         // IHealthCheck do host (Infrastructure/AI/AiRuntimeHealthCheck).
         services.AddScoped<IAiRuntimeHealth, AiRuntimeHealthService>();
+
+        // FAI-T008 (S7): MCP foundation — tools de leitura in-process
+        // (§20/§21/§52 · ADR-039): registry + executor (autorização §41
+        // pela MESMA hierarquia RoleAccess do pipeline MediatR, timeout
+        // por tool, auditoria AI.Tool.*). O servidor MCP externo vai
+        // servir este registry quando o ADR-039 determinar.
+        services.AddScoped<GetActiveIncidentsTool>();
+        services.AddScoped<SearchKnowledgeTool>();
+        services.AddScoped<IAiToolRegistry>(provider => new InMemoryToolRegistry(
+        [
+            provider.GetRequiredService<GetActiveIncidentsTool>(),
+            provider.GetRequiredService<SearchKnowledgeTool>(),
+        ]));
+        services.AddScoped<IAiToolExecutor, AiToolExecutor>();
 
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no

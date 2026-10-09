@@ -852,6 +852,18 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   geração). Testes +9 → unit **1949/1949** · arch **119/119** ·
   build 0. Docs: TASKS FAI-T007 [x], docs/35 §11 S6 ✓, docs/ai/01.
 
+- Fase AI — **FAI-T008 (S7): MCP foundation + tools de leitura
+  concluído** (2026-10-09): contratos `IAiTool`/`AiToolDescriptor`
+  (checklist §52), `InMemoryToolRegistry` (o servidor MCP do ADR-039
+  vai servir este registry) e `AiToolExecutor` (autenticação + overlap
+  OR de roles pela MESMA hierarquia RoleAccess do pipeline MediatR —
+  §41; timeout §52; UMA auditoria `AI.Tool.{nome}` Succeeded/Denied/
+  Failed com ator+trace; teto MaxResults). Duas tools de leitura
+  sobre queries MediatR existentes (§20): `get_active_incidents`
+  (só status ativos) e `search_knowledge` (term obrigatório, resumo).
+  Testes +11 → unit **1960/1960** · arch **119/119** · build 0.
+  Docs: TASKS FAI-T008 [x], docs/35 §11 S7 ✓, docs/ai/01.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

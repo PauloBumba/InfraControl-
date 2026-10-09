@@ -236,6 +236,10 @@ S6 — Segurança LEVEL 0 (policy, auditoria de requests, limites §55)
    ↓
 S7 — MCP foundation (contratos internos + registro de tools §21;
      exposição conforme ADR-039)
+      ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T008:
+      IAiTool/registry/executor (autorização §41 + timeout §52 +
+      auditoria AI.Tool.*) + 2 tools de leitura sobre queries MediatR
+      existentes — get_active_incidents, search_knowledge)
    ↓
 S8 — Context Engine + RAG foundation (avaliação pgvector, embedding
      provider, busca híbrida esqueleto, evidence model)
