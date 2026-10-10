@@ -376,6 +376,22 @@ complexidade, tipo, prazo, resultado, impacto e contexto.
 - [ ] **F25-T006 Relatórios automáticos e interpretação por IA (§15–§16)** <!-- mensal/trimestral/semestral/anual + interpretação textual dos indicadores — usa SOMENTE dados reais do sistema; infra de IA AGORA EXISTE desde a Fase 0 (AI Gateway + providers FAI-T004/T005 — docs/ai/01; a antiga premissa "SEM infra de IA (docs/31 §12)" foi superada em 09/10) — arquitetura a definir antes (como K6 — possível ADR). -->
 
 
+## Fase 26 — Melhorias de UX/Conta (pedido do usuário 2026-10-10)
+
+Auditoria prévia contra o código real (2026-10-10) — o que NÃO é task
+porque já existe ou é só config: (a) **SignalR** entregue no F9-T004 +
+entrega 3 do backlog de UX (hub `/hubs/notifications`, badge do sino
+incrementa a cada push no `AppLayout`); (b) **notificações por usuário**
+por delivery `userId` + grupo `user:{id}` + preferências por canal;
+(c) **login Google** implementado no F1-T014 (botão só renderiza com
+`VITE_GOOGLE_CLIENT_ID` preenchido — sem valor, some; documentado no
+`.env.example`); (d) **logout/cookie**: o sistema é cookie-based, não
+JWT — logout derruba `UserSessions` + limpa cookie (sem token a
+expulsar).
+
+- [ ] **F26-T001 Formulário "Trocar senha" na UI** <!-- gap: backend POST /auth/change-password existe (IdentityAuthenticationService.ChangePasswordAsync + revoga TODAS as sessões + audit) mas nenhuma tela o consome. Front: nova rota /account ("Minha Conta", nível read) com form senha atual/nova/confirmação (feedback local da política 12+/dígito/maiúscula/minúscula/não-alfanumérico = servidor continua autoridade), aviso de que todas as sessões serão encerradas, sucesso → redirect /login; entrada no card do usuário do sidebar; services/api/auth.ts += changePassword. Inclui infra de testes do front (Vitest + Testing Library — o front nunca teve suíte) em TDD. -->
+- [ ] **F26-T002 Landing pública de vendas** <!-- rotas públicas (fora do AppLayout) com header/footer compartilhados e conteúdo que muda por rota (home/falar da plataforma, recursos, contato — escopo de conteúdo confirmado no design), responsivo com React Flex (PrimeFlex) + PrimeIcons/PrimeReact no padrão visual existente; qualquer usuário logado que acesse é redirecionado ao dashboard (padrão /login). -->
+
 ## Fase AI — AI Foundation (blueprint docs/34; plano docs/35)
 
 Primeira fase da AI Blueprint, na ordem de sprints S1–S9 de `docs/35`

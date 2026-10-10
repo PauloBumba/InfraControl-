@@ -48,6 +48,7 @@ const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
 const InvitationAcceptancePage = lazy(() => import("@/pages/InvitationAcceptancePage").then(m => ({ default: m.InvitationAcceptancePage })));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
+const AccountPage = lazy(() => import("@/pages/AccountPage").then(m => ({ default: m.AccountPage })));
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
 
 const allNav = [...navigation, ...secondaryNavigation];
@@ -56,6 +57,8 @@ const routeLabelMap: Record<string, string> = Object.fromEntries(
   allNav.map(item => [item.route, item.label])
 );
 routeLabelMap["/"] = "Visão Geral";
+// F26-T001 — rota fora do menu (entra pelo card do usuário).
+routeLabelMap["/account"] = "Minha Conta";
 
 const labelRouteMap: Record<string, string> = Object.fromEntries(
   allNav.map(item => [item.label, item.route])
@@ -333,6 +336,12 @@ function AppContent() {
           <Route path="/sessions" element={
             <ProtectedRoute>
               <SessionsPage />
+            </ProtectedRoute>
+          } />
+          {/* F26-T001 — Minha Conta (troca de senha; nível read, qualquer logado). */}
+          <Route path="/account" element={
+            <ProtectedRoute>
+              <AccountPage />
             </ProtectedRoute>
           } />
           <Route path="/pdi" element={
