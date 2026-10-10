@@ -23,7 +23,11 @@ public sealed record InvitationSummaryDto(
     DateTime ExpiresAt,
     DateTime CreatedAt,
     IReadOnlyCollection<string> Roles,
-    DateTime? DecidedAt);
+    DateTime? DecidedAt,
+    Guid? ProjectId = null,
+    string? ProjectCode = null,
+    string? ProjectTitle = null,
+    string? ProjectRole = null);
 
 public sealed class GetMyInvitationsQueryHandler(
     IInvitationRepository repository,
@@ -37,13 +41,7 @@ public sealed class GetMyInvitationsQueryHandler(
 
         var email = currentUserContext.UserName.Trim().ToLowerInvariant();
 
-        // Busca todos os convites para este email
-        var invitations = await repository.SearchAsync(
-            status: null,
-            email: email,
-            skip: 0,
-            take: 100,
-            cancellationToken);
+        var invitations = await repository.ListByEmailAsync(email, cancellationToken: cancellationToken);
 
         var dtos = invitations.Select(invitation => new InvitationSummaryDto(
             invitation.Id,
@@ -52,7 +50,11 @@ public sealed class GetMyInvitationsQueryHandler(
             invitation.ExpiresAt,
             invitation.CreateDateTime,
             invitation.Roles.Select(role => role.ToString()).ToArray(),
-            invitation.DecidedAt
+            invitation.DecidedAt,
+            invitation.ProjectId,
+            invitation.ProjectCode,
+            invitation.ProjectTitle,
+            invitation.ProjectRole?.ToString()
         )).ToList();
 
         logger.LogInformation("User {Email} retrieved {Count} invitations.", email, dtos.Count);

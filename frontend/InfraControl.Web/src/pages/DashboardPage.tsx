@@ -360,7 +360,14 @@ export function DashboardPage() {
                     {inv.email}
                   </div>
                   <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                    {inv.roles.length > 0 && <span>Papéis: {inv.roles.join(", ")} · </span>}
+                    {inv.projectId ? (
+                      <span>
+                        Projeto: {inv.projectCode ? `${inv.projectCode} · ` : ""}{inv.projectTitle ?? inv.projectId}
+                        {inv.projectRole ? ` · Papel na equipe: ${inv.projectRole}` : ""} ·
+                      </span>
+                    ) : (
+                      inv.roles.length > 0 && <span>Papéis: {inv.roles.join(", ")} · </span>
+                    )}
                     <span>expira em {formatDateTime(new Date(inv.expiresAt))}</span>
                   </div>
                 </div>

@@ -239,8 +239,12 @@ export function InvitationsPage() {
             <Column
               field="roles"
               header="Roles"
-              body={(row: InvitationItem) => row.roles.join(", ")}
-              style={{ minWidth: 150 }}
+              body={(row: InvitationItem) =>
+                row.projectId
+                  ? `${row.projectCode ? `${row.projectCode} · ` : ""}${row.projectTitle ?? "Projeto"}${row.projectRole ? ` (${row.projectRole})` : ""}`
+                  : row.roles.join(", ")
+              }
+              style={{ minWidth: 220 }}
             />
             <Column
               field="createdAt"
@@ -281,9 +285,11 @@ export function InvitationsPage() {
                   <Can level="administer">
                     {row.status === "Pending" && (
                       <>
-                        <Button variant="ghost" onClick={() => openRolesEdit(row)}>
-                          Roles
-                        </Button>
+                        {!row.projectId && (
+                          <Button variant="ghost" onClick={() => openRolesEdit(row)}>
+                            Roles
+                          </Button>
+                        )}
                         <Button variant="danger" onClick={() => setCancelTarget(row)}>
                           Cancelar
                         </Button>
@@ -307,7 +313,13 @@ export function InvitationsPage() {
                 <StatusChip label={meta.label} background={meta.bg} color={meta.color} fontSize={10} fontWeight={600} />
               </div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-                {invitation.roles.map((role) => (
+                {invitation.projectId ? (
+                  <span style={{ fontSize: 11, color: "#475569", marginBottom: 8 }}>
+                    Projeto: {invitation.projectCode ? `${invitation.projectCode} · ` : ""}
+                    {invitation.projectTitle ?? invitation.projectId}
+                    {invitation.projectRole ? ` · Papel: ${invitation.projectRole}` : ""}
+                  </span>
+                ) : invitation.roles.map((role) => (
                   <span
                     key={role}
                     style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 999, background: "#eef2ff", color: "#6366f1" }}

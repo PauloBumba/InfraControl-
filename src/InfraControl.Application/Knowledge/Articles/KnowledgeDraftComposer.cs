@@ -3,6 +3,7 @@ using InfraControl.Application.Tasks;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Knowledge.Articles;
 

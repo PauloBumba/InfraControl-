@@ -51,6 +51,9 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
             .HasColumnName("leader_id")
             .IsRequired();
 
+        builder.Property(x => x.CreatedById)
+            .HasColumnName("created_by_id");
+
         builder.Property(x => x.ManagerId)
             .HasColumnName("manager_id");
 

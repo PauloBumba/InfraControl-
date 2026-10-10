@@ -47,6 +47,7 @@ Ao ser aprovado pelo Administrador, o projeto consolida automaticamente todo o s
 - **`Status`**: `ProjectStatus` (fluxo de 7 estados da §4).
 - **`LeaderId`**: Líder técnico do projeto (`Guid`, sem FK destrutiva, resolvido via `DomainUsers`).
 - **`ManagerId`**: Patrocinador ou gestor da área (`Guid?`).
+- **`CreatedById`**: usuário autenticado que criou o projeto (`Guid?` para compatibilidade com projetos legados); usado para autorizar convites à equipe.
 - **`AdminApproverId`**: Administrador que realizou a homologação final (`Guid?`).
 - **`ApprovalNotes`**: Parecer e observações do Administrador no encerramento (até 2000 caracteres).
 - **`ApprovedAt`**: Carimbo de data/hora UTC da homologação formal (`DateTimeOffset?`).
@@ -71,6 +72,12 @@ Ao ser aprovado pelo Administrador, o projeto consolida automaticamente todo o s
 - **`ProjectId`**: FK cascade.
 - **`UserId`**: FK cascade.
 - **`Role`**: `ProjectMemberRole` (`Leader`, `Member`, `Reviewer`).
+
+Convites à equipe reutilizam o agregado `Invitation` (ADR-046): o criador do
+projeto ou um Administrador pode convidar por e-mail; o papel `Viewer` é usado
+como role global mínima no onboarding de contas novas e o papel da equipe é
+registrado separadamente em `ProjectMemberRole`. O vínculo é efetivado após o
+aceite autenticado ou a ativação da conta convidada.
 
 ### 3.4. Acompanhamento Contínuo (Tracking)
 
@@ -193,3 +200,4 @@ O rascunho Markdown gerado reúne estruturadamente:
 | **F28** | **F28-T006** | **Integração com Knowledge Base**: Adição de `KnowledgeOriginType.Project`, método `KnowledgeDraftComposer.ComposeFromProject`, comando `GenerateProjectKnowledgeCommand` e testes de geração determinística. |
 | **F28** | **F28-T007** | **API e Controllers**: `ProjectsController`, ViewModels, autorização RBAC (`Administer`, `Operate`, `Authorize`) e endpoints REST. |
 | **F28** | **F28-T008** | **Frontend UI**: Rota `/projects`, listagem UniFi/PrimeReact, página de detalhe `/projects/:id` com abas (Visão Geral, Fases, Acompanhamento, Impedimentos, Evidências, Homologação do Admin e botão de Gerar Knowledge). |
+| **F28** | **F28-T009** | **Convites e Equipe**: autoria do projeto, autorização de criador/Admin, convite por e-mail reaproveitando `Invitation`, onboarding `Viewer`, associação após aceite/ativação e interface de membros. |

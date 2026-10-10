@@ -1,5 +1,13 @@
 namespace InfraControl.Application.Projects;
 
+public sealed record ProjectMemberDto(
+    Guid UserId,
+    string Role)
+{
+    public static ProjectMemberDto From(InfraControl.Domain.Entities.ProjectMember member) =>
+        new(member.UserId, member.Role.ToString());
+}
+
 /// <summary>
 /// DTO de leitura do agregado Project (ADR-043 · docs/38 §3.1).
 /// </summary>
@@ -19,7 +27,9 @@ public sealed record ProjectDto(
     DateOnly? PlannedStartDate,
     DateOnly? PlannedEndDate,
     DateOnly? ActualStartDate,
-    DateOnly? ActualEndDate)
+    DateOnly? ActualEndDate,
+    IReadOnlyCollection<ProjectMemberDto> Members,
+    Guid? CreatedById)
 {
     public static ProjectDto From(InfraControl.Domain.Entities.Project project) => new(
         project.Id,
@@ -37,5 +47,7 @@ public sealed record ProjectDto(
         project.PlannedStartDate,
         project.PlannedEndDate,
         project.ActualStartDate,
-        project.ActualEndDate);
+        project.ActualEndDate,
+        project.Members.Select(ProjectMemberDto.From).ToArray(),
+        project.CreatedById);
 }

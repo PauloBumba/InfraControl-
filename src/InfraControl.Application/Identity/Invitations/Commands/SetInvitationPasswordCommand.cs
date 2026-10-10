@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.Application.Projects.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
 using MediatR;
@@ -22,6 +23,7 @@ public sealed record SetInvitationPasswordResult(Guid InvitationId, string Email
 public sealed class SetInvitationPasswordCommandHandler(
     IInvitationRepository repository,
     IInvitationAccountPort accountPort,
+    IProjectRepository projectRepository,
     ILogger<SetInvitationPasswordCommandHandler> logger)
     : IRequestHandler<SetInvitationPasswordCommand, SetInvitationPasswordResult>
 {
@@ -44,11 +46,24 @@ public sealed class SetInvitationPasswordCommandHandler(
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
         invitation.EnsureActivatable(InvitationToken.Hash(request.Token.Trim()), utcNow);
 
+        var project = invitation.ProjectId is { } projectId
+            ? await projectRepository.GetByIdAsync(projectId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Projeto '{projectId}' não encontrado.")
+            : null;
+
         var activation = await accountPort.SetPasswordAndActivateAsync(
             invitation.Email, request.Password, cancellationToken);
 
         if (!activation.Succeeded)
             throw new RequestValidationException(activation.Errors);
+
+        if (project is not null)
+        {
+            var acceptedUserId = invitation.AcceptedUserId
+                ?? throw new InvalidOperationException("O usuário aceito não está associado ao convite de projeto.");
+            project.AddMember(acceptedUserId, invitation.ProjectRole
+                ?? throw new InvalidOperationException("Papel de equipe ausente no convite de projeto."));
+        }
 
         invitation.MarkActivated();
         await repository.SaveChangesAsync(cancellationToken);

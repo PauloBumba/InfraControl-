@@ -11,7 +11,9 @@ public sealed class ProjectMemberConfiguration : IEntityTypeConfiguration<Projec
         builder.ToTable("project_members");
 
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.Id).HasColumnName("id");
+        builder.Property(x => x.Id)
+            .HasColumnName("id")
+            .ValueGeneratedNever();
 
         builder.Property(x => x.ProjectId)
             .HasColumnName("project_id")

@@ -36,6 +36,9 @@ public sealed class AcceptInvitationCommandHandler(
         var userId = await accountPort.ProvisionInactiveAccountAsync(
             invitation.Email, invitation.Roles, cancellationToken);
 
+        if (invitation.ProjectId.HasValue)
+            invitation.SetAcceptedUser(userId);
+
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(

@@ -25,6 +25,9 @@ public sealed class Project : AggregateRoot
     /// <summary>Líder técnico responsável pela condução do projeto.</summary>
     public Guid LeaderId { get; private set; }
 
+    /// <summary>Usuário autenticado que criou o projeto; nulo apenas em registros legados.</summary>
+    public Guid? CreatedById { get; private set; }
+
     /// <summary>Patrocinador ou gestor da área.</summary>
     public Guid? ManagerId { get; private set; }
 
@@ -56,7 +59,8 @@ public sealed class Project : AggregateRoot
         string? justification = null,
         Guid? managerId = null,
         DateOnly? plannedStartDate = null,
-        DateOnly? plannedEndDate = null)
+        DateOnly? plannedEndDate = null,
+        Guid? createdById = null)
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new ArgumentException("O código do projeto é obrigatório.", nameof(code));
@@ -69,6 +73,9 @@ public sealed class Project : AggregateRoot
 
         if (leaderId == Guid.Empty)
             throw new ArgumentException("O líder técnico do projeto é obrigatório.", nameof(leaderId));
+
+        if (createdById == Guid.Empty)
+            throw new ArgumentException("O criador do projeto não pode ser vazio.", nameof(createdById));
 
         code = code.Trim().ToUpperInvariant();
         if (code.Length > CodeMaxLength)
@@ -94,6 +101,7 @@ public sealed class Project : AggregateRoot
             Title = title,
             Description = description,
             LeaderId = leaderId,
+            CreatedById = createdById,
             Priority = priority,
             Status = ProjectStatus.Draft,
             Justification = string.IsNullOrWhiteSpace(justification) ? null : justification.Trim(),

@@ -15,6 +15,11 @@ public sealed class Invitation : AggregateRoot
     public DateTime ExpiresAt { get; private set; }
     public Guid CreatedBy { get; private set; }
     public DateTime? DecidedAt { get; private set; }
+    public Guid? ProjectId { get; private set; }
+    public string? ProjectCode { get; private set; }
+    public string? ProjectTitle { get; private set; }
+    public ProjectMemberRole? ProjectRole { get; private set; }
+    public Guid? AcceptedUserId { get; private set; }
     public IReadOnlyCollection<UserRole> Roles => _roles.Select(role => role.Role).ToArray();
     // A lista real (não AsReadOnly): o EF precisa escrever na coleção de
     // navegação (fixup de add/remove de InvitationRole). Escrito apenas pelo
@@ -23,7 +28,17 @@ public sealed class Invitation : AggregateRoot
 
     private Invitation() { }
 
-    private Invitation(Guid id, string email, string tokenHash, DateTime expiresAt, Guid createdBy, IEnumerable<UserRole> roles)
+    private Invitation(
+        Guid id,
+        string email,
+        string tokenHash,
+        DateTime expiresAt,
+        Guid createdBy,
+        IEnumerable<UserRole> roles,
+        Guid? projectId = null,
+        string? projectCode = null,
+        string? projectTitle = null,
+        ProjectMemberRole? projectRole = null)
         : base(id)
     {
         Email = NormalizeEmail(email);
@@ -32,6 +47,28 @@ public sealed class Invitation : AggregateRoot
         CreatedBy = createdBy == Guid.Empty
             ? throw new ArgumentException("O id do convidante é obrigatório.", nameof(createdBy))
             : createdBy;
+        if (projectId == Guid.Empty)
+            throw new ArgumentException("O id do projeto não pode ser vazio.", nameof(projectId));
+        ProjectId = projectId;
+        ProjectRole = projectRole;
+        ProjectCode = projectCode;
+        ProjectTitle = projectTitle;
+
+        if (projectId.HasValue != projectRole.HasValue)
+            throw new ArgumentException("O projeto e o papel da equipe devem ser informados juntos.");
+
+        if (projectId.HasValue)
+        {
+            if (string.IsNullOrWhiteSpace(projectCode) || string.IsNullOrWhiteSpace(projectTitle))
+                throw new ArgumentException("Código e título do projeto são obrigatórios no convite.");
+            if (!Enum.IsDefined(projectRole!.Value))
+                throw new ArgumentOutOfRangeException(nameof(projectRole), "Papel de equipe inválido.");
+        }
+        else if (projectCode is not null || projectTitle is not null)
+        {
+            throw new ArgumentException("Convites globais não podem conter dados de projeto.");
+        }
+
         Status = InvitationStatus.Pending;
 
         var distinctRoles = roles.Distinct().ToArray();
@@ -46,6 +83,27 @@ public sealed class Invitation : AggregateRoot
 
     public static Invitation Create(string email, string tokenHash, DateTime expiresAt, Guid createdBy, IEnumerable<UserRole> roles)
         => new(Guid.NewGuid(), email, tokenHash, expiresAt, createdBy, roles);
+
+    public static Invitation CreateForProject(
+        string email,
+        string tokenHash,
+        DateTime expiresAt,
+        Guid createdBy,
+        Guid projectId,
+        string projectCode,
+        string projectTitle,
+        ProjectMemberRole projectRole)
+        => new(
+            Guid.NewGuid(),
+            email,
+            tokenHash,
+            expiresAt,
+            createdBy,
+            [UserRole.Viewer],
+            projectId,
+            projectCode,
+            projectTitle,
+            projectRole);
 
     public bool IsExpired(DateTime utcNow) => Status == InvitationStatus.Pending && ExpiresAt <= utcNow;
 
@@ -134,6 +192,8 @@ public sealed class Invitation : AggregateRoot
     {
         if (Status != InvitationStatus.Pending)
             throw new InvalidOperationException("Convite não está pendente.");
+        if (ProjectId.HasValue)
+            throw new InvalidOperationException("As roles globais de um convite de projeto não podem ser alteradas.");
 
         var distinct = roles.Distinct().ToArray();
         if (distinct.Length == 0)
@@ -178,6 +238,23 @@ public sealed class Invitation : AggregateRoot
         DecidedAt = utcNow;
         Touch();
         RaiseDomainEvent(new InvitationAcceptedDomainEvent(Id, Email));
+    }
+
+    public void SetAcceptedUser(Guid userId)
+    {
+        if (!ProjectId.HasValue)
+            throw new InvalidOperationException("Apenas convites de projeto armazenam o usuário convidado.");
+        if (Status != InvitationStatus.Accepted)
+            throw new InvalidOperationException("O usuário convidado só pode ser associado após o aceite.");
+        if (userId == Guid.Empty)
+            throw new ArgumentException("O id do usuário convidado é obrigatório.", nameof(userId));
+        if (AcceptedUserId.HasValue && AcceptedUserId != userId)
+            throw new InvalidOperationException("O convite já foi associado a outro usuário.");
+        if (AcceptedUserId == userId)
+            return;
+
+        AcceptedUserId = userId;
+        Touch();
     }
 
     /// <summary>

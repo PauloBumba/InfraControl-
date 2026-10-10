@@ -18,6 +18,18 @@ public sealed class InvitationAccountPort(
     RoleManager<IdentityRole<Guid>> roleManager,
     AppDbContext dbContext) : IInvitationAccountPort
 {
+    public async Task<InvitationAccountInfo?> GetAccountInfoAsync(
+        string email,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        return await dbContext.DomainUsers
+            .AsNoTracking()
+            .Where(user => user.Email == normalizedEmail)
+            .Select(user => new InvitationAccountInfo(user.Id, user.IsActive))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<Guid> ProvisionInactiveAccountAsync(
         string email,
         IReadOnlyCollection<UserRole> roles,

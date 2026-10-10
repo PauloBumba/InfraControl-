@@ -65,6 +65,7 @@ public sealed class KnowledgeArticleOriginCommandTests : IDisposable
             new KnowledgeArticleOriginRepository(context),
             new TaskItemRepository(context),
             new PdiRepository(context),
+            new ProjectRepository(context),
             new IncidentRepository(context),
             NullLogger<LinkKnowledgeArticleOriginCommandHandler>.Instance);
 
@@ -134,6 +135,25 @@ public sealed class KnowledgeArticleOriginCommandTests : IDisposable
         return plan.Id;
     }
 
+    private static async Task<Guid> SeedProjectAsync(AppDbContext context)
+    {
+        var project = Project.Create(
+            "PRJ-002",
+            "Migração do ambiente de produção",
+            "Migrar o ambiente para a nova topologia de rede resiliente.",
+            Guid.NewGuid(),
+            ProjectPriority.High);
+
+        project.TransitionTo(ProjectStatus.Planned);
+        project.TransitionTo(ProjectStatus.InProgress);
+        project.SubmitForApproval();
+        project.Approve(Guid.NewGuid(), "Homologado pela direção.", DateTimeOffset.UtcNow);
+
+        context.Projects.Add(project);
+        await context.SaveChangesAsync();
+        return project.Id;
+    }
+
     [Fact]
     public async Task Link_TaskOrigin_ShouldAppearInDetailAndSearch()
     {
@@ -164,6 +184,7 @@ public sealed class KnowledgeArticleOriginCommandTests : IDisposable
         var articleId = await SeedArticleAsync(context);
         var taskId = await SeedTaskAsync(context);
         var pdiId = await SeedPdiAsync(context);
+        var projectId = await SeedProjectAsync(context);
         var incidentId = await SeedIncidentAsync(context);
 
         await LinkHandler(context).Handle(
@@ -171,6 +192,9 @@ public sealed class KnowledgeArticleOriginCommandTests : IDisposable
             CancellationToken.None);
         await LinkHandler(context).Handle(
             new LinkKnowledgeArticleOriginCommand(articleId, "pdi", pdiId),
+            CancellationToken.None);
+        await LinkHandler(context).Handle(
+            new LinkKnowledgeArticleOriginCommand(articleId, "project", projectId),
             CancellationToken.None);
         await LinkHandler(context).Handle(
             new LinkKnowledgeArticleOriginCommand(articleId, "incident", incidentId),
@@ -183,6 +207,7 @@ public sealed class KnowledgeArticleOriginCommandTests : IDisposable
         {
             new KnowledgeArticleOriginDto("Task", taskId),
             new KnowledgeArticleOriginDto("Pdi", pdiId),
+            new KnowledgeArticleOriginDto("Project", projectId),
             new KnowledgeArticleOriginDto("Incident", incidentId),
         });
     }
@@ -199,7 +224,7 @@ public sealed class KnowledgeArticleOriginCommandTests : IDisposable
 
         (await action.Should().ThrowAsync<ArgumentException>())
             .WithMessage(
-                "Origem inválida: 'projeto'. Use 'task', 'pdi' ou 'incident'.*");
+                "Origem inválida: 'projeto'. Use 'task', 'pdi', 'project' ou 'incident'.*");
     }
 
     [Fact]
