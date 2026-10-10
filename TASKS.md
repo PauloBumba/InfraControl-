@@ -387,12 +387,16 @@ tranche S1+S2 foi aprovado e executado em 2026-10-08.
 - [x] **FAI-T002 Docker/config da IA (S2)** <!-- CONCLUÍDA 2026-10-08: docker-compose.yml ganhou seção profile `ai` com serviço `ollama` (image ollama/ollama:latest, container infracontrol-ollama, porta ${OLLAMA_PORT:-11434}, volume ollama_data, healthcheck HTTP GET /api/tags via bash /dev/tcp no padrão da `api`, restart unless-stopped, rede infracontrol; SEM depends_on da API — IA opcional, runtime "não configurado" §44) + comentário do profile no header + `Ai__Ollama__BaseUrl: ${OLLAMA_BASE_URL:-http://ollama:11434}` no app-env (DNS por nome de serviço, nunca localhost entre containers §48; workers herdam pelo anchor). .env.example += bloco Fase AI: OLLAMA_BASE_URL, OLLAMA_PORT, OLLAMA_MODEL (qwen2.5-coder:1.5b — §11 literal, com comando de pull), OLLAMA_EMBED_MODEL VAZIO de propósito (blueprint não nomeia modelo de embedding — escolha do ADR-038/S8, não inventar). Execução/health check EVIDÊNCIA PENDENTE (workstation sem Docker — docs/35 §12; §46: doc ≠ evidência). -->
 - [x] **FAI-T003 docs/ai/ base (S2)** <!-- CONCLUÍDA 2026-10-08: `docs/ai/00-vision.md` (objetivo §1, o que a IA não substitui, princípio, tabela das regras duras §3/§4/§5/§7/§39/§42/§46/§63, roadmap §61, estado datado) + `docs/ai/01-architecture.md` (estado zero-IA do diagnóstico, arquitetura-alvo §3, tabela dos ADRs 036–041, pipeline do gateway, onde o código nasce, dependências Docker, pendências de ambiente) — §60; arquivos 02–15 nascem com as fases correspondentes (§46). -->
 - [x] **FAI-T004 S3 — AI Gateway mínimo** <!-- CONCLUÍDA 2026-10-08: primeiros códigos da camada AI em `src/InfraControl.Application/AI/` — contratos IAiGateway/IAiProvider/IAiProviderRouter/IAiProviderRegistry/IAiAuditSink, enum AiCapability (5 capacidades §15), modelos (AiCompletionRequest com modelo vindo do router — chamador não escolhe modelo §15; AiProviderSelection primário+fallback §54; AiCompletion; AiAuditEntry), exceções pt-BR (AiProviderNotConfiguredException = estado "não configurado" §44, AiGatewayException com causa preservada) e `AiGateway`: resolve capacidade → executa via **IResilienceExecutor reutilizado** (policy `ai/{provider}` isolada por provedor; AiGatewayOptions MaxRetries=1/Timeout=30s/FallbackEnabled — §55) → fallback §54 (erro/timeout do primário; cancelamento do chamador propaga SEM fallback) → exatamente 1 hook de auditoria por request (**fail-open**; persistência AI.* = S6/ADR-040). **Sem DI/endpoint**: registry/provider = S4 (registro incompleto derrubaria o ValidateOnBuild do host). Testes +10 (`AiGatewayTests` c/ fakes: primário+sucesso+audit, fallback, fallback desabilitado, sem fallback, capacidade não mapeada, provider ausente resgatado pelo fallback, opções de resiliência, cancelamento sem fallback, sink quebrado não derruba, prompt vazio pt-BR) → unit **1822→1832** · arch **115/115** · build 0 · sem migração. -->
-- [x] **FAI-T005 S4 — Provider & Model Manager v1** <!-- CONCLUÍDA 2026-10-08: ConfigurationProviderRegistry (Ai__* — v1 por config, ADR-037 §2), OllamaProvider (HTTP puro sem SDK, ADR-037 §10), AiProviderRouter (mapeamento por capacidade §15, default qwen2.5-coder:1.5b §11, fallback §54), AiOllamaOptions/AiRoutingOptionsConfiguration (opções de config), model discovery via GET /api/tags §14, teste de conexão §13, DI (named client ollama + registry/router, DependencyInjection.cs), appsettings.json API+Workers (Ai:Ollama:BaseUrl, Ai:Routing por capacidade). Testes: OllamaProviderTests 9 (sucesso, default model, custom model, resposta inválida, http error, listModels, vazio, conexão sucesso/falha) + ConfigurationProviderRegistryTests 4 (ollama existente, case-insensitive, inexistente, null) + AiProviderRouterTests 6 (capacidade válida, com fallback, inexistente, modelo vazio/nulo, todas as capacidades) → unit **1832→1851** · arch **115/115** · build 0 (validação manual — sem SDK .NET nesta máquina). UI Admin NÃO implementada (ADR-037 §2: "só se o design da task exigir"). Pendências: validação de build/testes com SDK 10.0.100 + execução/health check Ollama pendente de ambiente Docker (docs/35 §12). -->
-- [ ] **FAI-T006 S5 — Runtime health + observabilidade de IA** <!-- checks degradados "não configurado" somados aos health checks existentes (§44) + ActivitySource de IA com tags §43 no otel-collector (S5). -->
-- [ ] **FAI-T007 S6 — Segurança LEVEL 0** <!-- audit AI.* no mecanismo existente (schema em metadata/tabela própria decidido na task) + limites §55 (max tokens/tools/tempo) no gateway (ADR-040, S6). -->
-- [ ] **FAI-T008 S7 — MCP foundation** <!-- IAiTool + IToolRegistry + primeiras tools de leitura (§21) mapeadas a queries MediatR existentes, uma por task, checklist §52/ADR-039 (S7). -->
-- [ ] **FAI-T009 S8 — Context Engine + RAG foundation** <!-- pgvector (avaliação de imagem do Postgres), IEmbeddingProvider, busca híbrida §17, EvidenceSet §19, ingesta do Knowledge publicado (ADR-038, S8). -->
-- [ ] **FAI-T010 S9 — Evaluation foundation** <!-- harness de avaliação §45 (grounding, tool selection, authorization) — esqueleto antes do critério §67 Fase 0→1 (S9). -->
+- [x] **FAI-T005 S4 — Provider & Model Manager v1** <!-- CONCLUÍDA 2026-10-08; DI COMPLETADO 2026-10-09: ConfigurationProviderRegistry (Ai__* — v1 por config, ADR-037 §2), OllamaProvider (HTTP puro sem SDK, ADR-037 §10), AiProviderRouter (mapeamento por capacidade §15, default qwen2.5-coder:1.5b §11, fallback §54), AiOllamaOptions/AiRoutingOptionsConfiguration (opções de config), model discovery via GET /api/tags §14, teste de conexão §13, DI (named client ollama + registry/router, DependencyInjection.cs), appsettings.json API+Workers (Ai:Ollama:BaseUrl, Ai:Routing por capacidade). **2026-10-09 (reparo do merge + fechamento)**: `LoggingAiAuditSink` (hook de auditoria do S3 ligado ao log estruturado — persistência AI.* continua S6/ADR-040), DI com `IAiGateway`+`IAiAuditSink`+`AiGatewayOptions` binding (`Ai:Gateway`: MaxRetries/Timeout/FallbackEnabled), router com instância singleton do record documentada. **Validado com SDK real**: build 0 · unit **1930/1930** · arch **119/119** · front lint 0/build 0 (após reparo do merge do origin/main). UI Admin NÃO implementada (ADR-037 §2: "só se o design da task exigir"). Pendências: execução/health check Ollama pendente de ambiente Docker (docs/35 §12). -->
+- [x] **FAI-T006 S5 — Runtime health + observabilidade de IA** <!-- CONCLUÍDA 2026-10-09: (§44) `IAiRuntimeHealth`/`AiRuntimeHealthService` (Application/AI/Health): linha por capacidade (sem mapeamento = Degraded "não configurado" §44) + teste de conexão real §13 por provider com timeout 3s; `AiRuntimeHealthCheck : IHealthCheck` (Infrastructure/AI) ligado ao AddHealthChecks do Program.cs com tag "ai" — SEMPRE Healthy/Degraded, nunca Unhealthy por falta de ambiente (host sobe sem Ollama, HTTP 200 em Degraded); (§43) `AiDiagnostics` (ActivitySource+Meter "InfraControl.AI" capturados pelo AddSource/AddMeter "InfraControl.*" existente): gateway emite activity `ai.complete` com tags capability/provider/model/fallback/trace + métricas ai.requests/ai.request.duration/ai.tokens.*; `IAiProvider` ganhou `TestConnectionAsync`(§13)+`ListModelsAsync`(§14) como contrato com defaults (OllamaProvider passa a devolver nomes). Testes +10 (AiDiagnosticsTests 4 com ActivityListener/MeterListener; AiRuntimeHealthTests 6: saudável, não configurado, provider inalcançável, falha inesperada, check Degraded/Healthy) → unit **1930→1940** · arch **119/119** · build 0 · sem migração. Pendente de ambiente: resposta real do Ollama no health (§12). -->
+- [x] **FAI-T007 S6 — Segurança LEVEL 0** <!-- CONCLUÍDA 2026-10-09: (audit) `AuditAiAuditSink` (Infrastructure/AI) substitui o sink só-log: UMA entrada AI.* por request gravada na auditoria de domínio EXISTENTE via IAuditWriter+IUnitOfWork (F0-T014, sem migração) — action `AI.{capacidade}`, resource `provider/modelo`, outcome Succeeded/SucceededViaFallback/Failed, actorId (§41: `Actor` novo no AiCompletionRequest, repassado pelo chamador), correlationId=traceId (§43), error=falha ou "Fallback após: …" (§54 — motivo da troca agora capturado em `AiAuditEntry.FallbackReason` pelo gateway); (limites §55) `AiGatewayOptions` ganhou MaxPromptCharacters (default 12000 — recusa ANTES de gastar tokens, auditada) + MaxCompletionTokens (vira Generation.MaxTokens → num_predict no Ollama quando o chamador não define geração; geração do chamador tem prioridade), appsettings Ai:Gateway atualizado. Testes +9 (AiSecurityTests 4: recusa auditada, cap aplicado, geração do chamador preservada, fallback com motivo+ator; AuditAiAuditSinkTests 4: gravação AI.*, SucceededViaFallback, Failed, fail-open com sink REAL; OllamaProviderTests +1: num_predict no payload) → unit **1940→1949** · arch **119/119** · build 0. "max tool calls/max investigation duration" = S7+/futuro (tools nascem no S7). -->
+- [x] **FAI-T008 S7 — MCP foundation** <!-- CONCLUÍDA 2026-10-09: contratos internos em `Application/AI/Tools/` — `IAiTool` + `AiToolDescriptor` (§52 completo: Name/Description/Access/Timeout/MaxResults/InputSchema/OutputSchema/AuditPolicy/Source), `AiToolArguments`/`AiToolResult` (formato §52 {findings[],total,source,timestamp}; achados estruturados §53), `IAiToolRegistry`+`InMemoryToolRegistry` (case-insensitive, espelho do provider registry — o servidor MCP do ADR-039 vai servir este registry), `AiToolExecutor` (§41: autenticação sempre + overlap OR de roles via `RoleAccess` — MESMA hierarquia do `IAuthorizedRequest` do pipeline MediatR; timeout §52 → `AiToolTimeoutException` pt-BR; UMA auditoria `AI.Tool.{nome}` Succeeded/Denied/Failed com ator+trace no mecanismo F0-T014; teto MaxResults aplicado pelo executor). **2 tools de leitura** mapeadas a queries MediatR existentes (§20: Tool → Application Service, nunca banco direto): `get_active_incidents` (SearchIncidentsQuery só em Open/Investigating/Identified/Monitoring, ordena por abertura) e `search_knowledge` (SearchKnowledgeArticlesQuery, term obrigatório, resumo 200 chars). Exposição MCP externa = ADR-039 (futuro). Testes +11 (AiToolExecutorTests 7: não encontrada §44, negado sem auth, negado por role, operator OK, timeout, sucesso+audit+trunca, registry; AiReadToolsTests 4) → unit **1949→1960** · arch **119/119** · build 0. Pendência: "max tool calls"/"max investigation duration" (§55) quando o loop de tools existir (Fase 1+). -->
+- [x] **FAI-T009 S8 — Context Engine + RAG foundation** <!-- CONCLUÍDA 2026-10-09 (ADR-038): `Application/AI/Context/` — modelos §19 (`Evidence`/`EvidenceSet`/`EvidenceSource`/`EvidenceConfidence`, pipeline só emite Probable nunca Confirmed), contratos (IEmbeddingProvider/IVectorStore/IKeywordSearch/IReranker/IRetrievalService/IContextBuilder/IAiKnowledgeIngestion) e v1: `KnowledgeHybridRetrievalService` (vetor+keyword→merge por Id com melhor score→rerank; degrada para keyword §44 sem store ou com embedding quebrado — nunca erro, nunca dado inventado), `HeuristicReranker` (score+recência, sem LLM), `EvidenceSetContextBuilder` (dedupe por citação, confiança Probable, tool+traceId), `KnowledgeChunker` (parágrafo, limite 1500 chars documentado — janela curta §11, sem perda de conteúdo), `KnowledgeIngestionService`+command `IngestKnowledgeArticleForAiCommand` (só Published §3; chunk→embed→upsert com metadados; trigger automático na publicação = passo seguinte quando pgvector existir). Infra: `OllamaEmbeddingProvider` (HTTP POST /api/embed, `Ai:Ollama:EmbeddingModel` — appsettings/Workers = nomic-embed-text; sem modelo = estado §44), `KnowledgeKeywordSearch` (term do K7, Published only, score=rank). **pgvector avaliação**: `postgres:17-alpine` oficial NÃO embute pgvector (ADR-038 §1) — avaliar imagem `pgvector/pgvector:pg17` ou build custom; `IVectorStore` deliberadamente NÃO registrado no DI até o ambiente validar (avaliação pendente de Docker, §46 — doc não é evidência). Testes +14 (AiContextTests 10: chunker×3, híbrida×4 incl. degradação §44, evidence §19, ingesta×2; OllamaEmbeddingProviderTests 4) → unit **1960→1974** · arch **119/119** · build 0. -->
+</invoke>
+
+- [x] **FAI-T010 S9 — Evaluation foundation** <!-- CONCLUÍDA 2026-10-09: `Application/AI/Evaluation/` — `EvaluationCase` (pergunta + expectativas: ExpectedTools/ForbiddenTools/ExpectDenied/MinEvidenceCount/RequiredCitations), `EvaluationOutcome` (o cenário sob teste devolve ferramentas executadas, nº de evidências, citações, denied+motivo, resposta), `EvaluationHarness` (roda casos por um `IEvaluationScenario` injetado e aplica TODOS os `IEvaluationCheck` — caso aprova só com todos os checks; `EvaluationRunResult` guarda o motivo de cada reprovação, §46/§63) e os 3 checks que NÃO dependem de LLM (§45): `ToolSelectionCheck` (esperadas ⊆ executadas; proibidas ∩ executadas = ∅), `AuthorizationCheck` (ExpectDenied ⟺ Denied; negação de chamada legítima reprova com o motivo) e `GroundingCheck` (mínimo de evidências + citações obrigatórias). DI: harness + checks registrados; `IEvaluationScenario` real (Copilot/Ollama) entra na Fase 1 sem mudar o harness. Doc: docs/ai/02-evaluation.md (formato de caso, checks, pendências — hallucination/confidence/timeout/injection exigem modelo real). Testes +7 (AiEvaluationTests: perfeito, ferramenta errada, proibida, esperava-negacao, negou-legitima, grounding, multi-caso) → unit **1974→1981** · arch **119/119** · build 0. -->
+</invoke>
+
 
 
 ## Fase F27 — Monitoramento completo da infraestrutura com Zabbix + InfraControl (checklist docs/37)
@@ -531,12 +535,12 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] FAI-T002 AI: compose profile `ai` + Ollama + .env (S2) — concluída (2026-10-08, execução pendente de Docker)
 - [x] FAI-T003 AI: docs/ai/ base — 00-vision + 01-architecture (S2) — concluída (2026-10-08)
 - [x] FAI-T004 AI: AI Gateway mínimo (S3) — concluída (2026-10-08, unit 1832)
-- [ ] FAI-T005 AI: Provider & Model Manager v1 (S4)
-- [ ] FAI-T006 AI: runtime health + observabilidade de IA (S5)
-- [ ] FAI-T007 AI: segurança LEVEL 0 — audit AI.* + limites (S6)
-- [ ] FAI-T008 AI: MCP foundation + tools de leitura (S7)
-- [ ] FAI-T009 AI: Context Engine + RAG foundation (S8)
-- [ ] FAI-T010 AI: evaluation foundation (S9)
+- [x] FAI-T005 AI: Provider & Model Manager v1 (S4) — concluída (2026-10-09, DI completo, unit 1930, arch 119)
+- [x] FAI-T006 AI: runtime health + observabilidade de IA (S5) — concluída (2026-10-09, unit 1940)
+- [x] FAI-T007 AI: segurança LEVEL 0 — audit AI.* + limites (S6) — concluída (2026-10-09, unit 1949)
+- [x] FAI-T008 AI: MCP foundation + tools de leitura (S7) — concluída (2026-10-09, unit 1960)
+- [x] FAI-T009 AI: Context Engine + RAG foundation (S8) — concluída (2026-10-09, unit 1974; pgvector = pendência de ambiente)
+- [x] FAI-T010 AI: evaluation foundation (S9) — concluída (2026-10-09, unit 1981; cenário real = Fase 1)
 
 
 
@@ -1033,9 +1037,10 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
     N/A + Insights esvaziado); **todas as páginas do protótipo estão
     conectadas ao backend ou com estado honesto** (T016 Insights, T019
-    Logs, T021 Topologia). O grupo permanece aberto apenas pela decisão
-    de produto do Insights (construir backend / apagar página / manter
-    demo) — última pendência da F17.
+    Logs, T021 Topologia). A decisão de produto do Insights (construir
+    backend / apagar página / manter demo) — última pendência da F17 —
+    foi tomada em 2026-10-09: **construir pela UniFi existente**, hoje
+    entregue na F18-T007 (speed test adiado).
     Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
 - [x] **Busca global no frontend** (F2-T007) — fechada em 01/10/2026 no
@@ -1166,11 +1171,30 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   **Exige ADR + questionário**: fonte (controller de AP? SNMP? API de
   vendor?), quais métricas e com que frequência. Critérios: definidos
   no ADR; quando pronto, a WiFiPage deixa de ser só inventário
-- [ ] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
+- [x] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
   tráfego por cliente, speed test e painéis do Dashboard removidos no
-  F17-T009/T016. **Exige ADR + questionário + decisão sobre a página
-  Insights** (construir backend, apagar página/rota ou manter demo —
-  escalado no F17-T016). Critérios: definidos no ADR
+  F17-T009/T016. **Escopo decrescido por decisão humana** (ver
+  comentário) — speed test adiado.
+  <!-- CONCLUÍDA 2026-10-09 (decisão humana via question: "construir
+  backend pela UniFi"; escopo mínimo = Tráfego por Cliente + DPI por
+  aplicação; speed test ADIADO — exigiria coletor próprio = nova
+  arquitetura, aí sim ADR). Backend: IUnifiApiClient +=
+  ListClientTrafficAsync (GET /stat/sta — mac/hostname/ip/rx_bytes/
+  tx_bytes/last_seen em epochs) e ListDpiStatsAsync (GET /stat/app —
+  app/cat[categoria]/value, fallback s+r), ambos sob o mesmo
+  client/sessão do ADR-028; nova query GetUnifiInsightsQuery
+  (RoleAccess.Read, top 50 por bytes em cada painel, apps zerados
+  filtrados, CapturedAtUtc) e GET /api/v1/integrations/unifi/insights
+  (503 + motivo quando não configurada/fora — semântica do /health,
+  nunca o 409 do handler global). NÃO exige ADR novo: estende
+  ADR-028 (mesmo client, mesma regra 8 — nada persistido, sondagem ao
+  vivo). Front: services/api/integrations.ts + useObjectQuery (novo
+  genérico em hooks/queries.ts) + InsightsPage conectada (tabelas
+  reais, loading/erro honestos, rodapé "contadores acumulados");
+  painel Speed Test mantido com estado vazio honesto. Testes: +7 (2
+  client, 3 query, 2 controller) — unit 1988/1988, arch 119/119,
+  front lint 0/build 0. docs/29 §8. Pendência: validar contra um
+  Controller real (§46 — sem ambiente na estação). -->
 - [x] **F18-T008 `GET /clients` (clientes ao vivo)** — **decisão prévia
   executada: servir agregando ARP/DHCP já descobertos** (a alternativa
   "nova tabela mantida por ingestão contínua" fica para quando F18-T005/T006

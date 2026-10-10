@@ -22,6 +22,7 @@ public sealed class SyncUnifiInventoryCommandTests
     private readonly Mock<IUniFiSitesRepository> _sites = new();
     private readonly Mock<IDeviceRepository> _devices = new();
     private readonly Mock<IExternalDeviceReferenceRepository> _references = new();
+    private readonly Mock<InfraControl.Application.Integrations.Unifi.Ports.IUniFiSyncRunsRepository> _syncRuns = new();
     private readonly Mock<ILocationRepository> _locations = new();
 
     private Device? _addedDevice;
@@ -193,6 +194,7 @@ public sealed class SyncUnifiInventoryCommandTests
             _references.Object,
             _locations.Object,
             _sites.Object,
+            _syncRuns.Object,
             NullLogger<SyncUnifiInventoryCommandHandler>.Instance);
     }
 

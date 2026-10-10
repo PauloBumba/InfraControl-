@@ -1,20 +1,27 @@
+<<<<<<< HEAD
 import { useState, type FormEvent } from "react";
+=======
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+>>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
 import { Can } from "@/components/auth/Can";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { FormField, FormError } from "@/components/ui/FormField";
+import { FormError } from "@/components/ui/FormField";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectField } from "@/components/ui/SelectField";
+<<<<<<< HEAD
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
   articleStatusConfig,
 } from "@/components/knowledge/knowledgeCatalogs";
+=======
+>>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
 import {
   KNOWLEDGE_TYPE_OPTIONS,
   knowledgeTypeLabel,
@@ -29,25 +36,12 @@ import {
   ARTICLE_STATUS_REJECTED,
   ARTICLE_STATUS_UPDATED,
   createArticle,
-  createCategory,
-  changeArticleStatus,
-  deleteArticle,
-  deleteCategory,
   listArticles,
   listCategories,
-  updateArticle,
-  updateCategory,
   type KnowledgeArticle,
   type KnowledgeCategory,
+  type Paged,
 } from "@/services/api/knowledge";
-import {
-  useCreateMutation,
-  useDeleteMutation,
-  useListQuery,
-  usePagedQuery,
-  useUpdateMutation,
-  mutationErrorMessage,
-} from "@/hooks/queries";
 
 /**
  * F17-T004 — KnowledgePage conectada ao backend (substitui o mock de
@@ -89,35 +83,18 @@ const statusConfig: Record<number, { label: string; bg: string; color: string }>
   [ARTICLE_STATUS_REJECTED]: { label: "Rejeitada", bg: "#fee2e2", color: "#dc2626" },
 };
 
-/** Transições aceitas pelo endpoint de status (contrato do service). */
-const statusTransitionOptions = [
-  { value: "Draft", label: "Rascunho" },
-  { value: "Published", label: "Publicada" },
-  { value: "Archived", label: "Arquivada" },
-];
-
-interface ArticleFormState {
-  mode: "create" | "edit";
-  target: KnowledgeArticle | null;
+function messageFor(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
-const emptyArticleForm = {
-  title: "",
-  content: "",
-  categoryId: "",
-  type: "",
-  description: "",
-  tags: [] as string[],
-  tagInput: "",
-  responsibleId: "",
-};
-
-const emptyCategoryForm = { name: "", description: "" };
-
 export function KnowledgePage() {
-  const [tab, setTab] = useState<"articles" | "categories">("articles");
-  const [articleView, setArticleView] = useEntityViewMode("knowledge", "grid");
-  const [categoryView, setCategoryView] = useEntityViewMode("knowledgeCategories", "table");
+  const [pageData, setPageData] = useState<Paged<KnowledgeArticle> | null>(null);
+  const [categories, setCategories] = useState<KnowledgeCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [term, setTerm] = useState("");
@@ -143,7 +120,6 @@ export function KnowledgePage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [deleteArticleTarget, setDeleteArticleTarget] = useState<KnowledgeArticle | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -223,62 +199,17 @@ export function KnowledgePage() {
 
   async function submitCreate(event: FormEvent) {
     event.preventDefault();
-    setFormError(null);
-    const title = values.title.trim();
-    const content = values.content.trim();
-    if (!title) {
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+    if (!trimmedTitle) {
       setFormError("Informe o título do artigo.");
       return;
     }
-    if (!content) {
+    if (!trimmedContent) {
       setFormError("Informe o conteúdo do artigo.");
       return;
     }
-    if (!values.type) {
-      setFormError("Selecione o tipo do artigo.");
-      return;
-    }
-
-    const input = {
-      title,
-      content,
-      categoryId: values.categoryId || undefined,
-      type: values.type,
-      description: values.description.trim() || undefined,
-      tags: values.tags,
-      responsibleId: values.responsibleId || undefined,
-    };
-
-    try {
-      if (articleForm.mode === "create") {
-        await createArticleMutation.mutateAsync(input);
-      } else if (articleForm.target) {
-        await updateArticleMutation.mutateAsync({ id: articleForm.target.id, ...input });
-      }
-      setArticleFormOpen(false);
-    } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
-    }
-  }
-
-  async function confirmDeleteArticle() {
-    if (!deleteArticleTarget) return;
-    try {
-      await deleteArticleMutation.mutateAsync(deleteArticleTarget.id);
-      setDeleteArticleTarget(null);
-      setActionError(null);
-    } catch (caught) {
-      setActionError(mutationErrorMessage(caught as Error));
-    }
-  }
-
-  async function submitCategoryForm(event: FormEvent) {
-    event.preventDefault();
-    const name = categoryValues.name.trim();
-    if (!name) {
-      setFormError("O nome da categoria é obrigatório.");
-      return;
-    }
+    setSaving(true);
     setFormError(null);
     try {
       // F24-T001/K1: tags como chips por vírgula (o domínio normaliza
@@ -307,62 +238,20 @@ export function KnowledgePage() {
       setNotice("Artigo criado como rascunho — publique pela troca de status.");
       await load();
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
-    }
-  }
-
-  async function confirmDeleteCategory() {
-    if (!deleteCategoryTarget) return;
-    try {
-      await deleteCategoryMutation.mutateAsync(deleteCategoryTarget.id);
-      setDeleteCategoryTarget(null);
-      setActionError(null);
-    } catch (caught) {
-      setActionError(mutationErrorMessage(caught as Error));
+      setFormError(messageFor(caught));
+    } finally {
+      setSaving(false);
     }
   }
 
   const categoryName = (id: string | null): string => {
     if (!id) return "Sem categoria";
-    return categories.items.find((category) => category.id === id)?.name ?? "Sem categoria";
+    return categories.find((category) => category.id === id)?.name ?? "Sem categoria";
   };
 
-  const articlesList = articles.items;
-  const totalCount = articles.totalCount;
+  const articles = pageData?.items ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const listError =
-    mutationErrorMessage(articles.error as Error | null) ??
-    mutationErrorMessage(categories.error as Error | null);
-
-  const isArticlesTab = tab === "articles";
-  const subtitle = isArticlesTab
-    ? articles.isPending
-      ? "Carregando…"
-      : `${totalCount} ${totalCount === 1 ? "artigo" : "artigos"} · ${categories.items.length} categorias`
-    : `${categories.items.length} ${categories.items.length === 1 ? "categoria" : "categorias"}`;
-
-  if (articles.isPending || categories.isPending) {
-    return <LoadingBlock />;
-  }
-
-  function statusSelect(article: KnowledgeArticle, width: string | number = "100%") {
-    return (
-      <SelectField
-        value=""
-        aria-label={`Alterar status de "${article.title}"`}
-        placeholder={articleStatusConfig[article.status]?.label ?? String(article.status)}
-        options={statusTransitionOptions}
-        style={{ width }}
-        onChange={(target) => {
-          if (!target) return;
-          statusMutation.mutate({
-            id: article.id,
-            status: target as "Draft" | "Published" | "Archived",
-          });
-        }}
-      />
-    );
-  }
 
   // F24-T007/K7: opções de autor vêm do próprio DTO (id + nome já
   // resolvidos pelo backend — sem /admin/users): só quem tem artigo,
@@ -386,7 +275,7 @@ export function KnowledgePage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
         title="Base de Conhecimento"
-        subtitle={subtitle}
+        subtitle={loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "artigo" : "artigos"}`}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
             <form onSubmit={applyTerm} style={{ display: "flex", gap: 6 }}>
@@ -428,6 +317,7 @@ export function KnowledgePage() {
                   style={{ padding: "5px 10px" }}
                 >
                   Limpar
+<<<<<<< HEAD
                 </Button>
               )}
             </form>
@@ -456,51 +346,27 @@ export function KnowledgePage() {
                   style={{ padding: "5px 12px" }}
                 >
                   <i className="pi pi-plus" style={{ fontSize: 10 }} /> Nova Categoria
+=======
+>>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
                 </Button>
               )}
+            </form>
+            <Can level="operate">
+              <Button
+                variant="primary"
+                onClick={() => { setCreating((value) => !value); setFormError(null); }}
+                style={{ padding: "5px 12px" }}
+              >
+                <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
+              </Button>
             </Can>
           </div>
         }
       />
 
-      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
-        {([
-          { id: "articles", label: "Artigos" },
-          { id: "categories", label: "Categorias" },
-        ] as const).map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTab(item.id)}
-            style={{
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: tab === item.id ? "#3b82f6" : "#64748b",
-              background: "none",
-              border: "none",
-              borderBottom: tab === item.id ? "2px solid #3b82f6" : "2px solid transparent",
-              marginBottom: -1,
-              cursor: "pointer",
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
       {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
 
-      {(actionError || listError) && (
-        <ErrorBanner
-          message={actionError ?? listError ?? "Não foi possível falar com o servidor. Tente novamente."}
-          onRetry={() => {
-            setActionError(null);
-            void articles.refetch();
-            void categories.refetch();
-          }}
-        />
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       {/* F24-T007/K7 — busca avançada (docs/32 §13): filtros sobre os
           campos que existem no modelo (categoria, autor, tipo, tag).
@@ -584,55 +450,26 @@ export function KnowledgePage() {
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Novo artigo</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 10 }}>
-            <FormField label="Título" error={null}>
-              <input
-                value={values.title}
-                onChange={(event) => setValues((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Título * (máx. 200)"
-                autoFocus
-                maxLength={200}
-                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-              />
-            </FormField>
-            <FormField label="Tipo" error={null}>
-              <SelectField
-                value={values.type}
-                onChange={(value) => setValues((current) => ({ ...current, type: value }))}
-                placeholder="Selecione o tipo *"
-                options={[
-                  { value: "", label: "Selecione o tipo *" },
-                  ...typeOptions,
-                ]}
-              />
-            </FormField>
-            <FormField label="Categoria" error={null}>
-              <SelectField
-                value={values.categoryId}
-                onChange={(value) => setValues((current) => ({ ...current, categoryId: value }))}
-                placeholder="Sem categoria"
-                options={[
-                  { value: "", label: "Sem categoria" },
-                  ...categories.items.map((category) => ({
-                    value: category.id,
-                    label: category.name,
-                  })),
-                ]}
-              />
-            </FormField>
-            <FormField label="Responsável" error={null}>
-              <SelectField
-                value={values.responsibleId}
-                onChange={(value) => setValues((current) => ({ ...current, responsibleId: value }))}
-                placeholder="Sem responsável"
-                options={[
-                  { value: "", label: "Sem responsável" },
-                  ...users.items.map((user) => ({
-                    value: user.userId,
-                    label: user.displayName,
-                  })),
-                ]}
-              />
-            </FormField>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Título * (máx. 200)"
+              autoFocus
+              maxLength={200}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+            <SelectField
+              value={categoryId}
+              onChange={setCategoryId}
+              placeholder="Sem categoria"
+              options={[
+                { value: "", label: "Sem categoria" },
+                ...categories.map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                })),
+              ]}
+            />
           </div>
           {/* F24-T001/K1 — identificação (docs/32 §5–§6). */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -685,7 +522,7 @@ export function KnowledgePage() {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setArticleFormOpen(false)}
+              onClick={() => { setCreating(false); setFormError(null); }}
               style={{ padding: "6px 14px" }}
             >
               Cancelar
@@ -693,12 +530,10 @@ export function KnowledgePage() {
             <Button
               type="submit"
               variant="primary"
-              disabled={createArticleMutation.isPending || updateArticleMutation.isPending}
+              disabled={saving}
               style={{ padding: "6px 14px" }}
             >
-              {createArticleMutation.isPending || updateArticleMutation.isPending
-                ? "Salvando…"
-                : articleForm.mode === "create" ? "Criar artigo" : "Salvar"}
+              {saving ? "Salvando…" : "Criar artigo"}
             </Button>
           </div>
         </form>
@@ -824,33 +659,22 @@ export function KnowledgePage() {
             {error ? "—" : "Nenhum artigo encontrado"}
           </div>
         )}
+<<<<<<< HEAD
+=======
+        {loading && articles.length === 0 && (
+          <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
+        )}
+>>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
       </div>
 
-      <ConfirmDialog
-        visible={deleteArticleTarget !== null}
-        onHide={() => setDeleteArticleTarget(null)}
-        onConfirm={() => void confirmDeleteArticle()}
-        header="Excluir artigo"
-        message={
-          deleteArticleTarget
-            ? `Excluir "${deleteArticleTarget.title}"? O backend valida o ciclo Draft→Published→Archived.`
-            : ""
-        }
-        confirmLabel="Excluir"
-      />
-
-      <ConfirmDialog
-        visible={deleteCategoryTarget !== null}
-        onHide={() => setDeleteCategoryTarget(null)}
-        onConfirm={() => void confirmDeleteCategory()}
-        header="Excluir categoria"
-        message={
-          deleteCategoryTarget
-            ? `Excluir "${deleteCategoryTarget.name}"? Artigos vinculados bloqueiam a exclusão com 409.`
-            : ""
-        }
-        confirmLabel="Excluir"
-      />
+      {totalCount > PAGE_SIZE && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          disabled={loading}
+          onPage={setPage}
+        />
+      )}
     </div>
   );
 }

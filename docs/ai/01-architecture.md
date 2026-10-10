@@ -3,7 +3,7 @@
 > Espelho executivo do diagnóstico `docs/35` (Sprint 0) e dos ADRs
 > 036–041. Atualizado a cada entrega da Fase 0.
 
-## Estado atual (S1–S4 entregues; zero chamada a LLM)
+## Estado atual (S1–S9 entregues; zero chamada a LLM)
 
 - 7 projetos .NET 10 (Clean Architecture + DDD + CQRS/MediatR +
   Vertical Slice + Modular Monolith, ADR-001/006/007/031) com módulos
@@ -11,11 +11,49 @@
 - **Sprint 0 (docs/35 §1): zero código AI/LLM/MCP/RAG** — nada a
   desfazer. Desde então: ADRs 036–041 (2026-10-08) e o **S3**
   criou os primeiros contratos + `AiGateway` em `Application/AI/`.
-- **S4 (2026-10-08)**: ConfigurationProviderRegistry (v1 por config),
-  OllamaProvider (HTTP puro sem SDK), AiProviderRouter (mapeamento por
-  capacidade), model discovery GET /api/tags, teste de conexão,
-  DI, appsettings, testes unit. Nenhuma chamada a LLM existe ainda;
-  a integração gateway↔Ollama é pendência de ambiente (§12).
+- **S4 (2026-10-08; DI completado 2026-10-09)**: ConfigurationProviderRegistry
+  (v1 por config), OllamaProvider (HTTP puro sem SDK), AiProviderRouter
+  (mapeamento por capacidade), model discovery GET /api/tags, teste de
+  conexão, DI, appsettings, testes unit. Em 09/10 o DI foi fechado:
+  `IAiGateway` + `IAiAuditSink` (LoggingAiAuditSink → log estruturado)
+  + limites por chamada em `Ai:Gateway` (§55). Nenhuma chamada a LLM
+  existe ainda; a integração gateway↔Ollama é pendência de ambiente
+  (§12).
+- **S5 (2026-10-09)**: runtime health (§44) — capacidades sem
+  mapeamento = Degraded "não configurado", teste de conexão §13 por
+  provider, `AiRuntimeHealthCheck` no `/health` (tag `ai`; saudável
+  sem Ollama) — e observabilidade (§43) — `AiDiagnostics`
+  "InfraControl.AI": activity `ai.complete` com tags
+  capability/provider/model/fallback/trace + métricas
+  `ai.requests`/`ai.request.duration`/`ai.tokens.*` capturadas pelo
+  OTel existente.
+- **S6 (2026-10-09)**: segurança LEVEL 0 (ADR-040) — `AuditAiAuditSink`
+  persiste UMA entrada `AI.{capacidade}` por request na auditoria de
+  domínio existente (ator §41 via `Actor` do request, motivo de
+  fallback §54, trace §43) e o gateway aplica os limites §55
+  (`MaxPromptCharacters` recusado auditado; `MaxCompletionTokens` →
+  `num_predict`).
+- **S7 (2026-10-09)**: MCP foundation — `IAiTool`/registry/executor
+  in-process (autorização §41 pela hierarquia RoleAccess do pipeline,
+  timeout §52, auditoria `AI.Tool.*`) + as duas primeiras tools de
+  leitura (`get_active_incidents`, `search_knowledge`) sobre queries
+  MediatR existentes. Servidor MCP externo = ADR-039 (futuro).
+- **S8 (2026-10-09)**: Context Engine + RAG foundation (ADR-038) —
+  contratos (`IEmbeddingProvider`/`IVectorStore`/`IRetrievalService`/
+  `IReranker`/`IContextBuilder`), busca híbrida v1 (vetor+keyword →
+  merge → rerank heurístico; degrada p/ keyword §44 sem pgvector),
+  `EvidenceSet` §19 (só `Probable`, nunca `Confirmed`), chunker de
+  Knowledge (limite 1500 chars documentado), ingesta de artigo
+  publicado (command já chamável) e `OllamaEmbeddingProvider`
+  (`POST /api/embed`, `Ai:Ollama:EmbeddingModel`). **Pendências**:
+  avaliação da imagem pgvector (`postgres:17-alpine` não a embute) +
+  `IVectorStore` no DI + trigger de ingesta na publicação — todas
+  condicionadas a ambiente com Docker.
+- **S9 (2026-10-09)**: evaluation foundation (§45) —
+  `EvaluationHarness` + `EvaluationCase`/`EvaluationOutcome` + os 3
+  checks sem LLM (tool selection, authorization, grounding/citations);
+  o `IEvaluationScenario` real (Copilot/Ollama) entra na Fase 1 sem
+  mudar o harness. Guia: `docs/ai/02-evaluation.md`.
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

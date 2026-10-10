@@ -14,4 +14,19 @@ public interface IAiProvider
     Task<AiProviderResult> CompleteAsync(
         AiCompletionRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Teste de conexão do provider (ADR-037 §13): <c>true</c> quando o
+    /// endpoint responde. Usado pelo runtime health da camada de IA
+    /// (FAI-T006/S5 · §44). Default otimista para providers sem rede.
+    /// </summary>
+    Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(true);
+
+    /// <summary>
+    /// Descoberta de modelos instalados (ADR-037 §14): nomes disponíveis
+    /// no provider. Default vazio para providers sem discovery.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<string>>([]);
 }

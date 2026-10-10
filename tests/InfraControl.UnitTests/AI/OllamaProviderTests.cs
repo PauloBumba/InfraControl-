@@ -181,8 +181,8 @@ public sealed class OllamaProviderTests
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
         models.Should().HaveCount(2);
-        models[0].Name.Should().Be("qwen2.5-coder:1.5b");
-        models[1].Name.Should().Be("llama3:8b");
+        models[0].Should().Be("qwen2.5-coder:1.5b");
+        models[1].Should().Be("llama3:8b");
     }
 
     [Fact]
@@ -290,5 +290,32 @@ public sealed class OllamaProviderTests
         var invocation = invocations.FirstOrDefault(i => i.Method.Name == "SendAsync");
         return invocation?.Arguments[0] as HttpRequestMessage
             ?? throw new InvalidOperationException("Nenhuma requisição foi feita.");
+    }
+
+    [Fact]
+    public async Task CompleteAsync_com_MaxTokens_manda_num_predict_no_payload_55()
+    {
+        var httpClientFactory = CreateHttpClientFactory(
+            (request, response) =>
+            {
+                response.StatusCode = HttpStatusCode.OK;
+                response.Content = Json(new { response = "ok", done = true });
+            });
+
+        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var provider = new OllamaProvider(httpClientFactory, options);
+
+        await provider.CompleteAsync(
+            new AiCompletionRequest(
+                AiCapability.Copilot,
+                "prompt",
+                Generation: new AiGenerationOptions(MaxTokens: 64, Temperature: 0.2)),
+            CancellationToken.None);
+
+        var request = GetLastRequest(httpClientFactory);
+        var body = await request.Content!.ReadAsStringAsync();
+        using var payload = JsonDocument.Parse(body);
+        payload.RootElement.GetProperty("options").GetProperty("num_predict").GetInt64()
+            .Should().Be(64, "o limite de conclusão §55 deve virar num_predict no Ollama");
     }
 }

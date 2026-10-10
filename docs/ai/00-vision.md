@@ -62,19 +62,21 @@ FASE 5 — AI AUTOMATION (n8n + aprovação)
 Uma fase só avança pela **§67** (critérios de aceite), não porque o
 código compilou.
 
-## Estado em 2026-10-08
+## Estado em 2026-10-09
 
-- Sprint 0 investigado e planejado (`docs/35`); **zero código de IA**
-  escrito até aqui.
+- Sprint 0 investigado e planejado (`docs/35`); **Fase 0 (S1–S9)
+  implementada por completo** — gate Fase 0→1 aberto com pendências
+  de ambiente (docs/35 §14; §46: doc ≠ evidência). Zero chamada a LLM
+  ainda.
 - ADRs **036–041** aceitos (gateway, providers, contexto/RAG, tools,
   segurança LEVEL 0, runtime Docker).
 - Compose `profile: ai` + Ollama + `.env.example` **preparados**
   (execução/health check pendentes de ambiente sem Docker — §46).
-- **S3 (AI Gateway mínimo) concluído em 2026-10-08** (FAI-T004):
-  contratos + `AiGateway` em `Application/AI/`, ainda sem provider
-  real registrado nem endpoint.
-- **S4 (Provider & Model Manager v1 concluído em 2026-10-08)**
-  (FAI-T005): ConfigurationProviderRegistry, OllamaProvider (HTTP puro),
-  AiProviderRouter (mapeamento por capacidade), model discovery
-  GET /api/tags, teste de conexão, DI, appsettings, testes unit.
-  Próximo: S5 (Runtime health + observabilidade).
+- **S3–S9 concluídos** (2026-10-08/09, FAI-T004–T010): gateway;
+  providers/router; runtime health + telemetria §43/§44; auditoria
+  `AI.*` + limites §55; tools in-process (registry/executor + 2 tools
+  de leitura); Context Engine/RAG foundation (híbrida degradada sem
+  pgvector, EvidenceSet §19, ingesta de Knowledge publicado);
+  evaluation harness §45 (docs/ai/02). Próximo: validar ambiente
+  (Docker → Ollama real → pgvector → migrações) e só então Fase 1
+  (Copilot).

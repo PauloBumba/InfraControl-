@@ -6,6 +6,10 @@ using InfraControl.Application.Notifications.WhatsApp;
 using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Context;
+using InfraControl.Application.AI.Evaluation;
+using InfraControl.Application.AI.Health;
+using InfraControl.Application.AI.Tools;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Discovery.Runs;
@@ -419,6 +423,66 @@ public static class DependencyInjection
 
         // Router de capacidade
         services.AddScoped<IAiProviderRouter, AiProviderRouter>();
+
+        // FAI-T005 (S4): liga o gateway (S3) ao registro/router/providers
+        // acima + hook de auditoria de log (ADR-036/§41 — a persistência
+        // da ação AI.* na auditoria de domínio é do S6/ADR-040). Limites
+        // por chamada (§55) configuráveis em Ai:Gateway (default do
+        // record vale quando a seção não existe).
+        var aiGatewayOptions = configuration.GetSection("Ai:Gateway").Get<AiGatewayOptions>()
+            ?? new AiGatewayOptions();
+        services.AddSingleton(aiGatewayOptions);
+        // FAI-T007 (S6): hook de auditoria persiste a ação AI.* na
+        // auditoria de domínio existente (F0-T014, sem migração) +
+        // log estruturado (ADR-040 · §41/§54).
+        services.AddScoped<IAiAuditSink, AuditAiAuditSink>();
+        services.AddScoped<IAiGateway, AiGateway>();
+
+        // FAI-T006 (S5): runtime health da camada de IA (§44) —
+        // capacidades sem mapeamento/providers inalcançáveis = degradado,
+        // nunca unhealthy (o host sobe sem Ollama). Consumido pelo
+        // IHealthCheck do host (Infrastructure/AI/AiRuntimeHealthCheck).
+        services.AddScoped<IAiRuntimeHealth, AiRuntimeHealthService>();
+
+        // FAI-T008 (S7): MCP foundation — tools de leitura in-process
+        // (§20/§21/§52 · ADR-039): registry + executor (autorização §41
+        // pela MESMA hierarquia RoleAccess do pipeline MediatR, timeout
+        // por tool, auditoria AI.Tool.*). O servidor MCP externo vai
+        // servir este registry quando o ADR-039 determinar.
+        services.AddScoped<GetActiveIncidentsTool>();
+        services.AddScoped<SearchKnowledgeTool>();
+        services.AddScoped<IAiToolRegistry>(provider => new InMemoryToolRegistry(
+        [
+            provider.GetRequiredService<GetActiveIncidentsTool>(),
+            provider.GetRequiredService<SearchKnowledgeTool>(),
+        ]));
+        services.AddScoped<IAiToolExecutor, AiToolExecutor>();
+
+        // FAI-T009 (S8): Context Engine + RAG foundation (ADR-038) —
+        // contratos + v1 heurística (rerank por score/recência, chunker
+        // por artigo, ingesta de Knowledge publicado). IVectorStore NÃO
+        // é registrado até o pgvector existir no ambiente (avaliação de
+        // imagem pendente de Docker, §46): a híbrida degrada para
+        // keyword (§44) e a ingesta fica inacessível — sem invenção.
+        services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
+        services.AddScoped<IKeywordSearch, KnowledgeKeywordSearch>();
+        services.AddScoped<IReranker, HeuristicReranker>();
+        services.AddScoped<IContextBuilder, EvidenceSetContextBuilder>();
+        services.AddScoped<IAiKnowledgeIngestion, KnowledgeIngestionService>();
+        services.AddScoped<IRetrievalService>(provider => new KnowledgeHybridRetrievalService(
+            provider.GetRequiredService<IEmbeddingProvider>(),
+            provider.GetService<IVectorStore>(),
+            provider.GetRequiredService<IKeywordSearch>(),
+            provider.GetRequiredService<IReranker>(),
+            provider.GetRequiredService<ILogger<KnowledgeHybridRetrievalService>>()));
+
+        // FAI-T010 (S9): harness de avaliação (§45) — checks que não
+        // dependem de LLM (tool selection, authorization, grounding);
+        // o IEvaluationScenario do fluxo real entra com o Copilot/Fase 1.
+        services.AddScoped<IEvaluationCheck, ToolSelectionCheck>();
+        services.AddScoped<IEvaluationCheck, AuthorizationCheck>();
+        services.AddScoped<IEvaluationCheck, GroundingCheck>();
+        services.AddScoped<EvaluationHarness>();
 
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no

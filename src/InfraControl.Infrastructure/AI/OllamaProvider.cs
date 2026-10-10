@@ -85,8 +85,9 @@ public sealed class OllamaProvider : IAiProvider
     /// <summary>
     /// Descobre os modelos instalados no Ollama (ADR-037 §14):
     /// <c>GET /api/tags</c>. Serve também como teste de conexão (§13).
+    /// Contrato do <see cref="IAiProvider"/>: devolve os nomes.
     /// </summary>
-    public async Task<IReadOnlyList<OllamaModel>> ListModelsAsync(
+    public async Task<IReadOnlyList<string>> ListModelsAsync(
         CancellationToken cancellationToken = default)
     {
         var response = await _httpClient.GetAsync(
@@ -98,7 +99,9 @@ public sealed class OllamaProvider : IAiProvider
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         var ollamaResponse = JsonSerializer.Deserialize<OllamaTagsResponse>(json, JsonOptions);
 
-        return ollamaResponse?.Models ?? new List<OllamaModel>();
+        return ollamaResponse?.Models?
+            .Select(model => model.Name)
+            .ToList() ?? new List<string>();
     }
 
     /// <summary>

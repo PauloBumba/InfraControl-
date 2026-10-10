@@ -796,6 +796,106 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   Docs: TASKS FAI-T004 [x], docs/35 §11 S3 ✓, docs/ai/00+01
   atualizados. Pendente de ambiente: integração gateway↔Ollama (§12).
 
+- Fase AI — **Reparo do merge do origin/main + FAI-T005 (S4)
+  concluído** (2026-10-09): o pull do origin/main (remoto com
+  reimplementação própria de Knowledge K1+K2, PDI Evidence/Evaluation,
+  F26 UniFi/F27 Zabbix e ADRs remotos em numeração colidida) entrou
+  com **23 arquivos commitados com marcadores de conflito** (outro
+  ator, 08/10). Resolução: lado **nós** no Knowledge (K1–K7 superset;
+  entidade `KnowledgeArticleTag` do remoto descartada), **nós** no
+  PdiController, restauração via `git show fffe600:` + commit
+  `893f2d6 "conflito resilvido"` (outro ator, incluiu restores
+  staged). Pós-merge: **KnowledgePage.tsx remendada com import
+  quebrado + erro de sintaxe** → trio ( página/service/catalogs)
+  restaurado para o nosso fffe600 (backend venceu o nosso — o front
+  remoto mais rico exige alinhamento de contrato, vira pendência);
+  **PdiPage.tsx** com painéis de dashboard remotos meio-wired
+  (busca + componente importados, render apagado pela resolução) →
+  renders `adminDashboard`/`managerPanel` reenxertados na posição
+  exata do e3fcaff. Validação total: build 0 · unit **1930/1930** ·
+  arch **119/119** · front lint 0 · front build 0. **S4 fechado**:
+  código paralelo (registry/router/OllamaProvider + 19 testes) revisado
+  e completado com `LoggingAiAuditSink` (hook de auditoria do S3 →
+  log estruturado), DI com `IAiGateway`+`IAiAuditSink`+binding
+  `Ai:Gateway`, appsettings com limites §55. Docs: TASKS FAI-T005
+  [x] + índice, docs/35 §11 S4 ✓. Pendências: ADRs remotos 034–040
+  em colisão de numeração com nossos (renumerar 042+), 12+ migrações
+  sem ambiente Docker, front remoto de Knowledge (CRUD completo +
+  transições UI) como evolução futura, push bloqueado por auth.
+
+- Fase AI — **FAI-T006 (S5): Runtime health + observabilidade
+  concluído** (2026-10-09, mandato "executa o plano inteiro sem
+  pedir"): §44 — `IAiRuntimeHealth`/`AiRuntimeHealthService` (linha
+  por capacidade: sem mapeamento = Degraded "não configurado"; teste
+  de conexão §13 por provider com timeout 3s) + `AiRuntimeHealthCheck`
+  no `/health` do Program.cs (tag `ai`; sempre Healthy/Degraded —
+  nunca Unhealthy por falta de Ollama). §43 — `AiDiagnostics`
+  (ActivitySource+Meter `InfraControl.AI` sob o padrão
+  `InfraControl.*` do OTel): gateway emite activity `ai.complete` com
+  tags capability/provider/model/fallback/trace e métricas
+  `ai.requests`/`ai.request.duration`/`ai.tokens.*`. `IAiProvider`
+  ganhou `TestConnectionAsync`/`ListModelsAsync` no contrato (defaults
+  para fakes; OllamaProvider devolve nomes). Testes +10 → unit
+  **1940/1940** · arch **119/119** · build 0. Docs: TASKS FAI-T006
+  [x], docs/35 §11 S5 ✓, docs/ai/01.
+
+- Fase AI — **FAI-T007 (S6): Segurança LEVEL 0 concluída**
+  (2026-10-09): auditoria `AI.*` no mecanismo existente —
+  `AuditAiAuditSink` grava UMA entrada por request via
+  `IAuditWriter`+`IUnitOfWork` (F0-T014, sem migração): action
+  `AI.{capacidade}`, outcome Succeeded/SucceededViaFallback/Failed,
+  ator (§41 — `Actor` novo em `AiCompletionRequest`), trace (§43) e
+  motivo da troca (§54 — `FallbackReason` em `AiAuditEntry`).
+  Limites §55 no gateway: `MaxPromptCharacters` (default 12000,
+  recusa auditada antes de gastar tokens) + `MaxCompletionTokens`
+  (vira `num_predict` no Ollama quando o chamador não define
+  geração). Testes +9 → unit **1949/1949** · arch **119/119** ·
+  build 0. Docs: TASKS FAI-T007 [x], docs/35 §11 S6 ✓, docs/ai/01.
+
+- Fase AI — **FAI-T008 (S7): MCP foundation + tools de leitura
+  concluído** (2026-10-09): contratos `IAiTool`/`AiToolDescriptor`
+  (checklist §52), `InMemoryToolRegistry` (o servidor MCP do ADR-039
+  vai servir este registry) e `AiToolExecutor` (autenticação + overlap
+  OR de roles pela MESMA hierarquia RoleAccess do pipeline MediatR —
+  §41; timeout §52; UMA auditoria `AI.Tool.{nome}` Succeeded/Denied/
+  Failed com ator+trace; teto MaxResults). Duas tools de leitura
+  sobre queries MediatR existentes (§20): `get_active_incidents`
+  (só status ativos) e `search_knowledge` (term obrigatório, resumo).
+  Testes +11 → unit **1960/1960** · arch **119/119** · build 0.
+  Docs: TASKS FAI-T008 [x], docs/35 §11 S7 ✓, docs/ai/01.
+
+- Fase AI — **FAI-T009 (S8): Context Engine + RAG foundation
+  concluída** (2026-10-09, ADR-038): `Application/AI/Context/` com
+  modelos §19 (`Evidence`/`EvidenceSet` — pipeline só emite
+  `Probable`, nunca `Confirmed` sem verificação), contratos
+  (IEmbeddingProvider/IVectorStore/IKeywordSearch/IReranker/
+  IRetrievalService/IContextBuilder/IAiKnowledgeIngestion) e v1:
+  híbrida vetor+keyword com merge por Id e rerank heurístico
+  (degrada para keyword §44 sem store — nunca dado inventado),
+  chunker por artigo (limite 1500 chars documentado), ingesta de
+  Knowledge publicado (só `Published`; command
+  `IngestKnowledgeArticleForAiCommand` já chamável). Infra:
+  `OllamaEmbeddingProvider` (`POST /api/embed`,
+  `Ai:Ollama:EmbeddingModel` = nomic-embed-text) e
+  `KnowledgeKeywordSearch` (term do K7, Published only). pgvector:
+  `postgres:17-alpine` não embute a extensão → avaliação de
+  `pgvector/pgvector:pg17` pendente de Docker; `IVectorStore`
+  deliberadamente fora do DI até o ambiente validar (§46). Testes
+  +14 → unit **1974/1974** · arch **119/119** · build 0. Docs:
+  TASKS FAI-T009 [x], docs/35 §11 S8 ✓, docs/ai/01.
+
+- Fase AI — **FAI-T010 (S9): Evaluation foundation concluída**
+  (2026-10-09): `Application/AI/Evaluation/` com `EvaluationCase`
+  (expectativas: ferramentas esperadas/proibidas, negação esperada,
+  mínimo de evidências, citações obrigatórias), `EvaluationOutcome`
+  (o cenário sob teste devolve ferramentas/evidências/citações/
+  denied), `EvaluationHarness` (todos os checks; reprovação com
+  motivo por check — evidência auditável §46) e os 3 checks sem LLM
+  (§45): tool selection, authorization e grounding. `IEvaluationScenario`
+  real entra na Fase 1 sem mudar o harness (docs/ai/02-evaluation.md).
+  Testes +7 → unit **1981/1981** · arch **119/119** · build 0. Docs:
+  TASKS FAI-T010 [x], docs/35 §11 S9 ✓, docs/ai/01/02.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4
@@ -1299,6 +1399,8 @@ Não considerar arquitetura ou código como concluído somente porque foi planej
   (PDI/Monitoring) estabilizaram sozinhas; `stash@{0}` da outra sessão
   deixado intacto. Checkpoint — nada commitado (push/commit só com pedido
   explícito do usuário).
+
+- Após F18-T007 — Insights conectado ao backend (2026-10-09, decisão do usuário via question "construir backend pela UniFi"; escopo mínimo = Tráfego por Cliente + DPI por aplicação, **speed test adiado**): resolve a pendência de produto escalada no F17-T016 ("construir / apagar página / manter demo"). Backend: `IUnifiApiClient` += `ListClientTrafficAsync` (`GET /stat/sta` — mac/hostname/ip/rx_bytes/tx_bytes/last_seen em epochs seconds) e `ListDpiStatsAsync` (`GET /stat/app` — `cat`→`category`, `value`→`s`+`r` como fallbacks), sob o MESMO client/sessão do ADR-028; nova query `GetUnifiInsightsQuery` (`Application/Integrations/Unifi/Insights/`, `RoleAccess.Read`, top 50 por bytes em cada painel, apps zerados filtrados, `CapturedAtUtc`) e rota `GET /api/v1/integrations/unifi/insights` (só autenticado; integração não configurada/Controller fora/sessão recusada → **503 + motivo** no envelope — semântica do `/health`, nunca o 409 que o `GlobalExceptionHandler` daria a `InvalidOperationException`). **Sem ADR novo**: estende ADR-028 (regra 8 — nada persistido, sondagem ao vivo; as duas chamadas rodam em sequência de propósito para reusar a sessão); speed test sairia do adiado só com coletor próprio = nova arquitetura → ADR antes. Front: novo `services/api/integrations.ts` (`UnifiInsights` + `getUnifiInsights`, vazio = erro honesto), genérico `useObjectQuery` novo em `hooks/queries.ts` e `InsightsPage` conectada (DataTablePanel com colunas reais, `LoadingBlock`/`ErrorBanner` com retry, subtítulo com horário da sondagem, rodapé "contadores acumulados desde o último reset"; painel Speed Test mantido com estado vazio honesto apontando o adiamento F18-T007). Testes +7 (2 client via `ScriptedHandler` cobrindo URI do estilo UniFi OS + parse; 3 query: ordenação/teto/filtro/`CapturedAtUtc`/roles; 2 controller: envelope + 503) → **unit 1988/1988 · arch 119/119 · front lint 0 · front build 0**; `FakeClient` de `UniFiSettingsCommandsTests` atualizado (CS0535). Docs: TASKS F18-T007 [x] com escopo redimensionado + fechamento da pendência F17-T016 (nota do sub-checklist), docs/29 §8. Pendência (§46): validação ponta-a-ponta contra um Controller real — a estação não tem o ambiente.
 
 - Após revisão arquitetural das F19/F20/F21 + governança F22 + decisão Zabbix 8.0 (2026-10-02, todo o material enviado pelo usuário documentado): (1) **11 ajustes operacionais** registrados no TASKS na seção "Revisão arquitetural das F19/F20/F21" — pipeline externo sem streaks, recovery por `ExternalProblemId` (nunca título), índices de identidade `(Source, ExternalEventId)` × `(Source, ExternalProblemId)`, anti-duplicidade com teste, regra de resolução do Incident, F19-T006 atrasada/protetiva, regra **n8n ❌ / InfraControl ✅** com o fluxo `Incident Created → Outbox → RabbitMQ → NotificationConsumer → Webhook Worker → HTTP POST → n8n → canais`, UniFi sem telemetria de massa, Redis = cache (TTL/invalidação), F21-T001 com os 9 modelos e verificação prévia, "100% catalogado ≠ definitivo". (2) **Fase 22 (F22-T001..T005)** registrada na outra sessão com as Regras de Alinhamento Arquitetural e os princípios (Integração/System of Record, Idempotência, Recuperação, Não-Duplicação) — corpo + Fase P. (3) **Decisão: diretriz Zabbix 8.0** para a F18-T001 (spec completo embutido no comentário da task: escopo pré-implementação, componentes mínimos, versionamento sem `latest` genérico, PG dedicado, networking com os 5 requisitos, webhook `POST /api/v1/integrations/zabbix/problems` sem tocar no handler ADR-023, ambiente de teste Problem/Recovery, docs/27, critérios de aceite e lista de "não implementar"); pendências registradas: upgrade das imagens `7.0-latest` → 8.0, **conflito de porta evitado** (`ZABBIX_WEB_PORT=8085` do plano colidiria com `HTTP_PORT=8085` do frontend — mantidas 5434/10052/8086/10053) e F18-T001 `[x]` só pleno após o upgrade. (4) A arquitetura geral (Centro de Operações: ITSM/Inventário/People + Integration Layer com painel `● Connected`) já estava 100% coberta por ADR-027/ADR-028/F19-T000 — conferido item a item, sem lacunas. Pendências de decisão do usuário: quem executa o upgrade 8.0 (esta sessão ou a paralela) e criar a F19-T008 (agregado `Integration` + endpoints + painel).
 

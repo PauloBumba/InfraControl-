@@ -1,6 +1,7 @@
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Application.Integrations.Unifi;
+using InfraControl.Application.Integrations.Unifi.Insights;
 using InfraControl.Application.Integrations.Unifi.Ports;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -52,6 +53,32 @@ public sealed class UnifiIntegrationController(
                     ["UniFi Controller indisponível (ou integração não configurada)."]));
 
         return Ok(ApiResponse.Ok<object>(new { status = "up" }));
+    }
+
+    /// <summary>
+    /// F18-T007: painéis reais da InsightsPage — Tráfego por Cliente e
+    /// DPI por Aplicação, sondados ao vivo no Controller (nada é
+    /// persistido, regra 8). Integração não configurada/Controller fora
+    /// ou sessão recusada = 503 com o motivo no envelope (mesma
+    /// semântica do <see cref="Health"/>); leitura de dashboard = só
+    /// autenticado (roles no IAuthorizedRequest, nível único ADR-030 §3).
+    /// </summary>
+    [HttpGet("insights")]
+    public async Task<IActionResult> Insights(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new GetUnifiInsightsQuery(), cancellationToken);
+            return Ok(ApiResponse.Ok(result));
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail([exception.Message]));
+        }
     }
 
     /// <summary>

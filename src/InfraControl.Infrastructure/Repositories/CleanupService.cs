@@ -37,7 +37,7 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             discoveryDeleted,
             monitoringEventsDeleted,
             invitationsDeleted,
-            unifiSyncRunsDeleted: unifiSyncRunsDeleted);
+            UniFiSyncRunsDeleted: unifiSyncRunsDeleted);
     }
 
     private async Task<int> DeleteOutboxAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)

@@ -10,6 +10,7 @@ export const navigation: NavItem[] = [
   { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
   { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
   { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
+  { label: "Hosts Zabbix", icon: "pi pi-list-alt", route: "/zabbix/hosts" },
   { label: "Locations", icon: "pi pi-map-marker", route: "/locations" },
 ];
 
@@ -30,6 +31,7 @@ export const secondaryNavigation: NavItem[] = [
   { label: "Auditoria", icon: "pi pi-history", route: "/audit" },
   { label: "Sessões", icon: "pi pi-mobile", route: "/sessions" },
   { label: "Integrações", icon: "pi pi-link", route: "/integrations" },
+  { label: "Zabbix", icon: "pi pi-cloud", route: "/integrations/zabbix" },
   { label: "Configurações", icon: "pi pi-cog", route: "/settings" },
 ];
 

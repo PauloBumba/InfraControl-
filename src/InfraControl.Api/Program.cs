@@ -10,6 +10,7 @@ using InfraControl.Api.RateLimiting;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
+using InfraControl.Infrastructure.AI;
 using InfraControl.Api.Hubs;
 using InfraControl.Api.Services;
 using InfraControl.Api.Workers;
@@ -195,7 +196,11 @@ var redisConn = builder.Configuration.GetConnectionString("Redis");
 
 builder.Services.AddHealthChecks()
     .AddNpgSql(postgresConn!, name: "postgresql", tags: ["db", "core"])
-    .AddRedis(redisConn!, name: "redis", tags: ["cache"]);
+    .AddRedis(redisConn!, name: "redis", tags: ["cache"])
+    // FAI-T006/S5 (§44): camada de IA como degradação visível ( Healthy
+    // / Degraded — nunca Unhealthy por falta de Ollama; payload com o
+    // estado por capacidade/provider).
+    .AddCheck<AiRuntimeHealthCheck>("ai-runtime", tags: ["ai"]);
 
 // ── OpenTelemetry ────────────────────────────────────────────────────────
 var otelServiceName = builder.Configuration["OpenTelemetry:ServiceName"] ?? "InfraControl.Api";

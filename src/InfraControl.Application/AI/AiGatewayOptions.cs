@@ -9,7 +9,9 @@ namespace InfraControl.Application.AI;
 public sealed record AiGatewayOptions(
     int MaxRetries = 1,
     TimeSpan? Timeout = null,
-    bool FallbackEnabled = true)
+    bool FallbackEnabled = true,
+    int MaxPromptCharacters = 12000,
+    int? MaxCompletionTokens = null)
 {
     /// <summary>Timeout por tentativa (default 30 s — LLM local é lento).</summary>
     public TimeSpan EffectiveTimeout => Timeout ?? TimeSpan.FromSeconds(30);

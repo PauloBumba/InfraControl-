@@ -88,6 +88,21 @@ public sealed class UniFiSettingsCommandsTests
         public Task<UnifiPortsSummaryDto> GetPortsSummaryAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult(new UnifiPortsSummaryDto(0, 0));
+        public Task<IReadOnlyList<UnifiClientTrafficDto>> ListClientTrafficAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnList is not null)
+                throw ThrowOnList;
+            return Task.FromResult<IReadOnlyList<UnifiClientTrafficDto>>([]);
+        }
+
+        public Task<IReadOnlyList<UnifiDpiAppDto>> ListDpiStatsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnList is not null)
+                throw ThrowOnList;
+            return Task.FromResult<IReadOnlyList<UnifiDpiAppDto>>([]);
+        }
     }
 
     private sealed class FakeResolver(UnifiIntegrationOptions options) : IUniFiOptionsResolver

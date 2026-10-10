@@ -430,6 +430,11 @@ export function PdiPage() {
         <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />
       )}
 
+      {!loading && adminDashboard && (
+        <PdiAdminDashboardPanel dashboard={adminDashboard} />
+      )}
+      {!loading && managerPanel}
+
       {loading ? (
         <LoadingBlock />
       ) : isAdmin ? (

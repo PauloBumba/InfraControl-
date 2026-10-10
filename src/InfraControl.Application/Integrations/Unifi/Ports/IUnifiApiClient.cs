@@ -11,6 +11,20 @@ public interface IUnifiApiClient
     Task<IReadOnlyList<UnifiDeviceDto>> ListDevicesAsync(
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Tráfego por cliente ativo (<c>GET /stat/sta</c>) — F18-T007
+    /// (Insights): contadores acumulados do Cliente (rx/tx bytes).
+    /// </summary>
+    Task<IReadOnlyList<UnifiClientTrafficDto>> ListClientTrafficAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// DPI por aplicação (<c>GET /stat/app</c>) — F18-T007 (Insights):
+    /// bytes vistos pela inspeção de pacotes, por app/categoria.
+    /// </summary>
+    Task<IReadOnlyList<UnifiDpiAppDto>> ListDpiStatsAsync(
+        CancellationToken cancellationToken = default);
+
     /// <summary>Sondagem leve (GET /api/self) para o health da integração.</summary>
     Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
 
