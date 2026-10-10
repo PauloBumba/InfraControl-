@@ -76,6 +76,22 @@ public sealed class UniFiSettingsCommandsTests
                 throw ThrowOnList;
             return Task.FromResult<IReadOnlyList<UnifiDpiAppDto>>([]);
         }
+
+        public Task<IReadOnlyList<UnifiSsidDto>> ListSsidsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnList is not null)
+                throw ThrowOnList;
+            return Task.FromResult<IReadOnlyList<UnifiSsidDto>>([]);
+        }
+
+        public Task<IReadOnlyList<UnifiAccessPointDto>> ListAccessPointsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnList is not null)
+                throw ThrowOnList;
+            return Task.FromResult<IReadOnlyList<UnifiAccessPointDto>>([]);
+        }
     }
 
     private sealed class FakeClientFactory : IUnifiClientFactory

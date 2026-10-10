@@ -3,6 +3,7 @@ using InfraControl.Api.Controllers;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Insights;
 using InfraControl.Application.Integrations.Unifi.Ports;
+using InfraControl.Application.Integrations.Unifi.Wifi;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -70,6 +71,31 @@ public sealed class UnifiIntegrationController(
         {
             var result = await sender.Send(
                 new GetUnifiInsightsQuery(), cancellationToken);
+            return Ok(ApiResponse.Ok(result));
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                ApiResponse.Fail([exception.Message]));
+        }
+    }
+
+    /// <summary>
+    /// F18-T006: WiFi — redes SSID e telemetria de AP (estado/uptime, CPU/
+    /// mem, clientes, rádios e tráfego) sondados ao vivo no Controller e
+    /// servidos com cache Redis de 60s (nada é persistido, regra 8). Mesma
+    /// semântica do <see cref="Insights"/>: não configurado/Controller
+    /// fora = 503 com o motivo no envelope; leitura = só autenticado.
+    /// </summary>
+    [HttpGet("wifi")]
+    public async Task<IActionResult> Wifi(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await sender.Send(
+                new GetUnifiWifiQuery(), cancellationToken);
             return Ok(ApiResponse.Ok(result));
         }
         catch (Exception exception) when (

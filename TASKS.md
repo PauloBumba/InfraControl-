@@ -1145,12 +1145,20 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   regras de firewall). **Exige ADR + questionário antes do plano**:
   fonte de dados (SNMP/SSH por vendor/agent), escopo read-only vs
   gestão, quais tabelas/vendor suportados. Critérios: definidos no ADR
-- [ ] **F18-T006 Domínio WiFi** — redes (SSID/segurança/banda/canal/
-  largura/VLAN) + telemetria de AP (clientes, CPU, mem, canais,
-  potência, tráfego) — tudo o que saiu da WiFiPage no F17-T014.
-  **Exige ADR + questionário**: fonte (controller de AP? SNMP? API de
-  vendor?), quais métricas e com que frequência. Critérios: definidos
-  no ADR; quando pronto, a WiFiPage deixa de ser só inventário
+- [x] **F18-T006 Domínio WiFi** — decidido em question (2026-10-10):
+  fonte = **UniFi Controller existente** (reusa o client do ADR-028,
+  sem ADR novo — extensão do §2/§8 documentada em docs/29 §9) e coleta
+  = **sob demanda + cache Redis de 60s** (`integration:unifi:wifi`).
+  Backend: `IUnifiApiClient += ListSsidsAsync` (`/rest/ssidconf` —
+  segurança crua, VLAN, bandas de `no2ghz`/`no5ghz`) e
+  `ListAccessPointsAsync` (`/stat/device` — state/uptime, CPU/mem de
+  `system-stats`, clientes somados da `vap_table`, rádios de
+  `radio_table`, tráfego); `GetUnifiWifiQuery` (RoleAccess.Read, 503
+  desligado) → `GET /integrations/unifi/wifi`; WiFiPage com painéis
+  Redes (SSID) + APs (telemetria) e o inventário do F17-T014 mantido
+  abaixo. Testes: +7 (2 parse de client, 3 query com fake de cache, 2
+  controller); unit 1999, arch 119, tsc/lint/build front 0 —
+  validação ponta-a-ponta contra Controller real pendente (§46)
 - [x] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
   tráfego por cliente, speed test e painéis do Dashboard removidos no
   F17-T009/T016. **Escopo decrescido por decisão humana** (ver
