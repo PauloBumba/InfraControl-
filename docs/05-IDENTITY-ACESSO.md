@@ -96,6 +96,32 @@ O backend expõe os fluxos de Identity inspirados no Sentinel:
 | `DELETE /api/v1/auth/sessions/{sessionId}` | Revoga uma sessão; se for a atual, assina o cookie para fora | Autenticado |
 | `DELETE /api/v1/auth/sessions/others` | "Sair de todos os outros" (mantém a sessão atual) | Autenticado |
 
+### Recuperação de senha (fluxo completo)
+
+```text
+Usuário → ForgotPasswordPage (/forgot-password)
+→ POST /auth/forgot-password {email}
+→ IIdentityEmailSender.SendPasswordResetAsync (token de uso único, 30 min)
+→ Email (link /reset-password?email=&token=)
+→ ResetPasswordPage (/reset-password)
+→ POST /auth/reset-password {email, token, newPassword} → 204
+```
+
+O link e-maiado nasce na PÁGINA pública `/reset-password` do dashboard
+(entregue em 2026-10-10, fechando a pendência da auditoria front×back de
+01/10): antes apontava para a própria API — GET em rota só-POST respondia
+`405` e não havia tela, então o fluxo nascia na UI e morria no e-mail. A
+origem do link segue a MESMA regra do convite (`Frontend:BaseUrl` com
+fallback à origem da própria request — ver a seção **Convite**); sem origem
+o link sai relativo. O token fica em `identity:password-reset:{hash}` no
+cache (30 min), é conferido contra o e-mail e removido no sucesso, e
+redefinir derruba todas as sessões (`SessionsRevoked`). A
+`ResetPasswordPage` lê `email`/`token` da query, tem estado honesto para
+link incompleto (sem chamar a API com credencial incompleta — botão para
+pedir um link novo), mostra o motivo pt-BR do envelope quando o backend
+recusa (token expirado, política de senha) e em sucesso leva ao `/login`.
+Escrita anônima sem antiforgery (F1-T015/ADR-017).
+
 ### MFA TOTP (F1-T016a, ADR-019)
 
 O `POST /api/v1/auth/login` aceita `mfaCode` opcional. Quando a conta tem MFA

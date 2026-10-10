@@ -1,12 +1,14 @@
 using System.Security.Claims;
 using FluentAssertions;
 using InfraControl.Api.Controllers.Identity;
+using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Domain.Enums;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace InfraControl.UnitTests.Api;
@@ -25,7 +27,7 @@ public sealed class AuthenticationMeTests
     private static AuthenticationController ControllerWithAntiforgery(
         IAntiforgery antiforgery, params Claim[] claims)
     {
-        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>(), antiforgery)
+        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>(), antiforgery, Options.Create(new FrontendOptions()))
         {
             ControllerContext = new ControllerContext
             {

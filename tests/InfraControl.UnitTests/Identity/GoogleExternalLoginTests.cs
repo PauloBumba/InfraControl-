@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using FluentAssertions;
 using InfraControl.Api.Controllers.Identity;
+using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity.Authentication;
@@ -293,7 +294,7 @@ public sealed class GoogleExternalLoginTests
             .BuildServiceProvider();
 
         var httpContext = new DefaultHttpContext { RequestServices = authServices };
-        var controller = new AuthenticationController(service, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>())
+        var controller = new AuthenticationController(service, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()))
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

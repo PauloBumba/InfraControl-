@@ -40,6 +40,7 @@ const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.Sla
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
 const InvitationAcceptancePage = lazy(() => import("@/pages/InvitationAcceptancePage").then(m => ({ default: m.InvitationAcceptancePage })));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
@@ -165,16 +166,20 @@ function AppContent() {
     navigate(route);
   };
 
-  // Login, recuperação de senha e aceite de convite não têm layout — e não
-  // redirecionam: quem já tem sessão confirmada vai direto para o app, mas o
-  // convite continua público (é o destino do link e-maiado).
+  // Login, recuperação/redefinição de senha e aceite de convite não têm
+  // layout — e não redirecionam: quem já tem sessão confirmada vai direto
+  // para o app, mas os destinos de link e-maiado continuam públicos (o
+  // /reset-password de um usuário logado é legítimo: o backend derruba as
+  // sessões ao redefinir, inclusive a atual).
   if (
     location.pathname === "/login" ||
     location.pathname === "/forgot-password" ||
+    location.pathname === "/reset-password" ||
     location.pathname.startsWith("/invitations/")
   ) {
     const isPublicPage =
       location.pathname === "/forgot-password" ||
+      location.pathname === "/reset-password" ||
       location.pathname.startsWith("/invitations/");
 
     if (authStatus === "authenticated" && !isPublicPage) {
@@ -186,6 +191,7 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
         </Routes>
       </Suspense>

@@ -1,10 +1,12 @@
 using FluentAssertions;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Api.Controllers.Identity;
+using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Identity;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Security.Claims;
 
@@ -17,7 +19,7 @@ public sealed class AuthenticationControllerTests
     {
         // Arrange
         var authServiceMock = new Mock<IIdentityAuthenticationService>();
-        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>());
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()));
 
         var user = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, "123"),
@@ -69,7 +71,7 @@ public sealed class AuthenticationControllerTests
             .Setup(provider => provider.GetService(typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService)))
             .Returns(signOutMock.Object);
 
-        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>())
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()))
         {
             ControllerContext = new ControllerContext
             {
@@ -95,7 +97,7 @@ public sealed class AuthenticationControllerTests
     {
         // Arrange
         var authServiceMock = new Mock<IIdentityAuthenticationService>();
-        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>());
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()));
 
         var user = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, "123"),
@@ -117,5 +119,68 @@ public sealed class AuthenticationControllerTests
         // Verify the controller uses ClaimTypes.Role to get roles
         user.FindAll(ClaimTypes.Role).Should().BeEmpty();
         user.FindAll("permission").Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Decisão do usuário (01/10/2026): a origem do link de redefinição de
+    /// senha vem da config <c>Frontend:BaseUrl</c> — em dev a API vista pelo
+    /// proxy do vite é <c>localhost:7237</c>, que não serve o SPA; com a config
+    /// o link nasce em <c>http://localhost:3000</c>. Trailing slash é cortado
+    /// na origem (mesma regra do convite F1-T017).
+    /// </summary>
+    [Fact]
+    public async Task ForgotPassword_Should_Use_The_Configured_Frontend_BaseUrl()
+    {
+        var captured = default(ForgotPasswordRequest?);
+
+        var authServiceMock = new Mock<IIdentityAuthenticationService>();
+        authServiceMock
+            .Setup(service => service.RequestPasswordResetAsync(
+                It.IsAny<ForgotPasswordRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ForgotPasswordRequest, CancellationToken>((request, _) => captured = request)
+            .ReturnsAsync(new PasswordResetRequestResult("ok"));
+
+        var controller = new AuthenticationController(
+            authServiceMock.Object,
+            Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(),
+            Options.Create(new FrontendOptions { BaseUrl = "http://localhost:3000/" }));
+
+        await controller.ForgotPassword(new ForgotPasswordViewModel("alvo@exemplo.test"), CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.BaseUrl.Should().Be("http://localhost:3000");
+    }
+
+    /// <summary>
+    /// Sem config (produção com nginx same-origin) a origem continua sendo a
+    /// da própria request — comportamento anterior preservado, idêntico ao do
+    /// aceite de convite.
+    /// </summary>
+    [Fact]
+    public async Task ForgotPassword_Should_Fall_Back_To_The_Request_Origin_When_Config_Is_Empty()
+    {
+        var captured = default(ForgotPasswordRequest?);
+
+        var authServiceMock = new Mock<IIdentityAuthenticationService>();
+        authServiceMock
+            .Setup(service => service.RequestPasswordResetAsync(
+                It.IsAny<ForgotPasswordRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ForgotPasswordRequest, CancellationToken>((request, _) => captured = request)
+            .ReturnsAsync(new PasswordResetRequestResult("ok"));
+
+        var controller = new AuthenticationController(
+            authServiceMock.Object,
+            Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(),
+            Options.Create(new FrontendOptions { BaseUrl = "   " }))
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+        controller.Request.Scheme = "https";
+        controller.Request.Host = new HostString("app.intra.example");
+
+        await controller.ForgotPassword(new ForgotPasswordViewModel("alvo@exemplo.test"), CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.BaseUrl.Should().Be("https://app.intra.example");
     }
 }

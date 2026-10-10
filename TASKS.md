@@ -636,18 +636,27 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   para a request). Pendências que restam desta frente: provider real de
   e-mail; página `/reset-password` (a decisão de origem já existe e é a
   mesma — `Frontend:BaseUrl`; faltam a página e o path do link).
-- [ ] **Página de redefinição de senha no frontend** — achado na auditoria de
-  alinhamento front×back de 01/10/2026: o link do e-mail de forgot-password
-  (`IdentityAuthenticationService` monta
-  `{baseUrl}/api/v1/auth/reset-password?email=...&token=...`) bate no GET da
-  API (rota só existe em POST → 405) e o front não tem rota pública
-  `/reset-password` (só `/login` e `/forgot-password`) — o fluxo nasce no
-  frontend e morre no e-mail. `POST /auth/reset-password` está alinhado
-  (body `{email, token, newPassword}`, 204/400 no envelope) mas sem
-  consumidor; a origem do link JÁ está decidida (config `Frontend:BaseUrl`
-  com fallback à request — mesma da página de aceite, decisão do usuário em
-  02/10/2026) e implementada no `InvitationsController`; restam a página
-  pública `/reset-password` e apontar o link do forgot-password para ela
+- [x] **Página de redefinição de senha no frontend** <!-- FECHADA 2026-10-10:
+  rota pública `/reset-password` (bloco público do router + lazy
+  ResetPasswordPage; decisão registrada: é pública até para usuário logado,
+  pois o backend derruba as sessões no reset — inclusive a atual). Página
+  espelhando o aceite de convite: lê `email`/`token` da query, estado honesto
+  "Link inválido" SEM chamar a API com credencial incompleta (botão "Solicitar
+  novo link" → /forgot-password), senha + confirmação com verificação local,
+  `POST /auth/reset-password` anônimo (`anonymousExpected` — o motivo pt-BR
+  do 400 no envelope vira a mensagem da tela) e 204 → fase "Senha redefinida"
+  → /login. Link do e-mail corrigido em `IdentityAuthenticationService`:
+  `{origem}/reset-password?...` (antes `/api/v1/auth/reset-password` → GET
+  405) e origem do `AuthenticationController.ForgotPassword` passou pelo MESMO
+  caminho do convite: `Frontend:BaseUrl` com fallback à request
+  (`FrontendOptions` já previa o caso; comentários de FrontendOptions e
+  Program.cs atualizados). Testes (4 novos, espelhando os de Invitation): 2 de
+  origem no controller (config com trailing slash → cortada; vazia em branco →
+  scheme+host da request) + 2 de URL no serviço (absoluta com corte de barra
+  final e relativa sem origem); os 5 pontos de construção do
+  AuthenticationController nos testes ganharam o 3º argumento
+  (`Options.Create(new FrontendOptions())`). Validação: build 0 · unit
+  1992/1992 · arch 119/119 · tsc 0 · lint 0 · build front ok. -->
 - [x] **Aba Feed na NotificationsPage** (pendência da F18-T001, fechada
   em 01/10/2026 no ciclo de integração front×back pós-auditoria) — a aba
   tinha saído no F17-T010 por não existir listagem; a F18-T001 entregou

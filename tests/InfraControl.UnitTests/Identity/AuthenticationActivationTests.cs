@@ -188,6 +188,66 @@ public sealed class AuthenticationActivationTests
             "Se o e-mail estiver cadastrado, as instruções de redefinição de senha serão enviadas.");
     }
 
+    /// <summary>
+    /// Espelho dos 2 testes de URL do aceite de convite (InvitationTests): o
+    /// link e-maiado aponta para a PÁGINA pública /reset-password do SPA — não
+    /// para a API (rota GET não existe, só POST respondia 405 e o fluxo morria
+    /// no e-mail) — e a trailing slash da origem é cortada.
+    /// </summary>
+    [Fact]
+    public async Task ForgotPassword_ShouldSendEmailWithAbsoluteFrontendResetUrl()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var service = scope.ServiceProvider.GetRequiredService<IIdentityAuthenticationService>();
+        await service.RegisterAsync(
+            new RegisterUserRequest("url-reset@example.com", "Url Reset", StrongPassword));
+        await SetActiveAsync(scope, "url-reset@example.com", active: true);
+
+        await service.RequestPasswordResetAsync(
+            new ForgotPasswordRequest("url-reset@example.com", "https://portal.example/"));
+
+        var sender = (FakeEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
+        var url = sender.Sent.Single().ResetUrl;
+        var token = ExtractToken(url);
+        url.Should().Be(
+            $"https://portal.example/reset-password?email={Uri.EscapeDataString("url-reset@example.com")}&token={Uri.EscapeDataString(token)}",
+            "trailing slash da origem é cortada e o link aponta para a página pública /reset-password com e-mail e token");
+    }
+
+    /// <summary>
+    /// Sem origem o link sai relativo — mesma convenção do aceite de convite
+    /// (página pública = caminho do SPA).
+    /// </summary>
+    [Fact]
+    public async Task ForgotPassword_ShouldSendRelativeResetLinkWhenNoOrigin()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var service = scope.ServiceProvider.GetRequiredService<IIdentityAuthenticationService>();
+        await service.RegisterAsync(
+            new RegisterUserRequest("relative-reset@example.com", "Relative Reset", StrongPassword));
+        await SetActiveAsync(scope, "relative-reset@example.com", active: true);
+
+        await service.RequestPasswordResetAsync(
+            new ForgotPasswordRequest("relative-reset@example.com", BaseUrl: null));
+
+        var sender = (FakeEmailSender)scope.ServiceProvider.GetRequiredService<IIdentityEmailSender>();
+        var url = sender.Sent.Single().ResetUrl;
+        var token = ExtractToken(url);
+        url.Should().Be(
+            $"/reset-password?email={Uri.EscapeDataString("relative-reset@example.com")}&token={Uri.EscapeDataString(token)}",
+            "sem origem o link sai relativo — a página pública de reset é /reset-password");
+    }
+
     [Fact]
     public async Task ResetPassword_ShouldFailForUserDisabledAfterRequest()
     {

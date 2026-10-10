@@ -101,6 +101,18 @@ export async function requestPasswordReset(email: string): Promise<string> {
 }
 
 /**
+ * Página pública /reset-password: o link e-maiado chega com
+ * `?email=...&token=...` e esta chamada fecha o fluxo (204 no sucesso). É
+ * anônima de propósito — o token do link É a prova; `anonymousExpected`
+ * evita que o interceptor global de 401 confunda um 400 do envelope com
+ * sessão morta. O motivo pt-BR (token expirado, política de senha) vem no
+ * `errors` do envelope e a tela mostra.
+ */
+export async function resetPassword(email: string, token: string, newPassword: string): Promise<void> {
+  await api.post("/auth/reset-password", { email, token, newPassword }, { anonymousExpected: true });
+}
+
+/**
  * Página pública de aceite de convite (pendência da F1-T017 fechada): o link
  * e-maiado é `/invitations/{id}?token=...` e a página roda o fluxo do
  * backend — `accept` provisiona a conta INATIVA e revela quem foi convidado,
