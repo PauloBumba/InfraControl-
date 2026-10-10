@@ -147,3 +147,47 @@ não substitui a re-autenticação em 401).
   F20-T002.
 - `AlertCreated` (notificação de alerta novo) segue como pendência aberta da
   revisão F19/F20/F21 (TASKS §notificações).
+
+## 8. Insights — Tráfego por Cliente e DPI (F18-T007 · 2026-10-09)
+
+Os dois painéis com fonte real da `InsightsPage` (`/insights`) foram
+conectados à integração. **Decisão humana de escopo** (2026-10-09,
+question): construir pela UniFi existente; **speed test adiado** (não
+tem fonte no Controller).
+
+| Endpoint InfraControl | Chamada ao Controller | Painel |
+| --- | --- | --- |
+| `GET /api/v1/integrations/unifi/insights` | `GET {base}{prefix}/api/s/{site}/stat/sta` | Tráfego por Cliente |
+| (mesmo endpoint) | `GET {base}{prefix}/api/s/{site}/stat/app` | DPI por Aplicação |
+
+Contrato (`UnifiInsightsDto`, camelCase no JSON):
+
+```text
+{
+  trafficPerClient: [ { mac, hostname, ip, rxBytes, txBytes, lastSeen, totalBytes } ],
+  dpiPerApplication: [ { app, category, totalBytes } ],
+  capturedAtUtc
+}
+```
+
+Regras:
+
+- **Sondagem ao vivo, nada persistido** (regra 8): `rx_bytes`/`tx_bytes`
+  são contadores acumulados desde o último reset do cliente — **não**
+  representam consumo de um período; a UI mostra o horário da captura e
+  um rodapé avisando isso.
+- Ordenação/teto: top 50 de cada painel por bytes; apps com 0 bytes
+  saem; `last_seen` vem em epochs seconds (Unix); fallbacks de parse —
+  `cat` → `category`, `value` → `s + r`.
+- Autorização: leitura de dashboard (`RoleAccess.Read` — qualquer papel
+  autenticado). Integração não configurada, Controller fora ou sessão
+  recusada → **503 + motivo** no envelope (mesma semântica do `/health`;
+  nunca o 409 do handler global).
+- As duas chamadas rodam em sequência de propósito (reutilizam a mesma
+  sessão/gate de login do client).
+- **Speed test continua fora**: sem coletor nem domínio — painel com
+  estado vazio honesto na página. Se sair do adiado, exige coletor
+  próprio = nova arquitetura → **ADR antes**.
+- Pendência (§46): validação ponta-a-ponta contra um Controller real
+  (a estação de trabalho não tem o ambiente); testes unitários com
+  `ScriptedHandler` cobrem URI (estilo UniFi OS), parse e fallbacks.

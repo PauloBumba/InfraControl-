@@ -66,6 +66,42 @@ public sealed class UnifiApiClient : IUnifiApiClient
         return ParseDevices(await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
+    public async Task<IReadOnlyList<UnifiClientTrafficDto>> ListClientTrafficAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        var http = _factory.CreateClient(HttpClientName);
+
+        using var response = await GetWithSessionAsync(
+            http, () => ClientStatsUri, reauthenticateOn401: true, cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            throw new UnauthorizedAccessException(
+                "Sessão do UniFi Controller recusada mesmo após re-autenticação.");
+
+        response.EnsureSuccessStatusCode();
+
+        return ParseClientTraffic(await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<UnifiDpiAppDto>> ListDpiStatsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        var http = _factory.CreateClient(HttpClientName);
+
+        using var response = await GetWithSessionAsync(
+            http, () => DpiStatsUri, reauthenticateOn401: true, cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            throw new UnauthorizedAccessException(
+                "Sessão do UniFi Controller recusada mesmo após re-autenticação.");
+
+        response.EnsureSuccessStatusCode();
+
+        return ParseDpiStats(await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.IsConfigured)
@@ -259,6 +295,14 @@ public sealed class UnifiApiClient : IUnifiApiClient
     private string DeviceStatsUri
         => $"{BaseUrl}{ApiPrefix}/api/s/{_options.Site}/stat/device";
 
+    /// <summary>Clientes ativos com contadores rx/tx (F18-T007 · Insights).</summary>
+    private string ClientStatsUri
+        => $"{BaseUrl}{ApiPrefix}/api/s/{_options.Site}/stat/sta";
+
+    /// <summary>DPI por aplicação (F18-T007 · Insights).</summary>
+    private string DpiStatsUri
+        => $"{BaseUrl}{ApiPrefix}/api/s/{_options.Site}/stat/app";
+
     /// <summary>Prefixo da API: UniFi OS usa <c>/proxy/network</c>, standalone usa a raiz.</summary>
     private string ApiPrefix
         => _apiStyle == UniFiApiStyle.UniFiOs ? "/proxy/network" : string.Empty;
@@ -286,6 +330,98 @@ public sealed class UnifiApiClient : IUnifiApiClient
         }
 
         return devices;
+    }
+
+    /// <summary>
+    /// F18-T007: <c>GET /stat/sta</c> devolve os clientes ativos com
+    /// <c>rx_bytes</c>/<c>tx_bytes</c> (acumulados desde o reset do
+    /// cliente) e <c>last_seen</c> em epochs seconds (Unix).
+    /// </summary>
+    private static IReadOnlyList<UnifiClientTrafficDto> ParseClientTraffic(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException(
+                "Resposta inesperada do UniFi Controller (sem o array 'data').");
+
+        var clients = new List<UnifiClientTrafficDto>();
+        foreach (var item in data.EnumerateArray())
+        {
+            clients.Add(new UnifiClientTrafficDto(
+                Read(item, "mac"),
+                Read(item, "hostname"),
+                Read(item, "ip"),
+                ReadLong(item, "rx_bytes"),
+                ReadLong(item, "tx_bytes"),
+                ReadUnixSeconds(item, "last_seen")));
+        }
+
+        return clients;
+    }
+
+    /// <summary>
+    /// F18-T007: <c>GET /stat/app</c> devolve uma linha por aplicação
+    /// inspecionada — <c>app</c> (nome), <c>cat</c> (categoria; alguns
+    /// controladores usam <c>category</c>) e <c>value</c> = bytes totais
+    /// (com fallback para <c>s</c>+<c>r</c> quando ausente).
+    /// </summary>
+    private static IReadOnlyList<UnifiDpiAppDto> ParseDpiStats(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException(
+                "Resposta inesperada do UniFi Controller (sem o array 'data').");
+
+        var apps = new List<UnifiDpiAppDto>();
+        foreach (var item in data.EnumerateArray())
+        {
+            var app = Read(item, "app");
+            if (app.Length == 0)
+                continue;
+
+            var category = Read(item, "cat");
+            if (category.Length == 0)
+                category = Read(item, "category");
+
+            var total = ReadLong(item, "value");
+            if (total <= 0)
+                total = ReadLong(item, "s") + ReadLong(item, "r");
+
+            apps.Add(new UnifiDpiAppDto(app, category, total));
+        }
+
+        return apps;
+    }
+
+    private static long ReadLong(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value))
+            return 0;
+
+        if (value.ValueKind == JsonValueKind.Number)
+        {
+            if (value.TryGetInt64(out var integer))
+                return integer;
+            return value.TryGetDouble(out var real) ? (long)real : 0;
+        }
+
+        if (value.ValueKind == JsonValueKind.String &&
+            long.TryParse(value.GetString(), out var parsed))
+            return parsed;
+
+        return 0;
+    }
+
+    private static DateTime? ReadUnixSeconds(JsonElement element, string property)
+    {
+        var seconds = ReadLong(element, property);
+        return seconds > 0
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime
+            : null;
     }
 
     private static string Read(JsonElement element, string property)

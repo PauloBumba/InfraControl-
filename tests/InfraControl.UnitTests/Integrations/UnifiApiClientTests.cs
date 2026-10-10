@@ -228,6 +228,74 @@ public sealed class UnifiApiClientTests
         (await client.IsHealthyAsync()).Should().BeFalse();
     }
 
+    // ── F18-T007 (Insights): tráfego e DPI ──────────────────────────
+
+    [Fact]
+    public async Task ListClientTrafficAsync_ShouldCallStatStaAndParseCounters()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-9; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/sta"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"mac":"aa:bb:cc:dd:ee:20","hostname":"notebook-paulo","ip":"192.168.1.50",
+                   "rx_bytes":1048576,"tx_bytes":524288,"last_seen":1759900000},
+                  {"mac":"aa:bb:cc:dd:ee:21","hostname":"","ip":"192.168.1.51",
+                   "rx_bytes":0,"tx_bytes":0}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var traffic = await client.ListClientTrafficAsync();
+
+        traffic.Should().HaveCount(2);
+        traffic[0].Hostname.Should().Be("notebook-paulo");
+        traffic[0].Ip.Should().Be("192.168.1.50");
+        traffic[0].RxBytes.Should().Be(1048576);
+        traffic[0].TxBytes.Should().Be(524288);
+        traffic[0].TotalBytes.Should().Be(1048576 + 524288);
+        traffic[0].LastSeen.Should().Be(
+            DateTimeOffset.FromUnixTimeSeconds(1759900000).UtcDateTime,
+            "last_seen vem em epochs seconds");
+        traffic[1].LastSeen.Should().BeNull("sem last_seen no Controller = null");
+
+        handler.Requests.Should().HaveCount(2, "login + stat/sta");
+        handler.Requests[1].RequestUri!.ToString()
+            .Should().Contain("/proxy/network/api/s/default/stat/sta");
+    }
+
+    [Fact]
+    public async Task ListDpiStatsAsync_ShouldParseStatAppWithCategoryFallbacks()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-9; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/app"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"app":"Netflix","cat":"streaming","value":9000},
+                  {"app":"Microsoft Teams","category":"collaboration","s":600,"r":400},
+                  {"app":"","cat":"ignored","value":12345}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var apps = await client.ListDpiStatsAsync();
+
+        apps.Should().HaveCount(2, "linha sem nome de aplicação é descartada");
+        apps[0].App.Should().Be("Netflix");
+        apps[0].Category.Should().Be("streaming");
+        apps[0].TotalBytes.Should().Be(9000);
+        apps[1].Category.Should().Be("collaboration", "fallback de 'category' quando não há 'cat'");
+        apps[1].TotalBytes.Should().Be(1000, "sem 'value' os bytes somam s + r");
+
+        handler.Requests[1].RequestUri!.ToString()
+            .Should().Contain("/proxy/network/api/s/default/stat/app");
+    }
+
     // ── Infra ───────────────────────────────────────────────────────
 
     private static UnifiApiClient CreateClient(

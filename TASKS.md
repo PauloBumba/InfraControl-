@@ -1022,9 +1022,10 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   - Sub-checklist FECHADO (T001–T016: 14 páginas conectadas + Discovery
     N/A + Insights esvaziado); **todas as páginas do protótipo estão
     conectadas ao backend ou com estado honesto** (T016 Insights, T019
-    Logs, T021 Topologia). O grupo permanece aberto apenas pela decisão
-    de produto do Insights (construir backend / apagar página / manter
-    demo) — última pendência da F17.
+    Logs, T021 Topologia). A decisão de produto do Insights (construir
+    backend / apagar página / manter demo) — última pendência da F17 —
+    foi tomada em 2026-10-09: **construir pela UniFi existente**, hoje
+    entregue na F18-T007 (speed test adiado).
     Os gaps de backend identificados aqui viram a **frente
     F18** (subseção própria abaixo)
 - [x] **Busca global no frontend** (F2-T007) — fechada em 01/10/2026 no
@@ -1155,11 +1156,30 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   **Exige ADR + questionário**: fonte (controller de AP? SNMP? API de
   vendor?), quais métricas e com que frequência. Critérios: definidos
   no ADR; quando pronto, a WiFiPage deixa de ser só inventário
-- [ ] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
+- [x] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
   tráfego por cliente, speed test e painéis do Dashboard removidos no
-  F17-T009/T016. **Exige ADR + questionário + decisão sobre a página
-  Insights** (construir backend, apagar página/rota ou manter demo —
-  escalado no F17-T016). Critérios: definidos no ADR
+  F17-T009/T016. **Escopo decrescido por decisão humana** (ver
+  comentário) — speed test adiado.
+  <!-- CONCLUÍDA 2026-10-09 (decisão humana via question: "construir
+  backend pela UniFi"; escopo mínimo = Tráfego por Cliente + DPI por
+  aplicação; speed test ADIADO — exigiria coletor próprio = nova
+  arquitetura, aí sim ADR). Backend: IUnifiApiClient +=
+  ListClientTrafficAsync (GET /stat/sta — mac/hostname/ip/rx_bytes/
+  tx_bytes/last_seen em epochs) e ListDpiStatsAsync (GET /stat/app —
+  app/cat[categoria]/value, fallback s+r), ambos sob o mesmo
+  client/sessão do ADR-028; nova query GetUnifiInsightsQuery
+  (RoleAccess.Read, top 50 por bytes em cada painel, apps zerados
+  filtrados, CapturedAtUtc) e GET /api/v1/integrations/unifi/insights
+  (503 + motivo quando não configurada/fora — semântica do /health,
+  nunca o 409 do handler global). NÃO exige ADR novo: estende
+  ADR-028 (mesmo client, mesma regra 8 — nada persistido, sondagem ao
+  vivo). Front: services/api/integrations.ts + useObjectQuery (novo
+  genérico em hooks/queries.ts) + InsightsPage conectada (tabelas
+  reais, loading/erro honestos, rodapé "contadores acumulados");
+  painel Speed Test mantido com estado vazio honesto. Testes: +7 (2
+  client, 3 query, 2 controller) — unit 1988/1988, arch 119/119,
+  front lint 0/build 0. docs/29 §8. Pendência: validar contra um
+  Controller real (§46 — sem ambiente na estação). -->
 - [x] **F18-T008 `GET /clients` (clientes ao vivo)** — **decisão prévia
   executada: servir agregando ARP/DHCP já descobertos** (a alternativa
   "nova tabela mantida por ingestão contínua" fica para quando F18-T005/T006

@@ -60,6 +60,22 @@ public sealed class UniFiSettingsCommandsTests
 
         public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(ThrowOnList is null);
+
+        public Task<IReadOnlyList<UnifiClientTrafficDto>> ListClientTrafficAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnList is not null)
+                throw ThrowOnList;
+            return Task.FromResult<IReadOnlyList<UnifiClientTrafficDto>>([]);
+        }
+
+        public Task<IReadOnlyList<UnifiDpiAppDto>> ListDpiStatsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnList is not null)
+                throw ThrowOnList;
+            return Task.FromResult<IReadOnlyList<UnifiDpiAppDto>>([]);
+        }
     }
 
     private sealed class FakeClientFactory : IUnifiClientFactory

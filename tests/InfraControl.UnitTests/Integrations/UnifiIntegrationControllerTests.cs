@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InfraControl.Api.Controllers.Integrations;
 using InfraControl.Application.Integrations.Unifi;
+using InfraControl.Application.Integrations.Unifi.Insights;
 using InfraControl.Application.Integrations.Unifi.Ports;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -79,5 +80,51 @@ public sealed class UnifiIntegrationControllerTests
         envelope.IsSuccess.Should().BeFalse();
         envelope.Errors.Should().ContainSingle()
             .Which.Should().Contain("UniFi Controller indisponível");
+    }
+
+    // ── F18-T007 (Insights) ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Insights_ShouldForwardQueryAndReturnEnvelope()
+    {
+        var expected = new UnifiInsightsDto(
+            Array.Empty<UnifiClientTrafficDto>(),
+            Array.Empty<UnifiDpiAppDto>(),
+            DateTimeOffset.UtcNow);
+        var sender = new Mock<ISender>();
+        sender.Setup(s => s.Send(
+                It.IsAny<GetUnifiInsightsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+        var controller = Controller(sender.Object);
+
+        var result = await controller.Insights(CancellationToken.None);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var envelope = ok.Value.Should().BeAssignableTo<ApiResponse<UnifiInsightsDto>>().Subject;
+        envelope.IsSuccess.Should().BeTrue();
+        envelope.Data.Should().BeSameAs(expected);
+        sender.Verify(s => s.Send(
+            It.IsAny<GetUnifiInsightsQuery>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Insights_WhenNotConfigured_ShouldReturn503WithReason()
+    {
+        var sender = new Mock<ISender>();
+        sender.Setup(s => s.Send(
+                It.IsAny<GetUnifiInsightsQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(
+                "Integração UniFi não configurada (Integrations:Unifi:BaseUrl/Username/Password)."));
+        var controller = Controller(sender.Object);
+
+        var result = await controller.Insights(CancellationToken.None);
+
+        var status = result.Should().BeOfType<ObjectResult>().Subject;
+        status.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable,
+            "integração fora é indisponibilidade, não conflito (409 do handler global)");
+        var envelope = status.Value.Should().BeAssignableTo<ApiResponse<object>>().Subject;
+        envelope.IsSuccess.Should().BeFalse();
+        envelope.Errors.Should().ContainSingle()
+            .Which.Should().Contain("não configurada");
     }
 }

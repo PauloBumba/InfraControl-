@@ -79,6 +79,23 @@ export function useListQuery<T>(
   };
 }
 
+type ObjectQueryOptions<T> = Omit<
+  UseQueryOptions<T, Error, T, QueryKey>,
+  "queryKey" | "queryFn"
+>;
+
+/**
+ * Objeto único (snapshot/agregado que não é lista) — ex.:
+ * `useObjectQuery(["unifi-insights"], getUnifiInsights)`.
+ */
+export function useObjectQuery<T>(
+  queryKey: QueryKey,
+  fetcher: () => Promise<T>,
+  options?: ObjectQueryOptions<T>
+) {
+  return useQuery<T, Error>({ queryKey, queryFn: fetcher, ...options });
+}
+
 interface EntityMutationOptions<TData, TVars> {
   /** Prefixo da chave invalidada após o sucesso (ex.: `["locations"]`). */
   invalidate: QueryKey;
