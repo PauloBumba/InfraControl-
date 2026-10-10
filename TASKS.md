@@ -1021,9 +1021,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   + dropdown no input do topbar (ver sub-checklist da F17 acima)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
-- [ ] **Limpar `frontend/InfraControl.Web/tsconfig.tsbuildinfo` do versionamento**
-  (rastreado por engano; regra vigente = nunca stagear — levar a um cleanup
-  próprio)
+- [x] **Limpar `frontend/InfraControl.Web/tsconfig.tsbuildinfo` do versionamento** <!-- FECHADA 2026-10-10: `git rm --cached` (arquivo mantido em disco) + `*.tsbuildinfo` no .gitignore (seção TypeScript) — deixa de ser rastreado; a regra "nunca stagear" permanece para as cópias locais. -->
 - [ ] **Warnings `CS8601`/`CS8605`** em `RestoreRoundTripTests.cs` no build
   Release (pré-existentes, fora de escopo até aqui)
 - [x] **`MT_LICENSE` para a API/Workers subirem** <!-- FECHADA 01/10/2026:
