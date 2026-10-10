@@ -34,6 +34,7 @@ using InfraControl.Application.Monitoring.Events;
 using InfraControl.Application.Monitoring.Polling;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Pdi.Ports;
+using InfraControl.Application.Projects.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
@@ -246,6 +247,17 @@ public static class DependencyInjection
         services.Configure<PdiEvidenceOptions>(
             configuration.GetSection(PdiEvidenceOptions.SectionName));
         services.AddScoped<IPdiEvidenceFileStore, PhysicalPdiEvidenceFileStore>();
+
+        // F28-T004: storage e repositórios do acompanhamento do projeto.
+        services.Configure<ProjectEvidenceOptions>(
+            configuration.GetSection(ProjectEvidenceOptions.SectionName));
+        services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IProjectPhaseRepository, ProjectPhaseRepository>();
+        services.AddScoped<IProjectEvidenceFileStore, PhysicalProjectEvidenceFileStore>();
+        services.AddScoped<IProjectProgressRepository, ProjectProgressRepository>();
+        services.AddScoped<IProjectImpedimentRepository, ProjectImpedimentRepository>();
+        services.AddScoped<IProjectEvidenceRepository, ProjectEvidenceRepository>();
+        services.AddScoped<IProjectHistoryRepository, ProjectHistoryRepository>();
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());

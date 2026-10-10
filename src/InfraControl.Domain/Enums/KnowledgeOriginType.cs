@@ -18,6 +18,9 @@ public enum KnowledgeOriginType
     /// <summary>Origem em um PDI (IndividualDevelopmentPlan).</summary>
     Pdi,
 
+    /// <summary>Origem em um Projeto (Project).</summary>
+    Project,
+
     /// <summary>Origem em um Chamado/Incidente (§9 "Chamados").</summary>
     Incident,
 }

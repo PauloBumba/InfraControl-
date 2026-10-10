@@ -1246,3 +1246,21 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   ambas verdes), integração+E2E **169** (164 + 3 + 2), build Release 0 erros
   (16 avisos, todos pré-existentes), front `tsc -b` 0 erros + lint 0 +
   build ok. Docs: docs/09 §DiscoveryResult ganhou o endpoint.
+
+
+## Fase 28 — Módulo de Projetos (spec docs/38; ADR-043)
+
+Módulo de gestão de iniciativas e projetos de infraestrutura de TI, com
+fases sequenciais, acompanhamento contínuo (progresso, impedimentos, evidências),
+homologação formal pelo Administrador e geração automática de documentação na
+Base de Conhecimento (Knowledge Base).
+
+- [x] **F28-T001 ADR-043 e Especificação Arquitetural de Projetos** <!-- CONCLUÍDA 2026-10-10: Decisão arquitetural documentada em docs/adr/ADR-043-PROJECT-MANAGEMENT-LIFECYCLE-AND-KNOWLEDGE-GENERATION.md e plano detalhado em docs/38-PLANO-MODULO-PROJETOS.md. Delimitação de escopo (Projeto ≠ PDI ≠ Task), ciclo de 7 estados (Draft/Planned/InProgress/PendingFinalApproval/Completed/Cancelled/OnHold), fases sequenciais, acompanhamento contínuo, portão de homologação do Admin e geração determinística na Base de Conhecimento (ADR-035). -->
+- [x] **F28-T002 Domínio Base e Persistência do Projeto** <!-- CONCLUÍDA 2026-10-10: Agregado Project com ciclo de 7 estados, transições validadas, campos de governança/homologação (AdminApproverId, ApprovalNotes, ApprovedAt) e prazos; entidade ProjectMember com papeis (Leader, Member, Reviewer); enums ProjectStatus, ProjectPriority, ProjectMemberRole; 7 eventos de domínio (ProjectCreated/Updated/StatusChanged/Approved/Deleted/MemberAdded/MemberRemoved); porta IProjectRepository com busca paginada, listagem e geração de código PRJ-XXX; mapeamentos EF Core ProjectConfiguration e ProjectMemberConfiguration na tabela projects e project_members; DbSets no AppDbContext; ProjectRepository implementado e registrado no BaseIntegrationTest; migração 20261010165343_AddProjectsAndMembers gerada e script validado. Testes: 13 unit tests novos em ProjectTests (13/13 verdes) + 121 architecture tests verdes + build 0 erros. -->
+- [x] **F28-T003 Fases do Projeto e Estrutura** <!-- CONCLUÍDA 2026-10-10: Entidade ProjectPhase (CompletionCriteria, Order 1-based, Percent, Status NotStarted→InProgress→PendingValidation→Completed + Reject); eventos de fase; IProjectPhaseRepository + ProjectPhaseRepository; configuração EF (sort_order) + DbSet; migração 20261010171444_AddProjectPhases; CQRS Add/Update/Reorder/SetPhaseStatus (Start/Submit/Validate/Reject) + GetProjectPhasesQuery; Validate auto-inicia próxima fase (espelho PDI); Start exige fases anteriores Completed; ProjectProgressCalculator = média uniforme AwayFromZero; testes ProjectPhaseTests + ProjectPhaseCommandTests. Validação: filter Projects 38/38 unit + 121 arch, 0 falhas. Consumer Outbox→SignalR/Email das ações de fase fica para etapa de notificação junto da API/governança. -->
+- [x] **F28-T004 Módulo de Acompanhamento (Tracking)** <!-- Entidades ProjectProgress, ProjectImpediment, ProjectEvidence (upload seguro em disco var/project-evidence), histórico ProjectHistoryEntry append-only, repositórios EF Core, storage de arquivos e testes. -->
+- [x] **F28-T005 Governança e Homologação pelo Administrador** <!-- Comandos SubmitProjectForApprovalCommand e ApproveProjectCommand (exclusivo role Admin / policy Administer), gravação de parecer formal (ApprovalNotes) e carimbo de homologação. -->
+- [ ] **F28-T006 Integração com a Base de Conhecimento** <!-- Extensão de KnowledgeOriginType.Project, implementação de KnowledgeDraftComposer.ComposeFromProject, comando GenerateProjectKnowledgeCommand e testes unitários de geração determinística. -->
+- [ ] **F28-T007 API Controllers e Endpoints de Projetos** <!-- ProjectsController com endpoints RESTful, ViewModels e autorização RBAC granular (Administer para homologação, Operate para condução, Authorize para leitura). -->
+- [ ] **F28-T008 Interface Web Frontend (UniFi-Style)** <!-- Rota /projects, listagem com progresso e status, página de detalhe /projects/:id com abas (Visão Geral, Fases, Acompanhamento, Impedimentos, Evidências, Homologação Admin e botão Gerar Knowledge). -->
+

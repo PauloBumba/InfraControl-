@@ -1,6 +1,7 @@
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Knowledge.Articles.Ports;
 using InfraControl.Application.Pdi.Ports;
+using InfraControl.Application.Projects.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
@@ -29,6 +30,7 @@ public sealed class LinkKnowledgeArticleOriginCommandHandler(
     IKnowledgeArticleOriginRepository originRepository,
     ITaskItemRepository taskRepository,
     IPdiRepository pdiRepository,
+    IProjectRepository projectRepository,
     IIncidentRepository incidentRepository,
     ILogger<LinkKnowledgeArticleOriginCommandHandler> logger)
     : IRequestHandler<LinkKnowledgeArticleOriginCommand>
@@ -65,7 +67,7 @@ public sealed class LinkKnowledgeArticleOriginCommandHandler(
         => Enum.TryParse<KnowledgeOriginType>(type, ignoreCase: true, out var parsed)
             ? parsed
             : throw new ArgumentException(
-                $"Origem inválida: '{type}'. Use 'task', 'pdi' ou 'incident'.",
+                $"Origem inválida: '{type}'. Use 'task', 'pdi', 'project' ou 'incident'.",
                 nameof(type));
 
     private async Task EnsureOriginExistsAsync(
@@ -79,6 +81,8 @@ public sealed class LinkKnowledgeArticleOriginCommandHandler(
                 await taskRepository.GetByIdAsync(originId, cancellationToken) is not null,
             KnowledgeOriginType.Pdi =>
                 await pdiRepository.GetByIdAsync(originId, cancellationToken) is not null,
+            KnowledgeOriginType.Project =>
+                await projectRepository.GetByIdAsync(originId, cancellationToken) is not null,
             KnowledgeOriginType.Incident =>
                 await incidentRepository.GetByIdAsync(originId, cancellationToken) is not null,
             _ => false,
@@ -89,6 +93,7 @@ public sealed class LinkKnowledgeArticleOriginCommandHandler(
             {
                 KnowledgeOriginType.Task => $"Task '{originId}' não encontrada.",
                 KnowledgeOriginType.Pdi => $"PDI '{originId}' não encontrado.",
+                KnowledgeOriginType.Project => $"Projeto '{originId}' não encontrado.",
                 _ => $"Incidente '{originId}' não encontrado.",
             });
     }

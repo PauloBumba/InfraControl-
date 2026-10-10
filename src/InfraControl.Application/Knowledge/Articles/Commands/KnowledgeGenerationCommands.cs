@@ -1,5 +1,6 @@
 using InfraControl.Application.Knowledge.Articles.Ports;
 using InfraControl.Application.Pdi.Ports;
+using InfraControl.Application.Projects.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.BuildingBlocks.Application;
@@ -97,6 +98,84 @@ public sealed class GenerateTaskKnowledgeCommandHandler(
         logger.LogInformation(
             "KnowledgeArticle {ArticleId} generated from Task {TaskId} ({Title}).",
             article.Id, task.Id, article.Title);
+
+        return await KnowledgeArticleDto.FromAsync(
+            article, articleRepository, cancellationToken);
+    }
+}
+
+public sealed record GenerateProjectKnowledgeCommand(
+    Guid ProjectId) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class GenerateProjectKnowledgeCommandHandler(
+    IProjectRepository projectRepository,
+    IProjectPhaseRepository phaseRepository,
+    IProjectProgressRepository progressRepository,
+    IProjectImpedimentRepository impedimentRepository,
+    IProjectEvidenceRepository evidenceRepository,
+    IProjectHistoryRepository historyRepository,
+    IKnowledgeArticleRepository articleRepository,
+    IKnowledgeArticleVersionRepository versionRepository,
+    IKnowledgeArticleOriginRepository originRepository,
+    ICurrentUserContext currentUser,
+    ILogger<GenerateProjectKnowledgeCommandHandler> logger)
+    : IRequestHandler<GenerateProjectKnowledgeCommand, KnowledgeArticleDto>
+{
+    public async Task<KnowledgeArticleDto> Handle(
+        GenerateProjectKnowledgeCommand request, CancellationToken cancellationToken)
+    {
+        var project = await projectRepository.GetByIdAsync(request.ProjectId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Projeto '{request.ProjectId}' não encontrado.");
+
+        if (project.Status != ProjectStatus.Completed)
+            throw new InvalidOperationException(
+                "O projeto precisa estar homologado para gerar Knowledge.");
+
+        var phases = await phaseRepository.GetByProjectIdAsync(project.Id, cancellationToken);
+        var progress = await progressRepository.ListByProjectIdAsync(project.Id, cancellationToken);
+        var impediments = await impedimentRepository.ListByProjectIdAsync(project.Id, cancellationToken);
+        var evidences = await evidenceRepository.ListByProjectIdAsync(project.Id, cancellationToken);
+        var history = await historyRepository.ListByProjectIdAsync(project.Id, cancellationToken);
+
+        var (title, content) = KnowledgeDraftComposer.ComposeFromProject(
+            project,
+            project.Members,
+            phases,
+            progress,
+            impediments,
+            evidences,
+            history);
+
+        var article = KnowledgeArticle.Create(
+            title, content,
+            categoryId: null, type: null, description: null,
+            tags: null, responsibleId: null,
+            authorId: currentUser.UserId);
+
+        await articleRepository.AddAsync(article, cancellationToken);
+
+        await versionRepository.AddAsync(
+            KnowledgeArticleVersion.SnapshotOf(
+                article,
+                $"Geração automática a partir da homologação do Projeto '{project.Title}'",
+                currentUser.UserId),
+            cancellationToken);
+
+        await originRepository.AddAsync(
+            KnowledgeArticleOrigin.Create(
+                article.Id, KnowledgeOriginType.Project, project.Id),
+            cancellationToken);
+
+        await articleRepository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "KnowledgeArticle {ArticleId} generated from Project {ProjectId} ({Title}).",
+            article.Id, project.Id, article.Title);
 
         return await KnowledgeArticleDto.FromAsync(
             article, articleRepository, cancellationToken);
