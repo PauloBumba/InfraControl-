@@ -127,6 +127,15 @@ services:
       Integrations__Unifi__Site: ${UNIFI_SITE:-default}
       Monitoring__Snmp__Community: ${SNMP_COMMUNITY:-public}
       Monitoring__Snmp__Port: ${SNMP_PORT:-161}
+      # F18-T005/ADR-042: serviços de rede em leitura (leases/rotas via SNMP,
+      # ACLs via SSH por vendor). Target vazio = desligado (503 + motivo nos
+      # endpoints /network/services/*); credencial SSH só via .env.
+      NetworkServices__Target: ${NETWORK_SERVICES_TARGET:-}
+      NetworkServices__Vendor: ${NETWORK_SERVICES_VENDOR:-cisco}
+      NetworkServices__SshUsername: ${NETWORK_SERVICES_SSH_USER:-}
+      NetworkServices__SshPassword: ${NETWORK_SERVICES_SSH_PASSWORD:-}
+      NetworkServices__SshPort: ${NETWORK_SERVICES_SSH_PORT:-22}
+      NetworkServices__TimeoutSeconds: ${NETWORK_SERVICES_TIMEOUT_SECONDS:-5}
       Notifications__Channels__Default__0: ${NOTIFY_DEFAULT_0:-Email}
       Notifications__Channels__Default__1: ${NOTIFY_DEFAULT_1:-SignalR}
       Notifications__Channels__Telegram__ChatId: ${TELEGRAM_CHAT_ID:-}

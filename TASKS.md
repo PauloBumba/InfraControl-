@@ -1140,11 +1140,23 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   1354 (1351 − 2 + 5), integração+E2E 172, **arch 88** (90 − 2 casos de
   theory por controller do `RolesController` removido — conferido no
   TRX, nada escondido), `tsc -b` 0 erros, `npm run build` ok
-- [ ] **F18-T005 Domínio DHCP/Rotas/Firewall** — leitura dos serviços de
-  rede prometidos pelas abas removidas no F17-T008 (leases DHCP, rotas,
-  regras de firewall). **Exige ADR + questionário antes do plano**:
-  fonte de dados (SNMP/SSH por vendor/agent), escopo read-only vs
-  gestão, quais tabelas/vendor suportados. Critérios: definidos no ADR
+- [x] **F18-T005 Domínio DHCP/Rotas/Firewall** — decidido em question
+  (2026-10-10): **SNMP + SSH por vendor, somente leitura**; ADR-042
+  antes do código (fontes, OID, drivers, config, endpoints). Backend:
+  `NetworkServices:*` (alvo único por config, vazio = desligado → 503 +
+  motivo), `INetworkServicesReader` com leases de
+  `1.3.6.1.2.1.4.22.1` (ipNetToMedia/Physical, MAC normalizado) e
+  rotas de `1.3.6.1.2.1.4.21.1` (ipRouteTable com rótulos RFC1213 +
+  fallback cru) via `ISnmpClient` reusado, firewall via SSH.NET
+  (`show access-lists` do driver Cisco v1, expressão crua do device;
+  vendor desconhecido → 503 listando os suportados) →
+  `GET /network/services/{dhcp/leases|routes|firewall/rules}`
+  (RoleAccess.Read); abas restauradas na `NetworkPage`
+  (`NetworkServicesSection`) com motivo honesto quando desligado. Env:
+  `NETWORK_SERVICES_*` no compose/.env.example. Testes +19 (6 reader
+  SNMP/SSH + 4 parser Cisco ACL + 3 queries + 6 controller); unit 2018,
+  arch 121, tsc/lint/build front 0 — validação contra equipamento real
+  pendente (§46)
 - [x] **F18-T006 Domínio WiFi** — decidido em question (2026-10-10):
   fonte = **UniFi Controller existente** (reusa o client do ADR-028,
   sem ADR novo — extensão do §2/§8 documentada em docs/29 §9) e coleta
