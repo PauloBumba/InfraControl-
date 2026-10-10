@@ -2,6 +2,7 @@ using FluentAssertions;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Infrastructure.Integrations.Unifi;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -60,6 +61,39 @@ public sealed class UniFiSettingsCommandsTests
 
         public Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(ThrowOnList is null);
+
+        public Task<IReadOnlyList<UnifiSiteDto>> ListSitesAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UnifiSiteDto>>([]);
+
+        public Task<string> GetSystemVersionAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult("8.4.62");
+
+        public Task<IReadOnlyList<UnifiConnectedClientDto>> ListConnectedClientsAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UnifiConnectedClientDto>>([]);
+
+        public Task<IReadOnlyList<UnifiNetworkDto>> ListNetworksAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UnifiNetworkDto>>([]);
+
+        public Task<IReadOnlyList<UnifiSwitchPortDto>> ListSwitchPortsAsync(
+            string deviceMac, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UnifiSwitchPortDto>>([]);
+
+        public Task<UnifiTopologyDto> GetTopologyAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new UnifiTopologyDto([], []));
+
+        public Task<UnifiPortsSummaryDto> GetPortsSummaryAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new UnifiPortsSummaryDto(0, 0));
+    }
+
+    private sealed class FakeResolver(UnifiIntegrationOptions options) : IUniFiOptionsResolver
+    {
+        public Task<UnifiIntegrationOptions> ResolveAsync(CancellationToken cancellationToken)
+            => Task.FromResult(options);
     }
 
     private sealed class FakeClientFactory : IUnifiClientFactory
@@ -184,8 +218,12 @@ public sealed class UniFiSettingsCommandsTests
                 "https://db:8443", "user", "enc(pass)", "default", true)
         };
         var handler = new TestUniFiConnectionCommandHandler(
-            repo, new FakeEnvAccessor(), new FakeClientFactory(),
-            new FakeProtector(), NullLogger<TestUniFiConnectionCommandHandler>.Instance);
+            new FakeResolver(new UnifiIntegrationOptions
+            {
+                BaseUrl = "https://db:8443", Username = "user", Password = "pass"
+            }),
+            new FakeClientFactory(),
+            NullLogger<TestUniFiConnectionCommandHandler>.Instance);
 
         var result = await handler.Handle(
             new TestUniFiConnectionCommand(), CancellationToken.None);
@@ -212,8 +250,12 @@ public sealed class UniFiSettingsCommandsTests
             }
         };
         var handler = new TestUniFiConnectionCommandHandler(
-            repo, new FakeEnvAccessor(), factory,
-            new FakeProtector(), NullLogger<TestUniFiConnectionCommandHandler>.Instance);
+            new FakeResolver(new UnifiIntegrationOptions
+            {
+                BaseUrl = "https://db:8443", Username = "user", Password = "pass"
+            }),
+            factory,
+            NullLogger<TestUniFiConnectionCommandHandler>.Instance);
 
         var result = await handler.Handle(
             new TestUniFiConnectionCommand(), CancellationToken.None);
@@ -228,10 +270,8 @@ public sealed class UniFiSettingsCommandsTests
     {
         var factory = new Mock<IUnifiClientFactory>();
         var handler = new TestUniFiConnectionCommandHandler(
-            new FakeSettingsRepository(),
-            new FakeEnvAccessor { Current = new UnifiIntegrationOptions() },
+            new FakeResolver(new UnifiIntegrationOptions()),
             factory.Object,
-            new FakeProtector(),
             NullLogger<TestUniFiConnectionCommandHandler>.Instance);
 
         var result = await handler.Handle(
@@ -240,5 +280,73 @@ public sealed class UniFiSettingsCommandsTests
         result.Ok.Should().BeFalse();
         result.Error.Should().Contain("incompleta");
         factory.Verify(f => f.Create(It.IsAny<UnifiIntegrationOptions>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Resolver_usa_banco_quando_existe_e_decifra_a_senha()
+    {
+        var repo = new FakeSettingsRepository
+        {
+            Setting = UniFiIntegrationSetting.Create(
+                "https://db:8443/", "db-user", "enc(db-pass)", "site-x", true)
+        };
+        var resolver = new UniFiOptionsResolver(
+            repo, new FakeEnvAccessor { Current = new UnifiIntegrationOptions { BaseUrl = "https://env:8443" } },
+            new FakeProtector(),
+            NullLogger<UniFiOptionsResolver>.Instance);
+
+        var options = await resolver.ResolveAsync(CancellationToken.None);
+
+        options.BaseUrl.Should().Be("https://db:8443");
+        options.Username.Should().Be("db-user");
+        options.Password.Should().Be("db-pass");
+        options.Site.Should().Be("site-x");
+        options.AllowInvalidTlsCertificate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Resolver_sem_linha_no_banco_usa_env()
+    {
+        var env = new FakeEnvAccessor
+        {
+            Current = new UnifiIntegrationOptions
+            {
+                BaseUrl = "https://env:8443", Username = "u", Password = "p"
+            }
+        };
+        var resolver = new UniFiOptionsResolver(
+            new FakeSettingsRepository(), env,
+            new FakeProtector(),
+            NullLogger<UniFiOptionsResolver>.Instance);
+
+        var options = await resolver.ResolveAsync(CancellationToken.None);
+
+        options.BaseUrl.Should().Be("https://env:8443");
+    }
+
+    [Fact]
+    public async Task Resolver_com_senha_corrompida_retorna_vazio_sem_lancar()
+    {
+        var repo = new FakeSettingsRepository
+        {
+            Setting = UniFiIntegrationSetting.Create(
+                "https://db:8443", "user", "corrompida", "default", false)
+        };
+        var throwing = new ThrowingProtector();
+        var resolver = new UniFiOptionsResolver(
+            repo, new FakeEnvAccessor(), throwing,
+            NullLogger<UniFiOptionsResolver>.Instance);
+
+        var options = await resolver.ResolveAsync(CancellationToken.None);
+
+        options.Password.Should().BeEmpty();
+        options.Username.Should().Be("user");
+    }
+
+    private sealed class ThrowingProtector : ICredentialProtector
+    {
+        public string Protect(string plainText) => throw new NotSupportedException();
+        public string Unprotect(string protectedText) =>
+            throw new InvalidOperationException("chave divergente");
     }
 }

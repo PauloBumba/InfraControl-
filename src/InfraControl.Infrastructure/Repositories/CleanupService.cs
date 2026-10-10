@@ -24,6 +24,7 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
         var remoteSessionDeleted = await DeleteRemoteSessionsAsync(Cutoff(days, RetentionDataType.RemoteSessions, _options.RemoteSessionsDays, utcNow), batchSize, cancellationToken);
         var discoveryDeleted = await DeleteDiscoveryRunsAsync(Cutoff(days, RetentionDataType.DiscoveryRuns, _options.DiscoveryRunsDays, utcNow), batchSize, cancellationToken);
         var monitoringEventsDeleted = await DeleteMonitoringEventsAsync(Cutoff(days, RetentionDataType.MonitoringEvents, _options.MonitoringEventsDays, utcNow), batchSize, cancellationToken);
+        var unifiSyncRunsDeleted = await DeleteUniFiSyncRunsAsync(Cutoff(days, RetentionDataType.UniFiSyncRuns, _options.UniFiSyncRunsDays, utcNow), batchSize, cancellationToken);
         var invitationsDeleted = await DeleteInvitationsAsync(Cutoff(days, RetentionDataType.Invitations, _options.InvitationsDays, utcNow), batchSize, cancellationToken);
 
         return new CleanupResult(
@@ -35,7 +36,8 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             remoteSessionDeleted,
             discoveryDeleted,
             monitoringEventsDeleted,
-            invitationsDeleted);
+            invitationsDeleted,
+            unifiSyncRunsDeleted: unifiSyncRunsDeleted);
     }
 
     private async Task<int> DeleteOutboxAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
@@ -187,6 +189,23 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             return 0;
 
         return await _dbContext.Invitations
+            .Where(m => ids.Contains(m.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    private async Task<int> DeleteUniFiSyncRunsAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
+    {
+        var ids = await _dbContext.UniFiSyncRuns
+            .Where(m => m.StartedAtUtc < cutoff)
+            .OrderBy(m => m.StartedAtUtc)
+            .Select(m => m.Id)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
+
+        if (ids.Count == 0)
+            return 0;
+
+        return await _dbContext.UniFiSyncRuns
             .Where(m => ids.Contains(m.Id))
             .ExecuteDeleteAsync(cancellationToken);
     }

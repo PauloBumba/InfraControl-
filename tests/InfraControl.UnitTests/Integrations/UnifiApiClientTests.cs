@@ -16,6 +16,264 @@ namespace InfraControl.UnitTests.Integrations;
 /// </summary>
 public sealed class UnifiApiClientTests
 {
+
+    // ── F26 Fase 3: sites e versão ──────────────────────────────────
+
+    [Fact]
+    public async Task ListSitesAsync_ShouldParseSelfSites()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/api/self/sites"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"short_id":"abc123","name":"default","desc":"Site principal","attr_hidden":false},
+                  {"short_id":"xyz789","name":"super","desc":"","attr_hidden":true}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var sites = await client.ListSitesAsync();
+
+        sites.Should().HaveCount(2);
+        sites[0].ShortId.Should().Be("abc123");
+        sites[0].Name.Should().Be("default");
+        sites[0].Hidden.Should().BeFalse();
+        sites[1].ShortId.Should().Be("xyz789");
+        sites[1].Hidden.Should().BeTrue();
+        handler.Requests[1].RequestUri!.ToString().Should().Contain("/api/self/sites");
+    }
+
+    [Fact]
+    public async Task GetSystemVersionAsync_ShouldReadVersionFromSysinfo()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/sysinfo"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"uptime":123,"version":"8.4.62","data":[]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var version = await client.GetSystemVersionAsync();
+
+        version.Should().Be("8.4.62");
+    }
+
+    [Fact]
+    public async Task ListDevicesAsync_ShouldParseSiteStateAndFirmware()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/device"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"mac":"aa:bb:cc:dd:ee:01","name":"ap-01","model":"U7PG2","type":"uap",
+                   "ip":"10.0.0.5","site_id":"abc123","state":"ONLINE","version":"6.6.55"}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var devices = await client.ListDevicesAsync();
+
+        devices[0].SiteId.Should().Be("abc123");
+        devices[0].State.Should().Be("ONLINE");
+        devices[0].Firmware.Should().Be("6.6.55");
+    }
+
+
+    // ── F26 Fase 4: clientes ao vivo e redes ────────────────────────
+
+    [Fact]
+    public async Task ListConnectedClientsAsync_ShouldParseStatSta()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/sta"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"mac":"f4:92:bf:00:11:22","ip":"172.16.10.55","hostname":"iphone",
+                   "ap_mac":"74:ac:b9:11:22:33","essid":"Corp-WiFi","signal":-52,
+                   "is_wired":false,"last_seen":1759900000},
+                  {"mac":"f4:92:bf:00:44:55","ip":"172.16.10.56","hostname":"pc-023",
+                   "sw_mac":"74:ac:b9:44:55:66","is_wired":true,"last_seen":1759900100}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var clients = await client.ListConnectedClientsAsync();
+
+        clients.Should().HaveCount(2);
+        clients[0].Mac.Should().Be("f4:92:bf:00:11:22");
+        clients[0].ApMac.Should().Be("74:ac:b9:11:22:33");
+        clients[0].Essid.Should().Be("Corp-WiFi");
+        clients[0].Signal.Should().Be(-52);
+        clients[0].IsWired.Should().BeFalse();
+        clients[1].IsWired.Should().BeTrue();
+        clients[1].SwitchMac.Should().Be("74:ac:b9:44:55:66");
+    }
+
+    [Fact]
+    public async Task ListNetworksAsync_ShouldParseNetworkConf()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/rest/networkconf"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"_id":"n1","name":"Corp","purpose":"corporate","vlan":10,"enabled":true,"site_id":"abc123"},
+                  {"_id":"n2","name":"IoT","purpose":"vlan-only","vlan":30,"enabled":false,"site_id":"abc123"}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var networks = await client.ListNetworksAsync();
+
+        networks.Should().HaveCount(2);
+        networks[0].VlanId.Should().Be(10);
+        networks[0].Enabled.Should().BeTrue();
+        networks[1].Purpose.Should().Be("vlan-only");
+        networks[1].Enabled.Should().BeFalse();
+    }
+
+
+    [Fact]
+    public async Task ListSwitchPortsAsync_ShouldParsePortTableOfTheDevice()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/device"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"mac":"74:ac:b9:00:00:01","name":"sw-01","model":"USW-24-POE","type":"usw","ip":"10.0.0.2",
+                   "port_table":[
+                     {"port_idx":1,"name":"Port 1","up":true,"speed":"1000","full_duplex":true,
+                      "port_vlan":10,"poe_enable":true,"poe_power":"RUNNING","media":"1000BASE-T"},
+                     {"port_idx":2,"name":"Port 2","up":false,"speed":"","port_vlan":10,"poe_enable":false}
+                   ]},
+                  {"mac":"74:ac:b9:00:00:02","name":"ap-01","model":"U7PG2","type":"uap","ip":"10.0.0.3","port_table":[]}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var ports = await client.ListSwitchPortsAsync("74:AC:B9:00:00:01");
+
+        ports.Should().HaveCount(2);
+        ports[0].PortIndex.Should().Be(1);
+        ports[0].LinkUp.Should().BeTrue();
+        ports[0].Speed.Should().Be("1000");
+        ports[0].PortVlan.Should().Be(10);
+        ports[0].PoeStatus.Should().Be("RUNNING");
+        ports[1].LinkUp.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListSwitchPortsAsync_MacDesconhecido_LancaKeyNotFound()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/device"),
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"},"data":[]}"""));
+
+        var client = CreateClient(handler);
+
+        var act = () => client.ListSwitchPortsAsync("74:ac:b9:00:00:99");
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+
+    [Fact]
+    public async Task GetTopologyAsync_PayloadReal_DoControlador_BuildsNodesAndUplink()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        // payload capturado do controlador real (2026-10-09) — 1x UAP + uplink
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/device"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"name":"AC Pro","type":"uap","model":"U7PG2","mac":"d0:21:f9:3c:59:50",
+                   "state":1,
+                   "uplink":{"uplink_mac":"5a:04:4f:bf:7c:f0","port_idx":1,"type":"wire"},
+                   "lldp_table":null,"downlink_table":null,"uplink_table":[],
+                   "port_table":[{"port_idx":1,"name":"Port 1","op_mode":"switch","enable":true}]}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var topo = await client.GetTopologyAsync();
+
+        topo.Nodes.Should().HaveCount(2);
+        topo.Nodes.Single(n => n.Mac == "d021f93c5950").Kind.Should().Be("ap");
+        var unknown = topo.Nodes.Single(n => !n.IsKnownDevice);
+        unknown.Mac.Should().Be("5a044fbf7cf0");
+        unknown.Kind.Should().Be("external");
+
+        var link = topo.Links.Should().ContainSingle().Subject;
+        link.SourceMac.Should().Be("d021f93c5950");
+        link.TargetMac.Should().Be("5a044fbf7cf0");
+        link.SourcePort.Should().Be(1);
+        link.LinkType.Should().Be("wire");
+        link.Confidence.Should().Be("unknown");
+        link.Source.Should().Be("controller");
+    }
+
+    [Fact]
+    public async Task GetTopologyAsync_SwitchApELldp_MarcaConfiancaCorreta()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/device"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"name":"gw","type":"ugw","model":"UDM","mac":"aa:bb:cc:00:00:01","state":1,"port_table":[]},
+                  {"name":"sw-01","type":"usw","model":"USW-24-POE","mac":"aa:bb:cc:00:00:02","state":1,
+                   "uplink":{"uplink_mac":"aa:bb:cc:00:00:01","port_idx":8,"type":"wire"},
+                   "lldp_table":[{"port_idx":3,"chassis_id":"aa:bb:cc:00:00:03","sys_name":"sw-02"}],
+                   "port_table":[]},
+                  {"name":"ap-01","type":"uap","model":"U7PG2","mac":"aa:bb:cc:00:00:03","state":1,
+                   "uplink":{"uplink_mac":"aa:bb:cc:00:00:02","port_idx":5,"type":"wire"},
+                   "port_table":[]}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var topo = await client.GetTopologyAsync();
+
+        topo.Nodes.Should().HaveCount(3);
+        topo.Nodes.Single(n => n.Mac == "aabbcc000001").Kind.Should().Be("gateway");
+        topo.Nodes.Single(n => n.Mac == "aabbcc000002").Kind.Should().Be("switch");
+
+        var swUplink = topo.Links.Single(l => l.SourceMac == "aabbcc000002" && l.Source == "controller");
+        swUplink.Confidence.Should().Be("confirmed");
+        swUplink.TargetMac.Should().Be("aabbcc000001");
+
+        var apUplink = topo.Links.Single(l => l.SourceMac == "aabbcc000003" && l.Source == "controller");
+        apUplink.Confidence.Should().Be("confirmed");
+        apUplink.SourcePort.Should().Be(5);
+
+        var lldp = topo.Links.Single(l => l.Source == "lldp");
+        lldp.Confidence.Should().Be("inferred");
+        lldp.TargetName.Should().Be("sw-02");
+    }
+
     // ── Login e sessão ──────────────────────────────────────────────
 
     [Fact]

@@ -13,4 +13,37 @@ public interface IUnifiApiClient
 
     /// <summary>Sondagem leve (GET /api/self) para o health da integração.</summary>
     Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>F26 Fase 3.1: sites do controller (GET /api/self/sites).</summary>
+    Task<IReadOnlyList<UnifiSiteDto>> ListSitesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>F26 Fase 3: versão do firmware do controller (stat/sysinfo).</summary>
+    Task<string> GetSystemVersionAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>F26 Fase 4.1: clientes conectados AGORA (stat/sta — não persiste).</summary>
+    Task<IReadOnlyList<UnifiConnectedClientDto>> ListConnectedClientsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>F26 Fase 4.2: redes/SSIDs configurados (rest/networkconf).</summary>
+    Task<IReadOnlyList<UnifiNetworkDto>> ListNetworksAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F26 Fase 5: portas do switch com o MAC informado (port_table do
+    /// stat/device — endpoint já validado; filtro do lado do cliente).
+    /// </summary>
+    Task<IReadOnlyList<UnifiSwitchPortDto>> ListSwitchPortsAsync(
+        string deviceMac, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F26 Fase 6: topologia derivada do stat/device (uplink + LLDP
+    /// quando presente) — consulta ao vivo, nunca persistida.
+    /// </summary>
+    Task<UnifiTopologyDto> GetTopologyAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>F26 Fase 8: total de portas e portas com link up (vivo).</summary>
+    Task<UnifiPortsSummaryDto> GetPortsSummaryAsync(
+        CancellationToken cancellationToken = default);
 }

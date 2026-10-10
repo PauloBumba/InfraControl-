@@ -134,6 +134,17 @@ retry 3× backoff exponencial 1s/2s/4s com jitter + circuit breaker
 (5 falhas/30s → aberto 60s). Login/sessão ficam no próprio client (a política
 não substitui a re-autenticação em 401).
 
+## 6.1. Configuração persistida (F26 Fase 2.2)
+
+Além do env (`Integrations:Unifi`), o admin salva a conexão na UI
+(`/integrations` → `GET/PUT api/v1/integrations/unifi/config`) — linha
+única em `unifi_integration_settings`, senha cifrada AES-GCM
+(`ICredentialProtector`). `IUniFiOptionsResolver` resolve a config
+EFETIVA (banco → env) para sync, health e teste de conexão
+(`POST .../test-connection`). **Limitação:** o handler TLS do named
+client `unifi` é cacheado por nome — trocar `AllowInvalidTlsCertificate`
+na UI pede restart da API para valer.
+
 ## 7. Limitações conhecidas / pendências
 
 - **Validação real (Fase 1/11):** controlador local UniFi Network **10.4.57**

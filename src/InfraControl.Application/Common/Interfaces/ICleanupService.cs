@@ -11,6 +11,7 @@ public sealed record RetentionOptions
     public int DiscoveryRunsDays { get; set; } = 180;
     public int MonitoringEventsDays { get; set; } = 90;
     public int InvitationsDays { get; set; } = 90;
+    public int UniFiSyncRunsDays { get; set; } = 180;
     public int BatchSize { get; set; } = 500;
 
     public DateTime OutboxCutoff(DateTime utcNow) => utcNow.AddDays(-OutboxProcessedDays);
@@ -42,7 +43,8 @@ public sealed record CleanupResult(
     int RemoteSessionDeleted,
     int DiscoveryDeleted,
     int MonitoringEventsDeleted = 0,
-    int InvitationsDeleted = 0)
+    int InvitationsDeleted = 0,
+    int UniFiSyncRunsDeleted = 0)
 {
     public int TotalDeleted => OutboxDeleted + ProcessedDeleted + AuditDeleted
         + MonitoringDeleted + NotificationDeleted + RemoteSessionDeleted + DiscoveryDeleted

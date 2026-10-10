@@ -5,6 +5,7 @@ using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs;
+using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
@@ -116,6 +117,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
+        // F27 Fase 2.2/3.1: config da integração Zabbix + hosts sincronizados
+        services.AddScoped<IZabbixSettingsRepository, ZabbixSettingsRepository>();
+        services.AddScoped<IZabbixHostsRepository, ZabbixHostsRepository>();
 
         // Monitoring: registry real + PingMonitoringProvider com ICMP falso
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));
@@ -253,6 +257,18 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await dbContext.Database.EnsureCreatedAsync();
+
+        // F24-T001/K1: o handler de criação de artigo stampa
+        // AuthorId = currentUser.UserId e a migration nova aplica FK
+        // NOT NULL → DomainUsers precisa ter a linha do usuário de teste.
+        if (!await dbContext.DomainUsers.AnyAsync(user => user.Id == CurrentUser.UserId))
+        {
+            dbContext.DomainUsers.Add(InfraControl.Domain.Entities.User.Create(
+                CurrentUser.UserId!.Value,
+                "integration-test@exemplo.test",
+                "Usuário de Integração"));
+            await dbContext.SaveChangesAsync();
+        }
     }
 
     public virtual async Task DisposeAsync()

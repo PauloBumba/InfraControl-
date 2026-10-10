@@ -18,5 +18,14 @@ public interface IExternalDeviceReferenceRepository : IRepository<ExternalDevice
         string externalId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>F26 Fase 7.2: todas as referências da fonte (correlação).</summary>
+    Task<IReadOnlyList<ExternalDeviceReference>> ListBySourceAsync(
+        ExternalDeviceSource source, CancellationToken cancellationToken = default);
+
+    /// <summary>F26 Fase 7.2/7.3: referência específica (exclusão de vínculo).</summary>
+    Task<ExternalDeviceReference?> GetBySourceAndExternalIdAsync(
+        ExternalDeviceSource source, string externalId,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

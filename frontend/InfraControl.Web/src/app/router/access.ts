@@ -14,6 +14,10 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/users": "administer",
   "/audit": "administer",
   "/settings": "administer",
+  "/integrations": "administer",
+  // UniFi ao vivo: consulta (Operate) — Operator + Admin.
+  "/unifi": "operate",
+  "/unifi/dashboard": "operate",
   "/sessions": "administer",
   // PDI: Operate (Operator + Admin) — Viewer não alcança (2026-10-04).
   "/pdi": "operate",

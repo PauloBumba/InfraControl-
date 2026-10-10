@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Column } from "primereact/column";
 import { Can } from "@/components/auth/Can";
 import { Button } from "@/components/ui/Button";
-import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -11,21 +9,16 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectField } from "@/components/ui/SelectField";
-import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
-import { DataTablePanel } from "@/components/ui/DataTablePanel";
-import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
-  MAX_TAGS,
-  TAG_MAX_LENGTH,
   articleStatusConfig,
-  typeOptions,
 } from "@/components/knowledge/knowledgeCatalogs";
 import {
   KNOWLEDGE_TYPE_OPTIONS,
   knowledgeTypeLabel,
 } from "@/components/knowledge/knowledgeCatalogs";
-import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
   ARTICLE_STATUS_ARCHIVED,
   ARTICLE_STATUS_APPROVED,
@@ -427,27 +420,17 @@ export function KnowledgePage() {
               >
                 <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
               </Button>
-              {anyFilterActive && (
+              {term && (
                 <Button
-                  type="submit"
+                  type="button"
                   variant="ghost"
-                  onClick={clearFilters}
+                  onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
                   style={{ padding: "5px 10px" }}
                 >
-                  Filtrar
+                  Limpar
                 </Button>
-                {term && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
-                    style={{ padding: "5px 10px" }}
-                  >
-                    Limpar
-                  </Button>
-                )}
-              </form>
-            )}
+              )}
+            </form>
             <ViewSwitcher
               mode={isArticlesTab ? articleView : categoryView}
               onChange={isArticlesTab ? setArticleView : setCategoryView}
@@ -719,7 +702,7 @@ export function KnowledgePage() {
             </Button>
           </div>
         </form>
-      </Dialog>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
         {articles.map((article) => {
@@ -840,8 +823,8 @@ export function KnowledgePage() {
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13, background: "white", borderRadius: 8, border: "1px solid #e5e7eb" }}>
             {error ? "—" : "Nenhum artigo encontrado"}
           </div>
-        </form>
-      </Dialog>
+        )}
+      </div>
 
       <ConfirmDialog
         visible={deleteArticleTarget !== null}

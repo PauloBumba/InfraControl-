@@ -21,6 +21,9 @@ const DevicesPage = lazy(() => import("@/pages/DevicesPage").then(m => ({ defaul
 const ClientsPage = lazy(() => import("@/pages/ClientsPage").then(m => ({ default: m.ClientsPage })));
 const InsightsPage = lazy(() => import("@/pages/InsightsPage").then(m => ({ default: m.InsightsPage })));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage").then(m => ({ default: m.AlertsPage })));
+const UniFiLivePage = lazy(() => import("@/pages/UniFiLivePage").then(m => ({ default: m.UniFiLivePage })));
+const UniFiDashboardPage = lazy(() => import("@/pages/UniFiDashboardPage").then(m => ({ default: m.UniFiDashboardPage })));
+const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m => ({ default: m.IntegrationsPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
@@ -239,6 +242,21 @@ function AppContent() {
           <Route path="/alerts" element={
             <ProtectedRoute>
               <AlertsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/unifi/dashboard" element={
+            <ProtectedRoute>
+              <UniFiDashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/unifi" element={
+            <ProtectedRoute>
+              <UniFiLivePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/integrations" element={
+            <ProtectedRoute>
+              <IntegrationsPage />
             </ProtectedRoute>
           } />
           <Route path="/settings" element={

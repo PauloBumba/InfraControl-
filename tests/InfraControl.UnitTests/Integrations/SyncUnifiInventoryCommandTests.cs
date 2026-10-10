@@ -19,6 +19,7 @@ namespace InfraControl.UnitTests.Integrations;
 public sealed class SyncUnifiInventoryCommandTests
 {
     private readonly Mock<IUnifiApiClient> _client = new();
+    private readonly Mock<IUniFiSitesRepository> _sites = new();
     private readonly Mock<IDeviceRepository> _devices = new();
     private readonly Mock<IExternalDeviceReferenceRepository> _references = new();
     private readonly Mock<ILocationRepository> _locations = new();
@@ -191,13 +192,63 @@ public sealed class SyncUnifiInventoryCommandTests
             _devices.Object,
             _references.Object,
             _locations.Object,
+            _sites.Object,
             NullLogger<SyncUnifiInventoryCommandHandler>.Instance);
+    }
+
+
+    [Fact]
+    public async Task Sync_sites_cria_novos_e_conta_no_resultado()
+    {
+        ArrangeClient();
+        _client.Setup(c => c.ListSitesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[]
+            {
+                new UnifiSiteDto("abc123", "default", "Site principal", false)
+            });
+
+        var handler = Handler();
+
+        var result = await handler.Handle(new SyncUnifiInventoryCommand(), CancellationToken.None);
+
+        result.Sites.Should().Be(1);
+        _sites.Verify(r => r.AddAsync(
+            It.Is<UniFiSite>(s => s.ShortId == "abc123" && s.Name == "default"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _sites.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Sync_sites_marca_como_missing_o_site_que_sumiu_do_controller()
+    {
+        ArrangeClient();
+        var local = UniFiSite.Create("velho", "Antigo", string.Empty, false);
+        _sites.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { local });
+
+        var handler = Handler();
+
+        var result = await handler.Handle(new SyncUnifiInventoryCommand(), CancellationToken.None);
+
+        result.Sites.Should().Be(0);
+        local.MissingSinceUtc.Should().NotBeNull();
+        _sites.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private void ArrangeClient(params UnifiDeviceDto[] devices)
     {
         _client.Setup(c => c.ListDevicesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(devices);
+        _client.Setup(c => c.ListSitesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<UnifiSiteDto>());
+        _sites.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<UniFiSite>());
+        _sites.Setup(r => r.GetByShortIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UniFiSite?)null);
+        _sites.Setup(r => r.AddAsync(It.IsAny<UniFiSite>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _sites.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     private List<Device> CaptureAddedDevices() => _addedDevices;

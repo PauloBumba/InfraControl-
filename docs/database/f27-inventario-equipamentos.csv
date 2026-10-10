@@ -1,0 +1,2 @@
+nome,categoria,fabricante,modelo,ip,mac,hostname,localizacao,unidade,site,vlan,segmento,host_zabbix_id,metodo_coleta,template_zabbix,coleta_status,metricas_alertas_disponiveis,responsavel,criticidade,observacoes
+Zabbix server,Servidor,,,127.0.0.1,,zabbix-server,,,,,10084,Zabbix agent,Zabbix server,Monitorado parcial,"agent ping; 132 itens (11 unsupported internos)",,media,"Único host existente no Zabbix (§1.2.1). Interface em 127.0.0.1 gera problem crônico do próprio agent; host zabbix-agent-test 10683 não existe mais (DB recriado)"

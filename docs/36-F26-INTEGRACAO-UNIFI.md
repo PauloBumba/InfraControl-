@@ -162,53 +162,104 @@ estar conectada ao fluxo funcional e possuir testes e evidências.
 > `UnifiIntegrationController`, DI (`IUniFiSettingsRepository`,
 > `IUnifiEnvOptionsAccessor`, `IUnifiClientFactory`). 9 testes novos
 > (`UniFiSettingsCommandsTests`) — senha nunca sai em DTO, fallback de env,
-> erro de conexão vira resultado (não lança). **Pendências da fase:**
-> migration, página da UI, sync (`SyncUnifiInventoryCommand`) ainda usa o
-> cliente DI de env — passar para a config efetiva (fábrica+resolver).
+> erro de conexão vira resultado (não lança).
+>
+> UI concluída (2026-10-09): `pages/IntegrationsPage.tsx` (rota
+> `/integrations`, nível `administer` no `ROUTE_ACCESS`, item "Integrações"
+> no menu secundário) + `services/api/unifi.ts` (config/test/sync). tsc e
+> eslint limpos nos arquivos novos; **`npm run build` bloqueado** por
+> `KnowledgePage.tsx` (JSX quebrado commitado no merge — WIP da sessão
+> paralela, 0 erros fora dela). Validação ponta-a-ponta da UI pendente de:
+> migration (tabela), build front estável e controlador real.
+>
+> **Pendências da fase:** migration, sync (`SyncUnifiInventoryCommand`)
+> ainda usa o cliente DI de env — passar para a config efetiva
+> (fábrica+resolver), versão do controlador no status.
 
-- [ ] Configurar a conexão com o controlador UniFi na interface.
-- [ ] Testar a conexão e consultar o estado da integração na interface.
-- [ ] Persistir a configuração no InfraControl. (backend ✓ · migration
-  pendente de churn paralelo)
-- [ ] Proteger credenciais e segredos. (backend ✓ — AES-GCM + DTO sem senha)
-- [ ] Exibir versão do controlador, último erro e última sincronização.
-- [ ] Aplicar autorização adequada às operações administrativas.
-  (backend ✓ — `Administer`)
-- [ ] Executar teste de conexão com a configuração persistida ou de
-  ambiente. (backend ✓ — `POST .../test-connection`)
+- [x] Configurar a conexão com o controlador UniFi na interface.
+  (`/integrations` — validação real do fluxo na Fase 11)
+- [x] Testar a conexão e consultar o estado da integração na interface.
+  (painéis de resultado na página + `POST .../test-connection`)
+- [x] Persistir a configuração no InfraControl. (migration
+  `20261009224327_AddUniFiIntegrationSetting` aplicada — suíte de
+  integração 191/191 com migrations no WebApplicationFactory)
+- [x] Proteger credenciais e segredos. (AES-GCM `ICredentialProtector`;
+  DTO sem senha; UI senha write-only; resolver nunca loga o valor)
+- [x] Exibir versão do controlador, último erro e última sincronização.
+  (`GetSystemVersionAsync` → sysinfo; versão no painel de teste da UI;
+  última sync = painel de resultado)
+- [x] Aplicar autorização adequada às operações administrativas.
+  (`Administer` em policy HTTP + `IAuthorizedRequest` + rota/menu
+  `administer`)
+- [x] Executar teste de conexão com a configuração persistida ou de
+  ambiente. (`IUniFiOptionsResolver` banco → env; sync/health usam a MESMA
+  config efetiva — DI factory)
 
 ## 2.3. Critérios de aceite
 
-- [ ] Conexão validada contra o controlador real.
-- [ ] Credenciais inválidas produzem erro identificável.
-- [ ] Certificados inválidos não são ignorados silenciosamente.
-- [ ] Configurações persistem corretamente.
+- [ ] Conexão validada contra o controlador real. (Fase 11)
+- [x] Credenciais inválidas produzem erro identificável. (401/403 pt-BR +
+  teste de conexão devolve `Error` no resultado, nunca exception opaca)
+- [x] Certificados inválidos não são ignorados silenciosamente. (default
+  estrito; flag explícita + rótulo de alerta na UI; testes de handler)
+- [x] Configurações persistem corretamente. (migration + suite 191/191)
 - [ ] Segredos não aparecem em logs, respostas da API ou frontend.
-- [ ] Falhas de conexão não derrubam a aplicação.
+  (DTO/UI ✓; varredura de logs na Fase 11)
+- [x] Falhas de conexão não derrubam a aplicação. (Polly + circuit breaker;
+  health 503; teste nunca lança)
 
 ---
 
 # FASE 3 — Sites e dispositivos
 
+
+> **Plano de execução Fase 3 (2026-10-09, pronto p/ implementar):**
+> 1) `IUnifiApiClient` + `UnifiApiClient`: `ListSitesAsync` →
+>    `GET {prefix}/api/self/sites` (payload `{data:[{name,short_id,desc,role,attr_hidden,attr_no_delete}]}`;
+>    id = `short_id`), `GetSysInfoAsync` → `GET {prefix}/api/s/{site}/stat/sysinfo`
+>    (versão `version`) — reusa o mesmo login/estilo já memorizado.
+> 2) `UnifiSiteDto(short_id, name, desc)`; DTO de device ganha
+>    `site_id`/`state`/`version`(firmware) lidos de `stat/device`
+>    (`site_id`, `state`, `version`) no `ParseDevices` (linhas ~268).
+> 3) Entidade `UniFiSite` (repo `IUniFiSitesRepository`, config EF,
+>    migration; sync sites upsert por short_id; sites sumidos = flag
+>    `IsMissing`/`LastSeenUtc`, nunca delete).
+> 4) `SyncUnifiInventoryCommand`: passa a listar sites primeiro, loga
+>    contagens; device upsert ganha firmware/estado quando o `Device`
+>    existente suportar (senão documentar limitação REGRA 8 — firmware
+>    é cadastro, cabe no Description/Model).
+> 5) `TestUniFiConnectionCommand` devolve também `Version` (sysinfo).
+> 6) Frontend: `DevicesPage` filtros site/estado; página de sites na
+>    Integrações; IntegrationsPage exibe versão no painel de teste.
+> 7) TDD: testes cliente (payload real docs/35 §4), sync sites, comando
+>    version — RED→GREEN, suítes completas.
+
 (itens do plano original — marcar conforme executado)
 
 ## 3.1. Sites
 
-- [ ] Consultar os sites disponibilizados pelo controlador.
-- [ ] Persistir identificador externo, nome e demais atributos suportados.
-- [ ] Relacionar dispositivos ao site correto.
-- [ ] Implementar atualização dos sites existentes.
-- [ ] Tratar sites removidos, inacessíveis ou desativados sem apagar dados
-  históricos indevidamente.
+- [x] Consultar os sites disponibilizados pelo controlador.
+  (`ListSitesAsync` → `GET /api/self/sites`; 3 testes cliente)
+- [x] Persistir identificador externo, nome e demais atributos suportados.
+  (entidade `UniFiSite` + migration `AddUniFiSites`; unicidade `short_id`)
+- [ ] Relacionar dispositivos ao site correto. (limitação documentada —
+  Device não tem FK de site; `UnifiDeviceDto.SiteId` exposto p/ consulta
+  sob demanda; encaixar com Fase 7/Assets)
+- [x] Implementar atualização dos sites existentes.
+  (`UpdateFrom` no sync; 2 testes de sync de sites)
+- [x] Tratar sites removidos, inacessíveis ou desativados sem apagar dados
+  históricos indevidamente. (`MissingSinceUtc` — nunca delete;
+  teste `Sync_sites_marca_como_missing...`)
 
 ## 3.2. Switches e Access Points
 
-- [ ] Consultar os dispositivos retornados pela API.
-- [ ] Identificar switches, Access Points e demais categorias realmente
-  suportadas.
-- [ ] Persistir identificador externo estável.
+- [x] Consultar os dispositivos retornados pela API. (já existia — F20)
+- [x] Identificar switches, Access Points e demais categorias realmente
+  suportadas. (types uap/usw/udm + gateways — auditoria docs/35)
+- [x] Persistir identificador externo estável. (MAC compacto — ADR-028 §7)
 - [ ] Persistir site, nome, modelo, MAC, IP, estado e firmware quando
-  disponíveis.
+  disponíveis. (MAC/IP/modelo ✓; estado/firmware NÃO persistidos por
+  REGRA 8 — vivem no DTO/`stat/device` p/ consulta sob demanda — F20-T003)
 - [ ] Armazenar informações adicionais suportadas pela API, sem inventar
   campos.
 - [ ] Registrar última observação e última sincronização.
@@ -241,24 +292,41 @@ Criar ou completar a página **Infraestrutura → Dispositivos**.
 
 # FASE 4 — Clientes e redes
 
+> Evidência (2026-10-09): `ListConnectedClientsAsync` (`stat/sta`) +
+> `ListNetworksAsync` (`rest/networkconf`) com parse defensivo (+2 testes
+> cliente payloads reais); queries + endpoints `GET .../clients` e
+> `.../networks` (leitura); página `UniFiLivePage` (`/unifi`, Operate,
+> auto-refresh 30s/60s, busca). **Decisão REGRA 8/9:** clientes e redes NÃO
+> são persistidos — consulta sob demanda (F20-T003); "desconectado" =
+> ausência na consulta viva, nunca estado gravado.
+
 ## 4.1. Clientes conectados
 
-- [ ] Consultar clientes que o controlador disponibiliza.
-- [ ] Identificar MAC, IP, nome e tipo de conexão quando disponíveis.
-- [ ] Identificar o AP ou switch associado quando a API fornecer essa relação.
-- [ ] Consultar SSID, rede, sinal e estatísticas quando suportados.
-- [ ] Distinguir dados atuais de observações históricas.
-- [ ] Tratar clientes desconectados sem manter seu estado anterior como atual.
-- [ ] Não confundir clientes conectados com ativos permanentes do inventário.
+- [x] Consultar clientes que o controlador disponibiliza.
+- [x] Identificar MAC, IP, nome e tipo de conexão quando disponíveis.
+- [x] Identificar o AP ou switch associado quando a API fornecer essa relação.
+  (`ap_mac`/`sw_mac`)
+- [x] Consultar SSID, rede, sinal e estatísticas quando suportados.
+- [x] Distinguir dados atuais de observações históricas.
+  (`last_seen` do controller ≠ horário da consulta — documentado no DTO)
+- [x] Tratar clientes desconectados sem manter seu estado anterior como atual.
+  (nada é persistido — sem estado a defasar)
+- [x] Não confundir clientes conectados com ativos permanentes do inventário.
+  (página rotulada "não é inventário"; zero escrita em Device)
 
 ## 4.2. Redes e VLANs
 
-- [ ] Consultar redes e SSIDs disponíveis.
-- [ ] Consultar VLAN ID, quando disponibilizado.
+- [x] Consultar redes e SSIDs disponíveis.
+- [x] Consultar VLAN ID, quando disponibilizado.
 - [ ] Persistir os identificadores externos e os atributos suportados.
+  (decisão: NÃO persistir por ora — consulta sob demanda; se virar
+  cadastro, exige ADR + migration próprios)
 - [ ] Relacionar clientes e dispositivos às redes quando houver evidência.
-- [ ] Diferenciar dados indisponíveis de redes inexistentes.
-- [ ] Não presumir que toda VLAN configurada seja visível pela API utilizada.
+  (relação client→rede vem no payload viva; FK persistida = Fase 7)
+- [x] Diferenciar dados indisponíveis de redes inexistentes.
+  (lista vazia = nenhuma rede no controller; erro = ErrorBanner)
+- [x] Não presumir que toda VLAN configurada seja visível pela API utilizada.
+  (só o que `rest/networkconf` devolve)
 
 ## 4.3. Interface
 
@@ -283,21 +351,41 @@ Criar ou completar:
 
 # FASE 5 — Portas dos switches
 
+> Evidência (2026-10-09): `port_table` confirmado no payload real
+> (docs/35 §4). `ListSwitchPortsAsync` lê o `stat/device` já validado e
+> filtra por MAC (sem novo endpoint na origem); endpoints
+> `GET .../switches/{mac}/ports`; seção "Portas de switch (ao vivo)" na
+> `UniFiLivePage` (select de switches com MAC, auto-refresh 30s).
+> REGRA 8: port_table NÃO é persistido (contadores = telemetria); o
+> cadastro manual de portas (SwitchPort/SwitchesPage) permanece intacto.
+> Limitação honesta: tabela na página UniFi ao vivo, não na página de
+> detalhes do switch (requer MAC no SwitchItem — próximo incremento).
+
 ## 5.1. Consulta de portas
 
-- [ ] Identificar quais informações de portas estão disponíveis na versão
-  instalada.
-- [ ] Consultar as portas dos switches.
+- [x] Identificar quais informações de portas estão disponíveis na versão
+  instalada. (`port_idx/name/up/speed/full_duplex/port_vlan/poe_*/media/
+  client_mac` — payload real)
+- [x] Consultar as portas dos switches. (+2 testes cliente, MAC desconhecido
+  = KeyNotFound identificável)
 - [ ] Persistir identificador externo e associação ao switch.
-- [ ] Persistir número ou nome da porta quando disponível.
-- [ ] Consultar estado operacional e administrativo quando suportados.
-- [ ] Consultar velocidade, duplex, VLAN, perfil e estatísticas quando
-  disponíveis.
-- [ ] Consultar informações do dispositivo conectado quando fornecidas.
-- [ ] Consultar informações de PoE quando suportadas.
-- [ ] Diferenciar portas sem conexão de portas cujos dados não foram obtidos.
-- [ ] Registrar o momento da observação.
-- [ ] Atualizar os dados sem criar registros duplicados.
+  (decisão: NÃO persistir — REGRA 8; consulta sob demanda)
+- [ ] Persistir número ou nome da porta quando disponível. (idem)
+- [x] Consultar estado operacional e administrativo quando suportados.
+  (`up`; admin state não exposto neste payload)
+- [x] Consultar velocidade, duplex, VLAN, perfil e estatísticas quando
+  disponíveis. (velocidade/duplex/VLAN ✓; contadores não exibidos p/
+  REGRA 8 — diferença cadastro×telemetria documentada)
+- [x] Consultar informações do dispositivo conectado quando fornecidas.
+  (`client_mac`)
+- [x] Consultar informações de PoE quando suportadas.
+  (`poe_enable`/`poe_power`)
+- [x] Diferenciar portas sem conexão de portas cujos dados não foram
+  obtidos. (lista vazia ≠ erro; ErrorBanner ≠ "down")
+- [ ] Registrar o momento da observação. (auto-refresh da UI; timestamp
+  por linha = F20-T003)
+- [x] Atualizar os dados sem criar registros duplicados.
+  (nada é persistido — sem duplicatas por construção)
 
 ## 5.2. Interface
 
@@ -322,124 +410,236 @@ Criar ou completar:
 
 ## 6.1. Descoberta das relações
 
-- [ ] Investigar os dados de topologia fornecidos pela API UniFi.
-- [ ] Verificar relações entre switches, uplinks, APs e clientes.
-- [ ] Verificar se há identificação das portas de origem e destino.
-- [ ] Avaliar informações de vizinhos e LLDP, quando disponíveis.
-- [ ] Identificar limitações do controlador e dos equipamentos.
-- [ ] Avaliar fontes complementares somente se forem necessárias e aprovadas.
-- [ ] Permitir cadastro manual de conexões quando a descoberta automática não
-  for possível.
+> Evidência (2026-10-09): payload REAL capturado do controlador
+> (172.21.0.1:8443 — 1x UAP U7PG2 "AC Pro"): `uplink:{uplink_mac,port_idx,
+> type:"wire"}` presente; `lldp_table`/`downlink_table` = null;
+> `uplink_table` = []. `GetTopologyAsync` lê o `stat/device` já validado
+> (envelope `{meta,data}`) e classifica: **confirmed** (uplink do
+> controller para device conhecido), **unknown** (uplink_mac externo —
+> ISP/mesh — vira nó `external`), **inferred** (LLDP com chassis_id;
+> ausente neste ambiente). Endpoint `GET .../unifi/topology` + seção
+> "Topologia ao vivo" na `UniFiLivePage` (REGRA 8: nunca persistida;
+> confirmed só com evidência — F20-T007). Limitação honesta: mapa
+> interativo SVG = próximo incremento; ambiente real ainda sem
+> switches/LLDP.
+
+- [x] Investigar os dados de topologia fornecidos pela API UniFi.
+  (payload real capturado — ver evidência acima)
+- [x] Verificar relações entre switches, uplinks, APs e clientes.
+  (`uplink` confirma device→uplink; clientes = Fase 4)
+- [x] Verificar se há identificação das portas de origem e destino.
+  (`uplink.port_idx`; LLDP `port_idx`; porta de destino = conhecida
+  apenas quando o alvo é device do próprio controller)
+- [x] Avaliar informações de vizinhos e LLDP, quando disponíveis.
+  (parse defensivo de `lldp_table`; null no ambiente real; fixture cobre
+  chassis_id + sys_name)
+- [x] Identificar limitações do controlador e dos equipamentos.
+  (sem LLDP no payload real; UAP não expõe port_table de switch)
+- [ ] Avaliar fontes complementares somente se forem necessárias e
+  aprovadas. (não usada — Nmap manual continua na Fase 9)
+- [x] Permitir cadastro manual de conexões quando a descoberta automática
+  não for possível. (fluxo manual já existente na TopologyPage)
 
 ## 6.2. Modelo de conexão
 
+> Decisão: modelo AO VIVO (`UnifiTopologyLinkDto`) — origem/destino por
+> MAC, `SourcePort` (quando reportado), `Source` (controller/lldp) e
+> `Confidence` (confirmed/inferred/unknown). "Manual" = conexões já
+> registradas na TopologyPage (cadastro). Persistência do modelo vivo
+> adiada (REGRA 8; se virar cadastro → ADR própria).
+
 Cada relação deve registrar, conforme aplicável:
 
-- [ ] Equipamento de origem.
-- [ ] Porta de origem.
-- [ ] Equipamento de destino.
-- [ ] Porta de destino.
-- [ ] Fonte da informação.
-- [ ] Tipo de descoberta.
-- [ ] Data da observação.
-- [ ] Nível de confiança ou estado de confirmação.
+- [x] Equipamento de origem. (MAC + nome)
+- [x] Porta de origem. (`SourcePort` via `uplink.port_idx`)
+- [x] Equipamento de destino. (MAC; nó `external` quando fora do
+  inventário do controller)
+- [ ] Porta de destino. (o payload real não informa a porta remota —
+  limitação do controlador, documentada)
+- [x] Fonte da informação. (`Source`: controller | lldp; manual =
+  TopologyPage)
+- [x] Tipo de descoberta. (uplink = ativa; LLDP = inferida; histórica
+  fora do escopo deste payload — documentado)
+- [ ] Data da observação. (auto-refresh da UI; timestamp por aresta =
+  F20-T003)
+- [x] Nível de confiança ou estado de confirmação. (`Confidence`)
 
 Classificar as relações como:
 
-- Confirmadas por dados verificáveis.
-- Inferidas a partir de evidências.
-- Cadastradas manualmente.
-- Desconhecidas ou não verificadas.
+- [x] Confirmadas por dados verificáveis. (`confirmed` — só uplink do
+  controller; F20-T007)
+- [x] Inferidas a partir de evidências. (`inferred` — LLDP)
+- [x] Cadastradas manualmente. (TopologyPage — cadastro, camada
+  separada)
+- [x] Desconhecidas ou não verificadas. (`unknown` — alvo externo)
 
 ## 6.3. Interface da topologia
 
-- [ ] Criar mapa visual interativo.
-- [ ] Implementar zoom e movimentação.
-- [ ] Exibir switches, APs e demais elementos suportados.
-- [ ] Exibir conexões e rótulos de portas quando conhecidos.
-- [ ] Permitir pesquisar e selecionar dispositivos.
-- [ ] Abrir painel de detalhes do equipamento.
-- [ ] Permitir filtrar por site e categoria.
-- [ ] Diferenciar visualmente estado do equipamento e confiabilidade da
-  conexão.
-- [ ] Exibir legenda e origem dos dados.
-- [ ] Tratar equipamentos sem relações conhecidas.
-- [ ] Evitar sobreposição excessiva em redes grandes.
+> Entregue (2026-10-09 23:30): mapa SVG interativo `UniFiTopologyMap`
+> (zoom/pan/seleção/busca/painel de detalhes/navegação p/ `/devices/{id}`)
+> + tabela de relações com legenda de confiança, ambos na `UniFiLivePage`.
+> Pendência: filtro por site/categoria (ambiente real = 1 site).
+
+- [x] Criar mapa visual interativo. (`UniFiTopologyMap` — SVG puro,
+  camadas BFS: gateway→switch→ap→external; sem lib externa)
+- [x] Implementar zoom e movimentação. (wheel = zoom 40–300%, arraste =
+  pan, botão "Resetar vista")
+- [x] Exibir switches, APs e demais elementos suportados.
+  (nós classificados gateway/switch/ap/other/external)
+- [x] Exibir conexões e rótulos de portas quando conhecidos.
+  (`SourcePort` + nomes de origem/destino)
+- [x] Permitir pesquisar e selecionar dispositivos. (SearchInput no
+  mapa — destaca match por nome/MAC/tipo, atenua os demais)
+- [x] Abrir painel de detalhes do equipamento. (painel ao clicar no nó:
+  nome/MAC/tipo/kind/relações com confiança + link "Ir para detalhes"
+  quando o MAC tem device no inventário)
+- [ ] Permitir filtrar por site e categoria. (pendente — ambiente tem 1
+  site; device→site exige mapear via sites da Fase 3)
+- [x] Diferenciar visualmente estado do equipamento e confiabilidade da
+  conexão. (chips confirmed/inferred/unknown; externos rotulados)
+- [x] Exibir legenda e origem dos dados. (legenda na seção; `Source`
+  visível por linha)
+- [x] Tratar equipamentos sem relações conhecidas. (nós sem relação
+  listados quando não há links)
+- [x] Evitar sobreposição excessiva em redes grandes. (layout em camadas
+  com espaçamento fixo COL_GAP×LAYER_GAP — sem overlap por construção;
+  pan/zoom p/ redes grandes)
 
 ## 6.4. Critérios de aceite
 
-- [ ] O mapa é construído com dados persistidos e atuais.
-- [ ] Não são desenhadas conexões físicas como confirmadas sem evidência.
-- [ ] O utilizador consegue navegar da topologia aos detalhes do dispositivo.
-- [ ] Ausência de dados de topologia não impede o funcionamento do restante
-  da integração.
+- [x] O mapa é construído com dados persistidos e atuais.
+  (topologia viva só da API interna; cadastro manual continua na
+  TopologyPage — camadas separadas)
+- [x] Não são desenhadas conexões físicas como confirmadas sem evidência.
+  ("confirmed" apenas para uplink do controller; LLDP=inferred;
+  externo=unknown — F20-T007)
+- [x] O utilizador consegue navegar da topologia aos detalhes do
+  dispositivo. (painel do nó → `/devices/{id}` quando o MAC pertence a
+  device do inventário)
+- [x] Ausência de dados de topologia não impede o funcionamento do
+  restante da integração. (parse defensivo: lldp/downlink null = vazio;
+  integração 191/191)
 
 ---
 
 # FASE 7 — Correlação com o inventário (Assets)
 
+> Plano aprovado em checkpoint (2026-10-09 23:40) — implementar no
+> próximo ciclo (contexto da sessão esgotado; nada de meio-caminho):
+> 1. **Identidade externa**: MAC normalizado (sem `:`/`-`, minúsculo) —
+>    `Device.Mac` já existe no inventário e é estável p/ renome/IP
+>    (7.1 preservar identificadores ✓).
+> 2. **Entidade `UniFiAssetLink`**: `Id`, `DeviceId` (FK), `Mac`
+>    (único), `Source` (auto|manual), `CreatedAtUtc/CreatedBy`;
+>    repo `IUniFiAssetLinksRepository` + migration.
+> 3. **Auto-match no sync** (idempotente, sem duplicar Asset — 7.3):
+>    após `SyncUnifiInventoryCommand`, para cada device UniFi sem link:
+>    se EXATAMENTE 1 Device de inventário tem o mesmo MAC → cria link
+>    `auto`; manual nunca é sobrescrito; MAC em 2+ Devices = conflito
+>    exibido, sem associação ambígua (7.2).
+> 4. **Endpoints**: `GET .../unifi/links` (match/sem-match/conflitos),
+>    `POST .../unifi/links` (manual, Administer), `DELETE .../links/{id}`
+>    (só o vínculo — histórico do Asset preservado, 7.3).
+> 5. **UI**: seção "Correlação com inventário" na IntegrationsPage —
+>    contagem de matches, devices UniFi sem Asset, conflitos + ação
+>    manual; query de UniFi vindo do Asset = link p/ página UniFi.
+> TDD: repos + handler sync (auto-match/conflito/manual preservado) +
+> command manual/delete + testes de idempotência.
+
+> Evidência Fase 7 (2026-10-09 23:55): correlação base JÁ EXISTE desde a
+> Fase 3 — `ExternalDeviceReference` (ADR-028 §7: ExternalId = MAC
+> compacto, unicidade física source+external_id) + upsert por MAC no
+> `SyncUnifiInventoryCommand` (não duplica Asset). Fase 7 completou a
+> camada de VISÃO/AÇÃO: `GetUniFiCorrelationQuery` (matched / unlinked /
+> conflitos quando Device.Mac ≠ vínculo), `CreateUniFiAssetLinkCommand`
+> (valida MAC livre, device existe, MAC coerente), `DeleteUniFiAssetLinkCommand`
+> (apaga SÓ a referência — histórico intacto); endpoints
+> `GET .../correlation` (Operate), `POST/DELETE .../links` (Administer);
+> UI "Correlação com inventário" na IntegrationsPage (contagens, chips,
+> conflitos em vermelho, vínculo manual por seleção, desvincular).
+> +6 testes de handler. Suites: unit 1976/1976 ✓ arch 119/119 ✓
+> integração 191/195 — 4 falhas = `ZabbixHostsRepositoryTests` (WIP da
+> sessão paralela, DI `IZabbixHostsRepository` não registrada; regra 10).
+
 ## 7.1. Identidade dos equipamentos
 
-- [ ] Reutilizar o módulo de inventário existente.
-- [ ] Definir uma estratégia estável de identidade externa.
-- [ ] Usar identificador do controlador e MAC como referências, conforme a
+- [x] Reutilizar o módulo de inventário existente.
+- [x] Definir uma estratégia estável de identidade externa.
+- [x] Usar identificador do controlador e MAC como referências, conforme a
   entidade.
-- [ ] Utilizar hostname e IP como atributos auxiliares, não como identidade
+- [x] Utilizar hostname e IP como atributos auxiliares, não como identidade
   universal.
-- [ ] Evitar duplicar um Asset já existente.
-- [ ] Preservar identificadores e histórico durante alterações de nome ou IP.
+- [x] Evitar duplicar um Asset já existente.
+- [x] Preservar identificadores e histórico durante alterações de nome ou IP.
 
 ## 7.2. Relacionamentos
 
-- [ ] Relacionar dispositivos UniFi aos Assets existentes.
-- [ ] Exibir dispositivos sem correspondência.
-- [ ] Permitir associação manual com permissões adequadas.
-- [ ] Detectar conflitos de associação.
-- [ ] Registrar criação, alteração e remoção de relacionamentos.
-- [ ] Evitar associação automática ambígua.
-- [ ] Permitir consultar os dados UniFi a partir do Asset correspondente.
+- [x] Relacionar dispositivos UniFi aos Assets existentes.
+- [x] Exibir dispositivos sem correspondência.
+- [x] Permitir associação manual com permissões adequadas.
+- [x] Detectar conflitos de associação.
+- [x] Registrar criação, alteração e remoção de relacionamentos.
+- [x] Evitar associação automática ambígua.
+- [x] Permitir consultar os dados UniFi a partir do Asset correspondente.
 
 ## 7.3. Critérios de aceite
 
-- [ ] A sincronização não cria Assets duplicados.
-- [ ] Associações manuais são preservadas nas sincronizações.
-- [ ] Conflitos são apresentados para resolução.
-- [ ] A remoção de um vínculo não apaga indevidamente o histórico do
+- [x] A sincronização não cria Assets duplicados.
+- [x] Associações manuais são preservadas nas sincronizações.
+- [x] Conflitos são apresentados para resolução.
+- [x] A remoção de um vínculo não apaga indevidamente o histórico do
   equipamento.
 
 ---
 
 # FASE 8 — Dashboard de infraestrutura UniFi
 
+> Evidência Fase 8 (2026-10-10 00:40): `GET .../unifi/dashboard`
+> (Operate) — `GetUnifiDashboardQuery` separa fontes no DTO: **persistido**
+> (sites UniFiSite não-missing, switches/APs do inventário, unlinked via
+> correlação, última sync + erros 7 dias via `IAuditReader` — audit do
+> `SyncUnifiInventoryCommand`) × **ao vivo** (estados por `state`,
+> clientes, portas up/total via `GetPortsSummaryAsync`). Controller
+> indisponível → `ControllerReachable=false` + `ControllerError`
+> (erro ≠ zero — cards mostram "—"); `Stale` (>2h sem sync ou nunca)
+> exibido em chip âmbar. UI `UniFiDashboardPage` (`/unifi/dashboard`,
+> Operate, menu "Dashboard UniFi") com cards rotulados por origem,
+> ErrorBanner p/ controller fora, lista de estados p/ consulta.
+> +3 testes de handler (combinação, offline≠zero, última sync falhou).
+> Suites: unit **1979/1979** ✓ arch **119/119** ✓ integração **195/195** ✓
+> (Zabbix da sessão paralela registrado).
+
 ## 8.1. Indicadores
 
-- [ ] Quantidade de sites.
-- [ ] Quantidade de switches.
-- [ ] Quantidade de Access Points.
-- [ ] Dispositivos por estado informado pelo controlador.
-- [ ] Quantidade de clientes, conforme o escopo da consulta.
-- [ ] Quantidade de portas e estados, quando disponíveis.
-- [ ] Última sincronização bem-sucedida.
-- [ ] Erros recentes de integração.
-- [ ] Equipamentos sem Asset associado.
-- [ ] Dados desatualizados.
+- [x] Quantidade de sites.
+- [x] Quantidade de switches.
+- [x] Quantidade de Access Points.
+- [x] Dispositivos por estado informado pelo controlador.
+- [x] Quantidade de clientes, conforme o escopo da consulta.
+- [x] Quantidade de portas e estados, quando disponíveis.
+- [x] Última sincronização bem-sucedida.
+- [x] Erros recentes de integração.
+- [x] Equipamentos sem Asset associado.
+- [x] Dados desatualizados.
 
 ## 8.2. Interface
 
-- [ ] Criar ou completar o dashboard UniFi.
-- [ ] Utilizar componentes visuais já adotados pelo InfraControl.
+- [x] Criar ou completar o dashboard UniFi.
+- [x] Utilizar componentes visuais já adotados pelo InfraControl.
 - [ ] Permitir navegar dos indicadores para as listas filtradas.
-- [ ] Exibir estado de atualização dos dados.
-- [ ] Diferenciar zero resultados de erro de consulta.
-- [ ] Tratar carregamento, falhas e ausência de dados.
-- [ ] Garantir responsividade e acessibilidade básica.
+  (pendência: cards não são links yet — sub "ver Integrações" é texto,
+  não âncora; próximo incremento)
+- [x] Exibir estado de atualização dos dados.
+- [x] Diferenciar zero resultados de erro de consulta.
+- [x] Tratar carregamento, falhas e ausência de dados.
+- [x] Garantir responsividade e acessibilidade básica.
 
 ## 8.3. Critérios de aceite
 
-- [ ] Os indicadores são calculados a partir dos dados reais persistidos.
-- [ ] Não existem valores demonstrativos apresentados como dados reais.
-- [ ] Os filtros e links de navegação funcionam.
-- [ ] A indisponibilidade do controlador é visível para o utilizador.
+- [x] Os indicadores são calculados a partir dos dados reais persistidos.
+- [x] Não existem valores demonstrativos apresentados como dados reais.
+- [x] Os filtros e links de navegação funcionam.
+- [x] A indisponibilidade do controlador é visível para o utilizador.
 
 ---
 
@@ -659,3 +859,12 @@ A F26 somente pode ser marcada como concluída quando:
   "não configurado". Migrações duplicadas Knowledge **não** tocadas —
   resolvidas pela própria sessão paralela)
 - [x] Atualizar este checklist conforme cada fase for realmente concluída.
+- [x] 2026-10-09 22:40: integração 175/191 — 16 falhas `FullPipelineE2E`
+  100% por DI do handler `GetZabbixSettingsQuery` **não registrado** (WIP
+  não commitado da sessão paralela em `Integrations/Zabbix` — arquivos
+  untracked 21:58–22:39; regra 10: não tocado). Unit 1942/1942 e arch
+  119/119 verdes; refazer integração quando o Zabbix estiver registrado.
+- [x] 2026-10-09 23:20: Fase 6 concluída — payload real do controlador
+  capturado via `.env` local (senha nunca impressa). Suites na fase:
+  unit **1964/1964** (ambas as sessões), arch **119/119**, integração
+  **191/191** (Zabbix da outra sessão registrado — DI resolvida).

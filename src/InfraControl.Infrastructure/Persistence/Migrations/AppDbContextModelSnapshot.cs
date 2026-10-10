@@ -1516,6 +1516,49 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("pdi_activities", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiAssessment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Side")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("side");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId", "Side")
+                        .IsUnique();
+
+                    b.ToTable("pdi_assessments", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiCheckIn", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1620,6 +1663,88 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("pdi_competencies", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Extension")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("extension");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<Guid>("PhaseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("phase_id");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("pdi_evidences", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiFeedback", b =>
@@ -1971,6 +2096,52 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("PhaseId");
 
                     b.ToTable("pdi_progresses", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<DateOnly>("FinalizedAt")
+                        .HasColumnType("date")
+                        .HasColumnName("finalized_at");
+
+                    b.Property<Guid>("FinalizedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("finalized_by");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("outcome");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId")
+                        .IsUnique();
+
+                    b.ToTable("pdi_results", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiStrategy", b =>
@@ -2838,6 +3009,103 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("task_sla_pauses", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.UniFiIntegrationSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowInvalidTlsCertificate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_invalid_tls_certificate");
+
+                    b.Property<string>("BaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("base_url");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<string>("PasswordEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("password_encrypted");
+
+                    b.Property<string>("Site")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("site");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("unifi_integration_settings", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.UniFiSite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("Hidden")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hidden");
+
+                    b.Property<DateTime?>("MissingSinceUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("missing_since_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("ShortId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("short_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShortId")
+                        .IsUnique();
+
+                    b.ToTable("unifi_sites", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3021,6 +3289,149 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("vlans", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.ZabbixHost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<bool>("Discovered")
+                        .HasColumnType("boolean")
+                        .HasColumnName("discovered");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("GroupsJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("groups_json");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("host");
+
+                    b.Property<string>("HostId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("host_id");
+
+                    b.Property<string>("Ip")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip");
+
+                    b.Property<DateTime>("LastSyncedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at_utc");
+
+                    b.Property<DateTime?>("MissingSinceUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("missing_since_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("name");
+
+                    b.Property<int?>("Port")
+                        .HasColumnType("integer")
+                        .HasColumnName("port");
+
+                    b.Property<string>("TemplatesJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("templates_json");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HostId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_zabbix_hosts_host_id");
+
+                    b.ToTable("zabbix_hosts", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.ZabbixIntegrationSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApiUrl")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("api_url");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<string>("DetectedVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("detected_version");
+
+                    b.Property<DateTime?>("LastCommunicationAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_communication_at_utc");
+
+                    b.Property<DateTime?>("LastInventorySyncAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_inventory_sync_at_utc");
+
+                    b.Property<string>("LastTestError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_test_error");
+
+                    b.Property<bool>("LastTestOk")
+                        .HasColumnType("boolean")
+                        .HasColumnName("last_test_ok");
+
+                    b.Property<DateTime?>("LastTestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_tested_at_utc");
+
+                    b.Property<string>("PasswordEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("password_encrypted");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("zabbix_integration_settings", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.RemoteAccess.DeviceCredential", b =>
@@ -3610,7 +4021,25 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiAssessment", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.IndividualDevelopmentPlan", null)
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.PdiCheckIn", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
+                        .WithMany()
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiEvidence", b =>
                 {
                     b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
                         .WithMany()
@@ -3666,6 +4095,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.PdiPhase", null)
                         .WithMany()
                         .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.PdiResult", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.IndividualDevelopmentPlan", null)
+                        .WithMany()
+                        .HasForeignKey("PlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

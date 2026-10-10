@@ -15,6 +15,8 @@ using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Ports;
+using InfraControl.Application.Integrations.Zabbix;
+using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
@@ -39,6 +41,7 @@ using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Integrations.Unifi;
+using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
@@ -48,6 +51,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
@@ -128,25 +132,91 @@ public static class DependencyInjection
         // backoff + circuit breaker) e o handler primário que honra a opção
         // AllowInvalidTlsCertificate (self-signed de controlador local —
         // docs/35 §2; default = validação estrita).
-        services.AddScoped<IUnifiApiClient, UnifiApiClient>();
+        // F26 Fase 2.2: config administrativa persistida (linha única no
+        // banco, senha AES-GCM) + fábrica de cliente com opções específicas;
+        // env continua como fallback enquanto não houver linha no banco.
+        services.AddScoped<IUniFiSettingsRepository, UniFiSettingsRepository>();
+        services.AddScoped<IUniFiSitesRepository, UniFiSitesRepository>();
+        services.AddScoped<IUniFiSyncRunsRepository, UniFiSyncRunsRepository>();
+        services.AddScoped<IUnifiEnvOptionsAccessor, UnifiEnvOptionsAccessor>();
+        services.AddScoped<IUnifiClientFactory, UnifiClientFactory>();
+        services.AddScoped<IUniFiOptionsResolver, UniFiOptionsResolver>();
+
+        // Cliente "padrão" resolve a config EFETIVA (banco → env) por
+        // request — sync, health e demais consumidores falam com a mesma
+        // configuração administrada na UI (F26 Fase 2.2). A criação é
+        // síncrona sobre a resolução local (DbContext, sem SynchronizationContext).
+        services.AddScoped<IUnifiApiClient>(serviceProvider =>
+        {
+            var resolver = serviceProvider.GetRequiredService<IUniFiOptionsResolver>();
+            var factory = serviceProvider.GetRequiredService<IUnifiClientFactory>();
+            var options = resolver.ResolveAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return factory.Create(options);
+        });
         services.AddHttpClient(UnifiApiClient.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
             {
-                var options = serviceProvider
-                    .GetRequiredService<IOptions<UnifiIntegrationOptions>>().Value;
-                return UnifiHttpMessageHandler.CreatePrimaryHandler(
-                    options.AllowInvalidTlsCertificate);
+                // F26 Fase 2.2: flag TLS da config EFETIVA (banco → env).
+                // O handler é cacheado por nome pelo IHttpClientFactory —
+                // trocar a flag na UI pede restart (ou rotação de handler)
+                // para valer; registrar como limitação na docs/29.
+                var envAllowsInvalid = serviceProvider
+                    .GetRequiredService<IOptions<UnifiIntegrationOptions>>().Value
+                    .AllowInvalidTlsCertificate;
+                var allowInvalid = envAllowsInvalid;
+                try
+                {
+                    var scope = serviceProvider
+                        .GetRequiredService<IServiceScopeFactory>()
+                        .CreateScope();
+                    using (scope)
+                    {
+                        var resolver = scope.ServiceProvider
+                            .GetRequiredService<IUniFiOptionsResolver>();
+                        allowInvalid = resolver
+                            .ResolveAsync(CancellationToken.None)
+                            .GetAwaiter()
+                            .GetResult()
+                            .AllowInvalidTlsCertificate;
+                    }
+                }
+                catch
+                {
+                    // banco indisponível na criação do handler = flag de env
+                }
+
+                return UnifiHttpMessageHandler.CreatePrimaryHandler(allowInvalid);
             })
             .AddResilienceHandler(
                 "unifi",
                 static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
 
-        // F26 Fase 2.2: config administrativa persistida (linha única no
-        // banco, senha AES-GCM) + fábrica de cliente com opções específicas;
-        // env continua como fallback enquanto não houver linha no banco.
-        services.AddScoped<IUniFiSettingsRepository, UniFiSettingsRepository>();
-        services.AddScoped<IUnifiEnvOptionsAccessor, UnifiEnvOptionsAccessor>();
-        services.AddScoped<IUnifiClientFactory, UnifiClientFactory>();
+        // F27 Fase 2.1/2.2: cliente de SAÍDA para a API JSON-RPC do Zabbix.
+        // Config administrativa persistida (linha única, senha AES-GCM) com
+        // fallback para env (Integrations:Zabbix:ApiUrl/Username/Password);
+        // o IZabbixClient "padrão" resolve a config EFETIVA (banco → env) por
+        // request — mesmo padrão do UniFi. Auth por user.login com Bearer
+        // (Zabbix ≥ 8) ou campo auth (≤ 7) fica no próprio cliente; o named
+        // client leva a MESMA política Polly do dispatcher n8n.
+        services.AddScoped<IZabbixApiOptionsAccessor, ZabbixApiOptionsAccessor>();
+        services.AddScoped<IZabbixOptionsResolver, ZabbixOptionsResolver>();
+        services.AddScoped<IZabbixClient>(serviceProvider =>
+        {
+            var resolver = serviceProvider.GetRequiredService<IZabbixOptionsResolver>();
+            var options = resolver.ResolveAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return new ZabbixApiClient(
+                serviceProvider.GetRequiredService<IHttpClientFactory>(),
+                Options.Create(options),
+                serviceProvider.GetRequiredService<ILogger<ZabbixApiClient>>());
+        });
+        services.AddHttpClient(ZabbixApiClient.HttpClientName)
+            .AddResilienceHandler(
+                "zabbix-api",
+                static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
 
         services.AddScoped<ISlackNotificationDispatcher, LoggingSlackNotificationDispatcher>();
         services.AddScoped<ITelegramNotificationDispatcher, LoggingTelegramNotificationDispatcher>();

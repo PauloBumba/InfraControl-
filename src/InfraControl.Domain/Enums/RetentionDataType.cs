@@ -14,5 +14,6 @@ public enum RetentionDataType
     RemoteSessions,
     DiscoveryRuns,
     MonitoringEvents,
-    Invitations
+    Invitations,
+    UniFiSyncRuns
 }

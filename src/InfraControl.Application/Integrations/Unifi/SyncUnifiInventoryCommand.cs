@@ -14,7 +14,7 @@ namespace InfraControl.Application.Integrations.Unifi;
 /// devices criados/atualizados, referências novas e itens com erro
 /// (device invidual com falha não derruba o restante do sync).
 /// </summary>
-public sealed record UnifiSyncResultDto(int Created, int Updated, int References, int Errors);
+public sealed record UnifiSyncResultDto(int Created, int Updated, int References, int Errors, int Sites = 0);
 
 /// <summary>
 /// Sincronização de inventário UniFi → cadastro local. Idempotente por MAC:
@@ -40,20 +40,70 @@ public sealed class SyncUnifiInventoryCommandHandler(
     IDeviceRepository deviceRepository,
     IExternalDeviceReferenceRepository referenceRepository,
     ILocationRepository locationRepository,
+    IUniFiSitesRepository sitesRepository,
+    IUniFiSyncRunsRepository syncRunsRepository,
     ILogger<SyncUnifiInventoryCommandHandler> logger)
     : IRequestHandler<SyncUnifiInventoryCommand, UnifiSyncResultDto>
 {
     /// <summary>Location usada pelo sync — criada automaticamente se não existir (decisão do usuário 03/10/2026).</summary>
     public const string UniFiLocationName = "UniFi";
 
+    /// <summary>
+    /// F26 Fase 9.1: Toda execução vira uma linha `UniFiSyncRun`
+    /// (início/término/resultado/contagens; erro sanitizado). Falha
+    /// propaga — o run falho é gravado best-effort antes do rethrow.
+    /// </summary>
     public async Task<UnifiSyncResultDto> Handle(
         SyncUnifiInventoryCommand request, CancellationToken cancellationToken)
     {
+        var run = UniFiSyncRun.Start(DateTime.UtcNow);
+        try
+        {
+            var result = await HandleCore(request, cancellationToken);
+            run.CompleteSuccess(DateTime.UtcNow, result.Created, result.Updated,
+                result.References, result.Errors, result.Sites);
+            await syncRunsRepository.AddAsync(run, cancellationToken);
+            await syncRunsRepository.SaveChangesAsync(cancellationToken);
+            return result;
+        }
+        catch (Exception exception)
+        {
+            run.CompleteFailure(DateTime.UtcNow, exception.Message);
+            try
+            {
+                await syncRunsRepository.AddAsync(run, CancellationToken.None);
+                await syncRunsRepository.SaveChangesAsync(CancellationToken.None);
+            }
+            catch (Exception historyException)
+            {
+                logger.LogWarning(historyException,
+                    "Sync UniFi: falha ao gravar o histórico da execução");
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<UnifiSyncResultDto> HandleCore(
+        SyncUnifiInventoryCommand request, CancellationToken cancellationToken)
+    {
+        // F26 Fase 3.1: sites primeiro (cadastro); falha de sites não
+        // derruba o sync de devices (assíncrono aos erros por device).
+        var sites = 0;
+        try
+        {
+            sites = await SyncSitesAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Sync UniFi: falha ao sincronizar sites");
+        }
+
         // erros de configuração/credencial/transporte propagam (endpoint 502/503 na Parte 3)
         var controllerDevices = await unifiApiClient.ListDevicesAsync(cancellationToken);
 
         if (controllerDevices.Count == 0)
-            return new UnifiSyncResultDto(0, 0, 0, 0);
+            return new UnifiSyncResultDto(0, 0, 0, 0, sites);
 
         var location = await GetOrCreateLocationAsync(cancellationToken);
 
@@ -90,7 +140,46 @@ public sealed class SyncUnifiInventoryCommandHandler(
             }
         }
 
-        return new UnifiSyncResultDto(created, updated, references, errors);
+        return new UnifiSyncResultDto(created, updated, references, errors, sites);
+    }
+
+    /// <summary>
+    /// F26 Fase 3.1: upsert por <c>short_id</c>; site que sumiu do
+    /// controller ganha <c>MissingSinceUtc</c> (nunca é apagado).
+    /// </summary>
+    private async Task<int> SyncSitesAsync(CancellationToken cancellationToken)
+    {
+        var controllerSites = await unifiApiClient.ListSitesAsync(cancellationToken);
+        var synced = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var dto in controllerSites)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ShortId))
+                continue;
+
+            var site = await sitesRepository.GetByShortIdAsync(dto.ShortId, cancellationToken);
+            if (site is null)
+            {
+                await sitesRepository.AddAsync(
+                    UniFiSite.Create(dto.ShortId, dto.Name, dto.Description, dto.Hidden),
+                    cancellationToken);
+            }
+            else
+            {
+                site.UpdateFrom(dto.Name, dto.Description, dto.Hidden);
+            }
+
+            synced.Add(dto.ShortId);
+        }
+
+        foreach (var local in await sitesRepository.ListAsync(cancellationToken))
+        {
+            if (!synced.Contains(local.ShortId))
+                local.MarkMissing();
+        }
+
+        await sitesRepository.SaveChangesAsync(cancellationToken);
+        return synced.Count;
     }
 
     private async Task<(Device Device, bool Created)> UpsertDeviceAsync(

@@ -33,6 +33,9 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<ExternalDeviceReference> ExternalDeviceReferences => Set<ExternalDeviceReference>();
     public DbSet<UniFiIntegrationSetting> UniFiIntegrationSettings => Set<UniFiIntegrationSetting>();
+    public DbSet<ZabbixIntegrationSetting> ZabbixIntegrationSettings => Set<ZabbixIntegrationSetting>();
+    public DbSet<ZabbixHost> ZabbixHosts => Set<ZabbixHost>();
+    public DbSet<UniFiSite> UniFiSites => Set<UniFiSite>();
     public DbSet<NetworkInterface> NetworkInterfaces => Set<NetworkInterface>();
     public DbSet<MacAddress> MacAddresses => Set<MacAddress>();
     public DbSet<IpAddress> IpAddresses => Set<IpAddress>();
@@ -93,6 +96,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<PdiPhase> PdiPhases => Set<PdiPhase>();
     public DbSet<PdiActivity> PdiActivities => Set<PdiActivity>();
     public DbSet<PdiProgress> PdiProgresses => Set<PdiProgress>();
+    public DbSet<UniFiSyncRun> UniFiSyncRuns => Set<UniFiSyncRun>();
     public DbSet<PdiCheckIn> PdiCheckIns => Set<PdiCheckIn>();
     public DbSet<PdiImpediment> PdiImpediments => Set<PdiImpediment>();
     public DbSet<PdiFeedback> PdiFeedbacks => Set<PdiFeedback>();

@@ -27,7 +27,8 @@ public sealed record UniFiSettingsDto(
 public sealed record UniFiConnectionTestResultDto(
     bool Ok,
     int DevicesCount,
-    string? Error);
+    string? Error,
+    string? Version = null);
 
 public sealed record GetUniFiSettingsQuery
     : IQuery<UniFiSettingsDto>, IAuthorizedRequest
@@ -59,6 +60,20 @@ public sealed record TestUniFiConnectionCommand
         RoleAccess.Administer;
 }
 
+/// <summary>F26 Fase 3.1: sites persistidos (visão da UI).</summary>
+public sealed record UniFiSiteViewDto(
+    string ShortId,
+    string Name,
+    string Description,
+    bool Hidden,
+    bool Missing,
+    DateTime UpdatedAtUtc);
+
+public sealed record GetUniFiSitesQuery
+    : IQuery<IReadOnlyList<UniFiSiteViewDto>>
+{
+}
+
 public sealed class GetUniFiSettingsQueryHandler(
     IUniFiSettingsRepository repository,
     IUnifiEnvOptionsAccessor envAccessor)
@@ -87,6 +102,82 @@ public sealed class GetUniFiSettingsQueryHandler(
             PasswordSet: !string.IsNullOrEmpty(env.Password),
             Source: "environment",
             UpdatedAtUtc: null);
+    }
+}
+
+/// <summary>F26 Fase 4: view viva para a UI (DTO do cliente, sem mapear).</summary>
+public sealed record GetUnifiLiveClientsQuery
+    : IQuery<IReadOnlyList<UnifiConnectedClientDto>>
+{
+}
+
+public sealed record GetUnifiNetworksQuery
+    : IQuery<IReadOnlyList<UnifiNetworkDto>>
+{
+}
+
+public sealed class GetUnifiLiveClientsQueryHandler(
+    IUnifiApiClient unifiApiClient)
+    : IRequestHandler<GetUnifiLiveClientsQuery, IReadOnlyList<UnifiConnectedClientDto>>
+{
+    public Task<IReadOnlyList<UnifiConnectedClientDto>> Handle(
+        GetUnifiLiveClientsQuery request, CancellationToken cancellationToken)
+        => unifiApiClient.ListConnectedClientsAsync(cancellationToken);
+}
+
+public sealed record GetUnifiLivePortsQuery(string DeviceMac)
+    : IQuery<IReadOnlyList<UnifiSwitchPortDto>>
+{
+}
+
+public sealed class GetUnifiLivePortsQueryHandler(
+    IUnifiApiClient unifiApiClient)
+    : IRequestHandler<GetUnifiLivePortsQuery, IReadOnlyList<UnifiSwitchPortDto>>
+{
+    public Task<IReadOnlyList<UnifiSwitchPortDto>> Handle(
+        GetUnifiLivePortsQuery request, CancellationToken cancellationToken)
+        => unifiApiClient.ListSwitchPortsAsync(request.DeviceMac, cancellationToken);
+}
+
+public sealed record GetUnifiTopologyQuery : IQuery<UnifiTopologyDto>
+{
+}
+
+public sealed class GetUnifiTopologyQueryHandler(
+    IUnifiApiClient unifiApiClient)
+    : IRequestHandler<GetUnifiTopologyQuery, UnifiTopologyDto>
+{
+    public Task<UnifiTopologyDto> Handle(
+        GetUnifiTopologyQuery request, CancellationToken cancellationToken)
+        => unifiApiClient.GetTopologyAsync(cancellationToken);
+}
+
+public sealed class GetUnifiNetworksQueryHandler(
+    IUnifiApiClient unifiApiClient)
+    : IRequestHandler<GetUnifiNetworksQuery, IReadOnlyList<UnifiNetworkDto>>
+{
+    public Task<IReadOnlyList<UnifiNetworkDto>> Handle(
+        GetUnifiNetworksQuery request, CancellationToken cancellationToken)
+        => unifiApiClient.ListNetworksAsync(cancellationToken);
+}
+
+public sealed class GetUniFiSitesQueryHandler(
+    IUniFiSitesRepository sitesRepository)
+    : IRequestHandler<GetUniFiSitesQuery, IReadOnlyList<UniFiSiteViewDto>>
+{
+    public async Task<IReadOnlyList<UniFiSiteViewDto>> Handle(
+        GetUniFiSitesQuery request, CancellationToken cancellationToken)
+    {
+        var sites = await sitesRepository.ListAsync(cancellationToken);
+        return sites
+            .Select(site => new UniFiSiteViewDto(
+                site.ShortId,
+                site.Name,
+                site.Description,
+                site.Hidden,
+                Missing: site.MissingSinceUtc is not null,
+                site.UpdateDateTime))
+            .ToList();
     }
 }
 
@@ -140,17 +231,15 @@ public sealed class SaveUniFiSettingsCommandHandler(
 }
 
 public sealed class TestUniFiConnectionCommandHandler(
-    IUniFiSettingsRepository repository,
-    IUnifiEnvOptionsAccessor envAccessor,
+    IUniFiOptionsResolver optionsResolver,
     IUnifiClientFactory clientFactory,
-    ICredentialProtector protector,
     ILogger<TestUniFiConnectionCommandHandler> logger)
     : IRequestHandler<TestUniFiConnectionCommand, UniFiConnectionTestResultDto>
 {
     public async Task<UniFiConnectionTestResultDto> Handle(
         TestUniFiConnectionCommand request, CancellationToken cancellationToken)
     {
-        var options = await ResolveOptionsAsync(cancellationToken);
+        var options = await optionsResolver.ResolveAsync(cancellationToken);
         if (!options.IsConfigured)
             return new UniFiConnectionTestResultDto(
                 false, 0,
@@ -160,7 +249,8 @@ public sealed class TestUniFiConnectionCommandHandler(
         {
             var client = clientFactory.Create(options);
             var devices = await client.ListDevicesAsync(cancellationToken);
-            return new UniFiConnectionTestResultDto(true, devices.Count, null);
+            var version = await TryGetVersionAsync(client, cancellationToken);
+            return new UniFiConnectionTestResultDto(true, devices.Count, null, version);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -169,33 +259,18 @@ public sealed class TestUniFiConnectionCommandHandler(
         }
     }
 
-    private async Task<UnifiIntegrationOptions> ResolveOptionsAsync(
-        CancellationToken cancellationToken)
-    {
-        var setting = await repository.GetAsync(cancellationToken);
-        if (setting is null)
-            return envAccessor.Current;
-
-        return new UnifiIntegrationOptions
-        {
-            BaseUrl = setting.BaseUrl,
-            Username = setting.Username,
-            Password = UnprotectQuietly(setting),
-            Site = setting.Site,
-            AllowInvalidTlsCertificate = setting.AllowInvalidTlsCertificate
-        };
-    }
-
-    private string UnprotectQuietly(UniFiIntegrationSetting setting)
+    /// <summary>Versão é opcional: falha nela não invalida o teste de conexão.</summary>
+    private async Task<string?> TryGetVersionAsync(
+        IUnifiApiClient client, CancellationToken cancellationToken)
     {
         try
         {
-            return protector.Unprotect(setting.PasswordEncrypted);
+            return await client.GetSystemVersionAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogError(ex, "Falha ao decifrar a senha UniFi persistida");
-            return string.Empty;
+            logger.LogDebug(ex, "Versão do controller indisponível no teste");
+            return null;
         }
     }
 }

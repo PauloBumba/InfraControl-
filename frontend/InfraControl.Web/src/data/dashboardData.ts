@@ -7,6 +7,8 @@ export const navigation: NavItem[] = [
   { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
   { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
   { label: "Clientes", icon: "pi pi-users", route: "/clients" },
+  { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
+  { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
   { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
   { label: "Locations", icon: "pi pi-map-marker", route: "/locations" },
 ];
@@ -27,6 +29,7 @@ export const secondaryNavigation: NavItem[] = [
   { label: "Convites", icon: "pi pi-send", route: "/invitations" },
   { label: "Auditoria", icon: "pi pi-history", route: "/audit" },
   { label: "Sessões", icon: "pi pi-mobile", route: "/sessions" },
+  { label: "Integrações", icon: "pi pi-link", route: "/integrations" },
   { label: "Configurações", icon: "pi pi-cog", route: "/settings" },
 ];
 

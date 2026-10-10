@@ -1,0 +1,53 @@
+namespace InfraControl.Application.Integrations.Zabbix;
+
+/// <summary>Interface de um host no Zabbix (F27 Fase 2.1/3.1).</summary>
+public sealed record ZabbixInterfaceDto(
+    string Ip,
+    int Port,
+    int Type,
+    bool Main);
+
+/// <summary>Host do Zabbix mapeado para o contrato interno (Fase 3.1).</summary>
+public sealed record ZabbixHostDto(
+    string HostId,
+    string Host,
+    string Name,
+    bool Enabled,
+    bool Discovered,
+    IReadOnlyList<ZabbixInterfaceDto> Interfaces,
+    IReadOnlyList<string> GroupIds,
+    IReadOnlyList<string> TemplateIds);
+
+public sealed record ZabbixHostGroupDto(string GroupId, string Name);
+
+public sealed record ZabbixTemplateDto(string TemplateId, string Name);
+
+/// <summary>Problema aberto/fechado do Zabbix (problem.get).</summary>
+public sealed record ZabbixProblemDto(
+    string EventId,
+    string Name,
+    int Severity,
+    DateTime ClockUtc,
+    string? RecoveryEventId);
+
+public sealed record ZabbixItemDto(
+    string ItemId,
+    string HostId,
+    string Name,
+    string Key,
+    int Type,
+    bool Enabled,
+    bool Unsupported);
+
+public sealed record ZabbixTriggerDto(
+    string TriggerId,
+    string Description,
+    int Priority,
+    bool Enabled,
+    bool Value);
+
+/// <summary>Valor histórico de um item (history.get) com limite aplicado.</summary>
+public sealed record ZabbixHistoryValueDto(
+    string ItemId,
+    DateTime ClockUtc,
+    string Value);

@@ -26,7 +26,7 @@ public sealed class KnowledgeArticleLinkIntegrationTests : BaseIntegrationTest
         UseRole(UserRole.Admin);
 
         var article = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo vinculado", "Conteudo.", null, "Guia"));
+            new CreateKnowledgeArticleCommand("Artigo vinculado", "Conteudo.", null));
 
         await mediator.Send(new LinkKnowledgeArticleDeviceCommand(article.Id, device.Id));
 
@@ -46,7 +46,7 @@ public sealed class KnowledgeArticleLinkIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var article = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo solitario", "Conteudo.", null, "Guia"));
+            new CreateKnowledgeArticleCommand("Artigo solitario", "Conteudo.", null));
         var unknown = Guid.NewGuid();
 
         var action = () => mediator.Send(
@@ -65,7 +65,7 @@ public sealed class KnowledgeArticleLinkIntegrationTests : BaseIntegrationTest
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         UseRole(UserRole.Admin);
         var article = await mediator.Send(
-            new CreateKnowledgeArticleCommand("Artigo duplicado", "Conteudo.", null, "Guia"));
+            new CreateKnowledgeArticleCommand("Artigo duplicado", "Conteudo.", null));
 
         await mediator.Send(new LinkKnowledgeArticleDeviceCommand(article.Id, device.Id));
 

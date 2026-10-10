@@ -83,6 +83,117 @@ public sealed class UnifiIntegrationController(
     }
 
     /// <summary>
+    /// F26 Fase 3.1: sites persistidos (leitura — sincronizados no sync de
+    /// inventário; site ausente no controller aparece como `Missing`).
+    /// </summary>
+    [HttpGet("sites")]
+    public async Task<IActionResult> GetSites(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetUniFiSitesQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// F26 Fase 4.1: clientes conectados AO VIVO (stat/sta) — nunca
+    /// persistidos (REGRA 8); "desconectado" é ausência nesta consulta,
+    /// não um estado gravado.
+    /// </summary>
+    [HttpGet("clients")]
+    public async Task<IActionResult> GetClients(CancellationToken cancellationToken)
+    {
+        var client = await sender.Send(new GetUnifiLiveClientsQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(client));
+    }
+
+    /// <summary>
+    /// F26 Fase 5: portas do switch com o MAC informado (port_table ao
+    /// vivo — REGRA 8: nada é persistido; "down" só quando o controller
+    /// respondeu).
+    /// </summary>
+    [HttpGet("switches/{mac}/ports")]
+    public async Task<IActionResult> GetSwitchPorts(
+        string mac, CancellationToken cancellationToken)
+    {
+        var ports = await sender.Send(
+            new GetUnifiLivePortsQuery(mac), cancellationToken);
+        return Ok(ApiResponse.Ok(ports));
+    }
+
+    /// <summary>F26 Fase 9.3: histórico de sincronizações (filtros).</summary>
+    [HttpGet("sync-runs")]
+    public async Task<IActionResult> GetSyncRuns(
+        [FromQuery] int limit = 50,
+        [FromQuery] bool? succeeded = null,
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var runs = await sender.Send(
+            new ListUniFiSyncRunsQuery(limit, succeeded, fromUtc, toUtc), cancellationToken);
+        return Ok(ApiResponse.Ok(runs));
+    }
+
+    /// <summary>
+    /// F26 Fase 8: dashboard UniFi — persistido × ao vivo separados no DTO.
+    /// </summary>
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboard(CancellationToken cancellationToken)
+    {
+        var dashboard = await sender.Send(new GetUnifiDashboardQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(dashboard));
+    }
+
+    /// <summary>
+    /// F26 Fase 7: correlação UniFi↔inventário (matched/unlinked/conflitos)
+    /// sobre ExternalDeviceReference.
+    /// </summary>
+    [HttpGet("correlation")]
+    public async Task<IActionResult> GetCorrelation(CancellationToken cancellationToken)
+    {
+        var correlation = await sender.Send(new GetUniFiCorrelationQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(correlation));
+    }
+
+    /// <summary>F26 Fase 7.2: vínculo manual MAC→Device (só Administer).</summary>
+    [HttpPost("links")]
+    public async Task<IActionResult> CreateLink(
+        [FromBody] CreateUniFiAssetLinkCommand command, CancellationToken cancellationToken)
+    {
+        var link = await sender.Send(command, cancellationToken);
+        return Ok(ApiResponse.Ok(link));
+    }
+
+    /// <summary>
+    /// F26 Fase 7.3: remove SÓ o vínculo — o histórico do Device é
+    /// preservado (só Administer).
+    /// </summary>
+    [HttpDelete("links/{mac}")]
+    public async Task<IActionResult> DeleteLink(string mac, CancellationToken cancellationToken)
+    {
+        await sender.Send(new DeleteUniFiAssetLinkCommand(mac), cancellationToken);
+        return Ok(ApiResponse.Ok<object>(new { }));
+    }
+
+    /// <summary>
+    /// F26 Fase 6: topologia derivada do stat/device (uplink + LLDP quando
+    /// presente) — ao vivo, nunca persistida (REGRA 8).
+    /// </summary>
+    [HttpGet("topology")]
+    public async Task<IActionResult> GetTopology(CancellationToken cancellationToken)
+    {
+        var topology = await sender.Send(new GetUnifiTopologyQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(topology));
+    }
+
+    /// <summary>F26 Fase 4.2: redes/SSIDs configurados (rest/networkconf).</summary>
+    [HttpGet("networks")]
+    public async Task<IActionResult> GetNetworks(CancellationToken cancellationToken)
+    {
+        var networks = await sender.Send(new GetUnifiNetworksQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(networks));
+    }
+
+    /// <summary>
     /// F26 Fase 2.2: teste de conexão com a configuração efetiva (banco →
     /// env). Nunca lança por falha de conexão — o erro identificável vem no
     /// resultado.
