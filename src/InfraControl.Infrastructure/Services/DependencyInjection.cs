@@ -7,6 +7,7 @@ using Microsoft.Extensions.Http.Resilience;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.AI;
 using InfraControl.Application.AI.Context;
+using InfraControl.Application.AI.Evaluation;
 using InfraControl.Application.AI.Health;
 using InfraControl.Application.AI.Tools;
 using InfraControl.Application.Common.Interfaces;
@@ -405,6 +406,14 @@ public static class DependencyInjection
             provider.GetRequiredService<IKeywordSearch>(),
             provider.GetRequiredService<IReranker>(),
             provider.GetRequiredService<ILogger<KnowledgeHybridRetrievalService>>()));
+
+        // FAI-T010 (S9): harness de avaliação (§45) — checks que não
+        // dependem de LLM (tool selection, authorization, grounding);
+        // o IEvaluationScenario do fluxo real entra com o Copilot/Fase 1.
+        services.AddScoped<IEvaluationCheck, ToolSelectionCheck>();
+        services.AddScoped<IEvaluationCheck, AuthorizationCheck>();
+        services.AddScoped<IEvaluationCheck, GroundingCheck>();
+        services.AddScoped<EvaluationHarness>();
 
         // F0-T024: registro automático de todos os pares I*Repository (Application)
         // ↔ *Repository (Infrastructure) por varredura de assembly — fail-fast no

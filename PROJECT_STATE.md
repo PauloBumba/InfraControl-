@@ -884,6 +884,18 @@ Docs: ADR-032, docs/30 (situação+§25), docs/29 §8, TASKS.
   +14 → unit **1974/1974** · arch **119/119** · build 0. Docs:
   TASKS FAI-T009 [x], docs/35 §11 S8 ✓, docs/ai/01.
 
+- Fase AI — **FAI-T010 (S9): Evaluation foundation concluída**
+  (2026-10-09): `Application/AI/Evaluation/` com `EvaluationCase`
+  (expectativas: ferramentas esperadas/proibidas, negação esperada,
+  mínimo de evidências, citações obrigatórias), `EvaluationOutcome`
+  (o cenário sob teste devolve ferramentas/evidências/citações/
+  denied), `EvaluationHarness` (todos os checks; reprovação com
+  motivo por check — evidência auditável §46) e os 3 checks sem LLM
+  (§45): tool selection, authorization e grounding. `IEvaluationScenario`
+  real entra na Fase 1 sem mudar o harness (docs/ai/02-evaluation.md).
+  Testes +7 → unit **1981/1981** · arch **119/119** · build 0. Docs:
+  TASKS FAI-T010 [x], docs/35 §11 S9 ✓, docs/ai/01/02.
+
 - PDI Fase 3 — Acompanhamento concluída (2026-10-06, mesma
   autorização "todas as fases 2→8"; escopo docs/30 §9–§11, §13):
   **ADR-033** (`docs/adr/ADR-033-PDI-ACCOMPANIMENT.md`). Domínio: 4

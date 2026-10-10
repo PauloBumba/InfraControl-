@@ -394,7 +394,9 @@ tranche S1+S2 foi aprovado e executado em 2026-10-08.
 - [x] **FAI-T009 S8 — Context Engine + RAG foundation** <!-- CONCLUÍDA 2026-10-09 (ADR-038): `Application/AI/Context/` — modelos §19 (`Evidence`/`EvidenceSet`/`EvidenceSource`/`EvidenceConfidence`, pipeline só emite Probable nunca Confirmed), contratos (IEmbeddingProvider/IVectorStore/IKeywordSearch/IReranker/IRetrievalService/IContextBuilder/IAiKnowledgeIngestion) e v1: `KnowledgeHybridRetrievalService` (vetor+keyword→merge por Id com melhor score→rerank; degrada para keyword §44 sem store ou com embedding quebrado — nunca erro, nunca dado inventado), `HeuristicReranker` (score+recência, sem LLM), `EvidenceSetContextBuilder` (dedupe por citação, confiança Probable, tool+traceId), `KnowledgeChunker` (parágrafo, limite 1500 chars documentado — janela curta §11, sem perda de conteúdo), `KnowledgeIngestionService`+command `IngestKnowledgeArticleForAiCommand` (só Published §3; chunk→embed→upsert com metadados; trigger automático na publicação = passo seguinte quando pgvector existir). Infra: `OllamaEmbeddingProvider` (HTTP POST /api/embed, `Ai:Ollama:EmbeddingModel` — appsettings/Workers = nomic-embed-text; sem modelo = estado §44), `KnowledgeKeywordSearch` (term do K7, Published only, score=rank). **pgvector avaliação**: `postgres:17-alpine` oficial NÃO embute pgvector (ADR-038 §1) — avaliar imagem `pgvector/pgvector:pg17` ou build custom; `IVectorStore` deliberadamente NÃO registrado no DI até o ambiente validar (avaliação pendente de Docker, §46 — doc não é evidência). Testes +14 (AiContextTests 10: chunker×3, híbrida×4 incl. degradação §44, evidence §19, ingesta×2; OllamaEmbeddingProviderTests 4) → unit **1960→1974** · arch **119/119** · build 0. -->
 </invoke>
 
-- [ ] **FAI-T010 S9 — Evaluation foundation** <!-- harness de avaliação §45 (grounding, tool selection, authorization) — esqueleto antes do critério §67 Fase 0→1 (S9). -->
+- [x] **FAI-T010 S9 — Evaluation foundation** <!-- CONCLUÍDA 2026-10-09: `Application/AI/Evaluation/` — `EvaluationCase` (pergunta + expectativas: ExpectedTools/ForbiddenTools/ExpectDenied/MinEvidenceCount/RequiredCitations), `EvaluationOutcome` (o cenário sob teste devolve ferramentas executadas, nº de evidências, citações, denied+motivo, resposta), `EvaluationHarness` (roda casos por um `IEvaluationScenario` injetado e aplica TODOS os `IEvaluationCheck` — caso aprova só com todos os checks; `EvaluationRunResult` guarda o motivo de cada reprovação, §46/§63) e os 3 checks que NÃO dependem de LLM (§45): `ToolSelectionCheck` (esperadas ⊆ executadas; proibidas ∩ executadas = ∅), `AuthorizationCheck` (ExpectDenied ⟺ Denied; negação de chamada legítima reprova com o motivo) e `GroundingCheck` (mínimo de evidências + citações obrigatórias). DI: harness + checks registrados; `IEvaluationScenario` real (Copilot/Ollama) entra na Fase 1 sem mudar o harness. Doc: docs/ai/02-evaluation.md (formato de caso, checks, pendências — hallucination/confidence/timeout/injection exigem modelo real). Testes +7 (AiEvaluationTests: perfeito, ferramenta errada, proibida, esperava-negacao, negou-legitima, grounding, multi-caso) → unit **1974→1981** · arch **119/119** · build 0. -->
+</invoke>
+
 
 
 ## Dados de demonstração (2026-10-02)
@@ -523,7 +525,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] FAI-T007 AI: segurança LEVEL 0 — audit AI.* + limites (S6) — concluída (2026-10-09, unit 1949)
 - [x] FAI-T008 AI: MCP foundation + tools de leitura (S7) — concluída (2026-10-09, unit 1960)
 - [x] FAI-T009 AI: Context Engine + RAG foundation (S8) — concluída (2026-10-09, unit 1974; pgvector = pendência de ambiente)
-- [ ] FAI-T010 AI: evaluation foundation (S9)
+- [x] FAI-T010 AI: evaluation foundation (S9) — concluída (2026-10-09, unit 1981; cenário real = Fase 1)
 
 
 

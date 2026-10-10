@@ -3,7 +3,7 @@
 > Espelho executivo do diagnóstico `docs/35` (Sprint 0) e dos ADRs
 > 036–041. Atualizado a cada entrega da Fase 0.
 
-## Estado atual (S1–S8 entregues; zero chamada a LLM)
+## Estado atual (S1–S9 entregues; zero chamada a LLM)
 
 - 7 projetos .NET 10 (Clean Architecture + DDD + CQRS/MediatR +
   Vertical Slice + Modular Monolith, ADR-001/006/007/031) com módulos
@@ -49,6 +49,11 @@
   avaliação da imagem pgvector (`postgres:17-alpine` não a embute) +
   `IVectorStore` no DI + trigger de ingesta na publicação — todas
   condicionadas a ambiente com Docker.
+- **S9 (2026-10-09)**: evaluation foundation (§45) —
+  `EvaluationHarness` + `EvaluationCase`/`EvaluationOutcome` + os 3
+  checks sem LLM (tool selection, authorization, grounding/citations);
+  o `IEvaluationScenario` real (Copilot/Ollama) entra na Fase 1 sem
+  mudar o harness. Guia: `docs/ai/02-evaluation.md`.
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

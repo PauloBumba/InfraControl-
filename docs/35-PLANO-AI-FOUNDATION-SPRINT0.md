@@ -250,6 +250,9 @@ S8 — Context Engine + RAG foundation (avaliação pgvector, embedding
       pgvector = pendência de Docker — IVectorStore fora do DI)
    ↓
 S9 — Evaluation foundation (harness de avaliação §45)
+      ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T010: harness +
+      checks tool-selection/authorization/grounding sem LLM; cenário
+      real = Fase 1 — docs/ai/02)
    ↓
 DoD §63 + critério §67 (Fase 0 → Fase 1)  →  checkpoint
    ↓
@@ -279,3 +282,55 @@ aprovada) · 12 migrações pendentes.
   migrações não aplicadas.
 - Push para `origin/main` pendente de autenticação (13+ commits
   locais após a Fase 24).
+
+## 14. Gate Fase 0 → Fase 1 (DoD §63 + critério §67 — avaliação 2026-10-09)
+
+Os sprints S1–S9 estão **todos implementados** (código + testes +
+docs + commit local por task). O gate está **aberto com pendências de
+ambiente**: segundo §46/§67, "documentação não é evidência" — os
+itens marcados ⚠️ exigem Docker/Ollama/pgvector para virarem evidência
+de execução.
+
+### DoD §63 (funcionalidade de IA)
+
+| Item | Estado | Evidência |
+|---|---|---|
+| Código | ✓ | S1–S9 (`src/*/AI/`) |
+| Testes | ✓ | unit **1981/1981** (suite AI: 82) · arch **119/119** |
+| Autorização | ✓ | tools: RoleAccess do pipeline (§41) + gate `IAuthorizedRequest` |
+| Logs | ✓ | `AuditAiAuditSink` + `Logging` por chamada/tool |
+| Telemetria | ✓ | `AiDiagnostics` `InfraControl.AI` (activity + métricas §43) |
+| Tratamento de erros | ✓ | exceções pt-BR, degradação §44, fail-open de auditoria |
+| Documentação | ✓ | docs/35 §11–§14, docs/ai/01–02, ADR-036–041, TASKS |
+| UI | n/a | Fase 0 sem UI (Copilot = Fase 1) |
+| Auditoria | ✓ | `AI.{capacidade}` (§41/§54) + `AI.Tool.{nome}` (§41) |
+| Prompt documentado | n/a | nenhum prompt de produto existe ainda (sem LLM) |
+| Tool documentada | ✓ | descriptor §52 por tool + docs/ai/01 |
+| Evaluation test | ✓ (base) | harness + 3 checks sem LLM; cenário real = Fase 1 |
+| Docker validado | ⚠️ | sem Docker no workstation (§13) |
+| Health check | ✓ | `ai-runtime` no `/health` (tag `ai`; degradado sem Ollama) |
+| Evidência de execução | ⚠️ | geração real Ollama/integração = pendente de ambiente |
+
+### Critério §67 (Fase 0 → Fase 1)
+
+| Exigência | Estado |
+|---|---|
+| AI Gateway funcionando | ✓ (testes) · ⚠️ integração real |
+| Provider Manager funcionando | ✓ (registry/router/testes) |
+| Ollama funcionando | ⚠️ pendente de ambiente |
+| Modelo testado | ⚠️ pendente de ambiente |
+| Runtime Health funcionando | ✓ (degradado sem Ollama, saudável com) |
+| Audit funcionando | ✓ (auditoria de domínio F0-T014) |
+| Observabilidade funcionando | ✓ (collector padrão captura `InfraControl.AI`) |
+| Permissions funcionando | ✓ (RoleAccess/ADR-016 na camada de tools) |
+| MCP foundation funcionando | ✓ (registry + executor + 2 tools; server = ADR-039) |
+| Context Engine funcionando | ✓ (híbrida degradada) · ⚠️ vetorial |
+| RAG foundation funcionando | ✓ contrato+v1 · ⚠️ pgvector (avaliação de imagem) |
+| Tool contracts funcionando | ✓ (§52 completo) |
+| Evaluation foundation funcionando | ✓ (harness; cenário real = Fase 1) |
+| Docker validado | ⚠️ §13 |
+| Testes passando | ✓ 1981 unit + 119 arch |
+
+**Decisão**: Fase 0 implementada por completo; o avanço efetivo para a
+Fase 1 fica condicionado às pendências de ambiente da §13 (Docker →
+Ollama real → pgvector → migrações → integração gateway↔Ollama).
