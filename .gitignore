@@ -264,6 +264,7 @@ node_modules/
 
 # TypeScript
 *.js.map
+*.tsbuildinfo
 
 # Environment
 .env

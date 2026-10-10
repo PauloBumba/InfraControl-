@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { NetworkServicesSection } from "@/components/network/NetworkServicesSection";
 import { Column } from "primereact/column";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import {
@@ -33,7 +34,8 @@ import {
  * aplica: VLAN não tem campo de estado (EntityView sem config → grid).
  *
  * Contrato real: `GET/POST/PUT/DELETE /api/v1/network/vlans`. As abas
- * DHCP/Rotas/Firewall do protótipo não existem no backend (sem slice).
+ * DHCP/Rotas/Firewall do protótipo voltaram no F18-T005 (ADR-042) via
+ * `NetworkServicesSection` — leitura do equipamento configurado.
  */
 
 export function NetworkPage() {
@@ -288,6 +290,8 @@ export function NetworkPage() {
           onPage={setPage}
         />
       )}
+
+      <NetworkServicesSection />
 
       <Dialog
         visible={formVisible}

@@ -98,10 +98,10 @@ builder.Services
     .Bind(builder.Configuration.GetSection(UnifiIntegrationOptions.SectionName));
 
 // Decisão do usuário 01/10/2026: a origem dos links de e-mail (convite
-// F1-T017; reset quando a página /reset-password nascer) vem da config
-// Frontend:BaseUrl — vazio = origem da própria request (nginx same-origin em
-// produção); preenchido em dev, onde a API vista pelo proxy do vite
-// (localhost:7237) não é a origem do SPA (localhost:3000).
+// F1-T017 e reset de senha — página /reset-password entregue em 10/10/2026)
+// vem da config Frontend:BaseUrl — vazio = origem da própria request (nginx
+// same-origin em produção); preenchido em dev, onde a API vista pelo proxy do
+// vite (localhost:7237) não é a origem do SPA (localhost:3000).
 builder.Services
     .AddOptions<FrontendOptions>()
     .Bind(builder.Configuration.GetSection(FrontendOptions.SectionName));

@@ -160,7 +160,13 @@ public sealed class IdentityAuthenticationService(
             var token = GenerateToken();
             await cache.SetAsync($"identity:password-reset:{Hash(token)}", email, TimeSpan.FromMinutes(30), cancellationToken);
             var baseUrl = request.BaseUrl ?? string.Empty;
-            var resetUrl = $"{baseUrl.TrimEnd('/')}/api/v1/auth/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+
+            // O link e-maiado nasce na PÁGINA pública /reset-password do SPA
+            // (a rota GET da API não existe: só POST → 405; o fluxo morria no
+            // e-mail). Origem vem do controller (Frontend:BaseUrl com fallback
+            // à request — decisão 01/10/2026); sem origem o link sai relativo,
+            // como o do aceite de convite.
+            var resetUrl = $"{baseUrl.TrimEnd('/')}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
             await emailSender.SendPasswordResetAsync(email, resetUrl, cancellationToken);
         }
 

@@ -5,8 +5,8 @@ import type { DeviceItem } from "./inventory";
  * F17-T008 — conexão da NetworkPage ao backend (contrato real de
  * `GET/POST /api/v1/network/vlans`). Espelha `VlanDto`.
  *
- * DHCP, rotas e regras de firewall NÃO têm endpoint no backend (grep nos
- * controllers: nenhuma rota correspondente) — as abas do protótipo saíram.
+ * DHCP, rotas e regras de firewall voltaram no F18-T005 (ADR-042) —
+ * ver a seção "Serviços de rede" ao final do arquivo.
  */
 export interface VlanItem {
   id: string;
@@ -136,4 +136,60 @@ export interface TopologyGraph {
 
 export async function getTopology(): Promise<TopologyGraph | null> {
   return api.get<TopologyGraph>("/network/topology");
+}
+
+// ============ F18-T005 — Serviços de rede (ADR-042) ============
+
+/**
+ * `GET /api/v1/network/services/{dhcp/leases|routes|firewall/rules}`
+ * (F18-T005 · ADR-042) — SOMENTE LEITURA, snapshot ao vivo do
+ * equipamento configurado (`NetworkServices:Target`): leases/ARP e
+ * rotas via SNMP, ACLs via SSH por vendor (v1: Cisco `show access-lists`).
+ * Sem target ou equipamento inacessível = 503 + motivo no envelope — a
+ * página mostra o motivo honesto em vez de dado inventado.
+ */
+export interface DhcpLeaseItem {
+  ip: string;
+  mac: string;
+  ifIndex: number;
+}
+
+export interface NetworkRouteItem {
+  destination: string;
+  mask: string;
+  nextHop: string;
+  ifIndex: number;
+  metric: number;
+  /** "direct"/"indirect"/"other" (RFC1213) ou número cru. */
+  type: string;
+  /** "local"/"ospf"/"rip"… (RFC1213) ou número cru. */
+  protocol: string;
+}
+
+export interface FirewallRuleItem {
+  acl: string;
+  /** "Standard"/"Extended" ou vazio ("IP access list X" do IOS-XE). */
+  scope: string;
+  sequence: number;
+  /** "permit"/"deny" (cru, como o device mostra). */
+  action: string;
+  /** "tcp"/"udp"/"icmp"… ou vazio (ACL padrão não tem protocolo). */
+  protocol: string;
+  /** Texto CRU do device (host/any/wildcard/eq…) — sem semântica inventada. */
+  expression: string;
+}
+
+export async function listDhcpLeases(): Promise<DhcpLeaseItem[]> {
+  const data = await api.get<DhcpLeaseItem[]>("/network/services/dhcp/leases");
+  return data ?? [];
+}
+
+export async function listNetworkRoutes(): Promise<NetworkRouteItem[]> {
+  const data = await api.get<NetworkRouteItem[]>("/network/services/routes");
+  return data ?? [];
+}
+
+export async function listFirewallRules(): Promise<FirewallRuleItem[]> {
+  const data = await api.get<FirewallRuleItem[]>("/network/services/firewall/rules");
+  return data ?? [];
 }

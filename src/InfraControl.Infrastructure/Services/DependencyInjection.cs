@@ -37,6 +37,7 @@ using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
+using InfraControl.Application.Network.Services.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.AI;
 using InfraControl.Infrastructure.Caching;
@@ -47,6 +48,8 @@ using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Integrations.Unifi;
 using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
+using InfraControl.Infrastructure.NetworkServices;
+using InfraControl.Infrastructure.NetworkServices.Ports;
 using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
 using MassTransit;
@@ -333,6 +336,16 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpSystemMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
+
+        // Network services read (F18-T005, ADR-042): leases DHCP/ARP +
+        // rotas via SNMP (reusa ISnmpClient) e ACLs via SSH de leitura
+        // por vendor (reusa SSH.NET do ADR-013). Somente leitura.
+        services.Configure<NetworkServicesOptions>(
+            configuration.GetSection(NetworkServicesOptions.SectionName));
+        services.AddScoped<INetworkServicesReader, NetworkServicesReader>();
+        services.AddScoped<ISshCommandRunner, SshNetCommandRunner>();
+        services.AddScoped<IFirewallVendorReader, CiscoFirewallVendorReader>();
+        services.AddScoped<IFirewallVendorReaderSelector, FirewallVendorReaderSelector>();
 
         // Remote access (F11-T002/T003, ADR-013): SSH sem terminal interativo
         // + probe RDP TCP/X.224. Credencial: store por device cifrado com

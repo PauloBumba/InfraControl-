@@ -14,11 +14,15 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace InfraControl.Api.Controllers.Identity;
 
 [Route("api/v1/auth")]
-public sealed class AuthenticationController(IIdentityAuthenticationService authenticationService, IAntiforgery antiforgery) : BaseController
+public sealed class AuthenticationController(
+    IIdentityAuthenticationService authenticationService,
+    IAntiforgery antiforgery,
+    IOptions<FrontendOptions> frontendOptions) : BaseController
 {
     [AllowAnonymous]
     [HttpPost("register")]
@@ -108,7 +112,16 @@ public sealed class AuthenticationController(IIdentityAuthenticationService auth
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, CancellationToken cancellationToken)
     {
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        // Origem do link do e-mail: config Frontend:BaseUrl (decisão do usuário
+        // de 01/10/2026, MESMA do convite F1-T017) com fallback à origem da
+        // própria request (produção com nginx same-origin serve SPA e API no
+        // mesmo host). O link aponta para a página pública /reset-password do
+        // SPA — não para a API: a rota GET não existe (só POST → 405) e o fluxo
+        // precisa de tela (pendência fechada com a página ResetPasswordPage).
+        var configured = frontendOptions.Value.BaseUrl;
+        var baseUrl = string.IsNullOrWhiteSpace(configured)
+            ? $"{Request.Scheme}://{Request.Host}"
+            : configured.TrimEnd('/');
         var result = await authenticationService.RequestPasswordResetAsync(new ForgotPasswordRequest(model.Email, baseUrl), cancellationToken);
         return Ok(ApiResponse.Ok(result));
     }

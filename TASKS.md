@@ -63,7 +63,7 @@ Ordem de execução recomendada (uma Task IN_PROGRESS por vez):
 - [x] F0-T007 Configurar RabbitMQ
 - [x] F0-T008 Configurar migrations
 - [x] F0-T009 Configurar observabilidade base
-- [ ] F0-T010 Configurar CI (BLOCKED: conta atingiu 2.000/2.000 minutos do GitHub Actions; reset em 01/10/2026)
+- [ ] F0-T010 Configurar CI <!-- bloqueio de cota EXPIROU: o reset previsto era 01/10/2026 e a data já passou (atualizado 10/10) — reavaliar a cota do GitHub Actions (2.000 min) antes de configurar -->
 - [x] F0-T011 Criar estrutura Frontend e dashboard inicial
 - [x] F0-T012 Documentar capacidades extraídas do Sentinel e critérios de adoção
 - [x] F0-T013 Implementar behaviors base, autorização, cache, transação, rate limiting, Outbox Dispatcher e health endpoints
@@ -324,11 +324,11 @@ destinatários Operator + Admin). Arquitetura em ADR-023, runbook em docs/27.
 
 ## Fase 22 — Governança e Diretrizes de Alinhamento Arquitetural
 
-- [ ] **F22-T001 Diretriz de Alinhamento Arquitetural & Verificação do Código Real** <!-- Antes de implementar cada Task, confrontar a instrução com o código real. Se houver divergência: 1. identificar; 2. avaliar se pode implementar sem alterar arquitetura; 3. implementar respeitando o código; 4. se não puder, PARAR e reportar a divergência. Proibido antecipar tasks futuras. -->
-- [ ] **F22-T002 Diretriz do Sistema de Registro Operacional (System of Record)** <!-- InfraControl é o sistema de registro operacional para Device, Alert, Incident, Task, SLA/SLO e auditoria. Sistemas externos mantidos em suas especialidades (Zabbix -> triggers, UniFi -> estado infra, n8n -> automações). -->
-- [ ] **F22-T003 Diretriz de Idempotência em Eventos Externos** <!-- Garantir reprocessamento seguro. Eventos duplicados não podem gerar Alerts, Incidents, Tasks ou Notificações duplicadas. -->
-- [ ] **F22-T004 Diretriz do Ciclo de Recuperação Problem / Recovery** <!-- Problem e Recovery são eventos distintos vinculados exclusivamente por ExternalProblemId. NUNCA utilizar busca por Título + Device no Recovery quando houver identificador externo. -->
-- [ ] **F22-T005 Diretriz de Não Duplicação de Telemetria** <!-- Persistir no PostgreSQL somente o estado, eventos, identidade e informações operacionais. Telemetria detalhada de massa é consultada sob demanda ou mantida em cache Redis com TTL curto. -->
+- [x] **F22-T001 Diretriz de Alinhamento Arquitetural & Verificação do Código Real** <!-- INCORPORADA (fechada 2026-10-10): a diretriz vive no processo do AGENTS.md ("não inventar requisitos", "não alterar arquitetura sem ADR", ciclo Ler contexto → confirmar Task → implementar pequena parte → parar no checkpoint) e é praticada em toda Task (ex.: divergência do código real no F18-T001 registrada em 02/10 em vez de implementar por cima). -->
+- [x] **F22-T002 Diretriz do Sistema de Registro Operacional (System of Record)** <!-- INCORPORADA (fechada 2026-10-10): ADR-028 §1 define InfraControl como System of Record de Device, Alert, Incident, Task, SLA/SLO, auditoria e estado de atendimento, com responsabilidades externas em Zabbix (triggers), UniFi (estado de infra) e n8n (automações) — texto integral no ADR-028. -->
+- [x] **F22-T003 Diretriz de Idempotência em Eventos Externos** <!-- INCORPORADA (fechada 2026-10-10): implementada e testada no F16-T001 (dedup "duplicate" anti-storm do Zabbix), F19-T001 (índices/locks que impedem Alert duplicado) e F20 — eventos externos duplicados não geram registros duplicados (unit + integração na data). -->
+- [x] **F22-T004 Diretriz do Ciclo de Recuperação Problem / Recovery** <!-- INCORPORADA (fechada 2026-10-10): ADR-027 — vinculação por ExternalProblemId; busca por Título+Device no Recovery banida (regra 2 da revisão F19/F20/F21; GetOpenByTitleAndDeviceAsync removido na revisão, testes garantem). -->
+- [x] **F22-T005 Diretriz de Não Duplicação de Telemetria** <!-- INCORPORADA (fechada 2026-10-10): regra 8/9 da revisão F19/F20/F21 (linha ~296: UniFi → milhões de registros → PostgreSQL proibido; consulta sob demanda UniFi → Redis → Frontend) + ADR-028 §8 — operante no F20-T001, que persiste apenas Device e ExternalDeviceReference. -->
 
 ## Fase 23 — Tasks: Plano de Execução (spec × código)
 
@@ -369,11 +369,11 @@ quantitativos (ex.: "tasks concluídas por pessoa" isolado) — considerar
 complexidade, tipo, prazo, resultado, impacto e contexto.
 
 - [ ] **F25-T001 Indicadores de Tasks, PDI e Knowledge (§2–§4)** <!-- agregações de volume/execução/distribuição/melhoria/resultado por módulo (hoje só dashboard genérico F14) — endpoints de leitura + testes; decisão de armazenamento (consulta × tabela de indicadores) no design. -->
-- [ ] **F25-T002 Indicadores integrados / cruzamentos (§5)** <!-- Chamados→Tasks, Tasks→Knowledge, PDI→Knowledge, Knowledge→Chamados, Task→PDI — depende dos vínculos (P5a pronto; P5b/P5c e K4/K6 abertos) — definir ordem de execução no design. -->
+- [ ] **F25-T002 Indicadores integrados / cruzamentos (§5)** <!-- Chamados→Tasks, Tasks→Knowledge, PDI→Knowledge, Knowledge→Chamados, Task→PDI — vínculos TODOS prontos (P5a+P5b+P5c fechados no F23-T005; K4/K6 no F24, 07/10 — pré-requisito zerado) — desbloqueada; definir ordem de execução no design. -->
 - [ ] **F25-T003 Dashboards: colaborador, gestor e administrativo (§6–§8)** <!-- minhas Tasks/meu PDI/meu conhecimento; visão gestor (prazos, impedimentos, aprovações pendentes); visão administrativa consolidada por setor/equipe/período/responsável/tipo com filtros. -->
 - [ ] **F25-T004 Relatórios: Tasks, PDI, Knowledge e gerencial (§9–§12)** <!-- relatórios por período (resumo/execução/melhorias/impacto) + relatório gerencial da §12 (resumo executivo → próximos passos) — endpoints estruturados; formato de apresentação decidido no design. -->
 - [ ] **F25-T005 Histórico de indicadores + exportação (§13–§14)** <!-- série histórica mensal para comparação/tendência (JAN–ABR) + exportação PDF/Excel/CSV — definir retenção e formato; testes de exportação. -->
-- [ ] **F25-T006 Relatórios automáticos e interpretação por IA (§15–§16)** <!-- mensal/trimestral/semestral/anual + interpretação textual dos indicadores — usa SOMENTE dados reais do sistema; SEM infra de IA no repo (docs/31 §12): definição de arquitetura antes (como K6 — possível ADR). -->
+- [ ] **F25-T006 Relatórios automáticos e interpretação por IA (§15–§16)** <!-- mensal/trimestral/semestral/anual + interpretação textual dos indicadores — usa SOMENTE dados reais do sistema; infra de IA AGORA EXISTE desde a Fase 0 (AI Gateway + providers FAI-T004/T005 — docs/ai/01; a antiga premissa "SEM infra de IA (docs/31 §12)" foi superada em 09/10) — arquitetura a definir antes (como K6 — possível ADR). -->
 
 
 ## Fase AI — AI Foundation (blueprint docs/34; plano docs/35)
@@ -459,9 +459,9 @@ Levantamento completo em `docs/28-LEVANTAMENTO-COMPONENTES-UI.md` (pedido: "ajus
 Plano de entregas, dependências e critérios em `docs/29-OPERATIONS-UX-BACKLOG.md`.
 
 - [x] Feedback contextual — `Messages` inline substitui Toast em Users, Sessions e Notifications.
-- [ ] Governança de convites — consulta administrativa e aba de status/histórico.
-- [ ] Notificações SignalR e detalhes de eventos.
-- [ ] Topologia SVG: seleção e detalhes de nós/arestas.
+- [x] Governança de convites — consulta administrativa e aba de status/histórico. <!-- CONCLUÍDA 2026-10-03 (docs/29-OPERATIONS-UX-BACKLOG item 2): GET /api/v1/admin/invitations (Admin, Pending/Accepted/Rejected/Expired), GET /invitations/me, accept/reject em tempo real, Invitation no RetentionPolicy, InvitationsPage com filtros/busca/ações + seção "Convites pendentes" no Dashboard. -->
+- [x] Notificações SignalR e detalhes de eventos. <!-- CONCLUÍDA 2026-10-04 (backlog item 3): hub GET /hubs/notifications com payload eventType (docs/07 §Canal SignalR), services/signalr/notifications.ts (singleton por aba, antiforgery no negotiate, retry/reconexão) consumido pelo AppLayout (sino com contador) e pela NotificationsPage (insert na página 1 com dedup). -->
+- [x] Topologia SVG: seleção e detalhes de nós/arestas. <!-- CONCLUÍDA 2026-10-03 (backlog item 4): seleção por clique em device/aresta, painel de detalhes na sidebar + botão "Ver device", Esc/clique no fundo limpam, hit-area de 12px nas arestas. -->
 - [ ] Conhecimento: edição e visões lista/tabela/quadro.
 - [ ] Tarefas: operador responsável, gráfico e relatório operacional.
 - [x] PDI (Plano de Desenvolvimento Individual) — conceito 2026-10-03; **mínimo viável executado 2026-10-04** (pedido "checklist B1–B4 + commit"): **B1 backend** — entity `IndividualDevelopmentPlan` (1 por usuário, `Strategy` ≤4000, `TargetDate`, `PdiStatus` InProgress/Completed/Cancelled; `Create/Update` recebem `PdiChangeActor` e levantam evento), migração `20261004020056_AddIndividualDevelopmentPlans` aplicada no dev, `PdiRepository` (join `DomainUsers` p/ nome+dono), `UpsertPdiCommand` (ownership: Admin tudo / Operador só o próprio; **criação só Admin** → 403; status ignoreCase) + `ListPdisQuery` escopada por role, `PdiController` `GET/PUT /api/v1/pdi` (policy Operate), eventos `PdiCreated/UpdatedDomainEvent` → outbox → RabbitMQ → consumers no `NotificationEventConsumer` (**criação = dono, Email+SignalR; edição = dono ou Admin por role, só SignalR; quem fez não recebe**) com `HandleAsync(channels)` override do fanout default. **B2 front** — `PdiPage` (`/pdi`, nav "PDI", access `operate`; admin: DataTable+Dialog+seletor de usuário; operador: card do próprio; status como string, `formatDateOnly` anti-fuso) + `services/api/pdi.ts`. **B3** — containers `api/workers/frontend` reconstruídos (workers voltou de `Exited`), smoke 12/12, E2E API: CREATE/UPDATE/LIST 200, outbox processada e deliveries conferidas no banco (Created: Email+SignalR Sent; Updated: só SignalR; recipient = dono e, na edição, role Admin). **B4 docs** — docs/29 §8, docs/30 (plano de produto do módulo), esta linha, PROJECT_STATE. Testes: `PdiCommandTests` **7/7**; unit/arch/tsc/lint/build verdes. **Bug real capturado**: construtor dos eventos não casava as propriedades (STJ exige binding 1:1 com os params) → `JsonSerializerException` e **5 retries esgotados na outbox**; corrigido (params 1:1), migração/linhas resetadas e outbox reprocessada com sucesso. Evolução do módulo → `docs/30-PLANO-MODULO-PDI.md` (Fase 1…8, uma task por fase).
@@ -484,8 +484,8 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 
 ### Tasks por concluir (checkboxes abertos nas fases acima)
 
-- [ ] F0-T010 Configurar CI — **BLOCKED**: cota do GitHub Actions gratuita esgotada
-  (2.000/2.000 min), reset em 01/10/2026
+- [ ] F0-T010 Configurar CI — bloqueio de cota com reset previsto para
+  01/10/2026 (data já ocorrida — reavaliar a cota antes de executar)
 - [x] F9-T006 Telegram
 - [x] F9-T007 WhatsApp
 - [x] F9-T008 Webhook
@@ -504,16 +504,16 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [x] F19-T005 Ingestão Zabbix RECOVERY via `ExternalProblemId`
 - [x] F19-T006 Tabela de Identidade Externa `ExternalDeviceReference`
 - [x] F19-T007 Dispatcher HTTP Real de Notificações Webhook para n8n
-- [ ] F20-T001 Cliente API REST UniFi Controller & Descoberta (Telemetria Leve)
+- [x] F20-T001 Cliente API REST UniFi Controller & Descoberta (Telemetria Leve) <!-- concluída 03/10/2026 — ver comentário completo na Fase 20 (linha ~316) -->
 - [ ] F20-T002 Receiver de Webhooks e Ingestão de Eventos UniFi
 - [ ] F20-T003 Consultas Sob Demanda e Cache Redis para Telemetria UniFi
 - [ ] F21-T001 Automação do Ciclo de Atendimento Incidente → Task → SLA / SLO
 - [ ] F21-T002 Hardening, Observabilidade OpenTelemetry e Testes E2E de Carga
-- [ ] F22-T001 Diretriz de Alinhamento Arquitetural & Verificação do Código Real
-- [ ] F22-T002 Diretriz do Sistema de Registro Operacional (System of Record)
-- [ ] F22-T003 Diretriz de Idempotência em Eventos Externos
-- [ ] F22-T004 Diretriz do Ciclo de Recuperação Problem / Recovery
-- [ ] F22-T005 Diretriz de Não Duplicação de Telemetria
+- [x] F22-T001 Diretriz de Alinhamento Arquitetural & Verificação do Código Real — incorporada (AGENTS.md)
+- [x] F22-T002 Diretriz do Sistema de Registro Operacional (System of Record) — incorporada (ADR-028)
+- [x] F22-T003 Diretriz de Idempotência em Eventos Externos — incorporada (F19/F16 + ADR-027)
+- [x] F22-T004 Diretriz do Ciclo de Recuperação Problem / Recovery — incorporada (ADR-027 + regra 2)
+- [x] F22-T005 Diretriz de Não Duplicação de Telemetria — incorporada (regra 8/9 + ADR-028)
 - [x] F23-T002 Tela de detalhe /tasks/:id (P2)
 - [x] F23-T003 Planejamento, resultado e critérios/replanejamento (P3)
 - [x] F23-T004 Impedimentos, evidências, subtarefas, progresso, fases e timeline (P4) — P4a–P4d concluídas (2026-10-07)
@@ -546,17 +546,15 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 
 ### Pendências soltas (de tasks concluídas e decisões registradas)
 
-- [ ] **Push de `main` pendente** (2026-10-07): `git` **instalado** via
-  winget (Git 2.55.0.5 — CDN do GitHub acessível de novo) e identidade
-  já configurada. Commit `7f4f229` (F23-T001–T004: módulo Tasks P1–P4d,
-  104 arquivos) + merge `f3632f8` (`main` × branch refactor — conflito
-  PDI/PROJECT_STATE resolvido com o nosso lado, superconjunto do
-  `1837133`) criados em `main` local e **validados** (build 0 · unit
-  1733/1733 · arch 115/115). `main` está **5 commits à frente de
-  `origin/main`**; o push travou na autenticação HTTPS (Git Credential
-  Manager sem credencial para `github.com` — janela de login travou).
-  Resolver por: GitHub Desktop (aberto na máquina) ou credencial/PAT →
-  `git push origin main`.
+- [ ] **Push de `main` pendente** (2026-10-07, **atualizado em 10/10**):
+  `git` instalado via winget e identidade configurada. `main` está
+  **8 commits à frente de `origin/main`** (S5–S9 da Fase AI,
+  `docs/ai/00-vision` e o F18-T007 Insights) e o push segue travando na
+  autenticação HTTPS (Git Credential Manager sem credencial para
+  `github.com`; terminal prompts desabilitados →
+  `fatal: could not read Username`). Resolver por: `git push origin
+  main` no terminal do usuário (autenticação única, credencial fica
+  salva) ou trocar o remote para SSH.
 
 - [ ] **F23-T001/T003/T004a–P4d (P1/P3/P4a–P4d) — validação de backend incompleta no ambiente**
   (2026-10-06/07): testes de integração **não executados** e migrações
@@ -578,24 +576,13 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   tests/InfraControl.IntegrationTests` → `dotnet ef database update`
   (12 migrações). Detalhe em `docs/31` §4, §6–§10, §13–§22.
 
-- [ ] **AI Blueprint (docs/34) — Sprint 0 investigado; Fase 0 AI
-  Foundation aguardando autorização** — investigação e planejamento
-  entregues (2026-10-07, conforme §66 "NÃO implemente nada ainda"):
-  diagnóstico da arquitetura atual (7 projetos .NET 10, 16 módulos,
-  compose único ADR-022, health checks/OTel/SignalR já existentes,
-  **zero código AI/LLM/MCP/RAG**), componentes reutilizáveis, gaps,
-  conflitos (Docker indisponível → §47/§63 sem evidência de execução;
-  ADRs de IA seguem de **ADR-036** — a §59 sugere 001–008 mas o repo já
-  está em 035; IA entra como `profiles: [ai]` (§49 × ADR-022);
-  ADR-035 coerente com §33), ADRs 036–041, plano Docker preparado
-  (não executado) e ordem de execução S1–S9 com critérios de aceite
-  divididos em "executável sem Docker × pendente de ambiente" — tudo
-  em **`docs/35-PLANO-AI-FOUNDATION-SPRINT0.md`**. **Tranche S1+S2
-  executado em 2026-10-08** (escopo aprovado pelo usuário): ADRs
-  036–041, compose `profile: ai` + Ollama + `.env.example` (config
-  preparada, execução pendente de Docker) e `docs/ai/` 00/01 — ver a
-  seção **"Fase AI"**. Pendente: sprints S3–S9 (código) e a evidência
-  de execução quando houver ambiente.
+- [x] **AI Blueprint (docs/34) — Sprint 0 + Fase 0 AI Foundation concluídos** <!-- FECHADA 2026-10-10: investigação/planejamento entregues 2026-10-07 (diagnóstico, ADRs 036–041, ordem S1–S9) e Fase 0 IMPLEMENTADA de S1 a S9 (FAI-T001–T010, commits 08–09/10: compose profile ai + Ollama, gateway/providers/router, health/telemetria, auditoria AI.*, tools de leitura, Context Engine/RAG, evaluation harness). Resta apenas EVIDÊNCIA DE AMBIENTE (gate Fase 0→1 em docs/35 §14): Docker → Ollama real → pgvector → 15 migrações → testes de integração. -->
+  original — investigação entregue em 2026-10-07 (diagnóstico da
+  arquitetura atual, gaps, conflitos, ADRs 036–041, ordem S1–S9 com
+  critérios "executável sem Docker × pendente de ambiente"), tudo em
+  **`docs/35-PLANO-AI-FOUNDATION-SPRINT0.md`**; tranches S1+S2 (2026-10-08)
+  e S3–S9 (FAI-T006–T010, 2026-10-09) executadas — ver a seção
+  **"Fase AI"**.
 
 - [x] **Retenção/cleanup de `monitoring_events`** — CONCLUÍDA (2026-10-03,
   janela **90 dias** decidida pelo usuário): 8º tipo `RetentionDataType.
@@ -664,18 +651,27 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   para a request). Pendências que restam desta frente: provider real de
   e-mail; página `/reset-password` (a decisão de origem já existe e é a
   mesma — `Frontend:BaseUrl`; faltam a página e o path do link).
-- [ ] **Página de redefinição de senha no frontend** — achado na auditoria de
-  alinhamento front×back de 01/10/2026: o link do e-mail de forgot-password
-  (`IdentityAuthenticationService` monta
-  `{baseUrl}/api/v1/auth/reset-password?email=...&token=...`) bate no GET da
-  API (rota só existe em POST → 405) e o front não tem rota pública
-  `/reset-password` (só `/login` e `/forgot-password`) — o fluxo nasce no
-  frontend e morre no e-mail. `POST /auth/reset-password` está alinhado
-  (body `{email, token, newPassword}`, 204/400 no envelope) mas sem
-  consumidor; a origem do link JÁ está decidida (config `Frontend:BaseUrl`
-  com fallback à request — mesma da página de aceite, decisão do usuário em
-  02/10/2026) e implementada no `InvitationsController`; restam a página
-  pública `/reset-password` e apontar o link do forgot-password para ela
+- [x] **Página de redefinição de senha no frontend** <!-- FECHADA 2026-10-10:
+  rota pública `/reset-password` (bloco público do router + lazy
+  ResetPasswordPage; decisão registrada: é pública até para usuário logado,
+  pois o backend derruba as sessões no reset — inclusive a atual). Página
+  espelhando o aceite de convite: lê `email`/`token` da query, estado honesto
+  "Link inválido" SEM chamar a API com credencial incompleta (botão "Solicitar
+  novo link" → /forgot-password), senha + confirmação com verificação local,
+  `POST /auth/reset-password` anônimo (`anonymousExpected` — o motivo pt-BR
+  do 400 no envelope vira a mensagem da tela) e 204 → fase "Senha redefinida"
+  → /login. Link do e-mail corrigido em `IdentityAuthenticationService`:
+  `{origem}/reset-password?...` (antes `/api/v1/auth/reset-password` → GET
+  405) e origem do `AuthenticationController.ForgotPassword` passou pelo MESMO
+  caminho do convite: `Frontend:BaseUrl` com fallback à request
+  (`FrontendOptions` já previa o caso; comentários de FrontendOptions e
+  Program.cs atualizados). Testes (4 novos, espelhando os de Invitation): 2 de
+  origem no controller (config com trailing slash → cortada; vazia em branco →
+  scheme+host da request) + 2 de URL no serviço (absoluta com corte de barra
+  final e relativa sem origem); os 5 pontos de construção do
+  AuthenticationController nos testes ganharam o 3º argumento
+  (`Options.Create(new FrontendOptions())`). Validação: build 0 · unit
+  1992/1992 · arch 119/119 · tsc 0 · lint 0 · build front ok. -->
 - [x] **Aba Feed na NotificationsPage** (pendência da F18-T001, fechada
   em 01/10/2026 no ciclo de integração front×back pós-auditoria) — a aba
   tinha saído no F17-T010 por não existir listagem; a F18-T001 entregou
@@ -717,7 +713,8 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
 - [ ] **Investigar flakiness** de `CorrelationTracingTests.MassTransitEventBus_WithoutCorrelation_ShouldPublishPlain`
   (F15/ADR-021 — `TaskCanceledException` de 24s sob carga da suíte completa;
   passa isolado 4/4; observado em 30/09 na validação da F10-T002)
-- [ ] **Conectar as páginas com mock ao backend** — F14 foi prototipação com dados
+- [x] **Conectar as páginas com mock ao backend** <!-- FECHADA 2026-10-10: sub-checklist F17 fechado na íntegra (T001–T021) e a última pendência do grupo — decisão de produto do Insights — resolvida e entregue na F18-T007 (2026-10-09, InsightsPage conectada à integração UniFi). -->
+  original — F14 foi prototipação com dados
   estáticos; `SessionsPage` (F1-T016d) foi a primeira com API real. Frente
   iniciada em 01/10/2026 (F17), uma página por vez:
   - [x] **F17-T001 `TasksPage`** — quadro por estados REAIS de `TaskState`
@@ -1048,9 +1045,7 @@ concluídas. É a lista oficial do "o que falta" — ao fechar um item, marque a
   + dropdown no input do topbar (ver sub-checklist da F17 acima)
 - [ ] **RDP com NLA/CredSSP (autenticação)** — adiado pela decisão do usuário na
   F11-T003 (probe de porta sem autenticação)
-- [ ] **Limpar `frontend/InfraControl.Web/tsconfig.tsbuildinfo` do versionamento**
-  (rastreado por engano; regra vigente = nunca stagear — levar a um cleanup
-  próprio)
+- [x] **Limpar `frontend/InfraControl.Web/tsconfig.tsbuildinfo` do versionamento** <!-- FECHADA 2026-10-10: `git rm --cached` (arquivo mantido em disco) + `*.tsbuildinfo` no .gitignore (seção TypeScript) — deixa de ser rastreado; a regra "nunca stagear" permanece para as cópias locais. -->
 - [ ] **Warnings `CS8601`/`CS8605`** em `RestoreRoundTripTests.cs` no build
   Release (pré-existentes, fora de escopo até aqui)
 - [x] **`MT_LICENSE` para a API/Workers subirem** <!-- FECHADA 01/10/2026:
@@ -1160,17 +1155,37 @@ plano** — não se implementa arquitetura de coleta sem decisão humana.
   1354 (1351 − 2 + 5), integração+E2E 172, **arch 88** (90 − 2 casos de
   theory por controller do `RolesController` removido — conferido no
   TRX, nada escondido), `tsc -b` 0 erros, `npm run build` ok
-- [ ] **F18-T005 Domínio DHCP/Rotas/Firewall** — leitura dos serviços de
-  rede prometidos pelas abas removidas no F17-T008 (leases DHCP, rotas,
-  regras de firewall). **Exige ADR + questionário antes do plano**:
-  fonte de dados (SNMP/SSH por vendor/agent), escopo read-only vs
-  gestão, quais tabelas/vendor suportados. Critérios: definidos no ADR
-- [ ] **F18-T006 Domínio WiFi** — redes (SSID/segurança/banda/canal/
-  largura/VLAN) + telemetria de AP (clientes, CPU, mem, canais,
-  potência, tráfego) — tudo o que saiu da WiFiPage no F17-T014.
-  **Exige ADR + questionário**: fonte (controller de AP? SNMP? API de
-  vendor?), quais métricas e com que frequência. Critérios: definidos
-  no ADR; quando pronto, a WiFiPage deixa de ser só inventário
+- [x] **F18-T005 Domínio DHCP/Rotas/Firewall** — decidido em question
+  (2026-10-10): **SNMP + SSH por vendor, somente leitura**; ADR-042
+  antes do código (fontes, OID, drivers, config, endpoints). Backend:
+  `NetworkServices:*` (alvo único por config, vazio = desligado → 503 +
+  motivo), `INetworkServicesReader` com leases de
+  `1.3.6.1.2.1.4.22.1` (ipNetToMedia/Physical, MAC normalizado) e
+  rotas de `1.3.6.1.2.1.4.21.1` (ipRouteTable com rótulos RFC1213 +
+  fallback cru) via `ISnmpClient` reusado, firewall via SSH.NET
+  (`show access-lists` do driver Cisco v1, expressão crua do device;
+  vendor desconhecido → 503 listando os suportados) →
+  `GET /network/services/{dhcp/leases|routes|firewall/rules}`
+  (RoleAccess.Read); abas restauradas na `NetworkPage`
+  (`NetworkServicesSection`) com motivo honesto quando desligado. Env:
+  `NETWORK_SERVICES_*` no compose/.env.example. Testes +19 (6 reader
+  SNMP/SSH + 4 parser Cisco ACL + 3 queries + 6 controller); unit 2018,
+  arch 121, tsc/lint/build front 0 — validação contra equipamento real
+  pendente (§46)
+- [x] **F18-T006 Domínio WiFi** — decidido em question (2026-10-10):
+  fonte = **UniFi Controller existente** (reusa o client do ADR-028,
+  sem ADR novo — extensão do §2/§8 documentada em docs/29 §9) e coleta
+  = **sob demanda + cache Redis de 60s** (`integration:unifi:wifi`).
+  Backend: `IUnifiApiClient += ListSsidsAsync` (`/rest/ssidconf` —
+  segurança crua, VLAN, bandas de `no2ghz`/`no5ghz`) e
+  `ListAccessPointsAsync` (`/stat/device` — state/uptime, CPU/mem de
+  `system-stats`, clientes somados da `vap_table`, rádios de
+  `radio_table`, tráfego); `GetUnifiWifiQuery` (RoleAccess.Read, 503
+  desligado) → `GET /integrations/unifi/wifi`; WiFiPage com painéis
+  Redes (SSID) + APs (telemetria) e o inventário do F17-T014 mantido
+  abaixo. Testes: +7 (2 parse de client, 3 query com fake de cache, 2
+  controller); unit 1999, arch 119, tsc/lint/build front 0 —
+  validação ponta-a-ponta contra Controller real pendente (§46)
 - [x] **F18-T007 Domínio de tráfego/Insights** — DPI por aplicação,
   tráfego por cliente, speed test e painéis do Dashboard removidos no
   F17-T009/T016. **Escopo decrescido por decisão humana** (ver

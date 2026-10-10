@@ -25,6 +25,21 @@ public interface IUnifiApiClient
     Task<IReadOnlyList<UnifiDpiAppDto>> ListDpiStatsAsync(
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Configuração das redes SSID (<c>GET /rest/ssidconf</c>) — F18-T006
+    /// (WiFi): nome, segurança, VLAN e bandas de cada rede.
+    /// </summary>
+    Task<IReadOnlyList<UnifiSsidDto>> ListSsidsAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Telemetria dos APs (<c>GET /stat/device</c>) — F18-T006 (WiFi):
+    /// estado/uptime, CPU/mem, tráfego, clientes e rádios (canal/largura/
+    /// potência/utilização). Nada é persistido (regra 8).
+    /// </summary>
+    Task<IReadOnlyList<UnifiAccessPointDto>> ListAccessPointsAsync(
+        CancellationToken cancellationToken = default);
+
     /// <summary>Sondagem leve (GET /api/self) para o health da integração.</summary>
     Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
 

@@ -102,6 +102,42 @@ public sealed class UnifiApiClient : IUnifiApiClient
         return ParseDpiStats(await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
+    public async Task<IReadOnlyList<UnifiSsidDto>> ListSsidsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        var http = _factory.CreateClient(HttpClientName);
+
+        using var response = await GetWithSessionAsync(
+            http, () => SsidConfigUri, reauthenticateOn401: true, cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            throw new UnauthorizedAccessException(
+                "Sessão do UniFi Controller recusada mesmo após re-autenticação.");
+
+        response.EnsureSuccessStatusCode();
+
+        return ParseSsids(await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<UnifiAccessPointDto>> ListAccessPointsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        var http = _factory.CreateClient(HttpClientName);
+
+        using var response = await GetWithSessionAsync(
+            http, () => DeviceStatsUri, reauthenticateOn401: true, cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            throw new UnauthorizedAccessException(
+                "Sessão do UniFi Controller recusada mesmo após re-autenticação.");
+
+        response.EnsureSuccessStatusCode();
+
+        return ParseAccessPoints(await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
     public async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.IsConfigured)
@@ -562,6 +598,10 @@ public sealed class UnifiApiClient : IUnifiApiClient
     private string DpiStatsUri
         => $"{BaseUrl}{ApiPrefix}/api/s/{_options.Site}/stat/app";
 
+    /// <summary>Configuração das redes SSID (F18-T006 · WiFi).</summary>
+    private string SsidConfigUri
+        => $"{BaseUrl}{ApiPrefix}/api/s/{_options.Site}/rest/ssidconf";
+
     /// <summary>Prefixo da API: UniFi OS usa <c>/proxy/network</c>, standalone usa a raiz.</summary>
     private string ApiPrefix
         => _apiStyle == UniFiApiStyle.UniFiOs ? "/proxy/network" : string.Empty;
@@ -829,6 +869,172 @@ public sealed class UnifiApiClient : IUnifiApiClient
 
         return apps;
     }
+
+    /// <summary>
+    /// F18-T006: <c>GET /rest/ssidconf</c> devolve a CONFIGURAÇÃO de cada
+    /// rede — <c>security</c> bruta (wpapsk/wpa2psk/wpa3/none…), <c>vlan</c>
+    /// (0/ausente = sem VLAN), <c>is_guest</c> e os flags de banda
+    /// <c>no2ghz</c>/<c>no5ghz</c> (ausentes = Controller não informou e a
+    /// banda fica vazia na UI — nunca suposta).
+    /// </summary>
+    private static IReadOnlyList<UnifiSsidDto> ParseSsids(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException(
+                "Resposta inesperada do UniFi Controller (sem o array 'data').");
+
+        var ssids = new List<UnifiSsidDto>();
+        foreach (var item in data.EnumerateArray())
+        {
+            var name = Read(item, "name");
+            if (name.Length == 0)
+                continue;
+
+            ssids.Add(new UnifiSsidDto(
+                name,
+                Read(item, "security"),
+                ReadBool(item, "enabled"),
+                (int)ReadLong(item, "vlan"),
+                ResolveBands(item),
+                ReadBool(item, "is_guest")));
+        }
+
+        return ssids;
+    }
+
+    /// <summary>
+    /// Deriva as bandas de <c>no2ghz</c>/<c>no5ghz</c>: o flag é "não
+    /// habilita X GHz" (true = X desligada). Só bandas com flag conhecido
+    /// e habilitado entram; sem nenhum flag → vazio (não informado).
+    /// </summary>
+    private static string ResolveBands(JsonElement item)
+    {
+        var two = ReadBoolOrNull(item, "no2ghz");
+        var five = ReadBoolOrNull(item, "no5ghz");
+
+        var bands = new List<string>();
+        if (two == false)
+            bands.Add("2.4 GHz");
+        if (five == false)
+            bands.Add("5 GHz");
+
+        return string.Join(" + ", bands);
+    }
+
+    /// <summary>
+    /// F18-T006: <c>GET /stat/device</c> com telemetria — <c>state</c>
+    /// (1 = conectado), <c>uptime</c> em segundos, <c>system-stats</c>
+    /// (cpu/mem em string percentual), contadores rx/tx, clientes somados
+    /// de <c>vap_table</c> e os rádios de <c>radio_table</c>. Campos ausentes
+    /// viram 0/vazio — valor nunca é inventado.
+    /// </summary>
+    private static IReadOnlyList<UnifiAccessPointDto> ParseAccessPoints(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+
+        if (!document.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException(
+                "Resposta inesperada do UniFi Controller (sem o array 'data').");
+
+        var accessPoints = new List<UnifiAccessPointDto>();
+        foreach (var item in data.EnumerateArray())
+        {
+            var cpu = 0;
+            var mem = 0;
+            if (item.TryGetProperty("system-stats", out var stats) &&
+                stats.ValueKind == JsonValueKind.Object)
+            {
+                cpu = ReadPercent(stats, "cpu");
+                mem = ReadPercent(stats, "mem");
+            }
+
+            accessPoints.Add(new UnifiAccessPointDto(
+                Read(item, "mac"),
+                Read(item, "name"),
+                Read(item, "model"),
+                Read(item, "ip"),
+                ReadLong(item, "state") == 1,
+                ReadLong(item, "uptime"),
+                cpu,
+                mem,
+                ReadLong(item, "rx_bytes"),
+                ReadLong(item, "tx_bytes"),
+                CountStationEntries(item),
+                ParseRadios(item)));
+        }
+
+        return accessPoints;
+    }
+
+    /// <summary>Clientes conectados ao AP = soma dos <c>num_sta</c> de cada
+    /// entrada de <c>vap_table</c> (uma por SSID/rádio).</summary>
+    private static int CountStationEntries(JsonElement device)
+    {
+        if (!device.TryGetProperty("vap_table", out var table) ||
+            table.ValueKind != JsonValueKind.Array)
+            return 0;
+
+        var count = 0;
+        foreach (var entry in table.EnumerateArray())
+            count += (int)ReadLong(entry, "num_sta");
+        return count;
+    }
+
+    private static IReadOnlyList<UnifiRadioDto> ParseRadios(JsonElement device)
+    {
+        if (!device.TryGetProperty("radio_table", out var table) ||
+            table.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var radios = new List<UnifiRadioDto>();
+        foreach (var radio in table.EnumerateArray())
+        {
+            var band = Read(radio, "band");
+            if (band.Length == 0)
+                continue;
+
+            radios.Add(new UnifiRadioDto(
+                band,
+                (int)ReadLong(radio, "channel"),
+                (int)ReadLong(radio, "width"),
+                (int)ReadLong(radio, "tx_power"),
+                (int)ReadLong(radio, "utilization")));
+        }
+
+        return radios;
+    }
+
+    private static int ReadPercent(JsonElement element, string property)
+    {
+        var raw = element.TryGetProperty(property, out var value)
+            ? value.ValueKind switch
+            {
+                JsonValueKind.Number => value.GetDouble(),
+                JsonValueKind.String when double.TryParse(
+                    value.GetString(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var parsed) => parsed,
+                _ => 0
+            }
+            : 0;
+
+        return raw <= 0 ? 0 : (int)Math.Round(raw, MidpointRounding.AwayFromZero);
+    }
+
+    private static bool ReadBool(JsonElement element, string property)
+        => element.TryGetProperty(property, out var value) &&
+           value.ValueKind == JsonValueKind.True;
+
+    private static bool? ReadBoolOrNull(JsonElement element, string property)
+        => element.TryGetProperty(property, out var value) &&
+           value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : null;
 
     private static long ReadLong(JsonElement element, string property)
     {

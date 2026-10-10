@@ -554,6 +554,98 @@ public sealed class UnifiApiClientTests
             .Should().Contain("/proxy/network/api/s/default/stat/app");
     }
 
+    // ── F18-T006 (WiFi): redes SSID e telemetria de AP ──────────────
+
+    [Fact]
+    public async Task ListSsidsAsync_ShouldCallRestSsidconfAndParseConfig()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-9; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/rest/ssidconf"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"_id":"a","name":"Casa-5G","security":"wpapsk","enabled":true,
+                   "vlan":40,"is_guest":false,"no2ghz":true,"no5ghz":false},
+                  {"_id":"b","name":"Convidados","security":"none","enabled":false,"is_guest":true},
+                  {"_id":"c","name":"","security":"wpapsk","enabled":true}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var ssids = await client.ListSsidsAsync();
+
+        ssids.Should().HaveCount(2, "rede sem nome é descartada");
+        ssids[0].Name.Should().Be("Casa-5G");
+        ssids[0].Security.Should().Be("wpapsk", "segurança vem crua do Controller");
+        ssids[0].Enabled.Should().BeTrue();
+        ssids[0].Vlan.Should().Be(40);
+        ssids[0].Bands.Should().Be(
+            "5 GHz", "no2ghz=true desliga 2.4 GHz e no5ghz=false mantém 5 GHz");
+        ssids[0].IsGuest.Should().BeFalse();
+        ssids[1].Name.Should().Be("Convidados");
+        ssids[1].Vlan.Should().Be(0, "sem vlan = 0 (sem VLAN)");
+        ssids[1].Bands.Should().BeEmpty(
+            "sem os flags de banda o Controller não informou — nada é suposto");
+        ssids[1].IsGuest.Should().BeTrue();
+
+        handler.Requests.Should().HaveCount(2, "login + ssidconf");
+        handler.Requests[1].RequestUri!.ToString()
+            .Should().Contain("/proxy/network/api/s/default/rest/ssidconf");
+    }
+
+    [Fact]
+    public async Task ListAccessPointsAsync_ShouldParseTelemetryFromStatDevice()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-9; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/stat/device"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"mac":"f0:9f:c2:11:22:33","name":"AP-Sala","model":"U7PG2","ip":"192.168.1.11",
+                   "type":"uap","state":1,"uptime":86400,
+                   "system-stats":{"cpu":"7.5","mem":"41"},
+                   "rx_bytes":9000000,"tx_bytes":4500000,
+                   "vap_table":[{"num_sta":4},{"num_sta":2}],
+                   "radio_table":[
+                     {"name":"radio0","band":"2g","channel":6,"width":20,"tx_power":17,"utilization":12},
+                     {"name":"radio1","band":"5g","channel":44,"width":80,"tx_power":23,"utilization":35}
+                   ]},
+                  {"mac":"f0:9f:c2:44:55:66","name":"AP-Fora","model":"U6Lite","ip":"192.168.1.12",
+                   "type":"uap","state":0,"rx_bytes":0,"tx_bytes":0}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var aps = await client.ListAccessPointsAsync();
+
+        aps.Should().HaveCount(2);
+        aps[0].Connected.Should().BeTrue("state=1 = conectado");
+        aps[0].UptimeSeconds.Should().Be(86400);
+        aps[0].CpuPercent.Should().Be(8, "'7.5' em string arredonda para longe de zero");
+        aps[0].MemPercent.Should().Be(41);
+        aps[0].RxBytes.Should().Be(9000000);
+        aps[0].TxBytes.Should().Be(4500000);
+        aps[0].Clients.Should().Be(6, "clientes = soma dos num_sta da vap_table");
+        aps[0].Radios.Should().HaveCount(2);
+        aps[0].Radios[1].Band.Should().Be("5g");
+        aps[0].Radios[1].Channel.Should().Be(44);
+        aps[0].Radios[1].Width.Should().Be(80);
+        aps[0].Radios[1].TxPower.Should().Be(23);
+        aps[0].Radios[1].Utilization.Should().Be(35);
+        aps[1].Connected.Should().BeFalse("state=0 = desconectado");
+        aps[1].CpuPercent.Should().Be(0, "sem system-stats = 0, nunca inventado");
+        aps[1].Clients.Should().Be(0, "sem vap_table = 0");
+        aps[1].Radios.Should().BeEmpty("sem radio_table = lista vazia");
+
+        handler.Requests.Should().HaveCount(2, "login + stat/device");
+        handler.Requests[1].RequestUri!.ToString()
+            .Should().Contain("/proxy/network/api/s/default/stat/device");
+    }
+
     // ── Infra ───────────────────────────────────────────────────────
 
     private static UnifiApiClient CreateClient(

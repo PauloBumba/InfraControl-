@@ -202,3 +202,52 @@ Regras:
 - Pendência (§46): validação ponta-a-ponta contra um Controller real
   (a estação de trabalho não tem o ambiente); testes unitários com
   `ScriptedHandler` cobrem URI (estilo UniFi OS), parse e fallbacks.
+
+## 9. WiFi — Redes SSID e Telemetria de AP (F18-T006 · 2026-10-10)
+
+A `WiFiPage` deixa de ser "só inventário" (F17-T014): as redes e a
+telemetria que saíram da página voltam com fonte real na mesma
+integração. **Decisão humana de escopo** (2026-10-10, question): fonte =
+UniFi Controller existente (reusa o client do ADR-028, zero credencial
+nova) e coleta = **sob demanda + cache Redis de 60s** (regra 8: nada de
+telemetria de massa no PostgreSQL).
+
+| Endpoint InfraControl | Chamada ao Controller | Seção da página |
+| --- | --- | --- |
+| `GET /api/v1/integrations/unifi/wifi` | `GET {base}{prefix}/api/s/{site}/rest/ssidconf` | Redes (SSID) |
+| (mesmo endpoint) | `GET {base}{prefix}/api/s/{site}/stat/device` | APs — telemetria |
+
+Contrato (`UnifiWifiDto`, camelCase no JSON):
+
+```text
+{
+  ssids: [ { name, security, enabled, vlan, bands, isGuest } ],
+  accessPoints: [ { mac, name, model, ip, connected, uptimeSeconds,
+                    cpuPercent, memPercent, rxBytes, txBytes, clients,
+                    radios: [ { band, channel, width, txPower, utilization } ] } ],
+  capturedAtUtc
+}
+```
+
+Regras:
+
+- **Segurança vem crua** do UniFi (wpapsk/wpa2psk/wpa3/none…) — a UI
+  exibe como vier, sem rótulo inventado; `vlan` 0 = sem VLAN; `bands` é
+  derivado dos flags `no2ghz`/`no5ghz` (flag ausente = banda vazia na
+  UI, nunca suposta).
+- Telemetria de AP de `/stat/device`: `state=1` = conectado, CPU/mem de
+  `system-stats` (string percentual, arredondada), clientes = soma dos
+  `num_sta` da `vap_table`, rádios de `radio_table` (banda crua
+  2g/5g/6g, canal, largura MHz, potência dBm, utilização quando
+  informada). Campo ausente vira 0/vazio — valor nunca inventado.
+- **Cache de 60s** no handler (`integration:unifi:wifi`): cache hit
+  devolve o DTO gravado sem sondar; miss sonda e regrava. TTL curto
+  documentado na task e coberto por teste.
+- Autorização/erros idênticos ao §8: `RoleAccess.Read`; não
+  configurado/Controller fora/sessão recusada → **503 + motivo**.
+- A seção de **inventário** do F17-T014 permanece na página abaixo dos
+  painéis (funciona mesmo com a integração desligada — nesse caso os
+  painéis de cima mostram o motivo honesto).
+- Pendência (§46): validação ponta-a-ponta contra um Controller real;
+  testes unitários cobrem URI, parse de SSID (flags de banda) e
+  telemetria completa/parcial de AP.
