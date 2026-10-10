@@ -113,6 +113,17 @@ export async function resetPassword(email: string, token: string, newPassword: s
 }
 
 /**
+ * F26-T001 — troca de senha autenticada (`POST /auth/change-password`,
+ * userId vem do cookie de sessão no servidor). O backend REVOGA todas as
+ * sessões do usuário (inclusive a atual) e audita: a UI deve avisar e
+ * levar o usuário ao /login no sucesso. O motivo pt-BR (senha atual
+ * errada, política) vem no `errors` do envelope.
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post("/auth/change-password", { currentPassword, newPassword });
+}
+
+/**
  * Página pública de aceite de convite (pendência da F1-T017 fechada): o link
  * e-maiado é `/invitations/{id}?token=...` e a página roda o fluxo do
  * backend — `accept` provisiona a conta INATIVA e revela quem foi convidado,

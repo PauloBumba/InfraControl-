@@ -316,6 +316,14 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
             </div>
             <button
               className="uni-user-logout"
+              onClick={() => routerNavigate("/account")}
+              title="Minha Conta (trocar senha)"
+              aria-label="Minha Conta"
+            >
+              <i className="pi pi-key" />
+            </button>
+            <button
+              className="uni-user-logout"
               onClick={handleLogout}
               disabled={signingOut}
               title="Sair"

@@ -1,10 +1,7 @@
-<<<<<<< HEAD
-import { useState, type FormEvent } from "react";
-=======
 import { useCallback, useEffect, useState, type FormEvent } from "react";
->>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
 import { Can } from "@/components/auth/Can";
 import { Button } from "@/components/ui/Button";
+import { Pagination } from "@/components/ui/Pagination";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -13,19 +10,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectField } from "@/components/ui/SelectField";
-<<<<<<< HEAD
-import { ConfirmDialog } from "@/components/ui/Dialog";
-import { ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
-import { listUsers, type AdminUser } from "@/services/api/adminUsers";
-import {
-  articleStatusConfig,
-} from "@/components/knowledge/knowledgeCatalogs";
-=======
->>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
 import {
   KNOWLEDGE_TYPE_OPTIONS,
   knowledgeTypeLabel,
 } from "@/components/knowledge/knowledgeCatalogs";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
   ARTICLE_STATUS_ARCHIVED,
   ARTICLE_STATUS_APPROVED,
@@ -309,45 +298,14 @@ export function KnowledgePage() {
               >
                 <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
               </Button>
-              {term && (
+              {anyFilterActive && (
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => { setTermInput(""); setTerm(""); setPage(1); }}
+                  onClick={clearFilters}
                   style={{ padding: "5px 10px" }}
                 >
                   Limpar
-<<<<<<< HEAD
-                </Button>
-              )}
-            </form>
-            <ViewSwitcher
-              mode={isArticlesTab ? articleView : categoryView}
-              onChange={isArticlesTab ? setArticleView : setCategoryView}
-            />
-            <Can level="operate">
-              {isArticlesTab ? (
-                <Button
-                  variant="primary"
-                  onClick={openArticleCreate}
-                  style={{ padding: "5px 12px" }}
-                >
-                  <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
-                </Button>
-              ) : (
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setCategoryForm({ mode: "create", target: null });
-                    setCategoryValues(emptyCategoryForm);
-                    setFormError(null);
-                    setCategoryFormOpen(true);
-                  }}
-                  style={{ padding: "5px 12px" }}
-                >
-                  <i className="pi pi-plus" style={{ fontSize: 10 }} /> Nova Categoria
-=======
->>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
                 </Button>
               )}
             </form>
@@ -659,12 +617,9 @@ export function KnowledgePage() {
             {error ? "—" : "Nenhum artigo encontrado"}
           </div>
         )}
-<<<<<<< HEAD
-=======
         {loading && articles.length === 0 && (
           <LoadingBlock style={{ gridColumn: "1 / -1", background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
         )}
->>>>>>> 75cd1c6b89f36e3988c0cc1a202af5c191381f9e
       </div>
 
       {totalCount > PAGE_SIZE && (
