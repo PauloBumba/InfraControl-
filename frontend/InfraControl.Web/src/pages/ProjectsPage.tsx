@@ -4,6 +4,7 @@ import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Button } from "@/components/ui/Button";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -45,6 +46,12 @@ const PROJECT_PRIORITY_COLOR: Record<string, { background: string; color: string
   Critical: { background: "#fee2e2", color: "#7f1d1d" },
 };
 
+/** Colunas do quadro — os mesmos 7 status do filtro e do gráfico. */
+const PROJECT_STATUS_COLUMNS = Object.entries(PROJECT_STATUS_LABEL).map(([key, label]) => ({
+  key,
+  label,
+}));
+
 function formatDate(value: string | null): string {
   if (!value) return "—";
   const [year, month, day] = value.split("-");
@@ -62,6 +69,11 @@ export function ProjectsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Adoção do padrão de visões (backlog Operations UX 2026-10-11): era só
+  // tabela; o quadro agrupa por status (os mesmos 7 do filtro/gráfico).
+  // Tabela = padrão.
+  const [view, setView] = useEntityViewMode("projects", "table");
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -120,15 +132,76 @@ export function ProjectsPage() {
     setFilter(value);
   }
 
+  /** Card de projeto — usado nas visões grid E quadro (mesmos dados da tabela). */
+  function renderProjectCard(project: ProjectItem) {
+    const statusColor = PROJECT_STATUS_COLOR[project.status] ?? { background: "#f1f5f9", color: "#475569" };
+    const priorityColor = PROJECT_PRIORITY_COLOR[project.priority] ?? { background: "#f8fafc", color: "#334155" };
+    const memberCount = project.members?.length ?? 0;
+    return (
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: 12,
+          padding: 14,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700 }}>{project.code}</span>
+          <StatusChip
+            label={PROJECT_STATUS_LABEL[project.status] ?? project.status}
+            background={statusColor.background}
+            color={statusColor.color}
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{project.title}</div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>
+          {project.description || "Sem descrição registrada."}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <StatusChip
+            label={PROJECT_PRIORITY_LABEL[project.priority] ?? project.priority}
+            background={priorityColor.background}
+            color={priorityColor.color}
+            fontSize={10}
+            fontWeight={600}
+          />
+          <span style={{ fontSize: 11, color: "#64748b" }}>
+            {formatDate(project.plannedStartDate)} → {formatDate(project.plannedEndDate)}
+          </span>
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+          {memberCount} membro{memberCount === 1 ? "" : "s"}
+        </div>
+        <Button
+          variant="ghost"
+          icon="pi pi-arrow-right"
+          aria-label={`Ver projeto ${project.title}`}
+          onClick={() => navigate(`/projects/${project.id}`)}
+        >
+          Detalhes
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <PageHeader
         title="Projetos"
         subtitle="Visão geral de iniciativas, fases, priorização e aprovação final."
         actions={
-          <Button variant="primary" icon="pi pi-refresh" onClick={() => void loadProjects()}>
-            Atualizar
-          </Button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <ViewSwitcher mode={view} onChange={setView} />
+            <Button variant="primary" icon="pi pi-refresh" onClick={() => void loadProjects()}>
+              Atualizar
+            </Button>
+          </div>
         }
       />
 
@@ -229,6 +302,17 @@ export function ProjectsPage() {
           Nenhum projeto encontrado para os filtros atuais.
         </div>
       ) : (
+        <EntityView<ProjectItem>
+          mode={view}
+          items={projects}
+          getKey={(project) => project.id}
+          emptyMessage={error ? "—" : "Nenhum projeto encontrado"}
+          kanban={{
+            groupOf: (project) => project.status,
+            columns: PROJECT_STATUS_COLUMNS,
+          }}
+          renderCard={renderProjectCard}
+          table={
         <DataTablePanel
           value={projects}
           dataKey="id"
@@ -312,6 +396,8 @@ export function ProjectsPage() {
             )}
           />
         </DataTablePanel>
+          }
+        />
       )}
     </div>
   );

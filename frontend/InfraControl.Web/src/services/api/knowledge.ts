@@ -153,3 +153,90 @@ export function createArticle(input: {
     responsibleId: input.responsibleId || undefined,
   });
 }
+
+/**
+ * F24 edição — GET {id} (traz vínculos deviceIds/incidentIds/serviceIds,
+ * que a busca devolve vazios). Usado para pré-carregar o form de edição.
+ */
+export function getArticle(id: string): Promise<KnowledgeArticle | null> {
+  return api.get<KnowledgeArticle>(`/knowledge/articles/${encodeURIComponent(id)}`);
+}
+
+/**
+ * F24 edição — PUT {id}. `reason` é [Required] no backend (K3: versão
+ * nova exige motivo, 400 sem ele). Devolve 204 (null).
+ */
+export function updateArticle(
+  id: string,
+  input: {
+    title: string;
+    content: string;
+    categoryId?: string;
+    reason: string;
+    type?: string;
+    description?: string;
+    tags?: string[];
+    responsibleId?: string;
+  },
+): Promise<null> {
+  return api.put<null>(`/knowledge/articles/${encodeURIComponent(id)}`, {
+    title: input.title,
+    content: input.content,
+    categoryId: input.categoryId || undefined,
+    reason: input.reason,
+    type: input.type || undefined,
+    description: input.description || undefined,
+    tags: input.tags?.length ? input.tags : undefined,
+    responsibleId: input.responsibleId || undefined,
+  });
+}
+
+/** F24 exclusão — DELETE {id} (204; 409 se houver vínculo, se aplicável). */
+export function deleteArticle(id: string): Promise<null> {
+  return api.delete<null>(`/knowledge/articles/${encodeURIComponent(id)}`);
+}
+
+/**
+ * F24 status (ADR-034) — POST {id}/status. `status` viaja como NÚMERO (enum
+ * sem JsonStringEnumConverter). Fora da matriz = 409 pt-BR; desconhecido =
+ * 400. O seletor da UI só oferece as transições de
+ * `knowledgeNextStatuses` (espelho do domínio).
+ */
+export function changeArticleStatus(id: string, status: number): Promise<KnowledgeArticle | null> {
+  return api.post<KnowledgeArticle>(
+    `/knowledge/articles/${encodeURIComponent(id)}/status`,
+    { status },
+  );
+}
+
+// ── Categorias (CRUD completo no backend; aqui só o consumidor) ──────────
+
+/**
+ * Criação de categoria (Operate + antiforgery). Nome único — duplicado
+ * chega como 409/400 pt-BR no envelope.
+ */
+export function createCategory(input: {
+  name: string;
+  description?: string;
+}): Promise<KnowledgeCategory | null> {
+  return api.post<KnowledgeCategory>("/knowledge/categories", {
+    name: input.name,
+    description: input.description || undefined,
+  });
+}
+
+/** Edição de categoria (204). */
+export function updateCategory(
+  id: string,
+  input: { name: string; description?: string },
+): Promise<null> {
+  return api.put<null>(`/knowledge/categories/${encodeURIComponent(id)}`, {
+    name: input.name,
+    description: input.description || undefined,
+  });
+}
+
+/** Exclusão de categoria (204; artigos com a categoria ficam sem). */
+export function deleteCategory(id: string): Promise<null> {
+  return api.delete<null>(`/knowledge/categories/${encodeURIComponent(id)}`);
+}

@@ -10,6 +10,7 @@ import { SelectField, type SelectOption } from "@/components/ui/SelectField";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { Column } from "primereact/column";
 import { Pagination } from "@/components/ui/Pagination";
 import { Can } from "@/components/auth/Can";
@@ -34,6 +35,21 @@ const missingOptions: SelectOption[] = [
   { value: "all", label: "Todos" },
   { value: "present", label: "Com host no Zabbix" },
   { value: "missing", label: "Ausentes (removidos)" },
+];
+
+/**
+ * Estado do host para o quadro — o mesmo recorte da coluna "Estado" e dos
+ * filtros "Estado no Zabbix"/"Presença no Zabbix". "Ausente" vem SÓ de
+ * host que sumiu do Zabbix, nunca de falha de consulta (regra da Fase 3.3).
+ */
+function hostStateKey(row: ZabbixHostView): string {
+  return row.missing ? "missing" : row.enabled ? "enabled" : "disabled";
+}
+
+const HOST_STATE_COLUMNS = [
+  { key: "enabled", label: "Ativo" },
+  { key: "disabled", label: "Desativado" },
+  { key: "missing", label: "Ausente" },
 ];
 
 function formatUtc(value: string | null | undefined): string {
@@ -70,6 +86,10 @@ export function ZabbixHostsPage() {
   const [syncResult, setSyncResult] = useState<ZabbixSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  // Adoção do padrão de visões (backlog Operations UX 2026-10-11): era só
+  // tabela; o quadro agrupa por estado do host. Tabela = padrão.
+  const [view, setView] = useEntityViewMode("zabbix-hosts", "table");
+
   const hosts = useQuery({
     queryKey: ["zabbix-hosts", term, state, missing, page],
     queryFn: () =>
@@ -103,6 +123,56 @@ export function ZabbixHostsPage() {
     setPage(1);
   }
 
+  /** Card de host — usado nas visões grid E quadro (mesmos dados da tabela). */
+  function renderHostCard(row: ZabbixHostView) {
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 14,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 12 }}>{row.host}</span>
+          <StatusChip
+            label={row.hasAsset ? "Vinculado" : "Sem Asset"}
+            background={row.hasAsset ? "#dcfce7" : "#fff7ed"}
+            color={row.hasAsset ? "#166534" : "#c2410c"}
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        <div style={{ fontSize: 12 }}>{row.name || "—"}</div>
+        <div style={{ fontFamily: "monospace", fontSize: 11, color: "#64748b" }}>
+          {row.ip ? `${row.ip}${row.port ? `:${row.port}` : ""}` : "—"}
+        </div>
+        <div className="flex align-items-center gap-1 flex-wrap">
+          {row.missing ? (
+            <StatusChip label="Ausente" background="#fee2e2" color="#b91c1c" fontSize={10} fontWeight={600} title="Removido do Zabbix — registro preservado no InfraControl" />
+          ) : row.enabled ? (
+            <StatusChip label="Ativo" background="#dcfce7" color="#166534" fontSize={10} fontWeight={600} />
+          ) : (
+            <StatusChip label="Desativado" background="#f1f5f9" color="#64748b" fontSize={10} fontWeight={600} />
+          )}
+          {row.discovered && (
+            <StatusChip label="Descoberto" background="#eff6ff" color="#1d4ed8" fontSize={10} fontWeight={600} />
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>Grupos: {listCell(row.groups)}</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>Templates: {listCell(row.templates)}</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+          Sincronizado: {formatUtc(row.lastSyncedAtUtc)}
+          {row.missing && ` · ausente desde ${formatUtc(row.missingSinceUtc)}`}
+        </div>
+      </div>
+    );
+  }
+
   const data = hosts.data;
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? 0;
@@ -118,17 +188,20 @@ export function ZabbixHostsPage() {
             : `${totalCount} ${totalCount === 1 ? "host" : "hosts"} no read-model do Zabbix`
         }
         actions={
-          <Can level="operate">
-            <Button
-              variant="primary"
-              disabled={sync.isPending}
-              style={{ padding: "6px 14px" }}
-              onClick={() => sync.mutate()}
-            >
-              <i className="pi pi-refresh" style={{ fontSize: 11 }} />
-              {sync.isPending ? "Sincronizando…" : "Sincronizar agora"}
-            </Button>
-          </Can>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <ViewSwitcher mode={view} onChange={setView} />
+            <Can level="operate">
+              <Button
+                variant="primary"
+                disabled={sync.isPending}
+                style={{ padding: "6px 14px" }}
+                onClick={() => sync.mutate()}
+              >
+                <i className="pi pi-refresh" style={{ fontSize: 11 }} />
+                {sync.isPending ? "Sincronizando…" : "Sincronizar agora"}
+              </Button>
+            </Can>
+          </div>
         }
       />
 
@@ -193,6 +266,17 @@ export function ZabbixHostsPage() {
       {hosts.isLoading ? (
         <LoadingBlock />
       ) : (
+        <EntityView<ZabbixHostView>
+          mode={view}
+          items={items}
+          getKey={(row) => row.hostId}
+          emptyMessage="Nenhum host encontrado — use “Sincronizar agora” para importar do Zabbix"
+          kanban={{
+            groupOf: hostStateKey,
+            columns: HOST_STATE_COLUMNS,
+          }}
+          renderCard={renderHostCard}
+          table={
         <DataTablePanel
           value={items}
           dataKey="hostId"
@@ -261,6 +345,8 @@ export function ZabbixHostsPage() {
             style={{ width: 140 }}
           />
         </DataTablePanel>
+          }
+        />
       )}
 
       {totalCount > 0 && (
