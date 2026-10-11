@@ -17,7 +17,7 @@ namespace InfraControl.UnitTests.Knowledge;
 /// F24-T006/K6: geração de rascunho (spec docs/32 §2–§4, ADR-035) —
 /// montagem DETERMINÍSTICA dos registros existentes (nunca inventa:
 /// seção sem registro é omitida), sempre nasce Draft → revisão, com
-/// versão v1.0 (K3) e origem Task/Pdi (K4).
+/// versão v1.0 (K3) e origem Task/Pdi/Project (K4).
 /// </summary>
 public sealed class KnowledgeGenerationTests : IDisposable
 {
@@ -84,6 +84,21 @@ public sealed class KnowledgeGenerationTests : IDisposable
             new FakeCurrentUser(roles ?? ["Operator"]),
             NullLogger<GeneratePdiKnowledgeCommandHandler>.Instance);
 
+    private static GenerateProjectKnowledgeCommandHandler ProjectGenerateHandler(
+        AppDbContext context, string[]? roles = null)
+        => new(
+            new ProjectRepository(context),
+            new ProjectPhaseRepository(context),
+            new ProjectProgressRepository(context),
+            new ProjectImpedimentRepository(context),
+            new ProjectEvidenceRepository(context),
+            new ProjectHistoryRepository(context),
+            new KnowledgeArticleRepository(context),
+            new KnowledgeArticleVersionRepository(context),
+            new KnowledgeArticleOriginRepository(context),
+            new FakeCurrentUser(roles ?? ["Operator"]),
+            NullLogger<GenerateProjectKnowledgeCommandHandler>.Instance);
+
     private static GetKnowledgeArticleQueryHandler GetHandler(AppDbContext context)
         => new(
             new KnowledgeArticleRepository(context),
@@ -119,6 +134,36 @@ public sealed class KnowledgeGenerationTests : IDisposable
         context.IndividualDevelopmentPlans.Add(plan);
         await context.SaveChangesAsync();
         return plan.Id;
+    }
+
+    private static async Task<Project> SeedCompletedProjectAsync(AppDbContext context)
+    {
+        var project = Project.Create(
+            "PRJ-001",
+            "Migração do core de rede",
+            "Migrar os switches de core para a nova arquitetura de acesso resiliente.",
+            CurrentUserId,
+            ProjectPriority.High,
+            "Aumento na capacidade e redução do risco de indisponibilidade.");
+
+        project.AddMember(Guid.NewGuid(), ProjectMemberRole.Leader);
+        project.AddMember(Guid.NewGuid(), ProjectMemberRole.Member);
+        project.TransitionTo(ProjectStatus.Planned);
+        project.TransitionTo(ProjectStatus.InProgress);
+        project.SubmitForApproval();
+        project.Approve(Guid.NewGuid(), "Projeto homologado com sucesso e documentação validada.", DateTimeOffset.UtcNow);
+
+        context.Projects.Add(project);
+        context.ProjectPhases.Add(ProjectPhase.Create(project.Id, "Levantamento", 1, "Arquitetura e levantamento inicial."));
+        context.ProjectProgresses.Add(ProjectProgress.Create(project.Id, CurrentUserId, 75, "Migração concluída em 75% do cronograma."));
+        context.ProjectImpediments.Add(ProjectImpediment.Create(project.Id, "Acesso de firewall", "Acesso de manutenção pendente com vendor.", ProjectImpedimentCategory.SecurityAccess, ProjectImpedimentSeverity.High, "Solicitar credencial ao time de rede."));
+        var evidence = ProjectEvidence.Create(project.Id, CurrentUserId, ProjectEvidenceType.TestReport, "Relatório de testes de failover.", "relatorio-failover.pdf", "application/pdf", 4200);
+        evidence.ValidateBy(Guid.NewGuid());
+        context.ProjectEvidences.Add(evidence);
+        context.ProjectHistoryEntries.Add(ProjectHistoryEntry.Create(project.Id, ProjectHistoryType.Created, CurrentUserId, "Projeto criado para a migração do core."));
+        context.ProjectHistoryEntries.Add(ProjectHistoryEntry.Create(project.Id, ProjectHistoryType.Approved, CurrentUserId, "Homologação concluída."));
+        await context.SaveChangesAsync();
+        return project;
     }
 
     [Fact]
@@ -177,6 +222,38 @@ public sealed class KnowledgeGenerationTests : IDisposable
             new GetKnowledgeArticleQuery(dto.Id), CancellationToken.None);
         detail.Origins.Should().ContainSingle(origin =>
             origin.Type == "Task" && origin.Id == task.Id);
+    }
+
+    [Fact]
+    public async Task GenerateProjectKnowledge_CompletedProject_ShouldCreateDraftWithRealRecords()
+    {
+        await using var context = await CreateContextAsync();
+        var project = await SeedCompletedProjectAsync(context);
+
+        var dto = await ProjectGenerateHandler(context).Handle(
+            new GenerateProjectKnowledgeCommand(project.Id), CancellationToken.None);
+
+        dto.Status.Should().Be(KnowledgeArticleStatus.Draft);
+        dto.Title.Should().Be("Migração do core de rede");
+        dto.Content.Should().Contain("Rascunho gerado automaticamente");
+        dto.Content.Should().Contain("## Projeto");
+        dto.Content.Should().Contain(project.Code);
+        dto.Content.Should().Contain("## Equipe e liderança");
+        dto.Content.Should().Contain("## Cronograma executado");
+        dto.Content.Should().Contain("## Fases e entregáveis");
+        dto.Content.Should().Contain("## Impedimentos e lições aprendidas");
+        dto.Content.Should().Contain("## Evidências homologadas");
+        dto.Content.Should().Contain("## Linha do tempo");
+
+        var version = await context.KnowledgeArticleVersions.SingleAsync(
+            row => row.ArticleId == dto.Id);
+        version.Version.Should().Be("1.0");
+        version.Reason.Should().Contain("homologação do Projeto");
+
+        var detail = await GetHandler(context).Handle(
+            new GetKnowledgeArticleQuery(dto.Id), CancellationToken.None);
+        detail.Origins.Should().ContainSingle(origin =>
+            origin.Type == "Project" && origin.Id == project.Id);
     }
 
     [Fact]

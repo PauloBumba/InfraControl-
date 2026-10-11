@@ -404,6 +404,11 @@ public sealed class InvitationTests
     /// </summary>
     private sealed class NoOpInvitationAccountPort : IInvitationAccountPort
     {
+        public Task<InvitationAccountInfo?> GetAccountInfoAsync(
+            string email,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<InvitationAccountInfo?>(null);
+
         public Task<Guid> ProvisionInactiveAccountAsync(
             string email,
             IReadOnlyCollection<Domain.Enums.UserRole> roles,

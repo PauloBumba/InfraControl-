@@ -9,6 +9,10 @@ export interface InvitationItem {
   createdBy: string;
   roles: string[];
   decidedAt: string | null;
+  projectId?: string | null;
+  projectCode?: string | null;
+  projectTitle?: string | null;
+  projectRole?: string | null;
 }
 
 export interface PagedInvitations {

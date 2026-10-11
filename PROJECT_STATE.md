@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-08
+**Última atualização:** 2026-10-10
 
 ## Regra operacional
 
@@ -70,6 +70,13 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] Implantação da infraestrutura Docker do Zabbix (F18-T001): profile `zabbix` com Zabbix Server (`zabbix/zabbix-server-pgsql:alpine-trunk`, API 8.0.0 — decisão do usuário 2026-10-03 de manter trunk até a tag 8.0 sair de *devel*), Web Nginx (8086 — 8085 é do frontend), Agent 2 (10053) e PostgreSQL 17 dedicado (`zabbix-db` na porta 5434); portas/token via `.env` (`ZABBIX_DB_PORT/ZABBIX_SERVER_PORT/ZABBIX_WEB_PORT/ZABBIX_AGENT_PORT/ZABBIX_TOKEN`); volumes persistentes `zabbix_db_data`, `zabbix_server_snmptraps` e `zabbix_server_mibs`; validação com `docker compose config` e runbook em `docs/27`
 - [x] Integração Zabbix ↔ InfraControl configurada e validada ponta-a-ponta (2026-10-03): media types webhook 105 (Problem) / 106 (Recovery) via JSON-RPC → `POST /api/v1/integrations/zabbix/problems` com `X-Zabbix-Token`; action única id 7 (`operations` + `recovery_operations`); item trapper `test.value` (72011) + trigger 33178 no host "Zabbix server"; ciclo real PROBLEM (evento 8) → `monitoring_events` → alerta Critical → incidente → OK (evento 9) → alerta `Resolved` (gotchas: bitmask `severity:63` no user media, `default_msg:0` com mensagem explícita, sem condição PROBLEM/OK — documentados em docs/27 §4)
 - [x] Especificação da Arquitetura da Camada de Integrações (F19-T000 / ADR-028): definindo padrões de autenticação, health, segredos, resiliência (Polly), sincronização e o modelo unificado de integração (Zabbix, UniFi, n8n) em `docs/adr/ADR-028-INTEGRATION-LAYER-ARCHITECTURE.md`
+- [x] Especificação e ADR do Módulo de Projetos (F28-T001 / ADR-043 / docs/38): ciclo de vida de projetos de infraestrutura, fases sequenciais, acompanhamento bilateral, homologação pelo Administrador e geração automática na Knowledge Base
+- [x] Domínio Base e Persistência de Projetos (F28-T002): agregado Project com 7 estados e aprovação Admin, ProjectMember, enums, eventos de domínio, IProjectRepository, mapeamentos EF Core, DbSets e migração AddProjectsAndMembers
+- [x] Fases do Projeto e Estrutura (F28-T003): ProjectPhase com critérios/ordenação/progresso, CQRS Add/Update/Reorder/SetStatus + query com progresso ponderado, migração AddProjectPhases
+- [x] Módulo de Acompanhamento (F28-T004): ProjectProgress, ProjectImpediment, ProjectEvidence e ProjectHistoryEntry com persistência EF, file store local e testes de domínio; tabelas incluídas na migração validada `AddProjectTrackingAndMembershipInvitations`
+- [x] Convites e Equipe do Projeto (F28-T009): ADR-046, autorização criador/Admin, fluxo Invitation/onboarding, UI de membros e migration; 39 testes focados e script SQL idempotente validados
+- [x] Governança e Homologação Admin (F28-T005): submission para aprovação final, homologação exclusiva de Administrador e gravação de parecer formal (`ApprovalNotes`)
+- [x] Integração com a Base de Conhecimento (F28-T006): origem `Project`, composição determinística do rascunho e geração automática do artigo a partir de projeto homologado
 - [ ] CI configurado e validado remotamente (workflow criado; bloqueado por limite de minutos do GitHub Actions)
 
 

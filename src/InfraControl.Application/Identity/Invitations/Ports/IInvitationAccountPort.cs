@@ -3,6 +3,8 @@ using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Identity.Invitations.Ports;
 
+public sealed record InvitationAccountInfo(Guid UserId, bool IsActive);
+
 /// <summary>
 /// Porta de provisionamento de conta para o fluxo de convites.
 /// O adaptador em Infrastructure é responsável por criar a conta INATIVA
@@ -11,6 +13,10 @@ namespace InfraControl.Application.Identity.Invitations.Ports;
 /// </summary>
 public interface IInvitationAccountPort
 {
+    Task<InvitationAccountInfo?> GetAccountInfoAsync(
+        string email,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Garante que uma conta exista para o email, criando-a INATIVA quando não existir.
     /// Se a conta já existir, apenas sincroniza as roles do convite sem alterar o estado de ativação.

@@ -2,6 +2,9 @@ using FluentAssertions;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Invitations.Commands;
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.Application.Projects.Ports;
+using InfraControl.BuildingBlocks.Application;
+using InfraControl.Application.Identity.Invitations.Queries;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Auth;
@@ -12,6 +15,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Infrastructure.Services;
 
@@ -196,6 +200,143 @@ public sealed class InvitationActivationTests
     }
 
     [Fact]
+    public async Task ProjectInvitation_ShouldAddMemberOnlyAfterAccountActivation()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var project = Project.Create(
+            "PRJ-920",
+            "Projeto de implantação",
+            "Descrição do projeto",
+            Guid.NewGuid(),
+            createdById: Guid.NewGuid());
+        dbContext.Projects.Add(project);
+        await dbContext.SaveChangesAsync();
+
+        var token = InvitationToken.Generate();
+        var invitation = Invitation.CreateForProject(
+            "project-invitee@example.com",
+            InvitationToken.Hash(token),
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            project.Id,
+            project.Code,
+            project.Title,
+            ProjectMemberRole.Reviewer);
+        var invitationRepository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
+        await invitationRepository.AddAsync(invitation);
+        await invitationRepository.SaveChangesAsync();
+
+        var acceptHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<AcceptInvitationCommand, AcceptInvitationResult>>();
+        await acceptHandler.Handle(
+            new AcceptInvitationCommand(invitation.Id, token),
+            CancellationToken.None);
+
+        var projectRepository = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
+        (await projectRepository.GetByIdAsync(project.Id))!.Members.Should().BeEmpty(
+            "a new invitee is not added to the team until the onboarding account is activated");
+
+        var setPasswordHandler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<SetInvitationPasswordCommand, SetInvitationPasswordResult>>();
+        await setPasswordHandler.Handle(
+            new SetInvitationPasswordCommand(invitation.Id, token, StrongPassword),
+            CancellationToken.None);
+
+        var savedProject = await projectRepository.GetByIdAsync(project.Id);
+        savedProject!.Members.Should().ContainSingle(member =>
+            member.UserId == invitation.AcceptedUserId && member.Role == ProjectMemberRole.Reviewer);
+    }
+
+    [Fact]
+    public async Task AuthenticatedProjectInviteAcceptance_ShouldAddExistingUserToTeam()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var userId = Guid.NewGuid();
+        var email = "existing-member@example.com";
+        var existingUser = User.Create(userId, email, "Existing Member", UserRole.Admin);
+        dbContext.DomainUsers.Add(existingUser);
+        var project = Project.Create(
+            "PRJ-921",
+            "Projeto ativo",
+            "Descrição do projeto",
+            userId,
+            createdById: userId);
+        dbContext.Projects.Add(project);
+        await dbContext.SaveChangesAsync();
+
+        var invitation = Invitation.CreateForProject(
+            email,
+            "unused-token-hash",
+            DateTime.UtcNow.AddDays(7),
+            Guid.NewGuid(),
+            project.Id,
+            project.Code,
+            project.Title,
+            ProjectMemberRole.Member);
+        var invitationRepository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
+        await invitationRepository.AddAsync(invitation);
+        await invitationRepository.SaveChangesAsync();
+
+        var handler = new AcceptInvitationInternalCommandHandler(
+            invitationRepository,
+            new FakeCurrentUser(userId, email),
+            scope.ServiceProvider.GetRequiredService<IInvitationAccountPort>(),
+            scope.ServiceProvider.GetRequiredService<IProjectRepository>(),
+            NullLogger<AcceptInvitationInternalCommandHandler>.Instance);
+        await handler.Handle(new AcceptInvitationInternalCommand(invitation.Id), CancellationToken.None);
+
+        var savedProject = await scope.ServiceProvider
+            .GetRequiredService<IProjectRepository>()
+            .GetByIdAsync(project.Id);
+        savedProject!.Members.Should().ContainSingle(member =>
+            member.UserId == userId && member.Role == ProjectMemberRole.Member);
+        dbContext.ChangeTracker.Clear();
+        var savedUser = await dbContext.DomainUsers
+            .Include(user => user.RoleAssignments)
+            .SingleAsync(user => user.Id == userId);
+        savedUser.Roles.Should().ContainSingle().Which.Should().Be(UserRole.Admin);
+    }
+
+    [Fact]
+    public async Task GetMyInvitations_ShouldReturnOnlyExactEmailMatches()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var now = DateTime.UtcNow;
+        var repository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
+        await repository.AddAsync(Invitation.Create(
+            "alpha@example.com", "token-hash-1", now.AddDays(7), Guid.NewGuid(), [UserRole.Viewer]));
+        await repository.AddAsync(Invitation.Create(
+            "alpha@example.com.evil", "token-hash-2", now.AddDays(7), Guid.NewGuid(), [UserRole.Viewer]));
+        await repository.SaveChangesAsync();
+
+        var handler = new GetMyInvitationsQueryHandler(
+            repository,
+            new FakeCurrentUser(Guid.NewGuid(), "alpha@example.com"),
+            NullLogger<GetMyInvitationsQueryHandler>.Instance);
+        var invitations = await handler.Handle(new GetMyInvitationsQuery(), CancellationToken.None);
+
+        invitations.Should().ContainSingle().Which.Email.Should().Be("alpha@example.com");
+    }
+
+    [Fact]
     public async Task SetPasswordHandler_ShouldEnforceSingleUse()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -325,6 +466,14 @@ public sealed class InvitationActivationTests
 
     private static string Hash(string token) => InvitationToken.Hash(token);
 
+    private sealed class FakeCurrentUser(Guid userId, string email) : ICurrentUserContext
+    {
+        public Guid? UserId => userId;
+        public string? UserName => email;
+        public bool IsAuthenticated => true;
+        public IReadOnlyCollection<string> Roles => [UserRole.Viewer.ToString()];
+    }
+
     private static ServiceProvider BuildProvider(SqliteConnection connection)
     {
         var services = new ServiceCollection();
@@ -337,6 +486,7 @@ public sealed class InvitationActivationTests
             .AddEntityFrameworkStores<AppDbContext>();
         services.AddScoped<IDomainEventService, DomainEventService>();
         services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IInvitationAccountPort, InvitationAccountPort>();
         // F1-T017: o handler de convite dispara o e-mail — a porta precisa estar no harness.
         services.AddScoped<IIdentityEmailSender, NoOpEmailSender>();

@@ -8,6 +8,14 @@ public interface IInvitationRepository : IRepository<Invitation>
 {
     Task<Invitation?> GetAsync(Guid invitationId, CancellationToken cancellationToken = default);
     Task<Invitation?> GetPendingByEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<Invitation?> GetPendingByEmailAndProjectAsync(
+        string email,
+        Guid projectId,
+        CancellationToken cancellationToken = default);
+    Task<List<Invitation>> ListByEmailAsync(
+        string email,
+        int take = 100,
+        CancellationToken cancellationToken = default);
     Task<List<Invitation>> SearchAsync(
         InvitationStatus? status = null,
         string? email = null,

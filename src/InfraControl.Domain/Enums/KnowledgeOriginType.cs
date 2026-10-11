@@ -5,10 +5,9 @@ namespace InfraControl.Domain.Enums;
 /// Knowledge mantém sua origem", com múltiplas origens). Guardado
 /// como string.
 ///
-/// A §9 lista também Projetos, documentos e treinamentos — essas
-/// entidades não existem no repo, então não foram inventadas
-/// (AGENTS.md: não inventar requisitos); se nascerem, entra valor
-/// novo aqui + validação de existência no handler.
+/// O módulo de Projetos já foi incorporado ao tipo de origem e exige
+/// validação de existência no handler; futuramente, outros tipos podem
+/// entrar por extensão explícita do enum e do comando de vínculo.
 /// </summary>
 public enum KnowledgeOriginType
 {
@@ -17,6 +16,9 @@ public enum KnowledgeOriginType
 
     /// <summary>Origem em um PDI (IndividualDevelopmentPlan).</summary>
     Pdi,
+
+    /// <summary>Origem em um Projeto (Project).</summary>
+    Project,
 
     /// <summary>Origem em um Chamado/Incidente (§9 "Chamados").</summary>
     Incident,

@@ -38,6 +38,36 @@ public sealed class InvitationRepository(AppDbContext dbContext) : IInvitationRe
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<Invitation?> GetPendingByEmailAndProjectAsync(
+        string email,
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        return dbContext.Invitations
+            .Include(invitation => invitation.RoleAssignments)
+            .Where(invitation => invitation.Email == normalizedEmail
+                && invitation.ProjectId == projectId
+                && invitation.Status == InvitationStatus.Pending
+                && invitation.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(invitation => invitation.CreateDateTime)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<List<Invitation>> ListByEmailAsync(
+        string email,
+        int take = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        return dbContext.Invitations
+            .Include(invitation => invitation.RoleAssignments)
+            .Where(invitation => invitation.Email == normalizedEmail)
+            .OrderByDescending(invitation => invitation.CreateDateTime)
+            .Take(Math.Clamp(take, 1, 100))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<List<Invitation>> SearchAsync(
         InvitationStatus? status = null,
         string? email = null,

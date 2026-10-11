@@ -103,6 +103,13 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<PdiEvidence> PdiEvidences => Set<PdiEvidence>();
     public DbSet<PdiAssessment> PdiAssessments => Set<PdiAssessment>();
     public DbSet<PdiResult> PdiResults => Set<PdiResult>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<ProjectPhase> ProjectPhases => Set<ProjectPhase>();
+    public DbSet<ProjectProgress> ProjectProgresses => Set<ProjectProgress>();
+    public DbSet<ProjectImpediment> ProjectImpediments => Set<ProjectImpediment>();
+    public DbSet<ProjectEvidence> ProjectEvidences => Set<ProjectEvidence>();
+    public DbSet<ProjectHistoryEntry> ProjectHistoryEntries => Set<ProjectHistoryEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -40,6 +40,25 @@ public class InvitationConfiguration : IEntityTypeConfiguration<Invitation>
         builder.Property(x => x.DecidedAt)
             .HasColumnName("decided_at");
 
+        builder.Property(x => x.ProjectId)
+            .HasColumnName("project_id");
+
+        builder.Property(x => x.ProjectCode)
+            .HasColumnName("project_code")
+            .HasMaxLength(Project.CodeMaxLength);
+
+        builder.Property(x => x.ProjectTitle)
+            .HasColumnName("project_title")
+            .HasMaxLength(Project.TitleMaxLength);
+
+        builder.Property(x => x.ProjectRole)
+            .HasColumnName("project_role")
+            .HasMaxLength(30)
+            .HasConversion<string>();
+
+        builder.Property(x => x.AcceptedUserId)
+            .HasColumnName("accepted_user_id");
+
         builder.HasMany(x => x.RoleAssignments)
             .WithOne()
             .HasForeignKey(x => x.InvitationId)
@@ -50,6 +69,9 @@ public class InvitationConfiguration : IEntityTypeConfiguration<Invitation>
 
         builder.HasIndex(x => x.ExpiresAt)
             .HasDatabaseName("ix_invitations_expires_at");
+
+        builder.HasIndex(x => x.ProjectId)
+            .HasDatabaseName("ix_invitations_project_id");
     }
 }
 

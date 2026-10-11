@@ -3,6 +3,7 @@ using InfraControl.Application.Tasks;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.Knowledge.Articles;
 
@@ -31,6 +32,10 @@ public static class KnowledgeDraftComposer
     private const string PdiBanner =
         "> Rascunho gerado automaticamente a partir dos registros do PDI"
         + " (spec docs/32 §4). Revise antes de publicar.";
+
+    private const string ProjectBanner =
+        "> Rascunho gerado automaticamente a partir da homologação do Projeto"
+        + " (ADR-043). Revise antes de publicar.";
 
     /// <summary>Rascunho a partir de uma Task concluída (§3).</summary>
     public static (string Title, string Content) ComposeFromTask(
@@ -163,6 +168,89 @@ public static class KnowledgeDraftComposer
             CapContent(string.Join("\n\n", parts)));
     }
 
+    /// <summary>Rascunho a partir de um Projeto homologado.</summary>
+    public static (string Title, string Content) ComposeFromProject(
+        Project project,
+        IReadOnlyCollection<ProjectMember> members,
+        IReadOnlyCollection<ProjectPhase> phases,
+        IReadOnlyCollection<ProjectProgress> progress,
+        IReadOnlyCollection<ProjectImpediment> impediments,
+        IReadOnlyCollection<ProjectEvidence> evidence,
+        IReadOnlyCollection<ProjectHistoryEntry> history)
+    {
+        var parts = new List<string> { ProjectBanner };
+
+        AddSection(parts, "Projeto", new[]
+        {
+            $"- Código: {project.Code}",
+            BlankToNull(project.Description),
+            BlankToNull(project.Justification) is null
+                ? null
+                : $"- Justificativa: {project.Justification}",
+            project.ApprovedAt is { } approvedAt
+                ? $"- Homologado em: {approvedAt:dd/MM/yyyy HH:mm} UTC."
+                : null,
+            project.AdminApproverId is { } adminId
+                ? $"- Administrador aprovador: {adminId}."
+                : null,
+            project.ApprovalNotes is { } approvalNotes
+                ? $"- Parecer: {approvalNotes.Trim()}"
+                : null,
+        });
+
+        var memberLines = members
+            .OrderBy(member => member.Role)
+            .Select(member => $"- {member.Role}: {member.UserId}");
+        AddSection(parts, "Equipe e liderança", memberLines);
+
+        var plannedStart = project.PlannedStartDate is { } planStart ? $"- Início planejado: {planStart:dd/MM/yyyy}." : null;
+        var plannedEnd = project.PlannedEndDate is { } planEnd ? $"- Término planejado: {planEnd:dd/MM/yyyy}." : null;
+        var actualStart = project.ActualStartDate is { } actualStartDate ? $"- Início real: {actualStartDate:dd/MM/yyyy}." : null;
+        var actualEnd = project.ActualEndDate is { } actualEndDate ? $"- Término real: {actualEndDate:dd/MM/yyyy}." : null;
+        AddSection(parts, "Cronograma executado", new[] { plannedStart, plannedEnd, actualStart, actualEnd });
+
+        AddSection(parts, "Fases e entregáveis", phases
+            .OrderBy(phase => phase.Order)
+            .Select(phase =>
+                $"- {phase.Order}. {phase.Title.Trim()} — status {phase.Status}"
+                + (phase.CompletionCriteria is null ? string.Empty : $"; critério: {phase.CompletionCriteria.Trim()}")
+                + $"; progresso: {phase.Percent}%"));
+
+        AddSection(parts, "Impedimentos e lições aprendidas", impediments
+            .OrderByDescending(impediment => impediment.CreateDateTime)
+            .Select(impediment =>
+                $"- {impediment.Title.Trim()} ({impediment.Severity}) — "
+                + (impediment.IsResolved ? "resolvido" : "em aberto")
+                + (string.IsNullOrWhiteSpace(impediment.MitigationPlan)
+                    ? "."
+                    : $"; mitigação: {impediment.MitigationPlan.Trim()}.")));
+
+        AddSection(parts, "Progresso e relatórios", progress
+            .OrderByDescending(item => item.CreateDateTime)
+            .Select(entry =>
+                $"- {entry.CreateDateTime:dd/MM/yyyy HH:mm} — {entry.AuthorId}: "
+                + (entry.Percent is { } percent ? $"{percent}% — " : string.Empty)
+                + entry.Comment.Trim()));
+
+        AddSection(parts, "Evidências homologadas", evidence
+            .Where(item => item.Status == ProjectEvidenceStatus.Validated)
+            .OrderByDescending(item => item.CreateDateTime)
+            .Select(item =>
+                string.IsNullOrWhiteSpace(item.Description)
+                    ? $"- {item.OriginalFileName} ({item.Type})"
+                    : $"- {item.OriginalFileName} ({item.Type}) — {item.Description.Trim()}"));
+
+        AddSection(parts, "Linha do tempo", history
+            .OrderBy(entry => entry.CreateDateTime)
+            .TakeLast(MaxTimelineEntries)
+            .Select(entry =>
+                $"- {entry.CreateDateTime:dd/MM/yyyy HH:mm} — {DescribeProjectEvent(entry)}"));
+
+        return (
+            SafeCut(project.Title.Trim(), MaxTitleLength),
+            CapContent(string.Join("\n\n", parts)));
+    }
+
     /// <summary>
     /// Adiciona a seção só com as linhas não vazias — seção sem
     /// registro não aparece (§3: "não inventar").
@@ -201,6 +289,34 @@ public static class KnowledgeDraftComposer
                 ? "atualização."
                 : entry.Detail.Trim(),
         };
+
+    private static string DescribeProjectEvent(ProjectHistoryEntry entry)
+        => entry.Type switch
+        {
+            ProjectHistoryType.Created => "projeto criado.",
+            ProjectHistoryType.Updated => "dados do projeto atualizados.",
+            ProjectHistoryType.DeadlineChanged => "prazo alterado.",
+            ProjectHistoryType.PhaseStarted => "fase iniciada.",
+            ProjectHistoryType.PhaseSubmitted => "fase submetida para validação.",
+            ProjectHistoryType.PhaseValidated => "fase validada.",
+            ProjectHistoryType.PhaseRejected => "fase rejeitada para ajuste.",
+            ProjectHistoryType.ProgressReported => "progresso reportado.",
+            ProjectHistoryType.ImpedimentCreated => "impedimento registrado.",
+            ProjectHistoryType.ImpedimentResolved => "impedimento resolvido.",
+            ProjectHistoryType.EvidenceAdded => "evidência adicionada.",
+            ProjectHistoryType.EvidenceReviewed => "evidência revisada.",
+            ProjectHistoryType.SubmittedForApproval => "projeto submetido para homologação.",
+            ProjectHistoryType.Approved => "projeto homologado.",
+            ProjectHistoryType.Cancelled => "projeto cancelado.",
+            ProjectHistoryType.OnHold => "projeto pausado.",
+            ProjectHistoryType.Resumed => "projeto retomado.",
+            _ => "atualização do projeto.",
+        } + (string.IsNullOrWhiteSpace(entry.Detail)
+            ? string.Empty
+            : $" {entry.Detail.Trim()}")
+          + (string.IsNullOrWhiteSpace(entry.Reason)
+            ? string.Empty
+            : $" ({entry.Reason.Trim()})");
 
     /// <summary>Corta no limite sem deixar surrogate solto.</summary>
     private static string SafeCut(string value, int max)

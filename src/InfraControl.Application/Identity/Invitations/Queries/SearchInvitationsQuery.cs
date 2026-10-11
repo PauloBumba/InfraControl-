@@ -24,7 +24,11 @@ public sealed record InvitationDto(
     DateTime CreatedAt,
     Guid CreatedBy,
     IReadOnlyCollection<string> Roles,
-    DateTime? DecidedAt);
+    DateTime? DecidedAt,
+    Guid? ProjectId = null,
+    string? ProjectCode = null,
+    string? ProjectTitle = null,
+    string? ProjectRole = null);
 
 public sealed class SearchInvitationsQueryHandler(
     IInvitationRepository repository) : IRequestHandler<SearchInvitationsQuery, PagedResult<InvitationDto>>
@@ -51,7 +55,11 @@ public sealed class SearchInvitationsQueryHandler(
             invitation.CreateDateTime,
             invitation.CreatedBy,
             invitation.Roles.Select(role => role.ToString()).ToArray(),
-            invitation.DecidedAt
+            invitation.DecidedAt,
+            invitation.ProjectId,
+            invitation.ProjectCode,
+            invitation.ProjectTitle,
+            invitation.ProjectRole?.ToString()
         )).ToList();
 
         return new PagedResult<InvitationDto>(dtos, totalCount, request.Skip, request.Take);

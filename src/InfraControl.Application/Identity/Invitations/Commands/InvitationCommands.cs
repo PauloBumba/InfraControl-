@@ -143,6 +143,10 @@ public sealed class UpdateInvitationCommandHandler(
             invitation.CreateDateTime,
             invitation.CreatedBy,
             invitation.Roles.Select(role => role.ToString()).ToArray(),
-            invitation.DecidedAt);
+            invitation.DecidedAt,
+            invitation.ProjectId,
+            invitation.ProjectCode,
+            invitation.ProjectTitle,
+            invitation.ProjectRole?.ToString());
     }
 }

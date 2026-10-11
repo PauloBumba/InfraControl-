@@ -1,5 +1,6 @@
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Application.Identity.Invitations.Ports;
+using InfraControl.Application.Projects.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
@@ -22,6 +23,7 @@ public sealed class AcceptInvitationInternalCommandHandler(
     IInvitationRepository repository,
     ICurrentUserContext currentUserContext,
     IInvitationAccountPort accountPort,
+    IProjectRepository projectRepository,
     ILogger<AcceptInvitationInternalCommandHandler> logger) : IRequestHandler<AcceptInvitationInternalCommand>
 {
     public async Task Handle(AcceptInvitationInternalCommand request, CancellationToken cancellationToken)
@@ -40,14 +42,32 @@ public sealed class AcceptInvitationInternalCommandHandler(
         if (invitation.Email != normalizedEmail)
             throw new UnauthorizedAccessException("Este convite não pertence ao seu e-mail.");
 
+        var project = invitation.ProjectId is { } projectId
+            ? await projectRepository.GetByIdAsync(projectId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Projeto '{projectId}' não encontrado.")
+            : null;
+
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 
         // Aceita o convite (sem token pois já validamos o email do usuário autenticado)
         invitation.AcceptInternal(utcNow);
 
-        // Adiciona as roles do convite ao usuário existente
-        // O ProvisionInactiveAccountAsync já lida com usuário existente (sincroniza roles)
-        await accountPort.ProvisionInactiveAccountAsync(invitation.Email, invitation.Roles, cancellationToken);
+        // Convites de projeto apenas associam uma conta ativa à equipe; roles
+        // globais são concedidas somente no fluxo de onboarding de contas novas.
+        var acceptedUserId = invitation.ProjectId.HasValue
+            ? currentUserContext.UserId.Value
+            : await accountPort.ProvisionInactiveAccountAsync(
+                invitation.Email, invitation.Roles, cancellationToken);
+
+        if (project is not null)
+        {
+            if (acceptedUserId != currentUserContext.UserId.Value)
+                throw new UnauthorizedAccessException("A conta do convite não corresponde ao usuário autenticado.");
+
+            project.AddMember(acceptedUserId, invitation.ProjectRole
+                ?? throw new InvalidOperationException("Papel de equipe ausente no convite de projeto."));
+            invitation.SetAcceptedUser(acceptedUserId);
+        }
 
         await repository.SaveChangesAsync(cancellationToken);
 

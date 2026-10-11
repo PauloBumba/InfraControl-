@@ -224,6 +224,10 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
             PdiRepository>();
         services.AddScoped<InfraControl.Application.Pdi.Ports.IPdiStructureRepository,
             PdiStructureRepository>();
+        services.AddScoped<InfraControl.Application.Projects.Ports.IProjectRepository,
+            ProjectRepository>();
+        services.AddScoped<InfraControl.Application.Projects.Ports.IProjectPhaseRepository,
+            ProjectPhaseRepository>();
         services.AddScoped<InfraControl.Application.Tasks.Ports.ITaskEvidenceRepository,
             TaskEvidenceRepository>();
         services.AddScoped<InfraControl.Application.Tasks.Ports.ITaskImpedimentRepository,
