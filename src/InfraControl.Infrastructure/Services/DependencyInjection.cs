@@ -434,17 +434,19 @@ public static class DependencyInjection
         // Configuração de IA: Ollama + roteamento por capacidade
         services.Configure<AiOllamaOptions>(configuration.GetSection("Ai:Ollama"));
         services.Configure<AiRoutingOptionsConfiguration>(configuration.GetSection("Ai:Routing"));
-        // AiProviderRouter injeta o record concreto (não IOptions) — o
+        // AiProviderRouter injeta o objeto concreto (não IOptions) — o
         // binding acima já cobre a seção; seção ausente vira defaults
         // vazios e o router lança AiProviderNotConfiguredException no
         // Resolve (estado degradado desejado, ADR-037 §44).
         var aiRouting = configuration.GetSection("Ai:Routing").Get<AiRoutingOptionsConfiguration>()
-            ?? new AiRoutingOptionsConfiguration(
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty));
+            ?? new AiRoutingOptionsConfiguration
+            {
+                Copilot = new() { DefaultModel = string.Empty },
+                IncidentAnalysis = new() { DefaultModel = string.Empty },
+                KnowledgeGeneration = new() { DefaultModel = string.Empty },
+                Reporting = new() { DefaultModel = string.Empty },
+                Automation = new() { DefaultModel = string.Empty }
+            };
         services.AddSingleton(aiRouting);
 
         // HttpClient do Ollama (named client)

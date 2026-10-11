@@ -25,7 +25,7 @@ public sealed class OllamaProviderTests
     public void Constructor_deve_configurar_base_url()
     {
         var httpClientFactory = CreateHttpClientFactory();
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
 
         var provider = new OllamaProvider(httpClientFactory, options);
 
@@ -48,7 +48,7 @@ public sealed class OllamaProviderTests
                 });
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var result = await provider.CompleteAsync(
@@ -76,7 +76,7 @@ public sealed class OllamaProviderTests
                 });
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         await provider.CompleteAsync(
@@ -105,7 +105,7 @@ public sealed class OllamaProviderTests
                 });
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         await provider.CompleteAsync(
@@ -128,7 +128,7 @@ public sealed class OllamaProviderTests
                 response.Content = new StringContent("json invalido");
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var act = () => provider.CompleteAsync(
@@ -148,7 +148,7 @@ public sealed class OllamaProviderTests
                 response.StatusCode = HttpStatusCode.InternalServerError;
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var act = () => provider.CompleteAsync(
@@ -175,7 +175,7 @@ public sealed class OllamaProviderTests
                 });
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
@@ -195,7 +195,7 @@ public sealed class OllamaProviderTests
                 response.Content = Json(new { models = Array.Empty<object>() });
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
@@ -212,7 +212,7 @@ public sealed class OllamaProviderTests
                 response.StatusCode = HttpStatusCode.OK;
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var result = await provider.TestConnectionAsync(CancellationToken.None);
@@ -229,7 +229,7 @@ public sealed class OllamaProviderTests
                 response.StatusCode = HttpStatusCode.ServiceUnavailable;
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var result = await provider.TestConnectionAsync(CancellationToken.None);
@@ -246,7 +246,7 @@ public sealed class OllamaProviderTests
                 throw new HttpRequestException("conexão recusada");
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         var result = await provider.TestConnectionAsync(CancellationToken.None);
@@ -302,7 +302,7 @@ public sealed class OllamaProviderTests
                 response.Content = Json(new { response = "ok", done = true });
             });
 
-        var options = Options.Create(new AiOllamaOptions("http://localhost:11434"));
+        var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
         var provider = new OllamaProvider(httpClientFactory, options);
 
         await provider.CompleteAsync(

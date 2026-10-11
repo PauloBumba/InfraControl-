@@ -52,7 +52,7 @@ public sealed class OllamaEmbeddingProviderTests
     public async Task EmbedAsync_devolve_o_primeiro_embedding()
     {
         var (provider, requests) = Build(
-            new AiOllamaOptions("http://localhost:11434", "nomic-embed-text"),
+            new AiOllamaOptions { BaseUrl = "http://localhost:11434", EmbeddingModel = "nomic-embed-text" },
             response => response.Content = Json(new { embeddings = new[] { new[] { 0.25f, -0.5f } } }));
 
         var embedding = await provider.EmbedAsync("texto de teste");
@@ -67,7 +67,7 @@ public sealed class OllamaEmbeddingProviderTests
     [Fact]
     public async Task EmbedAsync_sem_modelo_configurado_e_estado_nao_configurado_44()
     {
-        var (provider, _) = Build(new AiOllamaOptions("http://localhost:11434"));
+        var (provider, _) = Build(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
 
         var act = async () => await provider.EmbedAsync("texto");
 
@@ -79,7 +79,7 @@ public sealed class OllamaEmbeddingProviderTests
     public async Task EmbedAsync_resposta_vazia_e_erro_claro()
     {
         var (provider, _) = Build(
-            new AiOllamaOptions("http://localhost:11434", "nomic-embed-text"),
+            new AiOllamaOptions { BaseUrl = "http://localhost:11434", EmbeddingModel = "nomic-embed-text" },
             response => response.Content = Json(new { embeddings = Array.Empty<float[]>() }));
 
         var act = async () => await provider.EmbedAsync("texto");
@@ -91,7 +91,7 @@ public sealed class OllamaEmbeddingProviderTests
     [Fact]
     public async Task EmbedAsync_prompt_vazio_e_recusado_ptbr()
     {
-        var (provider, _) = Build(new AiOllamaOptions("http://localhost:11434", "nomic-embed-text"));
+        var (provider, _) = Build(new AiOllamaOptions { BaseUrl = "http://localhost:11434", EmbeddingModel = "nomic-embed-text" });
 
         var act = async () => await provider.EmbedAsync("  ");
 
