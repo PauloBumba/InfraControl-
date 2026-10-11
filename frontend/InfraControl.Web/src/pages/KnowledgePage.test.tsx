@@ -136,6 +136,8 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // a preferência de visão vive no localStorage — zera p/ default determinístico
+  localStorage.clear();
   store.dispatch(
     sessionChecked({
       id: "3f1a1111-2222-3333-4444-555566667777",
@@ -160,6 +162,29 @@ describe("KnowledgePage", () => {
 
     expect(await screen.findByText("Procedimento de troca de switch")).toBeInTheDocument();
     expect(screen.getByText("Como trocar o switch principal")).toBeInTheDocument();
+  });
+
+  it("should switch between the grid, table and kanban views", async () => {
+    const { container } = renderPage();
+    const user = userEvent.setup();
+
+    const switcher = await screen.findByLabelText("Modo de visualização");
+
+    // Grid (default da página): cards, sem <table>.
+    expect(within(switcher).getByRole("tab", { name: "Grid" })).toBeInTheDocument();
+    expect(container.querySelector("table")).toBeNull();
+
+    // Tabela: colunas do DataTable (a coluna "Categoria" só existe aqui).
+    await user.click(within(switcher).getByRole("tab", { name: "Tabela" }));
+    expect(await screen.findByText("Categoria")).toBeInTheDocument();
+    expect(container.querySelector("table")).not.toBeNull();
+
+    // Kanban: colunas por status — as 8 aparecem, inclusive as que nenhum
+    // artigo ocupa ("Obsoleta" não está em nenhum card/grid).
+    await user.click(within(switcher).getByRole("tab", { name: "Kanban" }));
+    expect(await screen.findByText("Obsoleta")).toBeInTheDocument();
+    // "Rascunho" existe na coluna do quadro E no chip do card.
+    expect(screen.getAllByText("Rascunho").length).toBeGreaterThan(0);
   });
 
   it("should block the edit until the change reason is filled (K3 versiona)", async () => {
