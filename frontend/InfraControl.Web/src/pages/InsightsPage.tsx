@@ -1,8 +1,11 @@
+import { useMemo } from "react";
 import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { useObjectQuery } from "@/hooks/queries";
 import {
   getUnifiInsights,
@@ -43,11 +46,63 @@ function clientName(client: UnifiClientTrafficItem): string {
   return client.hostname || client.mac || "Cliente sem nome";
 }
 
+/** Categoria do app no quadro — o campo vazio vira "—" (não some). */
+function dpiCategoryKey(app: UnifiDpiAppItem): string {
+  return app.category || "—";
+}
+
+/** Colunas do quadro DPI — saem dos dados carregados (categoria é string livre). */
+function dpiCategoryColumns(apps: readonly UnifiDpiAppItem[]) {
+  const counts = new Map<string, number>();
+  apps.forEach((app) => counts.set(dpiCategoryKey(app), (counts.get(dpiCategoryKey(app)) ?? 0) + 1));
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([key]) => ({ key, label: key }));
+}
+
+/**
+ * Faixa de tráfego por TERCIL: divide o conjunto carregado em 3 partes de
+ * tamanho quase igual (menor / intermediário / maior tráfego).
+ *
+ * O corte sai dos próprios dados — não existe constante de bytes inventada
+ * — e o recorte é estável porque esta página carrega a lista inteira, sem
+ * paginação: os grupos não mudam conforme o usuário navega.
+ */
+function trafficTercileByMac(clients: readonly UnifiClientTrafficItem[]): Map<string, string> {
+  const sorted = [...clients].sort((a, b) => a.totalBytes - b.totalBytes);
+  const total = sorted.length;
+  const groups = new Map<string, string>();
+  sorted.forEach((client, index) => {
+    groups.set(
+      client.mac,
+      index < total / 3 ? "low" : index < (2 * total) / 3 ? "mid" : "high"
+    );
+  });
+  return groups;
+}
+
+const TRAFFIC_TERCILE_COLUMNS = [
+  { key: "high", label: "Maior tráfego" },
+  { key: "mid", label: "Tráfego intermediário" },
+  { key: "low", label: "Menor tráfego" },
+];
+
 export function InsightsPage() {
   const insights = useObjectQuery(["unifi-insights"], getUnifiInsights);
   const loading = insights.isLoading;
   const error = insights.error ? insights.error.message : null;
   const data = insights.data;
+
+  // Adoção do padrão de visões (backlog Operations UX 2026-10-11): esta
+  // página não é um índice — são 2 painéis de métrica distintos. Cada
+  // painel ganha seu PRÓPRIO seletor no cabeçalho, com preferência própria
+  // no localStorage; um seletor global não teria sobre o que agir.
+  const [dpiView, setDpiView] = useEntityViewMode("insights-dpi", "table");
+  const [trafficView, setTrafficView] = useEntityViewMode("insights-traffic", "table");
+
+  const trafficClients = useMemo(() => data?.trafficPerClient ?? [], [data]);
+  const dpiApps = useMemo(() => data?.dpiPerApplication ?? [], [data]);
+  const trafficTercile = useMemo(() => trafficTercileByMac(trafficClients), [trafficClients]);
 
   const emptyStyle = {
     textAlign: "center" as const,
@@ -55,6 +110,66 @@ export function InsightsPage() {
     color: "#94a3b8",
     fontSize: 13,
   };
+
+  /** Card de aplicação DPI — usado nas visões grid E quadro. */
+  function renderDpiCard(app: UnifiDpiAppItem) {
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{app.app}</span>
+          <StatusChip
+            label={dpiCategoryKey(app)}
+            background="#f5f3ff"
+            color="#7c3aed"
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>
+          Tráfego inspecionado: {formatBytes(app.totalBytes)}
+        </div>
+      </div>
+    );
+  }
+
+  /** Card de cliente — usado nas visões grid E quadro. */
+  function renderTrafficCard(client: UnifiClientTrafficItem) {
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{clientName(client)}</div>
+        <div style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>
+          {client.ip || client.mac}
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 500 }}>{formatBytes(client.totalBytes)}</div>
+        <div style={{ fontSize: 10, color: "#94a3b8" }}>
+          ↓ {formatBytes(client.rxBytes)} · ↑ {formatBytes(client.txBytes)}
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b" }}>
+          Última medição: {client.lastSeen ? formatDateTime(new Date(client.lastSeen)) : "—"}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -72,11 +187,20 @@ export function InsightsPage() {
       <div className="uni-panel">
         <div className="uni-panel-header">
           <h2>Aplicações por Tráfego (DPI)</h2>
+          <ViewSwitcher mode={dpiView} onChange={setDpiView} />
         </div>
         <div className="uni-panel-body">
           {loading ? (
             <LoadingBlock />
           ) : (
+            <EntityView<UnifiDpiAppItem>
+              mode={dpiView}
+              items={dpiApps}
+              getKey={(app) => app.app}
+              emptyMessage={error ? "—" : "Nenhuma aplicação registrada pela inspeção de pacotes"}
+              kanban={{ groupOf: dpiCategoryKey, columns: dpiCategoryColumns(dpiApps) }}
+              renderCard={renderDpiCard}
+              table={
             <DataTablePanel
               panel={false}
               value={data?.dpiPerApplication ?? []}
@@ -95,6 +219,8 @@ export function InsightsPage() {
                 style={{ width: 180, textAlign: "right", fontSize: 12 }}
               />
             </DataTablePanel>
+              }
+            />
           )}
         </div>
       </div>
@@ -103,11 +229,20 @@ export function InsightsPage() {
         <div className="uni-panel">
           <div className="uni-panel-header">
             <h2>Tráfego por Cliente</h2>
+            <ViewSwitcher mode={trafficView} onChange={setTrafficView} />
           </div>
           <div className="uni-panel-body">
             {loading ? (
               <LoadingBlock />
             ) : (
+              <EntityView<UnifiClientTrafficItem>
+                mode={trafficView}
+                items={trafficClients}
+                getKey={(client) => client.mac}
+                emptyMessage={error ? "—" : "Nenhum cliente ativo no Controller"}
+                kanban={{ groupOf: (client) => trafficTercile.get(client.mac) ?? "low", columns: TRAFFIC_TERCILE_COLUMNS }}
+                renderCard={renderTrafficCard}
+                table={
               <DataTablePanel
                 panel={false}
                 value={data?.trafficPerClient ?? []}
@@ -147,6 +282,8 @@ export function InsightsPage() {
                   style={{ width: 150, fontSize: 12, color: "#64748b" }}
                 />
               </DataTablePanel>
+                }
+              />
             )}
           </div>
         </div>

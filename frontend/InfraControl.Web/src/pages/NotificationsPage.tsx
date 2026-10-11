@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Column } from "primereact/column";
 import { useCan } from "@/app/router/access";
 import { useAppSelector } from "@/app/store/hooks";
@@ -8,7 +8,9 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SwitchField } from "@/components/ui/SwitchField";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
 import { Timeline } from "primereact/timeline";
 import {
@@ -70,6 +72,12 @@ export function NotificationsPage() {
   const [feedPage, setFeedPage] = useState(1);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
+
+  // Adoção do padrão de visões (backlog Operations UX 2026-10-11). O feed
+  // não é tabela — é um Timeline, então o 1º modo vira "Linha do tempo"
+  // (o Timeline vive no slot `table` do EntityView). Só a aba Feed ganha
+  // seletor: Preferências é tabela fixa de config, não índice.
+  const [feedView, setFeedView] = useEntityViewMode("notifications-feed", "table");
 
   // Aba Preferências — estado por canal — default `true` (docs/07),
   // sobrescrito pelas linhas gravadas.
@@ -168,6 +176,51 @@ export function NotificationsPage() {
   const feedTotalPages = Math.max(1, Math.ceil(feedTotal / PAGE_SIZE));
   const preferenceRows = CHANNELS.map((channel) => ({ channel }));
 
+  // `eventType` é string livre, não enum (decisão registrada da T001), então
+  // as colunas do quadro saem dos dados carregados — por frequência, depois
+  // alfabética, para o ordenamento ser estável.
+  const feedEventTypeColumns = useMemo(() => {
+    const counts = new Map<string, number>();
+    feedItems.forEach((item) =>
+      counts.set(item.eventType, (counts.get(item.eventType) ?? 0) + 1)
+    );
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([key]) => ({ key, label: key }));
+  }, [feedItems]);
+
+  /** Card de notificação — usado nas visões grid E quadro. */
+  function renderFeedCard(item: NotificationFeedItem) {
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{item.title}</span>
+          <StatusChip
+            label={item.eventType}
+            background="#eff6ff"
+            color="#1d4ed8"
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>{item.message}</div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+          {formatDateTime(new Date(item.createdAt))}
+        </div>
+      </div>
+    );
+  }
+
   const subtitle =
     tab === "feed"
       ? feedLoading
@@ -216,6 +269,22 @@ export function NotificationsPage() {
         <>
           {feedError && <ErrorBanner message={feedError} onRetry={() => void loadFeed()} />}
           <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Feed</h2>
+              <ViewSwitcher
+                mode={feedView}
+                onChange={setFeedView}
+                labels={{ table: "Linha do tempo" }}
+              />
+            </div>
+            <EntityView<NotificationFeedItem>
+              mode={feedView}
+              items={feedItems}
+              getKey={(item) => item.id}
+              emptyMessage={feedError ? "—" : "Nenhuma notificação"}
+              kanban={{ groupOf: (item) => item.eventType, columns: feedEventTypeColumns }}
+              renderCard={renderFeedCard}
+              table={
             <div className="uni-timeline-wrap">
               <Timeline value={feedItems} align="left" className="uni-feed-timeline" marker={() => <span className="uni-feed-marker"><i className="pi pi-bell" /></span>} content={(item: NotificationFeedItem) => <div className="uni-feed-content"><div className="uni-alert-title">{item.title}</div><div className="uni-alert-detail">{item.message}</div><span title={item.eventType}>{item.eventType}</span></div>} opposite={(item: NotificationFeedItem) => <span className="uni-feed-time">{formatDateTime(new Date(item.createdAt))}</span>} />
               {!feedLoading && feedItems.length === 0 && (
@@ -225,6 +294,8 @@ export function NotificationsPage() {
               )}
               {feedLoading && feedItems.length === 0 && <LoadingBlock />}
             </div>
+              }
+            />
           </div>
 
           {feedTotal > PAGE_SIZE && (

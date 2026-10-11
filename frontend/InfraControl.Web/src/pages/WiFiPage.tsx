@@ -3,7 +3,9 @@ import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { useObjectQuery } from "@/hooks/queries";
 import {
   getUnifiWifi,
@@ -54,6 +56,26 @@ function messageFor(error: unknown): string {
     : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
+/** Colunas do quadro de SSIDs — o mesmo recorte da coluna "Status". */
+const SSID_STATUS_COLUMNS = [
+  { key: "on", label: "Ativa" },
+  { key: "off", label: "Desativa" },
+];
+
+function ssidStatusKey(ssid: UnifiSsidItem): string {
+  return ssid.enabled ? "on" : "off";
+}
+
+/** Colunas do quadro de APs — o mesmo recorte da coluna "Estado". */
+const AP_STATE_COLUMNS = [
+  { key: "up", label: "Conectado" },
+  { key: "down", label: "Desconectado" },
+];
+
+function apStateKey(ap: UnifiAccessPointItem): string {
+  return ap.connected ? "up" : "down";
+}
+
 export function WiFiPage() {
   const wifi = useObjectQuery(["unifi-wifi"], getUnifiWifi);
   const wifiLoading = wifi.isLoading;
@@ -64,6 +86,14 @@ export function WiFiPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Adoção do padrão de visões (backlog Operations UX 2026-10-11): a página
+  // tem 2 tabelas distintas, então cada seção ganha seu PRÓPRIO seletor no
+  // cabeçalho, com preferência própria no localStorage — um seletor global
+  // não teria sobre o que agir. O inventário de APs já é grid de cards e
+  // fica como está (não é tabela).
+  const [ssidView, setSsidView] = useEntityViewMode("wifi-ssids", "table");
+  const [apView, setApView] = useEntityViewMode("wifi-aps", "table");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +114,90 @@ export function WiFiPage() {
   }, [load]);
 
   const truncated = totalCount > aps.length;
+
+  /** Card de SSID — usado nas visões grid E quadro (mesmos campos da tabela). */
+  function renderSsidCard(ssid: UnifiSsidItem) {
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{ssid.name}</span>
+          <StatusChip
+            label={ssid.enabled ? "Ativa" : "Desativa"}
+            background={ssid.enabled ? "#f0fdf4" : "#f1f5f9"}
+            color={ssid.enabled ? "#16a34a" : "#94a3b8"}
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        <div style={{ fontFamily: "monospace", fontSize: 11, color: "#64748b" }}>
+          {ssid.security || "—"}
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b", display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <span>VLAN: {ssid.vlan > 0 ? ssid.vlan : "—"}</span>
+          <span>{ssid.bands || "—"}</span>
+          {ssid.isGuest && <span>Convidados</span>}
+        </div>
+      </div>
+    );
+  }
+
+  /** Card de AP — usado nas visões grid E quadro (mesmos campos da tabela). */
+  function renderApCard(ap: UnifiAccessPointItem) {
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{ap.name || ap.mac}</span>
+          <StatusChip
+            label={ap.connected ? "Conectado" : "Desconectado"}
+            background={ap.connected ? "#f0fdf4" : "#fef2f2"}
+            color={ap.connected ? "#16a34a" : "#dc2626"}
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+          {ap.model || "—"} · {ap.ip || ap.mac}
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b", display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <span>Clientes: {ap.clients}</span>
+          <span>CPU/Mem: {ap.cpuPercent}% / {ap.memPercent}%</span>
+          <span>Uptime: {formatUptime(ap.uptimeSeconds)}</span>
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b" }}>
+          ↓ {formatBytes(ap.rxBytes)} · ↑ {formatBytes(ap.txBytes)}
+        </div>
+        {ap.radios.length > 0 && (
+          <div style={{ fontSize: 11, color: "#6b7280", display: "flex", flexDirection: "column", gap: 2 }}>
+            {ap.radios.map((radio, index) => (
+              <span key={`${ap.mac}-radio-${index}`}>
+                {radio.band} · canal {radio.channel} · {radio.width} MHz · {radio.txPower} dBm
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const subtitle = wifiLoading
     ? "Carregando…"
@@ -108,11 +222,20 @@ export function WiFiPage() {
       <div className="uni-panel">
         <div className="uni-panel-header">
           <h2>Redes (SSID)</h2>
+          <ViewSwitcher mode={ssidView} onChange={setSsidView} />
         </div>
         <div className="uni-panel-body">
           {wifiLoading ? (
             <LoadingBlock />
           ) : (
+            <EntityView<UnifiSsidItem>
+              mode={ssidView}
+              items={wifiData?.ssids ?? []}
+              getKey={(ssid) => ssid.name}
+              emptyMessage={wifiError ? "—" : "Nenhuma rede SSID configurada no Controller"}
+              kanban={{ groupOf: ssidStatusKey, columns: SSID_STATUS_COLUMNS }}
+              renderCard={renderSsidCard}
+              table={
             <DataTablePanel
               panel={false}
               value={wifiData?.ssids ?? []}
@@ -165,6 +288,8 @@ export function WiFiPage() {
                 style={{ width: 100, fontSize: 12 }}
               />
             </DataTablePanel>
+              }
+            />
           )}
         </div>
       </div>
@@ -172,11 +297,20 @@ export function WiFiPage() {
       <div className="uni-panel">
         <div className="uni-panel-header">
           <h2>Access Points — telemetria</h2>
+          <ViewSwitcher mode={apView} onChange={setApView} />
         </div>
         <div className="uni-panel-body">
           {wifiLoading ? (
             <LoadingBlock />
           ) : (
+            <EntityView<UnifiAccessPointItem>
+              mode={apView}
+              items={wifiData?.accessPoints ?? []}
+              getKey={(ap) => ap.mac}
+              emptyMessage={wifiError ? "—" : "Nenhum AP respondendo no Controller"}
+              kanban={{ groupOf: apStateKey, columns: AP_STATE_COLUMNS }}
+              renderCard={renderApCard}
+              table={
             <DataTablePanel
               panel={false}
               value={wifiData?.accessPoints ?? []}
@@ -274,6 +408,8 @@ export function WiFiPage() {
                 style={{ width: 230 }}
               />
             </DataTablePanel>
+              }
+            />
           )}
         </div>
       </div>

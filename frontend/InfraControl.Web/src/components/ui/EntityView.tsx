@@ -86,9 +86,17 @@ const SWITCHER_ITEMS: ReadonlyArray<{
 export function ViewSwitcher({
   mode,
   onChange,
+  labels,
 }: {
   mode: EntityViewMode;
   onChange: (mode: EntityViewMode) => void;
+  /**
+   * Sobrescreve os rótulos padrão. Existe porque o slot `table` aceita
+   * qualquer ReactNode — a NotificationsPage coloca um `Timeline` ali e
+   * o 1º modo passa a se chamar "Linha do tempo". Prop opcional: as
+   * páginas que já usam o componente continuam iguais.
+   */
+  labels?: Partial<Record<EntityViewMode, string>>;
 }) {
   return (
     <div
@@ -104,13 +112,14 @@ export function ViewSwitcher({
     >
       {SWITCHER_ITEMS.map((item) => {
         const active = mode === item.id;
+        const label = labels?.[item.id] ?? item.label;
         return (
           <button
             key={item.id}
             type="button"
             role="tab"
             aria-selected={active}
-            title={item.label}
+            title={label}
             onClick={() => onChange(item.id)}
             style={{
               display: "flex",
@@ -128,7 +137,7 @@ export function ViewSwitcher({
             }}
           >
             <i className={item.icon} />
-            <span>{item.label}</span>
+            <span>{label}</span>
           </button>
         );
       })}
