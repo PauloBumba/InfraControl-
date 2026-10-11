@@ -70,7 +70,6 @@ vi.mock("@/components/ui/SelectField", () => ({
 
 import {
   ARTICLE_STATUS_DRAFT,
-  ARTICLE_STATUS_PUBLISHED,
   changeArticleStatus,
   createCategory,
   deleteArticle,
@@ -149,8 +148,8 @@ beforeEach(() => {
   listCategoriesMock.mockResolvedValue(
     pagedCategories([{ id: "cat-1", name: "Redes", description: null }]),
   );
-  updateArticleMock.mockResolvedValue(undefined);
-  deleteArticleMock.mockResolvedValue(undefined);
+  updateArticleMock.mockResolvedValue(null);
+  deleteArticleMock.mockResolvedValue(null);
   changeArticleStatusMock.mockResolvedValue(makeArticle());
   createCategoryMock.mockResolvedValue({ id: "cat-2", name: "Novo", description: null });
 });
