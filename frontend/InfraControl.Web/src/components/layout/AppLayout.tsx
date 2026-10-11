@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "primereact/badge";
+import { Menu } from "primereact/menu";
 import { navigation, secondaryNavigation } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
@@ -77,6 +78,45 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
     .join("") || "IC";
 
   const [signingOut, setSigningOut] = useState(false);
+
+  // Dropdown do usuário no footer do sidebar
+  const userMenuRef = useRef<Menu>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuItems = [
+    {
+      label: "Minha Conta",
+      icon: "pi pi-key",
+      command: () => routerNavigate("/account"),
+    },
+    {
+      label: "Sair",
+      icon: "pi pi-sign-out",
+      command: handleLogout,
+    },
+  ];
+
+  // Dropdowns de navegação com submenus
+  const navMenuRef = useRef<Menu>(null);
+  const [activeNavDropdown, setActiveNavDropdown] = useState<string | null>(null);
+  const [navMenuModel, setNavMenuModel] = useState<any[]>([]);
+
+  const handleNavDropdownClick = (e: React.MouseEvent, item: NavItem) => {
+    if (activeNavDropdown === item.label) {
+      // Fecha se já estiver aberto
+      if (navMenuRef.current) {
+        navMenuRef.current.hide();
+      }
+      setActiveNavDropdown(null);
+      setNavMenuModel([]);
+    } else {
+      // Abre novo menu
+      setActiveNavDropdown(item.label);
+      setNavMenuModel(item.items ? item.items.map(navItemToMenuItem) : []);
+      if (navMenuRef.current) {
+        navMenuRef.current.show(e);
+      }
+    }
+  };
 
   const handleLogout = useCallback(async () => {
     setSigningOut(true);
@@ -166,6 +206,14 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
   const allNavItems = [...navigation, ...secondaryNavigation];
   const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
+
+  // Função para converter NavItem em formato do Menu do PrimeReact
+  const navItemToMenuItem = (item: NavItem) => ({
+    label: item.label,
+    icon: item.icon,
+    command: () => navigate(item.label),
+    ...(item.items && { items: item.items.map(navItemToMenuItem) }),
+  });
 
   // Busca global (fecha a task aberta "Busca global no frontend", F2-T007):
   // o input do topbar era UI morta — agora com debounce de 300ms sobre
@@ -269,17 +317,42 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           <ul className="uni-nav-list">
             {visibleNavigation.map((item) => {
               const badge = getItemBadge(item.label, item.badge);
+              const hasSubmenu = item.items && item.items.length > 0;
               return (
                 <li key={item.label}>
-                  <button
-                    className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                    onClick={() => navigate(item.label)}
-                    title={item.label}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badge && <Badge value={badge} className="uni-nav-badge" />}
-                  </button>
+                  {hasSubmenu ? (
+                    <>
+                      <button
+                        className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                        onClick={(e) => handleNavDropdownClick(e, item)}
+                        title={item.label}
+                      >
+                        <i className={item.icon} />
+                        <span>{item.label}</span>
+                        <i className="pi pi-angle-down uni-nav-arrow" />
+                        {badge && <Badge value={badge} className="uni-nav-badge" />}
+                      </button>
+                      <Menu
+                        ref={navMenuRef}
+                        model={navMenuModel}
+                        popup
+                        onHide={() => {
+                          setActiveNavDropdown(null);
+                          setNavMenuModel([]);
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <button
+                      className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                      onClick={() => navigate(item.label)}
+                      title={item.label}
+                    >
+                      <i className={item.icon} />
+                      <span>{item.label}</span>
+                      {badge && <Badge value={badge} className="uni-nav-badge" />}
+                    </button>
+                  )}
                 </li>
               );
             })}
@@ -290,17 +363,42 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           <ul className="uni-nav-list">
             {visibleSecondaryNavigation.map((item) => {
               const badge = getItemBadge(item.label, item.badge);
+              const hasSubmenu = item.items && item.items.length > 0;
               return (
                 <li key={item.label}>
-                  <button
-                    className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                    onClick={() => navigate(item.label)}
-                    title={item.label}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badge && <Badge value={badge} className="uni-nav-badge" />}
-                  </button>
+                  {hasSubmenu ? (
+                    <>
+                      <button
+                        className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                        onClick={(e) => handleNavDropdownClick(e, item)}
+                        title={item.label}
+                      >
+                        <i className={item.icon} />
+                        <span>{item.label}</span>
+                        <i className="pi pi-angle-down uni-nav-arrow" />
+                        {badge && <Badge value={badge} className="uni-nav-badge" />}
+                      </button>
+                      <Menu
+                        ref={navMenuRef}
+                        model={navMenuModel}
+                        popup
+                        onHide={() => {
+                          setActiveNavDropdown(null);
+                          setNavMenuModel([]);
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <button
+                      className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
+                      onClick={() => navigate(item.label)}
+                      title={item.label}
+                    >
+                      <i className={item.icon} />
+                      <span>{item.label}</span>
+                      {badge && <Badge value={badge} className="uni-nav-badge" />}
+                    </button>
+                  )}
                 </li>
               );
             })}
@@ -309,28 +407,29 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
         <div className="uni-sidebar-footer">
           <div className="uni-user-card">
-            <div className="uni-user-avatar">{initials}</div>
-            <div className="uni-user-info">
-              <span className="uni-user-name">{displayName}</span>
-              <span className="uni-user-role">{roleLabel}</span>
-            </div>
             <button
-              className="uni-user-logout"
-              onClick={() => routerNavigate("/account")}
-              title="Minha Conta (trocar senha)"
-              aria-label="Minha Conta"
+              className="uni-user-info"
+              onClick={(e) => {
+                if (userMenuRef.current) {
+                  userMenuRef.current.toggle(e);
+                }
+                setUserMenuOpen(!userMenuOpen);
+              }}
+              title="Opções do usuário"
             >
-              <i className="pi pi-key" />
+              <div className="uni-user-avatar">{initials}</div>
+              <div className="uni-user-details">
+                <span className="uni-user-name">{displayName}</span>
+                <span className="uni-user-role">{roleLabel}</span>
+              </div>
+              <i className={`pi pi-angle-down ${userMenuOpen ? "pi-angle-up" : ""}`} />
             </button>
-            <button
-              className="uni-user-logout"
-              onClick={handleLogout}
-              disabled={signingOut}
-              title="Sair"
-              aria-label="Sair"
-            >
-              <i className={`pi ${signingOut ? "pi-spin pi-spinner" : "pi-sign-out"}`} />
-            </button>
+            <Menu
+              ref={userMenuRef}
+              model={userMenuItems}
+              popup
+              onHide={() => setUserMenuOpen(false)}
+            />
           </div>
         </div>
       </aside>
