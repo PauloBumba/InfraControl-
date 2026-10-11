@@ -1,6 +1,7 @@
 using System.Text.Json;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Entities;
+using InfraControl.Infrastructure.Caching;
 using InfraControl.Infrastructure.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -46,6 +47,17 @@ public sealed class OutboxDispatcherWorker(
     private async Task DispatchBatchAsync(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
+        var lockService = scope.ServiceProvider.GetRequiredService<IDistributedLockService>();
+        using var @lock = await lockService.TryAcquireLockAsync(
+            "worker:outbox-dispatcher",
+            TimeSpan.FromMinutes(5),
+            cancellationToken);
+        if (@lock is null)
+        {
+            logger.LogDebug("Outbox dispatcher batch skipped: another worker owns the distributed lock.");
+            return;
+        }
+
         var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
         var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

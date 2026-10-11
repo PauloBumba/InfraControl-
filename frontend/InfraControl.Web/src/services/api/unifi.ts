@@ -190,6 +190,24 @@ export interface UniFiDashboard {
   stale: boolean;
 }
 
+/** F26 Fase 9 — histórico de sincronizações. */
+export interface UniFiSyncRun {
+  id: string;
+  startedAtUtc: string;
+  finishedAtUtc: string;
+  succeeded: boolean;
+  created: number;
+  updated: number;
+  references: number;
+  errors: number;
+  sites: number;
+  message: string | null;
+}
+
+export function listUniFiSyncRuns(limit = 30): Promise<UniFiSyncRun[]> {
+  return required(api.get<UniFiSyncRun[]>(`/integrations/unifi/sync-runs?limit=${limit}`), []);
+}
+
 export function getUniFiDashboard(): Promise<UniFiDashboard> {
   return required(api.get<UniFiDashboard>("/integrations/unifi/dashboard"), {
     sites: 0, sitesMissing: 0, switches: 0, accessPoints: 0, deviceStates: {},

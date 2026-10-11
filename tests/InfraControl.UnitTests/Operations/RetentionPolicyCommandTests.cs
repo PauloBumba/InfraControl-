@@ -115,14 +115,14 @@ public sealed class RetentionPolicyCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPolicies_WithoutPolicies_ShouldReturnAllNineTypesWithConfigDefaults()
+    public async Task GetPolicies_WithoutPolicies_ShouldReturnAllTenTypesWithConfigDefaults()
     {
         await using var context = await CreateContextAsync();
 
         var policies = await QueryHandler(context).Handle(
             new GetRetentionPoliciesQuery(), CancellationToken.None);
 
-        policies.Should().HaveCount(9);
+        policies.Should().HaveCount(10);
         policies.Should().OnlyContain(p => p.Source == "Config");
         policies.Single(p => p.DataType == "OutboxMessages").Days.Should().Be(30);
         policies.Single(p => p.DataType == "ProcessedMessages").Days.Should().Be(30);
@@ -133,6 +133,7 @@ public sealed class RetentionPolicyCommandTests : IDisposable
         policies.Single(p => p.DataType == "DiscoveryRuns").Days.Should().Be(180);
         policies.Single(p => p.DataType == "MonitoringEvents").Days.Should().Be(90);
         policies.Single(p => p.DataType == "Invitations").Days.Should().Be(90);
+        policies.Single(p => p.DataType == "UniFiSyncRuns").Days.Should().Be(180);
     }
 
     [Fact]

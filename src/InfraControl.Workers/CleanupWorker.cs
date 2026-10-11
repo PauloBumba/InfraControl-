@@ -1,5 +1,6 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Common;
+using InfraControl.Infrastructure.Caching;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -46,6 +47,21 @@ public sealed class CleanupWorker(
     private async Task RunOnceAsync(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
+        var lockService = scope.ServiceProvider.GetRequiredService<IDistributedLockService>();
+
+        // ADR-044: Lock distribuído para prevenir execução duplicada em múltiplas instâncias
+        var lockKey = "worker:cleanup";
+        var lockExpiry = TimeSpan.FromHours(1); // Lock expira após 1h (caso o worker morra no meio)
+
+        using var @lock = await lockService.TryAcquireLockAsync(lockKey, lockExpiry, cancellationToken);
+        if (@lock == null)
+        {
+            logger.LogDebug("Cleanup worker skipped: lock já adquirido por outra instância.");
+            return;
+        }
+
+        logger.LogInformation("Cleanup worker: lock adquirido, iniciando execução.");
+
         var cleanup = scope.ServiceProvider.GetRequiredService<ICleanupService>();
         var utcNow = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 

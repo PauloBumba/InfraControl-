@@ -12,6 +12,7 @@ docs
 *.md
 docker-compose.yml
 docker-compose.infrastructure.yml
+docker-compose.production.yml
 .env
 .env.*
 !.env.example

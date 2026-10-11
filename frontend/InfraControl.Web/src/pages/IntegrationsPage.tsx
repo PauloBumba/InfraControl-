@@ -10,6 +10,7 @@ import {
   createUniFiAssetLink,
   deleteUniFiAssetLink,
   getUniFiCorrelation,
+  listUniFiSyncRuns,
 } from "@/services/api/unifi";
 import { listDevices } from "@/services/api/inventory";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -39,6 +40,11 @@ export function IntegrationsPage() {
     queryFn: getUnifiConfig,
   });
 
+  const syncRuns = useQuery({
+    queryKey: ["unifi-sync-runs"],
+    queryFn: () => listUniFiSyncRuns(30),
+    enabled: config.data != null,
+  });
   const correlation = useQuery({
     queryKey: ["unifi-correlation"],
     queryFn: getUniFiCorrelation,
@@ -364,6 +370,65 @@ export function IntegrationsPage() {
 
       {syncError && <ErrorBanner message={syncError} />}
 
+      {syncRuns.data && syncRuns.data.length > 0 && (
+        <div className="uni-settings-section" style={{ maxWidth: 760 }}>
+          <h3>Histórico de sincronizações</h3>
+          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", color: "#64748b" }}>
+                <th style={histTh}>Início (UTC)</th>
+                <th style={histTh}>Duração</th>
+                <th style={histTh}>Resultado</th>
+                <th style={histTh}>+/~/ref</th>
+                <th style={histTh}>Erros</th>
+                <th style={histTh}>Sites</th>
+              </tr>
+            </thead>
+            <tbody>
+              {syncRuns.data.map((run) => (
+                <tr key={run.id} style={{ borderTop: "1px solid #e5e7eb" }}>
+                  <td style={histTd}>{new Date(run.startedAtUtc).toLocaleString("pt-BR")}</td>
+                  <td style={histTd}>
+                    {Math.max(
+                      0,
+                      Math.round(
+                        (new Date(run.finishedAtUtc).getTime() -
+                          new Date(run.startedAtUtc).getTime()) / 1000,
+                      ),
+                    )}
+                    s
+                  </td>
+                  <td style={histTd}>
+                    {run.succeeded ? (
+                      <StatusChip label="ok" background="#f0fdf4" color="#15803d" />
+                    ) : (
+                      <StatusChip label="falhou" background="#fee2e2" color="#991b1b" />
+                    )}
+                  </td>
+                  <td style={histTd}>
+                    {run.created}/{run.updated}/{run.references}
+                  </td>
+                  <td style={histTd}>{run.errors}</td>
+                  <td style={histTd}>{run.sites}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {syncRuns.data.some((r) => r.message) && (
+            <ul style={{ fontSize: 12, color: "#991b1b", paddingLeft: 18, marginTop: 8 }}>
+              {syncRuns.data
+                .filter((r) => r.message)
+                .slice(0, 3)
+                .map((r) => (
+                  <li key={r.id}>
+                    {new Date(r.startedAtUtc).toLocaleString("pt-BR")}: {r.message}
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {config.data?.updatedAtUtc && (
         <p style={{ fontSize: 12, color: "#6b7280" }}>
           Última alteração da configuração:{" "}
@@ -373,6 +438,9 @@ export function IntegrationsPage() {
     </div>
   );
 }
+
+const histTh: CSSProperties = { padding: "6px 8px", borderBottom: "1px solid #e5e7eb" };
+const histTd: CSSProperties = { padding: "6px 8px" };
 
 const inputStyle: CSSProperties = {
   padding: "7px 10px",

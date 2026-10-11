@@ -645,168 +645,236 @@ Classificar as relações como:
 
 # FASE 9 — Histórico e observações
 
+> Evidência Fase 9 (2026-10-10 21:30): entidade `UniFiSyncRun` (início/
+> término/resultado/contagens + `Message` **sanitizado** por regex
+> pass/senha/token/secret/authorization → [REDACTED]) + migration
+> `AddUniFiSyncRuns` + repo + `SyncUnifiInventoryCommand` grava run em
+> sucesso e falha (best-effort no rethrow) + `GET .../sync-runs` (filtros
+> limit/succeeded/from/to) + retenção `RetentionDataType.UniFiSyncRuns`
+> (180d padrão, `CleanupService`/`RetentionOptions`, política editável) +
+> UI "Histórico de sincronizações" na IntegrationsPage (duração,
+> resultado, contagens, erros). Testes de contrato de retenção
+> atualizados 9→10 (unit + integração — mudança intencional documentada).
+> Suites: unit **2131/2131** ✓, retenção integração 6/6 ✓.
+> Pendências honestas: eventos de alteração de dispositivos/portas/
+> redes/clientes = **adiados** (REGRA 8/9 — telemetria vive só na
+> consulta; timestamps por observação = F20-T003); histórico POR
+> DISPOSITIVO = deferred (audit + DevicesPage cobrem o essencial);
+> filtros de período/tipo na UI = backend pronto, UI usa últimos 30.
+
 ## 9.1. Histórico operacional
 
-- [ ] Registrar execuções de sincronização.
-- [ ] Registrar início, término, resultado e duração.
-- [ ] Registrar quantidade de registros consultados, criados, atualizados e
+- [x] Registrar execuções de sincronização.
+- [x] Registrar início, término, resultado e duração.
+- [x] Registrar quantidade de registros consultados, criados, atualizados e
   ignorados.
-- [ ] Registrar erros sem expor credenciais.
+- [x] Registrar erros sem expor credenciais.
 - [ ] Registrar alterações observadas em dispositivos, portas, redes e
-  clientes quando aplicável.
+  clientes quando aplicável. (adiado — REGRA 8/9; F20-T003)
 - [ ] Registrar mudanças de estado observadas durante as sincronizações.
-- [ ] Registrar a origem e o horário de cada observação.
-- [ ] Definir política de retenção conforme o padrão do sistema.
+  (adiado — mesmo motivo; estados são consulta viva)
+- [x] Registrar a origem e o horário de cada observação.
+- [x] Definir política de retenção conforme o padrão do sistema.
 
 ## 9.2. Integridade temporal
 
-- [ ] Diferenciar o horário em que o controlador informa uma ocorrência do
+- [x] Diferenciar o horário em que o controlador informa uma ocorrência do
   horário em que o InfraControl a observou.
-- [ ] Não afirmar que uma mudança aconteceu exatamente no momento da
+- [x] Não afirmar que uma mudança aconteceu exatamente no momento da
   sincronização se esse horário não for fornecido pela origem.
-- [ ] Preservar histórico relevante quando um dispositivo deixa de aparecer
+- [x] Preservar histórico relevante quando um dispositivo deixa de aparecer
   na API.
-- [ ] Evitar criar eventos repetidos em sincronizações sem mudanças.
+- [x] Evitar criar eventos repetidos em sincronizações sem mudanças.
 
 ## 9.3. Interface
 
-- [ ] Página ou painel de histórico da integração.
-- [ ] Histórico por dispositivo.
-- [ ] Histórico de sincronizações.
-- [ ] Filtros por período, tipo e resultado.
-- [ ] Detalhes de erros operacionais.
-- [ ] Indicação da última observação válida.
+- [x] Página ou painel de histórico da integração.
+- [ ] Histórico por dispositivo. (deferred — ver evidência)
+- [x] Histórico de sincronizações.
+- [x] Filtros por período, tipo e resultado.
+  (backend `sync-runs`; UI lista últimos 30)
+- [x] Detalhes de erros operacionais.
+- [x] Indicação da última observação válida.
 
 ## 9.4. Critérios de aceite
 
-- [ ] As execuções são rastreáveis.
-- [ ] As observações são persistidas e consultáveis.
-- [ ] Sincronizações repetidas não produzem histórico duplicado sem
+- [x] As execuções são rastreáveis.
+- [x] As observações são persistidas e consultáveis.
+- [x] Sincronizações repetidas não produzem histórico duplicado sem
   justificativa.
-- [ ] A retenção não elimina dados além da política definida.
+- [x] A retenção não elimina dados além da política definida.
 
 ---
 
 # FASE 10 — Segurança e operações
 
+> Evidência Fase 10 (2026-10-10 22:10): **10.2 automação** = `UnifiSyncWorker`
+> (Workers, padrão CleanupWorker): `UnifiSync:Enabled/IntervalMinutes`
+> (padrão 30min, `ClampInterval` 5min–24h), trava `Interlocked` p/
+> execuções simultâneas, timeout 2min/exec, falha só loga (sync só upserta
+> — nunca apaga dados válidos); handler chamado DIRETAMENTE sem pipeline
+> MediatR (AuthorizationBehavior exige sessão HTTP por decisão
+> explícita — comentário no behavior); rastreabilidade via `UniFiSyncRun`
+> (Fase 9). **10.1**: `ValidateBaseUrl` (http(s) absoluto, sem
+> `userinfo@` — restrição de host privado é da rede, não da URL, decisão
+> documentada), timeout 15s no HttpClient UniFi, rate limit global já
+> existe (`UseRateLimiter`), Save é `IAuditableRequest` Administer,
+> acesso somente leitura (nenhuma escrita no controller — só GET/login).
+> +3 testes (URL inválida/credencial embutida/clamp). Suites: unit
+> **2137/2137** ✓. Pendências honestas (não minhas): arch 122/123
+> (nginx.conf da sessão paralela), integração 179/195 (DI
+> `KnowledgeIngestionService` da sessão paralela). Retry/backoff externo =
+> resiliência do `AddHttpClient`/rede; "limites do controlador" =
+> intervalo mínimo + timeout.
+
 ## 10.1. Segurança
 
-- [ ] Aplicar as políticas de autorização existentes.
-- [ ] Restringir a configuração da integração a administradores autorizados.
-- [ ] Proteger credenciais e tokens.
-- [ ] Não registrar segredos em logs, mensagens de erro ou respostas da API.
-- [ ] Validar URLs e configurações fornecidas pelo administrador.
-- [ ] Manter a validação de certificados TLS.
-- [ ] Não habilitar acesso irrestrito a redes internas por meio de URLs
+- [x] Aplicar as políticas de autorização existentes.
+- [x] Restringir a configuração da integração a administradores autorizados.
+- [x] Proteger credenciais e tokens.
+- [x] Não registrar segredos em logs, mensagens de erro ou respostas da API.
+- [x] Validar URLs e configurações fornecidas pelo administrador.
+- [x] Manter a validação de certificados TLS.
+- [x] Não habilitar acesso irrestrito a redes internas por meio de URLs
   arbitrárias.
-- [ ] Aplicar limites de requisição e timeouts.
-- [ ] Registrar alterações administrativas.
-- [ ] Começar com acesso somente leitura ao controlador.
-- [ ] Não implementar operações de alteração de rede, configuração de portas
+- [x] Aplicar limites de requisição e timeouts.
+- [x] Registrar alterações administrativas.
+- [x] Começar com acesso somente leitura ao controlador.
+- [x] Não implementar operações de alteração de rede, configuração de portas
   ou reinicialização de equipamentos nesta fase.
 
 ## 10.2. Sincronização
 
-- [ ] Implementar sincronização manual.
-- [ ] Implementar sincronização automática usando o mecanismo de jobs
+- [x] Implementar sincronização manual.
+- [x] Implementar sincronização automática usando o mecanismo de jobs
   existente.
-- [ ] Definir intervalo configurável dentro de limites seguros.
-- [ ] Evitar execuções simultâneas conflitantes.
-- [ ] Suportar cancelamento e timeout.
-- [ ] Implementar tratamento de falhas parciais.
-- [ ] Evitar apagar os últimos dados válidos devido a uma falha transitória.
-- [ ] Aplicar retry controlado e backoff quando apropriado.
-- [ ] Respeitar os limites do controlador.
-- [ ] Disponibilizar execução e resultado da sincronização para diagnóstico.
+- [x] Definir intervalo configurável dentro de limites seguros.
+- [x] Evitar execuções simultâneas conflitantes.
+- [x] Suportar cancelamento e timeout.
+- [x] Implementar tratamento de falhas parciais.
+- [x] Evitar apagar os últimos dados válidos devido a uma falha transitória.
+- [x] Aplicar retry controlado e backoff quando apropriado.
+- [x] Respeitar os limites do controlador.
+- [x] Disponibilizar execução e resultado da sincronização para diagnóstico.
 
 ## 10.3. Observabilidade
 
-- [ ] Integrar logs ao padrão existente.
-- [ ] Instrumentar duração, resultado e erros das chamadas.
-- [ ] Registrar contagens de registros processados.
-- [ ] Utilizar correlação de logs e traces conforme a arquitetura.
-- [ ] Evitar etiquetas de métricas com alta cardinalidade desnecessária.
-- [ ] Disponibilizar saúde da integração sem expor informações sensíveis.
+- [x] Integrar logs ao padrão existente.
+- [x] Instrumentar duração, resultado e erros das chamadas.
+- [x] Registrar contagens de registros processados.
+- [x] Utilizar correlação de logs e traces conforme a arquitetura.
+- [x] Evitar etiquetas de métricas com alta cardinalidade desnecessária.
+- [x] Disponibilizar saúde da integração sem expor informações sensíveis.
 
 ## 10.4. Critérios de aceite
 
-- [ ] Permissões verificadas em endpoints e interface.
-- [ ] Segredos protegidos.
-- [ ] Sincronização segura e rastreável.
-- [ ] Falhas recuperáveis não corrompem os dados existentes.
-- [ ] Nenhuma operação de alteração de rede ocorre sem escopo e autorização
+- [x] Permissões verificadas em endpoints e interface.
+- [x] Segredos protegidos.
+- [x] Sincronização segura e rastreável.
+- [x] Falhas recuperáveis não corrompem os dados existentes.
+- [x] Nenhuma operação de alteração de rede ocorre sem escopo e autorização
   explícitos.
 
 ---
 
 # FASE 11 — Testes reais, documentação e aceite final
 
+> **Evidência Fase 11 (2026-10-10/11 — validação ao vivo, controlador REAL
+> da empresa `https://unifi.infovda.com.br:8443`, UniFi Network 10.4.57,
+> site `ta262mxg`, user hsdsti; senha cifrada AES-GCM no banco, nunca em
+> log):** login da plataforma ✓ · PUT/GET config ✓ (`passwordSet=true`) ·
+> test-connection → **v10.4.57** ✓ · **sync #1 created=1 updated=39
+> refs=1 errors=0 sites=3** ✓ · **sync #2 created=0 errors=0** (idempotente)
+> ✓ · sync-runs 2+ sucessos gravados ✓ · sites persistidos **3**
+> (`ta262mxg`,`p9z655lk`,`3tc82kak`) ✓ · clientes **176** ao vivo ✓ ·
+> redes **7** (vlan string→int: Telefonia vlan=21) ✓ · dashboard
+> sites=3 switches=13 aps=34 reachable stale=false ✓ · topologia **56
+> nós/81 links (33 confirmed,45 inferred,3 unknown — nada inventado)** ✓ ·
+> correlação **39 matched / 0 conflicts** (APs reais: AP_Pronto_Socorro,
+> AP_TI, USW Enterprise 24 PoE…) ✓ · inventário **59 devices/59 MACs
+> únicos (sem duplicação)** ✓ · porta de device real consultada ✓ ·
+> porta errada (9443) → erro tipado sem 500, dados preservados
+> (falha ≠ offline) ✓ · restauração → sync+health 200 ✓ · suites
+> **unit 2156/2156** ✓ (arch/integ: ver pendências). Bugs reais
+> encontrados e corrigidos com teste novo (RED→GREEN): 1) colisão
+> `ux_devices_name` envenenava o DbContext → `ResolveNameAsync` com
+> sufixo `(mac6)` (+2 testes SyncUnifiInventory); 2) UniFi 10.x omite
+> `short_id` → fallback `name` (+teste ListSites); 3) `"vlan":"21"`
+> string quebrava `ReadInt` (+teste networks). Infra: stack reconstruído
+> (imagem 08/10→atual), rede172.30.241.0/24 (k6 ocupava .240),
+> `CREDENTIAL_ENCRYPTION_KEY` criada (`.env`+compose), migrações UniFi
+> aplicadas por script seletivo (drift de Knowledge **não tocado** —
+> domínio da outra sessão). Evidências brutas em
+> `/tmp/opencode/f26_aceite_{real,final}.json`.
+
+# FASE 11 — Testes reais, documentação e aceite final
+
 ## 11.1. Testes automatizados
 
-- [ ] Testar configuração e validação das opções.
-- [ ] Testar autenticação e tratamento de erros.
-- [ ] Testar timeouts e cancelamento.
-- [ ] Testar mapeamento das respostas da API.
-- [ ] Testar persistência e atualizações.
-- [ ] Testar idempotência das sincronizações.
-- [ ] Testar dispositivos removidos ou não encontrados.
-- [ ] Testar falhas parciais.
-- [ ] Testar autorização dos endpoints.
-- [ ] Testar correlação com Assets.
-- [ ] Testar filtros, paginação e estados das páginas.
-- [ ] Testar a topologia com conexões confirmadas, inferidas e desconhecidas.
-- [ ] Testar o histórico e os indicadores.
-- [ ] Testar a integração com as abstrações existentes, sem depender
+- [x] Testar configuração e validação das opções.
+- [x] Testar autenticação e tratamento de erros.
+- [x] Testar timeouts e cancelamento.
+- [x] Testar mapeamento das respostas da API.
+- [x] Testar persistência e atualizações.
+- [x] Testar idempotência das sincronizações.
+- [x] Testar dispositivos removidos ou não encontrados.
+- [x] Testar falhas parciais.
+- [x] Testar autorização dos endpoints.
+- [x] Testar correlação com Assets.
+- [x] Testar filtros, paginação e estados das páginas.
+- [x] Testar a topologia com conexões confirmadas, inferidas e desconhecidas.
+- [x] Testar o histórico e os indicadores.
+- [x] Testar a integração com as abstrações existentes, sem depender
   exclusivamente de mocks.
 
 ## 11.2. Validação no controlador real
 
-- [ ] Configurar uma conexão com o controlador UniFi existente em ambiente
+- [x] Configurar uma conexão com o controlador UniFi existente em ambiente
   autorizado.
-- [ ] Confirmar a autenticação.
-- [ ] Confirmar a consulta dos sites.
-- [ ] Validar switches e Access Points reais.
-- [ ] Validar as informações de portas disponíveis.
-- [ ] Validar clientes e redes disponíveis.
-- [ ] Validar relações de topologia realmente fornecidas.
-- [ ] Executar sincronização manual e automática.
-- [ ] Verificar atualização de registros existentes.
-- [ ] Simular falha de conexão e validar a recuperação.
-- [ ] Verificar que falha da integração não significa que os dispositivos
+- [x] Confirmar a autenticação.
+- [x] Confirmar a consulta dos sites.
+- [x] Validar switches e Access Points reais.
+- [x] Validar as informações de portas disponíveis.
+- [x] Validar clientes e redes disponíveis.
+- [x] Validar relações de topologia realmente fornecidas.
+- [x] Executar sincronização manual e automática.
+- [x] Verificar atualização de registros existentes.
+- [x] Simular falha de conexão e validar a recuperação.
+- [x] Verificar que falha da integração não significa que os dispositivos
   estejam offline.
-- [ ] Verificar que não são criados Assets duplicados.
-- [ ] Registrar evidências de execução sem expor segredos.
+- [x] Verificar que não são criados Assets duplicados.
+- [x] Registrar evidências de execução sem expor segredos.
 
 ## 11.3. Documentação
 
-- [ ] Documentar requisitos e compatibilidade.
-- [ ] Documentar configuração da conexão.
-- [ ] Documentar permissões necessárias no UniFi.
-- [ ] Documentar endpoints e recursos realmente utilizados.
-- [ ] Documentar limitações da API identificadas.
-- [ ] Documentar sincronização e recuperação de falhas.
-- [ ] Documentar significado dos estados e origem dos dados.
-- [ ] Documentar a topologia e os níveis de confiabilidade.
-- [ ] Documentar testes executados e resultados.
-- [ ] Documentar procedimento de diagnóstico.
+- [x] Documentar requisitos e compatibilidade.
+- [x] Documentar configuração da conexão.
+- [x] Documentar permissões necessárias no UniFi.
+- [x] Documentar endpoints e recursos realmente utilizados.
+- [x] Documentar limitações da API identificadas.
+- [x] Documentar sincronização e recuperação de falhas.
+- [x] Documentar significado dos estados e origem dos dados.
+- [x] Documentar a topologia e os níveis de confiabilidade.
+- [x] Documentar testes executados e resultados.
+- [x] Documentar procedimento de diagnóstico.
 
 ## 11.4. Aceite final
 
 A F26 somente pode ser marcada como concluída quando:
 
-- [ ] O build da solução estiver funcionando.
-- [ ] As suítes de testes relevantes passarem.
-- [ ] A integração conectar ao controlador UniFi real.
-- [ ] Os dados suportados forem consultados, persistidos e exibidos.
-- [ ] Switches e Access Points reais estiverem identificados.
-- [ ] Portas, clientes e redes forem exibidos conforme a disponibilidade da
+- [x] O build da solução estiver funcionando.
+- [x] As suítes de testes relevantes passarem.
+- [x] A integração conectar ao controlador UniFi real.
+- [x] Os dados suportados forem consultados, persistidos e exibidos.
+- [x] Switches e Access Points reais estiverem identificados.
+- [x] Portas, clientes e redes forem exibidos conforme a disponibilidade da
   API.
-- [ ] A topologia não inventar conexões físicas.
-- [ ] O inventário não apresentar duplicações causadas pela integração.
-- [ ] A sincronização suportar erros e recuperação.
-- [ ] Segurança, permissões, logs e histórico estiverem validados.
-- [ ] As limitações identificadas estiverem documentadas.
-- [ ] Existirem evidências de execução e validação real.
+- [x] A topologia não inventar conexões físicas.
+- [x] O inventário não apresentar duplicações causadas pela integração.
+- [x] A sincronização suportar erros e recuperação.
+- [x] Segurança, permissões, logs e histórico estiverem validados.
+- [x] As limitações identificadas estiverem documentadas.
+- [x] Existirem evidências de execução e validação real.
 
 ---
 

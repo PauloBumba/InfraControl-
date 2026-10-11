@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax removido (buildkit não alcança registry-1.docker.io nesta rede; frontend embutido basta)
 # ADR-022 — um único Dockerfile, três targets: api | workers | frontend.
 # Contexto de build = raiz do repositório (o .dockerignore limpa o resto).
 #
@@ -40,7 +40,10 @@ COPY --from=api-build /out/api ./
 # Storage de evidências do PDI (ADR-034): o processo roda como $APP_UID
 # (não-root) e o caminho é relativo a /app — mkdir/chown aqui para o named
 # volume do compose herdar a ownership na primeira montagem.
-RUN mkdir -p /app/var/pdi-evidence && chown -R $APP_UID /app/var
+RUN mkdir -p /app/var/pdi-evidence /app/var/project-evidence \
+             /app/var/data-protection-keys \
+ && chown -R $APP_UID /app/var \
+ && chmod 700 /app/var/data-protection-keys
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 USER $APP_UID
@@ -51,6 +54,7 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0 AS workers
 WORKDIR /app
 # Instala iputils-ping para suporte a ping ICMP (base Debian/Ubuntu)
 RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /app/backups && chown -R $APP_UID /app/backups
 COPY --from=workers-build /out/workers ./
 USER $APP_UID
 ENTRYPOINT ["dotnet", "InfraControl.Workers.dll"]

@@ -133,6 +133,42 @@ public sealed class UniFiSettingsCommandsTests
         public IUnifiApiClient Create(UnifiIntegrationOptions options) => Client;
     }
 
+
+    [Theory]
+    [InlineData("ftp://controlador.local")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("controlador.local")]
+    public async Task Save_RejeitaUrl_NaoHttp(string baseUrl)
+    {
+        var handler = new SaveUniFiSettingsCommandHandler(new FakeSettingsRepository(), new FakeProtector());
+        var act = () => handler.Handle(Cmd(baseUrl: baseUrl), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*http(s)*");
+    }
+
+    [Fact]
+    public async Task Save_RejeitaUrl_ComCredencialEmbutida()
+    {
+        var handler = new SaveUniFiSettingsCommandHandler(new FakeSettingsRepository(), new FakeProtector());
+        var act = () => handler.Handle(
+            Cmd(baseUrl: "https://admin:senha@172.21.0.1:8443"), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*credenciais embutidas*");
+    }
+
+    [Fact]
+    public void UnifiSyncWorker_ClampInterval_RespeitaLimitesSeguros()
+    {
+        InfraControl.Workers.UnifiSyncWorker.ClampInterval(TimeSpan.FromSeconds(1))
+            .Should().Be(InfraControl.Workers.UnifiSyncWorker.MinInterval);
+        InfraControl.Workers.UnifiSyncWorker.ClampInterval(TimeSpan.FromDays(7))
+            .Should().Be(InfraControl.Workers.UnifiSyncWorker.MaxInterval);
+        InfraControl.Workers.UnifiSyncWorker.ClampInterval(TimeSpan.FromMinutes(30))
+            .Should().Be(TimeSpan.FromMinutes(30));
+    }
+
     private static SaveUniFiSettingsCommand Cmd(
         string? password = "segredo",
         string baseUrl = "https://172.21.0.1:8443",

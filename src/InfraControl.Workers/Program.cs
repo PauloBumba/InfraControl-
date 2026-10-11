@@ -1,6 +1,8 @@
 using InfraControl.Application;
+using InfraControl.Contracts.AI;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Workers;
+using InfraControl.Workers.AI;
 using InfraControl.Workers.Consumers.Notifications;
 using InfraControl.Workers.Tracing;
 using MassTransit;
@@ -35,6 +37,9 @@ builder.Services.AddInfrastructure(
     {
         configuration.AddConsumers(typeof(NotificationEventConsumer).Assembly);
 
+        // ADR-044: Worker de inferência de IA para escalar Ollama com fila RabbitMQ
+        configuration.AddConsumer<AiInferenceWorker>();
+
         // ADR-021: observador global — levanta o CorrelationId do header da
         // mensagem para o LogContext de qualquer consumer, sem alterá-los.
         configuration.AddConsumeObserver<CorrelationIdConsumeObserver>();
@@ -68,6 +73,7 @@ builder.Services.AddHostedService<OutboxDispatcherWorker>();
 builder.Services.AddHostedService<CleanupWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.Backup.BackupWorker>();
 builder.Services.AddHostedService<MonitoringPollingWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.UnifiSyncWorker>();
 
 var host = builder.Build();
 host.Run();

@@ -142,6 +142,13 @@ docker compose ps
 
 Não use credenciais reais em arquivos versionados. As credenciais do Compose são destinadas somente ao ambiente de desenvolvimento local.
 
+Para escala manual, overlay de produção, volumes compartilhados, health checks,
+backup/restore, carga k6 e testes controlados de falha, consulte
+[docs/40-SCALE-HORIZONTAL-OPERATIONS.md](docs/40-SCALE-HORIZONTAL-OPERATIONS.md).
+O overlay de produção exige segredos, tags de imagem, certificados TLS e
+limites de recursos configurados no `.env`; não o use com os valores de
+desenvolvimento.
+
 ## Executar o backend
 
 Restaure as dependências e compile a solução:

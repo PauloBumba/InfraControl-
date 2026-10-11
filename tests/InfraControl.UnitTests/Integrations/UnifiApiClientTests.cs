@@ -680,6 +680,52 @@ public sealed class UnifiApiClientTests
             => new(handler, disposeHandler: false);
     }
 
+    [Fact]
+    public async Task ListSitesAsync_ShouldFallbackToName_WhenControllerOmitsShortId()
+    {
+        // UniFi Network 10.4.57 (unifi.infovda.com.br) não devolve short_id
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/api/self/sites"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"_id":"580fa89533f7079a0fed3851","name":"ta262mxg","desc":"HSDS"}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var sites = await client.ListSitesAsync();
+
+        sites.Should().HaveCount(1);
+        sites[0].ShortId.Should().Be("ta262mxg", "sem short_id o sync não persiste nenhum site");
+        sites[0].Name.Should().Be("ta262mxg");
+        sites[0].Description.Should().Be("HSDS");
+    }
+
+    [Fact]
+    public async Task ListNetworksAsync_ShouldParseNetworkConf_WhenVlanIsString()
+    {
+        // controlador real devolve "vlan":"21" (string) — TryGetInt32 lança em String
+        var handler = new ScriptedHandler();
+        handler.When(r => r.RequestUri!.AbsolutePath == "/api/auth/login",
+            _ => Response(HttpStatusCode.OK, """{"meta":{"rc":"ok"}}""", "unifises=sess-1; Path=/"));
+        handler.When(r => r.RequestUri!.AbsolutePath.Contains("/rest/networkconf"),
+            _ => Response(HttpStatusCode.OK, """
+                {"meta":{"rc":"ok"},"data":[
+                  {"_id":"n1","name":"Telefonia","purpose":"vlan-only","vlan":"21","enabled":true}
+                ]}
+                """));
+
+        var client = CreateClient(handler);
+
+        var networks = await client.ListNetworksAsync();
+
+        networks.Should().HaveCount(1);
+        networks[0].VlanId.Should().Be(21);
+    }
+
     private sealed class ScriptedHandler : HttpMessageHandler
     {
         private readonly List<(Func<HttpRequestMessage, bool> Match,

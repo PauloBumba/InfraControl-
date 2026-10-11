@@ -1,4 +1,5 @@
 using InfraControl.Application.Monitoring.Polling;
+using InfraControl.Infrastructure.Caching;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -7,6 +8,7 @@ namespace InfraControl.Workers;
 // F5-T007 (MON-010): polling periódico de monitoring — worker fino no
 // padrão CleanupWorker: lê config, agenda o serviço (regra fica no
 // Application, testável sem host). Enabled=true e 60s por default.
+// ADR-044: Usa lock distribuído para prevenir duplicação em múltiplas instâncias.
 
 public sealed class MonitoringPollingWorker(
     IServiceScopeFactory scopeFactory,
@@ -50,6 +52,21 @@ public sealed class MonitoringPollingWorker(
     private async Task RunOnceAsync(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
+        var lockService = scope.ServiceProvider.GetRequiredService<IDistributedLockService>();
+
+        // ADR-044: Lock distribuído para prevenir execução duplicada
+        var lockKey = "worker:monitoring-polling";
+        var lockExpiry = TimeSpan.FromMinutes(10); // Lock expira após 10min (polling é rápido)
+
+        using var @lock = await lockService.TryAcquireLockAsync(lockKey, lockExpiry, cancellationToken);
+        if (@lock == null)
+        {
+            logger.LogDebug("Monitoring polling worker skipped: lock já adquirido por outra instância.");
+            return;
+        }
+
+        logger.LogInformation("Monitoring polling worker: lock adquirido, iniciando execução.");
+
         var polling = scope.ServiceProvider.GetRequiredService<IMonitoringPollingService>();
 
         var executed = await polling.PollOnceAsync(cancellationToken);

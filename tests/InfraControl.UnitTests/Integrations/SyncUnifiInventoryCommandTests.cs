@@ -170,6 +170,50 @@ public sealed class SyncUnifiInventoryCommandTests
 
     // ── Infra ───────────────────────────────────────────────────────
 
+    [Fact]
+    public async Task Handle_DuasDevicesComMesmoNomeNoController_CriaAsDuasComNomeUnico()
+    {
+        ArrangeClient(
+            new UnifiDeviceDto("AA:BB:CC:DD:EE:01", "USW-Lite-8-PoE", "USL8LPB", "usw", "10.0.0.1"),
+            new UnifiDeviceDto("AA:BB:CC:DD:EE:02", "USW-Lite-8-PoE", "USL8LPB", "usw", "10.0.0.2"));
+        _locations.Setup(GetUniFiLocation).ReturnsAsync((Location?)null);
+        _devices.Setup(GetByMac).ReturnsAsync((Device?)null);
+        _devices.Setup(d => d.GetByNameAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string n, CancellationToken _) => Task.FromResult<Device?>(
+                CaptureAddedDevices().FirstOrDefault(d =>
+                    d.Name.Equals(n, StringComparison.OrdinalIgnoreCase))));
+        _references.Setup(GetReference).ReturnsAsync((Guid?)null);
+
+        var result = await Handler().Handle(new SyncUnifiInventoryCommand(), default);
+
+        result.Errors.Should().Be(0);
+        result.Created.Should().Be(2);
+        var nomes = CaptureAddedDevices().Select(d => d.Name).ToList();
+        nomes.Should().HaveCount(2).And.OnlyHaveUniqueItems(
+            "nomes duplicados violam ux_devices_name e envenenam o DbContext");
+        nomes[0].Should().Be("USW-Lite-8-PoE");
+    }
+
+    [Fact]
+    public async Task Handle_NomeJaExisteNoInventario_DeOutroMac_SufixaSemFalhar()
+    {
+        var local = Device.Create(Guid.NewGuid(), "AP_X", DeviceType.AccessPoint);
+        ArrangeClient(new UnifiDeviceDto("AA:BB:CC:DD:EE:99", "AP_X", "U6-LR", "uap", "10.0.0.9"));
+        _locations.Setup(GetUniFiLocation).ReturnsAsync((Location?)null);
+        _devices.Setup(GetByMac).ReturnsAsync((Device?)null);
+        _devices.Setup(d => d.GetByNameAsync("AP_X", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(local);
+        _references.Setup(GetReference).ReturnsAsync((Guid?)null);
+
+        var result = await Handler().Handle(new SyncUnifiInventoryCommand(), default);
+
+        result.Errors.Should().Be(0, "conflito de nome não pode derrubar o sync");
+        result.Created.Should().Be(1);
+        _addedDevice!.Name.Should().NotBe("AP_X");
+        _addedDevice.Name.Should().StartWith("AP_X (");
+        _addedDevice.Name.Should().EndWith("ee99)");
+    }
+
     private SyncUnifiInventoryCommandHandler Handler()
     {
         _devices.Setup(d => d.SaveChangesAsync(It.IsAny<CancellationToken>()))
