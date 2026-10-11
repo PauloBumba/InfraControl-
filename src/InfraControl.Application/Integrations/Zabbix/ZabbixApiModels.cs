@@ -22,13 +22,20 @@ public sealed record ZabbixHostGroupDto(string GroupId, string Name);
 
 public sealed record ZabbixTemplateDto(string TemplateId, string Name);
 
-/// <summary>Problema aberto/fechado do Zabbix (problem.get).</summary>
+/// <summary>
+/// Problema aberto/fechado do Zabbix (problem.get). <c>ObjectId</c> é o
+/// triggerid (dedup de correlação com trigger.get); <c>HostNames</c> vem
+/// do join via trigger.get — o problem.get do Zabbix 8.0 REMOVEU
+/// <c>selectHosts</c> (confirmado ao vivo, F27 Fase 10.1).
+/// </summary>
 public sealed record ZabbixProblemDto(
     string EventId,
     string Name,
     int Severity,
     DateTime ClockUtc,
-    string? RecoveryEventId);
+    string? RecoveryEventId,
+    string? ObjectId = null,
+    IReadOnlyList<string>? HostNames = null);
 
 public sealed record ZabbixItemDto(
     string ItemId,

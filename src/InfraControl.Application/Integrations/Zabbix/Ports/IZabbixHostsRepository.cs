@@ -3,6 +3,9 @@ using InfraControl.Domain.Entities;
 
 namespace InfraControl.Application.Integrations.Zabbix.Ports;
 
+/// <summary>Contagens agregadas do read-model (F27 Fase 10.3 — dashboard).</summary>
+public sealed record ZabbixHostCounts(int Total, int Enabled, int Missing);
+
 /// <summary>
 /// F27 Fase 3.1: persistência dos hosts do Zabbix sincronizados
 /// (read-model com busca/paginação para a página Hosts monitorados).
@@ -21,6 +24,8 @@ public interface IZabbixHostsRepository
         int page,
         int pageSize,
         CancellationToken cancellationToken);
+
+    Task<ZabbixHostCounts> GetCountsAsync(CancellationToken cancellationToken);
 
     Task AddAsync(ZabbixHost host, CancellationToken cancellationToken);
 

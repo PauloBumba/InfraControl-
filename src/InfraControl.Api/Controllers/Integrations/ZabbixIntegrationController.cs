@@ -121,4 +121,47 @@ public sealed class ZabbixIntegrationController(
         var result = await sender.Send(query, cancellationToken);
         return Ok(ApiResponse.Ok(result));
     }
+
+    /// <summary>
+    /// F27 Fase 10.1: problemas ativos do Zabbix (problem.get recent,
+    /// ao vivo) com filtro de severidade mínima; inclui os recuperados
+    /// apenas com IncludeRecovered=true. Somente leitura.
+    /// </summary>
+    [HttpGet("problems")]
+    [Authorize]
+    public async Task<IActionResult> GetProblems(
+        [FromQuery] GetZabbixProblemsQuery query,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(query, cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// F27 Fase 10.2: histórico de um item sob demanda (history.get),
+    /// limitado a 92 dias e 1..100000 pontos por consulta.
+    /// </summary>
+    [HttpGet("history")]
+    [Authorize]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] GetZabbixHistoryQuery query,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(query, cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// F27 Fase 10.3: resumo do dashboard (totais do read-model, match
+    /// com Assets, estado da integração e problemas por severidade —
+    /// consulta ao vivo com falha segregada em ProblemsAvailable).
+    /// </summary>
+    [HttpGet("summary")]
+    [Authorize]
+    public async Task<IActionResult> GetSummary(
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetZabbixSummaryQuery(), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
 }

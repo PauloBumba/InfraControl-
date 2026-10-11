@@ -26,6 +26,7 @@ const UniFiDashboardPage = lazy(() => import("@/pages/UniFiDashboardPage").then(
 const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m => ({ default: m.IntegrationsPage })));
 const ZabbixSettingsPage = lazy(() => import("@/pages/ZabbixSettingsPage").then(m => ({ default: m.ZabbixSettingsPage })));
 const ZabbixHostsPage = lazy(() => import("@/pages/ZabbixHostsPage").then(m => ({ default: m.ZabbixHostsPage })));
+const ZabbixOverviewPage = lazy(() => import("@/pages/ZabbixOverviewPage").then(m => ({ default: m.ZabbixOverviewPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
@@ -276,6 +277,12 @@ function AppContent() {
           <Route path="/integrations/zabbix" element={
             <ProtectedRoute>
               <ZabbixSettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* F27 Fase 10.3 — Infraestrutura → Visão geral Zabbix (leitura). */}
+          <Route path="/zabbix" element={
+            <ProtectedRoute>
+              <ZabbixOverviewPage />
             </ProtectedRoute>
           } />
           {/* F27 Fase 3.3 — Infraestrutura → Hosts monitorados (leitura). */}

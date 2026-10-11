@@ -10,6 +10,7 @@ export const navigation: NavItem[] = [
   { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
   { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
   { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
+  { label: "Zabbix", icon: "pi pi-eye", route: "/zabbix" },
   { label: "Hosts Zabbix", icon: "pi pi-list-alt", route: "/zabbix/hosts" },
   { label: "Locations", icon: "pi pi-map-marker", route: "/locations" },
 ];

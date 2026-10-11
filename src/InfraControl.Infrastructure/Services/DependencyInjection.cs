@@ -222,6 +222,10 @@ public static class DependencyInjection
                 serviceProvider.GetRequiredService<ILogger<ZabbixApiClient>>());
         });
         services.AddHttpClient(ZabbixApiClient.HttpClientName)
+            // F27 Fase 11.1: timeout explícito (o default de 100s era demais
+            // para a API do Zabbix) + resiliência retry/circuit breaker do
+            // dispatcher (ADR-028 §6).
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15))
             .AddResilienceHandler(
                 "zabbix-api",
                 static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));

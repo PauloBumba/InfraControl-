@@ -69,12 +69,17 @@ public sealed class ZabbixApiClient : IZabbixClient
     public async Task<IReadOnlyList<ZabbixHostDto>> ListHostsAsync(
         CancellationToken cancellationToken = default)
     {
+        // Zabbix 7.2+ renomeou o objeto de "groups" para "hostgroups" e o
+        // parâmetro selectGroups → selectHostGroups; o 8.0 ignora o select
+        // antigo silenciosamente (sem erro, sem dados). Pedimos os dois e
+        // unimos os arrays — em cada versão só um vem preenchido.
         var result = await CallListAsync("host.get", new
         {
             output = new[] { "hostid", "host", "name", "status", "flags" },
             selectInterfaces = new[] { "ip", "port", "type", "main" },
             selectParentTemplates = new[] { "templateid" },
             selectGroups = new[] { "groupid" },
+            selectHostGroups = new[] { "groupid" },
             limit = DefaultListLimit
         }, cancellationToken);
 
@@ -92,8 +97,10 @@ public sealed class ZabbixApiClient : IZabbixClient
                         ReadInt(iface, "type"),
                         Main: Read(iface, "main") == "1"))
                     .ToList(),
-                GroupIds: ReadArray(host, "groups")
+                GroupIds: ReadArray(host, "hostgroups")
+                    .Concat(ReadArray(host, "groups"))
                     .Select(group => Read(group, "groupid"))
+                    .Distinct(StringComparer.Ordinal)
                     .ToList(),
                 TemplateIds: ReadArray(host, "parentTemplates")
                     .Select(template => Read(template, "templateid"))
@@ -107,7 +114,6 @@ public sealed class ZabbixApiClient : IZabbixClient
         var result = await CallListAsync("hostgroup.get", new
         {
             output = new[] { "groupid", "name" },
-            real_hosts = true,
             limit = DefaultListLimit
         }, cancellationToken);
 
@@ -186,20 +192,81 @@ public sealed class ZabbixApiClient : IZabbixClient
     {
         var result = await CallListAsync("problem.get", new
         {
-            output = new[] { "eventid", "name", "severity", "clock" },
+            output = new[] { "eventid", "name", "severity", "clock", "r_eventid", "objectid" },
             recent = true,
             limit = DefaultListLimit
         }, cancellationToken);
 
-        return result.EnumerateArray()
+        var problems = result.EnumerateArray()
             .Select(problem => new ZabbixProblemDto(
                 Read(problem, "eventid"),
                 Read(problem, "name"),
                 ReadInt(problem, "severity"),
                 ClockUtc: DateTimeOffset.FromUnixTimeSeconds(ReadLong(problem, "clock"))
                     .UtcDateTime,
-                RecoveryEventId: ReadOrNull(problem, "r_eventid")))
+                RecoveryEventId: NormalizeRecoveryId(ReadOrNull(problem, "r_eventid")),
+                ObjectId: ReadOrNull(problem, "objectid")))
             .ToList();
+
+        if (problems.Count == 0)
+            return problems;
+
+        // Hosts do problema (F27 Fase 10.1): o problem.get do Zabbix 8.0
+        // REMOVEU selectHosts (confirmado ao vivo: -32602 "unexpected
+        // parameter") — o mapeamento é pelo objectid (triggerid) via
+        // trigger.get…selectHosts. Falha aqui não derruba a lista: os
+        // problemas voltam sem hosts (só o log de warning).
+        try
+        {
+            var triggerIds = problems
+                .Select(problem => problem.ObjectId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (triggerIds.Count == 0)
+                return problems;
+
+            var triggers = await CallListAsync("trigger.get", new
+            {
+                output = new[] { "triggerid" },
+                triggerids = triggerIds,
+                selectHosts = new[] { "hostid", "host", "name" },
+                limit = DefaultListLimit
+            }, cancellationToken);
+
+            var hostsByTrigger = triggers.EnumerateArray()
+                .ToDictionary(
+                    trigger => Read(trigger, "triggerid"),
+                    trigger => ReadArray(trigger, "hosts")
+                        .Select(host => DisplayName(host))
+                        .Where(name => !string.IsNullOrWhiteSpace(name))
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList(),
+                    StringComparer.Ordinal);
+
+            return problems
+                .Select(problem => problem with
+                {
+                    HostNames = problem.ObjectId is not null
+                        && hostsByTrigger.TryGetValue(problem.ObjectId, out var hosts)
+                        ? hosts
+                        : []
+                })
+                .ToList();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "Falha ao resolver hosts dos problemas Zabbix — retornando sem hosts");
+            return problems;
+        }
+
+        static string DisplayName(JsonElement host)
+        {
+            var name = Read(host, "name");
+            return string.IsNullOrWhiteSpace(name) ? Read(host, "host") : name;
+        }
     }
 
     public async Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryAsync(
@@ -466,6 +533,13 @@ public sealed class ZabbixApiClient : IZabbixClient
         !string.IsNullOrEmpty(value.GetString())
             ? value.GetString()
             : null;
+
+    /// <summary>
+    /// <c>r_eventid</c> vem como <c>"0"</c> enquanto o problema não tem
+    /// evento de recuperação (F27 Fase 10.1) — normaliza para null.
+    /// </summary>
+    private static string? NormalizeRecoveryId(string? value) =>
+        string.IsNullOrWhiteSpace(value) || value == "0" ? null : value;
 
     private static int ReadInt(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) &&

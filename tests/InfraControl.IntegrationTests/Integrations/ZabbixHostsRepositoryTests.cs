@@ -134,4 +134,36 @@ public sealed class ZabbixHostsRepositoryTests : BaseIntegrationTest
         loaded.MissingSinceUtc.Should().BeNull();
         loaded.ReadGroups().Should().ContainSingle().Which.Should().Be("Linux servers");
     }
+
+    [Fact]
+    public async Task GetCounts_ShouldAggregateTotalEnabledAndMissing()
+    {
+        using var scope = CreateScope();
+        var repository = scope.ServiceProvider
+            .GetRequiredService<IZabbixHostsRepository>();
+        var before = await repository.GetCountsAsync(CancellationToken.None);
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var enabled = ZabbixHost.Create(
+            $"3{suffix}", $"count-on-{suffix}", "On", null, null,
+            true, false, [], [], DateTime.UtcNow);
+        var disabled = ZabbixHost.Create(
+            $"2{suffix}", $"count-off-{suffix}", "Off", null, null,
+            enabled: false, discovered: false, [], [], DateTime.UtcNow);
+        var absent = ZabbixHost.Create(
+            $"1{suffix}", $"count-gone-{suffix}", "Gone", null, null,
+            true, false, [], [], DateTime.UtcNow);
+        await repository.AddAsync(enabled, CancellationToken.None);
+        await repository.AddAsync(disabled, CancellationToken.None);
+        await repository.AddAsync(absent, CancellationToken.None);
+        await repository.SaveChangesAsync(CancellationToken.None);
+        absent.MarkMissing();
+        await repository.SaveChangesAsync(CancellationToken.None);
+
+        var after = await repository.GetCountsAsync(CancellationToken.None);
+
+        (after.Total - before.Total).Should().Be(3);
+        (after.Enabled - before.Enabled).Should().Be(1, "só o host ativo e presente conta como habilitado");
+        (after.Missing - before.Missing).Should().Be(1);
+    }
 }
