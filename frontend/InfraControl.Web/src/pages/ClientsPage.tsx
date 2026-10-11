@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { FilterBar } from "@/components/ui/FilterBar";
 
 /**
@@ -42,6 +43,13 @@ const kindStyle: Record<string, { bg: string; color: string }> = {
   Host: { bg: "#f1f5f9", color: "#475569" },
 };
 
+/**
+ * Colunas do quadro — os mesmos 5 tipos do catálogo `kindLabel`, na ordem
+ * do catálogo. Renderizam todas, inclusive sem nenhum cliente (o quadro é
+ * o lugar de ver o recorte inteiro).
+ */
+const CLIENT_KIND_COLUMNS = Object.entries(kindLabel).map(([key, label]) => ({ key, label }));
+
 function messageFor(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -55,6 +63,11 @@ export function ClientsPage() {
   const [termInput, setTermInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Adoção do padrão de visões (backlog Operations UX 2026-10-11): a
+  // página era só tabela; o quadro agrupa por `kind` (origem do achado).
+  // Tabela continua sendo o padrão — nada muda para quem já usava.
+  const [view, setView] = useEntityViewMode("clients", "table");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,6 +107,47 @@ export function ClientsPage() {
     setPage(Math.floor(event.first / PAGE_SIZE) + 1);
   }
 
+  /** Card de cliente — usado nas visões grid E quadro (mesmos dados da tabela). */
+  function renderClientCard(client: ClientItem) {
+    const style = kindStyle[client.kind] ?? { bg: "#f1f5f9", color: "#64748b" };
+    const primary = client.ip ?? client.mac ?? "—";
+    return (
+      <div
+        style={{
+          background: "white",
+          borderRadius: 8,
+          border: "1px solid #e5e7eb",
+          padding: 14,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }}>{primary}</span>
+          <StatusChip
+            label={kindLabel[client.kind] ?? client.kind}
+            background={style.bg}
+            color={style.color}
+            fontSize={10}
+            fontWeight={600}
+          />
+        </div>
+        {client.ip && client.mac && (
+          <div style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{client.mac}</div>
+        )}
+        <div style={{ fontSize: 12, fontWeight: 500 }}>{client.hostname ?? "—"}</div>
+        <div style={{ fontSize: 11, color: "#64748b", display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <span>VLAN: {client.vlan ?? "—"}</span>
+          <span>Interface: {client.localIf ?? "—"}</span>
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+          Último visto: {formatDateTime(new Date(client.lastSeenAt))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
@@ -104,7 +158,9 @@ export function ClientsPage() {
             : `${totalCount} ${totalCount === 1 ? "cliente" : "clientes"}${hasTerm ? ` · busca "${term}"` : ""}`
         }
         actions={
-          <FilterBar><form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <ViewSwitcher mode={view} onChange={setView} />
+            <FilterBar><form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <SearchInput
               value={termInput}
               onChange={setTermInput}
@@ -131,11 +187,22 @@ export function ClientsPage() {
               </Button>
             )}
           </form></FilterBar>
+          </div>
         }
       />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
+      <EntityView<ClientItem>
+        mode={view}
+        items={items}
+        getKey={(client) => `${client.mac ?? ""}|${client.ip ?? ""}`}
+        emptyMessage={error ? "—" : hasTerm ? `Nenhum cliente corresponde à busca "${term}"` : "Nenhum cliente descoberto ainda — os clientes aparecem após o primeiro discovery"}
+        kanban={{
+          groupOf: (client) => client.kind,
+          columns: CLIENT_KIND_COLUMNS,
+        }}
+        table={
       <DataTablePanel value={items} loading={loading} dataKey={(row: ClientItem) => `${row.mac ?? ""}|${row.ip ?? ""}`} paginator lazy rows={PAGE_SIZE} first={(page - 1) * PAGE_SIZE} totalRecords={totalCount} onPage={handlePageChange} alwaysShowPaginator={totalCount > PAGE_SIZE} paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink" currentPageReportTemplate="Página {currentPage} de {totalPages} ({totalRecords} clientes)" emptyMessage={error ? "—" : hasTerm ? `Nenhum cliente corresponde à busca "${term}"` : "Nenhum cliente descoberto ainda — os clientes aparecem após o primeiro discovery"}>
           <Column header="Cliente" body={(client: ClientItem) => <div className="uni-client-table-name"><div className="uni-client-table-icon"><i className="pi pi-desktop" /></div><div><div style={{ fontWeight: 500, fontFamily: "monospace", fontSize: 12 }}>{client.ip ?? client.mac}</div>{client.ip && client.mac && <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{client.mac}</div>}</div></div>} />
           <Column header="Hostname" body={(client: ClientItem) => client.hostname ?? "—"} style={{ fontSize: 12, color: "#64748b" }} />
@@ -144,6 +211,9 @@ export function ClientsPage() {
           <Column header="Interface" body={(client: ClientItem) => client.localIf ?? "—"} style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }} />
           <Column header="Último visto" body={(client: ClientItem) => formatDateTime(new Date(client.lastSeenAt))} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
       </DataTablePanel>
+        }
+        renderCard={renderClientCard}
+      />
     </div>
   );
 }

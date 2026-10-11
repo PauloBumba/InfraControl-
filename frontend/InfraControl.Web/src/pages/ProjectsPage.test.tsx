@@ -42,6 +42,8 @@ function CurrentPath() {
 describe("ProjectsPage", () => {
   beforeEach(() => {
     vi.mocked(listProjects).mockReset();
+    // a preferência de visão vive no localStorage — zera p/ default determinístico
+    localStorage.clear();
   });
 
   it("shows the overview and navigates to a project from the paged responsive table", async () => {
@@ -72,5 +74,34 @@ describe("ProjectsPage", () => {
       page: 1,
       pageSize: 20,
     });
+  });
+
+  it("should switch between table, grid and kanban (quadro por status)", async () => {
+    vi.mocked(listProjects).mockResolvedValue({
+      items: [project],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <ProjectsPage />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+    await screen.findByText("Migração Core");
+
+    // Grid: cards, sem <table>.
+    await user.click(screen.getByRole("tab", { name: "Grid" }));
+    expect(container.querySelector("table")).toBeNull();
+    expect(screen.getAllByText("PRJ-001").length).toBeGreaterThan(0);
+
+    // Kanban: as 7 colunas de status — inclusive as sem nenhum projeto.
+    // (o mesmo rótulo existe no <option> do filtro de status, por isso All)
+    await user.click(screen.getByRole("tab", { name: "Kanban" }));
+    expect(container.querySelector("table")).toBeNull();
+    expect(screen.getAllByText("Aguardando homologação").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("Rascunho").length).toBeGreaterThan(1);
   });
 });
