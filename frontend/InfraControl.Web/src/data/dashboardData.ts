@@ -1,4 +1,4 @@
-export type NavItem = { label: string; icon: string; badge?: string; route: string };
+export type NavItem = { label: string; icon: string; badge?: string; route: string; items?: NavItem[] };
 
 export const navigation: NavItem[] = [
   { label: "Visão Geral", icon: "pi pi-th-large", route: "/" },
@@ -7,11 +7,25 @@ export const navigation: NavItem[] = [
   { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
   { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
   { label: "Clientes", icon: "pi pi-users", route: "/clients" },
-  { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
-  { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
+  {
+    label: "UniFi",
+    icon: "pi pi-wifi",
+    route: "/unifi",
+    items: [
+      { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
+      { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
+    ],
+  },
   { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
-  { label: "Zabbix", icon: "pi pi-eye", route: "/zabbix" },
-  { label: "Hosts Zabbix", icon: "pi pi-list-alt", route: "/zabbix/hosts" },
+  {
+    label: "Zabbix",
+    icon: "pi pi-eye",
+    route: "/zabbix",
+    items: [
+      { label: "Monitoramento", icon: "pi pi-eye", route: "/zabbix" },
+      { label: "Hosts", icon: "pi pi-list-alt", route: "/zabbix/hosts" },
+    ],
+  },
   { label: "Locations", icon: "pi pi-map-marker", route: "/locations" },
 ];
 
