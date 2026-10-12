@@ -58,6 +58,14 @@ public sealed class ExternalDeviceReferenceRepository(AppDbContext dbContext)
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ExternalDeviceReference>> ListByDeviceIdAsync(
+        Guid deviceId, CancellationToken cancellationToken = default)
+        => await dbContext.ExternalDeviceReferences
+            .Where(reference => reference.DeviceId == deviceId)
+            .OrderBy(reference => reference.Source)
+            .ThenBy(reference => reference.ExternalId)
+            .ToListAsync(cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

@@ -11,5 +11,13 @@ public enum CheckKind
     SnmpDrum = 2,
     HttpWan = 3,
     SnmpSystem = 4,
-    Tcp = 5
+    Tcp = 5,
+
+    /// <summary>
+    /// F29-3: saúde das interfaces (ifTable operStatus/erros + ifXTable
+    /// ifHCIn/OutOctets) — agregado por device. Disponível mas NÃO é default
+    /// de nenhum tipo (DeviceProfileDefaults intocado): habilitar por device
+    /// quando o SNMP community estiver liberado.
+    /// </summary>
+    SnmpInterfaces = 6
 }

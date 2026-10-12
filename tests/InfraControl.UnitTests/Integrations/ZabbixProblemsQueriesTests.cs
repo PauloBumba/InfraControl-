@@ -168,7 +168,8 @@ public sealed class ZabbixProblemsQueriesTests
 
         var handler = new GetZabbixSummaryQueryHandler(
             client.Object, hostsRepository.Object, settingsRepository.Object,
-            deviceRepository.Object, NullLogger<GetZabbixSummaryQueryHandler>.Instance);
+            deviceRepository.Object, EmptyReferences(),
+            NullLogger<GetZabbixSummaryQueryHandler>.Instance);
 
         var result = await handler.Handle(
             new GetZabbixSummaryQuery(), CancellationToken.None);
@@ -204,7 +205,7 @@ public sealed class ZabbixProblemsQueriesTests
         var handler = new GetZabbixSummaryQueryHandler(
             client.Object, hostsRepository.Object,
             Mock.Of<IZabbixSettingsRepository>(),
-            EmptyDevices(),
+            EmptyDevices(), EmptyReferences(),
             NullLogger<GetZabbixSummaryQueryHandler>.Instance);
 
         var result = await handler.Handle(
@@ -231,7 +232,7 @@ public sealed class ZabbixProblemsQueriesTests
         var handler = new GetZabbixSummaryQueryHandler(
             client.Object, hostsRepository.Object,
             Mock.Of<IZabbixSettingsRepository>(),
-            EmptyDevices(),
+            EmptyDevices(), EmptyReferences(),
             NullLogger<GetZabbixSummaryQueryHandler>.Instance);
 
         var result = await handler.Handle(
@@ -240,6 +241,45 @@ public sealed class ZabbixProblemsQueriesTests
         result.IsConfigured.Should().BeFalse();
         result.ProblemsAvailable.Should().BeFalse();
         result.ProblemsError.Should().Be("Integração com Zabbix não configurada.");
+    }
+
+    [Fact]
+    public async Task Summary_ShouldCountHostsLinkedByStableReference()
+    {
+        var host = Host("sw-unico", ip: null);
+        var hostId = host.HostId;
+
+        var hostsRepository = new Mock<IZabbixHostsRepository>();
+        hostsRepository.Setup(r => r.GetCountsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ZabbixHostCounts(1, 1, 0));
+        hostsRepository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { host });
+
+        var deviceRepository = new Mock<IDeviceRepository>();
+        deviceRepository.Setup(r => r.GetAllOrderedByNameAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Device>());
+
+        var reference = ExternalDeviceReference.Create(
+            ExternalDeviceSource.Zabbix, hostId, Guid.NewGuid());
+        var referenceRepository = new Mock<IExternalDeviceReferenceRepository>();
+        referenceRepository.Setup(r => r.ListBySourceAsync(
+                ExternalDeviceSource.Zabbix, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { reference });
+
+        var client = new Mock<IZabbixClient>();
+        client.Setup(c => c.IsConfigured).Returns(false);
+
+        var handler = new GetZabbixSummaryQueryHandler(
+            client.Object, hostsRepository.Object,
+            Mock.Of<IZabbixSettingsRepository>(),
+            deviceRepository.Object, referenceRepository.Object,
+            NullLogger<GetZabbixSummaryQueryHandler>.Instance);
+
+        var result = await handler.Handle(
+            new GetZabbixSummaryQuery(), CancellationToken.None);
+
+        result.HostsWithAsset.Should().Be(1, "referência estável hostid→device conta como asset");
+        result.HostsWithoutAsset.Should().Be(0);
     }
 
     private static ZabbixHost Host(string host, string? ip) => ZabbixHost.Create(
@@ -256,6 +296,15 @@ public sealed class ZabbixProblemsQueriesTests
         var repository = new Mock<IDeviceRepository>();
         repository.Setup(r => r.GetAllOrderedByNameAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<Device>());
+        return repository.Object;
+    }
+
+    private static IExternalDeviceReferenceRepository EmptyReferences()
+    {
+        var repository = new Mock<IExternalDeviceReferenceRepository>();
+        repository.Setup(r => r.ListBySourceAsync(
+                ExternalDeviceSource.Zabbix, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExternalDeviceReference>());
         return repository.Object;
     }
 }

@@ -331,6 +331,7 @@ services:
     environment:
       <<: *app-env
       Backup__Path: /app/backups
+      UnifiSync__IntervalMinutes: ${UNIFI_SYNC_INTERVAL_MINUTES:-30}
     volumes:
       - postgres_backups:/app/backups
     # Worker não escuta porta; o sinal de saúde é a presença do processo.

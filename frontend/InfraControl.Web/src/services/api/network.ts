@@ -121,12 +121,21 @@ export interface TopologyNodeItem {
   deviceType: string;
   ip: string | null;
   status: "up" | "down" | null;
+  /**
+   * F29-5: nó "ghost" = vizinho LLDP/CDP descoberto mas não gerenciado
+   * (sem host correspondente). Renderizado tracejado; `port` é o rótulo da
+   * porta remota do vizinho.
+   */
+  isGhost?: boolean;
+  port?: string | null;
 }
 
 export interface TopologyEdgeItem {
   id: string;
   sourceInterfaceId: string;
   targetInterfaceId: string;
+  /** F29-5: aresta até um nó ghost (não é Connection persistida). */
+  isGhost?: boolean;
 }
 
 export interface TopologyGraph {

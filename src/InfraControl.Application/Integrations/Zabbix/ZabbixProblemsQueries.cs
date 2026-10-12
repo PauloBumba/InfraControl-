@@ -190,6 +190,7 @@ public sealed class GetZabbixSummaryQueryHandler(
     IZabbixHostsRepository hostsRepository,
     IZabbixSettingsRepository settingsRepository,
     IDeviceRepository deviceRepository,
+    IExternalDeviceReferenceRepository referenceRepository,
     ILogger<GetZabbixSummaryQueryHandler> logger)
     : IRequestHandler<GetZabbixSummaryQuery, ZabbixSummaryDto>
 {
@@ -262,6 +263,14 @@ public sealed class GetZabbixSummaryQueryHandler(
     private async Task<int> CountHostsWithAssetAsync(
         CancellationToken cancellationToken)
     {
+        // F29-1: a referência estável (hostid → device, gravada no sync)
+        // tem precedência sobre a heurística IP/hostname — mesmo critério
+        // do GetZabbixHostsQuery.ToDtoAsync.
+        var referenced = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var reference in await referenceRepository.ListBySourceAsync(
+                     ExternalDeviceSource.Zabbix, cancellationToken))
+            referenced.Add(reference.ExternalId);
+
         var devices = await deviceRepository.GetAllOrderedByNameAsync(cancellationToken);
 
         var ips = new HashSet<string>(
@@ -273,7 +282,8 @@ public sealed class GetZabbixSummaryQueryHandler(
 
         var hosts = await hostsRepository.ListAsync(cancellationToken);
         return hosts.Count(h =>
-            (!string.IsNullOrWhiteSpace(h.Ip) && ips.Contains(h.Ip))
+            referenced.Contains(h.HostId)
+            || (!string.IsNullOrWhiteSpace(h.Ip) && ips.Contains(h.Ip))
             || names.Contains(h.Host));
     }
 }

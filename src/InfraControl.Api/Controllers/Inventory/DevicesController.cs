@@ -36,6 +36,12 @@ public sealed class DevicesController(ISender sender) : BaseController
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceQuery(id), cancellationToken)));
 
+    [HttpGet("{id:guid}/status")]
+    [Authorize]
+    public async Task<IActionResult> GetStatus(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetDeviceConsolidatedStatusQuery(id), cancellationToken)));
+
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(

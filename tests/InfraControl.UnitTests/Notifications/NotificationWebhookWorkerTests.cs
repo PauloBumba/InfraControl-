@@ -101,6 +101,10 @@ public sealed class NotificationWebhookWorkerTests : IDisposable
         dispatcher.Sent[0].Url.Should().Be("https://exemplo.test/webhook");
         dispatcher.Sent[0].Title.Should().Be("Título");
         dispatcher.Sent[0].Message.Should().Be("Mensagem.");
+        // Fase 05: o worker propaga o EventType da notification para o
+        // payload do n8n (o teste cria a notification com
+        // "UserCreatedDomainEvent").
+        dispatcher.Sent[0].EventType.Should().Be("UserCreatedDomainEvent");
 
         var delivery = await context.NotificationDeliveries
             .AsNoTracking().SingleAsync(d => d.Id == deliveryId);

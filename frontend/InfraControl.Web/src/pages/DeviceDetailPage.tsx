@@ -10,12 +10,14 @@ import { BreadCrumb } from "primereact/breadcrumb";
 import { ApiError } from "@/services/api/client";
 import {
   getDevice,
+  getDeviceStatus,
   listDeviceIps,
   listDeviceMacs,
   listLocations,
   listNetworkInterfaces,
   listSwitchPorts,
   type DeviceItem,
+  type DeviceStatusItem,
   type IpAddressItem,
   type MacAddressItem,
   type NetworkInterfaceItem,
@@ -119,6 +121,7 @@ export function DeviceDetailPage() {
   const navigate = useNavigate();
 
   const [device, setDevice] = useState<DeviceItem | null>(null);
+  const [status, setStatus] = useState<DeviceStatusItem | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +162,9 @@ export function DeviceDetailPage() {
     } finally {
       setLoading(false);
     }
+    getDeviceStatus(id)
+      .then(setStatus)
+      .catch(() => setStatus(null));
   }, [id]);
 
   useEffect(() => {
@@ -308,6 +314,30 @@ export function DeviceDetailPage() {
             {device.model ?? device.type} · {device.ip ?? "sem IP"}
           </p>
         </div>
+        {status && (
+          <StatusChip
+            label={
+              status.status === "Available" ? "Disponível"
+              : status.status === "Degraded" ? "Degradado"
+              : status.status === "Unavailable" ? "Indisponível"
+              : "Desconhecido"
+            }
+            background={
+              status.status === "Available" ? "#f0fdf4"
+              : status.status === "Degraded" ? "#fef3c7"
+              : status.status === "Unavailable" ? "#fef2f2"
+              : "#f1f5f9"
+            }
+            color={
+              status.status === "Available" ? "#15803d"
+              : status.status === "Degraded" ? "#d97706"
+              : status.status === "Unavailable" ? "#dc2626"
+              : "#64748b"
+            }
+            fontWeight={600}
+            fontSize={10}
+          />
+        )}
         <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: `${color}15`, color }}>
           {device.type}
         </span>

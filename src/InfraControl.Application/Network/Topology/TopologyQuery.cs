@@ -12,7 +12,7 @@ public sealed record TopologyDto(
     TopologyNodeDto[] Nodes,
     TopologyEdgeDto[] Edges);
 
-/// <summary>Node do mapa = uma interface.</summary>
+/// <summary>Node do mapa = uma interface (ou um vizinho ghost, F29-5).</summary>
 public sealed record TopologyNodeDto(
     Guid Id,
     Guid DeviceId,
@@ -20,13 +20,16 @@ public sealed record TopologyNodeDto(
     string DeviceName,
     string DeviceType,
     string? Ip,
-    string? Status);
+    string? Status,
+    bool IsGhost = false,
+    string? Port = null);
 
-/// <summary>Edge do mapa = uma Connection dirigida.</summary>
+/// <summary>Edge do mapa = uma Connection dirigida (ou ghost, F29-5).</summary>
 public sealed record TopologyEdgeDto(
     Guid Id,
     Guid SourceInterfaceId,
-    Guid TargetInterfaceId);
+    Guid TargetInterfaceId,
+    bool IsGhost = false);
 
 public sealed record GetTopologyQuery : IQuery<TopologyDto>, IAuthorizedRequest
 {
@@ -56,10 +59,13 @@ public sealed class GetTopologyQueryHandler(ITopologyRepository repository)
                     true => "up",
                     false => "down",
                     null => null
-                })).ToArray(),
+                },
+                node.IsGhost,
+                node.Port)).ToArray(),
             graph.Edges.Select(edge => new TopologyEdgeDto(
                 edge.ConnectionId,
                 edge.SourceInterfaceId,
-                edge.TargetInterfaceId)).ToArray());
+                edge.TargetInterfaceId,
+                edge.IsGhost)).ToArray());
     }
 }

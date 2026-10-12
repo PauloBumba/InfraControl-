@@ -17,13 +17,16 @@ public sealed record TopologyNodeRow(
     string DeviceName,
     string DeviceType,
     string? Ip,
-    bool? LatestPingSucceeded);
+    bool? LatestPingSucceeded,
+    bool IsGhost = false,
+    string? Port = null);
 
 /// <summary>Edge = Connection dirigida entre duas interfaces.</summary>
 public sealed record TopologyEdgeRow(
     Guid ConnectionId,
     Guid SourceInterfaceId,
-    Guid TargetInterfaceId);
+    Guid TargetInterfaceId,
+    bool IsGhost = false);
 
 public sealed record TopologyGraph(
     IReadOnlyList<TopologyNodeRow> Nodes,

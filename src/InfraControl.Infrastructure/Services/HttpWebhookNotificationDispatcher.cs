@@ -83,6 +83,7 @@ public sealed class HttpWebhookNotificationDispatcher(
                 message.DeliveryId,
                 message.NotificationId,
                 message.UserId,
+                message.EventType,
                 message.Title,
                 message.Message,
                 message.CreatedAt))
@@ -103,11 +104,16 @@ public sealed class HttpWebhookNotificationDispatcher(
             message.DeliveryId, message.Url, message.UserId, (int)response.StatusCode);
     }
 
-    /// <summary>Corpo do POST para o n8n (contrato de saída F19-T007).</summary>
+    /// <summary>
+    /// Corpo do POST para o n8n (contrato de saída F19-T007 + Fase 05:
+    /// <c>eventType</c> permite o switch do workflow ramificar por tipo
+    /// de domínio sem parsear título/mensagem).
+    /// </summary>
     private sealed record WebhookPayload(
         Guid DeliveryId,
         Guid NotificationId,
         Guid UserId,
+        string EventType,
         string Title,
         string Message,
         DateTime CreatedAt);
