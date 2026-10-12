@@ -11,12 +11,6 @@ public sealed record AuditEntrySummary(
     string? Error,
     DateTime OccurredAt);
 
-public sealed record PagedResult<T>(
-    IReadOnlyCollection<T> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
-
 public interface IAuditReader
 {
     Task<PagedResult<AuditEntrySummary>> SearchAsync(

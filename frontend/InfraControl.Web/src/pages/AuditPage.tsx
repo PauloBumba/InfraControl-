@@ -17,6 +17,8 @@ import { CopyableId } from "@/components/ui/CopyableId";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SelectField } from "@/components/ui/SelectField";
 import { Button } from "@/components/ui/Button";
+import { errorMessage } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 
 /**
  * F17-T002 — AuditPage conectada ao backend (substitui o mock de
@@ -59,12 +61,6 @@ function outcomeChip(outcome: string): { label: string; background: string; colo
   return { label: outcome, background: "#f1f5f9", color: "#475569" };
 }
 
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
 /**
  * "LoginWithMfa" → "Login With Mfa". O valor cru continua no `title` da
  * célula (filtro de ação é igualdade exata — o operador copia de lá).
@@ -89,7 +85,11 @@ export function AuditPage() {
   const [toInput, setToInput] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — o erro continua no nível do FORMULÁRIO de propósito: a única
+  // validação desta página é "De" posterior a "Até", e nela nenhum campo está
+  // isoladamente errado — é a combinação que não fecha. Colar isso em um dos
+  // dois acusaria o campo errado.
+  const { error: formError, fail: failForm, reset: resetFormError } = useFormErrors();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,7 +106,7 @@ export function AuditPage() {
         }),
       );
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -119,10 +119,10 @@ export function AuditPage() {
   function applyAction(event: FormEvent) {
     event.preventDefault();
     if (fromInput && toInput && fromInput > toInput) {
-      setFormError("O período \"De\" é posterior ao \"Até\".");
+      failForm("O período \"De\" é posterior ao \"Até\".");
       return;
     }
-    setFormError(null);
+    resetFormError();
     setFrom(fromInput);
     setTo(toInput);
     setAction(actionInput.trim());
@@ -137,7 +137,7 @@ export function AuditPage() {
     setToInput("");
     setFrom("");
     setTo("");
-    setFormError(null);
+    resetFormError();
     setPage(1);
   }
 

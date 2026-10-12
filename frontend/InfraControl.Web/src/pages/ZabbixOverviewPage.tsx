@@ -110,7 +110,10 @@ export function ZabbixOverviewPage() {
       )}
 
       {s?.problemsAvailable === false && s.isConfigured && (
-        <NoticeBanner message={s.problemsError ?? "Problemas indisponíveis no momento."} />
+        <ErrorBanner
+          message={s.problemsError ?? "Problemas indisponíveis no momento."}
+          onRetry={() => void problems.refetch()}
+        />
       )}
 
       <div

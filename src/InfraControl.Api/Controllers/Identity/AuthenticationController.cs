@@ -146,6 +146,42 @@ public sealed class AuthenticationController(
         return result.Succeeded ? NoContent() : BadRequest(ApiResponse<object>.Fail(result.Errors));
     }
 
+    /// <summary>
+    /// F29-T002 — perfil de autoedição: o próprio usuário edita o nome
+    /// completo (<c>User.DisplayName</c>), que até aqui só o admin conseguia
+    /// alterar em <c>PUT /admin/users/{id}</c>. O e-mail não muda aqui.
+    /// </summary>
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile(UpdateProfileViewModel model, CancellationToken cancellationToken)
+    {
+        if (User.GetSessionUserIdOrNull() is not { } userId)
+            return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
+
+        var result = await authenticationService.UpdateProfileAsync(
+            new UpdateProfileRequest(userId, model.DisplayName), cancellationToken);
+        if (!result.Succeeded)
+            return BadRequest(ApiResponse<object>.Fail(result.Errors));
+
+        // O nome exibido vem da CLAIM do cookie (o /auth/me lê a claim, não o
+        // banco). Sem re-emitir aqui, o usuário salvaria e veria o nome antigo
+        // no reload seguinte. Re-emitimos preservando as claims atuais — em
+        // especial SessionIdClaim, que o ActiveSessionMiddleware confere:
+        // criar uma sessão nova derrubaria a atual.
+        var identity = (ClaimsIdentity)User.Identity!;
+        var claims = identity.Claims
+            .Where(claim => claim.Type != "displayName")
+            .Append(new Claim("displayName", model.DisplayName.Trim()))
+            .ToList();
+
+        await HttpContext.SignInAsync(
+            IdentityConstants.ApplicationScheme,
+            new ClaimsPrincipal(new ClaimsIdentity(
+                claims, identity.AuthenticationType, identity.NameClaimType, identity.RoleClaimType)));
+
+        return Ok(ApiResponse.Ok(new { displayName = model.DisplayName.Trim() }));
+    }
+
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()

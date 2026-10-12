@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +14,7 @@ import { Column } from "primereact/column";
 import { Pagination } from "@/components/ui/Pagination";
 import { Can } from "@/components/auth/Can";
 import { mutationErrorMessage } from "@/hooks/queries";
+import { useServerSearch } from "@/hooks/useServerSearch";
 import { formatDateTime } from "@/utils/format";
 import {
   getZabbixHosts,
@@ -78,11 +78,12 @@ function listCell(values: string[]): React.ReactNode {
 export function ZabbixHostsPage() {
   const queryClient = useQueryClient();
 
-  const [termInput, setTermInput] = useState("");
-  const [term, setTerm] = useState("");
+  // F29-T001B — texto digitado × termo aplicado × página vêm do hook (era o
+  // mesmo par de estados em 5 páginas); esta página cuida só dos filtros dela.
+  const { input: termInput, setInput: setTermInput, term, page, setPage, applyTerm } =
+    useServerSearch();
   const [state, setState] = useState("all");
   const [missing, setMissing] = useState("all");
-  const [page, setPage] = useState(1);
   const [syncResult, setSyncResult] = useState<ZabbixSyncResult | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -117,10 +118,11 @@ export function ZabbixHostsPage() {
   });
 
   function applyFilters(nextTerm: string, nextState: string, nextMissing: string) {
-    setTerm(nextTerm.trim());
+    // F29-T001B — o hook cuida do termo e da página (voltar para a 1ª é dele);
+    // a página cuida só dos dois filtros que são dela.
+    applyTerm(nextTerm);
     setState(nextState);
     setMissing(nextMissing);
-    setPage(1);
   }
 
   /** Card de host — usado nas visões grid E quadro (mesmos dados da tabela). */
@@ -178,53 +180,54 @@ export function ZabbixHostsPage() {
   const totalCount = data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  const listError =
+    syncError ??
+    mutationErrorMessage(hosts.error as Error | null) ??
+    "Não foi possível falar com o servidor. Tente novamente.";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Hosts monitorados"
-        subtitle={
-          hosts.isLoading
-            ? "Carregando…"
-            : `${totalCount} ${totalCount === 1 ? "host" : "hosts"} no read-model do Zabbix`
-        }
-        actions={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <ViewSwitcher mode={view} onChange={setView} />
-            <Can level="operate">
-              <Button
-                variant="primary"
-                disabled={sync.isPending}
-                style={{ padding: "6px 14px" }}
-                onClick={() => sync.mutate()}
-              >
-                <i className="pi pi-refresh" style={{ fontSize: 11 }} />
-                {sync.isPending ? "Sincronizando…" : "Sincronizar agora"}
-              </Button>
-            </Can>
-          </div>
-        }
-      />
-
-      {syncResult && (
-        <NoticeBanner
-          message={`Sincronização concluída · versão ${syncResult.version ?? "?"} · ${syncResult.created} novos, ${syncResult.updated} atualizados, ${syncResult.missing} ausentes${syncResult.errors > 0 ? `, ${syncResult.errors} erros` : ""}`}
-          onDismiss={() => setSyncResult(null)}
-        />
-      )}
-
-      {(hosts.error || syncError) && (
-        <ErrorBanner
-          message={
-            syncError ??
-            mutationErrorMessage(hosts.error as Error | null) ??
-            "Não foi possível falar com o servidor. Tente novamente."
-          }
-          onRetry={() => {
-            setSyncError(null);
-            void hosts.refetch();
-          }}
-        />
-      )}
+    <ListPageShell
+      title="Hosts monitorados"
+      singular="host"
+      plural="hosts"
+      total={totalCount}
+      loading={hosts.isLoading}
+      note="no read-model do Zabbix"
+      notice={
+        syncResult ? (
+          <NoticeBanner
+            message={`Sincronização concluída · versão ${syncResult.version ?? "?"} · ${syncResult.created} novos, ${syncResult.updated} atualizados, ${syncResult.missing} ausentes${syncResult.errors > 0 ? `, ${syncResult.errors} erros` : ""}`}
+            onDismiss={() => setSyncResult(null)}
+          />
+        ) : undefined
+      }
+      error={hosts.error || syncError ? listError : null}
+      onRetry={() => {
+        setSyncError(null);
+        void hosts.refetch();
+      }}
+      actions={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <ViewSwitcher mode={view} onChange={setView} />
+          <Can level="operate">
+            <Button
+              variant="primary"
+              disabled={sync.isPending}
+              style={{ padding: "6px 14px" }}
+              onClick={() => sync.mutate()}
+            >
+              <i className="pi pi-refresh" style={{ fontSize: 11 }} />
+              {sync.isPending ? "Sincronizando…" : "Sincronizar agora"}
+            </Button>
+          </Can>
+        </div>
+      }
+      footer={
+        totalCount > 0 ? (
+          <Pagination page={page} totalPages={totalPages} disabled={hosts.isFetching} onPage={setPage} />
+        ) : undefined
+      }
+    >
 
       <FilterBar>
         <div className="flex align-items-center gap-2 flex-wrap">
@@ -348,10 +351,6 @@ export function ZabbixHostsPage() {
           }
         />
       )}
-
-      {totalCount > 0 && (
-        <Pagination page={page} totalPages={totalPages} disabled={hosts.isFetching} onPage={setPage} />
-      )}
-    </div>
+    </ListPageShell>
   );
 }

@@ -13,7 +13,7 @@ public sealed record SearchRacksQuery(
     Guid? LocationId = null,
     string? Term = null,
     int Page = 1,
-    int PageSize = 20) : IQuery<PagedResult<RackDto>>, IAuthorizedRequest
+    int PageSize = 20) : IQuery<PagedResult<RackDto>>, IPagedRequest, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
@@ -26,11 +26,17 @@ public sealed class SearchRacksQueryHandler(IRackRepository repository)
         SearchRacksQuery request,
         CancellationToken cancellationToken)
     {
-        var page = Math.Max(1, request.Page);
-        var pageSize = Math.Clamp(request.PageSize, 1, 100);
-        var term = string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim();
+        // F29-T001A — piloto da normalização compartilhada. Antes eram duas
+        // linhas copiadas de 28 handlers: `Math.Max(1, request.Page)` e
+        // `Math.Clamp(request.PageSize, 1, 100)`, mais o trim do termo.
+        var paging = Paging.Normalize(request);
 
-        var result = await repository.SearchAsync(request.LocationId, term, page, pageSize, cancellationToken);
+        var result = await repository.SearchAsync(
+            request.LocationId,
+            TermNormalizer.Normalize(request.Term),
+            paging.Page,
+            paging.PageSize,
+            cancellationToken);
 
         return new PagedResult<RackDto>(
             result.Items

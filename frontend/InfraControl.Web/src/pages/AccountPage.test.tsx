@@ -23,12 +23,14 @@ vi.mock("@/services/api/auth", async (importOriginal) => {
   return {
     ...actual,
     changePassword: vi.fn(),
+    updateProfile: vi.fn(),
   };
 });
 
-import { changePassword } from "@/services/api/auth";
+import { changePassword, updateProfile } from "@/services/api/auth";
 
 const changePasswordMock = vi.mocked(changePassword);
+const updateProfileMock = vi.mocked(updateProfile);
 
 function renderPage() {
   return render(
@@ -50,6 +52,7 @@ beforeEach(() => {
     }),
   );
   changePasswordMock.mockReset();
+  updateProfileMock.mockReset();
 });
 
 describe("AccountPage", () => {
@@ -115,5 +118,92 @@ describe("AccountPage", () => {
 
     expect(await screen.findByText("tela de login")).toBeInTheDocument();
     expect(changePasswordMock).toHaveBeenCalledWith("Atual!123456", "Nova!Senha123");
+  });
+});
+
+/**
+ * F29-T002 — perfil de autoedição do nome completo.
+ *
+ * O `User.DisplayName` já existia no backend, mas só o admin o editava
+ * (PUT /admin/users/{id}). O que se tranca aqui:
+ *  - o formulário nasce preenchido com o nome da sessão;
+ *  - só o NOME vai para a API (o e-mail é somente leitura — trocar e-mail é
+ *    operação de admin com verificação de unicidade);
+ *  - erro do envelope aparece na tela;
+ *  - sucesso NÃO desloga — diferente da troca de senha, que revoga todas as
+ *    sessões no servidor e por isso manda para /login.
+ */
+describe("AccountPage — perfil (F29-T002)", () => {
+  it("should prefill the profile form with the signed-in display name", async () => {
+    updateProfileMock.mockResolvedValue({ displayName: "Ana" });
+    renderPage();
+
+    expect(await screen.findByLabelText("Nome completo")).toHaveValue("Ana");
+    // O e-mail está na tela como campo travado, não como texto solto —
+    // é ele quem declara a imutabilidade, não uma frase avulsa.
+    const email = screen.getByLabelText("E-mail");
+    expect(email).toHaveValue("ana@exemplo.com");
+    expect(email).toBeDisabled();
+  });
+
+  it("should send only the new display name", async () => {
+    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria" });
+    renderPage();
+
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText("Nome completo");
+    await user.clear(field);
+    await user.type(field, "Ana Maria");
+    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+
+    expect(updateProfileMock).toHaveBeenCalledTimes(1);
+    expect(updateProfileMock).toHaveBeenCalledWith("Ana Maria");
+    // o e-mail não viaja: é somente leitura nesta tela.
+    expect(updateProfileMock).not.toHaveBeenCalledWith("ana@exemplo.com");
+  });
+
+  it("should show the pt-BR envelope message when the name is rejected", async () => {
+    updateProfileMock.mockRejectedValue(
+      new AuthApiError("O nome de exibição é obrigatório.", 400),
+    );
+    renderPage();
+
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText("Nome completo");
+    // Só espaços: passa pelo `required` nativo (o valor NÃO é vazio) e só o
+    // servidor recusa — é ele quem manda na regra, não uma guarda local.
+    await user.clear(field);
+    await user.type(field, "   ");
+    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+
+    expect(
+      await screen.findByText("O nome de exibição é obrigatório."),
+    ).toBeInTheDocument();
+    expect(updateProfileMock).toHaveBeenCalledTimes(1);
+    // nada mudou no estado da sessão.
+    expect(store.getState().auth.user?.displayName).toBe("Ana");
+    expect(store.getState().auth.status).toBe("authenticated");
+  });
+
+  it("should keep the user signed in after saving the profile", async () => {
+    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria" });
+    changePasswordMock.mockReset();
+    renderPage();
+
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText("Nome completo");
+    await user.clear(field);
+    await user.type(field, "Ana Maria");
+    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/nome atualizado/i);
+    expect(changePasswordMock).not.toHaveBeenCalled();
+
+    // O nome novo tem que valer já na MESMA sessão (sidebar/cabeçalho): o
+    // cookie foi re-emitido no servidor, mas o estado local também precisa
+    // acompanhar, senão o usuário salvaria e continuaria vendo o nome antigo
+    // até dar F5.
+    expect(store.getState().auth.user?.displayName).toBe("Ana Maria");
+    expect(store.getState().auth.status).toBe("authenticated");
   });
 });

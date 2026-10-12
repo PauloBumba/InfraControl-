@@ -37,6 +37,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { SelectField } from "@/components/ui/SelectField";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * Acompanhamento da fase (docs/30 §9-§11, §12, §13, Fase 3/4 —
@@ -107,12 +108,6 @@ function emptyForm(kind: AccForm["kind"], plan: Pdi | null): AccForm {
     file: null,
     decision: "Validated",
   };
-}
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
 function formatDateOnly(value: string | null): string {
@@ -211,7 +206,7 @@ export function PdiAccompanimentDialog({
     try {
       setData(await getPdiAccompaniment(planUserId));
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     }
   }, [planUserId]);
 
@@ -224,7 +219,7 @@ export function PdiAccompanimentDialog({
       try {
         setData(await getPdiAccompaniment(planUserId));
       } catch (caught) {
-        setError(messageFor(caught));
+        setError(errorMessage(caught));
       } finally {
         setLoading(false);
       }
@@ -261,7 +256,7 @@ export function PdiAccompanimentDialog({
       await action();
       await reload();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     }
   };
 
@@ -521,7 +516,7 @@ export function PdiAccompanimentDialog({
       setForm(null);
       await reload();
     } catch (caught) {
-      setFormError(messageFor(caught));
+      setFormError(errorMessage(caught));
     } finally {
       setSaving(false);
     }

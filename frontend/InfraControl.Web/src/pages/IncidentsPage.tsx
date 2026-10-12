@@ -3,9 +3,8 @@ import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
@@ -17,8 +16,10 @@ import {
   useCreateMutation,
   usePagedQuery,
   useUpdateMutation,
+  errorMessage,
   mutationErrorMessage,
 } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import {
   acknowledgeIncident,
   changeIncidentStatus,
@@ -74,7 +75,15 @@ export function IncidentsPage() {
   const [title, setTitle] = useState("");
   const [severity, setSeverity] = useState("Medium");
   const [description, setDescription] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001B — o erro do formulário agora declara o campo que falhou; antes
+  // ele era pendurado fixo em "Título" mesmo quando o problema era outro.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -116,10 +125,10 @@ export function IncidentsPage() {
     event.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) {
-      setFormError("Informe o título do incidente.");
+      failForm("Informe o título do incidente.", "title");
       return;
     }
-    setFormError(null);
+    resetFormError();
     try {
       await createMutation.mutateAsync({
         title: trimmed,
@@ -131,7 +140,8 @@ export function IncidentsPage() {
       setDescription("");
       setSeverity("Medium");
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
+      // Sem campo: o servidor recusou o conjunto inteiro, não um campo.
+      failForm(errorMessage(caught));
     }
   }
 
@@ -162,53 +172,49 @@ export function IncidentsPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Incidentes"
-        subtitle={incidents.isPending ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "incidente" : "incidentes"}`}
-        actions={
-          <div className="flex align-items-center gap-2 flex-wrap">
-            <FilterBar><div style={{ display: "flex", gap: 8 }}>
-              <SelectField
-                value={statusFilter}
-                onChange={(value) => { setStatusFilter(value); setPage(1); }}
-                options={statusFilterOptions.map((value) => ({
-                  value,
-                  label: value === "" ? "Todos os status" : statusConfig[value]?.label ?? value,
-                }))}
-                style={{ minWidth: 160 }}
-              />
-              <ViewSwitcher mode={view} onChange={setView} />
-              <Can level="operate">
-                <Button
-                  icon="pi pi-plus"
-                  onClick={() => { setCreating((value) => !value); setFormError(null); }}
-                >
-                  Novo Incidente
-                </Button>
-              </Can>
-            </div></FilterBar>
-          </div>
-        }
-      />
-
-      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-
-      {(actionError || listError) && (
-        <ErrorBanner
-          message={actionError ?? listError ?? "Não foi possível falar com o servidor. Tente novamente."}
-          onRetry={() => {
-            setActionError(null);
-            void incidents.refetch();
-          }}
-        />
-      )}
+    <ListPageShell
+      title="Incidentes"
+      singular="incidente"
+      plural="incidentes"
+      total={totalCount}
+      loading={incidents.isPending}
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
+      error={actionError || listError ? actionError ?? listError ?? "Não foi possível falar com o servidor. Tente novamente." : null}
+      onRetry={() => {
+        setActionError(null);
+        void incidents.refetch();
+      }}
+      actions={
+        <div className="flex align-items-center gap-2 flex-wrap">
+          <FilterBar><div style={{ display: "flex", gap: 8 }}>
+            <SelectField
+              value={statusFilter}
+              onChange={(value) => { setStatusFilter(value); setPage(1); }}
+              options={statusFilterOptions.map((value) => ({
+                value,
+                label: value === "" ? "Todos os status" : statusConfig[value]?.label ?? value,
+              }))}
+              style={{ minWidth: 160 }}
+            />
+            <ViewSwitcher mode={view} onChange={setView} />
+            <Can level="operate">
+              <Button
+                icon="pi pi-plus"
+                onClick={() => { setCreating((value) => !value); resetFormError(); }}
+              >
+                Novo Incidente
+              </Button>
+            </Can>
+          </div></FilterBar>
+        </div>
+      }
+    >
 
       {creating && (
         <form onSubmit={submitCreate} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Novo incidente</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
-            <FormField label="Título" error={formError}>
+            <FormField label="Título" error={errorFor("title")}>
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -238,12 +244,14 @@ export function IncidentsPage() {
               style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
             />
           </FormField>
-          <FormError message={formError ?? ""} />
+          {/* Erro de campo já aparece embaixo do campo; aqui só o do formulário
+              inteiro (ex.: recusa do servidor), senão a mesma frase sairia duas vezes. */}
+          <FormError message={field ? "" : (formError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => { setCreating(false); setFormError(null); }}
+              onClick={() => { setCreating(false); resetFormError(); }}
               style={{ padding: "6px 14px" }}
             >
               Cancelar
@@ -331,7 +339,7 @@ export function IncidentsPage() {
           </div>
         )}
       />
-    </div>
+    </ListPageShell>
   );
 }
 

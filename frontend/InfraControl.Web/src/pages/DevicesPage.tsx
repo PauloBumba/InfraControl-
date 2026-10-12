@@ -13,6 +13,7 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { useNavigate } from "react-router-dom";
 import { Can } from "@/components/auth/Can";
 import {
+  errorMessage,
   useCreateMutation,
   useDeleteMutation,
   useListQuery,
@@ -95,12 +96,6 @@ const typeNames: Record<string, string> = {
   Other: "Outro",
 };
 const DEVICE_TYPES = Object.keys(typeNames);
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
 
 export function DevicesPage() {
   const navigate = useNavigate();
@@ -186,7 +181,7 @@ export function DevicesPage() {
         if (!cancelled) setPortsBySwitch(new Map(entries));
       })
       .catch((caught: unknown) => {
-        if (!cancelled) setError(messageFor(caught));
+        if (!cancelled) setError(errorMessage(caught));
       })
       .finally(() => {
         if (!cancelled) setPortsLoading(false);

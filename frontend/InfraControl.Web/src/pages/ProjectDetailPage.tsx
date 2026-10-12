@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAppSelector } from "@/app/store/hooks";
 import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import {
@@ -159,9 +160,16 @@ export function ProjectDetailPage() {
   }
 
   if (!project) {
+    // "Não encontrado" é uma RESPOSTA do servidor; não conseguir perguntar é
+    // outra coisa (F29-T004). Sem esta separação, uma falha de rede aparecia
+    // como se o id estivesse errado — e o usuário saía procurando um projeto
+    // que nunca existiu.
     return (
       <div style={{ display: "grid", gap: 12 }}>
-        <PageHeader title="Projeto não encontrado" />
+        <PageHeader
+          title={error ? "Não foi possível carregar o projeto" : "Projeto não encontrado"}
+        />
+        {error && <ErrorBanner message={error} onRetry={() => void refresh()} />}
         <Link to="/projects">
           <Button variant="ghost" icon="pi pi-arrow-left">Voltar para Projetos</Button>
         </Link>
@@ -185,9 +193,7 @@ export function ProjectDetailPage() {
         }
       />
 
-      {error && (
-        <div style={{ padding: 12, borderRadius: 10, background: "#fef2f2", color: "#991b1b" }}>{error}</div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void refresh()} />}
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 16 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>

@@ -29,6 +29,7 @@ import {
 } from "@/services/api/monitoring";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
 import { formatDateTime } from "@/utils/format";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F17-T017 — DeviceDetailPage conectada ao backend (substitui
@@ -88,12 +89,6 @@ const typeColor: Record<string, string> = {
   UPS: "#f59e0b",
   Other: "#94a3b8",
 };
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -158,7 +153,7 @@ export function DeviceDetailPage() {
       else setNotFound(true);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 404) setNotFound(true);
-      else setError(messageFor(caught));
+      else setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -197,7 +192,7 @@ export function DeviceDetailPage() {
       setAlerts(deviceAlerts.items);
       setAlertsTotal(deviceAlerts.totalCount);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setMonitoringLoading(false);
     }
@@ -222,7 +217,7 @@ export function DeviceDetailPage() {
         macAddresses: macAddresses.totalCount,
       });
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setAddrLoading(false);
     }
@@ -237,7 +232,7 @@ export function DeviceDetailPage() {
       setPorts(page.items);
       setPortsTotal(page.totalCount);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setPortsLoading(false);
     }

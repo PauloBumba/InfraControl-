@@ -41,6 +41,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { SelectField } from "@/components/ui/SelectField";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * Estrutura do desenvolvimento (docs/30 §5-§8, Fase 2, ADR-032):
@@ -102,12 +103,6 @@ function emptyForm(kind: NodeKind, parentId: string | null): NodeForm {
     completed: false,
     name: "",
   };
-}
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
 function formatDateOnly(value: string | null): string {
@@ -204,7 +199,7 @@ export function PdiStructureDialog({
       setStructure(nextStructure);
       setCompetencies(nextCompetencies);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     }
   }, [planUserId]);
 
@@ -224,7 +219,7 @@ export function PdiStructureDialog({
         setCompetencies(nextCompetencies);
         setUsers(nextUsers);
       } catch (caught) {
-        setError(messageFor(caught));
+        setError(errorMessage(caught));
       } finally {
         setLoading(false);
       }
@@ -416,7 +411,7 @@ export function PdiStructureDialog({
         await reload();
       }
     } catch (caught) {
-      setFormError(messageFor(caught));
+      setFormError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -440,7 +435,7 @@ export function PdiStructureDialog({
       setCompetencies(await listPdiCompetencies());
       if (plan) setStructure(await getPdiStructure(plan.userId));
     } catch (caught) {
-      setCatalogError(messageFor(caught));
+      setCatalogError(errorMessage(caught));
     } finally {
       setCatalogSaving(false);
     }
@@ -457,7 +452,7 @@ export function PdiStructureDialog({
           await action();
           await reload();
         } catch (caught) {
-          setError(messageFor(caught));
+          setError(errorMessage(caught));
         }
       },
     });
@@ -472,7 +467,7 @@ export function PdiStructureDialog({
       });
       await reload();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     }
   };
 
@@ -484,7 +479,7 @@ export function PdiStructureDialog({
       await submitPdiPhase(phase.id);
       await reload();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     }
   };
 
@@ -494,7 +489,7 @@ export function PdiStructureDialog({
       await validatePdiPhase(phase.id, { decision: "Validated" });
       await reload();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     }
   };
 
@@ -517,7 +512,7 @@ export function PdiStructureDialog({
       setRejectReason("");
       await reload();
     } catch (caught) {
-      setRejectError(messageFor(caught));
+      setRejectError(errorMessage(caught));
     } finally {
       setRejectSaving(false);
     }

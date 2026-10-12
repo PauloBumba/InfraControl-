@@ -226,7 +226,11 @@ ASALocalRun/
 .localhistory/
 
 # BeatPulse healthance liveness check
-health/
+# Fase 0 (docs/41 §1.1): era "health/", regra herdada do template do VS que
+# ignorava QUALQUER diretório chamado health/ — inclusive src/**/Health/,
+# escondendo código-fonte do git (AiRuntimeHealth.cs nunca apareceu no
+# status e o build só quebrou quando o SDK foi instalada). Ancorada na raiz.
+/health/
 
 # Backup & report files from converting an old project
 _UpgradeReport_Files/

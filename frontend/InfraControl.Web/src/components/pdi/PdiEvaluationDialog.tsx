@@ -19,6 +19,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { SelectField } from "@/components/ui/SelectField";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * Avaliação final do PDI (docs/30 §15.3, §16, Fase 6 — ADR-036): a
@@ -34,12 +35,6 @@ interface PdiEvaluationDialogProps {
   plan: Pdi | null;
   isAdmin: boolean;
   currentUserId?: string | null;
-}
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
 function formatDateOnly(value: string | null): string {
@@ -100,7 +95,7 @@ export function PdiEvaluationDialog({
         setNotes(data.result.notes ?? "");
       }
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -137,7 +132,7 @@ export function PdiEvaluationDialog({
       );
       await load();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -154,7 +149,7 @@ export function PdiEvaluationDialog({
       setNotice("Avaliação do gestor salva — o resultado final está liberado.");
       await load();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -171,7 +166,7 @@ export function PdiEvaluationDialog({
       setNotice("Resultado final registrado.");
       await load();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }

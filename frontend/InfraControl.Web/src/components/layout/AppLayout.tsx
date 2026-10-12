@@ -20,8 +20,18 @@ import {
 } from "@/services/signalr/notifications";
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 import { canReach, routeLevel } from "@/app/router/access";
+import { allNavItems, labelForRoute } from "@/app/router/routeLabels";
 
-type AppLayoutProps = { children: ReactNode; activeItem: string; onNavigate: (item: string) => void };
+/**
+ * `activeRoute` é a **rota** atual (identidade), não o rótulo — F29-T005.
+ * O rótulo da trilha é derivado dela, porque o menu tem dois "Zabbix" e só a
+ * rota distingue um do outro.
+ */
+type AppLayoutProps = {
+  children: ReactNode;
+  activeRoute: string;
+  onNavigate: (route: string) => void;
+};
 
 /** Rótulos pt-BR dos tipos de `GlobalSearchItemDto` (F2-T007). */
 const SEARCH_TYPE_LABEL: Record<GlobalSearchItem["type"], string> = {
@@ -33,7 +43,7 @@ const SEARCH_TYPE_LABEL: Record<GlobalSearchItem["type"], string> = {
   ip: "IP",
 };
 
-export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) {
+export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps) {
   const dispatch = useAppDispatch();
   const routerNavigate = useNavigate();
   const sidebarCollapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
@@ -52,9 +62,9 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
     dispatch(toggleSidebar());
   }, [dispatch]);
 
-  const navigate = useCallback((item: string) => {
-    onNavigate(item);
-    dispatch(addToRecentTabs(item));
+  const navigate = useCallback((route: string) => {
+    onNavigate(route);
+    dispatch(addToRecentTabs(route));
     dispatch(setMobileOpen(false));
   }, [onNavigate, dispatch]);
 
@@ -204,8 +214,10 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
     return defaultBadge;
   };
 
-  const allNavItems = [...navigation, ...secondaryNavigation];
-  const getNavItem = (label: string) => allNavItems.find((item) => item.label === label);
+  // F29-T005 — busca por ROTA (a lista vem de `routeLabels`, fonte única das
+  // duas listas do menu): por rótulo, o "Zabbix" primário achava o item
+  // secundário (ícone e aba errados).
+  const getNavItem = (route: string) => allNavItems.find((item) => item.route === route);
 
   // Função para converter NavItem em formato do Menu do PrimeReact
   const navItemToMenuItem = (item: NavItem) => ({
@@ -287,10 +299,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
   const canSee = (route: string) => canReach(user?.roles, routeLevel(route));
   const visibleNavigation = navigation.filter((item) => canSee(item.route));
   const visibleSecondaryNavigation = secondaryNavigation.filter((item) => canSee(item.route));
-  const visibleRecentTabs = recentTabs.filter((label) => {
-    const item = getNavItem(label);
-    return item ? canSee(item.route) : true;
-  });
+  const visibleRecentTabs = recentTabs.filter((route) => canSee(route));
 
   const sidebarClassName = `uni-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`;
 
@@ -319,6 +328,19 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
+<<<<<<< HEAD
+                <li key={item.route}>
+                  <button
+                    className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
+                    aria-current={activeRoute === item.route ? "page" : undefined}
+                    onClick={() => navigate(item.route)}
+                    title={item.label}
+                  >
+                    <i className={item.icon} />
+                    <span>{item.label}</span>
+                    {badge && <Badge value={badge} className="uni-nav-badge" />}
+                  </button>
+=======
                 <li key={item.label}>
                   {hasSubmenu ? (
                     <>
@@ -353,6 +375,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                       {badge && <Badge value={badge} className="uni-nav-badge" />}
                     </button>
                   )}
+>>>>>>> 2d1cf31dc85ed40263f6849ad4c64d3c9d3cf33d
                 </li>
               );
             })}
@@ -365,6 +388,19 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
+<<<<<<< HEAD
+                <li key={item.route}>
+                  <button
+                    className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
+                    aria-current={activeRoute === item.route ? "page" : undefined}
+                    onClick={() => navigate(item.route)}
+                    title={item.label}
+                  >
+                    <i className={item.icon} />
+                    <span>{item.label}</span>
+                    {badge && <Badge value={badge} className="uni-nav-badge" />}
+                  </button>
+=======
                 <li key={item.label}>
                   {hasSubmenu ? (
                     <>
@@ -399,6 +435,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
                       {badge && <Badge value={badge} className="uni-nav-badge" />}
                     </button>
                   )}
+>>>>>>> 2d1cf31dc85ed40263f6849ad4c64d3c9d3cf33d
                 </li>
               );
             })}
@@ -453,7 +490,7 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
           </button>
 
           <div className="uni-topbar-breadcrumb">
-            InfraControl <i className="pi pi-angle-right" style={{ fontSize: 8 }} /> <span>{activeItem}</span>
+            InfraControl <i className="pi pi-angle-right" style={{ fontSize: 8 }} /> <span>{labelForRoute(activeRoute)}</span>
           </div>
 
           <div className="uni-topbar-right">
@@ -662,20 +699,22 @@ export function AppLayout({ children, activeItem, onNavigate }: AppLayoutProps) 
 
         {visibleRecentTabs.length > 0 && (
           <div className="uni-tabs-bar">
-            {visibleRecentTabs.map((tab: string) => {
-              const navItem = getNavItem(tab);
+            {visibleRecentTabs.map((route: string) => {
+              const navItem = getNavItem(route);
+              const tabLabel = labelForRoute(route);
               return (
                 <button
-                  key={tab}
-                  className={`uni-tab ${activeItem === tab ? "active" : ""}`}
-                  onClick={() => navigate(tab)}
+                  key={route}
+                  className={`uni-tab ${activeRoute === route ? "active" : ""}`}
+                  aria-current={activeRoute === route ? "page" : undefined}
+                  onClick={() => navigate(route)}
                 >
                   <i className={navItem?.icon || "pi pi-circle"} />
-                  <span>{tab}</span>
+                  <span>{tabLabel}</span>
                   <button
                     className="uni-tab-close"
-                    onClick={(e) => { e.stopPropagation(); removeRecentTab(tab); }}
-                    aria-label={`Fechar ${tab}`}
+                    onClick={(e) => { e.stopPropagation(); removeRecentTab(route); }}
+                    aria-label={`Fechar ${tabLabel}`}
                   >
                     <i className="pi pi-times" />
                   </button>

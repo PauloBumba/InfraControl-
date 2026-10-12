@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
-import { setActiveItem } from "@/app/store/slices/navigationSlice";
 import {
   sessionCheckFailed,
   sessionCheckStarted,
@@ -9,9 +8,11 @@ import {
 } from "@/app/store/slices/authSlice";
 import { fetchCurrentUser } from "@/services/api/auth";
 import { routeLevel, useCan } from "@/app/router/access";
+import { isPublicMarketingPath } from "@/app/router/publicRoutes";
 import { AccessDenied } from "@/components/auth/AccessDenied";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { navigation, secondaryNavigation } from "@/data/dashboardData";
+import { PublicLayout } from "@/components/marketing/PublicLayout";
+import { PublicMarketingRoute } from "@/components/marketing/PublicMarketingRoute";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const NetworkPage = lazy(() => import("@/pages/NetworkPage").then(m => ({ default: m.NetworkPage })));
@@ -53,19 +54,10 @@ const InvitationAcceptancePage = lazy(() => import("@/pages/InvitationAcceptance
 const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
 const AccountPage = lazy(() => import("@/pages/AccountPage").then(m => ({ default: m.AccountPage })));
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
-
-const allNav = [...navigation, ...secondaryNavigation];
-
-const routeLabelMap: Record<string, string> = Object.fromEntries(
-  allNav.map(item => [item.route, item.label])
-);
-routeLabelMap["/"] = "Visão Geral";
-// F26-T001 — rota fora do menu (entra pelo card do usuário).
-routeLabelMap["/account"] = "Minha Conta";
-
-const labelRouteMap: Record<string, string> = Object.fromEntries(
-  allNav.map(item => [item.label, item.route])
-);
+// F26-T002 — landing pública de vendas (fora do AppLayout).
+const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
+const FeaturesPage = lazy(() => import("@/pages/FeaturesPage").then(m => ({ default: m.FeaturesPage })));
+const ContactPage = lazy(() => import("@/pages/ContactPage").then(m => ({ default: m.ContactPage })));
 
 function PageLoader() {
   return (
@@ -161,21 +153,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const activeItemRedux = useAppSelector((s) => s.navigation.activeItem);
   const authStatus = useAppSelector((s) => s.auth.status);
 
-  const activeLabel = location.pathname.startsWith("/devices/")
-    ? "Detalhes do Dispositivo"
-    : location.pathname.startsWith("/tasks/")
-      ? "Detalhe da Tarefa"
-      : routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
+  /**
+   * F29-T005 — a rota do `location` É a identidade do item ativo: não existe
+   * estado paralelo para dessincronizar, e o rótulo (que existe em duplicidade
+   * no menu) é derivado só para exibição. Antes o clique traduzia
+   * **rótulo → rota** com `Object.fromEntries`, que fica com o ÚLTIMO duplicado
+   * — clicar no "Zabbix" do menu primário levava para /integrations/zabbix.
+   */
+  const handleNavigate = (route: string) => navigate(route);
 
-  const handleNavigate = (label: string) => {
-    const route = labelRouteMap[label] || "/";
-    dispatch(setActiveItem(label));
-    navigate(route);
-  };
+  // F26-T002 — landing pública de vendas: header/footer COMPARTILHADOS e
+  // conteúdo que muda por rota. Logado → dashboard (`/`, padrão /login),
+  // porque a landing é porta de entrada de quem ainda não entrou.
+  if (isPublicMarketingPath(location.pathname)) {
+    return (
+      <PublicMarketingRoute>
+        <PublicLayout>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/home" element={<HomePage />} />
+              <Route path="/recursos" element={<FeaturesPage />} />
+              <Route path="/contato" element={<ContactPage />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
+            </Routes>
+          </Suspense>
+        </PublicLayout>
+      </PublicMarketingRoute>
+    );
+  }
 
   // Login, recuperação/redefinição de senha e aceite de convite não têm
   // layout — e não redirecionam: quem já tem sessão confirmada vai direto
@@ -210,7 +217,7 @@ function AppContent() {
   }
 
   return (
-    <AppLayout activeItem={activeLabel} onNavigate={handleNavigate}>
+    <AppLayout activeRoute={location.pathname} onNavigate={handleNavigate}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={

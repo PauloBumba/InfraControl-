@@ -2,8 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
-import { signedOut } from "@/app/store/slices/authSlice";
-import { AuthApiError, changePassword } from "@/services/api/auth";
+import { sessionChecked, signedOut } from "@/app/store/slices/authSlice";
+import { AuthApiError, changePassword, updateProfile } from "@/services/api/auth";
 
 /**
  * F26-T001 — "Minha Conta": troca de senha autenticada. O backend
@@ -42,11 +42,45 @@ export function AccountPage() {
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
 
+  // ── Perfil (F29-T002) — estado próprio, separado do formulário de senha:
+  // os dois enviam para endpoints diferentes e o erro de um não pode aparecer
+  // no card do outro.
+  const [profileName, setProfileName] = useState(user?.displayName ?? "");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profilePending, setProfilePending] = useState(false);
+
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  const handleProfileSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setProfileError(null);
+    setProfileSaved(false);
+
+    const trimmed = profileName.trim();
+
+    setProfilePending(true);
+    try {
+      const { displayName } = await updateProfile(trimmed);
+      // O servidor re-emite o cookie com a claim nova; aqui só espelhamos no
+      // estado local o que acabou de mudar, para a sidebar/cabeçalho
+      // mostrarem o nome certo sem precisar de F5. Reuso do sessionChecked:
+      // é exatamente o mesmo fato ("backend confirmou a sessão").
+      dispatch(sessionChecked({ ...user!, displayName }));
+      setProfileName(displayName);
+      setProfileSaved(true);
+    } catch (submitError) {
+      setProfileError(
+        toMessage(submitError, "Não foi possível atualizar o perfil agora. Tente novamente em instantes."),
+      );
+    } finally {
+      setProfilePending(false);
+    }
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -83,15 +117,75 @@ export function AccountPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
         title="Minha Conta"
-        subtitle="Troque sua senha de acesso ao InfraControl."
+        subtitle="Edite seu perfil e troque sua senha de acesso ao InfraControl."
       />
 
+      {/* ── Perfil (F29-T002) ─────────────────────────────────────────── */}
       <div className="uni-card" style={{ maxWidth: 560, padding: 24 }}>
-        {user && (
-          <p style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>
-            Conectado como <strong>{user.email}</strong>
-          </p>
-        )}
+        <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>Perfil</h2>
+        <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+          O nome aparece para toda a equipe. O e-mail é o seu login e não é
+          editável por aqui.
+        </p>
+
+        <form
+          onSubmit={handleProfileSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="display-name">Nome completo</label>
+            <input
+              id="display-name"
+              type="text"
+              autoComplete="name"
+              value={profileName}
+              onChange={(event) => {
+                setProfileName(event.target.value);
+                setProfileSaved(false);
+              }}
+              required
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="profile-email">E-mail</label>
+            <input
+              id="profile-email"
+              type="email"
+              value={user?.email ?? ""}
+              readOnly
+              disabled
+              aria-describedby="profile-email-hint"
+            />
+            <span id="profile-email-hint" style={{ fontSize: 12, color: "#64748b" }}>
+              Alterar o e-mail é uma operação de administrador.
+            </span>
+          </div>
+
+          {profileError && (
+            <div className="uni-login-alert" role="alert">
+              <i className="pi pi-exclamation-triangle" />
+              <span>{profileError}</span>
+            </div>
+          )}
+
+          {profileSaved && (
+            <div className="uni-login-alert" role="status" style={{ color: "#15803d" }}>
+              <i className="pi pi-check-circle" />
+              <span>Nome atualizado. Já vale para toda a equipe.</span>
+            </div>
+          )}
+
+          <button className="uni-login-submit" type="submit" disabled={profilePending}>
+            <i className={`pi ${profilePending ? "pi-spin pi-spinner" : "pi-save"}`} />
+            <span>Salvar</span>
+          </button>
+        </form>
+      </div>
+
+      {/* ── Senha (F26-T001) ──────────────────────────────────────────── */}
+      <div className="uni-card" style={{ maxWidth: 560, padding: 24 }}>
+        <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>Segurança</h2>
 
         <div
           className="uni-login-alert"

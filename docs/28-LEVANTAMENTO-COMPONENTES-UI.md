@@ -380,3 +380,47 @@ Execução desta leva: wrappers reutilizáveis + adoção SelectField/SwitchFiel
   (abrir/encerrar SSH-RDP, kanban por status da sessão).
 - Validação: `npx tsc -b` · `npm run lint` · `npm run build` verdes;
   backend intocado — unit 1852 · arch 119 · integration 194, 0 falhas.
+
+## 12. Blocos de página entregues pela F29-T001B (2026-10-11)
+
+A Fase 29 fechou a maior concentração que este levantamento mediu: o que
+faltava não era componente, era **casca**. Blocos entregues, com o piloto que
+os adotou:
+
+| Bloco | Onde | Substitui | Piloto |
+| --- | --- | --- | --- |
+| `ListPageShell` + `countLabel` | `components/ui/ListPageShell.tsx` | raiz `flex column gap:16` (33×/32 páginas), subtítulo `Carregando… / "N Ns"` (14 idênticas), `{error && <ErrorBanner … onRetry>}` (31) | Clients, Alerts, ZabbixHosts, Incidents |
+| `useServerSearch` | `hooks/useServerSearch.ts` | `termInput × term × page` + apply/clear (5 páginas) | Clients, ZabbixHosts |
+| `errorMessage(error, fallback?)` | `hooks/queries.ts` | 16 cópias de `messageFor` | Clients, Alerts, Incidents |
+| `useFormErrors` | `hooks/useFormErrors.ts` | `formError` em 12 páginas/dialogs | Incidents |
+
+A casca **compõe** `PageHeader` e `ErrorBanner` do kit — não os reimplementa.
+
+### 12.1 Regras que os blocos impõem (não são preferências)
+
+- **A casca não conhece a tabela.** O conteúdo entra por `children`; ela serve
+  o `DataTable` do PrimeReact **e** a lista própria. Acoplar casca a tabela
+  criaria um casamento que as 32 páginas, que casam de formas diferentes, não
+  fariam.
+- **`plural` nunca é inferido.** `countLabel(total, "usuário", "usuários")`
+  exige os dois rótulos: `"usuário" + "s"` = `"usuárioss"`, e uma regra de
+  bolso quebraria silenciosamente metade das listas do produto.
+- **O texto digitado não é o termo aplicado.** `useServerSearch` mantém os dois
+  estados separados; aplicar acontece no Enter/Filtrar — nunca por tecla, senão
+  cada caractere dispararia uma consulta.
+- **Erro de campo é do campo.** `fail(mensagem, campo)` ata a falha ao campo
+  que falhou; o `FormError` do rodapé fica reservado para o que é do formulário
+  inteiro (recusa do servidor). Antes, um `<FormField label="Título">` fixo
+  recebia **qualquer** erro — inclusive o de outro campo.
+- **A ordem da página não é da casca.** O slot `notice` existe porque uma página
+  mostra um aviso **acima** do erro; a casca não decide essa ordem sozinha.
+
+### 12.2 Explicitamente fora
+
+O botão `"Salvando…" ? : "Salvar"` (**18 ocorrências em 13 arquivos**) foi
+medido e **não** virou bloco: o markup em volta varia (`.uni-login-submit`,
+`Button` do kit, `div` própria) e padronizá-lo mudaria a aparência de 13 páginas
+de uma vez — isso é decisão de UI, não de refatoração.
+
+A migração das demais páginas de índice e das 11 com `formError` fica para a
+task seguinte (F29-T001C).
