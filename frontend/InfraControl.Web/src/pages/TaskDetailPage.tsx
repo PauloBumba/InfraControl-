@@ -83,13 +83,13 @@ import {
   historyActionLabel,
   isOverdue,
   kindLabel,
-  messageFor,
   priorityOptions,
   priorityVisual,
   stateColumns,
   stateVisual,
   timelineTypeVisual,
 } from "@/components/tasks/taskCatalogs";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F23-T002 — tela de detalhe `/tasks/:id`: a tela que o kanban não tinha.
@@ -272,7 +272,7 @@ export function TaskDetailPage() {
       if (caught instanceof ApiError && caught.status === 404) {
         setNotFound(true);
       } else {
-        setError(messageFor(caught));
+        setError(errorMessage(caught));
       }
     } finally {
       setLoading(false);
@@ -318,7 +318,7 @@ export function TaskDetailPage() {
       setNotice(successMessage);
       await load();
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -2379,7 +2379,7 @@ export function TaskDetailPage() {
               await deleteTask(task.id);
               navigate("/tasks");
             } catch (caught) {
-              setError(messageFor(caught));
+              setError(errorMessage(caught));
               setSaving(false);
             }
           })();

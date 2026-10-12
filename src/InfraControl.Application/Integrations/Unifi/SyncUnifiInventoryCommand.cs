@@ -186,11 +186,12 @@ public sealed class SyncUnifiInventoryCommandHandler(
         Location location, UnifiDeviceDto dto, CancellationToken cancellationToken)
     {
         var existing = await deviceRepository.GetByMacAsync(dto.Mac, cancellationToken);
+        var name = await ResolveNameAsync(existing?.Id, dto, cancellationToken);
 
         if (existing is not null)
         {
             existing.Update(
-                DisplayName(dto),
+                name,
                 MapType(dto.Type),
                 existing.RackId,
                 dto.Ip,
@@ -206,7 +207,7 @@ public sealed class SyncUnifiInventoryCommandHandler(
 
         var device = Device.Create(
             location.Id,
-            DisplayName(dto),
+            name,
             MapType(dto.Type),
             ip: dto.Ip,
             mac: dto.Mac,
@@ -215,6 +216,26 @@ public sealed class SyncUnifiInventoryCommandHandler(
         await deviceRepository.AddAsync(device, cancellationToken);
         await deviceRepository.SaveChangesAsync(cancellationToken);
         return (device, true);
+    }
+
+    /// <summary>
+    /// ux_devices_name é UNIQUE: dois devices com o mesmo nome (padrão de
+    /// fábrica no controller, ou colisão com inventário existente) não podem
+    /// derrubar o sync — suffixa com o final do MAC de forma determinística.
+    /// </summary>
+    private async Task<string> ResolveNameAsync(
+        Guid? selfId, UnifiDeviceDto dto, CancellationToken cancellationToken)
+    {
+        var name = DisplayName(dto);
+        var clash = await deviceRepository.GetByNameAsync(name, cancellationToken);
+        if (clash is null || clash.Id == selfId)
+            return name;
+
+        var compact = CompactMac(dto.Mac);
+        var baseName = name.Length > 111 ? name[..111] : name;
+        var suffixed = $"{baseName} ({compact[^6..]})";
+        var clash2 = await deviceRepository.GetByNameAsync(suffixed, cancellationToken);
+        return clash2 is null || clash2.Id == selfId ? suffixed : compact;
     }
 
     /// <summary>True = referência nova criada (referência existente do mesmo dono não conta).</summary>

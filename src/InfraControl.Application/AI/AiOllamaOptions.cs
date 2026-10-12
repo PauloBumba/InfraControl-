@@ -6,23 +6,29 @@ namespace InfraControl.Application.AI;
 /// configurado em <c>Ai:Ollama:EmbeddingModel</c> (ex.:
 /// <c>nomic-embed-text</c>); nulo = embeddings não configurados (§44).
 /// </summary>
-public sealed record AiOllamaOptions(
-    string BaseUrl,
-    string? EmbeddingModel = null);
+public sealed class AiOllamaOptions
+{
+    public string BaseUrl { get; set; } = string.Empty;
+    public string? EmbeddingModel { get; set; }
+}
 
 /// <summary>
 /// Opções de configuração da seção <c>Ai:Routing</c> (ADR-037 §15).
 /// </summary>
-public sealed record AiRoutingOptionsConfiguration(
-    AiRoutingModelOptions Copilot,
-    AiRoutingModelOptions IncidentAnalysis,
-    AiRoutingModelOptions KnowledgeGeneration,
-    AiRoutingModelOptions Reporting,
-    AiRoutingModelOptions Automation);
+public sealed class AiRoutingOptionsConfiguration
+{
+    public AiRoutingModelOptions Copilot { get; set; } = new();
+    public AiRoutingModelOptions IncidentAnalysis { get; set; } = new();
+    public AiRoutingModelOptions KnowledgeGeneration { get; set; } = new();
+    public AiRoutingModelOptions Reporting { get; set; } = new();
+    public AiRoutingModelOptions Automation { get; set; } = new();
+}
 
 /// <summary>
 /// Opções de modelo por capacidade (default + fallback).
 /// </summary>
-public sealed record AiRoutingModelOptions(
-    string DefaultModel,
-    string? FallbackModel = null);
+public sealed class AiRoutingModelOptions
+{
+    public string DefaultModel { get; set; } = string.Empty;
+    public string? FallbackModel { get; set; }
+}

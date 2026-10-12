@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { MetricChart } from "@/components/ui/MetricChart";
@@ -196,24 +197,30 @@ export function DashboardPage() {
     return () => window.removeEventListener("infracontrol:refresh", handleRefresh);
   }, [fetchDashboardData]);
 
-  useEffect(() => {
-    let cancelled = false;
-    listAuditEntries({ pageSize: 6 })
-      .then((page) => {
-        if (!cancelled) setEvents(page.items);
-      })
-      .catch((caught: unknown) => {
-        if (cancelled) return;
-        if (caught instanceof ApiError && caught.isForbidden) {
-          setEventsForbidden(true);
-        } else {
-          setEventsError(true);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+  /**
+   * F29-T004 — era um efeito auto-contido sem nenhuma forma de tentar de
+   * novo: o usuário via o texto vermelho e só recarregando a página inteira.
+   * Tirado para dentro de um `useCallback` para que o `ErrorBanner` possa
+   * oferercer o retry.
+   */
+  const loadEvents = useCallback(async () => {
+    setEventsError(false);
+    setEventsForbidden(false);
+    try {
+      const page = await listAuditEntries({ pageSize: 6 });
+      setEvents(page.items);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.isForbidden) {
+        setEventsForbidden(true);
+      } else {
+        setEventsError(true);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
 
   // Convites pendentes do e-mail logado (GET /invitations/me) — carga
   // independente do dashboard: falha aqui não derruba os demais painéis.
@@ -281,7 +288,12 @@ export function DashboardPage() {
       {error && <ErrorBanner message={error} />}
 
       {/* ============ CONVITES PENDENTES (ações do usuário) ============ */}
-      {invitationsLoaded && (pendingInvitations.length > 0 || invitationsError) && (
+      {/* O aviso de resultado também mantém o painel de pé: aceitar/recusar o
+          ÚLTIMO convite esvazia `pendingInvitations`, e a condição antiga
+          desmontava o painel — junto com o próprio aviso. Ou seja, a
+          confirmação nunca chegava a ser vista (F29-T004). */}
+      {invitationsLoaded &&
+        (pendingInvitations.length > 0 || invitationsError || invitationsNotice) && (
         <div className="uni-panel">
           <div className="uni-panel-header">
             <h2>
@@ -311,27 +323,11 @@ export function DashboardPage() {
               />
             )}
             {invitationsNotice && (
-              <div
-                style={{
-                  fontSize: 12,
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  background: "#dcfce7",
-                  color: "#16a34a",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                }}
-              >
-                <span>{invitationsNotice}</span>
-                <Button
-                  variant="ghost"
-                  icon="pi pi-times"
-                  aria-label="Fechar aviso"
-                  onClick={() => setInvitationsNotice(null)}
-                />
-              </div>
+              <NoticeBanner
+                message={invitationsNotice}
+                onDismiss={() => setInvitationsNotice(null)}
+                style={{ fontSize: 12, padding: "8px 10px" }}
+              />
             )}
             {pendingInvitations.map((inv) => (
               <div
@@ -666,9 +662,11 @@ export function DashboardPage() {
             </div>
           )}
           {eventsError && (
-            <div style={{ fontSize: 12, color: "#b91c1c", textAlign: "center", padding: 12 }}>
-              Não foi possível carregar os eventos.
-            </div>
+            <ErrorBanner
+              message="Não foi possível carregar os eventos."
+              onRetry={() => void loadEvents()}
+              style={{ fontSize: 12, justifyContent: "center", padding: 8 }}
+            />
           )}
           {events === null && !eventsForbidden && !eventsError && (
             <LoadingBlock style={{ fontSize: 12, padding: 12 }} />

@@ -24,12 +24,14 @@ public sealed class AiProviderRouterTests
     [Fact]
     public void Resolve_capacidade_valida_retorna_selecao_com_modelo_default()
     {
-        var configuration = new AiRoutingOptionsConfiguration(
-            Copilot: new("modelo-copilot"),
-            IncidentAnalysis: new("modelo-incident"),
-            KnowledgeGeneration: new("modelo-knowledge"),
-            Reporting: new("modelo-reporting"),
-            Automation: new("modelo-automation"));
+        var configuration = new AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { DefaultModel = "modelo-copilot" },
+            IncidentAnalysis = new() { DefaultModel = "modelo-incident" },
+            KnowledgeGeneration = new() { DefaultModel = "modelo-knowledge" },
+            Reporting = new() { DefaultModel = "modelo-reporting" },
+            Automation = new() { DefaultModel = "modelo-automation" }
+        };
 
         var router = new AiProviderRouter(_mockRegistry.Object, configuration);
 
@@ -44,12 +46,14 @@ public sealed class AiProviderRouterTests
     [Fact]
     public void Resolve_capacidade_com_fallback_retorna_selecao_com_fallback()
     {
-        var configuration = new AiRoutingOptionsConfiguration(
-            Copilot: new("modelo-copilot", "modelo-copilot-fallback"),
-            IncidentAnalysis: new("modelo-incident"),
-            KnowledgeGeneration: new("modelo-knowledge"),
-            Reporting: new("modelo-reporting"),
-            Automation: new("modelo-automation"));
+        var configuration = new AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { DefaultModel = "modelo-copilot", FallbackModel = "modelo-copilot-fallback" },
+            IncidentAnalysis = new() { DefaultModel = "modelo-incident" },
+            KnowledgeGeneration = new() { DefaultModel = "modelo-knowledge" },
+            Reporting = new() { DefaultModel = "modelo-reporting" },
+            Automation = new() { DefaultModel = "modelo-automation" }
+        };
 
         var router = new AiProviderRouter(_mockRegistry.Object, configuration);
 
@@ -64,12 +68,14 @@ public sealed class AiProviderRouterTests
     [Fact]
     public void Resolve_capacidade_inexistente_lanca_AiProviderNotConfiguredException()
     {
-        var configuration = new AiRoutingOptionsConfiguration(
-            Copilot: new("modelo-copilot"),
-            IncidentAnalysis: new("modelo-incident"),
-            KnowledgeGeneration: new("modelo-knowledge"),
-            Reporting: new("modelo-reporting"),
-            Automation: new("modelo-automation"));
+        var configuration = new AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { DefaultModel = "modelo-copilot" },
+            IncidentAnalysis = new() { DefaultModel = "modelo-incident" },
+            KnowledgeGeneration = new() { DefaultModel = "modelo-knowledge" },
+            Reporting = new() { DefaultModel = "modelo-reporting" },
+            Automation = new() { DefaultModel = "modelo-automation" }
+        };
 
         var router = new AiProviderRouter(_mockRegistry.Object, configuration);
 
@@ -82,12 +88,14 @@ public sealed class AiProviderRouterTests
     [Fact]
     public void Resolve_modelo_default_vazio_lanca_AiProviderNotConfiguredException()
     {
-        var configuration = new AiRoutingOptionsConfiguration(
-            Copilot: new(""),
-            IncidentAnalysis: new("modelo-incident"),
-            KnowledgeGeneration: new("modelo-knowledge"),
-            Reporting: new("modelo-reporting"),
-            Automation: new("modelo-automation"));
+        var configuration = new AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { DefaultModel = "" },
+            IncidentAnalysis = new() { DefaultModel = "modelo-incident" },
+            KnowledgeGeneration = new() { DefaultModel = "modelo-knowledge" },
+            Reporting = new() { DefaultModel = "modelo-reporting" },
+            Automation = new() { DefaultModel = "modelo-automation" }
+        };
 
         var router = new AiProviderRouter(_mockRegistry.Object, configuration);
 
@@ -100,12 +108,14 @@ public sealed class AiProviderRouterTests
     [Fact]
     public void Resolve_modelo_default_nulo_lanca_AiProviderNotConfiguredException()
     {
-        var configuration = new AiRoutingOptionsConfiguration(
-            Copilot: new((string)null!),
-            IncidentAnalysis: new("modelo-incident"),
-            KnowledgeGeneration: new("modelo-knowledge"),
-            Reporting: new("modelo-reporting"),
-            Automation: new("modelo-automation"));
+        var configuration = new AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { DefaultModel = null! },
+            IncidentAnalysis = new() { DefaultModel = "modelo-incident" },
+            KnowledgeGeneration = new() { DefaultModel = "modelo-knowledge" },
+            Reporting = new() { DefaultModel = "modelo-reporting" },
+            Automation = new() { DefaultModel = "modelo-automation" }
+        };
 
         var router = new AiProviderRouter(_mockRegistry.Object, configuration);
 
@@ -118,12 +128,14 @@ public sealed class AiProviderRouterTests
     [Fact]
     public void Resolve_todas_as_capacidades_mapeadas_devem_retornar_selecao_valida()
     {
-        var configuration = new AiRoutingOptionsConfiguration(
-            Copilot: new("modelo-copilot"),
-            IncidentAnalysis: new("modelo-incident"),
-            KnowledgeGeneration: new("modelo-knowledge"),
-            Reporting: new("modelo-reporting"),
-            Automation: new("modelo-automation"));
+        var configuration = new AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { DefaultModel = "modelo-copilot" },
+            IncidentAnalysis = new() { DefaultModel = "modelo-incident" },
+            KnowledgeGeneration = new() { DefaultModel = "modelo-knowledge" },
+            Reporting = new() { DefaultModel = "modelo-reporting" },
+            Automation = new() { DefaultModel = "modelo-automation" }
+        };
 
         var router = new AiProviderRouter(_mockRegistry.Object, configuration);
 

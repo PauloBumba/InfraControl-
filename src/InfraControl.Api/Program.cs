@@ -11,7 +11,9 @@ using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.AI;
+using InfraControl.Infrastructure.Caching;
 using InfraControl.Api.Hubs;
+using InfraControl.Api.HealthChecks;
 using InfraControl.Api.Services;
 using InfraControl.Api.Workers;
 using InfraControl.Application.Notifications.Channels;
@@ -28,6 +30,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,7 +70,17 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
     };
 });
 // ── Notificações (F9-T004: canal SignalR) ────────────────────────────────
-builder.Services.AddSignalR();
+// ADR-044/045: Redis backplane com suporte a Sentinel para failover do primary.
+var redisConn = builder.Configuration.GetConnectionString("Redis")
+    ?? throw new InvalidOperationException("Connection string 'Redis' not found.");
+var signalRRedisProvider = new SignalRRedisConnectionProvider(redisConn);
+builder.Services.AddSingleton<SignalRRedisConnectionProvider>(_ => signalRRedisProvider);
+builder.Services.AddSignalR().AddStackExchangeRedis(options =>
+{
+    options.ConnectionFactory = _ =>
+        Task.FromResult<IConnectionMultiplexer>(signalRRedisProvider.Connection);
+    options.Configuration.ChannelPrefix = "infracontrol_signalr";
+});
 builder.Services.AddSingleton<IUserIdProvider, SignalRUserIdProvider>();
 builder.Services.AddSingleton<ISignalRNotificationDispatcher, SignalRNotificationDispatcher>();
 builder.Services.AddHostedService<NotificationSignalRWorker>();
@@ -116,6 +129,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
+builder.Services.AddInfraControlDataProtection(builder.Configuration);
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
@@ -192,11 +206,10 @@ builder.Services.AddOpenApi();
 
 // ── Health Checks ────────────────────────────────────────────────────────
 var postgresConn = builder.Configuration.GetConnectionString("DefaultConnection");
-var redisConn = builder.Configuration.GetConnectionString("Redis");
 
 builder.Services.AddHealthChecks()
     .AddNpgSql(postgresConn!, name: "postgresql", tags: ["db", "core"])
-    .AddRedis(redisConn!, name: "redis", tags: ["cache"])
+    .AddCheck<RedisConnectionHealthCheck>("redis", tags: ["cache"])
     // FAI-T006/S5 (§44): camada de IA como degradação visível ( Healthy
     // / Degraded — nunca Unhealthy por falta de Ollama; payload com o
     // estado por capacidade/provider).

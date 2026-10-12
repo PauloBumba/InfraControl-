@@ -42,6 +42,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * PDI — Plano de Desenvolvimento Individual (docs/29 §8, docs/30,
@@ -57,12 +58,6 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
  * (DateOnly) formatadas à mão para não sofrer deslocamento de fuso do
  * `Date`.
  */
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
 function formatDateOnly(value: string): string {
   const [year, month, day] = value.split("-");
   return year && month && day ? `${day}/${month}/${year}` : value;
@@ -140,7 +135,7 @@ export function PdiPage() {
     try {
       setItems(await listPdis());
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -227,7 +222,7 @@ export function PdiPage() {
     try {
       setHistoryEntries(await getPdiHistory(plan.userId));
     } catch (caught) {
-      setHistoryError(messageFor(caught));
+      setHistoryError(errorMessage(caught));
     } finally {
       setHistoryLoading(false);
     }
@@ -296,7 +291,7 @@ export function PdiPage() {
       setDialogVisible(false);
       await load();
     } catch (caught) {
-      setFormError(messageFor(caught));
+      setFormError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -365,7 +360,7 @@ export function PdiPage() {
       await generatePdiKnowledge(plan.userId);
       setNotice("Rascunho de Knowledge gerado — revise na Base de Conhecimento.");
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }

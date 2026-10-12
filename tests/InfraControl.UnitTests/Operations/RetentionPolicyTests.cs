@@ -64,7 +64,7 @@ public sealed class RetentionPolicyTests
     }
 
     [Fact]
-    public void DataType_ShouldCoverExactlyTheNineCleanupTypes()
+    public void DataType_ShouldCoverExactlyTheTenCleanupTypes()
     {
         Enum.GetValues<RetentionDataType>().Should().BeEquivalentTo([
             RetentionDataType.OutboxMessages,
@@ -75,7 +75,8 @@ public sealed class RetentionPolicyTests
             RetentionDataType.RemoteSessions,
             RetentionDataType.DiscoveryRuns,
             RetentionDataType.MonitoringEvents,
-            RetentionDataType.Invitations
+            RetentionDataType.Invitations,
+            RetentionDataType.UniFiSyncRuns
         ]);
     }
 }

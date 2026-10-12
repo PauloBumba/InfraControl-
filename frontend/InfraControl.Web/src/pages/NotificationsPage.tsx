@@ -23,6 +23,7 @@ import {
   type NotificationFeedItem,
 } from "@/services/api/notifications";
 import { onNotificationPush } from "@/services/signalr/notifications";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F17-T010 + pendência da F18-T001 — NotificationsPage com as duas abas
@@ -50,12 +51,6 @@ import { onNotificationPush } from "@/services/signalr/notifications";
 const PAGE_SIZE = 20;
 
 type Tab = "feed" | "prefs";
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
 
 export function NotificationsPage() {
   const { messagesRef, showMessage } = useInlineMessages();
@@ -94,7 +89,7 @@ export function NotificationsPage() {
       setFeedItems(result.items);
       setFeedTotal(result.totalCount);
     } catch (caught) {
-      setFeedError(messageFor(caught));
+      setFeedError(errorMessage(caught));
     } finally {
       setFeedLoading(false);
     }
@@ -115,7 +110,7 @@ export function NotificationsPage() {
       });
       setEnabledByChannel(defaults);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -166,7 +161,7 @@ export function NotificationsPage() {
         summary: `${CHANNEL_LABEL[channel]} ${next ? "ativado" : "desativado"}.`,
       });
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível salvar a preferência.", detail: messageFor(caught) });
+      showMessage({ severity: "error", summary: "Não foi possível salvar a preferência.", detail: errorMessage(caught) });
     } finally {
       setBusyChannel(null);
     }

@@ -1,0 +1,45 @@
+namespace InfraControl.Application.AI.Health;
+
+/// <summary>Estado de um componente da camada de IA (§44).</summary>
+public enum AiComponentStatus
+{
+    /// <summary>Componente respondendo normalmente.</summary>
+    Healthy,
+
+    /// <summary>
+    /// Estado "não configurado" degradado (§44): capacidade sem
+    /// provider/modelo ou provider inalcançável — o sistema segue
+    /// funcionando sem IA; NÃO é motivo de derrubar health endpoints.
+    /// </summary>
+    Degraded,
+
+    /// <summary>Componente quebrado de forma ativa (erro interno).</summary>
+    Unhealthy,
+}
+
+/// <summary>Estado de um componente (capability mapeada, provider, …).</summary>
+public sealed record AiComponentHealth(
+    string Component,
+    AiComponentStatus Status,
+    string? Detail = null);
+
+/// <summary>
+/// Relatório consolidado da camada de IA: saudável quando NENHUM
+/// componente está degradado/quebrado (§44).
+/// </summary>
+public sealed record AiRuntimeHealthReport(
+    IReadOnlyList<AiComponentHealth> Components)
+{
+    public bool IsHealthy =>
+        Components.All(component => component.Status == AiComponentStatus.Healthy);
+}
+
+/// <summary>
+/// Monitoramento da própria camada de IA (FAI-T006/S5 · docs/34 §44):
+/// status por capacidade (estado "não configurado" = degradado) e
+/// conexão real com cada provider registrado (§13).
+/// </summary>
+public interface IAiRuntimeHealth
+{
+    Task<AiRuntimeHealthReport> CheckAsync(CancellationToken cancellationToken = default);
+}

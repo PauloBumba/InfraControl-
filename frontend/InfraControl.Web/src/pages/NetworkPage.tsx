@@ -25,8 +25,10 @@ import {
   useDeleteMutation,
   usePagedQuery,
   useUpdateMutation,
+  errorMessage,
   mutationErrorMessage,
 } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 
 /**
  * F17-T008 + ADR-030 Fase 5 — NetworkPage (VLANs) com CRUD completo
@@ -55,7 +57,16 @@ export function NetworkPage() {
   const [vlanNumber, setVlanNumber] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — cada validação vai para o campo que falhou. Os dois
+  // `FormField` abaixo já tinham `error={null}`: a intenção de mostrar erro
+  // por campo já estava no código, só nunca foi ligada.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
 
   const createMutation = useCreateMutation({
     invalidate: ["vlans"],
@@ -87,7 +98,7 @@ export function NetworkPage() {
     setName("");
     setVlanNumber("");
     setDescription("");
-    setFormError(null);
+    resetFormError();
   }
 
   function openEdit(vlan: VlanItem) {
@@ -96,13 +107,13 @@ export function NetworkPage() {
     setName(vlan.name);
     setVlanNumber(String(vlan.vlanNumber));
     setDescription(vlan.description ?? "");
-    setFormError(null);
+    resetFormError();
   }
 
   function closeForm() {
     setCreating(false);
     setEditing(null);
-    setFormError(null);
+    resetFormError();
   }
 
   async function submitForm(event: FormEvent) {
@@ -110,15 +121,15 @@ export function NetworkPage() {
     const trimmedName = name.trim();
     const number = Number(vlanNumber);
     if (!trimmedName) {
-      setFormError("Informe o nome da VLAN.");
+      failForm("Informe o nome da VLAN.", "name");
       return;
     }
     if (!Number.isInteger(number) || number < 1 || number > 4094) {
-      setFormError("O número da VLAN deve ser inteiro entre 1 e 4094.");
+      failForm("O número da VLAN deve ser inteiro entre 1 e 4094.", "vlanNumber");
       return;
     }
     setSaving(true);
-    setFormError(null);
+    resetFormError();
     try {
       if (editing) {
         await updateMutation.mutateAsync({
@@ -138,7 +149,8 @@ export function NetworkPage() {
       }
       closeForm();
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
+      // Recusa do servidor: não é campo nenhum, é o conjunto que foi rejeitado.
+      failForm(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -299,7 +311,7 @@ export function NetworkPage() {
         header={editing ? "Editar VLAN" : "Nova VLAN"}
       >
         <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FormField label="Nome *" error={null}>
+          <FormField label="Nome *" error={errorFor("name")}>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -314,7 +326,7 @@ export function NetworkPage() {
               }}
             />
           </FormField>
-          <FormField label="Número (1–4094) *" error={null}>
+          <FormField label="Número (1–4094) *" error={errorFor("vlanNumber")}>
             <input
               type="number"
               min={1}
@@ -344,7 +356,9 @@ export function NetworkPage() {
               }}
             />
           </FormField>
-          <FormError message={formError ?? ""} />
+          {/* Erro de campo já aparece no campo; aqui só o do formulário
+              inteiro (recusa do servidor), senão a frase sairia duas vezes. */}
+          <FormError message={field ? "" : (formError ?? "")} />
           <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
             <Button type="button" variant="ghost" onClick={closeForm}>
               Cancelar

@@ -77,6 +77,53 @@ public sealed class ZabbixInventoryCommandTests
     }
 
     [Fact]
+    public async Task Sync_WhenAnotherSyncInProgress_ShouldThrowConflictAndReleaseGateAfter()
+    {
+        // F27 Fase 11.1: um sync por processo — a segunda execução
+        // simultânea recebe InvalidOperationException (409 no API) e o
+        // gate é liberado no finally (um 3º sync volta a funcionar).
+        var gateVersion = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var client = new Mock<IZabbixClient>();
+        client.Setup(c => c.GetVersionAsync(It.IsAny<CancellationToken>()))
+            .Returns(() => gateVersion.Task);
+        client.Setup(c => c.ListHostsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ZabbixHostDto>());
+        client.Setup(c => c.ListHostGroupsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ZabbixHostGroupDto>());
+        client.Setup(c => c.ListTemplatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ZabbixTemplateDto>());
+
+        var repository = new Mock<IZabbixHostsRepository>();
+        repository.Setup(r => r.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ZabbixHost>());
+        var settingsRepository = new Mock<IZabbixSettingsRepository>();
+        settingsRepository.Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ZabbixIntegrationSetting?)null);
+
+        var handler = new SyncZabbixInventoryCommandHandler(
+            client.Object, repository.Object, settingsRepository.Object,
+            NullLogger<SyncZabbixInventoryCommandHandler>.Instance);
+
+        var first = handler.Handle(
+            new SyncZabbixInventoryCommand(), CancellationToken.None);
+
+        var second = async () => await handler.Handle(
+            new SyncZabbixInventoryCommand(), CancellationToken.None);
+        await second.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*já está em andamento*");
+
+        gateVersion.SetResult("8.0.0");
+        var result = await first;
+        result.Version.Should().Be("8.0.0");
+
+        // gate liberado — novo sync passa normalmente
+        var third = await handler.Handle(
+            new SyncZabbixInventoryCommand(), CancellationToken.None);
+        third.Version.Should().Be("8.0.0");
+    }
+
+    [Fact]
     public async Task Sync_HostsAbsentFromZabbix_ShouldMarkMissingNeverDelete()
     {
         var orphan = ZabbixHost.Create(

@@ -104,4 +104,25 @@ describe("ProjectsPage", () => {
     expect(screen.getAllByText("Aguardando homologação").length).toBeGreaterThan(1);
     expect(screen.getAllByText("Rascunho").length).toBeGreaterThan(1);
   });
+
+  /**
+   * F29-T004 — divergência de tom. O resto do app usa ErrorBanner (role=alert)
+   * em 27 páginas; aqui o erro era um <div> vermelho artesanal: mesma cor,
+   * porém sem semântica — leitor de tela não anuncia e ninguém percebe que é
+   * falha de carregamento.
+   */
+  it("should render a load failure as an alert, not a plain red div", async () => {
+    vi.mocked(listProjects).mockRejectedValue(
+      new Error("Não foi possível falar com o servidor."),
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectsPage />
+      </MemoryRouter>,
+    );
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Não foi possível falar com o servidor.");
+  });
 });

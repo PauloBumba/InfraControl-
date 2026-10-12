@@ -1,12 +1,23 @@
 # ADR-022 — compose único com profiles.
+# ADR-044 — Escala horizontal da API com Docker Compose.
 #
 #   infra (sem profile):        docker compose up -d
 #   aplicação completa:         docker compose --profile app up -d
 #   sistema + observabilidade:  docker compose --profile app --profile obs up -d
 #   IA (Ollama):                docker compose --profile ai up -d   (ADR-041)
 #
+# ESCALA HORIZONTAL (ADR-044):
+#   docker compose --profile app up -d --scale api=2
+#   docker compose --profile app up -d --scale api=3
+#   docker compose --profile app up -d --scale workers=2  (requer lock distribuído)
+#
+# ESCALA HORIZONTAL OLLAMA (ADR-041):
+#   docker compose --profile ai up -d --scale ollama-1=3 (alterar IPs manualmente)
+#
 # DNS interno: os serviços se enxergam pelo nome do serviço (api, workers,
-# seq, otel-collector), não por localhost.
+# seq, otel-collector, ollama-lb), não por localhost. O nginx usa upstream
+# dinâmico com DNS round-robin do Docker para load balancing entre réplicas
+# da API e do Ollama.
 
 services:
   postgres:
@@ -25,23 +36,150 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - infracontrol
 
-  redis:
+  # ADR-045: Redis Sentinel para alta disponibilidade
+  redis-master:
     image: redis:7-alpine
-    container_name: infracontrol-redis
+    container_name: infracontrol-redis-master
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_2026}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --masterauth \"$${REDIS_PASSWORD}\" --requirepass \"$${REDIS_PASSWORD}\""]
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      - redis_master_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
-      - infracontrol
+      infracontrol:
+        ipv4_address: ${REDIS_MASTER_IP:-172.30.240.10}
+
+  redis-slave:
+    image: redis:7-alpine
+    container_name: infracontrol-redis-slave
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_2026}
+      REDIS_SLAVE_IP: ${REDIS_SLAVE_IP:-172.30.240.11}
+    command: ["sh", "/etc/redis/redis-replica-entrypoint.sh"]
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-sentinel-1:
+        condition: service_healthy
+      redis-sentinel-2:
+        condition: service_healthy
+      redis-sentinel-3:
+        condition: service_healthy
+    volumes:
+      - redis_slave_data:/data
+      - ./docker/redis-replica-entrypoint.sh:/etc/redis/redis-replica-entrypoint.sh:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG && { redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" info replication | grep -q role:master || redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" info replication | grep -q master_link_status:up; }",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      infracontrol:
+        ipv4_address: ${REDIS_SLAVE_IP:-172.30.240.11}
+
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: infracontrol-redis-sentinel-1
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_2026}
+      REDIS_MASTER_IP: ${REDIS_MASTER_IP:-172.30.240.10}
+    command: ["sh", "/etc/redis/redis-sentinel-entrypoint.sh"]
+    volumes:
+      - ./docker/redis-sentinel-entrypoint.sh:/etc/redis/redis-sentinel-entrypoint.sh:ro
+      - redis_sentinel_1_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - "${REDIS_SENTINEL_PORT:-26379}:26379"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" -p 26379 sentinel ckquorum mymaster | grep -q '^OK'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      infracontrol:
+        ipv4_address: ${REDIS_SENTINEL_1_IP:-172.30.240.12}
+
+  redis-sentinel-2:
+    image: redis:7-alpine
+    container_name: infracontrol-redis-sentinel-2
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_2026}
+      REDIS_MASTER_IP: ${REDIS_MASTER_IP:-172.30.240.10}
+    command: ["sh", "/etc/redis/redis-sentinel-entrypoint.sh"]
+    volumes:
+      - ./docker/redis-sentinel-entrypoint.sh:/etc/redis/redis-sentinel-entrypoint.sh:ro
+      - redis_sentinel_2_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - "${REDIS_SENTINEL_2_PORT:-26380}:26379"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" -p 26379 sentinel ckquorum mymaster | grep -q '^OK'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      infracontrol:
+        ipv4_address: ${REDIS_SENTINEL_2_IP:-172.30.240.13}
+
+  redis-sentinel-3:
+    image: redis:7-alpine
+    container_name: infracontrol-redis-sentinel-3
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_password_2026}
+      REDIS_MASTER_IP: ${REDIS_MASTER_IP:-172.30.240.10}
+    command: ["sh", "/etc/redis/redis-sentinel-entrypoint.sh"]
+    volumes:
+      - ./docker/redis-sentinel-entrypoint.sh:/etc/redis/redis-sentinel-entrypoint.sh:ro
+      - redis_sentinel_3_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - "${REDIS_SENTINEL_3_PORT:-26381}:26379"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" -p 26379 sentinel ckquorum mymaster | grep -q '^OK'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      infracontrol:
+        ipv4_address: ${REDIS_SENTINEL_3_IP:-172.30.240.14}
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -59,6 +197,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - infracontrol
 
@@ -87,7 +226,7 @@ services:
     environment: &app-env
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=infracontrol;Username=${POSTGRES_USER:-infracontrol};Password=${POSTGRES_PASSWORD:-infracontrol_dev_2026}"
-      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__Redis: "redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379,serviceName=mymaster,password=${REDIS_PASSWORD:-redis_dev_password_2026},sentinelPassword=${REDIS_PASSWORD:-redis_dev_password_2026},abortConnect=false"
       ConnectionStrings__RabbitMQ: rabbitmq
       RabbitMQ__User: ${RABBITMQ_USER:-infracontrol}
       RabbitMQ__Password: ${RABBITMQ_PASSWORD:-infracontrol_dev_2026}
@@ -99,6 +238,9 @@ services:
       Serilog__WriteTo__1__Name: Seq
       Serilog__WriteTo__1__Args__serverUrl: http://seq:80
       OpenTelemetry__Endpoint: http://otel-collector:4317
+      DataProtection__KeyRingPath: /app/var/data-protection-keys
+      RemoteAccess__CredentialEncryption__Key: ${CREDENTIAL_ENCRYPTION_KEY:-3ewHa9GEGWR7P+141SZYke9RTS71FmBw36PESzVgR+k=}
+      ProjectEvidence__StoragePath: var/project-evidence
       # Fase AI (ADR-041): base URL do Ollama DENTRO da rede do compose —
       # DNS por nome de serviço, nunca localhost entre containers (§48).
       # Consumido pelo AI Gateway (S3+); sem o profile `ai` a API sobe
@@ -144,10 +286,11 @@ services:
       Notifications__Channels__Webhook__Secret: ${WEBHOOK_SECRET:-}
       Notifications__Channels__Slack__Channel: ${SLACK_CHANNEL:-}
     # Imagem aspnet não traz curl/wget e /bin/sh é o dash (sem /dev/tcp):
-    # healthcheck HTTP real passa por `bash -c` (bate em GET /health e espera
-    # 200) — porta aberta sozinha não prova boot.
+    # healthcheck HTTP real passa por `bash -c` (bate em GET /health/ready e espera
+    # 200) — porta aberta sozinha não prova boot. /health/ready filtra apenas
+    # checks essenciais (tags "core"), ignorando ai-runtime que pode ser Degraded.
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -157,10 +300,20 @@ services:
       # só pelo UID não-root (chown no Dockerfile) e o volume nomeado herda
       # essa ownership na primeira montagem — arquivos sobrevivem a recreate.
       - pdi-evidence:/app/var/pdi-evidence
+      - project-evidence:/app/var/project-evidence
+      - api_data_protection:/app/var/data-protection-keys
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      redis-master:
+        condition: service_healthy
+      redis-slave:
+        condition: service_healthy
+      redis-sentinel-1:
+        condition: service_healthy
+      redis-sentinel-2:
+        condition: service_healthy
+      redis-sentinel-3:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -177,6 +330,9 @@ services:
     profiles: ["app"]
     environment:
       <<: *app-env
+      Backup__Path: /app/backups
+    volumes:
+      - postgres_backups:/app/backups
     # Worker não escuta porta; o sinal de saúde é a presença do processo.
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f InfraControl.Workers >/dev/null || exit 1"]
@@ -187,7 +343,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      redis-master:
+        condition: service_healthy
+      redis-slave:
+        condition: service_healthy
+      redis-sentinel-1:
+        condition: service_healthy
+      redis-sentinel-2:
+        condition: service_healthy
+      redis-sentinel-3:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -375,18 +539,19 @@ services:
       - infracontrol
 
   # ---------------- profile: ai (Fase AI — ADR-041) ----------------
-  # Runtime local de LLM da AI Foundation. Só sobe com --profile ai;
-  # a API NÃO depende dele (estado "não configurado" quando ausente).
-  ollama:
+  # Runtime local de LLM da AI Foundation com escalabilidade horizontal.
+  # Só sobe com --profile ai; a API NÃO depende dele (estado "não configurado"
+  # quando ausente). Arquitetura: 3 réplicas do Ollama + nginx load balancer.
+  # DNS interno: os serviços se enxergam pelo nome "ollama-lb", não localhost.
+
+  ollama-1:
     image: ollama/ollama:latest
-    container_name: infracontrol-ollama
+    container_name: infracontrol-ollama-1
     profiles: ["ai"]
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
+    environment:
+      OLLAMA_HOST: 0.0.0.0
     volumes:
-      - ollama_data:/root/.ollama
-    # Healthcheck HTTP real em GET /api/tags — mesmo truque de /dev/tcp
-    # da `api`: a imagem do Ollama não garante curl/wget (ADR-041).
+      - ollama_1_data:/root/.ollama
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/11434 && printf 'GET /api/tags HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
       interval: 30s
@@ -395,20 +560,97 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
+      infracontrol:
+        ipv4_address: ${OLLAMA_1_IP:-172.30.240.20}
+
+  ollama-2:
+    image: ollama/ollama:latest
+    container_name: infracontrol-ollama-2
+    profiles: ["ai"]
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ollama_2_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/11434 && printf 'GET /api/tags HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      infracontrol:
+        ipv4_address: ${OLLAMA_2_IP:-172.30.240.21}
+
+  ollama-3:
+    image: ollama/ollama:latest
+    container_name: infracontrol-ollama-3
+    profiles: ["ai"]
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ollama_3_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/11434 && printf 'GET /api/tags HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      infracontrol:
+        ipv4_address: ${OLLAMA_3_IP:-172.30.240.22}
+
+  ollama-lb:
+    image: nginx:1.27-alpine
+    container_name: infracontrol-ollama-lb
+    profiles: ["ai"]
+    ports:
+      - "${OLLAMA_PORT:-11434}:80"
+    volumes:
+      - ./docker/ollama-lb.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      ollama-1:
+        condition: service_healthy
+      ollama-2:
+        condition: service_healthy
+      ollama-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/api/tags"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
       - infracontrol
 
 
 volumes:
   postgres_data:
-  redis_data:
+  redis_master_data:
+  redis_slave_data:
+  redis_sentinel_1_data:
+  redis_sentinel_2_data:
+  redis_sentinel_3_data:
   rabbitmq_data:
   seq_data:
   zabbix_db_data:
   zabbix_server_snmptraps:
   zabbix_server_mibs:
-  ollama_data:
+  ollama_1_data:
+  ollama_2_data:
+  ollama_3_data:
   pdi-evidence:
+  project-evidence:
+  api_data_protection:
+  postgres_backups:
 
 networks:
   infracontrol:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${INFRACONTROL_NETWORK_SUBNET:-172.30.240.0/24}
+          ip_range: ${INFRACONTROL_DYNAMIC_IP_RANGE:-172.30.240.128/25}

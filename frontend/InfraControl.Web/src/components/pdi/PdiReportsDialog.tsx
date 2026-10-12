@@ -20,6 +20,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FormField } from "@/components/ui/FormField";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { SelectField } from "@/components/ui/SelectField";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * Relatórios e indicadores do PDI (docs/30 §21, §22 — Fase 8,
@@ -30,12 +31,6 @@ import { SelectField } from "@/components/ui/SelectField";
  */
 
 type TabKey = "indicators" | "difficulties" | "individual" | "semester";
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
 
 function formatDateOnly(value: string | null): string {
   if (!value) return "—";
@@ -147,7 +142,7 @@ export function PdiReportsDialog({
         setIndividual(null);
       }
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -179,7 +174,7 @@ export function PdiReportsDialog({
         );
       }
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setExporting(false);
     }

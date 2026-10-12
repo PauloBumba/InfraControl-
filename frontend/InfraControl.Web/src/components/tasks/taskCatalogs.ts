@@ -182,10 +182,3 @@ export const formatFileSize = (bytes: number): string =>
 /** Extensões aceitas no upload de evidência — espelho da allowlist do domínio. */
 export const EVIDENCE_ACCEPT =
   ".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.log,.csv,.json,.xml,.zip";
-
-/** Mensagem pt-BR do envelope (`ApiError`) ou genérica de transporte. */
-export function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}

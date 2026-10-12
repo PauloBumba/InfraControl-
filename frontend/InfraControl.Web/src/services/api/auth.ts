@@ -124,6 +124,25 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 /**
+ * F29-T002 — perfil de autoedição (`PUT /auth/profile`): o próprio usuário
+ * edita o nome completo (`User.DisplayName`), que até aqui só o admin alterava
+ * em `PUT /admin/users/{id}`. Só o NOME viaja — o e-mail é somente leitura
+ * nesta tela (trocar e-mail é operação de admin, com verificação de
+ * unicidade no servidor).
+ *
+ * Diferente da troca de senha, NÃO desloga: nada de segurança muda. O
+ * servidor re-emite o cookie com a claim `displayName` nova — sem essa
+ * re-emição o nome voltaria ao antigo no próximo reload, porque o `/auth/me`
+ * lê a claim e não o banco.
+ */
+export async function updateProfile(displayName: string): Promise<{ displayName: string }> {
+  const data = await api.put<{ displayName: string }>("/auth/profile", { displayName });
+  // O 200 traz o nome normalizado (trim) pelo servidor; se a resposta vier
+  // sem corpo, mantém o valor enviado — nunca um null para a UI.
+  return data ?? { displayName };
+}
+
+/**
  * Página pública de aceite de convite (pendência da F1-T017 fechada): o link
  * e-maiado é `/invitations/{id}?token=...` e a página roda o fluxo do
  * backend — `accept` provisiona a conta INATIVA e revela quem foi convidado,

@@ -14,7 +14,7 @@ namespace InfraControl.IntegrationTests.Operations;
 public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 {
     [Fact]
-    public async Task GetPolicies_WithAdminRole_ShouldReturnNineTypesWithConfigDefaults()
+    public async Task GetPolicies_WithAdminRole_ShouldReturnTenTypesWithConfigDefaults()
     {
         using var scope = CreateScope();
         UseRole(UserRole.Admin);
@@ -22,7 +22,7 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 
         var policies = await mediator.Send(new GetRetentionPoliciesQuery());
 
-        policies.Should().HaveCount(9);
+        policies.Should().HaveCount(10);
         policies.Should().OnlyContain(p => p.Source == "Config");
         policies.Single(p => p.DataType == "AuditEntries").Days.Should().Be(90);
         policies.Single(p => p.DataType == "RemoteSessions").Days.Should().Be(90);

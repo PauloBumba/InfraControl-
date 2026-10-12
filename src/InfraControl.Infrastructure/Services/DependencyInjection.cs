@@ -164,6 +164,7 @@ public static class DependencyInjection
             return factory.Create(options);
         });
         services.AddHttpClient(UnifiApiClient.HttpClientName)
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15))
             .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
             {
                 // F26 Fase 2.2: flag TLS da config EFETIVA (banco → env).
@@ -222,6 +223,10 @@ public static class DependencyInjection
                 serviceProvider.GetRequiredService<ILogger<ZabbixApiClient>>());
         });
         services.AddHttpClient(ZabbixApiClient.HttpClientName)
+            // F27 Fase 11.1: timeout explícito (o default de 100s era demais
+            // para a API do Zabbix) + resiliência retry/circuit breaker do
+            // dispatcher (ADR-028 §6).
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15))
             .AddResilienceHandler(
                 "zabbix-api",
                 static (builder, _) => HttpWebhookNotificationDispatcher.ConfigureResilience(builder));
@@ -265,11 +270,12 @@ public static class DependencyInjection
         services.AddScoped<IConnectionFactory>(_ =>
             new ConnectionFactory(connectionString));
 
-        // Redis — AbortOnConnectFail=false: a aplicação sobe mesmo com o Redis
-        // fora e degrada via HybridCacheService (ADR-010).
-        var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
-        redisOptions.AbortOnConnectFail = false;
-        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisOptions));
+        // Redis standalone (dev) e Sentinel (HA) passam pela mesma factory,
+        // para que cache, rate limit e locks acompanhem o primary promovido.
+        services.AddSingleton<RedisConnectionProvider>(
+            _ => RedisConnectionFactory.CreateProvider(redisConnectionString));
+        services.AddSingleton<IConnectionMultiplexer>(provider =>
+            provider.GetRequiredService<RedisConnectionProvider>().Connection);
 
         // Cache híbrido (ADR-010): Redis primário + fallback em memória.
         // IIdempotencyStore permanece só no Redis — operação crítica,
@@ -282,6 +288,10 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyStore>(provider =>
             provider.GetRequiredService<RedisCacheService>());
         services.AddScoped<IRateLimiter, RedisRateLimiter>();
+
+        // ADR-044: Lock distribuído no Redis para coordenação de workers
+        // em múltiplas instâncias (prevenção de duplicação).
+        services.AddScoped<IDistributedLockService, DistributedLockService>();
 
         // Pipeline transversal: cada behavior é opt-in quando requer um contrato específico.
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CorrelationIdBehavior<,>));
@@ -424,17 +434,19 @@ public static class DependencyInjection
         // Configuração de IA: Ollama + roteamento por capacidade
         services.Configure<AiOllamaOptions>(configuration.GetSection("Ai:Ollama"));
         services.Configure<AiRoutingOptionsConfiguration>(configuration.GetSection("Ai:Routing"));
-        // AiProviderRouter injeta o record concreto (não IOptions) — o
+        // AiProviderRouter injeta o objeto concreto (não IOptions) — o
         // binding acima já cobre a seção; seção ausente vira defaults
         // vazios e o router lança AiProviderNotConfiguredException no
         // Resolve (estado degradado desejado, ADR-037 §44).
         var aiRouting = configuration.GetSection("Ai:Routing").Get<AiRoutingOptionsConfiguration>()
-            ?? new AiRoutingOptionsConfiguration(
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty),
-                new AiRoutingModelOptions(string.Empty));
+            ?? new AiRoutingOptionsConfiguration
+            {
+                Copilot = new() { DefaultModel = string.Empty },
+                IncidentAnalysis = new() { DefaultModel = string.Empty },
+                KnowledgeGeneration = new() { DefaultModel = string.Empty },
+                Reporting = new() { DefaultModel = string.Empty },
+                Automation = new() { DefaultModel = string.Empty }
+            };
         services.AddSingleton(aiRouting);
 
         // HttpClient do Ollama (named client)

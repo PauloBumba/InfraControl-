@@ -186,10 +186,30 @@ public sealed class SaveUniFiSettingsCommandHandler(
     ICredentialProtector protector)
     : IRequestHandler<SaveUniFiSettingsCommand, UniFiSettingsDto>
 {
+    /// <summary>
+    /// F26 Fase 10.1: URL absoluta http(s) sem credencial embutida —
+    /// impede `userinfo@host` (vazamento em logs) e esquemas arbitrários.
+    /// Hosts privados são permitidos por design (o controlador vive na
+    /// rede interna); restrição de alcance é da rede, não da URL.
+    /// </summary>
+    public static void ValidateBaseUrl(string baseUrl)
+    {
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            throw new ArgumentException(
+                "A URL do controlador deve ser http(s) absoluta.", nameof(baseUrl));
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+            throw new ArgumentException(
+                "A URL do controlador não pode conter credenciais embutidas.",
+                nameof(baseUrl));
+    }
+
     public async Task<UniFiSettingsDto> Handle(
         SaveUniFiSettingsCommand request, CancellationToken cancellationToken)
     {
         var payload = request.Request;
+        ValidateBaseUrl(payload.BaseUrl);
         var existing = await repository.GetAsync(cancellationToken);
 
         // senha cifrada existente é preservada quando o payload não envia uma nova

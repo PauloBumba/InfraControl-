@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
-import { useObjectQuery } from "@/hooks/queries";
+import { errorMessage, useObjectQuery } from "@/hooks/queries";
 import {
   getUnifiWifi,
   type UnifiAccessPointItem,
@@ -48,12 +48,6 @@ function formatUptime(seconds: number): string {
   if (days > 0) return `${days}d ${hours}h`;
   const minutes = Math.floor((seconds % 3600) / 60);
   return hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
-}
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
 }
 
 /** Colunas do quadro de SSIDs — o mesmo recorte da coluna "Status". */
@@ -103,7 +97,7 @@ export function WiFiPage() {
       setAps(result.items);
       setTotalCount(result.totalCount);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }

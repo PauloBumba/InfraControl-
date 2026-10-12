@@ -49,15 +49,17 @@ public sealed class RackRepository(AppDbContext dbContext) : IRackRepository
                 || (rack.Description != null && rack.Description.ToLower().Contains(normalized)));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderBy(rack => rack.LocationId)
-            .ThenBy(rack => rack.Name)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<Rack>(items, totalCount, page, pageSize);
+        // F29-T001A — contar/saltar/pegar era o mesmo corpo em ~25 repositórios.
+        // O que varia (filtro e ordenação) fica aqui; o que é igual sai de
+        // cena. PageAsync também saneia a página, então este porto não depende
+        // de o chamador lembrar de normalizar.
+        return await EfSearch.PageAsync(
+            query
+                .OrderBy(rack => rack.LocationId)
+                .ThenBy(rack => rack.Name),
+            page,
+            pageSize,
+            cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

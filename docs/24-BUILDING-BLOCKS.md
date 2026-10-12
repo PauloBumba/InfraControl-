@@ -56,16 +56,47 @@ Todo slice CQRS novo deve seguir este padrão; ele é imposto pelos testes de ar
 | --- | --- |
 | Command | Estende `BaseCommand` / `BaseCommand<T>` (nunca `IRequest` cru) |
 | Query | Estende `BaseQuery<T>` (cacheável) ou implementa `IQuery<T>` |
-| Caso administrativo | Implementa `IAuthoredRequest` declarando `RequiredRoles` com um dos níveis de `RoleAccess` (`Read`/`Operate`/`Administer`) |
+| Caso administrativo | Implementa `IAuthorizedRequest` declarando `RequiredRoles` com um dos níveis de `RoleAccess` (`Read`/`Operate`/`Administer`) |
 | Porta de repositório | Estende `IRepository<TEntity>`; adaptador implementa `GetByIdAsync`/`AddAsync`/`Remove` |
+| Query paginada | Implementa `IPagedRequest` e normaliza com `Paging.Normalize(request)` — nunca `Math.Max`/`Math.Clamp` solto no handler |
+| Query com busca | Normaliza o termo com `TermNormalizer.Normalize(request.Term)` — termo em branco significa "sem filtro" |
+| Repositório paginado | Delega contar/saltar/pegar a `EfSearch.PageAsync(iQueryableOrdenado, page, pageSize)`; o filtro e a ordenação continuam no repositório |
 | Resposta HTTP | Controllers respondem com o envelope `ApiResponse` (`{ isSuccess, data, errors }`); sucesso sem conteúdo continua HTTP 204 sem corpo |
 
 Comportamentos do pipeline ligados a esses contratos:
 
 - `CachingBehavior` só age sobre `IQuery<T>` + `ICacheableQuery` e monta a chave com `CacheKeyBuilder` (usuário, roles e hash dos parâmetros), evitando colisão entre usuários.
-- `AuthorizationBehavior` só age sobre `IAuthoredRequest`: exige `IsAuthenticated` e compara `RequiredRoles` com as **roles** de `ICurrentUserContext` (fonte única de acesso, ADR-016 — não existem claims de permissão).
+- `AuthorizationBehavior` só age sobre `IAuthorizedRequest`: exige `IsAuthenticated` e compara `RequiredRoles` com as **roles** de `ICurrentUserContext` (fonte única de acesso, ADR-016 — não existem claims de permissão).
 - `TransactionBehavior` pula queries (`IQuery<T>`) e commita o restante via `IUnitOfWork`.
 - O `ApiResponse` estático (sem argumento de tipo) existe porque C# não infere argumentos de tipo em membros estáticos de tipos genéricos — usar `ApiResponse.Ok(resultado)` / `ApiResponse.Fail(erros)` nos controllers.
+
+## Blocos de consulta compartilhados (F29-T001A — 2026-10-11)
+
+Vivem em `Application/Common/Interfaces/` (mesmo namespace dos contratos que
+já estavam ali), **não** no BuildingBlocks: são convenções de consulta do
+produto, e o Shared Kernel continua sem conhecer EF Core.
+
+| Tipo | Papel |
+| --- | --- |
+| `PagedResult<T>` | Página de resultado. Saiu do arquivo de `IAuditReader` para virar contrato de verdade — **namespace mantido**, porque 25 portas e 29 queries o usam. |
+| `IPagedRequest` | Marca uma query como paginada. É **interface**, não objeto embutido: as queries declaram `Page`/`PageSize` como propriedades próprias e o ASP.NET liga direto da query string (`?page=1`). Um `Paging { get; }` aninhado mudaria o formato da URL. |
+| `Paging` | `DefaultPageSize` (20), `MaxPageSize` (100) e `Normalize(page, pageSize)` / `Normalize(IPagedRequest)`. São **os mesmos limites que as queries já aplicavam** — mudar teto de página é mudar resposta da API. |
+| `TermNormalizer` | `Normalize(term)` → trim, ou `null` quando em branco. A caixa (`ToLower`) continua na consulta de cada repositório. |
+| `EfSearch.PageAsync` (`Infrastructure/Repositories`) | Contar, saltar e pegar a página. O que varia por repositório (filtro e ordenação) fica em quem chama. **Também normaliza a página**, porque um porto de repositório é chamado por handler, worker e outros serviços. |
+
+Antes destes blocos, `int Page = 1, int PageSize = 20` aparecia **59 vezes em
+27 arquivos**, as duas linhas de `Math.Max`/`Math.Clamp` estavam em **28
+handlers**, o ternário de termo em **14**, e o corpo de contar/saltar/pegar em
+~25 repositórios.
+
+**Piloto**: `SearchRacksQuery` + `RackRepository.SearchAsync`. A migração dos
+demais 27 arquivos é task à parte — e não foi feita de propósito, para que o
+diff da adoção fosse revisável.
+
+**Ainda sem bloco (e por quê)**: o guard de "não encontrado"
+(`?? throw new KeyNotFoundException("… não encontrado.")`, 227 ocorrências) —
+as mensagens variam por entidade, e um helper com texto fixo mudaria string
+visível ao usuário, o que é decisão de produto.
 
 ## Regras
 

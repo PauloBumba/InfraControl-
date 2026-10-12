@@ -95,7 +95,7 @@ os 46 literais de role. Use-se `AuthorizationPolicies.Operate` /
   Extensibilidade) ou exigiria um 4º nível.
 
 ### Segurança
-- Toda `IAuthoredRequest` passa a exigir usuário **autenticado** mesmo sem
+- Toda `IAuthorizedRequest` passa a exigir usuário **autenticado** mesmo sem
   `RequiredRoles` declarado, e a mensagem de 401 passou a ser determinística
   (`Roles ausentes: …`, ordenado ordinalmente) para poder ser testada.
 

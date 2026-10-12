@@ -20,6 +20,12 @@ Backup periódico via `BackupWorker` (InfraControl.Workers) que chama o
 `PostgresBackupService` — decide o usuário: **worker .NET**, diretório
 local, retenção default 7 dias.
 
+No Docker Compose, o `Backup:Path` é `/app/backups`, montado no volume
+nomeado `postgres_backups`; assim os dumps sobrevivem à recriação do container
+Workers. O volume está no mesmo host do PostgreSQL e não é um backup externo:
+copie os dumps para outro destino com política de acesso/retenção própria e
+valide restores regularmente.
+
 - `pg_dump -Fc` (formato custom comprimido) — a senha vai **só** no
   ambiente (`PGPASSWORD`, vinda do `ConnectionStrings:DefaultConnection`/
   env), nunca em argv nem em config nova no git.

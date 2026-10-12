@@ -63,6 +63,18 @@ public sealed class ZabbixHostsRepository(AppDbContext dbContext)
         return new PagedResult<ZabbixHost>(items, totalCount, page, pageSize);
     }
 
+    public async Task<ZabbixHostCounts> GetCountsAsync(
+        CancellationToken cancellationToken)
+    {
+        var total = await dbContext.ZabbixHosts.CountAsync(cancellationToken);
+        var enabled = await dbContext.ZabbixHosts
+            .CountAsync(h => h.Enabled && h.MissingSinceUtc == null, cancellationToken);
+        var missing = await dbContext.ZabbixHosts
+            .CountAsync(h => h.MissingSinceUtc != null, cancellationToken);
+
+        return new ZabbixHostCounts(total, enabled, missing);
+    }
+
     public async Task AddAsync(ZabbixHost host, CancellationToken cancellationToken)
         => await dbContext.ZabbixHosts.AddAsync(host, cancellationToken);
 

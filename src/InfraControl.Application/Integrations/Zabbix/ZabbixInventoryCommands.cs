@@ -41,8 +41,31 @@ public sealed class SyncZabbixInventoryCommandHandler(
     ILogger<SyncZabbixInventoryCommandHandler> logger)
     : IRequestHandler<SyncZabbixInventoryCommand, ZabbixSyncResultDto>
 {
+    // F27 Fase 11.1: um sync por vez no processo — o upsert por hostid já
+    // é idempotente, mas execuções simultâneas competiriam pelo mesmo
+    // read-model; a segunda recebe 409 (InvalidOperationException →
+    // GlobalExceptionHandler).
+    private static readonly SemaphoreSlim SyncGate = new(1, 1);
+
     public async Task<ZabbixSyncResultDto> Handle(
         SyncZabbixInventoryCommand request, CancellationToken cancellationToken)
+    {
+        if (!await SyncGate.WaitAsync(TimeSpan.Zero, cancellationToken))
+            throw new InvalidOperationException(
+                "Uma sincronização de hosts do Zabbix já está em andamento.");
+
+        try
+        {
+            return await ExecuteAsync(cancellationToken);
+        }
+        finally
+        {
+            SyncGate.Release();
+        }
+    }
+
+    private async Task<ZabbixSyncResultDto> ExecuteAsync(
+        CancellationToken cancellationToken)
     {
         var version = await client.GetVersionAsync(cancellationToken);
         var hosts = await client.ListHostsAsync(cancellationToken);

@@ -6,6 +6,7 @@ public sealed record RefreshSessionRequest(string RefreshToken);
 public sealed record ForgotPasswordRequest(string Email, string? BaseUrl = null);
 public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
 public sealed record ChangePasswordRequest(Guid UserId, string CurrentPassword, string NewPassword);
+public sealed record UpdateProfileRequest(Guid UserId, string DisplayName);
 public sealed record GoogleLoginRequest(string IdToken);
 
 /// <summary>
@@ -132,6 +133,15 @@ public interface IIdentityAuthenticationService
     Task<PasswordResetRequestResult> RequestPasswordResetAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
     Task<OperationResult> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
     Task<OperationResult> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F29-T002 — auto-serviço: o próprio usuário edita o nome completo
+    /// (<c>User.DisplayName</c>). Até aqui só o admin conseguia, via
+    /// <c>PUT /admin/users/{id}</c>; o e-mail é preservado, então não há
+    /// colisão de e-mail a verificar. Não revoga sessão (diferente da troca de
+    /// senha): nada de segurança muda, só o nome exibido.
+    /// </summary>
+    Task<OperationResult> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// MFA TOTP (F1-T016a, ADR-019) — auto-serviço da conta autenticada.

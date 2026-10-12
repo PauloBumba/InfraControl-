@@ -134,6 +134,17 @@ docker compose --profile app --profile obs up -d --build
 - Coletor OpenTelemetry em `localhost:4317` (sem backend de tracing em
   homologação — despeja em console).
 
+IA (Ollama) com escalabilidade horizontal (ADR-041):
+
+```bash
+docker compose --profile ai up -d
+```
+
+- 3 réplicas do Ollama + nginx load balancer em `http://localhost:11434`
+- Modelo padrão: `qwen2.5-coder:1.5b` (baixar em cada réplica: `docker exec infracontrol-ollama-1 ollama pull qwen2.5-coder:1.5b`)
+- Load balancer: `ollama-lb` (DNS interno — a API usa `http://ollama-lb`)
+- IP estáveis configuráveis: `OLLAMA_1_IP`, `OLLAMA_2_IP`, `OLLAMA_3_IP`
+
 Para conferir os containers:
 
 ```bash
@@ -141,6 +152,13 @@ docker compose ps
 ```
 
 Não use credenciais reais em arquivos versionados. As credenciais do Compose são destinadas somente ao ambiente de desenvolvimento local.
+
+Para escala manual, overlay de produção, volumes compartilhados, health checks,
+backup/restore, carga k6 e testes controlados de falha, consulte
+[docs/40-SCALE-HORIZONTAL-OPERATIONS.md](docs/40-SCALE-HORIZONTAL-OPERATIONS.md).
+O overlay de produção exige segredos, tags de imagem, certificados TLS e
+limites de recursos configurados no `.env`; não o use com os valores de
+desenvolvimento.
 
 ## Executar o backend
 

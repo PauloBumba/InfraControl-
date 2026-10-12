@@ -31,6 +31,7 @@ import {
   updateUser,
   type AdminUser,
 } from "@/services/api/adminUsers";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F17-T006 — UsersPage conectada ao backend (substitui `users`/`roles` de
@@ -66,12 +67,6 @@ const roleDescriptions: Record<UserRole, string> = {
   Viewer: "Somente leitura de dashboards e relatórios",
 };
 
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
 export function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +98,7 @@ export function UsersPage() {
     try {
       setUsers(await listUsers());
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -121,7 +116,7 @@ export function UsersPage() {
       showMessage({ severity: "success", summary: success });
       await load();
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível atualizar o usuário.", detail: messageFor(caught) });
+      showMessage({ severity: "error", summary: "Não foi possível atualizar o usuário.", detail: errorMessage(caught) });
     } finally {
       setBusyUserId(null);
     }
@@ -143,7 +138,7 @@ export function UsersPage() {
       setInviteRole("Viewer");
       showMessage({ severity: "success", summary: "Convite criado", detail: "O link sai por e-mail (hoje registrado no log do backend)." });
     } catch (caught) {
-      setInviteError(messageFor(caught));
+      setInviteError(errorMessage(caught));
     } finally {
       setInvitingSaving(false);
     }
@@ -172,7 +167,7 @@ export function UsersPage() {
       showMessage({ severity: "success", summary: `${displayName} atualizado.` });
       await load();
     } catch (caught) {
-      setEditError(messageFor(caught));
+      setEditError(errorMessage(caught));
     } finally {
       setEditSaving(false);
     }
@@ -190,7 +185,7 @@ export function UsersPage() {
       showMessage({ severity: "success", summary: `${deletingUser.displayName} excluído.` });
       await load();
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível excluir o usuário.", detail: messageFor(caught) });
+      showMessage({ severity: "error", summary: "Não foi possível excluir o usuário.", detail: errorMessage(caught) });
       setDeletingUser(null);
     }
   }

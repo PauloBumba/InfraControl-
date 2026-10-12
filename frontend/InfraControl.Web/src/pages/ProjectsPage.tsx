@@ -5,6 +5,7 @@ import type { DataTablePageEvent } from "primereact/datatable";
 import { Button } from "@/components/ui/Button";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -291,9 +292,7 @@ export function ProjectsPage() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ padding: 12, borderRadius: 10, background: "#fef2f2", color: "#991b1b" }}>{error}</div>
-      )}
+      {error && <ErrorBanner message={error} onRetry={() => void loadProjects()} />}
 
       {loading ? (
         <div style={{ padding: 24, textAlign: "center", color: "#64748b" }}>Carregando projetos…</div>

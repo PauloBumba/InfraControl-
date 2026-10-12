@@ -149,6 +149,29 @@ export function mutationErrorMessage(error: Error | null): string | null {
   return error.message || "Não foi possível falar com o servidor. Tente novamente.";
 }
 
+/**
+ * F29-T001B/T001C-1 — o mesmo texto que `messageFor(error: unknown)` chegou a
+ * reimplementar em 16 lugares; eram 15 cópias idênticas + Knowledge/Login com
+ * `fallback` próprio, e as 15 + Knowledge migraram para cá em 2026-10-11.
+ * **`LoginPage` ficou de fora de propósito**: o `messageFor` dele não é cópia —
+ * ele manda 401 para o fallback genérico (para não revelar se a conta existe)
+ * e deixa 403 mostrar a mensagem do servidor (conta inativa). Trocar por
+ * `errorMessage` mudaria o que o login revela.
+ * Diferença de contrato em relação a `mutationErrorMessage`: aceita
+ * `unknown`, porque o que sai de um `catch` é `unknown` e nem sempre é
+ * `Error` (uma falha de transporte devolve objeto crus). `mutationErrorMessage`
+ * continua sendo o de mutations, onde o tipo já é `Error | null`.
+ * O `fallback` existe porque nem todo "Tente novamente" é honesto: no Login,
+ * erro de credencial não se resolve tentando de novo.
+ */
+export function errorMessage(
+  error: unknown,
+  fallback = "Não foi possível falar com o servidor. Tente novamente.",
+): string {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
 /** `ApiError` quando o erro veio do envelope HTTP (útil p/ ramificar 403). */
 export function asApiError(error: Error | null): ApiError | null {
   return error instanceof ApiErrorClass ? error : null;

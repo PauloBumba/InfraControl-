@@ -18,10 +18,7 @@ import {
   type SessionItem,
 } from "@/services/api/sessions";
 import { formatDateTime } from "@/utils/format";
-
-function messageFor(error: unknown): string {
-  return error instanceof Error ? error.message : "Não foi possível falar com o servidor. Tente novamente.";
-}
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * Quadro agrupado por `isCurrent` — o mesmo recorte da coluna "Sessão"
@@ -66,7 +63,7 @@ export function SessionsPage() {
     try {
       setSessions(await listSessions());
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -91,7 +88,7 @@ export function SessionsPage() {
       setSessions((previous) => previous.filter((item) => item.id !== session.id));
       showMessage({ severity: "success", summary: "Sessão revogada." });
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível revogar a sessão.", detail: messageFor(caught) });
+      showMessage({ severity: "error", summary: "Não foi possível revogar a sessão.", detail: errorMessage(caught) });
     } finally {
       setBusyId(null);
     }
@@ -105,7 +102,7 @@ export function SessionsPage() {
       setSessions((previous) => previous.filter((item) => item.isCurrent));
       showMessage({ severity: "success", summary: "As outras sessões foram revogadas." });
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível revogar as outras sessões.", detail: messageFor(caught) });
+      showMessage({ severity: "error", summary: "Não foi possível revogar as outras sessões.", detail: errorMessage(caught) });
     } finally {
       setBusyOthers(false);
     }

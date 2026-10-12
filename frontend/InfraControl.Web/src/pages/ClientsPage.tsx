@@ -3,14 +3,15 @@ import { Column } from "primereact/column";
 import { type DataTablePageEvent } from "primereact/datatable";
 import { listClients, type ClientItem } from "@/services/api/clients";
 import { formatDateTime } from "@/utils/format";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { errorMessage } from "@/hooks/queries";
+import { useServerSearch } from "@/hooks/useServerSearch";
 
 /**
  * F18-T008 — ClientsPage sobre `GET /api/v1/clients`: o backend agrega
@@ -50,17 +51,21 @@ const kindStyle: Record<string, { bg: string; color: string }> = {
  */
 const CLIENT_KIND_COLUMNS = Object.entries(kindLabel).map(([key, label]) => ({ key, label }));
 
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
 export function ClientsPage() {
   const [pageData, setPageData] = useState<{ items: ClientItem[]; totalCount: number } | null>(null);
-  const [page, setPage] = useState(1);
-  const [term, setTerm] = useState("");
-  const [termInput, setTermInput] = useState("");
+  // F29-T001B — a máquina de estados da busca (texto digitado × termo aplicado
+  // × página) sai da página: era o mesmo par de estados e os mesmos dois
+  // handlers em 5 páginas.
+  const {
+    input: termInput,
+    setInput: setTermInput,
+    term,
+    page,
+    setPage,
+    applyInput,
+    clear,
+    hasTerm,
+  } = useServerSearch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +82,7 @@ export function ClientsPage() {
       setPageData({ items: data.items, totalCount: data.totalCount });
     } catch (caught) {
       setPageData(null);
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -87,21 +92,14 @@ export function ClientsPage() {
     void load();
   }, [load]);
 
+  /** Aplica o que está no campo — Enter do input ou botão "Filtrar". */
   function applyTerm(event: FormEvent) {
     event.preventDefault();
-    setTerm(termInput.trim());
-    setPage(1);
-  }
-
-  function clearTerm() {
-    setTermInput("");
-    setTerm("");
-    setPage(1);
+    applyInput();
   }
 
   const items = pageData?.items ?? [];
   const totalCount = pageData?.totalCount ?? 0;
-  const hasTerm = term !== "";
 
   function handlePageChange(event: DataTablePageEvent) {
     setPage(Math.floor(event.first / PAGE_SIZE) + 1);
@@ -149,50 +147,50 @@ export function ClientsPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Clientes"
-        subtitle={
-          loading
-            ? "Carregando…"
-            : `${totalCount} ${totalCount === 1 ? "cliente" : "clientes"}${hasTerm ? ` · busca "${term}"` : ""}`
-        }
-        actions={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <ViewSwitcher mode={view} onChange={setView} />
-            <FilterBar><form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <SearchInput
-              value={termInput}
-              onChange={setTermInput}
-              placeholder="IP, MAC ou hostname"
-              title="Busca por ip, mac ou hostname — aplicada no servidor"
-              variant="muted"
-              onEnter={() => { setTerm(termInput.trim()); setPage(1); }}
-            />
-            <Button
-              type="submit"
-              variant="ghost"
-              style={{ padding: "6px 12px", borderColor: "#e2e8f0", fontSize: 13, color: "#64748b" }}
-            >
-              Filtrar
-            </Button>
-            {hasTerm && (
+    <ListPageShell
+      title="Clientes"
+      singular="cliente"
+      plural="clientes"
+      total={totalCount}
+      loading={loading}
+      note={hasTerm ? `busca "${term}"` : undefined}
+      error={error}
+      onRetry={() => void load()}
+      actions={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <ViewSwitcher mode={view} onChange={setView} />
+          <FilterBar>
+            <form onSubmit={applyTerm} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <SearchInput
+                value={termInput}
+                onChange={setTermInput}
+                placeholder="IP, MAC ou hostname"
+                title="Busca por ip, mac ou hostname — aplicada no servidor"
+                variant="muted"
+                onEnter={applyInput}
+              />
               <Button
-                type="button"
+                type="submit"
                 variant="ghost"
-                onClick={clearTerm}
                 style={{ padding: "6px 12px", borderColor: "#e2e8f0", fontSize: 13, color: "#64748b" }}
               >
-                Limpar
+                Filtrar
               </Button>
-            )}
-          </form></FilterBar>
-          </div>
-        }
-      />
-
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
-
+              {hasTerm && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={clear}
+                  style={{ padding: "6px 12px", borderColor: "#e2e8f0", fontSize: 13, color: "#64748b" }}
+                >
+                  Limpar
+                </Button>
+              )}
+            </form>
+          </FilterBar>
+        </div>
+      }
+    >
       <EntityView<ClientItem>
         mode={view}
         items={items}
@@ -214,6 +212,6 @@ export function ClientsPage() {
         }
         renderCard={renderClientCard}
       />
-    </div>
+    </ListPageShell>
   );
 }

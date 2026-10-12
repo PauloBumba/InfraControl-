@@ -6,11 +6,11 @@ import {
 } from "@/services/api/alerts";
 import { formatDateTime } from "@/utils/format";
 import { Pagination } from "@/components/ui/Pagination";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectButton } from "primereact/selectbutton";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F17-T011 — AlertsPage conectada ao backend (substitui `alertsData` de
@@ -48,12 +48,6 @@ const filters: Array<{ key: "" | AlertStatusFilter; label: string }> = [
   { key: "suppressed", label: "Suprimidos" },
 ];
 
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
-
 export function AlertsPage() {
   const [items, setItems] = useState<AlertItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -74,7 +68,7 @@ export function AlertsPage() {
       setItems(result.items);
       setTotalCount(result.totalCount);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -87,17 +81,23 @@ export function AlertsPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Alertas"
-        subtitle={loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "alerta" : "alertas"}`}
-        actions={
-          <SelectButton className="uni-select-button" value={status} options={filters} optionLabel="label" optionValue="key" allowEmpty={false} onChange={(event) => { setStatus(event.value); setPage(1); }} />
-        }
-      />
-
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
-
+    <ListPageShell
+      title="Alertas"
+      singular="alerta"
+      plural="alertas"
+      total={totalCount}
+      loading={loading}
+      error={error}
+      onRetry={() => void load()}
+      actions={
+        <SelectButton className="uni-select-button" value={status} options={filters} optionLabel="label" optionValue="key" allowEmpty={false} onChange={(event) => { setStatus(event.value); setPage(1); }} />
+      }
+      footer={
+        totalCount > PAGE_SIZE ? (
+          <Pagination page={page} totalPages={totalPages} disabled={loading} onPage={setPage} />
+        ) : undefined
+      }
+    >
       <div className="uni-panel">
         <div className="uni-alerts-list">
           {items.map((alert) => {
@@ -135,15 +135,6 @@ export function AlertsPage() {
           {loading && items.length === 0 && <LoadingBlock />}
         </div>
       </div>
-
-      {totalCount > PAGE_SIZE && (
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          disabled={loading}
-          onPage={setPage}
-        />
-      )}
-    </div>
+    </ListPageShell>
   );
 }

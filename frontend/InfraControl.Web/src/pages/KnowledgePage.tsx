@@ -36,6 +36,7 @@ import {
   type KnowledgeCategory,
   type Paged,
 } from "@/services/api/knowledge";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F17-T004 — KnowledgePage conectada ao backend. F24 edição + visões
@@ -57,10 +58,6 @@ const originLabels: Record<string, string> = {
   Pdi: "PDI",
   Incident: "Chamado",
 };
-
-function messageFor(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
 
 export function KnowledgePage() {
   const [pageData, setPageData] = useState<Paged<KnowledgeArticle> | null>(null);
@@ -142,7 +139,7 @@ export function KnowledgePage() {
         }),
       );
     } catch (caught) {
-      setError(messageFor(caught, "Não foi possível carregar os artigos."));
+      setError(errorMessage(caught, "Não foi possível carregar os artigos."));
     } finally {
       setLoading(false);
     }
@@ -245,7 +242,7 @@ export function KnowledgePage() {
       setNotice("Artigo criado como rascunho — publique pela troca de status.");
       await load();
     } catch (caught) {
-      setFormError(messageFor(caught, "Não foi possível criar o artigo."));
+      setFormError(errorMessage(caught, "Não foi possível criar o artigo."));
     } finally {
       setSaving(false);
     }
@@ -302,7 +299,7 @@ export function KnowledgePage() {
       setNotice("Artigo atualizado — uma nova versão foi registrada.");
       await load();
     } catch (caught) {
-      setEditError(messageFor(caught, "Não foi possível atualizar o artigo."));
+      setEditError(errorMessage(caught, "Não foi possível atualizar o artigo."));
     } finally {
       setEditSaving(false);
     }
@@ -315,7 +312,7 @@ export function KnowledgePage() {
       setNotice(`Artigo "${deleteTarget.title}" excluído.`);
       await load();
     } catch (caught) {
-      setError(messageFor(caught, "Não foi possível excluir o artigo."));
+      setError(errorMessage(caught, "Não foi possível excluir o artigo."));
     }
   }
 
@@ -339,7 +336,7 @@ export function KnowledgePage() {
       await load();
     } catch (caught) {
       // 409 fora da matriz / 400 status desconhecido vêm em pt-BR.
-      setStatusError(messageFor(caught, "Não foi possível alterar o status."));
+      setStatusError(errorMessage(caught, "Não foi possível alterar o status."));
     } finally {
       setStatusSaving(false);
     }
@@ -387,7 +384,7 @@ export function KnowledgePage() {
       setCategoryForm(null);
       await loadCategories();
     } catch (caught) {
-      setCategoryError(messageFor(caught, "Não foi possível salvar a categoria."));
+      setCategoryError(errorMessage(caught, "Não foi possível salvar a categoria."));
     } finally {
       setCategorySaving(false);
     }
@@ -402,7 +399,7 @@ export function KnowledgePage() {
       // artigos podem ter mudado de "sem categoria" — recarrega a grade.
       await load();
     } catch (caught) {
-      setError(messageFor(caught, "Não foi possível excluir a categoria."));
+      setError(errorMessage(caught, "Não foi possível excluir a categoria."));
     }
   }
 

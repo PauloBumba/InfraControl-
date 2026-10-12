@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
-import { setActiveItem } from "@/app/store/slices/navigationSlice";
 import {
   sessionCheckFailed,
   sessionCheckStarted,
@@ -14,7 +13,6 @@ import { AccessDenied } from "@/components/auth/AccessDenied";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { PublicMarketingRoute } from "@/components/marketing/PublicMarketingRoute";
-import { navigation, secondaryNavigation } from "@/data/dashboardData";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const NetworkPage = lazy(() => import("@/pages/NetworkPage").then(m => ({ default: m.NetworkPage })));
@@ -29,6 +27,7 @@ const UniFiDashboardPage = lazy(() => import("@/pages/UniFiDashboardPage").then(
 const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m => ({ default: m.IntegrationsPage })));
 const ZabbixSettingsPage = lazy(() => import("@/pages/ZabbixSettingsPage").then(m => ({ default: m.ZabbixSettingsPage })));
 const ZabbixHostsPage = lazy(() => import("@/pages/ZabbixHostsPage").then(m => ({ default: m.ZabbixHostsPage })));
+const ZabbixOverviewPage = lazy(() => import("@/pages/ZabbixOverviewPage").then(m => ({ default: m.ZabbixOverviewPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
@@ -59,19 +58,6 @@ const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.Pdi
 const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
 const FeaturesPage = lazy(() => import("@/pages/FeaturesPage").then(m => ({ default: m.FeaturesPage })));
 const ContactPage = lazy(() => import("@/pages/ContactPage").then(m => ({ default: m.ContactPage })));
-
-const allNav = [...navigation, ...secondaryNavigation];
-
-const routeLabelMap: Record<string, string> = Object.fromEntries(
-  allNav.map(item => [item.route, item.label])
-);
-routeLabelMap["/"] = "Visão Geral";
-// F26-T001 — rota fora do menu (entra pelo card do usuário).
-routeLabelMap["/account"] = "Minha Conta";
-
-const labelRouteMap: Record<string, string> = Object.fromEntries(
-  allNav.map(item => [item.label, item.route])
-);
 
 function PageLoader() {
   return (
@@ -167,21 +153,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const activeItemRedux = useAppSelector((s) => s.navigation.activeItem);
   const authStatus = useAppSelector((s) => s.auth.status);
 
-  const activeLabel = location.pathname.startsWith("/devices/")
-    ? "Detalhes do Dispositivo"
-    : location.pathname.startsWith("/tasks/")
-      ? "Detalhe da Tarefa"
-      : routeLabelMap[location.pathname] || activeItemRedux || "Visão Geral";
-
-  const handleNavigate = (label: string) => {
-    const route = labelRouteMap[label] || "/";
-    dispatch(setActiveItem(label));
-    navigate(route);
-  };
+  /**
+   * F29-T005 — a rota do `location` É a identidade do item ativo: não existe
+   * estado paralelo para dessincronizar, e o rótulo (que existe em duplicidade
+   * no menu) é derivado só para exibição. Antes o clique traduzia
+   * **rótulo → rota** com `Object.fromEntries`, que fica com o ÚLTIMO duplicado
+   * — clicar no "Zabbix" do menu primário levava para /integrations/zabbix.
+   */
+  const handleNavigate = (route: string) => navigate(route);
 
   // F26-T002 — landing pública de vendas: header/footer COMPARTILHADOS e
   // conteúdo que muda por rota. Logado → dashboard (`/`, padrão /login),
@@ -236,7 +217,7 @@ function AppContent() {
   }
 
   return (
-    <AppLayout activeItem={activeLabel} onNavigate={handleNavigate}>
+    <AppLayout activeRoute={location.pathname} onNavigate={handleNavigate}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={
@@ -303,6 +284,12 @@ function AppContent() {
           <Route path="/integrations/zabbix" element={
             <ProtectedRoute>
               <ZabbixSettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* F27 Fase 10.3 — Infraestrutura → Visão geral Zabbix (leitura). */}
+          <Route path="/zabbix" element={
+            <ProtectedRoute>
+              <ZabbixOverviewPage />
             </ProtectedRoute>
           } />
           {/* F27 Fase 3.3 — Infraestrutura → Hosts monitorados (leitura). */}

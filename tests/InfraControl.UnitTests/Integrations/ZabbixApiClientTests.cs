@@ -110,6 +110,30 @@ public sealed class ZabbixApiClientTests
     }
 
     [Fact]
+    public async Task ListHostGroupsAsync_ShouldNotSendRealHostsParameter()
+    {
+        // Regressão do smoke ao vivo (2026-10-10): o Zabbix 8.0 rejeita
+        // `real_hosts` em hostgroup.get (parâmetro removido após o 7.x —
+        // "unexpected parameter real_hosts", -32602).
+        var handler = new ScriptedHandler();
+        handler.When(r => MethodIs(r, "user.login"),
+            _ => Rpc($$"""{"jsonrpc":"2.0","result":"{{SessionToken}}","id":1}"""));
+        handler.When(r => MethodIs(r, "apiinfo.version"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":"8.0.0","id":1}"""));
+        handler.When(r => MethodIs(r, "hostgroup.get"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":[{"groupid":"2","name":"Zabbix servers"}],"id":1}"""));
+
+        var client = CreateClient(handler);
+
+        var groups = await client.ListHostGroupsAsync();
+
+        groups.Should().HaveCount(1);
+        var parameters = ReadBody(handler.Requests[^1]).GetProperty("params");
+        parameters.TryGetProperty("real_hosts", out _).Should().BeFalse(
+            "o Zabbix 8.0 rejeita real_hosts — nunca enviar");
+    }
+
+    [Fact]
     public async Task ListHostsAsync_WhenSessionRejected_ShouldReloginAndRetryOnce()
     {
         var handler = new ScriptedHandler();
@@ -186,6 +210,112 @@ public sealed class ZabbixApiClientTests
         host.Interfaces.Single().Port.Should().Be(10050);
         host.TemplateIds.Should().ContainSingle().Which.Should().Be("10001");
         host.GroupIds.Should().ContainSingle().Which.Should().Be("4");
+    }
+
+    [Fact]
+    public async Task ListHostsAsync_OnZabbix8HostGroups_ShouldParseHostgroupsAndRequestSelectHostGroups()
+    {
+        // Regressão F27: Zabbix 7.2+ renomeou groups → hostgroups; o 8.0
+        // ignora selectGroups silenciosamente (sem erro, sem dados) — o
+        // read-model ficava sem grupos. O cliente pede os dois selects e
+        // lê os dois campos (só um vem preenchido por versão).
+        var handler = new ScriptedHandler();
+        handler.When(r => MethodIs(r, "user.login"),
+            _ => Rpc($$"""{"jsonrpc":"2.0","result":"{{SessionToken}}","id":1}"""));
+        handler.When(r => MethodIs(r, "apiinfo.version"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":"8.0.0","id":1}"""));
+        handler.When(r => MethodIs(r, "host.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[{
+                  "hostid":"10818","host":"sw-192-168-127-1","name":"HP A5120",
+                  "status":"0","flags":"0",
+                  "interfaces":[{"ip":"192.168.127.1","port":"10051","type":"1","main":"1"}],
+                  "parentTemplates":[{"templateid":"10564"}],
+                  "hostgroups":[{"groupid":"22"}]
+                }],"id":1}
+                """));
+
+        var client = CreateClient(handler);
+
+        var hosts = await client.ListHostsAsync();
+
+        hosts.Should().HaveCount(1);
+        hosts[0].GroupIds.Should().ContainSingle().Which.Should().Be("22");
+
+        var body = ReadBody(handler.Requests[^1]).GetProperty("params");
+        body.GetProperty("selectHostGroups").EnumerateArray()
+            .Select(e => e.GetString()).Should().ContainSingle().Which.Should().Be("groupid");
+        body.GetProperty("selectGroups").EnumerateArray()
+            .Select(e => e.GetString()).Should().ContainSingle().Which.Should().Be("groupid");
+    }
+
+    [Fact]
+    public async Task ListProblemsAsync_ShouldParseObjectIdNormalizeRecoveryAndJoinHostsViaTriggers()
+    {
+        // Regressão F27 Fase 10.1: r_eventid "0" = sem recuperação; o
+        // host vem do join objectid (triggerid) → trigger.get…selectHosts
+        // (o problem.get do 8.0 removeu selectHosts).
+        var handler = new ScriptedHandler();
+        handler.When(r => MethodIs(r, "user.login"),
+            _ => Rpc($$"""{"jsonrpc":"2.0","result":"{{SessionToken}}","id":1}"""));
+        handler.When(r => MethodIs(r, "apiinfo.version"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":"8.0.0","id":1}"""));
+        handler.When(r => MethodIs(r, "problem.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[
+                  {"eventid":"11","name":"ICMP Ping: Unavailable","severity":"4",
+                   "clock":"1791679701","r_eventid":"0","objectid":"33179"},
+                  {"eventid":"5","name":"Resolvido","severity":"2",
+                   "clock":"1791670000","r_eventid":"88","objectid":"40001"}
+                ],"id":1}
+                """));
+        handler.When(r => MethodIs(r, "trigger.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[
+                  {"triggerid":"33179","hosts":[
+                    {"hostid":"10818","host":"sw-192-168-127-1","name":"HP A5120 (CORE CPD)"}]},
+                  {"triggerid":"40001","hosts":[]}
+                ],"id":1}
+                """));
+
+        var client = CreateClient(handler);
+
+        var problems = await client.ListProblemsAsync();
+
+        problems.Should().HaveCount(2);
+        problems[0].RecoveryEventId.Should().BeNull("r_eventid 0 = ainda aberto");
+        problems[0].ObjectId.Should().Be("33179");
+        problems[0].HostNames.Should().Equal("HP A5120 (CORE CPD)");
+        problems[1].RecoveryEventId.Should().Be("88");
+        problems[1].HostNames.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListProblemsAsync_WhenTriggerLookupFails_ShouldReturnProblemsWithoutHosts()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => MethodIs(r, "user.login"),
+            _ => Rpc($$"""{"jsonrpc":"2.0","result":"{{SessionToken}}","id":1}"""));
+        handler.When(r => MethodIs(r, "apiinfo.version"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":"8.0.0","id":1}"""));
+        handler.When(r => MethodIs(r, "problem.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[
+                  {"eventid":"11","name":"ICMP Ping: Unavailable","severity":"4",
+                   "clock":"1791679701","r_eventid":"0","objectid":"33179"}
+                ],"id":1}
+                """));
+        handler.When(r => MethodIs(r, "trigger.get"),
+            _ => Rpc("""{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params.","data":"boom"},"id":1}"""));
+
+        var client = CreateClient(handler);
+
+        var problems = await client.ListProblemsAsync();
+
+        problems.Should().ContainSingle();
+        problems[0].EventId.Should().Be("11");
+        problems[0].HostNames.Should().BeNull(
+            "falha no join não derruba a lista — só fica sem hosts");
     }
 
     [Fact]

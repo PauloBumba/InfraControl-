@@ -223,7 +223,37 @@ public sealed class IdentityAuthenticationService(
         return OperationResult.Success();
     }
 
-    // ── MFA TOTP (F1-T016a, ADR-019) ────────────────────────────────────
+    /// <summary>
+    /// F29-T002 — auto-serviço do perfil. Reutiliza o MESMO caminho do admin
+    /// (<c>UpdateUserAsync</c>): o e-mail volta igual, então <c>User.Update</c>
+    /// só aplica o nome e nem dispara <c>UserUpdatedDomainEvent</c> quando o
+    /// valor não mudou (early return no domínio).
+    /// Não chama <c>RevokeAllSessionsAsync</c> de propósito: trocar o nome não
+    /// é evento de segurança — diferente da senha, ninguém perde a sessão.
+    /// </summary>
+    public async Task<OperationResult> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken cancellationToken = default)
+    {
+        var domainUser = await dbContext.DomainUsers
+            .FirstOrDefaultAsync(user => user.Id == request.UserId, cancellationToken);
+        if (domainUser is null)
+            return OperationResult.Failure("Usuário não encontrado.");
+
+        try
+        {
+            domainUser.Update(request.DisplayName, domainUser.Email);
+        }
+        catch (ArgumentException exception)
+        {
+            // RequireDisplayName lança pt-BR; converte para o contrato
+            // OperationResult, igual ao ChangePasswordAsync faz com o Identity.
+            return OperationResult.Failure(exception.Message);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return OperationResult.Success();
+    }
+
+    // ── MFA TOTP (F1-T016a, ADR-019) ───────────────────────────────────
 
     public async Task<MfaSetupResult> SetupMfaAsync(Guid userId, CancellationToken cancellationToken = default)
     {

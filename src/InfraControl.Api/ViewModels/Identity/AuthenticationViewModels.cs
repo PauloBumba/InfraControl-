@@ -14,6 +14,13 @@ public sealed record ForgotPasswordViewModel(string Email);
 public sealed record ResetPasswordViewModel(string Email, string Token, string NewPassword);
 public sealed record ChangePasswordViewModel(string CurrentPassword, string NewPassword);
 
+/// <summary>
+/// F29-T002 — perfil de autoedição. Só o nome: o e-mail é somente leitura
+/// aqui (trocar e-mail é operação de admin, com verificação de unicidade em
+/// <c>UpdateUserAsync</c>), então não entra no contrato deste endpoint.
+/// </summary>
+public sealed record UpdateProfileViewModel(string DisplayName);
+
 /// <summary>Confirm do MFA (F1-T016a): um código TOTP de 6 dígitos.</summary>
 public sealed record MfaConfirmViewModel(string Code);
 

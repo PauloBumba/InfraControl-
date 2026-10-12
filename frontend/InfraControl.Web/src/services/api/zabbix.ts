@@ -118,6 +118,97 @@ export function getZabbixHosts(query: ZabbixHostsQuery = {}): Promise<ZabbixHost
   });
 }
 
+/** F27 Fase 10.1 — problema ativo (problem.get ao vivo). */
+export interface ZabbixProblemView {
+  eventId: string;
+  name: string;
+  severity: number;
+  severityLabel: string;
+  clockUtc: string;
+  recovered: boolean;
+  hostNames: string[];
+}
+
+export interface ZabbixProblemsResult {
+  items: ZabbixProblemView[];
+  total: number;
+}
+
+/** F27 Fase 10.2 — ponto do histórico de um item (history.get). */
+export interface ZabbixHistoryPoint {
+  clockUtc: string;
+  value: string;
+}
+
+/** F27 Fase 10.3 — resumo do dashboard de infraestrutura. */
+export interface ZabbixSummary {
+  totalHosts: number;
+  enabledHosts: number;
+  missingHosts: number;
+  hostsWithAsset: number;
+  hostsWithoutAsset: number;
+  problemsTotal: number;
+  problemsBySeverity: number[];
+  hostsWithProblems: number;
+  problemsAvailable: boolean;
+  problemsError: string | null;
+  isConfigured: boolean;
+  detectedVersion: string | null;
+  lastInventorySyncAtUtc: string | null;
+}
+
+export function getZabbixProblems(query: {
+  minSeverity?: number;
+  includeRecovered?: boolean;
+} = {}): Promise<ZabbixProblemsResult> {
+  const params = new URLSearchParams();
+  if (query.minSeverity !== undefined) params.set("minSeverity", String(query.minSeverity));
+  if (query.includeRecovered) params.set("includeRecovered", "true");
+  const qs = params.toString();
+  return required(
+    api.get<ZabbixProblemsResult>(`/integrations/zabbix/problems${qs ? `?${qs}` : ""}`),
+    { items: [], total: 0 }
+  );
+}
+
+export function getZabbixHistory(query: {
+  itemId: string;
+  fromUtc: string;
+  toUtc: string;
+  limit?: number;
+}): Promise<ZabbixHistoryPoint[]> {
+  const params = new URLSearchParams({
+    itemId: query.itemId,
+    fromUtc: query.fromUtc,
+    toUtc: query.toUtc,
+  });
+  params.set("limit", String(query.limit ?? 500));
+  return required(
+    api.get<ZabbixHistoryPoint[]>(`/integrations/zabbix/history?${params.toString()}`),
+    []
+  );
+}
+
+export function getZabbixSummary(): Promise<ZabbixSummary> {
+  return required(api.get<ZabbixSummary>("/integrations/zabbix/summary"), EMPTY_SUMMARY);
+}
+
+const EMPTY_SUMMARY: ZabbixSummary = {
+  totalHosts: 0,
+  enabledHosts: 0,
+  missingHosts: 0,
+  hostsWithAsset: 0,
+  hostsWithoutAsset: 0,
+  problemsTotal: 0,
+  problemsBySeverity: [0, 0, 0, 0, 0, 0],
+  hostsWithProblems: 0,
+  problemsAvailable: false,
+  problemsError: null,
+  isConfigured: false,
+  detectedVersion: null,
+  lastInventorySyncAtUtc: null,
+};
+
 const EMPTY_SETTINGS: ZabbixSettings = {
   apiUrl: "",
   username: "",

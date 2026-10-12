@@ -1,7 +1,12 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { resolveStoredRoute } from "@/app/router/routeLabels";
 
 interface NavigationState {
-  activeItem: string;
+  /**
+   * Abas recentes — guardam a **ROTA**, nunca o rótulo (F29-T005). Rótulo é
+   * apresentação e existe em duplicidade no menu; rota é identidade única e
+   * é o que a aba precisa para navegar.
+   */
   recentTabs: string[];
 }
 
@@ -11,14 +16,26 @@ const MAX_RECENT_TABS = 5;
 function getInitialRecentTabs(): string[] {
   try {
     const saved = localStorage.getItem(RECENT_TABS_KEY);
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    const parsed: unknown = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    // Migração silenciosa do formato antigo (rótulo) e descarte do que não
+    // resolve mais — as abas voltam a ser preenchidas conforme o navega.
+    return parsed
+      .filter((entry): entry is string => typeof entry === "string")
+      .map(resolveStoredRoute)
+      .filter((route): route is string => route !== null)
+      .slice(0, MAX_RECENT_TABS);
   } catch {
     return [];
   }
 }
 
+function persist(tabs: string[]) {
+  localStorage.setItem(RECENT_TABS_KEY, JSON.stringify(tabs));
+}
+
 const initialState: NavigationState = {
-  activeItem: "Visão geral",
   recentTabs: getInitialRecentTabs(),
 };
 
@@ -26,20 +43,20 @@ const navigationSlice = createSlice({
   name: "navigation",
   initialState,
   reducers: {
-    setActiveItem(state, action: PayloadAction<string>) {
-      state.activeItem = action.payload;
-    },
     addToRecentTabs(state, action: PayloadAction<string>) {
-      const item = action.payload;
-      state.recentTabs = [item, ...state.recentTabs.filter((t) => t !== item)].slice(0, MAX_RECENT_TABS);
-      localStorage.setItem(RECENT_TABS_KEY, JSON.stringify(state.recentTabs));
+      const route = action.payload;
+      state.recentTabs = [route, ...state.recentTabs.filter((t) => t !== route)].slice(
+        0,
+        MAX_RECENT_TABS,
+      );
+      persist(state.recentTabs);
     },
     removeTab(state, action: PayloadAction<string>) {
       state.recentTabs = state.recentTabs.filter((t) => t !== action.payload);
-      localStorage.setItem(RECENT_TABS_KEY, JSON.stringify(state.recentTabs));
+      persist(state.recentTabs);
     },
   },
 });
 
-export const { setActiveItem, addToRecentTabs, removeTab } = navigationSlice.actions;
+export const { addToRecentTabs, removeTab } = navigationSlice.actions;
 export const navigationReducer = navigationSlice.reducer;

@@ -658,8 +658,13 @@ public sealed class UnifiApiClient : IUnifiApiClient
         var sites = new List<UnifiSiteDto>();
         foreach (var item in data.EnumerateArray())
         {
+            // UniFi 10.x omite short_id em /api/self/sites — o próprio name
+            // É o identificador curto (ex.: ta262mxg); sem isso o sync grava 0 sites.
+            var shortId = Read(item, "short_id");
+            if (string.IsNullOrWhiteSpace(shortId))
+                shortId = Read(item, "name");
             sites.Add(new UnifiSiteDto(
-                Read(item, "short_id"),
+                shortId ?? string.Empty,
                 Read(item, "name"),
                 Read(item, "desc"),
                 item.TryGetProperty("attr_hidden", out var hidden) &&
@@ -823,9 +828,19 @@ public sealed class UnifiApiClient : IUnifiApiClient
         => values.FirstOrDefault(v => !string.IsNullOrEmpty(v));
 
     private static int? ReadInt(JsonElement element, string property)
-        => element.TryGetProperty(property, out var value) && value.TryGetInt32(out var number)
-            ? number
+    {
+        if (!element.TryGetProperty(property, out var value))
+            return null;
+
+        // TryGetInt32 LANÇA quando o ValueKind é String (controller real
+        // devolve "vlan":"21") — tratar número-vindo-como-string.
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+            return number;
+        return value.ValueKind == JsonValueKind.String &&
+               int.TryParse(value.GetString(), out var parsed)
+            ? parsed
             : null;
+    }
 
 
     private static string? ReadOrNull(JsonElement element, string property)

@@ -16,6 +16,7 @@ import {
   type TopologyNodeItem,
   type VlanItem,
 } from "@/services/api/network";
+import { errorMessage } from "@/hooks/queries";
 
 /**
  * F17-T021 — Topologia de Rede conectada ao backend (substitui
@@ -43,12 +44,6 @@ import {
  * **vista por Rack removida** (o DTO não tem posição em U nem rackId —
  * racks e contagens vivem na LocationsPage, T018). Sem mutations.
  */
-
-function messageFor(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "Não foi possível falar com o servidor. Tente novamente.";
-}
 
 const typeMeta: Record<string, { color: string; icon: string; emoji: string }> = {
   Router: { color: "#3b82f6", icon: "pi pi-compass", emoji: "🌐" },
@@ -132,7 +127,7 @@ export function TopologyPage() {
       setLocations(map);
       setVlans(vlanPage.items);
     } catch (caught) {
-      setError(messageFor(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -305,18 +300,9 @@ export function TopologyPage() {
     return <LoadingBlock />;
   }
 
-  if (error && !graph) {
-    return (
-      <div className="uni-page-empty">
-        <i className="pi pi-exclamation-circle" />
-        <h2>{error}</h2>
-        <Button variant="primary" onClick={() => void load()} style={{ marginTop: 8, padding: "6px 14px" }}>
-          Tentar de novo
-        </Button>
-      </div>
-    );
-  }
-
+  // Erro inicial NÃO é estado vazio (F29-T004): "não há dados" e "não
+  // consegui perguntar" pedem ações diferentes. A página continua renderizando
+  // com o cabeçalho e o ErrorBanner cuida do aviso (role="alert" + retry).
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Header */}
