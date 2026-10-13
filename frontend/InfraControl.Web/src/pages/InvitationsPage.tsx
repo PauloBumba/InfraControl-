@@ -86,7 +86,10 @@ export function InvitationsPage() {
 
   const [editTarget, setEditTarget] = useState<InvitationItem | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — o erro continua adjacente ao grupo de checkboxes, que é onde
+  // já estava e onde faz sentido: as "roles" são um grupo, não um campo com
+  // `FormField`, então não há um input para pendurar a mensagem.
+  const { error: formError, reset: resetFormError, fail: failForm } = useFormErrors();
   const [cancelTarget, setCancelTarget] = useState<InvitationItem | null>(null);
 
   const acceptMutation = useUpdateMutation({
@@ -106,7 +109,8 @@ export function InvitationsPage() {
     mutationFn: (input: { id: string; roles: string[] }) =>
       updateInvitationRoles(input.id, input.roles),
     onSuccess: () => showMessage({ severity: "success", summary: "Roles do convite atualizadas." }),
-    onError: (error) => setFormError(mutationErrorMessage(error)),
+    // Recusa do servidor — nível do formulário, não de um campo.
+    onError: (error) => failForm(errorMessage(error)),
   });
   const cancelMutation = useUpdateMutation({
     invalidate: ["invitations"],
@@ -133,16 +137,16 @@ export function InvitationsPage() {
   function openRolesEdit(invitation: InvitationItem) {
     setEditTarget(invitation);
     setEditRoles([...invitation.roles]);
-    setFormError(null);
+    resetFormError();
   }
 
   async function submitRoles() {
     if (!editTarget) return;
     if (editRoles.length === 0) {
-      setFormError("Selecione ao menos uma role.");
+      failForm("Selecione ao menos uma role.");
       return;
     }
-    setFormError(null);
+    resetFormError();
     try {
       await updateRolesMutation.mutateAsync({ id: editTarget.id, roles: editRoles });
       setEditTarget(null);

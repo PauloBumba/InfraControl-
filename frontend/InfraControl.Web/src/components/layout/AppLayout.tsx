@@ -328,7 +328,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
-<<<<<<< HEAD
+
                 <li key={item.route}>
                   <button
                     className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
@@ -340,7 +340,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                     <span>{item.label}</span>
                     {badge && <Badge value={badge} className="uni-nav-badge" />}
                   </button>
-=======
+
                 <li key={item.label}>
                   {hasSubmenu ? (
                     <>
@@ -375,7 +375,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       {badge && <Badge value={badge} className="uni-nav-badge" />}
                     </button>
                   )}
->>>>>>> 2d1cf31dc85ed40263f6849ad4c64d3c9d3cf33d
+
                 </li>
               );
             })}
@@ -388,7 +388,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
-<<<<<<< HEAD
+
                 <li key={item.route}>
                   <button
                     className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
@@ -400,7 +400,6 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                     <span>{item.label}</span>
                     {badge && <Badge value={badge} className="uni-nav-badge" />}
                   </button>
-=======
                 <li key={item.label}>
                   {hasSubmenu ? (
                     <>
