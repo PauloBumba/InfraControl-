@@ -69,6 +69,21 @@ public sealed class IncidentsController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new UpdateIncidentStatusCommand(id, model.Status), cancellationToken)));
 
+    /// <summary>
+    /// CRUD-Incidentes (2026-10-12): edição dos campos descritivos
+    /// (título/descrição/severidade). O status continua no ciclo por estado
+    /// (<c>PUT {id}/status</c>) e a exclusão não existe (ADR-030).
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateIncidentViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateIncidentCommand(id, model.Title, model.Description, model.Severity),
+            cancellationToken)));
+
     private static IncidentSeverity ParseSeverity(string? severity)
     {
         if (string.IsNullOrWhiteSpace(severity)

@@ -107,3 +107,51 @@ public sealed class UpdateIncidentStatusCommandHandler(
         return parsed;
     }
 }
+
+/// <summary>
+/// CRUD-Incidentes (2026-10-12): edição dos campos descritivos (título,
+/// descrição, severidade). O status NÃO muda aqui — é o ciclo por estado
+/// via <c>UpdateIncidentStatusCommand</c> (ADR-030); a exclusão não existe
+/// por decisão de arquitetura.
+/// </summary>
+public sealed record UpdateIncidentCommand(
+    Guid Id,
+    string Title,
+    string? Description,
+    string Severity) : BaseCommand<IncidentDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class UpdateIncidentCommandHandler(
+    IIncidentRepository repository)
+    : IRequestHandler<UpdateIncidentCommand, IncidentDto>
+{
+    public async Task<IncidentDto> Handle(
+        UpdateIncidentCommand request, CancellationToken cancellationToken)
+    {
+        var severity = ParseSeverity(request.Severity);
+
+        var incident = await repository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Incidente '{request.Id}' não encontrado.");
+
+        incident.UpdateDetails(request.Title, request.Description, severity);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        return IncidentDto.From(incident);
+    }
+
+    internal static IncidentSeverity ParseSeverity(string? severity)
+    {
+        if (string.IsNullOrWhiteSpace(severity)
+            || !Enum.TryParse(severity.Trim(), ignoreCase: true, out IncidentSeverity parsed)
+            || !Enum.IsDefined(parsed))
+            throw new ArgumentException(
+                $"Severidade inválida: '{severity}'. Use low, medium, high ou critical.",
+                nameof(severity));
+
+        return parsed;
+    }
+}

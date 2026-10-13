@@ -6,7 +6,7 @@ import { Provider } from "react-redux";
 import { IncidentsPage } from "./IncidentsPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
-import { createIncident, listIncidents } from "@/services/api/incidents";
+import { createIncident, listIncidents, updateIncident } from "@/services/api/incidents";
 
 /**
  * F29-T001B — piloto do `useFormErrors`.
@@ -25,10 +25,35 @@ vi.mock("@/services/api/incidents", () => ({
   createIncident: vi.fn(),
   changeIncidentStatus: vi.fn(),
   acknowledgeIncident: vi.fn(),
+  updateIncident: vi.fn(),
 }));
 
 const listIncidentsMock = vi.mocked(listIncidents);
 const createIncidentMock = vi.mocked(createIncident);
+const updateIncidentMock = vi.mocked(updateIncident);
+
+function seedIncident() {
+  return {
+    items: [
+      {
+        id: "11111111-2222-3333-4444-555566667777",
+        title: "Chuva no datacenter",
+        description: null,
+        severity: "Critical",
+        status: "Open",
+        deviceId: null,
+        openedAt: "2026-10-11T10:00:00Z",
+        resolvedAt: null,
+        alertCount: 0,
+        alertIds: [],
+        rootCause: null,
+      },
+    ],
+    totalCount: 1,
+    page: 1,
+    pageSize: 20,
+  };
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -94,30 +119,40 @@ describe("IncidentsPage — erro de formulário com campo declarado", () => {
   });
 
   it("should keep the count subtitle on the shared shell", async () => {
-    listIncidentsMock.mockResolvedValue({
-      items: [
-        {
-          id: "11111111-2222-3333-4444-555566667777",
-          title: "Chuva no datacenter",
-          description: null,
-          severity: "Critical",
-          status: "Open",
-          deviceId: null,
-          openedAt: "2026-10-11T10:00:00Z",
-          resolvedAt: null,
-          alertCount: 0,
-          alertIds: [],
-          rootCause: null,
-        },
-      ],
-      totalCount: 1,
-      page: 1,
-      pageSize: 20,
-    });
+    listIncidentsMock.mockResolvedValue(seedIncident());
 
     renderPage();
 
     expect(await screen.findByText("Chuva no datacenter")).toBeInTheDocument();
     expect(screen.getByText("1 incidente")).toBeInTheDocument();
+  });
+});
+
+/**
+ * CRUD-Incidentes (2026-10-12) — edição dos campos descritivos via
+ * `PUT /incidents/{id}` (status continua no ciclo por estado; exclusão não
+ * existe por ADR-030).
+ */
+describe("IncidentsPage — edição de campos", () => {
+  it("should edit title/description/severity and call updateIncident", async () => {
+    listIncidentsMock.mockResolvedValue(seedIncident());
+    updateIncidentMock.mockResolvedValue(null);
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /editar campos do incidente/i }),
+    );
+    const titleInput = screen.getByDisplayValue("Chuva no datacenter");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Chuva intensa");
+    await user.click(screen.getByRole("button", { name: /salvar alterações/i }));
+
+    await screen.findByText("Incidente atualizado.");
+    expect(updateIncidentMock).toHaveBeenCalledWith(
+      "11111111-2222-3333-4444-555566667777",
+      expect.objectContaining({ title: "Chuva intensa" }),
+    );
   });
 });
