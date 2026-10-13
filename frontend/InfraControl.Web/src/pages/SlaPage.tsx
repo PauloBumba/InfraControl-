@@ -33,12 +33,14 @@ import {
   type SloItem,
 } from "@/services/api/sla";
 import {
+  errorMessage,
   useCreateMutation,
   useDeleteMutation,
   useListQuery,
   useUpdateMutation,
   mutationErrorMessage,
 } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 
 /**
  * F17-T005 + ADR-030 Fase 5 — SlaPage com React Query (4 listas com
@@ -95,7 +97,17 @@ export function SlaPage() {
 
   const [form, setForm] = useState<FormState | null>(null);
   const [values, setValues] = useState(emptyValues);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — cada validação declara o campo que falhou, exceto a de
+  // resposta/resolução (a frase cobre DOIS campos e não diz qual falhou —
+  // pendurar em um só apontaria errado) e o `catch` (o backend não sabe qual
+  // campo o usuário pretendeu). Essas duas ficam em `FormError`, de propósito.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
   const [deleteTarget, setDeleteTarget] = useState<{ kind: FormKind; target: ServiceItem | SlaPolicyItem | SloItem } | null>(null);
 
   const serviceCreate = useCreateMutation({
@@ -172,7 +184,7 @@ export function SlaPage() {
       ...emptyValues,
       serviceId: kind === "slo" ? services.items[0]?.id ?? "" : "",
     });
-    setFormError(null);
+    resetFormError();
   }
 
   function openEdit(kind: FormKind, target: ServiceItem | SlaPolicyItem | SloItem) {
@@ -199,17 +211,17 @@ export function SlaPage() {
         serviceId: slo.serviceId,
       });
     }
-    setFormError(null);
+    resetFormError();
   }
 
   async function submitForm(event: FormEvent) {
     event.preventDefault();
     if (!form) return;
-    setFormError(null);
+    resetFormError();
 
     const name = values.name.trim();
     if (!name) {
-      setFormError("Informe o nome.");
+      failForm("Informe o nome.", "name");
       return;
     }
 
@@ -222,7 +234,10 @@ export function SlaPage() {
         const response = Number(values.responseMinutes);
         const resolution = Number(values.resolutionMinutes);
         if (!Number.isFinite(response) || response <= 0 || !Number.isFinite(resolution) || resolution <= 0) {
-          setFormError("Resposta e resolução devem ser números positivos (minutos).");
+          // Fica no formulário: a frase cobre DOIS campos e não diz qual
+          // falhou. Atribuir a um só apontaria errado quando o erro fosse
+          // do outro (mesmo raciocínio do "De posterior a Até" da AuditPage).
+          failForm("Resposta e resolução devem ser números positivos (minutos).");
           return;
         }
         const input = {
@@ -237,15 +252,15 @@ export function SlaPage() {
         const target = Number(values.targetPercent);
         const window = Number(values.windowDays);
         if (!values.serviceId) {
-          setFormError("Selecione o serviço do SLO.");
+          failForm("Selecione o serviço do SLO.", "serviceId");
           return;
         }
         if (!Number.isFinite(target) || target <= 0 || target > 100) {
-          setFormError("O alvo deve estar entre 0 e 100 (%).");
+          failForm("O alvo deve estar entre 0 e 100 (%).", "targetPercent");
           return;
         }
         if (!Number.isFinite(window) || window <= 0) {
-          setFormError("A janela deve ser um número positivo (dias).");
+          failForm("A janela deve ser um número positivo (dias).", "windowDays");
           return;
         }
         const input = { name, targetPercent: target, windowDays: window, serviceId: values.serviceId };
@@ -254,7 +269,10 @@ export function SlaPage() {
       }
       setForm(null);
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
+      // Recusa do servidor não aponta campo. `errorMessage` aceita `unknown`
+      // (o `catch` devolve isso); `mutationErrorMessage` exigiria `Error |
+      // null` e devolveria `string | null`, que o `fail` não aceita.
+      failForm(errorMessage(caught));
     }
   }
 
@@ -573,7 +591,7 @@ export function SlaPage() {
       >
         {form && (
           <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <FormField label="Nome" error={null}>
+            <FormField label="Nome" error={errorFor("name")}>
               <input
                 autoFocus
                 value={values.name}
@@ -631,7 +649,7 @@ export function SlaPage() {
             {form.kind === "slo" && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <FormField label="Alvo (%)" error={null}>
+                  <FormField label="Alvo (%)" error={errorFor("targetPercent")}>
                     <input
                       type="number"
                       min={0.1}
@@ -642,7 +660,7 @@ export function SlaPage() {
                       style={{ padding: "8px 10px", fontSize: 13, border: "1px solid #e2e8f0", borderRadius: 6, width: "100%" }}
                     />
                   </FormField>
-                  <FormField label="Janela (dias)" error={null}>
+                  <FormField label="Janela (dias)" error={errorFor("windowDays")}>
                     <input
                       type="number"
                       min={1}
@@ -652,7 +670,7 @@ export function SlaPage() {
                     />
                   </FormField>
                 </div>
-                <FormField label="Serviço" error={null}>
+                <FormField label="Serviço" error={errorFor("serviceId")}>
                   <SelectField
                     value={values.serviceId}
                     onChange={(value) => setValues((current) => ({ ...current, serviceId: value }))}
@@ -663,7 +681,7 @@ export function SlaPage() {
               </>
             )}
 
-            {formError && <FormError message={formError} />}
+            <FormError message={field ? "" : (formError ?? "")} />
             <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
               <Button variant="ghost" onClick={() => setForm(null)}>
                 Cancelar

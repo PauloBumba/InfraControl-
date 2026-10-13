@@ -85,7 +85,7 @@ describe("InvitationsPage — validação do grupo de roles", () => {
 
     // Desmarco a única role que veio marcada ("Viewer").
     const dialog = screen.getByRole("dialog");
-    const viewer = within(dialog).getByRole("checkbox", { name: "Viewer" });
+    const viewer = within(dialog).getByRole("checkbox", { name: "Viewer" }) as HTMLInputElement;
     if (viewer.checked) await user.click(viewer);
 
     await clickSave(user);
@@ -103,10 +103,10 @@ describe("InvitationsPage — validação do grupo de roles", () => {
 
     await user.click(await screen.findByRole("button", { name: /Roles/i }));
     const dialog = screen.getByRole("dialog");
-    const viewer = within(dialog).getByRole("checkbox", { name: "Viewer" });
+    const viewer = within(dialog).getByRole("checkbox", { name: "Viewer" }) as HTMLInputElement;
     if (viewer.checked) await user.click(viewer);
+    await clickSave(user);
 
-    submitRoles();
     expect(await screen.findByText("Selecione ao menos uma role.")).toBeInTheDocument();
 
     await user.click(viewer);

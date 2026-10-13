@@ -10,12 +10,14 @@ import { Column } from "primereact/column";
 import { Can } from "@/components/auth/Can";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import {
+  errorMessage,
   useCreateMutation,
   useDeleteMutation,
   usePagedQuery,
   useUpdateMutation,
   mutationErrorMessage,
 } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import {
   createLocation,
   createRack,
@@ -61,7 +63,17 @@ export function LocationsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormState>({ mode: "create", target: null });
   const [values, setValues] = useState(emptyForm);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — cada falha declara o campo que a originou. Só "O nome é
+  // obrigatório" é de campo; "Cadastre um local antes de criar racks" e a
+  // recusa do servidor são do formulário inteiro (nenhum campo isolado está
+  // errado) e ficam em `FormError`, de propósito.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
   const [deleteTarget, setDeleteTarget] = useState<
     { kind: "location" | "rack"; target: LocationItem | RackItem } | null
   >(null);
@@ -126,23 +138,24 @@ export function LocationsPage() {
   function openCreate() {
     setForm({ mode: "create", target: null });
     setValues(emptyForm);
-    setFormError(null);
+    resetFormError();
     setFormOpen(true);
   }
 
   function openEdit(target: LocationItem | RackItem) {
     setForm({ mode: "edit", target });
     setValues({ name: target.name, description: target.description ?? "" });
-    setFormError(null);
+    resetFormError();
     setFormOpen(true);
   }
 
   async function submitForm(event: FormEvent) {
     event.preventDefault();
-    setFormError(null);
+    resetFormError();
     const name = values.name.trim();
     if (!name) {
-      setFormError("O nome é obrigatório.");
+      // Única validação deste formulário que é de UM campo.
+      failForm("O nome é obrigatório.", "name");
       return;
     }
 
@@ -160,7 +173,9 @@ export function LocationsPage() {
       } else if (form.mode === "create") {
         const primary = locations.items[0];
         if (!primary) {
-          setFormError("Cadastre um local antes de criar racks.");
+          // Pré-condição de dado, não de campo: o nome digitado está válido,
+          // o que falta é um local na base. Culpar "Nome" apontaria errado.
+          failForm("Cadastre um local antes de criar racks.");
           return;
         }
         await createRackMutation.mutateAsync({
@@ -177,7 +192,12 @@ export function LocationsPage() {
       }
       setFormOpen(false);
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
+      // Recusa do servidor não aponta campo: o backend sabe menos sobre o
+      // que o usuário pretendeu do que a validação local. `errorMessage`
+      // aceita `unknown` (o `catch` devolve isso); `mutationErrorMessage`
+      // exigiria `Error | null` e devolveria `string | null`, que o `fail`
+      // não aceita.
+      failForm(errorMessage(caught));
     }
   }
 
@@ -447,7 +467,7 @@ export function LocationsPage() {
 
       <Dialog visible={formOpen} onHide={() => setFormOpen(false)} header={formTitle}>
         <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <FormField label="Nome" error={null}>
+          <FormField label="Nome" error={errorFor("name")}>
             <input
               autoFocus
               value={values.name}
@@ -474,7 +494,7 @@ export function LocationsPage() {
               }}
             />
           </FormField>
-          {formError && <FormError message={formError} />}
+          <FormError message={field ? "" : (formError ?? "")} />
           <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
             <Button variant="ghost" onClick={() => setFormOpen(false)}>
               Cancelar

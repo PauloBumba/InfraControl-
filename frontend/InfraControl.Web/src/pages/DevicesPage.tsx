@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
@@ -21,6 +22,7 @@ import {
   useUpdateMutation,
   mutationErrorMessage,
 } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import {
   INVENTORY_PAGE_SIZE,
   createDevice,
@@ -126,7 +128,19 @@ export function DevicesPage() {
   const [model, setModel] = useState("");
   const [vendor, setVendor] = useState("");
   const [description, setDescription] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — as três validações aqui são de TRÊS campos diferentes
+  // (nome, tipo, localização), e esta página era a única do recorte sem um
+  // sequer `FormField`: os recados saíam todos no mesmo `<div>` no pé do
+  // form. Cada validação declara o próprio campo; só a recusa do servidor
+  // (catch) fica no formulário, porque o backend não sabe qual campo o
+  // usuário pretendeu.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
 
   const createMutation = useCreateMutation({
     invalidate: ["devices"],
@@ -200,7 +214,7 @@ export function DevicesPage() {
     setModel("");
     setVendor("");
     setDescription("");
-    setFormError(null);
+    resetFormError();
     setCreating(true);
   }
 
@@ -214,7 +228,7 @@ export function DevicesPage() {
     setModel(device.model ?? "");
     setVendor(device.vendor ?? "");
     setDescription(device.description ?? "");
-    setFormError(null);
+    resetFormError();
     setCreating(true);
   }
 
@@ -222,18 +236,19 @@ export function DevicesPage() {
     event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setFormError("Informe o nome do dispositivo.");
+      failForm("Informe o nome do dispositivo.", "name");
       return;
     }
     if (!type) {
-      setFormError("Selecione o tipo do dispositivo.");
+      failForm("Selecione o tipo do dispositivo.", "type");
       return;
     }
     if (!editing && !locationId) {
-      setFormError("Selecione a localização do dispositivo.");
+      // Só na criação: no edit a localização é travada pelo PUT.
+      failForm("Selecione a localização do dispositivo.", "locationId");
       return;
     }
-    setFormError(null);
+    resetFormError();
     try {
       if (editing) {
         await updateMutation.mutateAsync({
@@ -259,7 +274,10 @@ export function DevicesPage() {
       setCreating(false);
       setEditing(null);
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
+      // Recusa do servidor não aponta campo. `errorMessage` aceita `unknown`
+      // (o `catch` devolve isso); `mutationErrorMessage` exigiria `Error |
+      // null` e devolveria `string | null`, que o `fail` não aceita.
+      failForm(errorMessage(caught));
     }
   }
 
@@ -342,71 +360,87 @@ export function DevicesPage() {
         <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>{editing ? `Editar — ${editing.name}` : "Novo dispositivo"}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Nome *"
-              autoFocus
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-            <SelectField
-              value={type}
-              onChange={setType}
-              placeholder="Tipo *"
-              options={[
-                { value: "", label: "Tipo *" },
-                ...DEVICE_TYPES.map((deviceType) => ({
-                  value: deviceType,
-                  label: typeNames[deviceType] ?? deviceType,
-                })),
-              ]}
-            />
-            <SelectField
-              value={locationId}
-              onChange={setLocationId}
-              disabled={Boolean(editing)}
-              title={editing ? "A localização de um dispositivo não muda pelo PUT" : undefined}
-              placeholder="Localização *"
-              options={[
-                { value: "", label: "Localização *" },
-                ...locations.map((location) => ({
-                  value: location.id,
-                  label: location.name,
-                })),
-              ]}
-            />
-            <input
-              value={ip}
-              onChange={(event) => setIp(event.target.value)}
-              placeholder="IP"
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-            <input
-              value={model}
-              onChange={(event) => setModel(event.target.value)}
-              placeholder="Modelo"
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-            <input
-              value={vendor}
-              onChange={(event) => setVendor(event.target.value)}
-              placeholder="Fabricante"
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
+            <FormField label="Nome" error={errorFor("name")}>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Nome *"
+                autoFocus
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormField label="Tipo" error={errorFor("type")}>
+              <SelectField
+                value={type}
+                onChange={setType}
+                placeholder="Tipo *"
+                style={{ width: "100%" }}
+                options={[
+                  { value: "", label: "Tipo *" },
+                  ...DEVICE_TYPES.map((deviceType) => ({
+                    value: deviceType,
+                    label: typeNames[deviceType] ?? deviceType,
+                  })),
+                ]}
+              />
+            </FormField>
+            <FormField label="Localização" error={errorFor("locationId")}>
+              <SelectField
+                value={locationId}
+                onChange={setLocationId}
+                disabled={Boolean(editing)}
+                title={editing ? "A localização de um dispositivo não muda pelo PUT" : undefined}
+                placeholder="Localização *"
+                style={{ width: "100%" }}
+                options={[
+                  { value: "", label: "Localização *" },
+                  ...locations.map((location) => ({
+                    value: location.id,
+                    label: location.name,
+                  })),
+                ]}
+              />
+            </FormField>
+            <FormField label="IP" error={null}>
+              <input
+                value={ip}
+                onChange={(event) => setIp(event.target.value)}
+                placeholder="IP"
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormField label="Modelo" error={null}>
+              <input
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+                placeholder="Modelo"
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
+            <FormField label="Fabricante" error={null}>
+              <input
+                value={vendor}
+                onChange={(event) => setVendor(event.target.value)}
+                placeholder="Fabricante"
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+              />
+            </FormField>
           </div>
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descrição (opcional)"
-            rows={2}
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
-          />
-          {formError && <div style={{ fontSize: 12, color: "#b91c1c" }}>{formError}</div>}
+          <FormField label="Descrição" error={null}>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={2}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit", width: "100%" }}
+            />
+          </FormField>
+          <FormError message={field ? "" : (formError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => { setCreating(false); setEditing(null); setFormError(null); }}
+              onClick={() => { setCreating(false); setEditing(null); resetFormError(); }}
               style={{ padding: "6px 14px" }}
             >
               Cancelar

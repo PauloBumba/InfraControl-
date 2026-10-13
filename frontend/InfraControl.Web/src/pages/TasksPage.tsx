@@ -29,8 +29,10 @@ import {
   useListQuery,
   usePagedQuery,
   useUpdateMutation,
+  errorMessage,
   mutationErrorMessage,
 } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
   formatDateOnly,
@@ -68,7 +70,20 @@ export function TasksPage() {
   const [priority, setPriority] = useState("Medium");
   const [dueDate, setDueDate] = useState("");
   const [responsibleId, setResponsibleId] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — a única validação de campo daqui é o título, e ela já saía
+  // no `FormField` certo… mas com a mensagem **hardcodada sobre o estado
+  // errado**: `error={formError ? "Informe o título da tarefa." : null}` fazia
+  // QUALQUER erro (inclusive uma recusa do servidor) acender o Título com uma
+  // frase mentirosa, e a mensagem real repetia no `<FormError>` do pé. Cada
+  // validação agora declara o próprio campo; recusa do servidor vem sem
+  // `field` e fica só no formulário.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
@@ -105,7 +120,10 @@ export function TasksPage() {
       setNotice("Tarefa criada.");
       setActionError(null);
     },
-    onError: (error) => setActionError(mutationErrorMessage(error)),
+    // Sem `onError` aqui: `submitForm` já captura a recusa e a manda para o
+    // `FormError`. O banner de página mostrava a MESMA frase duas vezes na
+    // mesma tela. `stateMutation`/`deleteMutation` mantêm o banner porque
+    // não passam por um form.
   });
   const identificationMutation = useUpdateMutation({
     invalidate: ["tasks"],
@@ -117,7 +135,7 @@ export function TasksPage() {
       setNotice("Identificação da tarefa atualizada.");
       setActionError(null);
     },
-    onError: (error) => setActionError(mutationErrorMessage(error)),
+    // Idem createMutation — mesma recusa, um lugar só.
   });
   const stateMutation = useUpdateMutation({
     invalidate: ["tasks"],
@@ -169,7 +187,7 @@ export function TasksPage() {
     setPriority("Medium");
     setDueDate("");
     setResponsibleId("");
-    setFormError(null);
+    resetFormError();
   }
 
   /** Edição de identificação (F23-T001) — pré-preenche os 3 campos. */
@@ -178,7 +196,7 @@ export function TasksPage() {
     setPriority(task.priority || "Medium");
     setDueDate(task.dueDate ?? "");
     setResponsibleId(task.responsibleId ?? "");
-    setFormError(null);
+    resetFormError();
     setEditing(task);
   }
 
@@ -188,7 +206,7 @@ export function TasksPage() {
    */
   async function submitForm(event: FormEvent) {
     event.preventDefault();
-    setFormError(null);
+    resetFormError();
 
     if (editing) {
       try {
@@ -200,14 +218,17 @@ export function TasksPage() {
         });
         setEditing(null);
       } catch (caught) {
-        setFormError(mutationErrorMessage(caught as Error));
+        // Recusa do servidor não aponta campo: `errorMessage` aceita `unknown`
+        // (o `catch` devolve isso) e sempre devolve texto — `fail` exige
+        // `string`.
+        failForm(errorMessage(caught));
       }
       return;
     }
 
     const trimmed = title.trim();
     if (!trimmed) {
-      setFormError("Informe o título da tarefa.");
+      failForm("Informe o título da tarefa.", "title");
       return;
     }
     try {
@@ -222,7 +243,8 @@ export function TasksPage() {
       setCreating(false);
       resetForm();
     } catch (caught) {
-      setFormError(mutationErrorMessage(caught as Error));
+      // Idem: sem `field`, então vai para o nível do formulário.
+      failForm(errorMessage(caught));
     }
   }
 
@@ -367,7 +389,7 @@ export function TasksPage() {
           {!editing && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 10 }}>
-                <FormField label="Título" error={formError ? "Informe o título da tarefa." : null}>
+                <FormField label="Título" error={errorFor("title")}>
                   <input
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
@@ -425,7 +447,10 @@ export function TasksPage() {
               />
             </FormField>
           </div>
-          {formError && <FormError message={formError} />}
+          {/* `field` setado = o recado já está no campo dele; o formulário
+              fica calado para não repetir. Sem `field` (recusa do servidor) é
+              aqui que ele aparece. */}
+          <FormError message={field ? "" : (formError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
               type="button"

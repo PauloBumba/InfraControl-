@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FormError, FormField } from "@/components/ui/FormField";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { SelectField } from "@/components/ui/SelectField";
@@ -162,7 +163,17 @@ export function PdiStructureDialog({
 
   const [form, setForm] = useState<NodeForm | null>(null);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — um `useFormErrors` por form: a árvore tem 3 forms (nó da
+  // árvore, catálogo de competências, rejeição de fase) que podem ficar
+  // abertos em telas diferentes, então um estado compartilhado apagaria o
+  // erro de um ao abrir o outro.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors(); // criação/edição de nó
 
   const [confirm, setConfirm] = useState<{
     message: string;
@@ -176,7 +187,13 @@ export function PdiStructureDialog({
   // Rejeição de fase com motivo (§15 — Fase 5, ADR-035).
   const [rejectPhase, setRejectPhase] = useState<PdiPhaseNode | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [rejectError, setRejectError] = useState<string | null>(null);
+  const {
+    error: rejectError,
+    field: rejectField,
+    reset: resetRejectError,
+    fail: failReject,
+    errorFor: errorForReject,
+  } = useFormErrors(); // rejeição de fase — só o motivo
   const [rejectSaving, setRejectSaving] = useState(false);
 
   // Catálogo de competências (Admin).
@@ -187,7 +204,13 @@ export function PdiStructureDialog({
     description: string;
   } | null>(null);
   const [catalogSaving, setCatalogSaving] = useState(false);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const {
+    error: catalogError,
+    field: catalogField,
+    reset: resetCatalogError,
+    fail: failCatalog,
+    errorFor: errorForCatalog,
+  } = useFormErrors(); // catálogo — só o nome
 
   const reload = useCallback(async () => {
     if (!planUserId) return;
@@ -228,7 +251,7 @@ export function PdiStructureDialog({
 
   const openObjectiveForm = (objective: PdiObjectiveNode | null) => {
     const base = emptyForm("objective", null);
-    setFormError(null);
+    resetFormError();
     setForm(
       objective
         ? {
@@ -252,7 +275,7 @@ export function PdiStructureDialog({
     strategy: PdiStrategyNode | null,
   ) => {
     const base = emptyForm("strategy", objectiveId);
-    setFormError(null);
+    resetFormError();
     setForm(
       strategy
         ? {
@@ -267,7 +290,7 @@ export function PdiStructureDialog({
 
   const openPhaseForm = (strategyId: string, phase: PdiPhaseNode | null) => {
     const base = emptyForm("phase", strategyId);
-    setFormError(null);
+    resetFormError();
     setForm(
       phase
         ? {
@@ -291,7 +314,7 @@ export function PdiStructureDialog({
     activity: PdiActivityNode | null,
   ) => {
     const base = emptyForm("activity", phaseId);
-    setFormError(null);
+    resetFormError();
     setForm(
       activity
         ? {
@@ -306,7 +329,7 @@ export function PdiStructureDialog({
   };
 
   const openCompetencyForm = (competency: PdiCompetency | null) => {
-    setCatalogError(null);
+    resetCatalogError();
     setCatalogForm(
       competency
         ? {
@@ -324,23 +347,29 @@ export function PdiStructureDialog({
 
     const title = form.kind === "competency" ? form.name.trim() : form.title.trim();
     if (!title) {
-      setFormError("O título é obrigatório.");
+      // Dois campos de nome, dois rótulos — o erro vai para o que este form
+      // realmente está pedindo (só um dos dois renderiza por vez).
+      failForm("O título é obrigatório.", form.kind === "competency" ? "name" : "title");
       return;
     }
     if (form.kind === "phase") {
       if (form.startDate && form.endDate && form.endDate < form.startDate) {
-        setFormError("O fim da fase não pode ser anterior ao início.");
+        // Descreve DOIS campos (Início e Fim) → fica no formulário. Pendurar
+        // em um só apontaria metade do problema. Mesma regra da `AuditPage`,
+        // da `SlaPage` e da `PdiPage`; os dois `FormField` ficam sem `error`
+        // de propósito (ver comentário no JSX).
+        failForm("O fim da fase não pode ser anterior ao início.");
         return;
       }
       const percent = Number(form.percent);
       if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-        setFormError("O percentual deve estar entre 0 e 100.");
+        failForm("O percentual deve estar entre 0 e 100.", "percent");
         return;
       }
     }
 
     setSaving(true);
-    setFormError(null);
+    resetFormError();
     try {
       switch (form.kind) {
         case "objective": {
@@ -411,7 +440,8 @@ export function PdiStructureDialog({
         await reload();
       }
     } catch (caught) {
-      setFormError(errorMessage(caught));
+      // Recusa do servidor sem `field` → nível do formulário.
+      failForm(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -422,11 +452,11 @@ export function PdiStructureDialog({
     if (!catalogForm) return;
     const name = catalogForm.name.trim();
     if (!name) {
-      setCatalogError("O nome da competência é obrigatório.");
+      failCatalog("O nome da competência é obrigatório.", "name");
       return;
     }
     setCatalogSaving(true);
-    setCatalogError(null);
+    resetCatalogError();
     try {
       const input = { name, description: catalogForm.description.trim() || null };
       if (catalogForm.id) await updatePdiCompetency(catalogForm.id, input);
@@ -435,7 +465,7 @@ export function PdiStructureDialog({
       setCompetencies(await listPdiCompetencies());
       if (plan) setStructure(await getPdiStructure(plan.userId));
     } catch (caught) {
-      setCatalogError(errorMessage(caught));
+      failCatalog(errorMessage(caught));
     } finally {
       setCatalogSaving(false);
     }
@@ -498,11 +528,11 @@ export function PdiStructureDialog({
     if (!rejectPhase) return;
     const reason = rejectReason.trim();
     if (!reason) {
-      setRejectError("O motivo da rejeição é obrigatório.");
+      failReject("O motivo da rejeição é obrigatório.", "reason");
       return;
     }
     setRejectSaving(true);
-    setRejectError(null);
+    resetRejectError();
     try {
       await validatePdiPhase(rejectPhase.id, {
         decision: "Rejected",
@@ -512,7 +542,7 @@ export function PdiStructureDialog({
       setRejectReason("");
       await reload();
     } catch (caught) {
-      setRejectError(errorMessage(caught));
+      failReject(errorMessage(caught));
     } finally {
       setRejectSaving(false);
     }
@@ -660,7 +690,7 @@ export function PdiStructureDialog({
               variant="ghost"
               onClick={() => {
                 setRejectReason("");
-                setRejectError(null);
+                resetRejectError();
                 setRejectPhase(phase);
               }}
             >
@@ -951,7 +981,7 @@ export function PdiStructureDialog({
               form.kind === "strategy" ||
               form.kind === "phase" ||
               form.kind === "activity") && (
-              <FormField label="Título">
+              <FormField label="Título" error={errorFor("title")}>
                 <input
                   type="text"
                   value={form.title}
@@ -966,7 +996,7 @@ export function PdiStructureDialog({
             )}
 
             {form.kind === "competency" && (
-              <FormField label="Nome da competência">
+              <FormField label="Nome da competência" error={errorFor("name")}>
                 <input
                   type="text"
                   value={form.name}
@@ -1077,6 +1107,10 @@ export function PdiStructureDialog({
             {form.kind === "phase" && (
               <>
                 <div style={{ display: "flex", gap: 12 }}>
+                  {/* Início e Fim ficam SEM `error` de propósito: o único erro que
+                    os dois produzem juntos ("O fim da fase não pode ser
+                    anterior ao início") é de FORMULÁRIO — pendurar neles
+                    apontaria metade do problema. Ver `submitNode`. */}
                   <FormField label="Início" width={180}>
                     <input
                       type="date"
@@ -1112,7 +1146,7 @@ export function PdiStructureDialog({
                       aria-label="Status da fase"
                     />
                   </FormField>
-                  <FormField label="Percentual (%)" width={130}>
+                  <FormField label="Percentual (%)" error={errorFor("percent")} width={130}>
                     <input
                       type="number"
                       min={0}
@@ -1186,7 +1220,10 @@ export function PdiStructureDialog({
               </>
             )}
 
-            {formError && <FormError message={formError} />}
+            {/* `field` setado = o recado já está no campo dele e o form fica calado;
+                sem `field` (período invertido ou recusa do servidor) é aqui
+                que ele aparece. */}
+            <FormError message={field ? "" : (formError ?? "")} />
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <Button
@@ -1209,7 +1246,7 @@ export function PdiStructureDialog({
         onHide={() => {
           setCatalogVisible(false);
           setCatalogForm(null);
-          setCatalogError(null);
+          resetCatalogError();
         }}
         header="Competências do catálogo"
         width={520}
@@ -1279,7 +1316,7 @@ export function PdiStructureDialog({
             onSubmit={(event) => void submitCatalog(event)}
             style={{ display: "flex", flexDirection: "column", gap: 10 }}
           >
-            <FormField label={catalogForm?.id ? "Editar competência" : "Nova competência"}>
+            <FormField label={catalogForm?.id ? "Editar competência" : "Nova competência"} error={errorForCatalog("name")}>
               <input
                 type="text"
                 value={catalogForm?.name ?? ""}
@@ -1311,7 +1348,7 @@ export function PdiStructureDialog({
               />
             </FormField>
 
-            {catalogError && <FormError message={catalogError} />}
+            <FormError message={catalogField ? "" : (catalogError ?? "")} />
 
             <div
               style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
@@ -1351,7 +1388,7 @@ export function PdiStructureDialog({
             A fase volta para "Em andamento" e o motivo fica no histórico
             (§15 — aprovação de fase).
           </div>
-          <FormField label="Motivo da rejeição">
+          <FormField label="Motivo da rejeição" error={errorForReject("reason")}>
             <textarea
               value={rejectReason}
               onChange={(event) => setRejectReason(event.target.value)}
@@ -1361,7 +1398,7 @@ export function PdiStructureDialog({
               style={textAreaStyle}
             />
           </FormField>
-          {rejectError && <FormError message={rejectError} />}
+          <FormError message={rejectField ? "" : (rejectError ?? "")} />
           <div
             style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
           >

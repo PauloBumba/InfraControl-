@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -71,6 +71,7 @@ vi.mock("@/components/ui/SelectField", () => ({
 import {
   ARTICLE_STATUS_DRAFT,
   changeArticleStatus,
+  createArticle,
   createCategory,
   deleteArticle,
   listArticles,
@@ -83,6 +84,7 @@ import {
 
 const listArticlesMock = vi.mocked(listArticles);
 const listCategoriesMock = vi.mocked(listCategories);
+const createArticleMock = vi.mocked(createArticle);
 const updateArticleMock = vi.mocked(updateArticle);
 const deleteArticleMock = vi.mocked(deleteArticle);
 const changeArticleStatusMock = vi.mocked(changeArticleStatus);
@@ -269,5 +271,153 @@ describe("KnowledgePage", () => {
 
     expect(createCategoryMock).toHaveBeenCalledWith({ name: "Servidores", description: undefined });
     expect(listCategoriesMock).toHaveBeenCalled();
+  });
+});
+
+// ── F29-T001C-2 — C-2: cada validação no campo dela ───────────────────
+//
+// A página tem 3 estados de erro com validações de campo, um por form, e o
+// quarto (`statusError`) fica de fora de propósito: ele só recebe recusa do
+// servidor, que já vive no nível do formulário — migrá-lo seria trocar um
+// `useState` por um hook que devolve sempre `field = null`.
+//
+// O que estes testes tranca, decisão por decisão:
+//
+// 1. criação: "Informe o título do artigo." → campo Título, uma única vez
+//    na tela (o `FormError` não repete), sem mutation;
+// 2. criação: "Informe o conteúdo do artigo." → campo Conteúdo, e o Título
+//    já válido não é culpado;
+// 3. criação: recusa do servidor → no formulário, longe dos dois campos;
+// 4. edição: "Informe o motivo da alteração (vira version — K3)." → campo
+//    Motivo, sem culpar Título/Conteúdo pré-preenchidos (K3 versiona);
+// 5. categoria: "Informe o nome da categoria." → campo Nome.
+//
+// Antes da migração os 5 iam todos para o mesmo `<FormError>` no pé do form
+// (e a criação nem tinha estrutura de campo — os 7 controles eram inputs com
+// `placeholder` dentro de um `grid`).
+
+/** O `<form>` de criação — o único sem dialog; acha pelo cabeçalho dele. */
+function createForm(): HTMLElement {
+  const header = screen.getByText("Novo artigo");
+  const wrapper = header.closest("form");
+  if (!wrapper) throw new Error("formulario de criacao nao encontrado");
+  return wrapper;
+}
+
+/** O `<form>` dentro de um dialog, pelo botão primário "Salvar…". */
+function dialogForm(header: "Editar artigo" | "Nova categoria"): HTMLElement {
+  const dialog = screen.getByRole("dialog", { name: header });
+  const wrapper = within(dialog)
+    .getByRole("button", { name: /Salvar/ })
+    .closest("form");
+  if (!wrapper) throw new Error(`formulario do dialog ${header} nao encontrado`);
+  return wrapper;
+}
+
+/**
+ * O wrapper de campo — é ali que a validação tem que acender.
+ *
+ * Casa pelo **texto inicial** do label e não por `getByLabelText`: quando o
+ * erro acende, a mensagem entra DENTRO do mesmo `<label>` e o `textContent`
+ * deixa de ser "Conteúdo" (vira "ConteúdoInforme o conteúdo do artigo."), então
+ * o match exato do RTL não acha mais nada. Mesmo procedimento da `PdiPage`.
+ */
+function fieldIn(container: HTMLElement, labelText: string): HTMLElement {
+  const labels = Array.from(container.querySelectorAll("label"));
+  const found = labels.find((label) => (label.textContent ?? "").trim().startsWith(labelText));
+  if (!found) throw new Error(`campo ${labelText} nao encontrado no container`);
+  return found;
+}
+
+describe("KnowledgePage — C-2: cada validação no campo dela", () => {
+  it("should put the empty-title failure under Título, and only there", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Novo Artigo/ }));
+
+    fireEvent.submit(createForm());
+
+    const mensagem = "Informe o título do artigo.";
+    expect(await screen.findByText(mensagem)).toBeInTheDocument();
+    expect(within(fieldIn(createForm(), "Título")).getByText(mensagem)).toBeInTheDocument();
+    // Uma única vez na tela inteira: o <FormError> não repete o do campo.
+    expect(screen.getAllByText(mensagem)).toHaveLength(1);
+    expect(createArticleMock).not.toHaveBeenCalled();
+  });
+
+  it("should put the empty-content failure under Conteúdo, without blaming Título", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Novo Artigo/ }));
+    await user.type(
+      within(createForm()).getByPlaceholderText("Título * (máx. 200)"),
+      "Troca de switch",
+    );
+
+    fireEvent.submit(createForm());
+
+    const mensagem = "Informe o conteúdo do artigo.";
+    expect(await screen.findByText(mensagem)).toBeInTheDocument();
+    expect(within(fieldIn(createForm(), "Conteúdo")).getByText(mensagem)).toBeInTheDocument();
+    expect(within(fieldIn(createForm(), "Título")).queryByText(/informe o conteúdo/)).toBeNull();
+    expect(screen.getAllByText(mensagem)).toHaveLength(1);
+    expect(createArticleMock).not.toHaveBeenCalled();
+  });
+
+  it("should show a server refusal at form level, away from Título and Conteúdo", async () => {
+    createArticleMock.mockRejectedValue(new Error("Já existe um artigo com esse título."));
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /Novo Artigo/ }));
+    await user.type(
+      within(createForm()).getByPlaceholderText("Título * (máx. 200)"),
+      "Troca de switch",
+    );
+    await user.type(
+      within(createForm()).getByPlaceholderText("Conteúdo * (máx. 20000)"),
+      "Passo 1: desligar a energia.",
+    );
+
+    fireEvent.submit(createForm());
+
+    const mensagem = "Já existe um artigo com esse título.";
+    expect(await screen.findByText(mensagem)).toBeInTheDocument();
+    expect(within(createForm()).getAllByText(mensagem)).toHaveLength(1);
+    expect(within(fieldIn(createForm(), "Título")).queryByText(/já existe/)).toBeNull();
+    expect(within(fieldIn(createForm(), "Conteúdo")).queryByText(/já existe/)).toBeNull();
+    expect(createArticleMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("should put the missing-reason failure under Motivo, without blaming the filled fields", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Editar" }));
+    const dialog = await screen.findByRole("dialog", { name: "Editar artigo" });
+
+    // Título e Conteúdo vêm pré-preenchidos do artigo — só falta o motivo.
+    fireEvent.submit(dialogForm("Editar artigo"));
+
+    const mensagem = "Informe o motivo da alteração (vira version — K3).";
+    expect(await within(dialog).findByText(mensagem)).toBeInTheDocument();
+    expect(within(fieldIn(dialog, "Motivo")).getByText(mensagem)).toBeInTheDocument();
+    expect(within(fieldIn(dialog, "Título")).queryByText(/informe o motivo/)).toBeNull();
+    expect(within(fieldIn(dialog, "Conteúdo")).queryByText(/informe o motivo/)).toBeNull();
+    expect(within(dialog).getAllByText(mensagem)).toHaveLength(1);
+    expect(updateArticleMock).not.toHaveBeenCalled();
+  });
+
+  it("should put the empty-name failure under Nome in the category dialog", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /nova categoria/i }));
+    const dialog = await screen.findByRole("dialog", { name: "Nova categoria" });
+
+    fireEvent.submit(dialogForm("Nova categoria"));
+
+    const mensagem = "Informe o nome da categoria.";
+    expect(await within(dialog).findByText(mensagem)).toBeInTheDocument();
+    expect(within(fieldIn(dialog, "Nome")).getByText(mensagem)).toBeInTheDocument();
+    expect(within(dialog).getAllByText(mensagem)).toHaveLength(1);
+    expect(createCategoryMock).not.toHaveBeenCalled();
   });
 });

@@ -123,7 +123,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   // Dropdowns de navegação com submenus
   const navMenuRef = useRef<Menu>(null);
   const [activeNavDropdown, setActiveNavDropdown] = useState<string | null>(null);
-  const [navMenuModel, setNavMenuModel] = useState<any[]>([]);
+  const [navMenuModel, setNavMenuModel] = useState<MenuItem[]>([]);
 
   const handleNavDropdownClick = (e: React.MouseEvent, item: NavItem) => {
     if (activeNavDropdown === item.label) {
@@ -330,24 +330,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
-<<<<<<< HEAD
-
                 <li key={item.route}>
-                  <button
-                    className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
-                    aria-current={activeRoute === item.route ? "page" : undefined}
-                    onClick={() => navigate(item.route)}
-                    title={item.label}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badge && <Badge value={badge} className="uni-nav-badge" />}
-                  </button>
-
-                <li key={item.label}>
-=======
-                <li key={item.route}>
->>>>>>> 79ba1c39908ba3dbd0123c3531e5c76f3a4c4b94
                   {hasSubmenu ? (
                     <button
                       className={`uni-nav-item ${activeRoute === item.route || activeNavDropdown === item.label ? "active" : ""}`}
@@ -377,10 +360,6 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       {badge && <Badge value={badge} className="uni-nav-badge" />}
                     </button>
                   )}
-<<<<<<< HEAD
-
-=======
->>>>>>> 79ba1c39908ba3dbd0123c3531e5c76f3a4c4b94
                 </li>
               );
             })}
@@ -393,23 +372,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
-<<<<<<< HEAD
-
                 <li key={item.route}>
-                  <button
-                    className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
-                    aria-current={activeRoute === item.route ? "page" : undefined}
-                    onClick={() => navigate(item.route)}
-                    title={item.label}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badge && <Badge value={badge} className="uni-nav-badge" />}
-                  </button>
-                <li key={item.label}>
-=======
-                <li key={item.route}>
->>>>>>> 79ba1c39908ba3dbd0123c3531e5c76f3a4c4b94
                   {hasSubmenu ? (
                     <button
                       className={`uni-nav-item ${activeRoute === item.route || activeNavDropdown === item.label ? "active" : ""}`}

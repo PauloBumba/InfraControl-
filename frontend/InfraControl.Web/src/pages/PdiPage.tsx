@@ -43,6 +43,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { errorMessage } from "@/hooks/queries";
+import { useFormErrors } from "@/hooks/useFormErrors";
 
 /**
  * PDI — Plano de Desenvolvimento Individual (docs/29 §8, docs/30,
@@ -103,7 +104,18 @@ export function PdiPage() {
   const [periodEnd, setPeriodEnd] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — página com o mapeamento mais assimétrico do recorte:
+  // usuário → campo, prazo → campo, motivo → campo, mas "O fim do período não
+  // pode ser anterior ao início" **fica no formulário** porque a frase descreve
+  // DOIS campos (Início e Fim) — pendurar em um só apontaria metade do
+  // problema, mesma regra do "De posterior a Até" da AuditPage.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
 
   // Timeline do plano (docs/30 §17).
   const [historyVisible, setHistoryVisible] = useState(false);
@@ -180,7 +192,7 @@ export function PdiPage() {
     setPeriodStart("");
     setPeriodEnd("");
     setReason("");
-    setFormError(null);
+    resetFormError();
   };
 
   const openCreate = async () => {
@@ -254,25 +266,27 @@ export function PdiPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    resetFormError();
     const targetUserId = editUserId ?? ownerId;
     if (!targetUserId) {
-      setFormError("Selecione o usuário do PDI.");
+      failForm("Selecione o usuário do PDI.", "ownerId");
       return;
     }
     if (!targetDate) {
-      setFormError("Informe o prazo do PDI.");
+      failForm("Informe o prazo do PDI.", "targetDate");
       return;
     }
     if (periodStart && periodEnd && periodEnd < periodStart) {
-      setFormError("O fim do período não pode ser anterior ao início.");
+      // DOIS campos: a frase não aponta nenhum dos dois sozinha, então vai
+      // para o formulário (regra C-2 — mensagem ≥2 campos).
+      failForm("O fim do período não pode ser anterior ao início.");
       return;
     }
     if (needsReason && !reason.trim()) {
-      setFormError("O motivo da alteração é obrigatório.");
+      failForm("O motivo da alteração é obrigatório.", "reason");
       return;
     }
     setSaving(true);
-    setFormError(null);
     try {
       const payload: Parameters<typeof upsertPdi>[1] = {
         strategy,
@@ -291,7 +305,9 @@ export function PdiPage() {
       setDialogVisible(false);
       await load();
     } catch (caught) {
-      setFormError(errorMessage(caught));
+      // Recusa do servidor sem `field` → nível do formulário. `errorMessage`
+      // já era o usado aqui (aceita `unknown`); só passa a alimentar o `fail`.
+      failForm(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -530,7 +546,7 @@ export function PdiPage() {
       >
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {!editUserId && (
-            <FormField label="Usuário">
+            <FormField label="Usuário" error={errorFor("ownerId")}>
               <SelectField
                 value={ownerId}
                 onChange={setOwnerId}
@@ -565,7 +581,7 @@ export function PdiPage() {
           </FormField>
 
           <div style={{ display: "flex", gap: 12 }}>
-            <FormField label="Prazo" width={180}>
+            <FormField label="Prazo" width={180} error={errorFor("targetDate")}>
               <input
                 type="date"
                 value={targetDate}
@@ -591,6 +607,7 @@ export function PdiPage() {
                   ? "Motivo da alteração"
                   : "Motivo da transição (opcional)"
               }
+              error={errorFor("reason")}
             >
               <input
                 type="text"
@@ -618,6 +635,8 @@ export function PdiPage() {
             </FormField>
           )}
 
+          {/* Início/Fim ficam SEM `error` de propósito: a única validação que
+              os envolve descreve os dois e vai para o formulário abaixo. */}
           {isAdmin && (
             <div style={{ display: "flex", gap: 12 }}>
               <FormField label="Início do período" width={180}>
@@ -639,7 +658,10 @@ export function PdiPage() {
             </div>
           )}
 
-          {formError && <FormError message={formError} />}
+          {/* `field` setado = o recado já está no campo dele e o formulário
+              fica calado; sem `field` (período invertido, recusa do servidor)
+              é aqui que ele aparece. */}
+          <FormError message={field ? "" : (formError ?? "")} />
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <Button variant="ghost" type="button" onClick={() => setDialogVisible(false)}>

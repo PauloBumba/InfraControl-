@@ -259,7 +259,7 @@ diferentes. Fatiada por decisão do usuário:
 | Slice | Superfície | Risco | Status |
 | --- | --- | --- | --- |
 | **C-1** `messageFor` → `errorMessage` | 16 declarações (15 cópias + 1 exportação) | baixo | ✅ 2026-10-11 |
-| **C-2** `formError` → `useFormErrors` | 11 sites (9 páginas + 2 dialogs) | médio | ⏳ |
+| **C-2** `formError` → `useFormErrors` | 11 sites (9 páginas + 2 dialogs) | médio | ✅ **11/11 concluído** |
 | **C-3** casca → `ListPageShell` | 26 arquivos com a raiz `flex column gap:16` | alto | ⏳ (4 já migradas no §1B) |
 
 **Resultado do C-1**: 15 cópias migraram para `errorMessage`. A exportação de
@@ -277,6 +277,147 @@ refatoração. Ficou de fora, e o comentário do `errorMessage` registra por qu�
 **Achado de correção**: `KnowledgePage` devolvia `error.message` sem checar se
 era vazia, então `new Error("")` virava mensagem em branco na tela.
 `errorMessage` devolve o `fallback`.
+
+**C-2 CONCLUÍDO (11/11) — `AuditPage`, `NetworkPage`, `InvitationsPage`,
+`LocationsPage`, `SlaPage`, `DevicesPage`, `TasksPage`, `PdiPage`,
+`KnowledgePage`, `PdiAccompanimentDialog`, `PdiStructureDialog`**, com teste por página. O padrão é `const { error:
+formError, field, fail: failForm, reset: resetFormError, errorFor } =
+useFormErrors()`, com `failForm(msg, "campo")` em cada validação, `error=
+{errorFor("x")}` no `FormField` e `<FormError message={field ? "" :
+(formError ?? "")} />` — o campo acende sozinho e a recusa do servidor (que
+vem sem `field`) continua no banner do formulário.
+
+**A regra que a migração estabeleceu: decidir campo a campo, não migrar em
+bloco.** Um erro vai para o campo quando a mensagem descreve UM campo; vai
+para o formulário quando descreve mais de um, quando é pré-condição de dado ou
+quando vem do servidor. Os onze casos registrados no código:
+
+| Site | Vai para o campo | Fica no formulário |
+| --- | --- | --- |
+| `NetworkPage` | nome, número da VLAN | recusa do servidor |
+| `AuditPage` | — | "De" posterior a "Até" (2 campos) |
+| `InvitationsPage` | — | grupo de checkboxes sem `FormField` |
+| `LocationsPage` | nome | "Cadastre um local antes de criar racks" (pré-condição), recusa do servidor |
+| `SlaPage` | nome, serviço do SLO, alvo, janela | "Resposta **e** resolução" (2 campos, a frase não diz qual), recusa do servidor |
+| `DevicesPage` | nome, tipo, localização (3 validações, 3 campos) | recusa do servidor |
+| `TasksPage` | título (única validação) | recusa do servidor (criação **e** edição) |
+| `PdiPage` | usuário, prazo, motivo | "O fim do período não pode ser anterior ao início" (2 campos), recusa do servidor |
+| `KnowledgePage` | criação: título, conteúdo · edição: título, conteúdo, motivo · categoria: nome | recusa do servidor (nos 3 forms) |
+| `PdiAccompanimentDialog` | as 15 validações, uma por campo, nos 6 modos (progresso, check-in, impedimento, feedback, evidência, revisão) | recusa do servidor |
+| `PdiStructureDialog` | título, nome da competência, percentual, motivo da rejeição | "O fim da fase não pode ser anterior ao início" (2 campos), recusa do servidor (nos 3 forms) |
+
+**Oito achados que a migração forçou**: (1) `mutationErrorMessage` devolve
+`string | null` e o `fail` do hook exige `string` — o `catch` migrou para
+`errorMessage`, que aceita `unknown` (que é o que sai de um `catch`) e sempre
+devolve texto; (2) em `SlaPage` a validação de nome vem **antes** de todas as
+outras e retorna cedo, então qualquer teste das validações seguintes precisa
+preencher o Nome primeiro — senão a de nome dispara e a de alvo/serviço nunca
+é alcançada.
+
+(3) **`DevicesPage`**: era a única do recorte **sem um sequer `FormField`** — 7
+controles eram `input`/`SelectField` com `placeholder` dentro de um `grid`, e o
+erro era um `<div>` solto no pé do form. Três validações de três campos
+diferentes saíam todas no mesmo lugar. Ligar erro a campo exigiu **criar a
+estrutura de campo**, não só trocar o estado: os 7 controles ganharam
+`FormField` (labels visíveis — os inputs ganharam `width: 100%` porque agora
+vivem dentro de um `<label>` flex, e os dois `SelectField` receberam
+`style={{ width: "100%" }}`, mesmo procedimento da `SlaPage`). Os campos sem
+validação nenhuma (IP, Modelo, Fabricante, Descrição) ficam com `error={null}`
+documentando que nada os alavanca. O teste é o único que acessa os campos por
+`role` (`textbox`/`combobox`) em vez de label — `getByLabelText` exige o
+`<label>` que a migração ainda ia criar, e o teste precisa rodar vermelho antes
+e verde depois com os mesmos seletores.
+
+(4) **`TasksPage` tinha o bug que o C-2 existe para corrigir.** O `FormField`
+do Título já recebia erro, mas com a mensagem **hardcodada sobre o estado
+errado**: `error={formError ? "Informe o título da tarefa." : null}`. Qualquer
+`formError` — inclusive uma recusa do servidor — fazia o campo Título acender
+com "Informe o título da tarefa." (mentindo: o título estava preenchido) e a
+mensagem real repetia no `<FormError>` do pé. O vermelho do teste foi
+literalmente `Found multiple elements with the text: Informe o título da
+tarefa.` — a duplicação existia. **Segunda metade do mesmo achado**: as
+mutations de criação e de identificação tinham `onError → setActionError` ao
+mesmo tempo que o `catch` de `submitForm` punha a mesma frase no `FormError` —
+a mesma recusa aparecia **duas vezes na mesma tela** (banner de página + form).
+As duas foram removidas; `stateMutation` e `deleteMutation` mantêm o banner
+porque não passam por um form. `DevicesPage` já não tinha esse duplo.
+
+(5) **`PdiPage` é o único site em que uma validação não pode ir para campo
+nenhum, e o teste mostrou por quê.** A página tem 4 validações de 4 destinos
+diferentes: usuário → campo, prazo → campo, motivo → campo, e **"O fim do
+período não pode ser anterior ao início" → formulário**, porque a frase descreve
+DOIS campos — pendurar em "Início" ou em "Fim" apontaria metade do problema
+(mesma regra do "De posterior a Até" da AuditPage). Dois achados de teste:
+(a) o motivo **só existe na edição** — `needsReason` depende de `original`, então
+na criação o campo nem é renderizado e o teste dele precisa abrir o plano pela
+tabela; (b) o helper que localiza o campo **não pode usar `getByLabelText`** —
+quando o erro acende, a mensagem entra dentro do mesmo `<label>` e o
+`textContent` deixa de ser "Prazo" (vira "PrazoInforme o prazo do PDI."), então
+o match exato do RTL não acha mais nada; o teste casa pelo **texto inicial do
+label**, escopado no `<form>`, e o seletor é o mesmo antes e depois da
+migração. Achado de debugging: o vermelho dizia `Unable to find an element with
+the text` e a depuração mostrou `formErrorNoDom=true` — a mensagem existia, só
+estava no pé do form em vez do campo, que era exatamente o que o teste vinha
+provar.
+
+(6) **`KnowledgePage` foi o primeiro site com MAIS DE UM form** — e é por isso
+que ela não cabe num único `useFormErrors`. A página tem 3 forms abertos ao
+mesmo tempo em telas diferentes (criação inline, dialog de edição, dialog de
+categoria), e um estado compartilhado apagaria o erro de um ao abrir o outro:
+foram **3 instâncias** do hook, uma por form (`formError`/`editError`/
+`categoryError` viraram os retornos deles). As 3 validações da **edição** —
+título, conteúdo, motivo — eram o caso mais nítido: três campos diferentes
+caíam no mesmo `<FormError>` sem dizer qual era. Dois achados de desenho:
+(a) o form de criação **não tinha estrutura de campo nenhum** (7 inputs com
+`placeholder`, como a `DevicesPage`) e os dialogs usavam `<label>` cru — o
+próprio wrapper que `FormField` existe para substituir —, então a migração
+criou/unificou as 17 estruturas de campo da página; (b) `statusError` ficou **de
+propósito** com `useState`: ele só recebe recusa do servidor, que já vive no
+nível do formulário, e migrá-lo seria trocar um estado por um hook que devolve
+sempre `field = null`, sem nenhuma mudança de comportamento. Trade-off
+registrado: o label âmbar do "Motivo da alteração" (`#b45309`) foi
+substituído pelo label padrão do `FormField` em troca da estrutura de erro — o
+`*` e a borda âmbar do input continuam marcando o campo.
+
+(7) **`PdiAccompanimentDialog` é o site de maior densidade — 15 validações por
+6 modos de form — e o de maior risco de chaves trocadas.** Os modos **reusam
+os mesmos nomes de estado**: `form.date` serve para check-in, impedimento E
+feedback; `form.type` para impedimento, feedback E evidência;
+`form.description` para impedimento E revisão. As chaves do `failForm` são as
+do próprio estado (`date`, `type`, `description`) e isso é seguro por três
+razões que valem documentar: os blocos de render são mutuamente exclusivos
+(`{form.kind === "X" && …}`), `{form && (…)}` esconde a lista enquanto o form
+está aberto, e o `kind` só é definido nos `open*Form` — que também zeram o
+erro —, então nunca há dois campos com a mesma chave na tela. **Achado de
+mapeamento**: "O arquivo excede o tamanho máximo de 10 MB" vai para o campo do
+**arquivo**, não do tipo — a validação de tipo vem 3 linhas antes e uma
+validação pendurada em "qualquer erro" faria o usuário acreditar que o tipo é
+o problema. A migração já tinha tudo o que precisava: a página era a **única
+do recorte que já usava `FormField` em todos os 26 controles**; só faltou o
+`error={errorFor(…)}` nos 14 campos que têm validação.
+
+(8) **`PdiStructureDialog` fechou a série com 3 estados de erro — os 3 forms
+da árvore — e expôs um defeito que a migração não causou.** `formError`
+(nó da árvore), `catalogError` (catálogo) e `rejectError` (rejeição de fase)
+viraram 3 `useFormErrors()`, pelo mesmo motivo da `KnowledgePage`: os forms
+podem ficar abertos em telas diferentes e um estado compartilhado apagaria o
+erro de um ao abrir o outro. Duas decisões de nível: (a) **"O fim da fase não
+pode ser anterior ao início" fica no formulário** — descreve DOIS campos
+(Início e Fim), que ficam **sem `error` de propósito**, com comentário no
+código; (b) **"O título é obrigatório" precisa escolher o campo** — o form de
+competência valida `form.name` e os demais `form.title`, então a chave é
+`form.kind === "competency" ? "name" : "title"` (só um dos dois renderiza por
+vez). **Achado de TDD (o 8º)**: `submitCatalog` começa com
+`if (!catalogForm) return;` e o estado nasce `null` — com o diálogo recém-aberto,
+**"Salvar" não chega na validação e não mostra nenhum aviso**: clique após
+clique, silêncio. A validação só é alcançável depois que o usuário toca num
+campo (que seta `catalogForm`). **Não corrigi** — é mudança de comportamento
+além do escopo do C-2, sob controle humano; o teste acessa o caminho real
+(digita e apaga o nome). Recomendação: `submitCatalog` deve validar o nome
+antes do guarda, ou o guarda deve ser removido.
+
+**C-2 concluído — 11/11.** Restam do §1C: `F29-T001C-3` (migrar a casca para
+`ListPageShell`, recorte = "quem tem `PageHeader` com subtítulo de contagem").
 
 **C-3 não é "26 páginas"**: a raiz `flex column gap:16` é o *layout de página*
 do produto — `AccountPage`, `SettingsPage`, `LogsPage`, `HealthPage` e

@@ -8,7 +8,8 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { FormError } from "@/components/ui/FormField";
+import { FormField, FormError } from "@/components/ui/FormField";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -88,7 +89,19 @@ export function KnowledgePage() {
   const [responsibleId, setResponsibleId] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — um `useFormErrors` por form: a página tem 3 deles (criação,
+  // edição, categoria) abertos ao mesmo tempo em telas diferentes, então um
+  // único estado compartilhado apagaria o erro de um ao abrir o outro.
+  // `statusError` fica com `useState` de propósito: só recebe recusa do
+  // servidor, que já vive no nível do formulário — migrá-lo seria trocar um
+  // estado por um hook que devolve sempre `field = null`.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors(); // criação
 
   // F24 edição — form controlado à parte do de criação.
   const [editing, setEditing] = useState<KnowledgeArticle | null>(null);
@@ -101,7 +114,13 @@ export function KnowledgePage() {
   const [editResponsibleId, setEditResponsibleId] = useState("");
   const [editReason, setEditReason] = useState("");
   const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  const {
+    error: editError,
+    field: editField,
+    reset: resetEditError,
+    fail: failEdit,
+    errorFor: errorForEdit,
+  } = useFormErrors(); // edição — 3 validações de 3 campos diferentes
 
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeArticle | null>(null);
 
@@ -119,7 +138,13 @@ export function KnowledgePage() {
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const {
+    error: categoryError,
+    field: categoryField,
+    reset: resetCategoryError,
+    fail: failCategory,
+    errorFor: errorForCategory,
+  } = useFormErrors(); // CRUD de categoria
   const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<KnowledgeCategory | null>(null);
 
   const load = useCallback(async () => {
@@ -211,15 +236,15 @@ export function KnowledgePage() {
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
     if (!trimmedTitle) {
-      setFormError("Informe o título do artigo.");
+      failForm("Informe o título do artigo.", "title");
       return;
     }
     if (!trimmedContent) {
-      setFormError("Informe o conteúdo do artigo.");
+      failForm("Informe o conteúdo do artigo.", "content");
       return;
     }
     setSaving(true);
-    setFormError(null);
+    resetFormError();
     try {
       const tags = parseTags(tagsInput);
       await createArticle({
@@ -242,7 +267,9 @@ export function KnowledgePage() {
       setNotice("Artigo criado como rascunho — publique pela troca de status.");
       await load();
     } catch (caught) {
-      setFormError(errorMessage(caught, "Não foi possível criar o artigo."));
+      // Recusa do servidor sem `field` → nível do formulário. `errorMessage`
+      // aceita `unknown` (o `catch` devolve isso) e tem fallback.
+      failForm(errorMessage(caught, "Não foi possível criar o artigo."));
     } finally {
       setSaving(false);
     }
@@ -260,7 +287,7 @@ export function KnowledgePage() {
     setEditTagsInput(article.tags.join(", "));
     setEditResponsibleId(article.responsibleId ?? "");
     setEditReason("");
-    setEditError(null);
+    resetEditError();
   }
 
   async function submitEdit(event: FormEvent) {
@@ -269,20 +296,22 @@ export function KnowledgePage() {
     const trimmedTitle = editTitle.trim();
     const trimmedContent = editContent.trim();
     const trimmedReason = editReason.trim();
+    // Três validações, três campos: cada uma acende o próprio. Antes todas as
+    // três iam para o mesmo `<FormError>` no pé do dialog, sem dizer qual era.
     if (!trimmedTitle) {
-      setEditError("Informe o título do artigo.");
+      failEdit("Informe o título do artigo.", "editTitle");
       return;
     }
     if (!trimmedContent) {
-      setEditError("Informe o conteúdo do artigo.");
+      failEdit("Informe o conteúdo do artigo.", "editContent");
       return;
     }
     if (!trimmedReason) {
-      setEditError("Informe o motivo da alteração (vira version — K3).");
+      failEdit("Informe o motivo da alteração (vira version — K3).", "editReason");
       return;
     }
     setEditSaving(true);
-    setEditError(null);
+    resetEditError();
     try {
       const tags = parseTags(editTagsInput);
       await updateArticle(editing.id, {
@@ -299,7 +328,7 @@ export function KnowledgePage() {
       setNotice("Artigo atualizado — uma nova versão foi registrada.");
       await load();
     } catch (caught) {
-      setEditError(errorMessage(caught, "Não foi possível atualizar o artigo."));
+      failEdit(errorMessage(caught, "Não foi possível atualizar o artigo."));
     } finally {
       setEditSaving(false);
     }
@@ -348,25 +377,25 @@ export function KnowledgePage() {
     setCategoryForm({ mode: "create", target: null });
     setCategoryName("");
     setCategoryDescription("");
-    setCategoryError(null);
+    resetCategoryError();
   }
 
   function openCategoryEdit(category: KnowledgeCategory) {
     setCategoryForm({ mode: "edit", target: category });
     setCategoryName(category.name);
     setCategoryDescription(category.description ?? "");
-    setCategoryError(null);
+    resetCategoryError();
   }
 
   async function submitCategory(event: FormEvent) {
     event.preventDefault();
     const trimmedName = categoryName.trim();
     if (!trimmedName) {
-      setCategoryError("Informe o nome da categoria.");
+      failCategory("Informe o nome da categoria.", "categoryName");
       return;
     }
     setCategorySaving(true);
-    setCategoryError(null);
+    resetCategoryError();
     try {
       if (categoryForm?.mode === "edit" && categoryForm.target) {
         await updateCategory(categoryForm.target.id, {
@@ -384,7 +413,7 @@ export function KnowledgePage() {
       setCategoryForm(null);
       await loadCategories();
     } catch (caught) {
-      setCategoryError(errorMessage(caught, "Não foi possível salvar a categoria."));
+      failCategory(errorMessage(caught, "Não foi possível salvar a categoria."));
     } finally {
       setCategorySaving(false);
     }
@@ -673,7 +702,7 @@ export function KnowledgePage() {
                   variant="primary"
                   onClick={() => {
                     setCreating((value) => !value);
-                    setFormError(null);
+                    resetFormError();
                   }}
                   style={{ padding: "5px 12px" }}
                 >
@@ -845,61 +874,92 @@ export function KnowledgePage() {
         >
           <div style={{ fontSize: 13, fontWeight: 600 }}>Novo artigo</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 10 }}>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Título * (máx. 200)"
-              autoFocus
-              maxLength={200}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-            />
-            <SelectField value={categoryId} onChange={setCategoryId} placeholder="Sem categoria" options={categorySelectOptions} />
+            <FormField label="Título" error={errorFor("title")}>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Título * (máx. 200)"
+                autoFocus
+                maxLength={200}
+                style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              />
+            </FormField>
+            <FormField label="Categoria">
+              <SelectField
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="Sem categoria"
+                options={categorySelectOptions}
+                style={{ width: "100%" }}
+              />
+            </FormField>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <SelectField
-              value={articleType}
-              onChange={setArticleType}
-              placeholder="Sem tipo"
-              options={[{ value: "", label: "Sem tipo" }, ...KNOWLEDGE_TYPE_OPTIONS]}
-              aria-label="Tipo do artigo"
-            />
-            <SelectField value={responsibleId} onChange={setResponsibleId} options={userOptions} aria-label="Responsável pelo artigo" />
+            <FormField label="Tipo">
+              <SelectField
+                value={articleType}
+                onChange={setArticleType}
+                placeholder="Sem tipo"
+                options={[{ value: "", label: "Sem tipo" }, ...KNOWLEDGE_TYPE_OPTIONS]}
+                aria-label="Tipo do artigo"
+                style={{ width: "100%" }}
+              />
+            </FormField>
+            <FormField label="Responsável">
+              <SelectField
+                value={responsibleId}
+                onChange={setResponsibleId}
+                options={userOptions}
+                aria-label="Responsável pelo artigo"
+                style={{ width: "100%" }}
+              />
+            </FormField>
           </div>
-          <input
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descrição (máx. 500) — resumo do que este artigo cobre"
-            maxLength={500}
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-          />
-          <input
-            value={tagsInput}
-            onChange={(event) => setTagsInput(event.target.value)}
-            placeholder="Tags separadas por vírgula (máx. 20, até 50 caracteres cada)"
-            style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
-          />
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder="Conteúdo * (máx. 20000)"
-            rows={6}
-            style={{
-              padding: "7px 10px",
-              fontSize: 13,
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              resize: "vertical",
-              fontFamily: "inherit",
-            }}
-          />
-          {formError && <FormError message={formError} />}
+          <FormField label="Descrição (opcional)">
+            <input
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição (máx. 500) — resumo do que este artigo cobre"
+              maxLength={500}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+          </FormField>
+          <FormField label="Tags">
+            <input
+              value={tagsInput}
+              onChange={(event) => setTagsInput(event.target.value)}
+              placeholder="Tags separadas por vírgula (máx. 20, até 50 caracteres cada)"
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+          </FormField>
+          <FormField label="Conteúdo" error={errorFor("content")}>
+            <textarea
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              placeholder="Conteúdo * (máx. 20000)"
+              rows={6}
+              style={{
+                width: "100%",
+                padding: "7px 10px",
+                fontSize: 13,
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+                resize: "vertical",
+                fontFamily: "inherit",
+              }}
+            />
+          </FormField>
+          {/* `field` setado = o recado já está no campo dele e o formulário
+              fica calado; sem `field` (recusa do servidor) é aqui que ele
+              aparece. */}
+          <FormError message={field ? "" : (formError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
               type="button"
               variant="ghost"
               onClick={() => {
                 setCreating(false);
-                setFormError(null);
+                resetFormError();
               }}
               style={{ padding: "6px 14px" }}
             >
@@ -992,53 +1052,55 @@ export function KnowledgePage() {
         width={560}
       >
         <form onSubmit={submitEdit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>
-            Título *
+          <FormField label="Título" error={errorForEdit("editTitle")}>
             <input
               value={editTitle}
               onChange={(event) => setEditTitle(event.target.value)}
               maxLength={200}
               autoFocus
-              style={{ width: "100%", marginTop: 4, padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
+          </FormField>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <SelectField value={editCategoryId} onChange={setEditCategoryId} options={categorySelectOptions} aria-label="Categoria" />
-            <SelectField
-              value={editType}
-              onChange={setEditType}
-              placeholder="Sem tipo"
-              options={[{ value: "", label: "Sem tipo" }, ...KNOWLEDGE_TYPE_OPTIONS]}
-              aria-label="Tipo do artigo"
-            />
+            <FormField label="Categoria">
+              <SelectField value={editCategoryId} onChange={setEditCategoryId} options={categorySelectOptions} aria-label="Categoria" style={{ width: "100%" }} />
+            </FormField>
+            <FormField label="Tipo">
+              <SelectField
+                value={editType}
+                onChange={setEditType}
+                placeholder="Sem tipo"
+                options={[{ value: "", label: "Sem tipo" }, ...KNOWLEDGE_TYPE_OPTIONS]}
+                aria-label="Tipo do artigo"
+                style={{ width: "100%" }}
+              />
+            </FormField>
           </div>
-          <SelectField value={editResponsibleId} onChange={setEditResponsibleId} options={userOptions} aria-label="Responsável" />
-          <label style={{ fontSize: 12, fontWeight: 600 }}>
-            Descrição
+          <FormField label="Responsável">
+            <SelectField value={editResponsibleId} onChange={setEditResponsibleId} options={userOptions} aria-label="Responsável" style={{ width: "100%" }} />
+          </FormField>
+          <FormField label="Descrição">
             <input
               value={editDescription}
               onChange={(event) => setEditDescription(event.target.value)}
               maxLength={500}
-              style={{ width: "100%", marginTop: 4, padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>
-            Tags (vírgula)
+          </FormField>
+          <FormField label="Tags (vírgula)">
             <input
               value={editTagsInput}
               onChange={(event) => setEditTagsInput(event.target.value)}
-              style={{ width: "100%", marginTop: 4, padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>
-            Conteúdo *
+          </FormField>
+          <FormField label="Conteúdo" error={errorForEdit("editContent")}>
             <textarea
               value={editContent}
               onChange={(event) => setEditContent(event.target.value)}
               rows={6}
               style={{
                 width: "100%",
-                marginTop: 4,
                 padding: "7px 10px",
                 fontSize: 13,
                 border: "1px solid #d1d5db",
@@ -1047,18 +1109,23 @@ export function KnowledgePage() {
                 fontFamily: "inherit",
               }}
             />
-          </label>
-          <label style={{ fontSize: 12, fontWeight: 600, color: "#b45309" }}>
-            Motivo da alteração * (vira nova versão)
+          </FormField>
+          {/* K3: o motivo vira nova versão — o único campo obrigatório que não
+              existia antes. `FormField` substitui o `<label>` cru que estava
+              aqui (mesmo wrapper que ele foi criado para unificar); o destaque
+              âmbar sobrevive no `*` e na borda do input. */}
+          <FormField label="Motivo da alteração * (vira nova versão)" error={errorForEdit("editReason")}>
             <input
               value={editReason}
               onChange={(event) => setEditReason(event.target.value)}
               maxLength={200}
               placeholder="Ex.: corrige passo do procedimento"
-              style={{ width: "100%", marginTop: 4, padding: "7px 10px", fontSize: 13, border: "1px solid #fcd34d", borderRadius: 6 }}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #fcd34d", borderRadius: 6 }}
             />
-          </label>
-          {editError && <FormError message={editError} />}
+          </FormField>
+          {/* `editField` setado = o recado está no campo dele; sem `field`
+              (recusa do servidor) é aqui que ele aparece. */}
+          <FormError message={editField ? "" : (editError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button type="button" variant="ghost" onClick={() => setEditing(null)} style={{ padding: "6px 14px" }}>
               Cancelar
@@ -1119,26 +1186,26 @@ export function KnowledgePage() {
         width={400}
       >
         <form onSubmit={submitCategory} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>
-            Nome *
+          <FormField label="Nome *" error={errorForCategory("categoryName")}>
             <input
               value={categoryName}
               onChange={(event) => setCategoryName(event.target.value)}
               maxLength={100}
               autoFocus
-              style={{ width: "100%", marginTop: 4, padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>
-            Descrição
+          </FormField>
+          <FormField label="Descrição">
             <input
               value={categoryDescription}
               onChange={(event) => setCategoryDescription(event.target.value)}
               maxLength={500}
-              style={{ width: "100%", marginTop: 4, padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
-          </label>
-          {categoryError && <FormError message={categoryError} />}
+          </FormField>
+          {/* `categoryField` setado = o recado está no campo dele; sem `field`
+              (recusa do servidor) é aqui que ele aparece. */}
+          <FormError message={categoryField ? "" : (categoryError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button type="button" variant="ghost" onClick={() => setCategoryForm(null)} style={{ padding: "6px 14px" }}>
               Cancelar

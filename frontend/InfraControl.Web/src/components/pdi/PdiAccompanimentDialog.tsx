@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FormError, FormField } from "@/components/ui/FormField";
+import { useFormErrors } from "@/hooks/useFormErrors";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { SelectField } from "@/components/ui/SelectField";
@@ -183,7 +184,21 @@ export function PdiAccompanimentDialog({
   const [tab, setTab] = useState<TabKey>("checkins");
   const [form, setForm] = useState<AccForm | null>(null);
   const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // F29-T001C-2 — as 15 validações ficam espalhadas por 6 modos de form que
+  // reusam os mesmos nomes de estado (`form.date` serve para check-in,
+  // impedimento E feedback; `form.type` para impedimento, feedback E
+  // evidência; `form.description` para impedimento E revisão). As chaves
+  // abaixo são as do próprio estado porque os blocos de render são mutuamente
+  // exclusivos (`{form.kind === "X" && …}`), `{form && …}` esconde a lista
+  // enquanto o form está aberto e o `kind` só é definido nos `open*Form`, que
+  // também zeram o erro — nunca há dois campos com a mesma chave na tela.
+  const {
+    error: formError,
+    field,
+    reset: resetFormError,
+    fail: failForm,
+    errorFor,
+  } = useFormErrors();
 
   const [confirm, setConfirm] = useState<{
     message: string;
@@ -270,19 +285,19 @@ export function PdiAccompanimentDialog({
   // ---- Abertura dos formulários -----------------------------------------
 
   const openProgressForm = () => {
-    setFormError(null);
+    resetFormError();
     setForm(emptyForm("progress", plan));
   };
 
   const openCheckInCreate = () => {
-    setFormError(null);
+    resetFormError();
     setForm(emptyForm("checkin", plan));
   };
 
   const openCheckInRelato = (id: string) => {
     const item = checkIns.find((checkIn) => checkIn.id === id);
     if (!item) return;
-    setFormError(null);
+    resetFormError();
     setForm({
       ...emptyForm("checkin", plan),
       id,
@@ -298,7 +313,7 @@ export function PdiAccompanimentDialog({
   const openCheckInResposta = (id: string) => {
     const item = checkIns.find((checkIn) => checkIn.id === id);
     if (!item) return;
-    setFormError(null);
+    resetFormError();
     setForm({
       ...emptyForm("checkin", plan),
       id,
@@ -310,7 +325,7 @@ export function PdiAccompanimentDialog({
   };
 
   const openImpedimentForm = (id: string | null) => {
-    setFormError(null);
+    resetFormError();
     const item = id ? impediments.find((entry) => entry.id === id) : null;
     setForm({
       ...emptyForm("impediment", plan),
@@ -327,17 +342,17 @@ export function PdiAccompanimentDialog({
   };
 
   const openFeedbackForm = () => {
-    setFormError(null);
+    resetFormError();
     setForm(emptyForm("feedback", plan));
   };
 
   const openEvidenceForm = () => {
-    setFormError(null);
+    resetFormError();
     setForm(emptyForm("evidence", plan));
   };
 
   const openReviewForm = (id: string) => {
-    setFormError(null);
+    resetFormError();
     setForm({ ...emptyForm("review", plan), id });
   };
 
@@ -347,16 +362,18 @@ export function PdiAccompanimentDialog({
     event.preventDefault();
     if (!form || !phase || !plan) return;
 
+    // Cada validação aponta o campo dela. Chave = nome do estado (`form.*`),
+    // seguro porque só um modo renderiza por vez — ver comentário no hook.
     if (form.kind === "progress") {
       const comment = form.comment.trim();
       if (!comment) {
-        setFormError("O comentário do progresso é obrigatório.");
+        failForm("O comentário do progresso é obrigatório.", "comment");
         return;
       }
       if (form.percent) {
         const percent = Number(form.percent);
         if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-          setFormError("O percentual deve estar entre 0 e 100.");
+          failForm("O percentual deve estar entre 0 e 100.", "percent");
           return;
         }
       }
@@ -364,73 +381,76 @@ export function PdiAccompanimentDialog({
 
     if (form.kind === "checkin" && form.side !== "resposta") {
       if (!form.date) {
-        setFormError("A data do check-in é obrigatória.");
+        failForm("A data do check-in é obrigatória.", "date");
         return;
       }
       if (!form.whatDone.trim()) {
-        setFormError("O relato do que foi realizado é obrigatório.");
+        failForm("O relato do que foi realizado é obrigatório.", "whatDone");
         return;
       }
     }
 
     if (form.kind === "impediment") {
       if (!form.date) {
-        setFormError("A data do impedimento é obrigatória.");
+        failForm("A data do impedimento é obrigatória.", "date");
         return;
       }
       if (!form.type.trim()) {
-        setFormError("O tipo do impedimento é obrigatório.");
+        failForm("O tipo do impedimento é obrigatório.", "type");
         return;
       }
       if (!form.description.trim()) {
-        setFormError("A descrição do impedimento é obrigatória.");
+        failForm("A descrição do impedimento é obrigatória.", "description");
         return;
       }
     }
 
     if (form.kind === "feedback") {
       if (!form.recipientId) {
-        setFormError("O destinatário do feedback é obrigatório.");
+        failForm("O destinatário do feedback é obrigatório.", "recipientId");
         return;
       }
       if (!form.date) {
-        setFormError("A data do feedback é obrigatória.");
+        failForm("A data do feedback é obrigatória.", "date");
         return;
       }
       if (!form.type.trim()) {
-        setFormError("O tipo do feedback é obrigatório.");
+        failForm("O tipo do feedback é obrigatório.", "type");
         return;
       }
       if (!form.content.trim()) {
-        setFormError("O conteúdo do feedback é obrigatório.");
+        failForm("O conteúdo do feedback é obrigatório.", "content");
         return;
       }
     }
 
     if (form.kind === "evidence") {
       if (!form.file) {
-        setFormError("O arquivo da evidência é obrigatório.");
+        failForm("O arquivo da evidência é obrigatório.", "file");
         return;
       }
       if (!form.type) {
-        setFormError("O tipo da evidência é obrigatório.");
+        failForm("O tipo da evidência é obrigatório.", "type");
         return;
       }
       if (form.file.size > 10 * 1024 * 1024) {
-        setFormError("O arquivo excede o tamanho máximo de 10 MB.");
+        // O problema é com o ARQUIVO, então vai no campo do arquivo — não no
+        // de tipo, que era o que uma validação pendurada em "qualquer erro"
+        // faria acreditar.
+        failForm("O arquivo excede o tamanho máximo de 10 MB.", "file");
         return;
       }
     }
 
     if (form.kind === "review") {
       if (form.decision === "Rejected" && !form.description.trim()) {
-        setFormError("O motivo da rejeição é obrigatório.");
+        failForm("O motivo da rejeição é obrigatório.", "description");
         return;
       }
     }
 
     setSaving(true);
-    setFormError(null);
+    resetFormError();
     try {
       switch (form.kind) {
         case "progress": {
@@ -516,7 +536,8 @@ export function PdiAccompanimentDialog({
       setForm(null);
       await reload();
     } catch (caught) {
-      setFormError(errorMessage(caught));
+      // Recusa do servidor sem `field` → nível do formulário.
+      failForm(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -989,7 +1010,7 @@ export function PdiAccompanimentDialog({
           >
             {form.kind === "progress" && (
               <>
-                <FormField label="Percentual da fase (%) — opcional">
+                <FormField label="Percentual da fase (%) — opcional" error={errorFor("percent")}>
                   <input
                     type="number"
                     min={0}
@@ -1001,7 +1022,7 @@ export function PdiAccompanimentDialog({
                     style={inputStyle}
                   />
                 </FormField>
-                <FormField label="Comentário / relato">
+                <FormField label="Comentário / relato" error={errorFor("comment")}>
                   <textarea
                     value={form.comment}
                     onChange={(event) =>
@@ -1018,7 +1039,7 @@ export function PdiAccompanimentDialog({
 
             {form.kind === "checkin" && form.side !== "resposta" && (
               <>
-                <FormField label="Data do check-in">
+                <FormField label="Data do check-in" error={errorFor("date")}>
                   <input
                     type="date"
                     value={form.date}
@@ -1028,7 +1049,7 @@ export function PdiAccompanimentDialog({
                     style={inputStyle}
                   />
                 </FormField>
-                <FormField label="O que realizou?">
+                <FormField label="O que realizou?" error={errorFor("whatDone")}>
                   <textarea
                     value={form.whatDone}
                     onChange={(event) =>
@@ -1109,7 +1130,7 @@ export function PdiAccompanimentDialog({
 
             {form.kind === "impediment" && (
               <>
-                <FormField label="Tipo (ex.: recurso indisponível)">
+                <FormField label="Tipo (ex.: recurso indisponível)" error={errorFor("type")}>
                   <input
                     type="text"
                     value={form.type}
@@ -1121,7 +1142,7 @@ export function PdiAccompanimentDialog({
                     style={inputStyle}
                   />
                 </FormField>
-                <FormField label="Descrição do problema">
+                <FormField label="Descrição do problema" error={errorFor("description")}>
                   <textarea
                     value={form.description}
                     onChange={(event) =>
@@ -1133,7 +1154,7 @@ export function PdiAccompanimentDialog({
                   />
                 </FormField>
                 <div style={{ display: "flex", gap: 12 }}>
-                  <FormField label="Data de ocorrência" width={180}>
+                  <FormField label="Data de ocorrência" error={errorFor("date")} width={180}>
                     <input
                       type="date"
                       value={form.date}
@@ -1200,7 +1221,7 @@ export function PdiAccompanimentDialog({
 
             {form.kind === "evidence" && (
               <>
-                <FormField label="Arquivo (até 10 MB)">
+                <FormField label="Arquivo (até 10 MB)" error={errorFor("file")}>
                   <input
                     type="file"
                     onChange={(event) =>
@@ -1218,7 +1239,7 @@ export function PdiAccompanimentDialog({
                     {formatFileSize(form.file.size)}
                   </div>
                 )}
-                <FormField label="Tipo da evidência">
+                <FormField label="Tipo da evidência" error={errorFor("type")}>
                   <SelectField
                     value={form.type}
                     onChange={(value) => setForm({ ...form, type: value })}
@@ -1264,7 +1285,7 @@ export function PdiAccompanimentDialog({
                   />
                 </FormField>
                 {form.decision === "Rejected" && (
-                  <FormField label="Motivo da rejeição">
+                  <FormField label="Motivo da rejeição" error={errorFor("description")}>
                     <textarea
                       value={form.description}
                       onChange={(event) =>
@@ -1285,7 +1306,7 @@ export function PdiAccompanimentDialog({
 
             {form.kind === "feedback" && (
               <>
-                <FormField label="Destinatário">
+                <FormField label="Destinatário" error={errorFor("recipientId")}>
                   <SelectField
                     value={form.recipientId}
                     onChange={(value) => setForm({ ...form, recipientId: value })}
@@ -1293,7 +1314,7 @@ export function PdiAccompanimentDialog({
                     aria-label="Destinatário do feedback"
                   />
                 </FormField>
-                <FormField label="Tipo (ex.: reconhecimento)">
+                <FormField label="Tipo (ex.: reconhecimento)" error={errorFor("type")}>
                   <input
                     type="text"
                     value={form.type}
@@ -1305,7 +1326,7 @@ export function PdiAccompanimentDialog({
                     style={inputStyle}
                   />
                 </FormField>
-                <FormField label="Data">
+                <FormField label="Data" error={errorFor("date")}>
                   <input
                     type="date"
                     value={form.date}
@@ -1315,7 +1336,7 @@ export function PdiAccompanimentDialog({
                     style={inputStyle}
                   />
                 </FormField>
-                <FormField label="Conteúdo">
+                <FormField label="Conteúdo" error={errorFor("content")}>
                   <textarea
                     value={form.content}
                     onChange={(event) =>
@@ -1329,7 +1350,10 @@ export function PdiAccompanimentDialog({
               </>
             )}
 
-            {formError && <FormError message={formError} />}
+            {/* `field` setado = o recado já está no campo dele e o formulário
+                fica calado; sem `field` (recusa do servidor) é aqui que ele
+                aparece. */}
+            <FormError message={field ? "" : (formError ?? "")} />
 
             <div
               style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}
