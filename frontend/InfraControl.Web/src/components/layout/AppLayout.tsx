@@ -2,7 +2,8 @@ import React, { useEffect, useCallback, useRef, useState, type ReactNode } from 
 import { useNavigate } from "react-router-dom";
 import { Badge } from "primereact/badge";
 import { Menu } from "primereact/menu";
-import { navigation, secondaryNavigation } from "@/data/dashboardData";
+import type { MenuItem } from "primereact/menuitem";
+import { navigation, secondaryNavigation, type NavItem } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
@@ -89,6 +90,19 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
 
   const [signingOut, setSigningOut] = useState(false);
 
+  const handleLogout = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      // Revoga a sessão no servidor (cookie + sessões persistidas) antes de
+      // limpar o estado local.
+      await logout();
+      dispatch(signedOut());
+      routerNavigate("/login", { replace: true });
+    } finally {
+      setSigningOut(false);
+    }
+  }, [dispatch, routerNavigate]);
+
   // Dropdown do usuário no footer do sidebar
   const userMenuRef = useRef<Menu>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -99,8 +113,9 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
       command: () => routerNavigate("/account"),
     },
     {
-      label: "Sair",
+      label: signingOut ? "Saindo…" : "Sair",
       icon: "pi pi-sign-out",
+      disabled: signingOut,
       command: handleLogout,
     },
   ];
@@ -114,7 +129,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     if (activeNavDropdown === item.label) {
       // Fecha se já estiver aberto
       if (navMenuRef.current) {
-        navMenuRef.current.hide();
+        navMenuRef.current.hide(e);
       }
       setActiveNavDropdown(null);
       setNavMenuModel([]);
@@ -127,19 +142,6 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
       }
     }
   };
-
-  const handleLogout = useCallback(async () => {
-    setSigningOut(true);
-    try {
-      // Revoga a sessão no servidor (cookie + sessões persistidas) antes de
-      // limpar o estado local.
-      await logout();
-      dispatch(signedOut());
-      routerNavigate("/login", { replace: true });
-    } finally {
-      setSigningOut(false);
-    }
-  }, [dispatch, routerNavigate]);
 
   // Real dynamic badges (F18-T008 / F17-T009)
   const [sidebarBadges, setSidebarBadges] = useState<{
@@ -220,10 +222,10 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   const getNavItem = (route: string) => allNavItems.find((item) => item.route === route);
 
   // Função para converter NavItem em formato do Menu do PrimeReact
-  const navItemToMenuItem = (item: NavItem) => ({
+  const navItemToMenuItem = (item: NavItem): MenuItem => ({
     label: item.label,
     icon: item.icon,
-    command: () => navigate(item.label),
+    command: () => navigate(item.route),
     ...(item.items && { items: item.items.map(navItemToMenuItem) }),
   });
 
@@ -328,46 +330,29 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
-<<<<<<< HEAD
                 <li key={item.route}>
-                  <button
-                    className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
-                    aria-current={activeRoute === item.route ? "page" : undefined}
-                    onClick={() => navigate(item.route)}
-                    title={item.label}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badge && <Badge value={badge} className="uni-nav-badge" />}
-                  </button>
-=======
-                <li key={item.label}>
                   {hasSubmenu ? (
-                    <>
-                      <button
-                        className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                        onClick={(e) => handleNavDropdownClick(e, item)}
-                        title={item.label}
-                      >
-                        <i className={item.icon} />
-                        <span>{item.label}</span>
-                        <i className="pi pi-angle-down uni-nav-arrow" />
-                        {badge && <Badge value={badge} className="uni-nav-badge" />}
-                      </button>
-                      <Menu
-                        ref={navMenuRef}
-                        model={navMenuModel}
-                        popup
-                        onHide={() => {
-                          setActiveNavDropdown(null);
-                          setNavMenuModel([]);
-                        }}
-                      />
-                    </>
+                    <button
+                      className={`uni-nav-item ${activeRoute === item.route || activeNavDropdown === item.label ? "active" : ""}`}
+                      aria-current={activeRoute === item.route ? "page" : undefined}
+                      onClick={(e) => {
+                        // F29-T005: o pai navega para a própria rota; o
+                        // submenu abre como atalho para os filhos.
+                        navigate(item.route);
+                        handleNavDropdownClick(e, item);
+                      }}
+                      title={item.label}
+                    >
+                      <i className={item.icon} />
+                      <span>{item.label}</span>
+                      <i className="pi pi-angle-down uni-nav-arrow" />
+                      {badge && <Badge value={badge} className="uni-nav-badge" />}
+                    </button>
                   ) : (
                     <button
-                      className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                      onClick={() => navigate(item.label)}
+                      className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
+                      aria-current={activeRoute === item.route ? "page" : undefined}
+                      onClick={() => navigate(item.route)}
                       title={item.label}
                     >
                       <i className={item.icon} />
@@ -375,7 +360,6 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       {badge && <Badge value={badge} className="uni-nav-badge" />}
                     </button>
                   )}
->>>>>>> 2d1cf31dc85ed40263f6849ad4c64d3c9d3cf33d
                 </li>
               );
             })}
@@ -388,46 +372,27 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
               const badge = getItemBadge(item.label, item.badge);
               const hasSubmenu = item.items && item.items.length > 0;
               return (
-<<<<<<< HEAD
                 <li key={item.route}>
-                  <button
-                    className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
-                    aria-current={activeRoute === item.route ? "page" : undefined}
-                    onClick={() => navigate(item.route)}
-                    title={item.label}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badge && <Badge value={badge} className="uni-nav-badge" />}
-                  </button>
-=======
-                <li key={item.label}>
                   {hasSubmenu ? (
-                    <>
-                      <button
-                        className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                        onClick={(e) => handleNavDropdownClick(e, item)}
-                        title={item.label}
-                      >
-                        <i className={item.icon} />
-                        <span>{item.label}</span>
-                        <i className="pi pi-angle-down uni-nav-arrow" />
-                        {badge && <Badge value={badge} className="uni-nav-badge" />}
-                      </button>
-                      <Menu
-                        ref={navMenuRef}
-                        model={navMenuModel}
-                        popup
-                        onHide={() => {
-                          setActiveNavDropdown(null);
-                          setNavMenuModel([]);
-                        }}
-                      />
-                    </>
+                    <button
+                      className={`uni-nav-item ${activeRoute === item.route || activeNavDropdown === item.label ? "active" : ""}`}
+                      aria-current={activeRoute === item.route ? "page" : undefined}
+                      onClick={(e) => {
+                        navigate(item.route);
+                        handleNavDropdownClick(e, item);
+                      }}
+                      title={item.label}
+                    >
+                      <i className={item.icon} />
+                      <span>{item.label}</span>
+                      <i className="pi pi-angle-down uni-nav-arrow" />
+                      {badge && <Badge value={badge} className="uni-nav-badge" />}
+                    </button>
                   ) : (
                     <button
-                      className={`uni-nav-item ${activeItem === item.label ? "active" : ""}`}
-                      onClick={() => navigate(item.label)}
+                      className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
+                      aria-current={activeRoute === item.route ? "page" : undefined}
+                      onClick={() => navigate(item.route)}
                       title={item.label}
                     >
                       <i className={item.icon} />
@@ -435,11 +400,19 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       {badge && <Badge value={badge} className="uni-nav-badge" />}
                     </button>
                   )}
->>>>>>> 2d1cf31dc85ed40263f6849ad4c64d3c9d3cf33d
                 </li>
               );
             })}
           </ul>
+          <Menu
+            ref={navMenuRef}
+            model={navMenuModel}
+            popup
+            onHide={() => {
+              setActiveNavDropdown(null);
+              setNavMenuModel([]);
+            }}
+          />
         </nav>
 
         <div className="uni-sidebar-footer">
