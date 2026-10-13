@@ -239,17 +239,22 @@ public class SwitchHealth
 | Campo | Descrição | Estado Atual | Lacuna |
 |-------|-----------|--------------|--------|
 | Acesso à interface Web | URL de acesso | ❌ Não modelado | Future |
-| SSH | Acesso SSH autorizado | ❌ Não implementado (F11 bloqueado) | **FORA ESCOPO INICIAL** |
+| SSH | Acesso SSH autorizado | ⚠️ Parcial (F11 Credential Store) | **Escopo: credenciais configuradas na plataforma** |
 | Versão da configuração | Hash/config backup | ❌ Não modelado | Future |
 | Data da última alteração | Última mudança de config | ❌ Não modelado | Future |
 | Registo de ações administrativas | Auditoria de config | ❌ Não modelado | Future |
 
 ### Decisão de escopo
 
-Conforme especificação:
-> "Sobre o SSH: não precisamos de implementar um terminal SSH dentro da plataforma logo no início. Primeiro podemos disponibilizar acesso administrativo autorizado, por um caminho seguro, e recolher os dados de monitoramento através de SNMP/Zabbix."
+Conforme especificação atualizada:
+> "Acesso remoto deve funcionar para computador, switch e servidor. Credenciais configuradas na plataforma para acesso via SSH."
 
-**Escopo inicial**: Apenas monitoramento via SNMP/Zabbix. SSH fica para fase futura.
+**Escopo atual**:
+- Credenciais SSH podem ser configuradas na plataforma via **Credential Store** (F11-T006)
+- Credenciais são armazenadas de forma segura via `ICredentialProtector`
+- Acesso SSH autorizado: a plataforma fornece credenciais para acesso remoto (não terminal integrado)
+- Monitoramento via SNMP/Zabbix continua sendo a fonte principal de dados
+- Terminal SSH integrado fica para fase futura
 
 ---
 

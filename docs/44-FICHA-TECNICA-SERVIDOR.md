@@ -387,6 +387,7 @@ O servidor é o terceiro caso de estudo porque:
 | Integração Syslog (Linux) | Requer daemon syslog | Integração custom |
 | Integração Event Log (Windows) | Requer WMI ou API | Integração custom |
 | Gerenciar serviços | Operação crítica | Permissões granulares |
+### Acesso Remoto (SSH/RDP)\n\nConforme especificação:\n> "Acesso remoto deve funcionar para computador, switch e servidor. Credenciais configuradas na plataforma para acesso via SSH."\n\n**Escopo atual**:\n- Credenciais SSH podem ser configuradas na plataforma via **Credential Store** (F11-T006)\n- Credenciais RDP podem ser configuradas na plataforma via **Credential Store** (F11-T006)\n- Credenciais são armazenadas de forma segura via ICredentialProtector\n- Acesso remoto autorizado: a plataforma fornece credenciais para acesso SSH (Linux) ou RDP (Windows)\n- Terminal integrado fica para fase futura
 
 ---
 
@@ -501,3 +502,16 @@ O servidor é o terceiro caso de estudo porque:
 - ADR-048: Identidade Única de Device, Zabbix×UniFi via API
 - F2-T008: DeviceProfile
 - SNMP Server Monitoring: https://snmp-monitoring.info/monitoring/server/
+
+
+### Acesso Remoto (SSH/RDP)
+
+Conforme especificação:
+> Acesso remoto deve funcionar para computador, switch e servidor. Credenciais configuradas na plataforma para acesso via SSH.
+
+**Escopo atual**:
+- Credenciais SSH podem ser configuradas na plataforma via **Credential Store** (F11-T006)
+- Credenciais RDP podem ser configuradas na plataforma via **Credential Store** (F11-T006)
+- Credenciais são armazenadas de forma segura via 
+- Acesso remoto autorizado: a plataforma fornece credenciais para acesso SSH (Linux) ou RDP (Windows)
+- Terminal integrado fica para fase futura

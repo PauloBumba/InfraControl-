@@ -12,9 +12,16 @@ O Access Point Wi-Fi é o quarto caso de estudo porque:
 - É crítico para conectividade de usuários (BYOD, laptops, dispositivos móveis)
 - Requer monitoramento de clientes, canais, interferência e sinal
 - Problemas de Wi-Fi impactam diretamente a experiência do usuário
-- A maioria dos APs modernos oferece APIs de controller (UniFi, Ruckus, Aruba, etc.)
+- UniFi controller oferece API consolidada para todos os APs
 
-**Áreas de foco** (baseadas na especificação):
+**Ambiente de fabricantes** (específico):
+- **UniFi (Ubiquiti)**: 100% dos Access Points são UniFi, gerenciados via controller
+
+**Responsabilidades**:
+- **UniFi Controller**: Coleta de métricas (rádio, utilização, sinal, clientes), histórico detalhado, gerenciamento centralizado
+- **Zabbix**: Coleta de métricas SNMP básicas (ping, interface up/down), triggers de alerta
+- **InfraControl**: Inventário central, visão unificada, análise preventiva, histórico de incidentes, correlação com outros dispositivos
+- **Access Point**: Fonte de dados via UniFi Controller API (100% UniFi)
 - A. Identificação e configuração
 - B. Estado e disponibilidade
 - C. Clientes conectados
@@ -32,7 +39,7 @@ O Access Point Wi-Fi é o quarto caso de estudo porque:
 | Campo | Descrição | Estado Atual | Lacuna |
 |-------|-----------|--------------|--------|
 | Nome | Nome do AP | ✅ `Device.Name` | — |
-| Fabricante | Vendor (Ubiquiti, Ruckus, Aruba, TP-Link, etc.) | ✅ `Device.Vendor` | — |
+| Fabricante | Vendor (Ubiquiti) | ✅ `Device.Vendor` | — |
 | Modelo | Modelo específico | ✅ `Device.Model` | — |
 | Número de série | Serial number | ✅ `Device.SerialNumber` | — |
 | Firmware | Versão do firmware | ❌ Não persistido | **NOVO** |
@@ -92,11 +99,11 @@ O Access Point Wi-Fi é o quarto caso de estudo porque:
 
 **SNMP por fabricante**:
 
-| Dado | UniFi (Ubiquiti) | Ruckus | Aruba | TP-Link |
-|------|------------------|--------|-------|---------|
-| AP status | Via controller API | Vendor-specific | Vendor-specific | Vendor-specific |
-| Radio status | Via controller API | Vendor-specific | Vendor-specific | Vendor-specific |
-| PoE status | Via controller API | Vendor-specific | Vendor-specific | Vendor-specific |
+| Dado | UniFi (Ubiquiti) |
+|------|------------------|
+| AP status | Via controller API |
+| Radio status | Via controller API |
+| PoE status | Via controller API |
 
 **Universal (ifTable)**:
 
@@ -246,10 +253,10 @@ O Access Point Wi-Fi é o quarto caso de estudo porque:
 
 **PoE (vendor-specific)**:
 
-| Dado | UniFi | HP | Aruba |
-|------|-------|----|-------|
-| PoE status | Via controller API | Vendor-specific | Vendor-specific |
-| PoE power | Via controller API | Vendor-specific | Vendor-specific |
+| Dado | UniFi |
+|------|-------|
+| PoE status | Via controller API |
+| PoE power | Via controller API |
 
 ### Fonte de cada dado
 
@@ -380,21 +387,16 @@ O Access Point Wi-Fi é o quarto caso de estudo porque:
 **2. SNMP universal - Prioridade Média**:
 - IEEE 802.11 MIB para SSIDs, canais, rádio
 - ifTable/ifXTable para tráfego
-- Funciona para maioria dos fabricantes
-
-**3. Vendor-specific opcional**:
-- Ruckus, Aruba, TP-Link via API própria
-- Fallback seguro: se vendor não suportado, usar SNMP universal
+- Funciona como fallback para UniFi
 
 ### Prioridade de Implementação
 
 | Ordem | Item | Justificativa |
 |-------|------|---------------|
 | 1 | **Extender UniFi integration** (rádio, utilização, sinal) | Reutilizar código existente (F18) |
-| 2 | **SnmpRadioProvider** (IEEE 802.11 MIB) | Universal SSIDs, canais |
-| 3 | **SnmpApHealthProvider** (estado do AP, rádio) | SNMP ifOperStatus |
+| 2 | **SnmpRadioProvider** (IEEE 802.11 MIB) | Universal SSIDs, canais (fallback) |
+| 3 | **SnmpApHealthProvider** (estado do AP, rádio) | SNMP ifOperStatus (fallback) |
 | 4 | **Modelo de histórico/prevenção** | Limiar, tendência, saturação |
-| 5 | **Vendor-specific APIs** (Ruckus, Aruba, TP-Link) | Apenas se necessário |
 
 ---
 
@@ -434,7 +436,6 @@ O Access Point Wi-Fi é o quarto caso de estudo porque:
    - Adicionar `Device.Criticality` para APs
 
 3. **Prioridade baixa**:
-   - Vendor-specific APIs (Ruckus, Aruba, TP-Link)
    - Monitoramento de interferência detalhado
    - Operações administrativas (reboot, ajuste de canal)
 

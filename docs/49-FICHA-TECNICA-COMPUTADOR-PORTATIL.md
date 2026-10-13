@@ -441,6 +441,7 @@ Computadores e portáteis são o oitavo caso de estudo porque:
 |----------|---------------|----------------|
 | Reiniciar computador | Operação crítica | SSH/power control |
 | Acesso remoto (RDP) | Operação crítica | F11 - Remote Access |
+### Acesso Remoto (RDP/SSH)\n\nConforme especificação:\n> "Acesso remoto deve funcionar para computador, switch e servidor. Credenciais configuradas na plataforma para acesso via SSH."\n\n**Escopo atual**:\n- Credenciais RDP podem ser configuradas na plataforma via **Credential Store** (F11-T006)\n- Credenciais SSH podem ser configuradas na plataforma via **Credential Store** (F11-T006)\n- Credenciais são armazenadas de forma segura via ICredentialProtector\n- Acesso remoto autorizado: a plataforma fornece credenciais para acesso RDP (Windows) ou SSH (Linux)\n- Terminal integrado fica para fase futura
 | Executar comando remoto | Operação crítica | SSH/agent |
 
 ---

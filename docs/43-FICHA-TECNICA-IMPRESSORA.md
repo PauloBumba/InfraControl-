@@ -14,6 +14,16 @@ A impressora é o segundo caso de estudo porque:
 - Atolamentos e filas impactam diretamente os usuários
 - Printer-MIB (RFC 3805) oferece um padrão relativamente universal
 
+**Ambiente de fabricantes** (específico):
+- **HP**: Printers e multifunções HP
+- **Canon**: Printers e multifunções Canon
+- **Epson**: Printers e multifunções Epson
+
+**Responsabilidades**:
+- **Zabbix**: Coleta de métricas SNMP (toner, drum, contadores, estado), histórico detalhado, triggers de alerta
+- **InfraControl**: Inventário central, visão unificada, análise preventiva, histórico de incidentes, correlação com outros dispositivos
+- **Impressora**: Fonte de dados via SNMP (Printer-MIB) e APIs vendor-specific (quando disponível)
+
 **Áreas de foco** (conforme especificação):
 - A. Identificação e configuração
 - B. Estado e disponibilidade
@@ -216,6 +226,22 @@ public class PrinterConsumables
 | Total | `1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.5.0` | Total de impressões |
 | Mono total | `1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.6.0` | Impressões P&B |
 | Color total | `1.3.6.1.4.1.11.2.3.9.4.2.1.4.1.2.7.0` | Impressões color |
+
+**Vendor-specific (Canon)**:
+
+| Dado | OID | Descrição |
+|------|-----|-----------|
+| Total | `1.3.6.1.4.1.1602.1.2.1.3.1.0` | Total de impressões (Canon enterprise) |
+| Mono total | `1.3.6.1.4.1.1602.1.2.1.3.2.0` | Impressões P&B (Canon enterprise) |
+| Color total | `1.3.6.1.4.1.1602.1.2.1.3.3.0` | Impressões color (Canon enterprise) |
+
+**Vendor-specific (Epson)**:
+
+| Dado | OID | Descrição |
+|------|-----|-----------|
+| Total | `1.3.6.1.4.1.1248.1.2.2.1.1.1.1.0` | Total de impressões (Epson enterprise) |
+| Mono total | `1.3.6.1.4.1.1248.1.2.2.1.1.1.2.0` | Impressões P&B (Epson enterprise) |
+| Color total | `1.3.6.1.4.1.1248.1.2.2.1.1.1.3.0` | Impressões color (Epson enterprise) |
 
 **Vendor-specific (Xerox)**:
 
