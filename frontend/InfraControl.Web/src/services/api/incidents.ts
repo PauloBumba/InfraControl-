@@ -85,3 +85,20 @@ export async function changeIncidentStatus(
 export async function acknowledgeIncident(id: string): Promise<IncidentItem | null> {
   return api.post<IncidentItem>(`/incidents/${id}/acknowledge`);
 }
+
+/**
+ * CRUD-Incidentes (2026-10-12) — edição dos campos descritivos (título,
+ * descrição, severidade). O status NÃO muda aqui (ciclo por estado via
+ * `changeIncidentStatus`, ADR-030) e a exclusão não existe por decisão de
+ * arquitetura.
+ */
+export function updateIncident(
+  id: string,
+  input: { title: string; description?: string | null; severity: string },
+): Promise<IncidentItem | null> {
+  return api.put<IncidentItem>(`/incidents/${id}`, {
+    title: input.title,
+    description: input.description ?? null,
+    severity: input.severity,
+  });
+}

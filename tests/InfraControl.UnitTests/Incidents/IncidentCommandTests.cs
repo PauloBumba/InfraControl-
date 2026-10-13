@@ -232,4 +232,81 @@ public sealed class IncidentCommandTests : IDisposable
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Incidente '{unknown}' não encontrado.");
     }
+
+    // ── Update de campos descritivos (CRUD-Incidentes 2026-10-12) ────────
+
+    private static UpdateIncidentCommandHandler UpdateHandler(AppDbContext context)
+        => new(Repo(context));
+
+    private static async Task<Guid> SeedIncidentAsync(AppDbContext context)
+    {
+        var dto = await CreateHandler(context).Handle(
+            new CreateIncidentCommand("Título original", IncidentSeverity.Low),
+            CancellationToken.None);
+        return dto.Id;
+    }
+
+    [Fact]
+    public void Update_ShouldRequireOperate()
+        => new UpdateIncidentCommand(Guid.NewGuid(), "t", null, "High").RequiredRoles
+            .Should().BeEquivalentTo(RoleAccess.Operate);
+
+    [Fact]
+    public async Task Update_ShouldChangeTitleDescriptionSeverity()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+
+        var dto = await UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(id, "Novo título", "Nova descrição", "Critical"),
+            CancellationToken.None);
+
+        dto.Title.Should().Be("Novo título");
+        dto.Description.Should().Be("Nova descrição");
+        dto.Severity.Should().Be("Critical");
+        dto.Status.Should().Be(nameof(IncidentStatus.Open)); // status intocado
+
+        var saved = await context.Incidents.AsNoTracking().SingleAsync();
+        saved.Title.Should().Be("Novo título");
+        saved.Severity.Should().Be(IncidentSeverity.Critical);
+    }
+
+    [Fact]
+    public async Task Update_WithInvalidSeverity_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(id, "t", null, "banana"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*banana*");
+    }
+
+    [Fact]
+    public async Task Update_WithoutTitle_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(id, "  ", null, "High"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*título*");
+    }
+
+    [Fact]
+    public async Task Update_UnknownIncident_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var unknown = Guid.NewGuid();
+
+        var action = () => UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(unknown, "t", null, "High"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Incidente '{unknown}' não encontrado.");
+    }
 }

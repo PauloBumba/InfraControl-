@@ -107,4 +107,24 @@ public sealed class Incident : AggregateRoot
         if (RootCause != trimmed)
             RootCause = trimmed;
     }
+
+    /// <summary>
+    /// CRUD-Incidentes (2026-10-12): edição dos campos descritivos
+    /// (título/descrição/severidade). O STATUS continua sendo trocado só
+    /// via <see cref="ChangeStatus"/> (ciclo por estado, ADR-030) e a
+    /// exclusão não existe por decisão de arquitetura. Sem evento de
+    /// domínio — edição de metadados, mesma semântica de <see cref="SetRootCause"/>.
+    /// </summary>
+    public void UpdateDetails(
+        string title, string? description, IncidentSeverity severity)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("O título do incidente é obrigatório.", nameof(title));
+        if (!Enum.IsDefined(severity))
+            throw new ArgumentException("A severidade do incidente é inválida.", nameof(severity));
+
+        Title = title.Trim();
+        Description = description?.Trim();
+        Severity = severity;
+    }
 }

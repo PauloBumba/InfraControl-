@@ -184,4 +184,130 @@ public sealed class TopologyQueryTests : IDisposable
         result.Nodes.Select(n => n.Name).Should().Equal("Gi0/1", "Gi0/2");
         result.Edges.Should().ContainSingle();
     }
+
+    private static async Task<Guid> SeedRunAsync(AppDbContext context, Guid deviceId)
+    {
+        var run = DiscoveryRun.Start(deviceId);
+        context.DiscoveryRuns.Add(run);
+        await context.SaveChangesAsync();
+        return run.Id;
+    }
+
+    private static async Task<Guid> SeedNeighborAsync(
+        AppDbContext context,
+        Guid runId,
+        Guid? linkedDeviceId,
+        string? localIfName,
+        string? sysName = null,
+        string? portDesc = null)
+    {
+        var values = new Dictionary<string, string>();
+        if (localIfName is not null)
+            values["local_if_name"] = localIfName;
+        if (sysName is not null)
+            values["sys_name"] = sysName;
+        if (portDesc is not null)
+            values["port_desc"] = portDesc;
+
+        var finding = DiscoveryResult.Create(
+            runId,
+            DiscoveryResultKind.Neighbor,
+            sysName ?? "Vizinho",
+            values,
+            deviceId: linkedDeviceId);
+        context.DiscoveryResults.Add(finding);
+        await context.SaveChangesAsync();
+        return finding.Id;
+    }
+
+    [Fact]
+    public async Task Graph_GhostNeighbor_ShouldAppearAsGhostNodeWithPortEdge()
+    {
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        var nic = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var run = await SeedRunAsync(context, sw);
+        var findingId = await SeedNeighborAsync(
+            context, run, linkedDeviceId: null, localIfName: "Gi0/1",
+            sysName: "sw-vizinho", portDesc: "Gi0/8");
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        var ghost = result.Nodes.Should().ContainSingle(n => n.IsGhost).Subject;
+        ghost.Id.Should().Be(findingId);
+        ghost.Name.Should().Be("sw-vizinho");
+        ghost.DeviceName.Should().Be("sw-vizinho");
+        ghost.DeviceType.Should().Be("Unknown");
+        ghost.Port.Should().Be("Gi0/8");
+        ghost.Ip.Should().BeNull();
+        ghost.Status.Should().BeNull();
+
+        var edge = result.Edges.Should().ContainSingle(e => e.IsGhost).Subject;
+        edge.SourceInterfaceId.Should().Be(nic);
+        edge.TargetInterfaceId.Should().Be(findingId);
+    }
+
+    [Fact]
+    public async Task Graph_MatchedNeighbor_ShouldNotBecomeGhost()
+    {
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        _ = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var run = await SeedRunAsync(context, sw);
+
+        // Vizinho já vinculado a um device gerenciado (DeviceId != null) →
+        // NÃO é ghost (caminho normal de Connection, não do read-model ghost).
+        var peer = await SeedDeviceAsync(context, "sw-peer");
+        _ = await SeedNeighborAsync(
+            context, run, linkedDeviceId: peer, localIfName: "Gi0/1",
+            sysName: "sw-peer", portDesc: "Gi0/2");
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        result.Nodes.Should().NotContain(n => n.IsGhost);
+        result.Edges.Should().NotContain(e => e.IsGhost);
+    }
+
+    [Fact]
+    public async Task Graph_DuplicateGhostFindings_ShouldDedupeByKey()
+    {
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        _ = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var run = await SeedRunAsync(context, sw);
+
+        // Mesmo vizinho descoberto em dois runs → um único nó ghost.
+        _ = await SeedNeighborAsync(
+            context, run, null, "Gi0/1", sysName: "sw-vizinho", portDesc: "Gi0/8");
+        var run2 = await SeedRunAsync(context, sw);
+        _ = await SeedNeighborAsync(
+            context, run2, null, "Gi0/1", sysName: "sw-vizinho", portDesc: "Gi0/8");
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        result.Nodes.Count(n => n.IsGhost).Should().Be(1);
+        result.Edges.Count(e => e.IsGhost).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Graph_GhostWithUnknownLocalInterface_ShouldBeSkipped()
+    {
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        _ = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var run = await SeedRunAsync(context, sw);
+
+        // local_if_name não casa nenhuma interface do device → sem ghost.
+        _ = await SeedNeighborAsync(
+            context, run, null, "Gi9/9", sysName: "sw-vizinho", portDesc: "Gi0/8");
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        result.Nodes.Should().NotContain(n => n.IsGhost);
+        result.Edges.Should().NotContain(e => e.IsGhost);
+    }
 }

@@ -25,6 +25,7 @@ import {
   changeIncidentStatus,
   createIncident,
   listIncidents,
+  updateIncident,
   type IncidentItem,
 } from "@/services/api/incidents";
 
@@ -34,8 +35,10 @@ import {
  * e visões tabela/grid/kanban (preferência persistida). Kanban agrupa por
  * status (5 colunas do ciclo Open→Resolved); a transição usa
  * `PUT /incidents/{id}/status` (mapa de estados no backend — 409/400 pt-BR
- * vira banner) e `POST /{id}/acknowledge` sai de Open. Sem exclusão
- * (ADR-030: ciclo por estado). Escrita atrás de `Can operate` (exibição;
+ * vira banner) e `POST /{id}/acknowledge` sai de Open. **CRUD-Incidentes
+ * (2026-10-12)**: edição dos campos descritivos (título/descrição/severidade)
+ * via `PUT /incidents/{id}`; a exclusão não existe (ADR-030: ciclo por
+ * estado). Escrita atrás de `Can operate` (exibição;
  * policy Operate + antiforgery continuam sendo a autoridade).
  */
 
@@ -87,6 +90,13 @@ export function IncidentsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // CRUD-Incidentes (2026-10-12) — edição dos campos descritivos (título,
+  // descrição, severidade). Status continua no select de ciclo por estado.
+  const [editing, setEditing] = useState<IncidentItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSeverity, setEditSeverity] = useState("Medium");
+  const [editDescription, setEditDescription] = useState("");
+
   const incidents = usePagedQuery<IncidentItem>(["incidents", page, statusFilter], () =>
     listIncidents({
       status: statusFilter || undefined,
@@ -120,6 +130,50 @@ export function IncidentsPage() {
     },
     onError: (error) => setActionError(mutationErrorMessage(error)),
   });
+  const updateMutation = useUpdateMutation({
+    invalidate: ["incidents"],
+    mutationFn: (input: { id: string; title: string; description?: string | null; severity: string }) =>
+      updateIncident(input.id, {
+        title: input.title,
+        description: input.description,
+        severity: input.severity,
+      }),
+    onSuccess: () => {
+      setActionError(null);
+      setNotice("Incidente atualizado.");
+      setEditing(null);
+    },
+    onError: (error) => setActionError(mutationErrorMessage(error)),
+  });
+
+  function openEdit(incident: IncidentItem) {
+    setEditing(incident);
+    setEditTitle(incident.title);
+    setEditSeverity(incident.severity);
+    setEditDescription(incident.description ?? "");
+    resetFormError();
+  }
+
+  async function submitEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editing) return;
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      failForm("Informe o título do incidente.", "title");
+      return;
+    }
+    resetFormError();
+    try {
+      await updateMutation.mutateAsync({
+        id: editing.id,
+        title: trimmed,
+        description: editDescription.trim() || null,
+        severity: editSeverity,
+      });
+    } catch (caught) {
+      failForm(errorMessage(caught));
+    }
+  }
 
   async function submitCreate(event: FormEvent) {
     event.preventDefault();
@@ -268,6 +322,65 @@ export function IncidentsPage() {
         </form>
       )}
 
+      {editing && (
+        <form onSubmit={submitEdit} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>Editar incidente</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
+            <FormField label="Título" error={errorFor("title")}>
+              <input
+                value={editTitle}
+                onChange={(event) => setEditTitle(event.target.value)}
+                placeholder="Título *"
+                autoFocus
+                style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+              />
+            </FormField>
+            <FormField label="Severidade">
+              <SelectField
+                value={editSeverity}
+                onChange={setEditSeverity}
+                options={severityOptions.map((value) => ({
+                  value,
+                  label: severityConfig[value]?.label ?? value,
+                }))}
+                style={{ width: "100%" }}
+              />
+            </FormField>
+          </div>
+          <FormField label="Descrição (opcional)">
+            <textarea
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={3}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </FormField>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>
+            O status é alterado pelo ciclo por estado (select na listagem); a exclusão não existe por decisão de arquitetura (ADR-030).
+          </div>
+          <FormError message={field ? "" : (formError ?? "")} />
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => { setEditing(null); resetFormError(); }}
+              style={{ padding: "6px 14px" }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={updateMutation.isPending}
+              style={{ padding: "6px 14px" }}
+            >
+              {updateMutation.isPending ? "Salvando…" : "Salvar alterações"}
+            </Button>
+          </div>
+        </form>
+      )}
+
       <EntityView<IncidentItem>
         mode={view}
         items={incidentsList}
@@ -284,11 +397,19 @@ export function IncidentsPage() {
               <Column header="Resolvido em" body={(incident: IncidentItem) => incident.resolvedAt ? formatDateTime(new Date(incident.resolvedAt)) : "—"} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
               <Column
                 header=""
-                style={{ width: 190 }}
+                style={{ width: 230 }}
                 body={(incident: IncidentItem) => (
                   <Can level="operate">
                     <div className="flex gap-1 align-items-center">
-                      {statusSelect(incident, 150)}
+                      {statusSelect(incident, 130)}
+                      <Button
+                        variant="ghost"
+                        title="Editar campos do incidente (título, descrição, severidade)"
+                        onClick={() => openEdit(incident)}
+                        style={{ padding: "4px 8px" }}
+                      >
+                        <i className="pi pi-pencil" />
+                      </Button>
                       {incident.status === "Open" && (
                         <Button
                           variant="ghost"
@@ -324,6 +445,14 @@ export function IncidentsPage() {
             <Can level="operate">
               <div className="flex gap-1 align-items-center" style={{ marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
                 {statusSelect(incident)}
+                <Button
+                  variant="ghost"
+                  title="Editar campos do incidente"
+                  onClick={() => openEdit(incident)}
+                  style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
+                >
+                  <i className="pi pi-pencil" /> Editar
+                </Button>
                 {incident.status === "Open" && (
                   <Button
                     variant="ghost"

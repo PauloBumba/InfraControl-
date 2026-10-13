@@ -35,6 +35,15 @@ public sealed class IpAddressesController(ISender sender) : BaseController
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetIpAddressQuery(id), cancellationToken)));
 
+    /// <summary>
+    /// F29-4: IPs reclamados por 2+ identidades distintas (interface ×
+    /// gestão × host Zabbix não correlacionado) — read-model, nada persistido.
+    /// </summary>
+    [HttpGet("conflicts")]
+    [Authorize]
+    public async Task<IActionResult> GetConflicts(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(new GetIpConflictsQuery(), cancellationToken)));
+
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(

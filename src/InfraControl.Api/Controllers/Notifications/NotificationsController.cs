@@ -1,6 +1,7 @@
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Notifications;
+using InfraControl.Application.Notifications.Events;
 using InfraControl.Application.Notifications.Feed.Queries;
 using InfraControl.Application.Notifications.Preferences.Commands;
 using InfraControl.Application.Notifications.Preferences.Queries;
@@ -93,4 +94,14 @@ public sealed class NotificationsController(IMediator sender) : BaseController
             new DeleteNotificationPreferenceCommand(userId, channel), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>
+    /// Fase 05 (Plano Mestre §10): catálogo de tipos de evento que viram
+    /// notificação — o n8n consulta para montar o switch do workflow por
+    /// <c>eventType</c> sem hardcode. Fonte única em memória (cache 1h).
+    /// </summary>
+    [HttpGet("events")]
+    public async Task<IActionResult> GetEventCatalog(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetNotificationEventCatalogQuery(), cancellationToken)));
 }

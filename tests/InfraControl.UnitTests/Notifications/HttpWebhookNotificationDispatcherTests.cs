@@ -34,7 +34,8 @@ public sealed class HttpWebhookNotificationDispatcherTests
             "https://n8n.exemplo.test/webhook/infracontrol",
             "Incidente resolvido",
             "O incidente 'Carga de CPU alta' foi resolvido.",
-            DateTime.UtcNow));
+            DateTime.UtcNow,
+            EventType: "IncidentResolvedDomainEvent"));
 
         recording.Request.Should().NotBeNull();
         recording.Request!.Method.Should().Be(HttpMethod.Post);
@@ -43,7 +44,9 @@ public sealed class HttpWebhookNotificationDispatcherTests
         recording.Body.Should().Contain(deliveryId.ToString())
             .And.Contain(notificationId.ToString())
             .And.Contain(userId.ToString())
-            .And.Contain("Incidente resolvido");
+            .And.Contain("Incidente resolvido")
+            // Fase 05: o payload leva o eventType p/ o switch do n8n.
+            .And.Contain("IncidentResolvedDomainEvent");
 
         // sem Secret configurado → sem header de assinatura
         recording.Request.Headers.Contains("X-InfraControl-Secret").Should().BeFalse();

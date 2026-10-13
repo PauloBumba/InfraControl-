@@ -250,6 +250,18 @@ export async function getDevice(id: string): Promise<DeviceItem | null> {
   return api.get<DeviceItem>(`/inventory/devices/${id}`);
 }
 
+/** F1-b: estado operacional consolidado (§8.1). */
+export interface DeviceStatusItem {
+  status: "Available" | "Degraded" | "Unavailable" | "Unknown";
+  sources: string[];
+  reasons: string[];
+  checkedAtUtc: string;
+}
+
+export async function getDeviceStatus(id: string): Promise<DeviceStatusItem | null> {
+  return api.get<DeviceStatusItem>(`/inventory/devices/${id}/status`);
+}
+
 export interface NetworkInterfaceItem {
   id: string;
   deviceId: string;

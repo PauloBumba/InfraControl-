@@ -142,6 +142,9 @@ export function TopologyPage() {
     if (!graph) return [];
     const byDevice = new Map<string, DeviceGroup>();
     graph.nodes.forEach((node) => {
+      // F29-5: nó ghost (vizinho não gerenciado) fica FORA do cluster do
+      // device — é renderizado à parte, tracejado, para não poluir contagens.
+      if (node.isGhost) return;
       const existing = byDevice.get(node.deviceId);
       if (existing) existing.nodes.push(node);
       else {
@@ -206,6 +209,35 @@ export function TopologyPage() {
     });
     return { slots, nodePos, nodeDevice, height };
   }, [groups]);
+
+  /** F29-5: nós ghost (vizinho não gerenciado) — fora dos clusters. */
+  const ghostNodes = useMemo(
+    () => graph?.nodes.filter((node) => node.isGhost) ?? [],
+    [graph],
+  );
+
+  /** Posição dos ghosts: deslocados do slot do device local que os descobriu. */
+  const ghostPos = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    const perDevice = new Map<string, number>();
+    ghostNodes.forEach((ghost) => {
+      const slot = layout.slots.find((s) => s.group.deviceId === ghost.deviceId);
+      const base = slot ? { x: slot.cx, y: slot.cy } : { x: 48, y: 48 };
+      const index = perDevice.get(ghost.deviceId) ?? 0;
+      perDevice.set(ghost.deviceId, index + 1);
+      map.set(ghost.id, {
+        x: base.x + 52 + (index % 3) * 22,
+        y: base.y + 46 + Math.floor(index / 3) * 20,
+      });
+    });
+    return map;
+  }, [ghostNodes, layout]);
+
+  /** Posição de um node (real no cluster, ou ghost avulso). */
+  const positionOf = useCallback(
+    (interfaceId: string) => layout.nodePos.get(interfaceId) ?? ghostPos.get(interfaceId),
+    [layout, ghostPos],
+  );
 
   const visibleDeviceIds = useMemo(() => {
     if (filter === "all") return new Set(groups.map((group) => group.deviceId));
@@ -383,13 +415,15 @@ export function TopologyPage() {
                     Seleção: device → destaca as conexões dele; edge → destaca
                     só ela; o resto perde opacidade (foco visual). */}
                 {graph.edges.map((edge) => {
-                  const from = layout.nodePos.get(edge.sourceInterfaceId);
-                  const to = layout.nodePos.get(edge.targetInterfaceId);
+                  const from = positionOf(edge.sourceInterfaceId);
+                  const to = positionOf(edge.targetInterfaceId);
                   if (!from || !to) return null;
                   const sourceDevice = layout.nodeDevice.get(edge.sourceInterfaceId);
-                  const targetDevice = layout.nodeDevice.get(edge.targetInterfaceId);
+                  const targetDevice = edge.isGhost
+                    ? edge.targetInterfaceId // ghost não tem device próprio no mapa
+                    : layout.nodeDevice.get(edge.targetInterfaceId);
                   if (!sourceDevice || !targetDevice) return null;
-                  if (!visibleDeviceIds.has(sourceDevice) || !visibleDeviceIds.has(targetDevice)) return null;
+                  if (!visibleDeviceIds.has(sourceDevice) || (!edge.isGhost && !visibleDeviceIds.has(targetDevice))) return null;
 
                   const isHighlighted =
                     (selectedDeviceId !== null &&
@@ -404,8 +438,9 @@ export function TopologyPage() {
                     <g key={edge.id}>
                       <line
                         x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                        stroke={selectedEdgeId === edge.id ? "#3b82f6" : "#94a3b8"}
+                        stroke={selectedEdgeId === edge.id ? "#3b82f6" : edge.isGhost ? "#a78bfa" : "#94a3b8"}
                         strokeWidth={isHighlighted ? 2.2 : 1.2}
+                        strokeDasharray={edge.isGhost ? "4 3" : undefined}
                         opacity={isDimmed ? 0.12 : isHighlighted ? 0.95 : 0.5}
                       />
                       {/* hit-area invisível: a linha visível tem 1,2px de alvo */}
@@ -495,6 +530,46 @@ export function TopologyPage() {
                       </g>
                     );
                   })}
+                {/* F29-5: nós ghost — vizinho LLDP/CDP não gerenciado,
+                    renderizado tracejado com o rótulo da porta remota. */}
+                {ghostNodes.map((ghost) => {
+                  const pos = ghostPos.get(ghost.id);
+                  if (!pos) return null;
+                  const isSelected = selectedEdgeId !== null &&
+                    selectedEdge?.targetInterfaceId === ghost.id;
+                  return (
+                    <g
+                      key={ghost.id}
+                      style={{ cursor: "pointer" }}
+                      onMouseEnter={() => setHoveredId(ghost.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                    >
+                      <circle
+                        cx={pos.x} cy={pos.y} r={13}
+                        fill="#faf5ff" stroke="#a78bfa" strokeWidth={1.5}
+                        strokeDasharray="3 3"
+                        opacity={isSelected ? 1 : 0.9}
+                      />
+                      <text x={pos.x} y={pos.y + 1} textAnchor="middle" dominantBaseline="central" fontSize="10">👻</text>
+                      <text x={pos.x} y={pos.y + 26} textAnchor="middle" fill="#7c3aed" fontSize="8" fontWeight="600" fontFamily="Inter, sans-serif">
+                        {ghost.name}
+                      </text>
+                      {ghost.port && (
+                        <text x={pos.x} y={pos.y + 36} textAnchor="middle" fill="#a78bfa" fontSize="7" fontFamily="Inter, sans-serif">
+                          {ghost.port}
+                        </text>
+                      )}
+                      {hoveredId === ghost.id && (
+                        <g>
+                          <rect x={pos.x + 16} y={pos.y - 30} width={158} height={48} rx={6} fill="white" stroke="#e5e7eb" strokeWidth="1" filter="url(#glow)" />
+                          <text x={pos.x + 24} y={pos.y - 16} fill="#111827" fontSize="9" fontWeight="600">{ghost.name}</text>
+                          <text x={pos.x + 24} y={pos.y - 4} fill="#7c3aed" fontSize="7">Vizinho não gerenciado</text>
+                          <text x={pos.x + 24} y={pos.y + 8} fill="#6b7280" fontSize="7">Porta remota: {ghost.port ?? "—"}</text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
               </svg>
             </div>
           )}
@@ -607,6 +682,9 @@ export function TopologyPage() {
             </div>
             <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}>
               <span style={{ width: 12, height: 2, background: "#94a3b8", flexShrink: 0 }} /> Connection (interface → interface)
+            </div>
+            <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 5, fontSize: 9, color: "#6b7280" }}>
+              <span style={{ width: 12, height: 0, borderTop: "2px dashed #a78bfa", flexShrink: 0 }} /> Vizinho não gerenciado (ghost)
             </div>
             <div style={{ marginTop: 4, display: "flex", gap: 8, fontSize: 9 }}>
               <span style={{ color: "#22c55e", fontWeight: 600 }}>● Up</span>

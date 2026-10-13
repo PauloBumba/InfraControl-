@@ -5,6 +5,7 @@ using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Projects.Commands;
 using InfraControl.Application.Projects.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
+using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -243,5 +244,202 @@ public sealed class ProjectsController(
         return Ok(ApiResponse.Ok(await sender.Send(
             new ApproveProjectCommand(id, model.ApprovalNotes),
             cancellationToken)));
+    }
+
+    // ---- Impedimentos (CRUD-Projetos 2026-10-12) ----
+
+    [HttpGet("{id:guid}/impediments")]
+    [Authorize]
+    public async Task<IActionResult> GetImpediments(
+        Guid id,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetProjectImpedimentsQuery(id),
+            cancellationToken)));
+
+    [HttpPost("{id:guid}/impediments")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> CreateImpediment(
+        Guid id,
+        [FromBody] CreateProjectImpedimentViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new CreateProjectImpedimentCommand(
+                id,
+                model.Title,
+                model.Description,
+                model.Category,
+                model.Severity,
+                model.MitigationPlan),
+            cancellationToken)));
+
+    [HttpPut("{id:guid}/impediments/{impedimentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UpdateImpediment(
+        Guid id,
+        Guid impedimentId,
+        [FromBody] UpdateProjectImpedimentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateProjectImpedimentCommand(
+                impedimentId,
+                model.Title,
+                model.Description,
+                model.Category,
+                model.Severity,
+                model.MitigationPlan),
+            cancellationToken)));
+    }
+
+    [HttpDelete("{id:guid}/impediments/{impedimentId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> DeleteImpediment(
+        Guid id,
+        Guid impedimentId,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        await sender.Send(new DeleteProjectImpedimentCommand(impedimentId), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/impediments/{impedimentId:guid}/resolve")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ResolveImpediment(
+        Guid id,
+        Guid impedimentId,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new ResolveProjectImpedimentCommand(impedimentId),
+            cancellationToken)));
+    }
+
+    [HttpPost("{id:guid}/impediments/{impedimentId:guid}/reopen")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ReopenImpediment(
+        Guid id,
+        Guid impedimentId,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new ReopenProjectImpedimentCommand(impedimentId),
+            cancellationToken)));
+    }
+
+    // ---- Membros (CRUD-Projetos 2026-10-12) ----
+
+    [HttpPost("{id:guid}/members")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> AddMember(
+        Guid id,
+        [FromBody] AddProjectMemberViewModel model,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new AddProjectMemberCommand(id, model.UserId, model.Role),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/members/{userId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> RemoveMember(
+        Guid id,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(new RemoveProjectMemberCommand(id, userId), cancellationToken);
+        return NoContent();
+    }
+
+    // ---- Evidências (CRUD-Projetos 2026-10-12) ----
+
+    [HttpGet("{id:guid}/evidences")]
+    [Authorize]
+    public async Task<IActionResult> GetEvidences(
+        Guid id,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetProjectEvidenceQuery(id),
+            cancellationToken)));
+
+    /// <summary>
+    /// Upload da evidência (multipart: file, type, description). Arquivo
+    /// ≤ 10 MB com nome saneado; salvo em disco antes do banco.
+    /// </summary>
+    [HttpPost("{id:guid}/evidences")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UploadEvidence(
+        Guid id,
+        [FromForm] IFormFile? file,
+        [FromForm] string? type,
+        [FromForm] string? description,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+            throw new ArgumentException(
+                "O arquivo da evidência é obrigatório.", nameof(file));
+
+        if (!Enum.TryParse<ProjectEvidenceType>(type, ignoreCase: true, out var evidenceType))
+            throw new ArgumentException(
+                "O tipo de evidência é inválido.", nameof(type));
+
+        await using var content = file.OpenReadStream();
+        var dto = await sender.Send(
+            new UploadProjectEvidenceCommand(
+                id, evidenceType, description, file.FileName,
+                file.ContentType, file.Length, content),
+            cancellationToken);
+
+        return Ok(ApiResponse.Ok(dto));
+    }
+
+    /// <summary>Revisão única: validada ou rejeitada (motivo obrigatório).</summary>
+    [HttpPut("{id:guid}/evidences/{evidenceId:guid}/review")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ReviewEvidence(
+        Guid id,
+        Guid evidenceId,
+        [FromBody] ReviewProjectEvidenceViewModel model,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        model ??= new ReviewProjectEvidenceViewModel();
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new ReviewProjectEvidenceCommand(evidenceId, model.Decision, model.RejectionReason),
+            cancellationToken)));
+    }
+
+    /// <summary>Download autenticado com nosniff.</summary>
+    [HttpGet("{id:guid}/evidences/{evidenceId:guid}/download")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> DownloadEvidence(
+        Guid id,
+        Guid evidenceId,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        var download = await sender.Send(
+            new DownloadProjectEvidenceQuery(evidenceId), cancellationToken);
+
+        Response.Headers.XContentTypeOptions = "nosniff";
+        return File(download.Content, download.ContentType, download.FileName);
+    }
+
+    [HttpDelete("{id:guid}/evidences/{evidenceId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> DeleteEvidence(
+        Guid id,
+        Guid evidenceId,
+        CancellationToken cancellationToken)
+    {
+        _ = id;
+        await sender.Send(new DeleteProjectEvidenceCommand(evidenceId), cancellationToken);
+        return NoContent();
     }
 }

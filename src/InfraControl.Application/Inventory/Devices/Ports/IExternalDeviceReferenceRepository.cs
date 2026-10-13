@@ -27,5 +27,9 @@ public interface IExternalDeviceReferenceRepository : IRepository<ExternalDevice
         ExternalDeviceSource source, string externalId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>F1-b: todas as referências de um device (status consolidado).</summary>
+    Task<IReadOnlyList<ExternalDeviceReference>> ListByDeviceIdAsync(
+        Guid deviceId, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

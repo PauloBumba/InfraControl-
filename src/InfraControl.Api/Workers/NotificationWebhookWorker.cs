@@ -35,7 +35,8 @@ public sealed class NotificationWebhookWorker(
         return services.GetRequiredService<IWebhookNotificationDispatcher>().SendAsync(
             new WebhookNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
-                url, item.Title, item.Message, item.CreatedAt),
+                url, item.Title, item.Message, item.CreatedAt,
+                EventType: item.EventType),
             cancellationToken);
     }
 }

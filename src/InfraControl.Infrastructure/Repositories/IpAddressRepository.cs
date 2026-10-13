@@ -65,6 +65,17 @@ public sealed class IpAddressRepository(AppDbContext dbContext) : IIpAddressRepo
         return new PagedResult<IpAddress>(items, totalCount, page, pageSize);
     }
 
+    public async Task<IReadOnlyList<IpInterfaceClaim>> ListInterfaceClaimsAsync(
+        CancellationToken cancellationToken = default)
+        => await dbContext.IpAddresses
+            .AsNoTracking()
+            .Join(dbContext.NetworkInterfaces,
+                address => address.InterfaceId,
+                nic => nic.Id,
+                (address, nic) => new IpInterfaceClaim(address.Ip, nic.DeviceId))
+            .OrderBy(claim => claim.Ip)
+            .ToListAsync(cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 

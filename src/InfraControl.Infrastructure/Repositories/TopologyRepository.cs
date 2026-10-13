@@ -61,6 +61,74 @@ public sealed class TopologyRepository(AppDbContext dbContext)
                 connection.TargetInterfaceId))
             .ToListAsync(cancellationToken);
 
+        // F29-5: nós "ghost" = vizinhos LLDP/CDP descobertos mas NÃO
+        // gerenciados (achado Neighbor sem DeviceId — hoje descartados da
+        // ingestão de Connections). Vira nó tracejado + aresta porta-a-porta
+        // até a interface local, sem nova persistência (REGRA 8 — só
+        // read-model a partir de achados já gravados). Mesma semântica de
+        // staleness das Connections: um vizinho que sumiu fica até o achado
+        // ser podado.
+        var interfaceLookup = nodes
+            .GroupBy(node => (node.DeviceId, node.Name))
+            .ToDictionary(group => group.Key, group => group.First().Id);
+
+        var ghostFindings = await (
+            from result in dbContext.DiscoveryResults.AsNoTracking()
+            join run in dbContext.DiscoveryRuns.AsNoTracking()
+                on result.DiscoveryRunId equals run.Id
+            where result.Kind == DiscoveryResultKind.Neighbor
+                && result.DeviceId == null
+                && result.Values != null
+            orderby result.CreatedAt descending
+            select new
+            {
+                result.Id,
+                result.Values,
+                LocalDeviceId = run.DeviceId
+            }).ToListAsync(cancellationToken);
+
+        var ghostNodes = new List<TopologyNodeRow>();
+        var ghostEdges = new List<TopologyEdgeRow>();
+        var seenGhosts = new HashSet<(Guid LocalInterface, string Name, string Port)>();
+
+        foreach (var finding in ghostFindings)
+        {
+            var values = finding.Values;
+            if (values is null)
+                continue;
+
+            if (!values.TryGetValue("local_if_name", out var localIf)
+                || string.IsNullOrWhiteSpace(localIf)
+                || !interfaceLookup.TryGetValue(
+                    (finding.LocalDeviceId, localIf.Trim()), out var localInterfaceId))
+                continue;
+
+            // Mesmo fallback de nome/porta do LldpDiscoveryProvider.
+            var name = FirstValue(values, ["sys_name", "chassis_id", "port_id"])
+                ?? "Vizinho desconhecido";
+            var port = FirstValue(values, ["port_desc", "port_id"]);
+
+            if (!seenGhosts.Add((localInterfaceId, name, port ?? string.Empty)))
+                continue;
+
+            ghostNodes.Add(new TopologyNodeRow(
+                finding.Id, // id sintético estável = próprio achado
+                finding.LocalDeviceId,
+                name,
+                name, // device ghost não gerenciado — label é o próprio nome
+                "Unknown",
+                null,
+                null,
+                IsGhost: true,
+                Port: port));
+
+            ghostEdges.Add(new TopologyEdgeRow(
+                finding.Id,
+                localInterfaceId,
+                finding.Id,
+                IsGhost: true));
+        }
+
         return new TopologyGraph(
             nodes.Select(node => new TopologyNodeRow(
                 node.Id,
@@ -71,7 +139,22 @@ public sealed class TopologyRepository(AppDbContext dbContext)
                 node.Ip,
                 latestPings.TryGetValue(node.DeviceId, out var succeeded)
                     ? succeeded
-                    : null)).ToArray(),
-            edges);
+                    : null))
+                .Concat(ghostNodes)
+                .ToArray(),
+            edges.Concat(ghostEdges).ToList());
+    }
+
+    private static string? FirstValue(
+        IReadOnlyDictionary<string, string> values,
+        IReadOnlyList<string> keys)
+    {
+        foreach (var key in keys)
+        {
+            if (values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
     }
 }

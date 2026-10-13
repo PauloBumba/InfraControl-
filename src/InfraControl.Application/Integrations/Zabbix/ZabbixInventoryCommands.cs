@@ -38,6 +38,8 @@ public sealed class SyncZabbixInventoryCommandHandler(
     IZabbixClient client,
     IZabbixHostsRepository hostsRepository,
     IZabbixSettingsRepository settingsRepository,
+    IDeviceRepository deviceRepository,
+    IExternalDeviceReferenceRepository referenceRepository,
     ILogger<SyncZabbixInventoryCommandHandler> logger)
     : IRequestHandler<SyncZabbixInventoryCommand, ZabbixSyncResultDto>
 {
@@ -118,6 +120,12 @@ public sealed class SyncZabbixInventoryCommandHandler(
                 }
 
                 synced.Add(host.HostId);
+
+                // F29-1: correlação host↔device vira referência estável
+                // (Source=Zabbix, ExternalId=hostid). Own try/catch dentro —
+                // falha aqui não marca o host como erro (o read-model já
+                // foi gravado).
+                await TryLinkReferenceAsync(host, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -147,6 +155,59 @@ public sealed class SyncZabbixInventoryCommandHandler(
             created, updated, missing, errors, version);
 
         return new ZabbixSyncResultDto(created, updated, missing, errors, version);
+    }
+
+    /// <summary>
+    /// F29-1: grava a referência estável (Source=Zabbix, ExternalId=hostid)
+    /// quando o host correlaciona com um device (IP exato → fallback
+    /// hostname — mesmo critério do HasAsset). Idempotente: se a referência
+    /// já existe apontando p/ o mesmo device, não regrava; se aponta p/ outro
+    /// device, mantém a existente e avisa (nunca reassigna em silêncio).
+    /// Host sem device correspondente não gera referência. Falha é logada e
+    /// não derruba o sync. A persistência é feita pelo mesmo AppDbContext do
+    /// save dos hosts (flush único no fim do ExecuteAsync).
+    /// </summary>
+    private async Task TryLinkReferenceAsync(
+        ZabbixHostDto host, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var ip = host.Interfaces
+                .FirstOrDefault(i => i.Main)?.Ip
+                ?? host.Interfaces.FirstOrDefault()?.Ip;
+
+            Device? device = null;
+            if (!string.IsNullOrWhiteSpace(ip))
+                device = await deviceRepository.GetByIpAsync(ip, cancellationToken);
+
+            device ??= await deviceRepository.GetByNameAsync(host.Host, cancellationToken);
+            if (device is null)
+                return;
+
+            var existing = await referenceRepository.GetBySourceAndExternalIdAsync(
+                ExternalDeviceSource.Zabbix, host.HostId, cancellationToken);
+            if (existing is not null)
+            {
+                if (existing.DeviceId != device.Id)
+                    logger.LogWarning(
+                        "Referência Zabbix {HostId} já aponta p/ outro device " +
+                        "({ExistingDeviceId}) — mantida, não reassignada p/ {DeviceId}",
+                        host.HostId, existing.DeviceId, device.Id);
+                return;
+            }
+
+            await referenceRepository.AddAsync(
+                ExternalDeviceReference.Create(
+                    ExternalDeviceSource.Zabbix, host.HostId, device.Id),
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex,
+                "Falha ao correlacionar host Zabbix {HostId} ({Host}) com device — " +
+                "host segue sincronizado sem referência",
+                host.HostId, host.Host);
+        }
     }
 
     private async Task<IReadOnlyDictionary<string, string>> LoadGroupNamesAsync(
@@ -234,7 +295,8 @@ public sealed record GetZabbixHostsQuery(
 
 public sealed class GetZabbixHostsQueryHandler(
     IZabbixHostsRepository hostsRepository,
-    IDeviceRepository deviceRepository)
+    IDeviceRepository deviceRepository,
+    IExternalDeviceReferenceRepository referenceRepository)
     : IRequestHandler<GetZabbixHostsQuery, PagedResult<ZabbixHostViewDto>>
 {
     public async Task<PagedResult<ZabbixHostViewDto>> Handle(
@@ -262,8 +324,14 @@ public sealed class GetZabbixHostsQueryHandler(
     private async Task<ZabbixHostViewDto> ToDtoAsync(
         ZabbixHost host, CancellationToken cancellationToken)
     {
-        var hasAsset = false;
-        if (!string.IsNullOrWhiteSpace(host.Ip))
+        // F29-1: a referência estável (hostid → device, gravada no sync)
+        // tem precedência sobre a heurística IP/hostname — é a identidade
+        // unificada; a heurística fica como fallback p/ hosts ainda não
+        // correlacionados.
+        var hasAsset = await referenceRepository.GetDeviceIdAsync(
+            ExternalDeviceSource.Zabbix, host.HostId, cancellationToken) is not null;
+
+        if (!hasAsset && !string.IsNullOrWhiteSpace(host.Ip))
             hasAsset = await deviceRepository.GetByIpAsync(host.Ip, cancellationToken)
                 is not null;
 

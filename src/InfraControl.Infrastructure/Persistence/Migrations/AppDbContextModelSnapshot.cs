@@ -3783,6 +3783,50 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("UserSessions", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.UserSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AutoRefresh")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto_refresh");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DarkMode")
+                        .HasColumnType("boolean")
+                        .HasColumnName("dark_mode");
+
+                    b.Property<bool>("Telemetry")
+                        .HasColumnType("boolean")
+                        .HasColumnName("telemetry");
+
+                    b.Property<string>("Timezone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("timezone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_user_settings_user_id");
+
+                    b.ToTable("user_settings", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Vlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4941,6 +4985,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("InfraControl.Domain.Entities.User", null)
                         .WithMany("RoleAssignments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.UserSettings", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.User", null)
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
