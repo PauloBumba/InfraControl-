@@ -3,13 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { listProjects, type ProjectItem } from "@/services/api/projects";
+import { useAppSelector } from "@/app/store/hooks";
+import {
+  createProject,
+  deleteProject,
+  listProjects,
+  updateProject,
+  type ProjectItem,
+} from "@/services/api/projects";
 
 const PAGE_SIZE = 20;
 
@@ -60,6 +68,41 @@ function formatDate(value: string | null): string {
   return value;
 }
 
+/** Campos do formulário criar/editar (datas em yyyy-mm-dd p/ input[type=date]). */
+interface ProjectForm {
+  code: string;
+  title: string;
+  description: string;
+  priority: string;
+  justification: string;
+  plannedStartDate: string;
+  plannedEndDate: string;
+}
+
+const EMPTY_FORM: ProjectForm = {
+  code: "",
+  title: "",
+  description: "",
+  priority: "Medium",
+  justification: "",
+  plannedStartDate: "",
+  plannedEndDate: "",
+};
+
+const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"] as const;
+
+function formOf(project: ProjectItem): ProjectForm {
+  return {
+    code: project.code,
+    title: project.title,
+    description: project.description,
+    priority: project.priority,
+    justification: project.justification ?? "",
+    plannedStartDate: project.plannedStartDate ?? "",
+    plannedEndDate: project.plannedEndDate ?? "",
+  };
+}
+
 export function ProjectsPage() {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
@@ -75,6 +118,96 @@ export function ProjectsPage() {
   // tabela; o quadro agrupa por status (os mesmos 7 do filtro/gráfico).
   // Tabela = padrão.
   const [view, setView] = useEntityViewMode("projects", "table");
+
+  const currentUserId = useAppSelector((state) => state.auth.user?.id) ?? "";
+
+  const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
+  const [form, setForm] = useState<ProjectForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProjectItem | null>(null);
+
+  function setField<K extends keyof ProjectForm>(key: K, value: ProjectForm[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function openCreate() {
+    setEditingProject(null);
+    setForm(EMPTY_FORM);
+    setActionError(null);
+    setDialogMode("create");
+  }
+
+  function openEdit(project: ProjectItem) {
+    setEditingProject(project);
+    setForm(formOf(project));
+    setActionError(null);
+    setDialogMode("edit");
+  }
+
+  async function save() {
+    if (dialogMode === "create" && (!form.code.trim() || !form.title.trim() || !form.description.trim())) {
+      setActionError("Código, título e descrição são obrigatórios.");
+      return;
+    }
+    if (dialogMode === "edit" && (!form.title.trim() || !form.description.trim())) {
+      setActionError("Título e descrição são obrigatórios.");
+      return;
+    }
+
+    setSaving(true);
+    setActionError(null);
+    try {
+      if (dialogMode === "create") {
+        if (!currentUserId) throw new Error("Não foi possível identificar o usuário atual.");
+        await createProject({
+          code: form.code.trim(),
+          title: form.title.trim(),
+          description: form.description.trim(),
+          leaderId: currentUserId,
+          priority: form.priority,
+          justification: form.justification.trim() || null,
+          plannedStartDate: form.plannedStartDate || null,
+          plannedEndDate: form.plannedEndDate || null,
+        });
+        setNotice("Projeto criado.");
+      } else if (dialogMode === "edit" && editingProject) {
+        await updateProject(editingProject.id, {
+          title: form.title.trim(),
+          description: form.description.trim(),
+          priority: form.priority,
+          justification: form.justification.trim() || null,
+          plannedStartDate: form.plannedStartDate || null,
+          plannedEndDate: form.plannedEndDate || null,
+        });
+        setNotice("Projeto atualizado.");
+      }
+      setDialogMode(null);
+      setEditingProject(null);
+      await loadProjects();
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : "Não foi possível salvar o projeto.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setSaving(true);
+    setActionError(null);
+    try {
+      await deleteProject(deleteTarget.id);
+      setNotice(`Projeto ${deleteTarget.code} removido.`);
+      await loadProjects();
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : "Não foi possível remover o projeto.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -179,14 +312,32 @@ export function ProjectsPage() {
         <div style={{ fontSize: 11, color: "#94a3b8" }}>
           {memberCount} membro{memberCount === 1 ? "" : "s"}
         </div>
-        <Button
-          variant="ghost"
-          icon="pi pi-arrow-right"
-          aria-label={`Ver projeto ${project.title}`}
-          onClick={() => navigate(`/projects/${project.id}`)}
-        >
-          Detalhes
-        </Button>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Button
+            variant="ghost"
+            icon="pi pi-arrow-right"
+            aria-label={`Ver projeto ${project.title}`}
+            onClick={() => navigate(`/projects/${project.id}`)}
+          >
+            Detalhes
+          </Button>
+          <Button
+            variant="ghost"
+            icon="pi pi-pencil"
+            aria-label={`Editar projeto ${project.title}`}
+            onClick={() => openEdit(project)}
+          >
+            Editar
+          </Button>
+          <Button
+            variant="danger"
+            icon="pi pi-trash"
+            aria-label={`Remover projeto ${project.title}`}
+            onClick={() => setDeleteTarget(project)}
+          >
+            Remover
+          </Button>
+        </div>
       </div>
     );
   }
@@ -199,12 +350,19 @@ export function ProjectsPage() {
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <ViewSwitcher mode={view} onChange={setView} />
-            <Button variant="primary" icon="pi pi-refresh" onClick={() => void loadProjects()}>
+            <Button variant="primary" icon="pi pi-plus" onClick={openCreate}>
+              Novo projeto
+            </Button>
+            <Button variant="ghost" icon="pi pi-refresh" onClick={() => void loadProjects()}>
               Atualizar
             </Button>
           </div>
         }
       />
+
+      {notice && (
+        <div style={{ padding: 12, borderRadius: 10, background: "#f0fdf4", color: "#15803d" }}>{notice}</div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
@@ -293,6 +451,10 @@ export function ProjectsPage() {
       </div>
 
       {error && <ErrorBanner message={error} onRetry={() => void loadProjects()} />}
+
+      {actionError && (
+        <div style={{ padding: 12, borderRadius: 10, background: "#fef2f2", color: "#991b1b" }}>{actionError}</div>
+      )}
 
       {loading ? (
         <div style={{ padding: 24, textAlign: "center", color: "#64748b" }}>Carregando projetos…</div>
@@ -384,20 +546,160 @@ export function ProjectsPage() {
           <Column
             header="Ações"
             body={(project: ProjectItem) => (
-              <Button
-                variant="ghost"
-                icon="pi pi-arrow-right"
-                aria-label={`Ver projeto ${project.title}`}
-                onClick={() => navigate(`/projects/${project.id}`)}
-              >
-                Detalhes
-              </Button>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <Button
+                  variant="ghost"
+                  icon="pi pi-arrow-right"
+                  aria-label={`Ver projeto ${project.title}`}
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                >
+                  Detalhes
+                </Button>
+                <Button
+                  variant="ghost"
+                  icon="pi pi-pencil"
+                  aria-label={`Editar projeto ${project.title}`}
+                  onClick={() => openEdit(project)}
+                >
+                  Editar
+                </Button>
+                <Button
+                  variant="danger"
+                  icon="pi pi-trash"
+                  aria-label={`Remover projeto ${project.title}`}
+                  onClick={() => setDeleteTarget(project)}
+                >
+                  Remover
+                </Button>
+              </div>
             )}
           />
         </DataTablePanel>
           }
         />
       )}
+
+      <Dialog
+        visible={dialogMode !== null}
+        onHide={() => {
+          setDialogMode(null);
+          setEditingProject(null);
+          setActionError(null);
+        }}
+        header={dialogMode === "create" ? "Novo projeto" : "Editar projeto"}
+        width={520}
+        footer={
+          <div className="uni-modal-actions">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDialogMode(null);
+                setEditingProject(null);
+                setActionError(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button variant="primary" onClick={() => void save()} disabled={saving}>
+              {saving ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          {dialogMode === "create" && (
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={{ fontSize: 12, color: "#475569" }}>Código *</span>
+              <input
+                value={form.code}
+                onChange={(event) => setField("code", event.target.value)}
+                placeholder="PRJ-001"
+                style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+              />
+            </label>
+          )}
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "#475569" }}>Título *</span>
+            <input
+              value={form.title}
+              onChange={(event) => setField("title", event.target.value)}
+              style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "#475569" }}>Descrição *</span>
+            <textarea
+              value={form.description}
+              onChange={(event) => setField("description", event.target.value)}
+              rows={3}
+              style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "#475569" }}>Prioridade</span>
+            <select
+              value={form.priority}
+              onChange={(event) => setField("priority", event.target.value)}
+              style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+            >
+              {PRIORITY_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {PROJECT_PRIORITY_LABEL[option] ?? option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "#475569" }}>Justificativa</span>
+            <textarea
+              value={form.justification}
+              onChange={(event) => setField("justification", event.target.value)}
+              rows={2}
+              style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
+            />
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={{ fontSize: 12, color: "#475569" }}>Início planejado</span>
+              <input
+                type="date"
+                value={form.plannedStartDate}
+                onChange={(event) => setField("plannedStartDate", event.target.value)}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+              />
+            </label>
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={{ fontSize: 12, color: "#475569" }}>Fim planejado</span>
+              <input
+                type="date"
+                value={form.plannedEndDate}
+                onChange={(event) => setField("plannedEndDate", event.target.value)}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+              />
+            </label>
+          </div>
+          {dialogMode === "create" && (
+            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+              Líder: você (usuário autenticado).
+            </div>
+          )}
+          {actionError && (
+            <div style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
+              {actionError}
+            </div>
+          )}
+        </div>
+      </Dialog>
+
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        onHide={() => setDeleteTarget(null)}
+        onConfirm={() => void confirmDelete()}
+        header="Remover projeto"
+        message={`Remover o projeto ${deleteTarget?.code ?? ""} — ${deleteTarget?.title ?? ""}? Esta ação não pode ser desfeita.`}
+        confirmLabel="Remover"
+        severity="danger"
+      />
     </div>
   );
 }

@@ -282,11 +282,11 @@ As próximas etapas da fundação de identidade são:
 - Alteração e recuperação de senha;
 - Auditoria.
 
-O domínio de Identity já contém os agregados `User` e `UserSession`, as roles `Admin`, `User` e `Viewer` e eventos para criação, alteração de role e ciclo de sessão. O ASP.NET Core Identity permanece como adaptador técnico para credenciais e persistência de autenticação.
+O domínio de Identity já contém os agregados `User` e `UserSession`, as roles `Viewer`, `Operator` e `Admin` (ADR-016) e eventos para criação, alteração de role e ciclo de sessão. O ASP.NET Core Identity permanece como adaptador técnico para credenciais e persistência de autenticação.
 
 O Bootstrap Admin está implementado como caso de uso em `Application`, com persistência delegada por uma porta ao `Infrastructure`. Ele é opt-in e pode ser ativado com `BootstrapAdmin__Enabled=true`; email, nome e senha devem vir de variáveis de ambiente ou secret manager. A operação é idempotente e não registra a senha.
 
-O RBAC inicial segue Vertical Slice/CQRS: comandos e handlers ficam em `Application`, o domínio mantém as invariantes do usuário, e `Infrastructure` sincroniza as roles e claims de permissão com o ASP.NET Core Identity. As policies HTTP legadas são `AdminOnly`, `UserAccess` e `ViewerAccess`; as policies granulares usam os nomes de `Permission` (`DashboardView`, `InventoryRead`, `IdentityRolesManage` etc.). A matriz padrão está em `Domain/Authorization/RolePermissions`; auditoria continua planejada.
+O RBAC segue Vertical Slice/CQRS: comandos e handlers ficam em `Application`, o domínio mantém as invariantes do usuário, e `Infrastructure` sincroniza as roles com o ASP.NET Core Identity. A autorização usa a hierarquia canônica de três níveis (ADR-016) — não existem policies granulares por permissão. As policies HTTP (`AuthorizationPolicies`) e a segunda camada do pipeline MediatR (`IAuthorizedRequest.RequiredRoles`) compartilham o mesmo conjunto `RoleAccess`: **Ler** (`[Authorize]` sem policy, qualquer role autenticada), **Operar** (policy `Operate`: Operator e Admin) e **Administrar** (policy `Administer`: somente Admin). A auditoria continua planejada.
 
 O roadmap completo está em [`TASKS.md`](TASKS.md). Cada Task deve ser executada isoladamente, com escopo, teste, evidência e atualização de estado. A adaptação transversal do Sentinel segue o plano em [`docs/23-SENTINEL-ADAPTACAO.md`](docs/23-SENTINEL-ADAPTACAO.md); retenção e cleanup operacional continuam pendentes.
 

@@ -131,6 +131,10 @@ export async function updateProject(
   });
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  await api.delete(`/projects/${id}`);
+}
+
 export async function listProjectPhases(projectId: string): Promise<ProjectPhaseItem[]> {
   const data = await api.get<ProjectPhaseItem[]>(`/projects/${projectId}/phases`);
   return data ?? [];
@@ -156,4 +160,167 @@ export async function createProjectInvitation(
 
 export async function generateProjectKnowledge(projectId: string): Promise<unknown> {
   return api.post<unknown>(`/projects/${projectId}/generate-knowledge`);
+}
+
+// ------------------------------------------------------------------
+// Impedimentos (CRUD-Projetos 2026-10-12)
+// ------------------------------------------------------------------
+
+export interface ProjectImpedimentItem {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  category: string;
+  severity: string;
+  mitigationPlan: string | null;
+  status: string;
+  isResolved: boolean;
+  resolvedAt: string | null;
+}
+
+export interface ProjectImpedimentInput {
+  title: string;
+  description: string;
+  category: string;
+  severity: string;
+  mitigationPlan?: string | null;
+}
+
+export async function listProjectImpediments(projectId: string): Promise<ProjectImpedimentItem[]> {
+  const data = await api.get<ProjectImpedimentItem[]>(`/projects/${projectId}/impediments`);
+  return data ?? [];
+}
+
+export async function createProjectImpediment(
+  projectId: string,
+  input: ProjectImpedimentInput,
+): Promise<ProjectImpedimentItem | null> {
+  return api.post<ProjectImpedimentItem>(`/projects/${projectId}/impediments`, {
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    severity: input.severity,
+    mitigationPlan: input.mitigationPlan ?? null,
+  });
+}
+
+export async function updateProjectImpediment(
+  projectId: string,
+  impedimentId: string,
+  input: ProjectImpedimentInput,
+): Promise<ProjectImpedimentItem | null> {
+  return api.put<ProjectImpedimentItem>(
+    `/projects/${projectId}/impediments/${impedimentId}`,
+    {
+      title: input.title,
+      description: input.description,
+      category: input.category,
+      severity: input.severity,
+      mitigationPlan: input.mitigationPlan ?? null,
+    },
+  );
+}
+
+export async function deleteProjectImpediment(
+  projectId: string,
+  impedimentId: string,
+): Promise<void> {
+  await api.delete(`/projects/${projectId}/impediments/${impedimentId}`);
+}
+
+export async function resolveProjectImpediment(
+  projectId: string,
+  impedimentId: string,
+): Promise<ProjectImpedimentItem | null> {
+  return api.post<ProjectImpedimentItem>(
+    `/projects/${projectId}/impediments/${impedimentId}/resolve`,
+  );
+}
+
+export async function reopenProjectImpediment(
+  projectId: string,
+  impedimentId: string,
+): Promise<ProjectImpedimentItem | null> {
+  return api.post<ProjectImpedimentItem>(
+    `/projects/${projectId}/impediments/${impedimentId}/reopen`,
+  );
+}
+
+// ------------------------------------------------------------------
+// Evidências (CRUD-Projetos 2026-10-12)
+// ------------------------------------------------------------------
+
+export interface ProjectEvidenceItem {
+  id: string;
+  projectId: string;
+  type: string;
+  status: string;
+  description: string | null;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  createdBy: string;
+  createdAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+}
+
+export async function listProjectEvidences(projectId: string): Promise<ProjectEvidenceItem[]> {
+  const data = await api.get<ProjectEvidenceItem[]>(`/projects/${projectId}/evidences`);
+  return data ?? [];
+}
+
+/** Upload multipart (arquivo + type + description) — XSRF via header. */
+export async function uploadProjectEvidence(input: {
+  projectId: string;
+  type: string;
+  description?: string | null;
+  file: File;
+}): Promise<ProjectEvidenceItem | null> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("type", input.type);
+  if (input.description) form.append("description", input.description);
+  return api.post<ProjectEvidenceItem>(`/projects/${input.projectId}/evidences`, form);
+}
+
+/** Revisão única: validada ou rejeitada (motivo obrigatório na rejeição). */
+export async function reviewProjectEvidence(
+  projectId: string,
+  evidenceId: string,
+  input: { decision: string; rejectionReason?: string | null },
+): Promise<ProjectEvidenceItem | null> {
+  return api.put<ProjectEvidenceItem>(
+    `/projects/${projectId}/evidences/${evidenceId}/review`,
+    {
+      decision: input.decision,
+      rejectionReason: input.rejectionReason ?? null,
+    },
+  );
+}
+
+export async function deleteProjectEvidence(
+  projectId: string,
+  evidenceId: string,
+): Promise<void> {
+  await api.delete(`/projects/${projectId}/evidences/${evidenceId}`);
+}
+
+/** Download autenticado — blob → objectURL → clique no link temporário. */
+export async function downloadProjectEvidence(
+  projectId: string,
+  evidenceId: string,
+  fileName: string,
+): Promise<void> {
+  const blob = await api.download(`/projects/${projectId}/evidences/${evidenceId}/download`);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
