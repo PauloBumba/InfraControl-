@@ -42,6 +42,7 @@ export const secondaryNavigation: NavItem[] = [
   { label: "Logs", icon: "pi pi-list", route: "/logs" },
   { label: "Health", icon: "pi pi-heart", route: "/status" },
   { label: "PDI", icon: "pi pi-id-card", route: "/pdi" },
+  { label: "Relatórios", icon: "pi pi-file", route: "/reports" },
   { label: "Usuários", icon: "pi pi-user", route: "/users" },
   { label: "Convites", icon: "pi pi-send", route: "/invitations" },
   { label: "Auditoria", icon: "pi pi-history", route: "/audit" },

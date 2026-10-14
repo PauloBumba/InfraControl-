@@ -1,5 +1,6 @@
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
+using InfraControl.Api.Reporting;
 using InfraControl.Application.Reports.Transversal.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -27,4 +28,26 @@ public sealed class ReportsController(ISender sender) : BaseController
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetTransversalReportQuery(from, to), cancellationToken)));
+
+    /// <summary>
+    /// Export do relatório transversal (R-c) — PDF (padrão) ou XLSX,
+    /// reaproveitando a mesma técnica dos exports do PDI (QuestPDF/ClosedXML).
+    /// </summary>
+    [HttpGet("transversal/export")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ExportTransversal(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] string? format,
+        CancellationToken cancellationToken)
+    {
+        var exportFormat = PdiExportFormat.Parse(format);
+        var report = await sender.Send(
+            new GetTransversalReportQuery(from, to), cancellationToken);
+        var bytes = exportFormat == PdiExportFormat.Xlsx
+            ? TransversalReportRenderers.RenderTransversalXlsx(report)
+            : TransversalReportRenderers.RenderTransversalPdf(report);
+        return File(bytes, exportFormat.ContentType,
+            $"relatorio-transversal.{exportFormat.Extension}");
+    }
 }

@@ -54,6 +54,7 @@ const InvitationAcceptancePage = lazy(() => import("@/pages/InvitationAcceptance
 const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ default: m.SessionsPage })));
 const AccountPage = lazy(() => import("@/pages/AccountPage").then(m => ({ default: m.AccountPage })));
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
+const ReportsPage = lazy(() => import("@/pages/ReportsPage").then(m => ({ default: m.ReportsPage })));
 // F26-T002 — landing pública de vendas (fora do AppLayout).
 const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
 const FeaturesPage = lazy(() => import("@/pages/FeaturesPage").then(m => ({ default: m.FeaturesPage })));
@@ -373,6 +374,12 @@ function AppContent() {
           <Route path="/pdi" element={
             <ProtectedRoute>
               <PdiPage />
+            </ProtectedRoute>
+          } />
+          {/* ADR-049 — relatório transversal (Operate). */}
+          <Route path="/reports" element={
+            <ProtectedRoute>
+              <ReportsPage />
             </ProtectedRoute>
           } />
           <Route path="/incidents" element={
