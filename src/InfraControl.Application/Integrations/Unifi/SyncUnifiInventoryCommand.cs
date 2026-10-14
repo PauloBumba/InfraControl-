@@ -1,6 +1,7 @@
 using InfraControl.Application.Integrations.Unifi.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Network.SwitchPorts.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -13,8 +14,12 @@ namespace InfraControl.Application.Integrations.Unifi;
 /// Resultado do sync (F20-T001/ADR-028 §4): contagens por iteração —
 /// devices criados/atualizados, referências novas e itens com erro
 /// (device invidual com falha não derruba o restante do sync).
+/// Fase 07d: PortsCreated/PortsUpdated — portas de switches sincronizadas
+/// automaticamente do port_table.
 /// </summary>
-public sealed record UnifiSyncResultDto(int Created, int Updated, int References, int Errors, int Sites = 0);
+public sealed record UnifiSyncResultDto(
+    int Created, int Updated, int References, int Errors, int Sites = 0,
+    int PortsCreated = 0, int PortsUpdated = 0);
 
 /// <summary>
 /// Sincronização de inventário UniFi → cadastro local. Idempotente por MAC:
@@ -42,6 +47,7 @@ public sealed class SyncUnifiInventoryCommandHandler(
     ILocationRepository locationRepository,
     IUniFiSitesRepository sitesRepository,
     IUniFiSyncRunsRepository syncRunsRepository,
+    ISwitchPortRepository switchPortRepository,
     ILogger<SyncUnifiInventoryCommandHandler> logger)
     : IRequestHandler<SyncUnifiInventoryCommand, UnifiSyncResultDto>
 {
@@ -111,6 +117,8 @@ public sealed class SyncUnifiInventoryCommandHandler(
         var updated = 0;
         var references = 0;
         var errors = 0;
+        var portsCreated = 0;
+        var portsUpdated = 0;
 
         foreach (var dto in controllerDevices)
         {
@@ -130,6 +138,25 @@ public sealed class SyncUnifiInventoryCommandHandler(
 
                 if (await UpsertReferenceAsync(device, externalId, cancellationToken))
                     references++;
+
+                // Fase 07d — sincroniza portas automaticamente para switches.
+                if (MapType(dto.Type) == DeviceType.Switch)
+                {
+                    try
+                    {
+                        var (pc, pu) = await SyncPortsAsync(
+                            device.Id, dto.Mac, cancellationToken);
+                        portsCreated += pc;
+                        portsUpdated += pu;
+                    }
+                    catch (Exception portException)
+                    {
+                        // falha de portas não derruba o sync do device
+                        logger.LogWarning(portException,
+                            "Sync UniFi: falha ao sincronizar portas do switch {Mac} ({Name})",
+                            dto.Mac, dto.Name);
+                    }
+                }
             }
             catch (Exception exception)
             {
@@ -140,7 +167,8 @@ public sealed class SyncUnifiInventoryCommandHandler(
             }
         }
 
-        return new UnifiSyncResultDto(created, updated, references, errors, sites);
+        return new UnifiSyncResultDto(
+            created, updated, references, errors, sites, portsCreated, portsUpdated);
     }
 
     /// <summary>
@@ -236,6 +264,77 @@ public sealed class SyncUnifiInventoryCommandHandler(
         var suffixed = $"{baseName} ({compact[^6..]})";
         var clash2 = await deviceRepository.GetByNameAsync(suffixed, cancellationToken);
         return clash2 is null || clash2.Id == selfId ? suffixed : compact;
+    }
+
+    /// <summary>
+    /// Fase 07d — sincroniza portas de um switch a partir do port_table.
+    /// Portas novas são criadas; existentes têm LinkUp atualizado; manuais
+    /// ausentes do controller são preservadas. Retorna (created, updated).
+    /// </summary>
+    private async Task<(int Created, int Updated)> SyncPortsAsync(
+        Guid deviceId, string mac, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<UnifiSwitchPortDto> controllerPorts;
+        try
+        {
+            controllerPorts = await unifiApiClient.ListSwitchPortsAsync(mac, cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            // Device fora do controller — não é erro fatal para o sync.
+            return (0, 0);
+        }
+
+        if (controllerPorts.Count == 0)
+            return (0, 0);
+
+        // Carga existente (páginas de 100 — switch típico cabe em 1).
+        var existing = new List<SwitchPort>();
+        var page = 1;
+        while (true)
+        {
+            var batch = await switchPortRepository.SearchAsync(
+                deviceId, null, page, 100, cancellationToken);
+            existing.AddRange(batch.Items);
+            if (batch.Items.Count < 100) break;
+            page++;
+        }
+
+        var byName = existing.ToDictionary(
+            p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+
+        var created = 0;
+        var updated = 0;
+
+        foreach (var controllerPort in controllerPorts)
+        {
+            var name = string.IsNullOrWhiteSpace(controllerPort.Name)
+                ? $"Port {controllerPort.PortIndex}"
+                : controllerPort.Name.Trim();
+
+            if (byName.TryGetValue(name, out var existingPort))
+            {
+                // Re-fetch tracked — SearchAsync é AsNoTracking.
+                var tracked = await switchPortRepository.GetByIdAsync(
+                    existingPort.Id, cancellationToken);
+                if (tracked is not null && tracked.LinkUp != controllerPort.LinkUp)
+                {
+                    tracked.Update(tracked.Name, tracked.Description, controllerPort.LinkUp);
+                    updated++;
+                }
+            }
+            else
+            {
+                var newPort = SwitchPort.Create(deviceId, name, description: null);
+                newPort.Update(newPort.Name, newPort.Description, controllerPort.LinkUp);
+                switchPortRepository.AddAsync(newPort, cancellationToken);
+                byName[name] = newPort;
+                created++;
+            }
+        }
+
+        await switchPortRepository.SaveChangesAsync(cancellationToken);
+        return (created, updated);
     }
 
     /// <summary>True = referência nova criada (referência existente do mesmo dono não conta).</summary>

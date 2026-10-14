@@ -25,10 +25,15 @@ public sealed class AiRoutingOptionsConfiguration
 }
 
 /// <summary>
-/// Opções de modelo por capacidade (default + fallback).
+/// Opções de modelo por capacidade (default + fallback). Desde o ADR-050
+/// cada capacidade também escolhe o <c>Provider</c> (vazio = "ollama",
+/// backward compat com o ADR-037 §15) e o <c>FallbackProvider</c>
+/// (vazio = o mesmo provider primário).
 /// </summary>
 public sealed class AiRoutingModelOptions
 {
+    public string? Provider { get; set; }
     public string DefaultModel { get; set; } = string.Empty;
+    public string? FallbackProvider { get; set; }
     public string? FallbackModel { get; set; }
 }

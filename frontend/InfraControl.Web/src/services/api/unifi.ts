@@ -120,6 +120,27 @@ export function getUnifiLivePorts(mac: string): Promise<UniFiSwitchPort[]> {
   return required(api.get<UniFiSwitchPort[]>(`/integrations/unifi/switches/${encodeURIComponent(mac)}/ports`), []);
 }
 
+/** Fase 07e (ADR-051): resultado da gravação de configuração de porta. */
+export interface SetPortConfigResult {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Fase 07e (ADR-051): grava configuração de porta (disable/enable/VLAN)
+ * via GET → modify → PUT. Porta de management → 409.
+ */
+export function setUnifiPortConfig(
+  switchId: string,
+  portIndex: number,
+  body: { disabled?: boolean | null; portVlan?: number | null },
+): Promise<SetPortConfigResult | null> {
+  return api.post<SetPortConfigResult>(
+    `/integrations/unifi/switches/${encodeURIComponent(switchId)}/ports/${portIndex}/config`,
+    body,
+  );
+}
+
 /** F26 Fase 6 — topologia ao vivo derivada do stat/device. */
 export interface UniFiTopologyNode {
   mac: string;

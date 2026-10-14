@@ -90,8 +90,10 @@ public sealed class UnifiSyncWorker(
 
             logger.LogInformation(
                 "Unifi sync finished: {Created} created, {Updated} updated, " +
-                "{References} references, {Errors} errors, {Sites} sites.",
-                result.Created, result.Updated, result.References, result.Errors, result.Sites);
+                "{References} references, {Errors} errors, {Sites} sites, " +
+                "{PortsCreated} ports created, {PortsUpdated} ports updated.",
+                result.Created, result.Updated, result.References, result.Errors,
+                result.Sites, result.PortsCreated, result.PortsUpdated);
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {

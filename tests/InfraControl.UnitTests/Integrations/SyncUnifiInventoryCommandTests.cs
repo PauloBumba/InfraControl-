@@ -24,6 +24,7 @@ public sealed class SyncUnifiInventoryCommandTests
     private readonly Mock<IExternalDeviceReferenceRepository> _references = new();
     private readonly Mock<InfraControl.Application.Integrations.Unifi.Ports.IUniFiSyncRunsRepository> _syncRuns = new();
     private readonly Mock<ILocationRepository> _locations = new();
+    private readonly Mock<InfraControl.Application.Network.SwitchPorts.Ports.ISwitchPortRepository> _switchPorts = new();
 
     private Device? _addedDevice;
     private readonly List<Device> _addedDevices = [];
@@ -232,6 +233,9 @@ public sealed class SyncUnifiInventoryCommandTests
         _locations.Setup(l => l.AddAsync(It.IsAny<Location>(), It.IsAny<CancellationToken>()))
             .Callback<Location, CancellationToken>((l, _) => _addedLocation = l);
 
+        _switchPorts.Setup(p => p.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         return new SyncUnifiInventoryCommandHandler(
             _client.Object,
             _devices.Object,
@@ -239,6 +243,7 @@ public sealed class SyncUnifiInventoryCommandTests
             _locations.Object,
             _sites.Object,
             _syncRuns.Object,
+            _switchPorts.Object,
             NullLogger<SyncUnifiInventoryCommandHandler>.Instance);
     }
 

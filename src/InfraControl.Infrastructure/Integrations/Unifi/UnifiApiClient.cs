@@ -574,6 +574,140 @@ public sealed class UnifiApiClient : IUnifiApiClient
         return new UnifiPortsSummaryDto(total, up);
     }
 
+    /// <summary>
+    /// Fase 07e (ADR-051): grava configuração de porta via GET → modify →
+    /// PUT. Nunca POST cego — o device completo é lido, apenas o campo
+    /// alvo do porto específico é modificado, e o device é devolvido.
+    /// </summary>
+    public async Task SetPortConfigAsync(
+        string deviceMac,
+        int portIndex,
+        bool? disabled,
+        int? portVlan,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+
+        var compact = (deviceMac ?? string.Empty)
+            .Replace(":", string.Empty).Replace("-", string.Empty)
+            .ToLowerInvariant();
+        if (compact.Length != 12)
+            throw new ArgumentException(
+                "MAC do device inválido para gravação de porta.", nameof(deviceMac));
+
+        var http = _factory.CreateClient(HttpClientName);
+
+        // 1. GET device atual (com port_table completo)
+        using var getResponse = await GetWithSessionAsync(
+            http, () => DeviceStatsUri, reauthenticateOn401: true, cancellationToken);
+        var json = await getResponse.Content.ReadAsStringAsync(cancellationToken);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement.ValueKind == JsonValueKind.Object &&
+                   doc.RootElement.TryGetProperty("data", out var envelope)
+            ? envelope
+            : doc.RootElement;
+
+        JsonElement? targetDevice = null;
+        JsonElement? targetPort = null;
+        string? deviceId = null;
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var device in root.EnumerateArray())
+            {
+                var mac = ReadOrNull(device, "mac")?
+                    .Replace(":", "").Replace("-", "").ToLowerInvariant();
+                if (mac != compact) continue;
+
+                targetDevice = device.Clone();
+                deviceId = ReadOrNull(device, "_id");
+
+                if (device.TryGetProperty("port_table", out var ports) &&
+                    ports.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var port in ports.EnumerateArray())
+                    {
+                        if (ReadInt(port, "port_idx") == portIndex)
+                        {
+                            targetPort = port.Clone();
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        if (targetDevice is null || deviceId is null)
+            throw new KeyNotFoundException(
+                $"Device com MAC '{deviceMac}' não foi encontrado no controller.");
+
+        if (targetPort is null)
+            throw new InvalidOperationException(
+                $"Porta {portIndex} não existe no device '{deviceMac}'.");
+
+        // Proteção ADR-051: recusa porta de management
+        var isManagement = ReadBool(targetPort.Value, "is_management_port") ||
+            (targetDevice.Value.TryGetProperty("ip", out var deviceIp) &&
+             deviceIp.ValueKind == JsonValueKind.String &&
+             targetPort.Value.TryGetProperty("ip", out var portIp) &&
+             portIp.ValueKind == JsonValueKind.String &&
+             deviceIp.GetString() == portIp.GetString());
+
+        if (isManagement)
+            throw new InvalidOperationException(
+                $"A porta {portIndex} é a porta de management do device — operação recusada (ADR-051).");
+
+        // 2. Montar body: device completo com apenas o porto modificado.
+        // Usa JsonNode para mutação segura.
+        var deviceNode = System.Text.Json.Nodes.JsonNode.Parse(
+            targetDevice.Value.GetRawText())!.AsObject();
+
+        if (deviceNode["port_table"] is System.Text.Json.Nodes.JsonArray portArray)
+        {
+            foreach (var node in portArray)
+            {
+                if (node is not System.Text.Json.Nodes.JsonObject portObj) continue;
+                if (portObj["port_idx"]?.GetValue<int>() != portIndex) continue;
+
+                if (disabled is not null)
+                    portObj["disabled"] = disabled.Value;
+
+                if (portVlan is not null)
+                {
+                    portObj["port_vlan"] = portVlan.Value;
+                    portObj["port_vlan_enabled"] = true;
+                }
+                break;
+            }
+        }
+
+        var body = new
+        {
+            port_table = deviceNode["port_table"]
+        };
+
+        // 3. PUT device de volta
+        var putUri = $"{BaseUrl}{ApiPrefix}/api/s/{_options.Site}/rest/device/{deviceId}";
+        using var putRequest = new HttpRequestMessage(HttpMethod.Put, putUri)
+        {
+            Content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(body),
+                System.Text.Encoding.UTF8, "application/json")
+        };
+        if (_sessionCookie is not null)
+            putRequest.Headers.TryAddWithoutValidation("Cookie", _sessionCookie);
+
+        using var putResponse = await http.SendAsync(putRequest, cancellationToken);
+        if (!putResponse.IsSuccessStatusCode)
+        {
+            var error = await putResponse.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException(
+                $"Controller UniFi recusou a gravação da porta {portIndex} " +
+                $"(HTTP {(int)putResponse.StatusCode}).");
+        }
+    }
+
     private string SelfUri => $"{BaseUrl}/api/self";
 
     private string ClientsStatsUri
@@ -803,18 +937,42 @@ public sealed class UnifiApiClient : IUnifiApiClient
 
         foreach (var item in table.EnumerateArray())
         {
+            var idx = ReadInt(item, "port_idx") ?? 0;
+            var poeEnable = item.TryGetProperty("poe_enable", out var pe) &&
+                pe.ValueKind == JsonValueKind.True;
+
+            // poe_power pode ser watts (float/string numérico) OU um status
+            // cru do controller (ex.: "RUNNING"). Preservar string não-numérica;
+            // para numérico, derivar: enable+power>0 = delivering; enable+0 = on.
+            var poePowerRaw = ReadOrNull(item, "poe_power");
+            var poePower = ReadFloatOrNull(item, "poe_power");
+            string? poeStatus;
+            if (poePowerRaw is not null && poePower is null)
+            {
+                // String não-numérica — status cru do controller.
+                poeStatus = poePowerRaw;
+            }
+            else
+            {
+                poeStatus = !poeEnable
+                    ? "none"
+                    : poePower is > 0 ? "delivering" : "on";
+            }
+
+            // speed chega como int (10/100/1000) ou string — normalizar.
+            var speed = ReadSpeed(item);
+
             ports.Add(new UnifiSwitchPortDto(
-                ReadInt(item, "port_idx") ?? 0,
-                FirstNonEmpty(ReadOrNull(item, "name"), $"Port {ReadInt(item, "port_idx") ?? 0}")!,
+                idx,
+                FirstNonEmpty(ReadOrNull(item, "name"), $"Port {idx}")!,
                 LinkUp: item.TryGetProperty("up", out var up) &&
                     up.ValueKind == JsonValueKind.True,
-                Speed: ReadOrNull(item, "speed"),
+                Speed: speed,
                 FullDuplex: item.TryGetProperty("full_duplex", out var fd) &&
                     fd.ValueKind == JsonValueKind.True,
                 PortVlan: ReadInt(item, "port_vlan"),
-                PoeEnable: item.TryGetProperty("poe_enable", out var pe) &&
-                    pe.ValueKind == JsonValueKind.True,
-                PoeStatus: ReadOrNull(item, "poe_power"),
+                PoeEnable: poeEnable,
+                PoeStatus: poeStatus,
                 Media: ReadOrNull(item, "media"),
                 ClientMac: FirstNonEmpty(
                     ReadOrNull(item, "client_mac"),
@@ -822,6 +980,43 @@ public sealed class UnifiApiClient : IUnifiApiClient
         }
 
         return ports;
+    }
+
+    private static float? ReadFloatOrNull(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value))
+            return null;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out var f))
+            return f;
+        if (value.ValueKind == JsonValueKind.String &&
+            float.TryParse(value.GetString(),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+        return null;
+    }
+
+    private static string? ReadSpeed(JsonElement element)
+    {
+        // Controller devolve int (10/100/1000) ou string ("1G"/"100M").
+        if (element.TryGetProperty("speed", out var value))
+        {
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var n))
+                return n switch
+                {
+                    0 => null, // porta down — controller reporta 0
+                    10 => "10M",
+                    100 => "100M",
+                    1000 => "1G",
+                    _ => $"{n}M"
+                };
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                var s = value.GetString();
+                if (!string.IsNullOrEmpty(s)) return s;
+            }
+        }
+        return null;
     }
 
     private static string? FirstNonEmpty(params string?[] values)

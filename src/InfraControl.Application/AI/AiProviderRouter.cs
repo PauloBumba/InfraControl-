@@ -42,12 +42,27 @@ public sealed class AiProviderRouter : IAiProviderRouter
                 $"Modelo default não configurado para a capacidade '{capability}'.");
         }
 
-        var primaryProvider = _providerRegistry.Get("ollama");
+        // ADR-050 §2: a capacidade escolhe o provider (vazio = "ollama",
+        // backward compat com ADR-037 §15). O primário é validado no
+        // registry aqui — falha cedo no estado "não configurado" (§44).
+        var providerName = string.IsNullOrWhiteSpace(options.Provider)
+            ? "ollama"
+            : options.Provider.Trim();
+        var primaryProvider = _providerRegistry.Get(providerName);
+
+        string? fallbackProvider = null;
+        if (!string.IsNullOrWhiteSpace(options.FallbackModel))
+        {
+            var fallbackProviderName = string.IsNullOrWhiteSpace(options.FallbackProvider)
+                ? providerName
+                : options.FallbackProvider.Trim();
+            fallbackProvider = _providerRegistry.Get(fallbackProviderName).Name;
+        }
 
         return new AiProviderSelection(
             Provider: primaryProvider.Name,
             Model: options.DefaultModel,
-            FallbackProvider: !string.IsNullOrWhiteSpace(options.FallbackModel) ? primaryProvider.Name : null,
+            FallbackProvider: fallbackProvider,
             FallbackModel: options.FallbackModel);
     }
 }

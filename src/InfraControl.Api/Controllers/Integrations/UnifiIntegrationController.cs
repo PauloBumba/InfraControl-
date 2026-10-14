@@ -40,6 +40,28 @@ public sealed class UnifiIntegrationController(
     }
 
     /// <summary>
+    /// Fase 07e (ADR-051): grava configuração de porta de switch via
+    /// GET → modify → PUT. Porta de management é recusada (409).
+    /// </summary>
+    [HttpPost("switches/{switchId:guid}/ports/{portIndex:int}/config")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SetPortConfig(
+        Guid switchId,
+        int portIndex,
+        [FromBody] SetPortConfigRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new SetUnifiPortConfigCommand(
+                switchId, portIndex, request.Disabled, request.PortVlan),
+            cancellationToken);
+
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    public sealed record SetPortConfigRequest(bool? Disabled, int? PortVlan);
+
+    /// <summary>
     /// Sondagem leve (GET /api/self no Controller) — não persiste nada.
     /// Indisponível/desativado = 503 com o motivo no envelope.
     /// </summary>

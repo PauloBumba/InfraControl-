@@ -29,6 +29,43 @@ public sealed class SwitchPortsController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new SearchSwitchPortsQuery(switchId, term, page, pageSize), cancellationToken)));
 
+    /// <summary>
+    /// Fase 07a: portas UniFi ao vivo do switch (port_table via
+    /// ExternalDeviceReference). Lista vazia = sem referência UniFi ou
+    /// device não encontrado no controller — não é erro.
+    /// </summary>
+    [HttpGet("switches/{switchId:guid}/unifi-ports")]
+    [Authorize]
+    public async Task<IActionResult> GetUnifiPorts(
+        Guid switchId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetSwitchUnifiPortsQuery(switchId), cancellationToken)));
+
+    /// <summary>
+    /// Fase 07b: interfaces SNMP monitoradas pelo Zabbix para o switch
+    /// (via referência Zabbix). Lista vazia = sem referência ou Zabbix
+    /// não configurado — não é erro.
+    /// </summary>
+    [HttpGet("switches/{switchId:guid}/zabbix-interfaces")]
+    [Authorize]
+    public async Task<IActionResult> GetZabbixInterfaces(
+        Guid switchId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetSwitchZabbixInterfacesQuery(switchId), cancellationToken)));
+
+    /// <summary>
+    /// Fase 07c: sincroniza o cadastro de portas a partir do port_table
+    /// do controller UniFi. Portas existentes têm LinkUp atualizado;
+    /// novas são criadas; manuais ausentes do controller são preservadas.
+    /// Exige referência UniFi — 409 se ausente.
+    /// </summary>
+    [HttpPost("switches/{switchId:guid}/sync-unifi")]
+    [Authorize(Policy = "Operate")]
+    public async Task<IActionResult> SyncFromUnifi(
+        Guid switchId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SyncSwitchPortsFromUnifiCommand(switchId), cancellationToken)));
+
     [HttpPost("switches/{switchId:guid}/ports")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(

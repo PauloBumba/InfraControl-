@@ -1,5 +1,24 @@
 import { api } from "./client";
 import type { DeviceItem } from "./inventory";
+import type { UniFiSwitchPort } from "./unifi";
+
+/** Fase 07b — interface SNMP monitorada pelo Zabbix. */
+export interface ZabbixInterfaceItem {
+  itemId: string;
+  name: string;
+  key: string;
+  interfaceName: string;
+  enabled: boolean;
+  unsupported: boolean;
+}
+
+/** Fase 07c — resultado do sync de portas UniFi → cadastro. */
+export interface SyncPortsResult {
+  created: number;
+  updated: number;
+  totalFromController: number;
+  totalAfterSync: number;
+}
 
 /**
  * F17-T008 — conexão da NetworkPage ao backend (contrato real de
@@ -201,4 +220,42 @@ export async function listNetworkRoutes(): Promise<NetworkRouteItem[]> {
 export async function listFirewallRules(): Promise<FirewallRuleItem[]> {
   const data = await api.get<FirewallRuleItem[]>("/network/services/firewall/rules");
   return data ?? [];
+}
+
+/**
+ * Fase 07a — portas UniFi ao vivo de um switch (port_table via
+ * ExternalDeviceReference). Lista vazia = sem referência UniFi.
+ */
+export async function getSwitchUnifiPorts(
+  switchId: string,
+): Promise<UniFiSwitchPort[]> {
+  const data = await api.get<UniFiSwitchPort[]>(
+    `/network/switches/${encodeURIComponent(switchId)}/unifi-ports`,
+  );
+  return data ?? [];
+}
+
+/**
+ * Fase 07b — interfaces SNMP monitoradas pelo Zabbix para um switch.
+ * Lista vazia = sem referência Zabbix ou Zabbix não configurado.
+ */
+export async function getSwitchZabbixInterfaces(
+  switchId: string,
+): Promise<ZabbixInterfaceItem[]> {
+  const data = await api.get<ZabbixInterfaceItem[]>(
+    `/network/switches/${encodeURIComponent(switchId)}/zabbix-interfaces`,
+  );
+  return data ?? [];
+}
+
+/**
+ * Fase 07c — sincroniza o cadastro de portas a partir do port_table
+ * UniFi. 409 se o switch não tem referência UniFi.
+ */
+export async function syncSwitchPortsFromUnifi(
+  switchId: string,
+): Promise<SyncPortsResult | null> {
+  return api.post<SyncPortsResult>(
+    `/network/switches/${encodeURIComponent(switchId)}/sync-unifi`,
+  );
 }

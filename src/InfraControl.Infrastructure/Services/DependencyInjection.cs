@@ -453,11 +453,26 @@ public static class DependencyInjection
         // HttpClient do Ollama (named client)
         services.AddHttpClient("ollama");
 
-        // Registry de providers v1 (configuração)
+        // Registry de providers v1 (configuração) — multi-provider desde
+        // o ADR-050 §1: resolve qualquer IAiProvider registrado abaixo
+        // pelo Name (case-insensitive).
         services.AddScoped<IAiProviderRegistry, ConfigurationProviderRegistry>();
 
         // Provider Ollama
         services.AddScoped<IAiProvider, OllamaProvider>();
+
+        // Fase A (ADR-050): providers externos — mesmo contrato
+        // IAiProvider; chave só via env do operador (AGENTS.md) e, sem
+        // BaseUrl/ApiKey, o provider degrada como "não configurado"
+        // (§44), nunca resposta inventada.
+        services.Configure<AiOpenAiCompatibleOptions>(
+            configuration.GetSection("Ai:OpenAiCompatible"));
+        services.Configure<AiGeminiOptions>(
+            configuration.GetSection("Ai:Gemini"));
+        services.AddHttpClient("openai-compatible");
+        services.AddHttpClient("gemini");
+        services.AddScoped<IAiProvider, OpenAiCompatibleProvider>();
+        services.AddScoped<IAiProvider, GeminiProvider>();
 
         // Router de capacidade
         services.AddScoped<IAiProviderRouter, AiProviderRouter>();

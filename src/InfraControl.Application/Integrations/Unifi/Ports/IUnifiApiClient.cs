@@ -75,4 +75,17 @@ public interface IUnifiApiClient
     /// <summary>F26 Fase 8: total de portas e portas com link up (vivo).</summary>
     Task<UnifiPortsSummaryDto> GetPortsSummaryAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fase 07e (ADR-051): grava configuração de uma porta de switch via
+    /// GET → modify → PUT (nunca POST cego). `disabled`/`portVlan` null =
+    /// não alterar. Lança InvalidOperationException se a porta não existe
+    /// ou se é a porta de management do device.
+    /// </summary>
+    Task SetPortConfigAsync(
+        string deviceMac,
+        int portIndex,
+        bool? disabled,
+        int? portVlan,
+        CancellationToken cancellationToken = default);
 }

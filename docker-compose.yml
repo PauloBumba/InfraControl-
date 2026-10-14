@@ -247,6 +247,13 @@ services:
       # normalmente com o runtime "não configurado" (§44) — o serviço é
       # opcional, por isso não há depends_on aqui.
       Ai__Ollama__BaseUrl: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      # Fase A (ADR-050): providers externos — chave só via .env do
+      # operador (AGENTS.md: nunca credencial real no repositório);
+      # vazio = provider "não configurado" (§44) e a API sobe normal.
+      Ai__OpenAiCompatible__BaseUrl: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      Ai__OpenAiCompatible__ApiKey: ${OPENAI_API_KEY:-}
+      Ai__Gemini__BaseUrl: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      Ai__Gemini__ApiKey: ${GEMINI_API_KEY:-}
       Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
       # Bootstrap Admin (opt-in, idempotente; documentado em .env.example e
       # docs/05). Sem repassar aqui a chave nunca chega na API e o primeiro

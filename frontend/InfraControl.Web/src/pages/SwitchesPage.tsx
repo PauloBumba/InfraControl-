@@ -15,10 +15,14 @@ import {
   type LocationItem,
   type SwitchPortItem,
 } from "@/services/api/inventory";
-import { listSwitches } from "@/services/api/network";
+import { listSwitches, getSwitchUnifiPorts, getSwitchZabbixInterfaces, syncSwitchPortsFromUnifi, type ZabbixInterfaceItem } from "@/services/api/network";
+import { setUnifiPortConfig } from "@/services/api/unifi";
+import type { UniFiSwitchPort } from "@/services/api/unifi";
 import {
   useListQuery,
   usePagedQuery,
+  useObjectQuery,
+  useCreateMutation,
   mutationErrorMessage,
 } from "@/hooks/queries";
 
@@ -61,6 +65,51 @@ export function SwitchesPage() {
     { enabled: selectedId !== null },
   );
 
+  // Fase 07a — portas UniFi ao vivo (port_table) quando o device tem
+  // referência UniFi. Lista vazia = sem referência (não é erro).
+  const unifiPorts = useObjectQuery<UniFiSwitchPort[]>(
+    ["switchUnifiPorts", selectedId ?? ""],
+    () => getSwitchUnifiPorts(selectedId as string),
+    { enabled: selectedId !== null },
+  );
+
+  // Fase 07b — interfaces SNMP monitoradas pelo Zabbix. Lista vazia =
+  // sem referência Zabbix ou Zabbix não configurado (não é erro).
+  const zabbixIfaces = useObjectQuery<ZabbixInterfaceItem[]>(
+    ["switchZabbixInterfaces", selectedId ?? ""],
+    () => getSwitchZabbixInterfaces(selectedId as string),
+    { enabled: selectedId !== null },
+  );
+
+  // Fase 07c — sync de portas UniFi → cadastro (RoleAccess.Operate).
+  const syncMutation = useCreateMutation({
+    invalidate: ["switchPorts"],
+    mutationFn: (switchId: string) => syncSwitchPortsFromUnifi(switchId),
+    onSuccess: (data) => {
+      if (data) {
+        setSyncMessage(
+          `${data.created} criadas, ${data.updated} atualizadas (${data.totalFromController} no controller)`,
+        );
+        void ports.refetch();
+        void unifiPorts.refetch();
+      }
+    },
+    onError: (error) => {
+      setSyncMessage(mutationErrorMessage(error));
+    },
+  });
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  // Fase 07e (ADR-051): gravação de configuração de porta (enable/VLAN).
+  const portConfigMutation = useCreateMutation({
+    invalidate: ["switchUnifiPorts"],
+    mutationFn: (vars: { switchId: string; portIndex: number; body: { disabled?: boolean | null; portVlan?: number | null } }) =>
+      setUnifiPortConfig(vars.switchId, vars.portIndex, vars.body),
+  });
+  const [portConfigTarget, setPortConfigTarget] = useState<UniFiSwitchPort | null>(null);
+  const [portVlanInput, setPortVlanInput] = useState("");
+  const [portConfigMessage, setPortConfigMessage] = useState<string | null>(null);
+
   const locations = locationsQuery.items;
   const locationName = (id: string): string =>
     locations.find((entry) => entry.id === id)?.name ?? id;
@@ -72,6 +121,16 @@ export function SwitchesPage() {
   const selectedSwitch = switches.items.find((entry) => entry.id === selectedId) ?? null;
   const upCount = ports.items.filter((port) => port.linkUp === true).length;
   const downCount = ports.items.filter((port) => port.linkUp === false).length;
+
+  // Fase 07a/07b — fonte primária das portas: UniFi ao vivo quando
+  // existe referência; senão, interfaces Zabbix; senão, cadastro manual.
+  const livePorts = unifiPorts.data ?? [];
+  const hasLivePorts = livePorts.length > 0;
+  const liveUp = livePorts.filter((p) => p.linkUp === true).length;
+  const liveDown = livePorts.filter((p) => p.linkUp === false).length;
+
+  const zabbixIfs = zabbixIfaces.data ?? [];
+  const hasZabbixIfs = !hasLivePorts && zabbixIfs.length > 0;
 
   const kanbanColumns = [
     ...locations.map((location) => ({ key: location.id, label: location.name })),
@@ -178,15 +237,86 @@ export function SwitchesPage() {
 
       <div className="uni-panel">
         <div className="uni-panel-header">
-          <h2>Portas — {selectedSwitch?.name ?? "—"}</h2>
-          {!ports.isPending && !portsError && (
+          <h2>
+            Portas — {selectedSwitch?.name ?? "—"}
+            {hasLivePorts && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "#dbeafe",
+                  color: "#1d4ed8",
+                  verticalAlign: "middle",
+                }}
+              >
+                UniFi ao vivo
+              </span>
+            )}
+            {hasZabbixIfs && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  background: "#fef3c7",
+                  color: "#b45309",
+                  verticalAlign: "middle",
+                }}
+              >
+                Zabbix SNMP
+              </span>
+            )}
+          </h2>
+          {!ports.isPending && !portsError && !hasLivePorts && !hasZabbixIfs && (
             <span style={{ fontSize: 12, color: "#64748b" }}>
               {ports.totalCount} portas · {upCount} up · {downCount} down
             </span>
           )}
+          {hasLivePorts && (
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              {livePorts.length} portas · {liveUp} up · {liveDown} down
+            </span>
+          )}
+          {hasZabbixIfs && (
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              {zabbixIfs.length} interfaces monitoradas
+            </span>
+          )}
+          {selectedId && (
+            <Button
+              variant="ghost"
+              disabled={syncMutation.isPending}
+              onClick={() => {
+                setSyncMessage(null);
+                syncMutation.mutate(selectedId);
+              }}
+              style={{ marginLeft: "auto" }}
+            >
+              {syncMutation.isPending ? "Sincronizando…" : "Sync UniFi"}
+            </Button>
+          )}
         </div>
 
-        {portsError && (
+        {syncMessage && (
+          <div
+            style={{
+              padding: "6px 16px",
+              fontSize: 12,
+              background: syncMutation.isError ? "#fef2f2" : "#f0fdf4",
+              color: syncMutation.isError ? "#dc2626" : "#16a34a",
+              borderBottom: "1px solid #e5e7eb",
+            }}
+          >
+            {syncMessage}
+          </div>
+        )}
+
+        {portsError && !hasLivePorts && !hasZabbixIfs && (
           <ErrorBanner
             message={portsError}
             onRetry={() => void ports.refetch()}
@@ -194,34 +324,119 @@ export function SwitchesPage() {
           />
         )}
 
-        {ports.isFetching && ports.items.length === 0 && <LoadingBlock />}
+        {(ports.isFetching || unifiPorts.isFetching || zabbixIfaces.isFetching) && !hasLivePorts && !hasZabbixIfs && ports.items.length === 0 && (
+          <LoadingBlock />
+        )}
 
-        {!ports.isFetching && !portsError && (
+        {!unifiPorts.isFetching && !zabbixIfaces.isFetching && (hasLivePorts || hasZabbixIfs || (!ports.isFetching && !portsError)) && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 8, padding: 16 }}>
-            {ports.items.map((port) => {
-              const up = port.linkUp === true;
-              const down = port.linkUp === false;
-              return (
-                <div
-                  key={port.id}
-                  style={{
-                    padding: "10px 6px",
-                    borderRadius: 6,
-                    border: `2px solid ${up ? "#22c55e" : down ? "#ef4444" : "#e5e7eb"}`,
-                    background: up ? "#f0fdf4" : down ? "#fef2f2" : "#f9fafb",
-                    textAlign: "center",
-                    fontSize: 10,
-                  }}
-                  title={port.description ?? port.name}
-                >
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{port.name}</div>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: up ? "#16a34a" : down ? "#dc2626" : "#94a3b8" }}>
-                    {up ? "Up" : down ? "Down" : "—"}
-                  </div>
-                </div>
-              );
-            })}
-            {ports.items.length === 0 && (
+            {hasLivePorts
+              ? livePorts.map((port) => {
+                  const up = port.linkUp === true;
+                  const down = port.linkUp === false;
+                  return (
+                    <div
+                      key={port.portIndex}
+                      style={{
+                        padding: "10px 6px",
+                        borderRadius: 6,
+                        border: `2px solid ${up ? "#22c55e" : down ? "#ef4444" : "#e5e7eb"}`,
+                        background: up ? "#f0fdf4" : down ? "#fef2f2" : "#f9fafb",
+                        textAlign: "center",
+                        fontSize: 10,
+                      }}
+                      title={
+                        [
+                          port.name,
+                          port.speed ?? null,
+                          port.portVlan != null ? `VLAN ${port.portVlan}` : null,
+                          port.poeStatus ? `PoE: ${port.poeStatus}` : null,
+                          port.clientMac ? `Cliente: ${port.clientMac}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || port.name
+                      }
+                    >
+                      <div style={{ fontSize: 15, fontWeight: 700 }}>{port.name}</div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: up ? "#16a34a" : down ? "#dc2626" : "#94a3b8" }}>
+                        {up ? "Up" : down ? "Down" : "—"}
+                      </div>
+                      {port.speed && (
+                        <div style={{ fontSize: 8, color: "#94a3b8", marginTop: 2 }}>{port.speed}</div>
+                      )}
+                      {port.poeStatus && port.poeStatus !== "none" && (
+                        <div
+                          style={{
+                            fontSize: 7,
+                            fontWeight: 700,
+                            marginTop: 2,
+                            color: port.poeStatus === "delivering" ? "#16a34a" : "#f59e0b",
+                          }}
+                        >
+                          PoE {port.poeStatus === "delivering" ? "✓" : port.poeStatus}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              : hasZabbixIfs
+                ? zabbixIfs.map((iface) => (
+                    <div
+                      key={iface.itemId}
+                      style={{
+                        padding: "10px 6px",
+                        borderRadius: 6,
+                        border: `2px solid ${iface.enabled && !iface.unsupported ? "#e5e7eb" : "#fde68a"}`,
+                        background: iface.enabled && !iface.unsupported ? "#f9fafb" : "#fffbeb",
+                        textAlign: "center",
+                        fontSize: 10,
+                      }}
+                      title={`${iface.name}\n${iface.key}`}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 700, wordBreak: "break-all" }}>
+                        {iface.interfaceName}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 7,
+                          fontWeight: 700,
+                          marginTop: 2,
+                          color: iface.unsupported ? "#d97706" : iface.enabled ? "#64748b" : "#94a3b8",
+                        }}
+                      >
+                        {iface.unsupported ? "Unsupported" : iface.enabled ? "Monitorada" : "Desabilitada"}
+                      </div>
+                    </div>
+                  ))
+                : ports.items.map((port) => {
+                    const up = port.linkUp === true;
+                    const down = port.linkUp === false;
+                    return (
+                      <div
+                        key={port.id}
+                        style={{
+                          padding: "10px 6px",
+                          borderRadius: 6,
+                          border: `2px solid ${up ? "#22c55e" : down ? "#ef4444" : "#e5e7eb"}`,
+                          background: up ? "#f0fdf4" : down ? "#fef2f2" : "#f9fafb",
+                          textAlign: "center",
+                          fontSize: 10,
+                        }}
+                        title={port.description ?? port.name}
+                      >
+                        <div style={{ fontSize: 15, fontWeight: 700 }}>{port.name}</div>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: up ? "#16a34a" : down ? "#dc2626" : "#94a3b8" }}>
+                          {up ? "Up" : down ? "Down" : "—"}
+                        </div>
+                      </div>
+                    );
+                  })}
+            {hasLivePorts && livePorts.length === 0 && ports.items.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                Nenhuma porta disponível
+              </div>
+            )}
+            {!hasLivePorts && !hasZabbixIfs && ports.items.length === 0 && !ports.isFetching && (
               <div style={{ gridColumn: "1 / -1", padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                 Nenhuma porta cadastrada neste switch
               </div>
@@ -230,20 +445,217 @@ export function SwitchesPage() {
         )}
       </div>
 
-      <div className="uni-panel">
-        <div className="uni-panel-header"><h2>Detalhe de portas</h2></div>
-        <DataTablePanel panel={false} value={portsError ? [] : ports.items} dataKey="id" loading={ports.isPending} emptyMessage={portsError ? "—" : "Nenhuma porta cadastrada"}>
-          <Column header="Porta" field="name" style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12, width: 120 }} />
-          <Column header="Descrição" body={(port: SwitchPortItem) => port.description ?? "—"} style={{ fontSize: 13, color: "#64748b" }} />
-          <Column header="Link" body={(port: SwitchPortItem) => (
-            <StatusChip
-              label={port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
-              background={port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9"}
-              color={port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b"}
+      {/* Detalhe — UniFi ao vivo > Zabbix SNMP > cadastro manual */}
+      {hasLivePorts ? (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Detalhe de portas (UniFi)</h2>
+          </div>
+          <DataTablePanel
+            panel={false}
+            value={livePorts}
+            dataKey="portIndex"
+            emptyMessage="—"
+          >
+            <Column
+              header="Porta"
+              body={(port: UniFiSwitchPort) => port.name}
+              style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12, width: 100 }}
             />
-          )} style={{ width: 90 }} />
-        </DataTablePanel>
-      </div>
+            <Column header="Idx" field="portIndex" style={{ width: 50 }} />
+            <Column header="Link" body={(port: UniFiSwitchPort) => (
+              <StatusChip
+                label={port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
+                background={port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9"}
+                color={port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b"}
+              />
+            )} style={{ width: 80 }} />
+            <Column header="Velocidade" body={(port: UniFiSwitchPort) => port.speed ?? "—"} style={{ width: 90 }} />
+            <Column header="VLAN" body={(port: UniFiSwitchPort) => port.portVlan ?? "—"} style={{ width: 70 }} />
+            <Column header="PoE" body={(port: UniFiSwitchPort) => {
+              if (port.poeEnable == null) return "—";
+              if (!port.poeEnable) return "off";
+              return (
+                <StatusChip
+                  label={port.poeStatus ?? "on"}
+                  background={port.poeStatus === "delivering" ? "#dcfce7" : "#fef3c7"}
+                  color={port.poeStatus === "delivering" ? "#16a34a" : "#d97706"}
+                />
+              );
+            }} style={{ width: 90 }} />
+            <Column header="Mídia" body={(port: UniFiSwitchPort) => port.media ?? "—"} style={{ width: 100 }} />
+            <Column header="Cliente" body={(port: UniFiSwitchPort) => (
+              port.clientMac ? (
+                <span style={{ fontFamily: "monospace", fontSize: 11 }}>{port.clientMac}</span>
+              ) : "—"
+            )} style={{ minWidth: 140 }} />
+            <Column header="Ações" body={(port: UniFiSwitchPort) => (
+              <div style={{ display: "flex", gap: 4 }}>
+                <Button
+                  variant="ghost"
+                  disabled={portConfigMutation.isPending}
+                  onClick={() => {
+                    setPortConfigMessage(null);
+                    portConfigMutation.mutate(
+                      {
+                        switchId: selectedId!,
+                        portIndex: port.portIndex,
+                        body: { disabled: !port.linkUp },
+                      },
+                      {
+                        onSuccess: (data) => {
+                          setPortConfigMessage(data?.message ?? "OK");
+                          void unifiPorts.refetch();
+                        },
+                        onError: (error) => {
+                          setPortConfigMessage(mutationErrorMessage(error));
+                        },
+                      },
+                    );
+                  }}
+                  style={{ fontSize: 10, padding: "2px 6px" }}
+                >
+                  {port.linkUp ? "Desabilitar" : "Habilitar"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={portConfigMutation.isPending}
+                  onClick={() => {
+                    setPortConfigTarget(port);
+                    setPortVlanInput(port.portVlan?.toString() ?? "");
+                    setPortConfigMessage(null);
+                  }}
+                  style={{ fontSize: 10, padding: "2px 6px" }}
+                >
+                  VLAN
+                </Button>
+              </div>
+            )} style={{ width: 160 }} />
+          </DataTablePanel>
+
+          {portConfigMessage && (
+            <div
+              style={{
+                padding: "6px 16px",
+                fontSize: 12,
+                background: portConfigMutation.isError ? "#fef2f2" : "#f0fdf4",
+                color: portConfigMutation.isError ? "#dc2626" : "#16a34a",
+                borderTop: "1px solid #e5e7eb",
+              }}
+            >
+              {portConfigMessage}
+            </div>
+          )}
+
+          {portConfigTarget && (
+            <div
+              style={{
+                padding: 16,
+                borderTop: "1px solid #e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 600 }}>
+                VLAN na porta {portConfigTarget.name} (índice {portConfigTarget.portIndex}):
+              </span>
+              <input
+                type="number"
+                value={portVlanInput}
+                onChange={(e) => setPortVlanInput(e.target.value)}
+                placeholder="ex: 10, 20, 99"
+                style={{
+                  width: 100,
+                  padding: "4px 8px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 4,
+                  fontSize: 13,
+                }}
+              />
+              <Button
+                variant="primary"
+                disabled={portConfigMutation.isPending || !portVlanInput}
+                onClick={() => {
+                  const vlan = parseInt(portVlanInput, 10);
+                  if (Number.isNaN(vlan)) return;
+                  portConfigMutation.mutate(
+                    {
+                      switchId: selectedId!,
+                      portIndex: portConfigTarget.portIndex,
+                      body: { portVlan: vlan },
+                    },
+                    {
+                      onSuccess: () => {
+                        setPortConfigTarget(null);
+                        setPortConfigMessage(`VLAN ${vlan} aplicada na porta ${portConfigTarget.name}.`);
+                        void unifiPorts.refetch();
+                      },
+                      onError: (error) => {
+                        setPortConfigMessage(mutationErrorMessage(error));
+                      },
+                    },
+                  );
+                }}
+                style={{ fontSize: 12, padding: "4px 12px" }}
+              >
+                {portConfigMutation.isPending ? "Aplicando…" : "Aplicar VLAN"}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setPortConfigTarget(null)}
+                style={{ fontSize: 12, padding: "4px 12px" }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : hasZabbixIfs ? (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Interfaces monitoradas (Zabbix SNMP)</h2>
+          </div>
+          <DataTablePanel
+            panel={false}
+            value={zabbixIfs}
+            dataKey="itemId"
+            emptyMessage="—"
+          >
+            <Column
+              header="Interface"
+              body={(iface: ZabbixInterfaceItem) => iface.interfaceName}
+              style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12, minWidth: 140 }}
+            />
+            <Column header="Item Zabbix" body={(iface: ZabbixInterfaceItem) => iface.name} style={{ fontSize: 13, color: "#64748b", minWidth: 180 }} />
+            <Column header="Key" body={(iface: ZabbixInterfaceItem) => (
+              <span style={{ fontFamily: "monospace", fontSize: 11 }}>{iface.key}</span>
+            )} style={{ minWidth: 200 }} />
+            <Column header="Estado" body={(iface: ZabbixInterfaceItem) => (
+              <StatusChip
+                label={iface.unsupported ? "Unsupported" : iface.enabled ? "Monitorada" : "Desabilitada"}
+                background={iface.unsupported ? "#fef3c7" : iface.enabled ? "#dcfce7" : "#f1f5f9"}
+                color={iface.unsupported ? "#d97706" : iface.enabled ? "#16a34a" : "#64748b"}
+              />
+            )} style={{ width: 120 }} />
+          </DataTablePanel>
+        </div>
+      ) : (
+        <div className="uni-panel">
+          <div className="uni-panel-header"><h2>Detalhe de portas</h2></div>
+          <DataTablePanel panel={false} value={portsError ? [] : ports.items} dataKey="id" loading={ports.isPending} emptyMessage={portsError ? "—" : "Nenhuma porta cadastrada"}>
+            <Column header="Porta" field="name" style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12, width: 120 }} />
+            <Column header="Descrição" body={(port: SwitchPortItem) => port.description ?? "—"} style={{ fontSize: 13, color: "#64748b" }} />
+            <Column header="Link" body={(port: SwitchPortItem) => (
+              <StatusChip
+                label={port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
+                background={port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9"}
+                color={port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b"}
+              />
+            )} style={{ width: 90 }} />
+          </DataTablePanel>
+        </div>
+      )}
     </div>
   );
 }
