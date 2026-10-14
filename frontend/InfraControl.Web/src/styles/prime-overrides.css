@@ -272,13 +272,15 @@
   color: var(--uni-text-muted);
 }
 
-/* Seta para itens com submenu */
+/* Seta para itens com submenu — vira para cima quando o grupo está aberto. */
 .uni-nav-arrow {
   margin-left: auto;
   font-size: 10px;
   color: var(--uni-text-muted);
   transition: transform 0.15s;
 }
+
+.uni-nav-item.expanded .uni-nav-arrow { transform: rotate(180deg); }
 
 .uni-nav-item:hover .uni-nav-arrow {
   color: var(--uni-accent);

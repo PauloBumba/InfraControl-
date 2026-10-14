@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { SelectField } from "@/components/ui/SelectField";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -154,26 +154,28 @@ export function SwitchesPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Switches & Portas"
-        subtitle={`${switchesTotal} switches`}
-        actions={
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <ViewSwitcher mode={view} onChange={setView} />
-            <SelectField
-              value={selectedId ?? ""}
-              onChange={setSelectedId}
-              options={switches.items.map((sw) => ({ value: sw.id, label: sw.name }))}
-              style={{ minWidth: 180 }}
-            />
-          </div>
-        }
-      />
-
-      {switchesError && (
-        <ErrorBanner message={switchesError} onRetry={() => void switches.refetch()} />
-      )}
+    <ListPageShell
+      title="Switches & Portas"
+      // A produção diz "1 switches" (gramática errada, pré-existente). Corrigir
+      // para "switch" muda texto visível — decisão humana, fora do C-3.
+      // Sem `loading` de propósito: o subtítulo original nunca teve esse ramo.
+      singular="switches"
+      plural="switches"
+      total={switchesTotal}
+      error={switchesError}
+      onRetry={() => void switches.refetch()}
+      actions={
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <ViewSwitcher mode={view} onChange={setView} />
+          <SelectField
+            value={selectedId ?? ""}
+            onChange={setSelectedId}
+            options={switches.items.map((sw) => ({ value: sw.id, label: sw.name }))}
+            style={{ minWidth: 180 }}
+          />
+        </div>
+      }
+    >
 
       <EntityView<DeviceItem>
         mode={view}
@@ -656,6 +658,6 @@ export function SwitchesPage() {
           </DataTablePanel>
         </div>
       )}
-    </div>
+    </ListPageShell>
   );
 }

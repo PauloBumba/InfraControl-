@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Column } from "primereact/column";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Button } from "@/components/ui/Button";
@@ -170,25 +169,21 @@ export function InvitationsPage() {
   const listError = mutationErrorMessage(invitations.error as Error | null);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Convites"
-        subtitle={`${filtered.length} ${filtered.length === 1 ? "convite" : "convites"}${filtered.length !== list.length ? ` de ${list.length}` : ""}`}
-        actions={
-          <div className="flex align-items-center gap-2 flex-wrap">
-            <ViewSwitcher mode={view} onChange={setView} />
-          </div>
-        }
-      />
-
-      {listError && (
-        <ErrorBanner
-          message={listError}
-          onRetry={() => void invitations.refetch()}
-        />
-      )}
-
-      <InlineMessages ref={messagesRef} />
+    <ListPageShell
+      title="Convites"
+      singular="convite"
+      plural="convites"
+      total={filtered.length}
+      note={filtered.length !== list.length ? `de ${list.length}` : undefined}
+      notice={<InlineMessages ref={messagesRef} />}
+      error={listError || null}
+      onRetry={() => void invitations.refetch()}
+      actions={
+        <div className="flex align-items-center gap-2 flex-wrap">
+          <ViewSwitcher mode={view} onChange={setView} />
+        </div>
+      }
+    >
 
       {isAdmin && (
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -429,6 +424,6 @@ export function InvitationsPage() {
         }
         confirmLabel="Cancelar convite"
       />
-    </div>
+    </ListPageShell>
   );
 }

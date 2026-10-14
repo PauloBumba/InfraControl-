@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
@@ -130,10 +129,6 @@ export function LocationsPage() {
   }
 
   const isLocationTab = tab === "locations";
-  const total = isLocationTab ? locations.totalCount : racks.totalCount;
-  const subtitle = isLocationTab
-    ? `${locations.totalCount} locais · ${racks.totalCount} racks · ${devices.totalCount} dispositivos`
-    : `${racks.totalCount} racks · ${locations.totalCount} locais`;
 
   function openCreate() {
     setForm({ mode: "create", target: null });
@@ -220,32 +215,43 @@ export function LocationsPage() {
       ? form.mode === "create" ? "Novo local" : "Editar local"
       : form.mode === "create" ? "Novo rack" : "Editar rack";
 
+  // A casca monta `contagem · nota`. O número da aba (que a segunda linha
+  // repetia) vira a contagem; o resto do composto vira a nota. Texto igual,
+  // só sem estar escrito duas vezes.
+  const contagem = isLocationTab
+    ? { total: locations.totalCount, singular: "local", plural: "locais" }
+    : { total: racks.totalCount, singular: "rack", plural: "racks" };
+  const nota = isLocationTab
+    ? `${racks.totalCount} racks · ${devices.totalCount} dispositivos`
+    : `${locations.totalCount} locais`;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Locations & Racks"
-        subtitle={
-          <>
-            {subtitle}
-            <span style={{ display: "block", fontSize: 12, marginTop: 2 }}>
-              {total} registro(s) nesta aba
-            </span>
-          </>
-        }
-        actions={
-          <div className="flex align-items-center gap-2 flex-wrap">
-            <ViewSwitcher
-              mode={isLocationTab ? locationView : rackView}
-              onChange={isLocationTab ? setLocationView : setRackView}
-            />
-            <Can level="operate">
-              <Button variant="primary" onClick={openCreate}>
-                <i className="pi pi-plus" /> {isLocationTab ? "Novo local" : "Novo rack"}
-              </Button>
-            </Can>
-          </div>
-        }
-      />
+    <ListPageShell
+      title="Locations & Racks"
+      singular={contagem.singular}
+      plural={contagem.plural}
+      total={contagem.total}
+      note={nota}
+      error={actionError ?? mutationErrorMessage((locations.error ?? racks.error) as Error) ?? null}
+      onRetry={() => {
+        setActionError(null);
+        void locations.refetch();
+        void racks.refetch();
+      }}
+      actions={
+        <div className="flex align-items-center gap-2 flex-wrap">
+          <ViewSwitcher
+            mode={isLocationTab ? locationView : rackView}
+            onChange={isLocationTab ? setLocationView : setRackView}
+          />
+          <Can level="operate">
+            <Button variant="primary" onClick={openCreate}>
+              <i className="pi pi-plus" /> {isLocationTab ? "Novo local" : "Novo rack"}
+            </Button>
+          </Can>
+        </div>
+      }
+    >
 
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
         {([
@@ -272,21 +278,6 @@ export function LocationsPage() {
           </button>
         ))}
       </div>
-
-      {(actionError || locations.error || racks.error) && (
-        <ErrorBanner
-          message={
-            actionError ??
-            mutationErrorMessage((locations.error ?? racks.error) as Error) ??
-            "Não foi possível falar com o servidor. Tente novamente."
-          }
-          onRetry={() => {
-            setActionError(null);
-            void locations.refetch();
-            void racks.refetch();
-          }}
-        />
-      )}
 
       {countsTruncated && (
         <p style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -518,6 +509,6 @@ export function LocationsPage() {
         }
         confirmLabel="Excluir"
       />
-    </div>
+    </ListPageShell>
   );
 }

@@ -3,8 +3,8 @@ import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
@@ -152,19 +152,16 @@ export function RemotePage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Acesso Remoto"
-        subtitle={`${deviceTotal} ${deviceTotal === 1 ? "dispositivo" : "dispositivos"} · selecione um para ver e abrir sessões`}
-        actions={selected ? <ViewSwitcher mode={view} onChange={setView} /> : undefined}
-      />
-
-      {devicesError && (
-        <ErrorBanner
-          message={devicesError}
-          onRetry={() => void devices.refetch()}
-        />
-      )}
+    <ListPageShell
+      title="Acesso Remoto"
+      singular="dispositivo"
+      plural="dispositivos"
+      total={deviceTotal}
+      note="selecione um para ver e abrir sessões"
+      error={devicesError}
+      onRetry={() => void devices.refetch()}
+      actions={selected ? <ViewSwitcher mode={view} onChange={setView} /> : undefined}
+    >
 
       {/* Dispositivos (seletor — reusa o inventário do T007) */}
       <div>
@@ -337,6 +334,6 @@ export function RemotePage() {
           />
         </div>
       )}
-    </div>
+    </ListPageShell>
   );
 }

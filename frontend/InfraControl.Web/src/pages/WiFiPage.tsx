@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Column } from "primereact/column";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
@@ -193,25 +192,28 @@ export function WiFiPage() {
     );
   }
 
-  const subtitle = wifiLoading
-    ? "Carregando…"
-    : wifiData
-      ? `${wifiData.ssids.length} ${wifiData.ssids.length === 1 ? "rede" : "redes"} · ${wifiData.accessPoints.length} ${wifiData.accessPoints.length === 1 ? "AP" : "APs"} · sondagem ao vivo em ${formatDateTime(new Date(wifiData.capturedAtUtc))}`
-      : loading
-        ? "Carregando…"
-        : `${totalCount} ${totalCount === 1 ? "access point" : "access points"} · inventário (DeviceType.AccessPoint)`;
+  // A casca monta `contagem · nota`. Aqui a "nota" é o resto do subtítulo de
+  // sondagem ao vivo, byte a byte — o que muda é só quem compõe a string.
+  const live = wifiData != null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader title="WiFi" subtitle={subtitle} />
-
-      {wifiError && (
-        <ErrorBanner
-          message={wifiError}
-          onRetry={() => void wifi.refetch()}
-        />
-      )}
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+    <ListPageShell
+      title="WiFi"
+      singular={live ? "rede" : "access point"}
+      plural={live ? "redes" : "access points"}
+      total={live ? wifiData.ssids.length : totalCount}
+      loading={wifiLoading || (!wifiData && loading)}
+      note={
+        live
+          ? `${wifiData.accessPoints.length} ${wifiData.accessPoints.length === 1 ? "AP" : "APs"} · sondagem ao vivo em ${formatDateTime(new Date(wifiData.capturedAtUtc))}`
+          : "inventário (DeviceType.AccessPoint)"
+      }
+      // Um só slot: com a sondagem e o inventário fora ao mesmo tempo a tela
+      // mostrava duas caixas vermelhas coladas. O retry aponta para a fonte do
+      // erro que está sendo exibido.
+      error={wifiError ?? error ?? null}
+      onRetry={wifiError ? () => void wifi.refetch() : () => void load()}
+    >
 
       <div className="uni-panel">
         <div className="uni-panel-header">
@@ -452,6 +454,6 @@ export function WiFiPage() {
           )}
         </div>
       </div>
-    </div>
+    </ListPageShell>
   );
 }

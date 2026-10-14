@@ -100,6 +100,51 @@ ul, ol { list-style: none; }
 }
 .uni-nav-item.active i { color: var(--uni-accent); }
 
+/* Dropdown do sidebar (2026-10-14): o filho abre DENTRO da lista, sob o pai. */
+.uni-nav-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 1px 0 3px;
+  padding: 0 0 0 22px;
+  list-style: none;
+  position: relative;
+}
+/* Filete que amarra os filhos ao pai, no estilo de árvore. */
+.uni-nav-sublist::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 6px;
+  left: 18px;
+  width: 1px;
+  background: var(--uni-border);
+}
+.uni-nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--uni-text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.12s;
+  text-align: left;
+  width: 100%;
+}
+.uni-nav-subitem i { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.uni-nav-subitem:hover { background: #f3f4f6; color: var(--uni-text); }
+.uni-nav-subitem.active {
+  background: #eff6ff;
+  color: var(--uni-accent);
+  font-weight: 600;
+}
+.uni-nav-subitem.active i { color: var(--uni-accent); }
+/* Recolhido (60px) não cabe submenu: some junto com o rótulo do pai. */
+.uni-sidebar.collapsed .uni-nav-sublist { display: none; }
+
 .uni-nav-badge {
   margin-left: auto;
   padding: 1px 6px;

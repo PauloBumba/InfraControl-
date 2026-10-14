@@ -1,12 +1,11 @@
 import { useCallback, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Column } from "primereact/column";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Can } from "@/components/auth/Can";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
@@ -287,43 +286,50 @@ export function TasksPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Tarefas"
-        subtitle={
-          <>
-            {tasks.isPending ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "tarefa" : "tarefas"}`}
-            {truncated && ` — exibindo as ${items.length} primeiras`}
-            {!tasks.isPending && hasFilters && " · filtros ativos"}
-          </>
-        }
-        actions={
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <ViewSwitcher mode={view} onChange={setView} />
+    <ListPageShell
+      title="Tarefas"
+      singular="tarefa"
+      plural="tarefas"
+      total={totalCount}
+      loading={tasks.isPending}
+      note={
+        [truncated ? `exibindo as ${items.length} primeiras` : "", hasFilters ? "filtros ativos" : ""]
+          .filter(Boolean)
+          .join(" · ") || undefined
+      }
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
+      error={actionError ?? listError ?? null}
+      onRetry={() => {
+        setActionError(null);
+        void tasks.refetch();
+      }}
+      actions={
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <ViewSwitcher mode={view} onChange={setView} />
+          <Button
+            onClick={() => void tasks.refetch()}
+            disabled={tasks.isFetching}
+            variant="ghost"
+            style={{ padding: "6px 12px", cursor: tasks.isFetching ? "default" : "pointer" }}
+          >
+            <i className="pi pi-refresh" style={{ fontSize: 11 }} /> Atualizar
+          </Button>
+          <Can level="operate">
             <Button
-              onClick={() => void tasks.refetch()}
-              disabled={tasks.isFetching}
-              variant="ghost"
-              style={{ padding: "6px 12px", cursor: tasks.isFetching ? "default" : "pointer" }}
+              variant="primary"
+              onClick={() => {
+                setEditing(null);
+                if (!creating) resetForm();
+                setCreating((value) => !value);
+              }}
+              style={{ padding: "6px 14px" }}
             >
-              <i className="pi pi-refresh" style={{ fontSize: 11 }} /> Atualizar
+              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
             </Button>
-            <Can level="operate">
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setEditing(null);
-                  if (!creating) resetForm();
-                  setCreating((value) => !value);
-                }}
-                style={{ padding: "6px 14px" }}
-              >
-                <i className="pi pi-plus" style={{ fontSize: 11 }} /> Nova Tarefa
-              </Button>
-            </Can>
-          </div>
-        }
-      />
+          </Can>
+        </div>
+      }
+    >
 
       <div className="uni-panel uni-task-progress">
         <div><strong>Conclusão do quadro</strong><span>{completedCount} de {items.length} tarefas resolvidas ou fechadas</span></div>
@@ -368,18 +374,6 @@ export function TasksPage() {
           </Button>
         )}
       </form>
-
-      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-
-      {(actionError || listError) && (
-        <ErrorBanner
-          message={actionError ?? listError ?? "Não foi possível falar com o servidor. Tente novamente."}
-          onRetry={() => {
-            setActionError(null);
-            void tasks.refetch();
-          }}
-        />
-      )}
 
       {(creating || editing) && (
         <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
@@ -600,7 +594,7 @@ export function TasksPage() {
         }
         confirmLabel="Excluir"
       />
-    </div>
+    </ListPageShell>
   );
 }
 

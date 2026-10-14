@@ -260,7 +260,7 @@ diferentes. Fatiada por decisão do usuário:
 | --- | --- | --- | --- |
 | **C-1** `messageFor` → `errorMessage` | 16 declarações (15 cópias + 1 exportação) | baixo | ✅ 2026-10-11 |
 | **C-2** `formError` → `useFormErrors` | 11 sites (9 páginas + 2 dialogs) | médio | ✅ **11/11 concluído** |
-| **C-3** casca → `ListPageShell` | 26 arquivos com a raiz `flex column gap:16` | alto | ⏳ (4 já migradas no §1B) |
+| **C-3** casca → `ListPageShell` | 26 arquivos com a raiz `flex column gap:16` | alto | ✅ Lote 1 (7/7) + Lote 2 (6/7) · `PdiPage` fora de propósito |
 
 **Resultado do C-1**: 15 cópias migraram para `errorMessage`. A exportação de
 `taskCatalogs.ts` morreu junto — o único consumidor era `TaskDetailPage`, que
@@ -427,6 +427,106 @@ estragaria a página delas.
 
 ---
 
+## C-3 — Lote 1 concluído (7/7)
+
+Migrações com o texto do cabeçalho **idêntico** ao de produção; cada uma com
+teste que tranca a contagem.
+
+| Página | Testes | Encaixe |
+| --- | --- | --- |
+| `KnowledgePage` | 13 → 15 | contagem pura |
+| `DevicesPage` | 4 → 6 | contagem + nota `·` condicional |
+| `SlaPage` | 4 → 6 | contagem `·` nota `·` nota |
+| `NetworkPage` | 3 → 6 | contagem + sufixo no singular/plural |
+| `UsersPage` | novo (2) | contagem `·` nota literal |
+| `SwitchesPage` | novo (2) | contagem sem regra de plural |
+| `RemotePage` | novo (2) | contagem `·` nota literal |
+
+Suíte do front: **195/195 em 43 arquivos** (era 177/177 em 39), `tsc` 0,
+`eslint` 0.
+
+**Correção que mudou o recorte.** O separador do `ListPageShell` é `·`
+(`ListPageShell.tsx:67`), não `–`. Eu tinha classificado `SessionsPage`,
+`RemotePage`, `UsersPage`, `SwitchesPage` e `NetworkPage` como "exigem decisão"
+por causa de um caractere que só existia na saída distorcida do console do
+PowerShell. Todos, menos `SessionsPage`, voltaram para o lote limpo.
+
+**Dois erros de gramática preservados de propósito.** `NetworkPage` diz
+"1 VLAN cadastradas" e `SwitchesPage` diz "1 switches". Corrigir muda texto
+visível, então os dois entraram com o singular já no plural
+(`singular="switches"`) e com um comentário no JSX explicando por quê — e há
+um teste em cada página trançando o texto errado. **Corrigir exige autorização.**
+
+**Lote 2 — 7 páginas, cada uma com um motivo concreto:**
+
+| Página | Motivo |
+| --- | --- |
+| `AuditPage` | dois `ErrorBanner` (`formError` sem retry + `error` com retry); o shell aceita um |
+| `WiFiPage` | idem: `wifiError` e `error` separados, com retries distintos |
+| `LocationsPage` | segunda linha estilizada no subtítulo (`display:block`); o `note` do shell é texto na mesma linha |
+| `TasksPage` | dois sufixos condicionais com separadores diferentes (`—` e `·`); o shell tem um `note` só |
+| `InvitationsPage` | ` de 10` sem separador; o shell sempre põe `·` |
+| `PdiPage` | o ramo não-admin não tem contagem no subtítulo | **fora** — a casca sempre imprime `N <plural>`; migrar obrigaria a `"0 planos · Meu Plano…"` |
+| `SessionsPage` | banner na cor legada `#dc2626` (o default do shell é `#b91c1c`) |
+
+**Fora do recorte**: `NotificationsPage` (o ramo "3 de 5 canais ativos" não é
+contagem de coleção) e `LoginPage` (401/403 — mesma razão registrada no C-1).
+
+**Única mudança de posição**: em `SlaPage` as abas passaram a vir depois dos
+banners, porque a ordem padronizada do shell é cabeçalho → notice → erro →
+conteúdo. O texto do subtítulo é idêntico; só a posição do banner mudou.
+
+## C-3 — Lote 2 concluído (6 de 7)
+
+Executado em 2026-10-14, com TDD (teste escrito antes, RED confirmado,
+GREEN em seguida) e com a decisão do usuário sobre o dropdown do sidebar já
+aplicada no mesmo dia. **6 páginas migradas, 1 ficou de fora de propósito.**
+
+| Página | O que mudou | Testes |
+| --- | --- | --- |
+| `SessionsPage` | só a cor do banner (`#dc2626` → default `#b91c1c`); contagem + nota já casavam | 3 → 5 |
+| `InvitationsPage` | ` de 10` virou `1 convite · de 2`; dois `ErrorBanner`/`InlineMessages` entraram na ordem do shell | 3 → 4 |
+| `TasksPage` | o travessão `" — exibindo as N primeiras"` virou `·`; nota passou a ser `exibindo… · filtros ativos` no `note` | 3 → 6 |
+| `AuditPage` | **arquivo de teste novo**; os dois `ErrorBanner` adjacentes fundidos num só (`formError ?? error`) | 0 → 3 |
+| `WiFiPage` | o subtítulo de sondagem ao vivo virou `contagem · nota` byte a byte; os dois banners fundidos | 6 → 8 |
+| `LocationsPage` | a 2ª linha `"N registro(s) nesta aba"` saiu — ela repetia o mesmo número da 1ª linha; virou `contagem · nota` | 3 → 5 |
+
+**`PdiPage` ficou de fora, e é decisão registrada.** O subtítulo dela tem dois
+ramos: admin vê `"3 planos · Plano de Desenvolvimento Individual"`, e o usuário
+comum vê **só** `"Meu Plano de Desenvolvimento Individual"`, sem contagem — não
+é esquecimento, é o desenho (quem tem um plano só não está lendo uma lista). A
+casca **sempre** imprime `N <plural>`, então migrar obrigaria a mostrar
+`"0 planos · Meu Plano…"` na tela de todo mundo. Forçar isso seria trocar um
+texto verdadeiro por um número inventado. Fica com `PageHeader` até existir um
+caso legítimo de contagem para o não-admin.
+
+**Duas decisões tomadas durante a execução, ambas registradas nos testes:**
+
+1. **Erro fundido = segunda mensagem descartada.** A casca tem UM slot de
+   `error`. Em `AuditPage` e `WiFiPage` havia duas fontes de erro com retries
+   distintos; fundir significa que só uma mensagem aparece (a da fonte da
+   sondagem/formulário, na mesma ordem `a ?? b` de sempre). O teste tranca
+   isso explicitamente — inclusive que a segunda **não** aparece. Se um dia
+   precisar das duas, o lugar que muda é a casca, não a página.
+2. **`LocationsPage` perdeu uma linha visível.** `"3 registro(s) nesta aba"`
+   era o mesmo `3` de `"3 locais"`, escrito duas vezes. A saída semântica é
+   deixar de escrevê-lo — mas é a única mudança de texto visível do lote, e
+   está dita aqui.
+
+**TDD**: 13 testes novos RED→GREEN, sendo 3 em um arquivo que não existia
+(`AuditPage.test.tsx`). Suíte do front **200 → 215 em 44 arquivos**, `tsc` 0,
+`eslint` 0.
+
+**Achado durante o lote (não mexido)**: `TasksPage.tsx` mudou sob a gente —
+no meio da execução o arquivo já tinha `totalCount`/`truncated`/`hasFilters`
+em vez do `openCount`/`noticeText`/`filtered` que o plano descrevia. O commit
+`004c6c6` (2026-10-13) já trazia essa forma e o arquivo está limpo no `git
+status`. Os testes do lote foram reescritos contra o código real, e o texto do
+subtítulo preservado (`3 tarefas`, `3 tarefas · filtros ativos`,
+`3 tarefas · exibindo as 1 primeiras`).
+
+---
+
 ## Fase 2 — User: nome completo + perfil
 
 **Objetivo**: o usuário editar o próprio nome completo pela interface, com
@@ -587,6 +687,41 @@ GREEN: 3/3). Contagens: front **86 → 89** testes (21 → 22 arquivos),
 
 **Achado novo** registrado na §4: `<button>` aninhado dentro de `<button>` na
 barra de abas (o React avisa durante o teste).
+
+#### Resultado (2026-10-14 — o submenu virou dropdown inline)
+
+O `<Menu>` POPUP flutuante do submenu morreu. Duas opções foram oferecidas
+(inline com o visual atual × trocar a navegação por `PanelMenu` do
+PrimeReact); o usuário escolheu **manter o visual atual e expandir inline**, e
+**o pai continuar navegando** para a própria rota ao abrir — contrato
+F29-T005 preservado.
+
+Mudanças em `AppLayout`:
+- saíram `navMenuRef`, `navMenuModel`, `handleNavDropdownClick`,
+  `navItemToMenuItem` e o `<Menu model={navMenuModel} popup />`; entrou
+  `expandedRoute`, cuja chave é a **rota** e não o label — os dois "Zabbix" não
+  podem dividir o estado de expandido, que é o mesmo bug do F29-T005;
+- os dois `.map` duplicados dos grupos primário e secundário viraram uma
+  `renderNavItem(item)` só;
+- os filhos viram `.uni-nav-subitem` dentro de `.uni-nav-sublist` (com filete
+  de árvore) e a seta gira para cima com `.uni-nav-item.expanded`;
+- o grupo **já abre** quando a rota corrente é de um filho (`hasActiveChild`),
+  e nesse caso só o filho fica `.active`;
+- os filhos passam pelo mesmo filtro de role dos pais (`canSee`).
+
+**Com o sidebar recolhido (60px, só ícones) o submenu não abre** — não cabe;
+o pai continua navegando e o usuário expande o sidebar para alcançar os filhos.
+Registrado no CSS (`.uni-sidebar.collapsed .uni-nav-sublist { display: none }`)
+e no comentário do `renderNavItem`.
+
+**TDD**: 5 testes novos RED→GREEN (abrir inline sem popup, navegar E expandir
+no mesmo clique, recolher no segundo clique, abrir sozinho quando a rota atual
+é filho, e trocar de filho sem fechar o grupo). Suíte do front **195 → 200** em
+43 arquivos, `tsc` 0, `eslint` 0.
+
+**Achado**: clicando na aba recém-criada, o React avisa "button cannot be a
+descendant of button" — o fecho da aba é `<button>` dentro do `<button>` da
+aba. Pré-existente, já registrado na §4; não consertado aqui.
 
 ### 5. Erros no front — base sólida, 5 divergências
 

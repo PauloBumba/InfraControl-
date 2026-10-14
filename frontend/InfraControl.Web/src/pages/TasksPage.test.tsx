@@ -242,3 +242,41 @@ describe("TasksPage — erro de validação por campo", () => {
     expect(setTaskIdentificationMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Casca do C-3: o subtítulo montava a contagem com DOIS separadores
+ * diferentes — `—` em "exibindo as N primeiras" e `·` em "filtros ativos".
+ * A casca padroniza tudo em `·`.
+ *
+ * O total continua sendo o do SERVIDOR (`totalCount`), não o da página
+ * filtrada: é o que a tela já mostrava, e mudar isso é requisito novo.
+ */
+describe("TasksPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should count without a note when nothing is truncated or filtered", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Tarefas" })).toBeInTheDocument();
+    expect(await screen.findByText("1 tarefa")).toBeInTheDocument();
+    // Sem nota, não sobra nenhum separador — nem o travessão velho.
+    expect(screen.queryByText(/—/)).toBeNull();
+  });
+
+  it("should carry the truncation note with the standard separator", async () => {
+    listTasksMock.mockResolvedValue({ items: [umaTarefa], totalCount: 3, page: 1, pageSize: 1 });
+    renderPage();
+
+    expect(
+      await screen.findByText("3 tarefas · exibindo as 1 primeiras"),
+    ).toBeInTheDocument();
+  });
+
+  it("should mention active filters after the separator", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText("Buscar por título…"), "switch");
+    await user.click(screen.getByRole("button", { name: "Filtrar" }));
+
+    expect(await screen.findByText("1 tarefa · filtros ativos")).toBeInTheDocument();
+  });
+});

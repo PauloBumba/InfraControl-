@@ -179,3 +179,50 @@ describe("WiFiPage — seletor por seção (tabela/grid/quadro)", () => {
     expect(container.querySelectorAll("table")).toHaveLength(2);
   });
 });
+
+/**
+ * C-3 — casca do `ListPageShell`.
+ *
+ * Esta página é a exceção da exceção: o subtítulo não é "N itens", é o
+ * resultado da SONDAGEM AO VIVO ("2 redes · 2 APs · sondagem em …"). A casca
+ * monta `contagem · nota`, então a nota carrega o resto do texto byte a byte.
+ *
+ * E o mesmo problema da AuditPage: DOIS `<ErrorBanner>` adjacentes, um da
+ * sondagem e um do inventário. Com os dois erros ao mesmo tempo a tela mostrava
+ * duas caixas vermelhas lado a lado — a casca tem um slot.
+ */
+describe("WiFiPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should keep the live-probe subtitle byte-identical", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByText(/^2 redes · 2 APs · sondagem ao vivo em /),
+    ).toBeInTheDocument();
+  });
+
+  it("should fall back to the inventory count when the probe fails", async () => {
+    getUnifiWifiMock.mockRejectedValue(new Error("UniFi fora do ar"));
+    renderPage();
+
+    expect(
+      await screen.findByText("1 access point · inventário (DeviceType.AccessPoint)"),
+    ).toBeInTheDocument();
+  });
+
+  it("should show ONE banner when the probe and the inventory both fail", async () => {
+    getUnifiWifiMock.mockRejectedValue(new Error("UniFi fora do ar"));
+    listDevicesMock.mockRejectedValue(new Error("API fora do ar"));
+    renderPage();
+
+    // Os dois erros já aconteceram quando a casca monta o subtítulo de
+    // fallback do inventário.
+    await screen.findByText(/· inventário \(DeviceType\.AccessPoint\)/);
+
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    // A casca tem UM slot. Quem fica é a fonte da sondagem (a mesma ordem do
+    // `formError ?? error` da AuditPage); o do inventário é descartado, não
+    // duplicado. Se um dia precisar dos dois, é a casca que muda — não aqui.
+    expect(screen.getByText("UniFi fora do ar")).toBeInTheDocument();
+    expect(screen.queryByText("API fora do ar")).toBeNull();
+  });
+});

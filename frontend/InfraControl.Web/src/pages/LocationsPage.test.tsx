@@ -156,3 +156,46 @@ describe("LocationsPage — erro de validação por campo", () => {
     expect(createLocationMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/** `paged` com o total FORA do tamanho do `items` (o servidor paginado). */
+function pagedTotal<T>(total: number) {
+  return { items: [] as T[], totalCount: total, page: 1, pageSize: 20 };
+}
+
+/**
+ * C-3 — casca do `ListPageShell`.
+ *
+ * Esta página era a única que mandava DUAS linhas no subtítulo: o composto
+ * ("3 locais · 5 racks · 12 dispositivos") e, numa `<span>` estilizada à mão,
+ * "3 registro(s) nesta aba" — repetindo o MESMO número da primeira linha.
+ *
+ * A casca monta `contagem · nota`, então o número da aba vira a contagem e o
+ * resto do composto vira a nota. O texto visível não muda: só deixa de estar
+ * escrito duas vezes.
+ */
+describe("LocationsPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should keep the composite count on the locations tab", async () => {
+    listLocationsMock.mockResolvedValue(pagedTotal(3));
+    listRacksMock.mockResolvedValue(pagedTotal(5));
+    listDevicesMock.mockResolvedValue(pagedTotal(12));
+    renderPage();
+
+    expect(
+      await screen.findByText("3 locais · 5 racks · 12 dispositivos"),
+    ).toBeInTheDocument();
+    // A segunda linha repetia o 3. Sai.
+    expect(screen.queryByText(/registro\(s\) nesta aba/)).toBeNull();
+  });
+
+  it("should follow the tab when it switches to racks", async () => {
+    listLocationsMock.mockResolvedValue(pagedTotal(3));
+    listRacksMock.mockResolvedValue(pagedTotal(5));
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Racks" }));
+
+    expect(await screen.findByText("5 racks · 3 locais")).toBeInTheDocument();
+    expect(screen.queryByText(/registro\(s\) nesta aba/)).toBeNull();
+  });
+});

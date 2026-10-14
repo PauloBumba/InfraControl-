@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Column } from "primereact/column";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
@@ -161,36 +160,37 @@ export function SessionsPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Minhas sessões"
-        subtitle={`${sessions.length} ${sessions.length === 1 ? "sessão ativa" : "sessões ativas"} · revogue o que não reconhecer`}
-        actions={
-          <div className="flex gap-2 flex-wrap">
-            <ViewSwitcher mode={view} onChange={setView} />
-            <Button
-              variant="ghost"
-              icon={loading ? "pi pi-spin pi-spinner" : "pi pi-refresh"}
-              onClick={() => void load()}
-              disabled={loading}
-            >
-              Atualizar
-            </Button>
-            <Button
-              variant="danger"
-              icon={busyOthers ? "pi pi-spin pi-spinner" : "pi pi-sign-out"}
-              onClick={() => setConfirmOthers(true)}
-              disabled={loading || busyOthers || othersCount === 0}
-            >
-              Sair de todos os outros
-            </Button>
-          </div>
-        }
-      />
-
-      <InlineMessages ref={messagesRef} />
-
-      {error && <ErrorBanner message={error} color="#dc2626" />}
+    <ListPageShell
+      title="Minhas sessões"
+      singular="sessão ativa"
+      plural="sessões ativas"
+      total={sessions.length}
+      loading={loading}
+      note="revogue o que não reconhecer"
+      notice={<InlineMessages ref={messagesRef} />}
+      error={error}
+      actions={
+        <div className="flex gap-2 flex-wrap">
+          <ViewSwitcher mode={view} onChange={setView} />
+          <Button
+            variant="ghost"
+            icon={loading ? "pi pi-spin pi-spinner" : "pi pi-refresh"}
+            onClick={() => void load()}
+            disabled={loading}
+          >
+            Atualizar
+          </Button>
+          <Button
+            variant="danger"
+            icon={busyOthers ? "pi pi-spin pi-spinner" : "pi pi-sign-out"}
+            onClick={() => setConfirmOthers(true)}
+            disabled={loading || busyOthers || othersCount === 0}
+          >
+            Sair de todos os outros
+          </Button>
+        </div>
+      }
+    >
 
       <ConfirmDialog
         visible={!!pendingRevoke}
@@ -238,6 +238,6 @@ export function SessionsPage() {
       </DataTablePanel>
         }
       />
-    </div>
+    </ListPageShell>
   );
 }

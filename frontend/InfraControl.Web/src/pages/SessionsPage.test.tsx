@@ -102,3 +102,28 @@ describe("SessionsPage — visões tabela/grid/quadro", () => {
     expect(screen.getAllByText("Outro dispositivo").length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("SessionsPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should compose the count with the literal note", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "Minhas sessões" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("2 sessões ativas · revogue o que não reconhecer"),
+    ).toBeInTheDocument();
+  });
+
+  it("should singularize the head count without touching the note", async () => {
+    listSessionsMock.mockResolvedValue([makeSession()]);
+    renderPage();
+
+    expect(
+      await screen.findByText("1 sessão ativa · revogue o que não reconhecer"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("1 sessões ativas · revogue o que não reconhecer"),
+    ).toBeNull();
+  });
+});

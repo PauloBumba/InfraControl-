@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FormField, FormError } from "@/components/ui/FormField";
@@ -213,33 +212,35 @@ export function UsersPage() {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Usuários & Roles"
-        subtitle={loading ? "Carregando…" : `${users.length} ${users.length === 1 ? "usuário" : "usuários"} · ${USER_ROLES.length} roles`}
-        actions={
-          <div style={{ display: "flex", gap: 8 }}>
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Pesquisar usuários..."
-              variant="muted"
-            />
-            <Can level="administer">
-              <Button
-                icon="pi pi-user-plus"
-                onClick={() => { setInviting((value) => !value); setInviteError(null); }}
-              >
-                Convidar
-              </Button>
-            </Can>
-          </div>
-        }
-      />
-
-      <InlineMessages ref={messagesRef} />
-
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+    <ListPageShell
+      title="Usuários & Roles"
+      singular="usuário"
+      plural="usuários"
+      total={users.length}
+      loading={loading}
+      note={`${USER_ROLES.length} roles`}
+      notice={<InlineMessages ref={messagesRef} />}
+      error={error}
+      onRetry={() => void load()}
+      actions={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Pesquisar usuários..."
+            variant="muted"
+          />
+          <Can level="administer">
+            <Button
+              icon="pi pi-user-plus"
+              onClick={() => { setInviting((value) => !value); setInviteError(null); }}
+            >
+              Convidar
+            </Button>
+          </Can>
+        </div>
+      }
+    >
 
       {inviting && (
         <Dialog
@@ -452,7 +453,7 @@ export function UsersPage() {
           })}
         </div>
       )}
-    </div>
+    </ListPageShell>
   );
 }
 

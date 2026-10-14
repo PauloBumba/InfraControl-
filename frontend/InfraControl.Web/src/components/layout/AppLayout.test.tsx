@@ -126,3 +126,95 @@ describe("AppLayout — navegação por rota (F29-T005)", () => {
     expect(onNavigate).toHaveBeenLastCalledWith("/devices");
   });
 });
+
+/**
+ * Sidebar com dropdown — decisão do usuário (2026-10-14): manter o visual
+ * atual, mas o filho passa a expandir DENTRO do sidebar, sob o pai. O
+ * `<Menu>` POPUP flutuante do PrimeReact morre.
+ *
+ * O clique no pai continua navegando para a própria rota (contrato
+ * F29-T005) E alternando a expansão. A identidade da expansão é a ROTA, não
+ * o label — senão os dois "Zabbix" dividiriam o estado, que é exatamente o
+ * bug que o F29-T005 corrigiu.
+ */
+describe("AppLayout — submenu do sidebar expande inline", () => {
+  /**
+   * As consultas ficam DENTRO do `<nav>`: a primeira aba criada na barra de
+   * abas tem o mesmo rótulo do item-pai ("UniFi") e também é um `<button>`,
+   * então `screen` acharia dois.
+   */
+  const nav = () => screen.getByRole("navigation", { name: "Navegação principal" });
+
+  beforeEach(() => {
+    store.getState().navigation.recentTabs.forEach((tab) => store.dispatch(removeTab(tab)));
+    localStorage.clear();
+    store.dispatch(
+      sessionChecked({
+        id: "3f1a1111-2222-3333-4444-555566667777",
+        email: "ana@exemplo.com",
+        displayName: "Ana",
+        roles: ["Admin"],
+      }),
+    );
+  });
+
+  it("should expand the children under the parent, never in a floating popup", async () => {
+    renderLayout("/");
+    const user = userEvent.setup();
+
+    // Fechado: os filhos não estão no documento.
+    expect(within(nav()).queryByRole("button", { name: "UniFi Ao Vivo" })).toBeNull();
+
+    await user.click(within(nav()).getByRole("button", { name: "UniFi" }));
+
+    // Aberto: os filhos aparecem DENTRO do sidebar…
+    expect(within(nav()).getByRole("button", { name: "UniFi Ao Vivo" })).toBeInTheDocument();
+    expect(within(nav()).getByRole("button", { name: "Dashboard UniFi" })).toBeInTheDocument();
+    // …e não houve menu flutuante do PrimeReact.
+    expect(document.querySelector(".p-menu")).toBeNull();
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(0);
+  });
+
+  it("should navigate to the parent route AND expand on the same click", async () => {
+    const { onNavigate } = renderLayout("/");
+    const user = userEvent.setup();
+
+    await user.click(within(nav()).getByRole("button", { name: "UniFi" }));
+
+    expect(onNavigate).toHaveBeenLastCalledWith("/unifi");
+    expect(within(nav()).getByRole("button", { name: "UniFi Ao Vivo" })).toBeInTheDocument();
+  });
+
+  it("should collapse again on the second click", async () => {
+    renderLayout("/");
+    const user = userEvent.setup();
+
+    await user.click(within(nav()).getByRole("button", { name: "UniFi" }));
+    expect(within(nav()).getByRole("button", { name: "UniFi Ao Vivo" })).toBeInTheDocument();
+
+    await user.click(within(nav()).getByRole("button", { name: "UniFi" }));
+    expect(within(nav()).queryByRole("button", { name: "UniFi Ao Vivo" })).toBeNull();
+  });
+
+  it("should be open already when the current route is a child", () => {
+    renderLayout("/unifi/dashboard");
+
+    // Aberto automaticamente…
+    expect(within(nav()).getByRole("button", { name: "Dashboard UniFi" })).toBeInTheDocument();
+    // …com o FILHO marcado como rota corrente, e não o pai junto.
+    expect(document.querySelectorAll(".uni-nav-subitem.active")).toHaveLength(1);
+    expect(document.querySelectorAll(".uni-nav-item.active")).toHaveLength(0);
+  });
+
+  it("should let the child navigate without collapsing the group", async () => {
+    const { onNavigate } = renderLayout("/");
+    const user = userEvent.setup();
+
+    await user.click(within(nav()).getByRole("button", { name: "UniFi" }));
+    await user.click(within(nav()).getByRole("button", { name: "UniFi Ao Vivo" }));
+
+    expect(onNavigate).toHaveBeenLastCalledWith("/unifi");
+    // Continua aberto — o usuário ainda pode trocar de filho.
+    expect(within(nav()).getByRole("button", { name: "UniFi Ao Vivo" })).toBeInTheDocument();
+  });
+});

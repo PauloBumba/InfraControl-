@@ -116,3 +116,54 @@ describe("InvitationsPage — validação do grupo de roles", () => {
     expect(updateRolesMock).toHaveBeenCalledWith("c1", ["Viewer"]);
   });
 });
+
+/**
+ * Casca do C-3: o `ListPageShell` sempre monta a contagem — a nota é o que
+ * sobra depois do `·`. Hoje o "de 10" vinha colado no rótulo sem separador
+ * ("3 convites de 10"); com a casca ele vira "1 convite · de 2".
+ */
+describe("InvitationsPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should count without a note when the filter hides nothing", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Convites" })).toBeInTheDocument();
+    expect(await screen.findByText("1 convite")).toBeInTheDocument();
+    expect(screen.queryByText(/·/)).toBeNull();
+  });
+
+  it("should carry the server total as the note after the separator", async () => {
+    listInvitationsMock.mockResolvedValue({
+      items: [
+        {
+          id: "c1",
+          email: "ana@exemplo.com",
+          status: "Pending",
+          expiresAt: "2026-12-31T00:00:00Z",
+          createdAt: "2026-01-01T00:00:00Z",
+          createdBy: "admin",
+          roles: ["Viewer"],
+          decidedAt: null,
+        },
+        {
+          id: "c2",
+          email: "bruno@exemplo.com",
+          status: "Pending",
+          expiresAt: "2026-12-31T00:00:00Z",
+          createdAt: "2026-01-01T00:00:00Z",
+          createdBy: "admin",
+          roles: ["Viewer"],
+          decidedAt: null,
+        },
+      ],
+      totalCount: 2,
+      skip: 0,
+      take: 50,
+    });
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByPlaceholderText("Buscar por e-mail..."), "ana@");
+
+    expect(await screen.findByText("1 convite · de 2")).toBeInTheDocument();
+  });
+});

@@ -9,9 +9,8 @@ import {
   type AuditEntry,
   type PagedAudit,
 } from "@/services/api/audit";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { CopyableId } from "@/components/ui/CopyableId";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -153,13 +152,19 @@ export function AuditPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Auditoria"
-        subtitle={
-          loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "evento" : "eventos"}`
-        }
-        actions={
+    <ListPageShell
+      title="Auditoria"
+      singular="evento"
+      plural="eventos"
+      total={totalCount}
+      loading={loading}
+      // Um só slot de erro: antes a página tinha dOIS `<ErrorBanner>`
+      // adjacentes e com os dois erros simultâneos a mesma frase "Não foi
+      // possível…" aparecia DUAS vezes. O do formulário fica na frente porque
+      // é o que o usuário acabou de provocar.
+      error={formError ?? error ?? null}
+      onRetry={() => void load()}
+      actions={
         <FilterBar><form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <SearchInput
             value={actionInput}
@@ -197,11 +202,7 @@ export function AuditPage() {
           )}
         </form></FilterBar>
         }
-      />
-
-      {formError && <ErrorBanner message={formError} />}
-
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+      >
 
       <div className="uni-panel">
         <DataTable
@@ -293,6 +294,6 @@ export function AuditPage() {
           />
         </DataTable>
       </div>
-    </div>
+    </ListPageShell>
   );
 }

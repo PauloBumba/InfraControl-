@@ -1,8 +1,7 @@
-import React, { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
+import { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "primereact/badge";
 import { Menu } from "primereact/menu";
-import type { MenuItem } from "primereact/menuitem";
 import { navigation, secondaryNavigation, type NavItem } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
@@ -120,28 +119,14 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     },
   ];
 
-  // Dropdowns de navegação com submenus
-  const navMenuRef = useRef<Menu>(null);
-  const [activeNavDropdown, setActiveNavDropdown] = useState<string | null>(null);
-  const [navMenuModel, setNavMenuModel] = useState<MenuItem[]>([]);
-
-  const handleNavDropdownClick = (e: React.MouseEvent, item: NavItem) => {
-    if (activeNavDropdown === item.label) {
-      // Fecha se já estiver aberto
-      if (navMenuRef.current) {
-        navMenuRef.current.hide(e);
-      }
-      setActiveNavDropdown(null);
-      setNavMenuModel([]);
-    } else {
-      // Abre novo menu
-      setActiveNavDropdown(item.label);
-      setNavMenuModel(item.items ? item.items.map(navItemToMenuItem) : []);
-      if (navMenuRef.current) {
-        navMenuRef.current.show(e);
-      }
-    }
-  };
+  // Dropdown do sidebar — decisão 2026-10-14: o filho expande DENTRO do
+  // sidebar, sob o pai; o `<Menu>` popup flutuante saiu. A identidade é a
+  // ROTA (F29-T005), não o label: os dois "Zabbix" não podem dividir o
+  // estado de expandido.
+  const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
+  const toggleExpanded = useCallback((route: string) => {
+    setExpandedRoute((current) => (current === route ? null : route));
+  }, []);
 
   // Real dynamic badges (F18-T008 / F17-T009)
   const [sidebarBadges, setSidebarBadges] = useState<{
@@ -221,14 +206,6 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   // secundário (ícone e aba errados).
   const getNavItem = (route: string) => allNavItems.find((item) => item.route === route);
 
-  // Função para converter NavItem em formato do Menu do PrimeReact
-  const navItemToMenuItem = (item: NavItem): MenuItem => ({
-    label: item.label,
-    icon: item.icon,
-    command: () => navigate(item.route),
-    ...(item.items && { items: item.items.map(navItemToMenuItem) }),
-  });
-
   // Busca global (fecha a task aberta "Busca global no frontend", F2-T007):
   // o input do topbar era UI morta — agora com debounce de 300ms sobre
   // GET /inventory/search (6 fontes; term obrigatório, então só busca com
@@ -303,6 +280,66 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   const visibleSecondaryNavigation = secondaryNavigation.filter((item) => canSee(item.route));
   const visibleRecentTabs = recentTabs.filter((route) => canSee(route));
 
+  /** Um filho já aberto quando a rota corrente é dele — o grupo vira contexto. */
+  const hasActiveChild = (item: NavItem): boolean =>
+    (item.items ?? []).some((child) => child.route === activeRoute || hasActiveChild(child));
+
+  /**
+   * Linha do sidebar. Item com filho vira dropdown INLINE (decisão
+   * 2026-10-14): o clique no pai navega para a própria rota E alterna a
+   * expansão; os filhos aparecem logo abaixo, num `.uni-nav-sublist`.
+   *
+   * Com o sidebar recolhido (60px, só ícones) não cabe submenu — o pai
+   * continua navegando e o usuário expande o sidebar para alcançar os filhos.
+   */
+  const renderNavItem = (item: NavItem) => {
+    const children = (item.items ?? []).filter((child) => canSee(child.route));
+    const hasSubmenu = children.length > 0;
+    const expanded = hasSubmenu && (expandedRoute === item.route || hasActiveChild(item));
+    const badge = getItemBadge(item.label, item.badge);
+
+    return (
+      <li key={item.route}>
+        <button
+          className={`uni-nav-item ${activeRoute === item.route ? "active" : ""} ${expanded ? "expanded" : ""}`}
+          aria-current={activeRoute === item.route ? "page" : undefined}
+          aria-expanded={hasSubmenu ? expanded : undefined}
+          onClick={() => {
+            // F29-T005: o pai navega para a própria rota; o submenu abre
+            // como atalho para os filhos.
+            navigate(item.route);
+            if (hasSubmenu && !sidebarCollapsed) toggleExpanded(item.route);
+          }}
+          title={item.label}
+        >
+          <i className={item.icon} />
+          <span>{item.label}</span>
+          {hasSubmenu && (
+            <i className={`pi ${expanded ? "pi-angle-up" : "pi-angle-down"} uni-nav-arrow`} />
+          )}
+          {badge && <Badge value={badge} className="uni-nav-badge" />}
+        </button>
+        {hasSubmenu && expanded && !sidebarCollapsed && (
+          <ul className="uni-nav-sublist">
+            {children.map((child) => (
+              <li key={child.route}>
+                <button
+                  className={`uni-nav-subitem ${activeRoute === child.route ? "active" : ""}`}
+                  aria-current={activeRoute === child.route ? "page" : undefined}
+                  onClick={() => navigate(child.route)}
+                  title={child.label}
+                >
+                  <i className={child.icon} />
+                  <span>{child.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </li>
+    );
+  };
+
   const sidebarClassName = `uni-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`;
 
   return (
@@ -326,93 +363,14 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
 
         <nav className="uni-nav" aria-label="Navegação principal">
           <ul className="uni-nav-list">
-            {visibleNavigation.map((item) => {
-              const badge = getItemBadge(item.label, item.badge);
-              const hasSubmenu = item.items && item.items.length > 0;
-              return (
-                <li key={item.route}>
-                  {hasSubmenu ? (
-                    <button
-                      className={`uni-nav-item ${activeRoute === item.route || activeNavDropdown === item.label ? "active" : ""}`}
-                      aria-current={activeRoute === item.route ? "page" : undefined}
-                      onClick={(e) => {
-                        // F29-T005: o pai navega para a própria rota; o
-                        // submenu abre como atalho para os filhos.
-                        navigate(item.route);
-                        handleNavDropdownClick(e, item);
-                      }}
-                      title={item.label}
-                    >
-                      <i className={item.icon} />
-                      <span>{item.label}</span>
-                      <i className="pi pi-angle-down uni-nav-arrow" />
-                      {badge && <Badge value={badge} className="uni-nav-badge" />}
-                    </button>
-                  ) : (
-                    <button
-                      className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
-                      aria-current={activeRoute === item.route ? "page" : undefined}
-                      onClick={() => navigate(item.route)}
-                      title={item.label}
-                    >
-                      <i className={item.icon} />
-                      <span>{item.label}</span>
-                      {badge && <Badge value={badge} className="uni-nav-badge" />}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
+            {visibleNavigation.map(renderNavItem)}
           </ul>
 
           <div className="uni-nav-divider" />
 
           <ul className="uni-nav-list">
-            {visibleSecondaryNavigation.map((item) => {
-              const badge = getItemBadge(item.label, item.badge);
-              const hasSubmenu = item.items && item.items.length > 0;
-              return (
-                <li key={item.route}>
-                  {hasSubmenu ? (
-                    <button
-                      className={`uni-nav-item ${activeRoute === item.route || activeNavDropdown === item.label ? "active" : ""}`}
-                      aria-current={activeRoute === item.route ? "page" : undefined}
-                      onClick={(e) => {
-                        navigate(item.route);
-                        handleNavDropdownClick(e, item);
-                      }}
-                      title={item.label}
-                    >
-                      <i className={item.icon} />
-                      <span>{item.label}</span>
-                      <i className="pi pi-angle-down uni-nav-arrow" />
-                      {badge && <Badge value={badge} className="uni-nav-badge" />}
-                    </button>
-                  ) : (
-                    <button
-                      className={`uni-nav-item ${activeRoute === item.route ? "active" : ""}`}
-                      aria-current={activeRoute === item.route ? "page" : undefined}
-                      onClick={() => navigate(item.route)}
-                      title={item.label}
-                    >
-                      <i className={item.icon} />
-                      <span>{item.label}</span>
-                      {badge && <Badge value={badge} className="uni-nav-badge" />}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
+            {visibleSecondaryNavigation.map(renderNavItem)}
           </ul>
-          <Menu
-            ref={navMenuRef}
-            model={navMenuModel}
-            popup
-            onHide={() => {
-              setActiveNavDropdown(null);
-              setNavMenuModel([]);
-            }}
-          />
         </nav>
 
         <div className="uni-sidebar-footer">
