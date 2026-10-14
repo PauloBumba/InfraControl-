@@ -139,3 +139,30 @@ describe("NetworkPage — erro de validação por campo", () => {
     expect(within(field("Número (1–4094) *")).queryByText(/Já existe/)).toBeNull();
   });
 });
+
+describe("NetworkPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should render the shell's count with the page's own suffix", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Rede" })).toBeInTheDocument();
+    expect(await screen.findByText("0 VLANs cadastradas")).toBeInTheDocument();
+  });
+
+  it("should keep the pre-existing singular wording byte-identical", async () => {
+    listVlansMock.mockResolvedValue({ items: [], totalCount: 1, page: 1, pageSize: 20 });
+    renderPage();
+
+    // A produção diz "1 VLAN cadastradas" (gramática errada, pré-existente).
+    // O C-3 só troca a casca: corrigir para "1 VLAN cadastrada" muda texto
+    // visível e fica para decisão humana.
+    expect(await screen.findByText("1 VLAN cadastradas")).toBeInTheDocument();
+    expect(screen.queryByText("1 VLAN cadastrada")).toBeNull();
+  });
+
+  it("should count past the plural without touching the suffix", async () => {
+    listVlansMock.mockResolvedValue({ items: [], totalCount: 3, page: 1, pageSize: 20 });
+    renderPage();
+
+    expect(await screen.findByText("3 VLANs cadastradas")).toBeInTheDocument();
+  });
+});

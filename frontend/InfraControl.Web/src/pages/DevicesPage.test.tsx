@@ -7,7 +7,12 @@ import { MemoryRouter } from "react-router-dom";
 import { DevicesPage } from "./DevicesPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
-import { createDevice, listDevices, listLocations } from "@/services/api/inventory";
+import {
+  createDevice,
+  listDevices,
+  listLocations,
+  type DeviceItem,
+} from "@/services/api/inventory";
 
 /**
  * F29-T001C-2 — DevicesPage: as TRÊS validações do formulário são de TRÊS
@@ -249,5 +254,48 @@ describe("DevicesPage — erro de validação por campo", () => {
     expect(within(fieldOf(tipo())).queryByText(/Já existe/)).toBeNull();
     expect(within(fieldOf(localizacao())).queryByText(/Já existe/)).toBeNull();
     expect(createDeviceMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DevicesPage — casca da lista (C-3: ListPageShell)", () => {
+  const umDevice: DeviceItem = {
+    id: "dev-1",
+    locationId: "loc-1",
+    rackId: null,
+    type: "AccessPoint",
+    name: "AP-sala-reuniao",
+    ip: "192.168.10.21",
+    mac: "f0:9f:c2:00:00:01",
+    serial: "SN123",
+    model: "U6-Lite",
+    vendor: "Ubiquiti",
+    vlanId: null,
+    description: null,
+    monitoringChecks: [],
+    profileIsCustom: false,
+  };
+
+  it("should count singular and skip the note when everything fits", async () => {
+    listDevicesMock.mockResolvedValue(paged([umDevice]));
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "Dispositivos" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("1 dispositivo")).toBeInTheDocument();
+    expect(screen.queryByText("1 dispositivos")).toBeNull();
+    expect(screen.queryByText(/mostrando/)).toBeNull();
+  });
+
+  it("should append the truncation note with the shell's '·' separator", async () => {
+    listDevicesMock.mockResolvedValue({
+      ...paged([umDevice, { ...umDevice, id: "dev-2", name: "SW-corredor" }]),
+      totalCount: 50,
+    });
+    renderPage();
+
+    expect(
+      await screen.findByText("50 dispositivos · mostrando 2 (refine por tipo)"),
+    ).toBeInTheDocument();
   });
 });

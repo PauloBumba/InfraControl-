@@ -203,3 +203,29 @@ describe("SlaPage — erro de validação por campo", () => {
     expect(createServiceMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("SlaPage — casca da lista (C-3: ListPageShell)", () => {
+  it("should compose the subtitle as 'count · note' in a single text node", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "SLA/SLO & Services" }),
+    ).toBeInTheDocument();
+    // `countLabel(1, "serviço", "serviços")` + `note` = 1 linha só.
+    expect(
+      await screen.findByText("1 serviço · 0 SLOs · 0 política(s)"),
+    ).toBeInTheDocument();
+  });
+
+  it("should pluralize the head count without touching the note", async () => {
+    listServicesMock.mockResolvedValue(
+      page([umServico, { ...umServico, id: "svc-2", name: "Borda" }]),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText("2 serviços · 0 SLOs · 0 política(s)"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("2 serviço · 0 SLOs · 0 política(s)")).toBeNull();
+  });
+});

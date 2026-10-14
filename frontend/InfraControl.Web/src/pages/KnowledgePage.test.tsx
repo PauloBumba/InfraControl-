@@ -272,6 +272,28 @@ describe("KnowledgePage", () => {
     expect(createCategoryMock).toHaveBeenCalledWith({ name: "Servidores", description: undefined });
     expect(listCategoriesMock).toHaveBeenCalled();
   });
+
+  it("should keep the header count exactly as the shell builds it (C-3)", async () => {
+    listArticlesMock.mockResolvedValue(pagedArticles([makeArticle()]));
+    renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: "Base de Conhecimento" }),
+    ).toBeInTheDocument();
+    // Singular: `countLabel(1, "artigo", "artigos")` → "1 artigo".
+    expect(await screen.findByText("1 artigo")).toBeInTheDocument();
+    expect(screen.queryByText("1 artigos")).toBeNull();
+  });
+
+  it("should pluralize the header count (C-3)", async () => {
+    listArticlesMock.mockResolvedValue(
+      pagedArticles([makeArticle(), makeArticle({ id: "art-2" })]),
+    );
+    renderPage();
+
+    expect(await screen.findByText("2 artigos")).toBeInTheDocument();
+    expect(screen.queryByText("2 artigo")).toBeNull();
+  });
 });
 
 // ── F29-T001C-2 — C-2: cada validação no campo dela ───────────────────

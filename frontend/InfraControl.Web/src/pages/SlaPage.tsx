@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Column } from "primereact/column";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
@@ -294,10 +293,6 @@ export function SlaPage() {
     mutationErrorMessage(slos.error as Error | null) ??
     mutationErrorMessage(policies.error as Error | null);
 
-  const subtitle =
-    services.isPending || slos.isPending
-      ? "Carregando…"
-      : `${services.items.length} ${services.items.length === 1 ? "serviço" : "serviços"} · ${slos.items.length} ${slos.items.length === 1 ? "SLO" : "SLOs"} · ${policies.items.length} política(s)`;
 
   if (services.isPending || slos.isPending || policies.isPending || budgets.isPending) {
     return <LoadingBlock />;
@@ -334,13 +329,27 @@ export function SlaPage() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="SLA/SLO & Services"
-        subtitle={subtitle}
-        actions={tab === "budgets" ? <div /> : actions}
-      />
-
+    <ListPageShell
+      title="SLA/SLO & Services"
+      singular="serviço"
+      plural="serviços"
+      total={services.items.length}
+      loading={services.isPending || slos.isPending}
+      note={
+        services.isPending || slos.isPending
+          ? undefined
+          : `${slos.items.length} ${slos.items.length === 1 ? "SLO" : "SLOs"} · ${policies.items.length} política(s)`
+      }
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
+      error={actionError || listError ? (actionError ?? listError ?? "Não foi possível falar com o servidor. Tente novamente.") : null}
+      onRetry={() => {
+        setActionError(null);
+        void services.refetch();
+        void slos.refetch();
+        void policies.refetch();
+      }}
+      actions={tab === "budgets" ? <div /> : actions}
+    >
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
         {([
           { id: "services", label: "Serviços" },
@@ -368,20 +377,6 @@ export function SlaPage() {
           </button>
         ))}
       </div>
-
-      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-
-      {(actionError || listError) && (
-        <ErrorBanner
-          message={actionError ?? listError ?? "Não foi possível falar com o servidor. Tente novamente."}
-          onRetry={() => {
-            setActionError(null);
-            void services.refetch();
-            void slos.refetch();
-            void policies.refetch();
-          }}
-        />
-      )}
 
       {tab === "services" && (
         <EntityView<ServiceItem>
@@ -706,6 +701,6 @@ export function SlaPage() {
         }
         confirmLabel="Excluir"
       />
-    </div>
+    </ListPageShell>
   );
 }

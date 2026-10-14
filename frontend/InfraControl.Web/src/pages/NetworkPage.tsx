@@ -9,11 +9,10 @@ import {
   type VlanItem,
 } from "@/services/api/network";
 import { Pagination } from "@/components/ui/Pagination";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
@@ -171,40 +170,37 @@ export function NetworkPage() {
   const formVisible = creating || editing !== null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Rede"
-        subtitle={
-          loading
-            ? "Carregando…"
-            : `${totalCount} ${totalCount === 1 ? "VLAN" : "VLANs"} cadastradas`
-        }
-        actions={
-          <div className="flex align-items-center gap-2 flex-wrap">
-            <ViewSwitcher mode={view} onChange={setView} />
-            <Can level="operate">
-              <Button variant="primary" onClick={openCreate} style={{ padding: "6px 14px" }}>
-                <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-              </Button>
-            </Can>
-          </div>
-        }
-      />
-
-      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-      {(actionError || vlans.error) && (
-        <ErrorBanner
-          message={
-            actionError ??
+    <ListPageShell
+      title="Rede"
+      // O singular de produção é "1 VLAN cadastradas" (gramática errada, pré-existente).
+      // Corrigir para "VLAN cadastrada" muda texto visível — decisão humana, fora do C-3.
+      singular="VLAN cadastradas"
+      plural="VLANs cadastradas"
+      total={totalCount}
+      loading={loading}
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
+      error={
+        actionError || vlans.error
+          ? (actionError ??
             mutationErrorMessage(vlans.error as Error) ??
-            "Não foi possível falar com o servidor. Tente novamente."
-          }
-          onRetry={() => {
-            setActionError(null);
-            void vlans.refetch();
-          }}
-        />
-      )}
+            "Não foi possível falar com o servidor. Tente novamente.")
+          : null
+      }
+      onRetry={() => {
+        setActionError(null);
+        void vlans.refetch();
+      }}
+      actions={
+        <div className="flex align-items-center gap-2 flex-wrap">
+          <ViewSwitcher mode={view} onChange={setView} />
+          <Can level="operate">
+            <Button variant="primary" onClick={openCreate} style={{ padding: "6px 14px" }}>
+              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+            </Button>
+          </Can>
+        </div>
+      }
+    >
 
       {loading && vlans.items.length === 0 ? (
         <LoadingBlock style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }} />
@@ -382,6 +378,6 @@ export function NetworkPage() {
         }
         confirmLabel="Excluir"
       />
-    </div>
+    </ListPageShell>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { FormField, FormError } from "@/components/ui/FormField";
@@ -307,54 +306,44 @@ export function DevicesPage() {
   const switches = items.filter((device) => device.type === "Switch");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Dispositivos"
-        subtitle={
-          loading ? (
-            "Carregando…"
-          ) : (
-            <>
-              {totalCount} {totalCount === 1 ? "dispositivo" : "dispositivos"}
-              {items.length < totalCount && ` · mostrando ${items.length} (refine por tipo)`}
-            </>
-          )
-        }
-        actions={
-          <div className="flex align-items-center gap-2 flex-wrap">
-            {tab === "inventory" && <ViewSwitcher mode={view} onChange={setView} />}
-            <Can level="operate">
-              <Button
-                variant="primary"
-                onClick={openCreate}
-                style={{ padding: "6px 14px" }}
-              >
-                <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
-              </Button>
-            </Can>
-          </div>
-        }
-      />
-
-      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-
-      {(error || actionError || devices.error || locationsQuery.error) && (
-        <ErrorBanner
-          message={
-            actionError ??
+    <ListPageShell
+      title="Dispositivos"
+      singular="dispositivo"
+      plural="dispositivos"
+      total={totalCount}
+      loading={loading}
+      note={items.length < totalCount ? `mostrando ${items.length} (refine por tipo)` : undefined}
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
+      error={
+        actionError || error || devices.error || locationsQuery.error
+          ? (actionError ??
             error ??
             mutationErrorMessage(devices.error as Error | null) ??
             mutationErrorMessage(locationsQuery.error as Error | null) ??
-            "Não foi possível falar com o servidor. Tente novamente."
-          }
-          onRetry={() => {
-            setActionError(null);
-            setError(null);
-            void devices.refetch();
-            void locationsQuery.refetch();
-          }}
-        />
-      )}
+            "Não foi possível falar com o servidor. Tente novamente.")
+          : null
+      }
+      onRetry={() => {
+        setActionError(null);
+        setError(null);
+        void devices.refetch();
+        void locationsQuery.refetch();
+      }}
+      actions={
+        <div className="flex align-items-center gap-2 flex-wrap">
+          {tab === "inventory" && <ViewSwitcher mode={view} onChange={setView} />}
+          <Can level="operate">
+            <Button
+              variant="primary"
+              onClick={openCreate}
+              style={{ padding: "6px 14px" }}
+            >
+              <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+            </Button>
+          </Can>
+        </div>
+      }
+    >
 
       {creating && (
         <form onSubmit={submitForm} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
@@ -738,6 +727,6 @@ export function DevicesPage() {
         }
         confirmLabel="Excluir"
       />
-    </div>
+    </ListPageShell>
   );
 }

@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { useFormErrors } from "@/hooks/useFormErrors";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ListPageShell } from "@/components/ui/ListPageShell";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -653,72 +652,74 @@ export function KnowledgePage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <PageHeader
-        title="Base de Conhecimento"
-        subtitle={loading ? "Carregando…" : `${totalCount} ${totalCount === 1 ? "artigo" : "artigos"}`}
-        actions={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {/* F24 visões — tabela/grid/quadro. */}
-            <ViewSwitcher mode={view} onChange={setView} />
-            <form onSubmit={applyTerm} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <SearchInput
-                value={termInput}
-                onChange={setTermInput}
-                placeholder="Buscar artigos..."
-                variant="muted"
-                width={160}
-                onEnter={() => {
-                  setTerm(termInput.trim());
-                  setPage(1);
-                }}
-              />
-              <Button type="submit" variant="ghost" style={{ padding: "5px 10px" }}>
-                Filtrar
+    <ListPageShell
+      title="Base de Conhecimento"
+      singular="artigo"
+      plural="artigos"
+      total={totalCount}
+      loading={loading}
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
+      error={error}
+      onRetry={() => void load()}
+      actions={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {/* F24 visões — tabela/grid/quadro. */}
+          <ViewSwitcher mode={view} onChange={setView} />
+          <form onSubmit={applyTerm} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <SearchInput
+              value={termInput}
+              onChange={setTermInput}
+              placeholder="Buscar artigos..."
+              variant="muted"
+              width={160}
+              onEnter={() => {
+                setTerm(termInput.trim());
+                setPage(1);
+              }}
+            />
+            <Button type="submit" variant="ghost" style={{ padding: "5px 10px" }}>
+              Filtrar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setPendingOnly((value) => !value);
+                setPage(1);
+              }}
+              style={{
+                padding: "5px 10px",
+                ...(pendingOnly ? { background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" } : {}),
+              }}
+            >
+              <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
+            </Button>
+            {anyFilterActive && (
+              <Button type="button" variant="ghost" onClick={clearFilters} style={{ padding: "5px 10px" }}>
+                Limpar
               </Button>
+            )}
+          </form>
+          <Can level="operate">
+            <div className="flex gap-2">
               <Button
-                type="button"
-                variant="ghost"
+                variant="primary"
                 onClick={() => {
-                  setPendingOnly((value) => !value);
-                  setPage(1);
+                  setCreating((value) => !value);
+                  resetFormError();
                 }}
-                style={{
-                  padding: "5px 10px",
-                  ...(pendingOnly ? { background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" } : {}),
-                }}
+                style={{ padding: "5px 12px" }}
               >
-                <i className="pi pi-clock" style={{ fontSize: 10 }} /> Revisões
+                <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
               </Button>
-              {anyFilterActive && (
-                <Button type="button" variant="ghost" onClick={clearFilters} style={{ padding: "5px 10px" }}>
-                  Limpar
-                </Button>
-              )}
-            </form>
-            <Can level="operate">
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setCreating((value) => !value);
-                    resetFormError();
-                  }}
-                  style={{ padding: "5px 12px" }}
-                >
-                  <i className="pi pi-plus" style={{ fontSize: 10 }} /> Novo Artigo
-                </Button>
-                <Button variant="ghost" onClick={openCategoryCreate} style={{ padding: "5px 12px" }}>
-                  <i className="pi pi-folder-open" style={{ fontSize: 10 }} /> Nova Categoria
-                </Button>
-              </div>
-            </Can>
-          </div>
-        }
-      />
-
-      {notice && <NoticeBanner message={notice} onDismiss={() => setNotice(null)} />}
-      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+              <Button variant="ghost" onClick={openCategoryCreate} style={{ padding: "5px 12px" }}>
+                <i className="pi pi-folder-open" style={{ fontSize: 10 }} /> Nova Categoria
+              </Button>
+            </div>
+          </Can>
+        </div>
+      }
+    >
 
       {/* F24 categorias — gerenciamento inline (criar/editar/excluir). */}
       <Can level="operate">
@@ -1236,6 +1237,6 @@ export function KnowledgePage() {
         message={`Excluir a categoria "${deleteCategoryTarget?.name}"? Os artigos dela ficam sem categoria.`}
         confirmLabel="Excluir"
       />
-    </div>
+    </ListPageShell>
   );
 }
