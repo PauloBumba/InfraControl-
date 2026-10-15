@@ -1,6 +1,7 @@
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.Reporting;
+using InfraControl.Application.AI.Reporting;
 using InfraControl.Application.Reports.Transversal.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -50,4 +51,18 @@ public sealed class ReportsController(ISender sender) : BaseController
         return File(bytes, exportFormat.ContentType,
             $"relatorio-transversal.{exportFormat.Extension}");
     }
+
+    /// <summary>
+    /// Resumo interpretativo com IA (Fase E · docs/34 §37) — LEVEL 0:
+    /// lê o mesmo read-model e explica os números; sem ação executável.
+    /// Sem provider configurado → 503 amigável (§44/§57).
+    /// </summary>
+    [HttpPost("transversal/ai-summary")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SummarizeTransversal(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SummarizeTransversalReportCommand(from, to), cancellationToken)));
 }
