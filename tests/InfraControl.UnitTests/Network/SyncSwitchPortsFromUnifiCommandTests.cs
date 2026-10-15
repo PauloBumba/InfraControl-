@@ -222,5 +222,10 @@ public sealed class SyncSwitchPortsFromUnifiCommandTests : IDisposable
 
         public Task<string> GetSystemVersionAsync(CancellationToken cancellationToken)
             => Task.FromResult("8.0.0");
+
+        public Task SetPortConfigAsync(
+            string deviceMac, int portIndex, bool? disabled, int? portVlan,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
     }
 }
