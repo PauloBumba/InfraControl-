@@ -357,6 +357,7 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
         services.AddScoped<IMonitoringProvider, SnmpColorTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpPrinterStatusProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpPrinterCountersProvider>();
         services.AddScoped<IMonitoringProvider, SnmpSystemMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, SnmpInterfacesMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();

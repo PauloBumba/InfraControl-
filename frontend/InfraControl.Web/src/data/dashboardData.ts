@@ -1,7 +1,7 @@
 export type NavItem = { label: string; icon: string; badge?: string; route: string; items?: NavItem[] };
 
 export const navigation: NavItem[] = [
-  { label: "Visão Geral", icon: "pi pi-th-large", route: "/" },
+  { label: "Visão Geral", icon: "pi pi-th-large", route: "/dashboard" },
   { label: "Topologia", icon: "pi pi-directions", route: "/topology" },
   { label: "WiFi", icon: "pi pi-wifi", route: "/wifi" },
   { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },

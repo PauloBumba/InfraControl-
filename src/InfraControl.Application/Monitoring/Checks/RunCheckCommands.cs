@@ -87,6 +87,8 @@ public sealed class RunCheckCommandHandler(
         var check = kind.ToString();
 
         if (kind is CheckKind.SnmpToner or CheckKind.SnmpDrum
+                or CheckKind.SnmpColorToner or CheckKind.SnmpPrinterStatus
+                or CheckKind.SnmpPrinterCounters
             && device.Type != DeviceType.Printer)
             throw new ArgumentException(
                 $"Check '{check}' só se aplica a devices do tipo Printer.",

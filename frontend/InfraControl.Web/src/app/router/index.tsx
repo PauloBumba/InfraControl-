@@ -166,19 +166,24 @@ function AppContent() {
    */
   const handleNavigate = (route: string) => navigate(route);
 
+  // Se estiver autenticado e acessar a raiz `/`, redirecionar para o dashboard
+  if (authStatus === "authenticated" && location.pathname === "/") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // F26-T002 — landing pública de vendas: header/footer COMPARTILHADOS e
-  // conteúdo que muda por rota. Logado → dashboard (`/`, padrão /login),
-  // porque a landing é porta de entrada de quem ainda não entrou.
+  // conteúdo que muda por rota. A rota raiz `/` é a landing pública (para não autenticados).
   if (isPublicMarketingPath(location.pathname)) {
     return (
       <PublicMarketingRoute>
         <PublicLayout>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route path="/home" element={<HomePage />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="/home" element={<Navigate to="/" replace />} />
               <Route path="/recursos" element={<FeaturesPage />} />
               <Route path="/contato" element={<ContactPage />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </PublicLayout>
@@ -203,7 +208,7 @@ function AppContent() {
       location.pathname.startsWith("/invitations/");
 
     if (authStatus === "authenticated" && !isPublicPage) {
-      return <Navigate to="/" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
 
     return (
@@ -222,7 +227,7 @@ function AppContent() {
     <AppLayout activeRoute={location.pathname} onNavigate={handleNavigate}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={
+          <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardPage />
             </ProtectedRoute>

@@ -21,7 +21,8 @@ export const allNavItems = [...navigation, ...secondaryNavigation];
 const routeLabelMap: Record<string, string> = Object.fromEntries(
   allNavItems.map((item) => [item.route, item.label]),
 );
-routeLabelMap["/"] = "Visão Geral";
+routeLabelMap["/"] = "Início";
+routeLabelMap["/dashboard"] = "Visão Geral";
 // F26-T001 — rota fora do menu (entra pelo card do usuário).
 routeLabelMap["/account"] = "Minha Conta";
 
