@@ -355,18 +355,9 @@ public static class DependencyInjection
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
-<<<<<<< HEAD
-        // ACHADO 2026-10-15 (F30-T002 impressora): estas duas linhas registravam
-        // providers INEXISTENTES (classes nunca criadas — docs/43 é só
-        // planejamento) e derrubavam o build de todo o repo. Comentadas para
-        // desbloquear; reativar JUNTO com a criação das classes.
-        // services.AddScoped<IMonitoringProvider, SnmpColorTonerProvider>();
-        // services.AddScoped<IMonitoringProvider, SnmpPrinterStatusProvider>();
-=======
         services.AddScoped<IMonitoringProvider, SnmpColorTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpPrinterStatusProvider>();
         services.AddScoped<IMonitoringProvider, SnmpPrinterCountersProvider>();
->>>>>>> d179fc4119eb7d4468418197b1aa8abc50f71b9e
         services.AddScoped<IMonitoringProvider, SnmpSystemMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, SnmpInterfacesMonitoringProvider>();
         // F30-T001 (docs/42 §C): saúde do switch por fabricante — opt-in por

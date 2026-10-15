@@ -21,7 +21,7 @@ public enum CheckKind
     /// </summary>
     SnmpInterfaces = 6,
 
-    /// 
+    /// <summary>
     /// F30-T002a: toner colorido C/M/Y (Printer MIB prtMarkerSuppliesTable).
     /// Não é default do Printer (opt-in por device quando o community SNMP
     /// estiver liberado) — monocromático continua sendo o SnmpToner.
@@ -41,14 +41,21 @@ public enum CheckKind
     /// diff entre checks (histórico fica no Zabbix — REGRA 8 ADR-028).
     /// Opt-in, não é default do Printer.
     /// </summary>
-    SnmpPrinterCounters = 9
+    SnmpPrinterCounters = 9,
 
+    /// <summary>
     /// F30-T001 (docs/42 §C): saúde do switch (CPU/memória/temperatura),
     /// escolhendo os OIDs por <c>Device.Vendor</c>. Disponível mas NÃO é
     /// default de nenhum tipo (DeviceProfileDefaults intocado): habilitar por
     /// device quando o SNMP community estiver liberado — mesmo gate do
     /// SnmpInterfaces.
+    ///
+    /// REPARO 2026-10-15 (fusão das sessões): era 7 e colidia com
+    /// SnmpColorToner — o ToString() do enum virava "SnmpColorToner", o
+    /// Name do provider errava e o guard Printer-only disparava para Switch.
+    /// Reatribuído a 10 (próximo livre): o kind é persistido como string e
+    /// nenhum teste afirma valor numérico — sem migração, sem dado perdido.
     /// </summary>
-    SnmpHealth = 7
+    SnmpHealth = 10
 
 }
