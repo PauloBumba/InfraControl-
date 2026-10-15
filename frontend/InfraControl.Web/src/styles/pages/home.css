@@ -1,0 +1,68 @@
+/* ============================================================
+   HOME — hero, pillars, visual e CTA
+   Carregado por HomePage.tsx
+   ============================================================ */
+
+/* Hero home — eyebrow, título, lead, ações, visual */
+.uni-public-hero h1 {
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.uni-public-lead {
+  font-size: clamp(14px, 2vw, 16px);
+  line-height: 1.6;
+}
+
+.uni-public-hero-visual {
+  flex-shrink: 0;
+}
+
+.uni-public-hero-icon {
+  width: clamp(200px, 30vw, 280px);
+  height: clamp(200px, 30vw, 280px);
+}
+
+/* Ações do hero */
+.uni-public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+/* Padrões de responsividade específicos da home */
+@media (max-width: 720px) {
+  .uni-public-hero-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .uni-public-hero-text {
+    text-align: center;
+  }
+
+  .uni-public-hero h1 {
+    font-size: 28px;
+  }
+
+  .uni-public-hero-icon {
+    width: 200px;
+    height: 200px;
+  }
+
+  .uni-public-actions {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .uni-public-hero h1 {
+    font-size: 24px;
+  }
+
+  .uni-public-lead {
+    font-size: 14px;
+  }
+}

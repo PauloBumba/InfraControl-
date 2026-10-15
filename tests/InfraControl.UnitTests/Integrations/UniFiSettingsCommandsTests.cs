@@ -69,11 +69,6 @@ public sealed class UniFiSettingsCommandsTests
         public Task<string> GetSystemVersionAsync(CancellationToken cancellationToken = default)
             => Task.FromResult("8.4.62");
 
-        public Task SetPortConfigAsync(
-            string deviceMac, int portIndex, bool? disabled, int? portVlan,
-            CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-
         public Task<IReadOnlyList<UnifiConnectedClientDto>> ListConnectedClientsAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<UnifiConnectedClientDto>>([]);
