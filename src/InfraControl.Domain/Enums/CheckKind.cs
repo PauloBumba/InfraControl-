@@ -21,7 +21,7 @@ public enum CheckKind
     /// </summary>
     SnmpInterfaces = 6,
 
-    /// <summary>
+    /// 
     /// F30-T002a: toner colorido C/M/Y (Printer MIB prtMarkerSuppliesTable).
     /// Não é default do Printer (opt-in por device quando o community SNMP
     /// estiver liberado) — monocromático continua sendo o SnmpToner.
@@ -42,4 +42,13 @@ public enum CheckKind
     /// Opt-in, não é default do Printer.
     /// </summary>
     SnmpPrinterCounters = 9
+
+    /// F30-T001 (docs/42 §C): saúde do switch (CPU/memória/temperatura),
+    /// escolhendo os OIDs por <c>Device.Vendor</c>. Disponível mas NÃO é
+    /// default de nenhum tipo (DeviceProfileDefaults intocado): habilitar por
+    /// device quando o SNMP community estiver liberado — mesmo gate do
+    /// SnmpInterfaces.
+    /// </summary>
+    SnmpHealth = 7
+
 }
