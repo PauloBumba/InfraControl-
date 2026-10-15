@@ -57,3 +57,24 @@ export async function exportTransversalReport(
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * Fase E (docs/34 §37) — `POST /reports/transversal/ai-summary`
+ * (Operate): resumo interpretativo LEVEL 0 do mesmo read-model. Sem
+ * provider configurado → 503 amigável (§44/§57).
+ */
+export interface TransversalAiSummary {
+  summary: string;
+  provider: string;
+  model: string;
+  usedFallback: boolean;
+}
+
+export function summarizeTransversalReport(
+  from?: string | null,
+  to?: string | null,
+): Promise<TransversalAiSummary> {
+  return api.post<TransversalAiSummary>(
+    `/reports/transversal/ai-summary${buildQuery(from, to)}`,
+  ) as Promise<TransversalAiSummary>;
+}

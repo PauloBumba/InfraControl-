@@ -196,5 +196,10 @@ public sealed class GetSwitchUnifiPortsQueryTests : IDisposable
         public Task<string> GetSystemVersionAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult("8.0.0");
+
+        public Task SetPortConfigAsync(
+            string deviceMac, int portIndex, bool? disabled, int? portVlan,
+            CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

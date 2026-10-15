@@ -24,9 +24,12 @@ import {
   acknowledgeIncident,
   changeIncidentStatus,
   createIncident,
+  generateIncidentKnowledge,
+  investigateIncident,
   listIncidents,
   updateIncident,
   type IncidentItem,
+  type InvestigationResult,
 } from "@/services/api/incidents";
 
 /**
@@ -97,6 +100,12 @@ export function IncidentsPage() {
   const [editSeverity, setEditSeverity] = useState("Medium");
   const [editDescription, setEditDescription] = useState("");
 
+  // AI Investigation (ADR-053 · Fase C) — painel de análise LEVEL 0
+  // aberto por incidente; resultado não é persistido no incidente.
+  const [investigating, setInvestigating] = useState<IncidentItem | null>(null);
+  const [investigation, setInvestigation] = useState<InvestigationResult | null>(null);
+  const [investigationError, setInvestigationError] = useState<string | null>(null);
+
   const incidents = usePagedQuery<IncidentItem>(["incidents", page, statusFilter], () =>
     listIncidents({
       status: statusFilter || undefined,
@@ -142,6 +151,41 @@ export function IncidentsPage() {
       setActionError(null);
       setNotice("Incidente atualizado.");
       setEditing(null);
+    },
+    onError: (error) => setActionError(mutationErrorMessage(error)),
+  });
+  // Fase C (ADR-053) — investigação não altera estado do servidor, só
+  // devolve análise; sem invalidação de lista.
+  const investigationMutation = useUpdateMutation({
+    invalidate: [],
+    mutationFn: (id: string) => investigateIncident(id),
+    onSuccess: (data) => {
+      setInvestigation(data);
+      setInvestigationError(null);
+    },
+    onError: (error) => {
+      setInvestigation(null);
+      setInvestigationError(mutationErrorMessage(error));
+    },
+  });
+
+  function openInvestigation(incident: IncidentItem) {
+    setInvestigating(incident);
+    setInvestigation(null);
+    setInvestigationError(null);
+    investigationMutation.mutate(incident.id);
+  }
+
+  // Fase D (ADR-054) — rascunho de knowledge com IA nasce Draft; o
+  // aviso aponta a revisão/publicação na página Knowledge (ADR-034).
+  const draftMutation = useUpdateMutation({
+    invalidate: [],
+    mutationFn: (id: string) => generateIncidentKnowledge(id),
+    onSuccess: (data) => {
+      setActionError(null);
+      setNotice(
+        `Rascunho de knowledge criado: "${data.title}" — revise e publique na página Knowledge.`,
+      );
     },
     onError: (error) => setActionError(mutationErrorMessage(error)),
   });
@@ -381,6 +425,70 @@ export function IncidentsPage() {
         </form>
       )}
 
+      {investigating && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
+              Investigação com IA — {investigating.title}
+            </div>
+            <span style={{ fontSize: 11, color: "#94a3b8", whiteSpace: "nowrap" }}>
+              LEVEL 0 · somente análise
+            </span>
+          </div>
+
+          {investigationMutation.isPending && (
+            <div style={{ fontSize: 13, color: "#64748b" }}>
+              <i className="pi pi-spin pi-spinner" style={{ marginRight: 8 }} />
+              Investigando (dados do incidente + knowledge)…
+            </div>
+          )}
+
+          {!investigationMutation.isPending && investigation && (
+            <>
+              <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {investigation.analysis}
+              </div>
+              {investigation.evidences.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>Evidências</div>
+                  {investigation.evidences.map((evidence, index) => (
+                    <div
+                      key={`${evidence.source}-${index}`}
+                      style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 6, padding: "6px 8px" }}
+                    >
+                      <span style={{ fontFamily: "monospace", fontWeight: 600 }}>{evidence.citation}</span>
+                      {" — "}
+                      {evidence.sourceType} · {evidence.source} · {evidence.confidence}
+                      {" · "}
+                      {formatDateTime(new Date(evidence.timestampUtc))}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                {investigation.provider} · {investigation.model}
+                {investigation.usedFallback ? " (fallback)" : ""}
+              </div>
+            </>
+          )}
+
+          {!investigationMutation.isPending && !investigation && investigationError && (
+            <FormError message={investigationError} />
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setInvestigating(null)}
+              style={{ padding: "6px 14px" }}
+            >
+              Fechar
+            </Button>
+          </div>
+        </div>
+      )}
+
       <EntityView<IncidentItem>
         mode={view}
         items={incidentsList}
@@ -397,7 +505,7 @@ export function IncidentsPage() {
               <Column header="Resolvido em" body={(incident: IncidentItem) => incident.resolvedAt ? formatDateTime(new Date(incident.resolvedAt)) : "—"} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
               <Column
                 header=""
-                style={{ width: 230 }}
+                style={{ width: 320 }}
                 body={(incident: IncidentItem) => (
                   <Can level="operate">
                     <div className="flex gap-1 align-items-center">
@@ -409,6 +517,23 @@ export function IncidentsPage() {
                         style={{ padding: "4px 8px" }}
                       >
                         <i className="pi pi-pencil" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        title="Investigar incidente com IA (análise LEVEL 0)"
+                        onClick={() => openInvestigation(incident)}
+                        style={{ padding: "4px 8px" }}
+                      >
+                        <i className="pi pi-sparkles" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        title="Gerar rascunho de knowledge com IA (Draft)"
+                        disabled={draftMutation.isPending}
+                        onClick={() => draftMutation.mutate(incident.id)}
+                        style={{ padding: "4px 8px" }}
+                      >
+                        <i className="pi pi-file-edit" />
                       </Button>
                       {incident.status === "Open" && (
                         <Button
@@ -452,6 +577,23 @@ export function IncidentsPage() {
                   style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
                 >
                   <i className="pi pi-pencil" /> Editar
+                </Button>
+                <Button
+                  variant="ghost"
+                  title="Investigar incidente com IA (análise LEVEL 0)"
+                  onClick={() => openInvestigation(incident)}
+                  style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
+                >
+                  <i className="pi pi-sparkles" /> Investigar
+                </Button>
+                <Button
+                  variant="ghost"
+                  title="Gerar rascunho de knowledge com IA (Draft)"
+                  disabled={draftMutation.isPending}
+                  onClick={() => draftMutation.mutate(incident.id)}
+                  style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
+                >
+                  <i className="pi pi-file-edit" /> Artigo (IA)
                 </Button>
                 {incident.status === "Open" && (
                   <Button

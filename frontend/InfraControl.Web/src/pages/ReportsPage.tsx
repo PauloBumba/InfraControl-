@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import {
   exportTransversalReport,
   getTransversalReport,
+  summarizeTransversalReport,
+  type TransversalAiSummary,
   type TransversalReport,
 } from "@/services/api/reports";
 
@@ -14,6 +16,8 @@ import {
  * módulos (produtividade/PDI, tasks, knowledge, projetos, incidentes) com
  * filtro de período e export PDF/XLSX. Backend: GET /reports/transversal
  * (Operate). Não substitui os dashboards por vertical — é o teto de cima.
+ * **Fase E (docs/34 §37)**: resumo interpretativo com IA (LEVEL 0) via
+ * POST /reports/transversal/ai-summary — interpreta os números, não age.
  */
 export function ReportsPage() {
   const [from, setFrom] = useState("");
@@ -21,6 +25,8 @@ export function ReportsPage() {
   const [report, setReport] = useState<TransversalReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiSummary, setAiSummary] = useState<TransversalAiSummary | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,6 +49,18 @@ export function ReportsPage() {
     }
   }
 
+  async function handleAiSummary() {
+    setError(null);
+    setAiLoading(true);
+    try {
+      setAiSummary(await summarizeTransversalReport(from || null, to || null));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível gerar o resumo com IA.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   const counts = (map: Record<string, number>) =>
     Object.keys(map).length === 0
       ? "—"
@@ -57,6 +75,15 @@ export function ReportsPage() {
         subtitle="Visão transversal de produtividade, tarefas, conhecimento, projetos e incidentes (ADR-049)."
         actions={
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Button
+              variant="ghost"
+              onClick={() => void handleAiSummary()}
+              disabled={aiLoading}
+              title="Resumo interpretativo com IA (LEVEL 0) — lê os mesmos indicadores, não executa ações"
+              style={{ padding: "6px 12px" }}
+            >
+              <i className="pi pi-sparkles" /> {aiLoading ? "Resumindo…" : "Resumir com IA"}
+            </Button>
             <Button variant="ghost" onClick={() => void handleExport("pdf")} style={{ padding: "6px 12px" }}>
               <i className="pi pi-file" /> PDF
             </Button>
@@ -140,6 +167,37 @@ export function ReportsPage() {
               }
             />
           </Block>
+        </div>
+      )}
+
+      {aiSummary && (
+        <div
+          style={{
+            background: "white",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: 14,
+            marginTop: 14,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 8,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600 }}>Resumo com IA</div>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+              LEVEL 0 · {aiSummary.provider} · {aiSummary.model}
+              {aiSummary.usedFallback ? " (fallback)" : ""}
+            </span>
+          </div>
+          <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {aiSummary.summary}
+          </div>
         </div>
       )}
 

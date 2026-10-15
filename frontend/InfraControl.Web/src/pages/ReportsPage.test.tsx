@@ -8,6 +8,7 @@ import { sessionChecked } from "@/app/store/slices/authSlice";
 import {
   exportTransversalReport,
   getTransversalReport,
+  summarizeTransversalReport,
   type TransversalReport,
 } from "@/services/api/reports";
 
@@ -15,10 +16,12 @@ import {
 vi.mock("@/services/api/reports", () => ({
   getTransversalReport: vi.fn(),
   exportTransversalReport: vi.fn(),
+  summarizeTransversalReport: vi.fn(),
 }));
 
 const getReportMock = vi.mocked(getTransversalReport);
 const exportMock = vi.mocked(exportTransversalReport);
+const summarizeMock = vi.mocked(summarizeTransversalReport);
 
 const sample: TransversalReport = {
   from: null,
@@ -86,5 +89,42 @@ describe("ReportsPage — relatório transversal", () => {
 
     await user.click(screen.getByRole("button", { name: /xlsx/i }));
     expect(exportMock).toHaveBeenCalledWith(null, null, "xlsx");
+  });
+});
+
+/**
+ * Fase E (docs/34 §37) — resumo interpretativo LEVEL 0 do mesmo
+ * read-model; falha (ex.: 503 sem provider) cai no ErrorBanner.
+ */
+describe("ReportsPage — resumo com IA", () => {
+  it("should summarize the report with AI and render the LEVEL 0 panel", async () => {
+    summarizeMock.mockResolvedValue({
+      summary: "## Leitura geral\nOperação estável no período.",
+      provider: "ollama",
+      model: "qwen2.5-coder:1.5b",
+      usedFallback: false,
+    });
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /resumir com ia/i }));
+
+    expect(await screen.findByText(/Operação estável no período/)).toBeInTheDocument();
+    expect(summarizeMock).toHaveBeenCalledWith(null, null);
+    expect(screen.getByText(/LEVEL 0 · ollama · qwen2\.5-coder:1\.5b/)).toBeInTheDocument();
+  });
+
+  it("should announce a friendly failure when no provider is configured", async () => {
+    summarizeMock.mockRejectedValue(
+      new Error("IA indisponível: nenhum provedor configurado no servidor."),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /resumir com ia/i }));
+
+    expect(
+      await screen.findByText("IA indisponível: nenhum provedor configurado no servidor."),
+    ).toBeInTheDocument();
   });
 });

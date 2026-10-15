@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { AiChatEvidence } from "./ai";
 
 /**
  * F17-T003 — conexão da IncidentsPage ao backend (contrato real de
@@ -101,4 +102,43 @@ export function updateIncident(
     description: input.description ?? null,
     severity: input.severity,
   });
+}
+
+/**
+ * AI Investigation (ADR-053 · Fase C) — `POST /incidents/{id}/investigate`
+ * (Operate). Análise LEVEL 0 do incidente com evidências do Knowledge;
+ * 503 amigável quando nenhum provider está configurado (estado degradado §44).
+ */
+export interface InvestigationResult {
+  analysis: string;
+  evidences: AiChatEvidence[];
+  provider: string;
+  model: string;
+  usedFallback: boolean;
+}
+
+export function investigateIncident(id: string): Promise<InvestigationResult> {
+  return api.post<InvestigationResult>(
+    `/incidents/${id}/investigate`,
+  ) as Promise<InvestigationResult>;
+}
+
+/**
+ * Knowledge Engineer (ADR-054 · Fase D) —
+ * `POST /incidents/{id}/generate-knowledge` (Operate): rascunho de
+ * artigo com IA. Nasce `Draft` (workflow ADR-034 intacto) — a publicação
+ * é transição humana na página Knowledge. 503 amigável sem provider
+ * configurado (§44/§57).
+ */
+export interface KnowledgeDraft {
+  id: string;
+  title: string;
+  content: string;
+  status: number;
+}
+
+export function generateIncidentKnowledge(id: string): Promise<KnowledgeDraft> {
+  return api.post<KnowledgeDraft>(
+    `/incidents/${id}/generate-knowledge`,
+  ) as Promise<KnowledgeDraft>;
 }

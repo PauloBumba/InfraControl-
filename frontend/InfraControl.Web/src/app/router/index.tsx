@@ -55,6 +55,7 @@ const SessionsPage = lazy(() => import("@/pages/SessionsPage").then(m => ({ defa
 const AccountPage = lazy(() => import("@/pages/AccountPage").then(m => ({ default: m.AccountPage })));
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
 const ReportsPage = lazy(() => import("@/pages/ReportsPage").then(m => ({ default: m.ReportsPage })));
+const CopilotPage = lazy(() => import("@/pages/CopilotPage").then(m => ({ default: m.CopilotPage })));
 // F26-T002 — landing pública de vendas (fora do AppLayout).
 const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
 const FeaturesPage = lazy(() => import("@/pages/FeaturesPage").then(m => ({ default: m.FeaturesPage })));
@@ -380,6 +381,12 @@ function AppContent() {
           <Route path="/reports" element={
             <ProtectedRoute>
               <ReportsPage />
+            </ProtectedRoute>
+          } />
+          {/* ADR-052 — Copilot chat grounded LEVEL 0 (Read). */}
+          <Route path="/ai/copilot" element={
+            <ProtectedRoute>
+              <CopilotPage />
             </ProtectedRoute>
           } />
           <Route path="/incidents" element={
