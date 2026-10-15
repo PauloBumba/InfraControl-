@@ -94,6 +94,13 @@ public sealed class RunCheckCommandHandler(
                 $"Check '{check}' só se aplica a devices do tipo Printer.",
                 nameof(check));
 
+        // F30-T004 S2 (docs/52 §S2): fallback de rádio 802.11 é de Access
+        // Point — mesmo molde do guard Printer acima.
+        if (kind is CheckKind.SnmpRadio && device.Type != DeviceType.AccessPoint)
+            throw new ArgumentException(
+                $"Check '{check}' só se aplica a devices do tipo AccessPoint.",
+                nameof(check));
+
         if (string.IsNullOrWhiteSpace(device.Ip))
         {
             // Sem IP não há tentativa — não grava histórico (F5-T002).

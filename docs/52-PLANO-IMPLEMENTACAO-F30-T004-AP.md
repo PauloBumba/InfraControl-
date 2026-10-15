@@ -1,7 +1,8 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
-> **Status**: S0 (reparo da fusão) ✅ CONCLUÍDO 2026-10-15 (commit `743d010`) ·
-> S1 ✅ CONCLUÍDO 2026-10-15 (aguarda commit) — S2 a S4 aguardam autorização.
+> **Status**: S0 (reparo da fusão) ✅ 2026-10-15 (commit `743d010`) ·
+> S1 ✅ 2026-10-15 (commit `b2a912a`) · S2 ✅ CONCLUÍDO 2026-10-15 (aguarda
+> commit) — S3/S4 aguardam autorização.
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -133,6 +134,50 @@ repo, suíte completa verde, commit próprio (autorizado).
   (Switch/Printer ⇒ `ArgumentException`) + sem default do profile.
 - **Critério de aceite**: UnitTests verdes; opt-in documentado.
 - **Depende**: S0.
+
+#### Execução do S2 (2026-10-15)
+
+- **TDD**: RED confirmado antes de qualquer implementação — build quebrado com
+  `CS0117: "CheckKind" não contém uma definição para "SnmpRadio"` (+ tipo
+  `SnmpRadioProvider` inexistente) → GREEN 10/10 na rodada filtrada
+  (7 provider + 2 guard + 1 profile); 11/11 após completar o plano
+  (guard vira `[Theory]` Switch/Printer).
+- **Entregue**:
+  - `CheckKind.SnmpRadio = 11` (doc comment com semântica e gate);
+  - `src/InfraControl.Infrastructure/Monitoring/SnmpRadioProvider.cs` (novo):
+    walk única na raiz `1.3.6.1.2.1.80.1.1.3`; colunas da ficha §C/D/E
+    (1 estações, 2 SSID, 4 canal, 5 potência TX, 6 RSSI, 7 privacidade)
+    parseadas como `<coluna>.<ifIndex>` → chaves `<métrica>.<ifIndex>` +
+    `radioCount`. Só afirma o que respondeu: coluna ausente, valor em branco,
+    coluna desconhecida, ifIndex não numérico e OID fora da raiz ficam de
+    fora — **nunca 0 inventado**; walk vazio ou só lixo = falha honesta
+    pt-BR com `Values = null`. Chave **por rádio** (não agregada) porque
+    ssid/canal/potência não são agregáveis — agregar os dois rádios (2.4/5)
+    inventaria dado.
+  - guard **AccessPoint-only** em `RunCheckCommands` (molde exato do guard
+    Printer, mensagem pt-BR "só se aplica a devices do tipo AccessPoint."),
+    coberto por `[Theory]` (Switch e Printer ⇒ `ArgumentException`, linhas
+    não persistem);
+  - DI `AddScoped<IMonitoringProvider, SnmpRadioProvider>` (auto-registro
+    F0-T024) logo após o `SnmpHealthMonitoringProvider`;
+  - testes: `SnmpRadioProviderTests` (7: nome/keys, chaves por rádio +
+    `radioCount` + ausência honesta, filtro de lixo com conjunto exato de
+    keys, walk vazio, só lixo, SNMP throw, empty target) + 3 guard em
+    `RunCheckCommandTests` (2 não-AP + 1 AP executa e persiste `Kind`) +
+    1 guarda de regressão `Defaults_ShouldNeverIncludeSnmpRadio_OptInOnly`
+    em `DeviceProfileTests` (nasce verde — protege o opt-in).
+- **Intocado (como planejado)**: `DeviceProfileDefaults` (AccessPoint segue
+  `[Ping, HttpWan]`, já assertado pelo `[InlineData]` do ADR-014);
+  `AlertEvaluator` sem regra nova (default do switch); sem catálogo de
+  checks (confirmado por busca: `SnmpInterfaces` só vive em enum + DI +
+  provider — não há lista a registrar).
+- **Desvio**: nenhum material. O plano pedia teste "OID order" — a resposta
+  é dicionário sem ordem de contrato; o teste de lixo asserta o **conjunto
+  exato** de keys (mais forte que ordem).
+- **Validação**: filtrado **11/11** (7 provider + 3 guard + 1 profile) ·
+  UnitTests completas **2503/2503** (base 2492 + 11 do S2) · Arch
+  **152/153** (falha conhecida `Nginx_Should_Proxy_The_Api_Health_Checks`,
+  pré-existente) · `tsc`/`eslint` intocados (slice só de back).
 
 ### S3 — Exposição na UI (áreas A/B/E)
 

@@ -56,6 +56,15 @@ public enum CheckKind
     /// Reatribuído a 10 (próximo livre): o kind é persistido como string e
     /// nenhum teste afirma valor numérico — sem migração, sem dado perdido.
     /// </summary>
-    SnmpHealth = 10
+    SnmpHealth = 10,
+
+    /// <summary>
+    /// F30-T004 S2 (ficha 45 §C/D/E, docs/52 §S2): fallback SNMP do Access
+    /// Point pela IEEE 802.11 MIB (dot11: estações/SSID/canal/potência/
+    /// RSSI/privacidade por ifIndex). Opt-in por device — nenhum tipo tem
+    /// como default (DeviceProfileDefaults intocado); guard AccessPoint-only
+    /// no RunCheckCommandHandler (mesmo molde do guard Printer).
+    /// </summary>
+    SnmpRadio = 11
 
 }
