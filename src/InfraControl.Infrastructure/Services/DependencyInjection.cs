@@ -363,6 +363,10 @@ public static class DependencyInjection
         // F30-T001 (docs/42 §C): saúde do switch por fabricante — opt-in por
         // device, mesmo gate do SnmpInterfaces (DeviceProfileDefaults intocado).
         services.AddScoped<IMonitoringProvider, SnmpHealthMonitoringProvider>();
+        // F30-T004 S2 (docs/52 §S2): fallback de rádio 802.11 (IEEE 802.11
+        // MIB) — opt-in por device, mesmo gate dos demais SNMP; nenhum tipo
+        // o tem como default (DeviceProfileDefaults intocado).
+        services.AddScoped<IMonitoringProvider, SnmpRadioProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 

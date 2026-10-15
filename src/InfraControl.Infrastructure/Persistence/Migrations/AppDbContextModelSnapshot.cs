@@ -2969,6 +2969,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("device_id");
 
+                    b.Property<string>("Duplex")
+                        .HasColumnType("text")
+                        .HasColumnName("duplex");
+
                     b.Property<bool?>("LinkUp")
                         .HasColumnType("boolean")
                         .HasColumnName("link_up");
@@ -2978,6 +2982,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)")
                         .HasColumnName("name");
+
+                    b.Property<string>("Speed")
+                        .HasColumnType("text")
+                        .HasColumnName("speed");
 
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");

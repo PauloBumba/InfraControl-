@@ -105,4 +105,19 @@ public sealed class DeviceProfileTests
             "mudança de tipo não sobrescreve override explícito do operador");
         device.MonitoringChecks.Should().Equal(CheckKind.Ping, CheckKind.HttpWan);
     }
+
+    /// <summary>
+    /// F30-T004 S2 (docs/52 §S2): SnmpRadio é opt-in por device — NENHUM
+    /// tipo o tem como default (DeviceProfileDefaults intocado). Este teste
+    /// é guarda de regressão: nasce verde e protege contra "esquecer de
+    /// opt-in".
+    /// </summary>
+    [Fact]
+    public void Defaults_ShouldNeverIncludeSnmpRadio_OptInOnly()
+    {
+        foreach (var type in Enum.GetValues<DeviceType>())
+            DeviceProfileDefaults.For(type).Should().NotContain(
+                CheckKind.SnmpRadio,
+                "SnmpRadio é opt-in por device (docs/52 §S2)");
+    }
 }

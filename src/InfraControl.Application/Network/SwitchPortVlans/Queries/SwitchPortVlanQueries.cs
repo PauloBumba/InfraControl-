@@ -103,7 +103,8 @@ public sealed class GetVlanSwitchPortsQueryHandler(
         return ports
             .OrderBy(port => port.Name)
             .Select(port => new SwitchPortDto(
-                port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp))
+                port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp,
+                port.Speed, port.Duplex))
             .ToArray();
     }
 }

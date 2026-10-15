@@ -117,6 +117,100 @@ public sealed class SyncSwitchPortsFromUnifiCommandTests : IDisposable
         port.LinkUp.Should().BeFalse();
     }
 
+    // ---- F30-T001 S4a: velocidade/duplex persistidos no sync (docs/42 §B) ----
+
+    [Fact]
+    public async Task NewPorts_ShouldRecordSpeedAndDuplex()
+    {
+        var (context, switchId) = await CreateSwitchAsync();
+        _unifi.Ports =
+        [
+            new UnifiSwitchPortDto(1, "Port 1", true, "1G", true, 10, false, "none", "twisted_pair", null),
+            // Sem velocidade ("") e sem full_duplex no JSON.
+            new UnifiSwitchPortDto(2, "Port 2", false, "", null, 10, false, "none", "twisted_pair", null),
+        ];
+
+        await Handler(context).Handle(
+            new SyncSwitchPortsFromUnifiCommand(switchId), CancellationToken.None);
+
+        var ports = await context.SwitchPorts
+            .Where(p => p.DeviceId == switchId)
+            .OrderBy(p => p.Name)
+            .ToListAsync();
+
+        ports[0].Speed.Should().Be(SwitchPortSpeed.Speed1G);
+        ports[0].Duplex.Should().Be(SwitchPortDuplex.Full);
+        ports[1].Speed.Should().BeNull("controller não reportou velocidade");
+        ports[1].Duplex.Should().BeNull("full_duplex ausente não é meio-duplex");
+    }
+
+    [Fact]
+    public async Task ExistingPort_SpeedChanged_ShouldUpdate()
+    {
+        var (context, switchId) = await CreateSwitchAsync();
+        var existing = SwitchPort.Create(switchId, "Port 1", null);
+        existing.Observe(true, SwitchPortSpeed.Speed1G, SwitchPortDuplex.Full);
+        context.SwitchPorts.Add(existing);
+        await context.SaveChangesAsync();
+
+        // Controller agora reporta 100 Mbps (token "100").
+        _unifi.Ports =
+        [
+            new UnifiSwitchPortDto(1, "Port 1", true, "100", true, 10, false, "none", "twisted_pair", null),
+        ];
+
+        var result = await Handler(context).Handle(
+            new SyncSwitchPortsFromUnifiCommand(switchId), CancellationToken.None);
+
+        result.Updated.Should().Be(1);
+        var port = await context.SwitchPorts.SingleAsync(p => p.DeviceId == switchId);
+        port.Speed.Should().Be(SwitchPortSpeed.Speed100M);
+    }
+
+    [Fact]
+    public async Task ExistingPort_WithoutSpeedReport_ShouldKeepTheKnownSpeed()
+    {
+        var (context, switchId) = await CreateSwitchAsync();
+        var existing = SwitchPort.Create(switchId, "Port 1", null);
+        existing.Observe(true, SwitchPortSpeed.Speed1G, SwitchPortDuplex.Full);
+        context.SwitchPorts.Add(existing);
+        await context.SaveChangesAsync();
+
+        // Mesma porta, mas sem velocidade/duplex no payload.
+        _unifi.Ports =
+        [
+            new UnifiSwitchPortDto(1, "Port 1", true, "", null, 10, false, "none", "twisted_pair", null),
+        ];
+
+        var result = await Handler(context).Handle(
+            new SyncSwitchPortsFromUnifiCommand(switchId), CancellationToken.None);
+
+        result.Updated.Should().Be(0, "nada de novo foi observado");
+        var port = await context.SwitchPorts.SingleAsync(p => p.DeviceId == switchId);
+        port.Speed.Should().Be(SwitchPortSpeed.Speed1G, "ausência de leitura não apaga o valor");
+        port.Duplex.Should().Be(SwitchPortDuplex.Full);
+    }
+
+    [Fact]
+    public async Task ExistingPort_NothingChanged_ShouldNotCountAnUpdate()
+    {
+        var (context, switchId) = await CreateSwitchAsync();
+        var existing = SwitchPort.Create(switchId, "Port 1", null);
+        existing.Observe(true, SwitchPortSpeed.Speed1G, SwitchPortDuplex.Full);
+        context.SwitchPorts.Add(existing);
+        await context.SaveChangesAsync();
+
+        _unifi.Ports =
+        [
+            new UnifiSwitchPortDto(1, "Port 1", true, "1000", true, 10, false, "none", "twisted_pair", null),
+        ];
+
+        var result = await Handler(context).Handle(
+            new SyncSwitchPortsFromUnifiCommand(switchId), CancellationToken.None);
+
+        result.Updated.Should().Be(0, "sync idempotente: 1G/full de novo não é mudança");
+    }
+
     [Fact]
     public async Task ManualPortAbsentFromController_ShouldBePreserved()
     {

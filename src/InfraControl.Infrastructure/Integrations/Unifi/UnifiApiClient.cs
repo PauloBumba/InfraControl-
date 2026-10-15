@@ -968,8 +968,16 @@ public sealed class UnifiApiClient : IUnifiApiClient
                 LinkUp: item.TryGetProperty("up", out var up) &&
                     up.ValueKind == JsonValueKind.True,
                 Speed: speed,
-                FullDuplex: item.TryGetProperty("full_duplex", out var fd) &&
-                    fd.ValueKind == JsonValueKind.True,
+                // F30-T001 S4a: ausente ⇒ null (nunca false — isso inventava
+                // meio-duplex quando o controller não manda "full_duplex").
+                FullDuplex: item.TryGetProperty("full_duplex", out var fd)
+                    ? fd.ValueKind switch
+                    {
+                        JsonValueKind.True => (bool?)true,
+                        JsonValueKind.False => (bool?)false,
+                        _ => null,
+                    }
+                    : null,
                 PortVlan: ReadInt(item, "port_vlan"),
                 PoeEnable: poeEnable,
                 PoeStatus: poeStatus,

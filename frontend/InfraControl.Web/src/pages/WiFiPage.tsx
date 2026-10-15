@@ -11,8 +11,10 @@ import {
   type UnifiAccessPointItem,
   type UnifiSsidItem,
 } from "@/services/api/integrations";
+import { getUnifiLiveClients } from "@/services/api/unifi";
 import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import { formatDateTime } from "@/utils/format";
+import { formatSignal, summarizeLiveClients } from "@/utils/wifiClients";
 
 /**
  * F18-T006 (decisão 2026-10-10) — WiFiPage com dados REAIS do UniFi
@@ -74,6 +76,13 @@ export function WiFiPage() {
   const wifiLoading = wifi.isLoading;
   const wifiError = wifi.error ? wifi.error.message : null;
   const wifiData = wifi.data;
+
+  // F30-T004 S1 — clientes AO VIVO (GET /integrations/unifi/clients, que já
+  // existe): agregados por SSID/RSSI. Erro aqui NÃO entra na casca (um slot,
+  // fonte é a sondagem de WiFi) — o painel de clientes cai em "—" honesto.
+  const clients = useObjectQuery(["unifi-live-clients"], getUnifiLiveClients);
+  const clientsError = clients.error ? clients.error.message : null;
+  const clientSummary = summarizeLiveClients(clients.data ?? []);
 
   const [aps, setAps] = useState<DeviceItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -406,6 +415,59 @@ export function WiFiPage() {
             </DataTablePanel>
               }
             />
+          )}
+        </div>
+      </div>
+
+      {/* F30-T004 S1 — clientes ao vivo: agregados do
+          GET /integrations/unifi/clients (ficha 45 áreas C/E: clientes por
+          SSID e RSSI médio). Sem tabela — e cada TABELA desta página é que
+          tem seletor de visão. Label e valor no mesmo text node (getByText
+          não junta irmãos). */}
+      <div className="uni-panel">
+        <div className="uni-panel-header">
+          <h2>Clientes ao vivo</h2>
+        </div>
+        <div className="uni-panel-body">
+          {clients.isLoading ? (
+            <LoadingBlock />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: clientsError ? "#94a3b8" : "#64748b",
+                  display: "flex",
+                  gap: 16,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>{`Total: ${clientsError ? "—" : clientSummary.total}`}</span>
+                <span>{`Com fio: ${clientsError ? "—" : clientSummary.wired}`}</span>
+                <span>{`Sem fio: ${clientsError ? "—" : clientSummary.wireless}`}</span>
+                <span>
+                  {`RSSI médio: ${
+                    clientsError ? "—" : formatSignal(clientSummary.averageSignal)
+                  }`}
+                </span>
+              </div>
+              {clientsError ? (
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>—</span>
+              ) : clientSummary.bySsid.length === 0 ? (
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                  Nenhum cliente sem-fio no Controller
+                </span>
+              ) : (
+                clientSummary.bySsid.map((row) => (
+                  <span
+                    key={row.ssid ?? "sem-ssid"}
+                    style={{ fontSize: 12, color: "#64748b" }}
+                  >
+                    {`${row.ssid ?? "—"}: ${row.count}`}
+                  </span>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>

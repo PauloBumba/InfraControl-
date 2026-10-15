@@ -260,6 +260,46 @@ public sealed class RunCheckCommandTests : IDisposable
         (await RowsAsync(context, sw.Id)).Should().BeEmpty();
     }
 
+    /// <summary>F30-T004 S2 (docs/52 §S2): SnmpRadio é AccessPoint-only.</summary>
+    [Theory]
+    [InlineData(DeviceType.Switch)]
+    [InlineData(DeviceType.Printer)]
+    public async Task RunCheck_SnmpRadio_OnNonAccessPoint_ShouldThrowArgumentPtBrMessage(
+        DeviceType nonApType)
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var sw = await SeedDeviceAsync(
+            context, location.Id, nonApType, "dev-07", "192.0.2.14");
+
+        var action = () => Handler(context, new FakeRegistry(new FakePingProvider(_ => true)))
+            .Handle(new RunCheckCommand(sw.Id, "SnmpRadio"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*só se aplica a devices do tipo AccessPoint*");
+        (await RowsAsync(context, sw.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunCheck_SnmpRadio_OnAccessPoint_ShouldExecuteAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var ap = await SeedDeviceAsync(
+            context, location.Id, DeviceType.AccessPoint, "ap-02", "192.0.2.21");
+
+        var registry = new FakeRegistry(new FakeSupplyProvider("SnmpRadio", 7));
+        var result = await Handler(context, registry)
+            .Handle(new RunCheckCommand(ap.Id, "SnmpRadio"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, ap.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.SnmpRadio);
+    }
+
     [Fact]
     public async Task RunCheck_HttpWan_ShouldExecuteAndPersistResultWithValues()
     {

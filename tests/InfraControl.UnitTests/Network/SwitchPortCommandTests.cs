@@ -334,7 +334,8 @@ public sealed class SwitchPortCommandTests : IDisposable
         var result = await GetHandler(context).Handle(
             new GetSwitchPortQuery(created.Id), CancellationToken.None);
 
-        result.Should().Be(new SwitchPortDto(created.Id, switchId, "Gi1/0/1", "Uplink", null));
+        result.Should().Be(new SwitchPortDto(
+            created.Id, switchId, "Gi1/0/1", "Uplink", null, null, null));
     }
 
     [Fact]

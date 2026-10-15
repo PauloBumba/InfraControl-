@@ -39,6 +39,10 @@ export interface SwitchPortItem {
   name: string;
   description: string | null;
   linkUp: boolean | null;
+  /** F30-T001 S4a — enum como texto ("Speed1G"); null = não observado. */
+  speed: string | null;
+  /** F30-T001 S4a — "Full"/"Half"/"Auto"; null = não observado. */
+  duplex: string | null;
 }
 
 /** `PagedResult<T>` — o campo `data` do envelope. */
@@ -260,6 +264,21 @@ export interface DeviceStatusItem {
 
 export async function getDeviceStatus(id: string): Promise<DeviceStatusItem | null> {
   return api.get<DeviceStatusItem>(`/inventory/devices/${id}/status`);
+}
+
+/**
+ * F30-T001 S3 — identificação do sistema (uptime + sysDescr) sem custo de
+ * agente: valores do histórico `MonitoringResult` de SnmpHealth. `null` =
+ * nunca observado (nada inventado).
+ */
+export interface DeviceSystemInfoItem {
+  uptimeSeconds: number | null;
+  sysDescr: string | null;
+  capturedAtUtc: string | null;
+}
+
+export async function getDeviceSystemInfo(id: string): Promise<DeviceSystemInfoItem | null> {
+  return api.get<DeviceSystemInfoItem>(`/inventory/devices/${id}/system-info`);
 }
 
 export interface NetworkInterfaceItem {
