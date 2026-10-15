@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
 
 namespace InfraControl.Domain.Entities;
@@ -10,6 +11,10 @@ namespace InfraControl.Domain.Entities;
 /// não observado; o discovery SNMP da F4 (IF-MIB) é quem passa a preencher —
 /// propriedades operacionais (velocidade/PoE/VLAN/tráfego) também vêm do
 /// SNMP, não do cadastro manual (decisão do usuário na T002).
+/// F30-T001 S4a: velocidade/duplex passaram a ser PERSISTIDOS (cadastro
+/// semi-estático, colunas speed/duplex) — preenchidos por <c>Observe</c>
+/// (controller UniFi/SNMP). PoE continua NÃO persistido: ADR-028 §10 nomeia
+/// potência PoE como métrica sob demanda (§7 item 8 do docs/51).
 /// </summary>
 public sealed class SwitchPort : AggregateRoot
 {
@@ -24,6 +29,12 @@ public sealed class SwitchPort : AggregateRoot
 
     /// <summary>Estado de link; null = porta ainda não observada (F4).</summary>
     public bool? LinkUp { get; private set; }
+
+    /// <summary>Velocidade do enlace; null = ainda não observada (docs/42 §B).</summary>
+    public SwitchPortSpeed? Speed { get; private set; }
+
+    /// <summary>Duplex; null = ainda não observado (docs/42 §B).</summary>
+    public SwitchPortDuplex? Duplex { get; private set; }
 
     private SwitchPort() { }
 
@@ -63,5 +74,32 @@ public sealed class SwitchPort : AggregateRoot
         LinkUp = linkUp;
 
         RaiseDomainEvent(new SwitchPortUpdatedDomainEvent(Id, DeviceId, Name));
+    }
+
+    /// <summary>
+    /// Observação operacional vinda do controller (UniFi/SNMP) — F30-T001 S4a.
+    /// Diferente de <see cref="Update"/> (cadastro manual), aqui sim gravam-se
+    /// velocidade/duplex. <c>linkUp</c> grava o que veio (null = não observado);
+    /// <c>speed</c>/<c>duplex</c> só gravam quando reportados — ausência de
+    /// leitura não apaga o último valor (velocidade é semi-estática: porta sem
+    /// resposta não perdeu o enlace de 1G). Retorna true se algo mudou: sync
+    /// idempotente não gera evento nem contagem de update.
+    /// </summary>
+    public bool Observe(
+        bool? linkUp, SwitchPortSpeed? speed, SwitchPortDuplex? duplex)
+    {
+        var changed = LinkUp != linkUp
+            || (speed is not null && Speed != speed)
+            || (duplex is not null && Duplex != duplex);
+
+        if (!changed)
+            return false;
+
+        LinkUp = linkUp;
+        if (speed is not null) Speed = speed;
+        if (duplex is not null) Duplex = duplex;
+
+        RaiseDomainEvent(new SwitchPortUpdatedDomainEvent(Id, DeviceId, Name));
+        return true;
     }
 }

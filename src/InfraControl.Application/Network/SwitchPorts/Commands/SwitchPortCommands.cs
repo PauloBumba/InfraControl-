@@ -45,7 +45,9 @@ public sealed class CreateSwitchPortCommandHandler(
             "SwitchPort {SwitchPortId} created ({Name}) on switch {DeviceId}.",
             port.Id, port.Name, port.DeviceId);
 
-        return new SwitchPortDto(port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp);
+        return new SwitchPortDto(
+            port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp,
+            port.Speed, port.Duplex);
     }
 }
 

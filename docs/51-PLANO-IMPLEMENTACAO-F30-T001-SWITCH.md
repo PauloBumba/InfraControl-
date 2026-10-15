@@ -1,6 +1,6 @@
 # Plano de Execução — F30-T001: Switch (implementação)
 
-> **Status**: Em execução — S1 + S2 + S3 concluídos (2026-10-14)
+> **Status**: Em execução — S1 + S2 + S3 (2026-10-14) + S4a e S5 (a-c) (2026-10-15) concluídos
 > **Base**: `docs/42-FICHA-TECNICA-SWITCH.md` (ficha, Rascunho) confrontada com o
 > código real do produto.
 > **Regras**: TDD (teste antes, RED confirmado), sem `git push`, commit só com
@@ -148,6 +148,14 @@ inexistente ⇒ `KeyNotFoundException` e **nenhuma** consulta ao histórico.
 
 ### S4 — Portas: Velocidade/Duplex/PoE (área B)
 
+> **✅ CONCLUÍDO 2026-10-15** — fatiado em S4a (a ficha pedia mais do que a
+> arquitetura permite; §7 itens 8-11). TDD: 31 testes de domínio, 4 de sync e
+> 2 asserções de parser, todos RED→GREEN.
+> Evidência: `SwitchPortSpeedDuplexTests` **31/31** · Network+UnifiApiClient
+> **206/206** · migração `AddSwitchPortSpeedDuplex` validada por
+> `migrations script` (`ADD duplex text` + `ADD speed text` — cada uma vez
+> só, nullable, sem backfill).
+
 - **Objetivo**: `SwitchPort` passa a descrever a porta como a ficha L136-147.
 - **Escopo**: campos `Speed`, `Duplex`, `PoEEnabled`, `PoEPowerBudget`
   (enums/validações da ficha) + migração EF + preenchimento a partir de
@@ -158,7 +166,55 @@ inexistente ⇒ `KeyNotFoundException` e **nenhuma** consulta ao histórico.
   responde; device sem SNMP ⇒ campos `null`, **nunca `0`/`Full` inventado**.
 - **Depende**: S1 (mesma seam), migração é a maior parte do risco.
 
+**Feito (fatiado — parou para perguntar em vez de violar o ADR):**
+
+A ficha §B manda persistir `Speed`, `Duplex`, `PoEEnabled` e `PoEPowerBudget`.
+Mas o **ADR-028 §10** nomeia *potência PoE* como métrica instantânea consultada
+sob demanda e cacheada em Redis, e o código já cumpria (REGRA 8 em
+`SyncSwitchPortsFromUnifiCommand`, `UnifiLiveDtos` e docs/36 L359). A própria
+ficha se contradiz — a L342 dela cita REGRA 8. **Perguntado ao usuário em
+2026-10-15** → "só Speed/Duplex no banco": PoE continua ao vivo, ADR-028 §10
+intacto, **sem ADR novo** (§7 item 8).
+
+O que entrou:
+
+- `SwitchPort.Speed`/`Duplex` como enums da ficha L144-145, persistidos como
+  **string** (`HasConversion<string>`, padrão da casa) + migração
+  `AddSwitchPortSpeedDuplex` (nullable, sem backfill).
+- **`Observe(linkUp, speed, duplex)`** no domínio — caminho do controller
+  (UniFi/SNMP). Diferente de `Update` (cadastro manual): o cadastro manual
+  **não** mexe em velocidade/duplex (SwitchPort.cs L11-12: vem do SNMP).
+  Retorna `false` quando nada mudou ⇒ sync idempotente não conta update nem
+  gera evento.
+- **Ausência de leitura não apaga o valor** (keep-last-known): porta sem
+  resposta não perdeu o enlace de 1G (§7 item 9).
+- População pelos **dois** syncs UniFi (`SyncSwitchPortsFromUnifiCommand` e
+  `SyncUnifiInventoryCommand`) via `Observe` + parsers.
+- **Parser `full_duplex` corrigido**: campo ausente no JSON virava `false` →
+  meio-duplex **inventado**; agora `null` (§7 item 10).
+- `SwitchPortDto` ganha `Speed`/`Duplex` — enum serializado como texto por
+  `JsonConverter` **por tipo** (o MVC não registra `JsonStringEnumConverter`
+  global: o contrato numérico legado de `KnowledgeArticleStatus` 0..7 não pode
+  mudar).
+
+**Limitação honesta (§7 item 11)**: taxa fora da enum da ficha (2.5G/5G
+multi-gig) ⇒ `null`. Incluir no enum ou migrar para bps é decisão humana.
+
+**Não entrou**: preenchimento por SNMP puro — o `SnmpPortDetails` da ficha não
+existe e o `SnmpInterfacesMonitoringProvider` atual não lê ifSpeed/ifDuplex.
+Hoje só o caminho UniFi popula; switches não-UniFi ficam com `null`.
+
 ### S5 — Exposição na UI (áreas A-C)
+
+> **Status: S5a + S5b + S5c ✅ CONCLUÍDOS 2026-10-15** — S5 completo.
+> Evidência S5a: `format.test.ts` (formatação de porta) · `SwitchesPage.test.tsx`
+> (colunas Velocidade/Duplex, RED na coluna que faltava → GREEN).
+> Evidência S5b: `format.test.ts` `formatUptime` 3 testes (RED `not a function`
+> → GREEN) · `SwitchesPage.test.tsx` 2 testes de faixa "Uptime/Sistema" (RED
+> sem a faixa → GREEN) · `getDeviceSystemInfo` chamado com o id do switch.
+> Evidência S5c: `SwitchesPage.test.tsx` 3 testes de saúde (último
+> `SnmpHealth` vence o antigo; sem resultado ⇒ "Saúde: —"; falha ⇒ "—" por
+> métrica) — RED 3 → GREEN.
 
 - **Objetivo**: o técnico vê saúde e portas na tela do switch.
 - **Escopo**: `SwitchesPage`/detalhe com CPU, memória, temperatura, uptime,
@@ -166,6 +222,33 @@ inexistente ⇒ `KeyNotFoundException` e **nenhuma** consulta ao histórico.
 - **Testes**: suíte Vitest própria, TDD, casca `ListPageShell` já migrada (C-3).
 - **Critério de aceite**: `tsc` 0, `eslint` 0, testes verdes.
 - **Depende**: S3, S4.
+
+**S5a feito (portas — colheita do S4):** `SwitchPortItem` ganha
+`speed`/`duplex`; tabela de portas do switch ganha as colunas **Velocidade**
+e **Duplex**; `formatPortSpeed`/`formatPortDuplex` em `utils/format.ts`
+traduzem o enum serializado (`"Speed1G"` → `"1G"`) e mandam `null` → `"—"`
+(nunca 0/vazio). Valor que o front não conhece aparece **crudo** (nada
+escondido). PoE já aparece na tabela UniFi ao vivo (F26 Fase 5 — REGRA 8,
+consulta sob demanda).
+
+**S5b feito**: faixa **Uptime / Sistema** sob o cabeçalho do painel de portas
+do switch — `getDeviceSystemInfo` (`services/api/inventory.ts`) + o type
+`DeviceSystemInfoItem`; `formatUptime` (`utils/format.ts`) formata
+"1d 1h"/"1h 1m"/"1m"/"42s" e manda leitura ausente ou absurda (negativo/NaN)
+para "—" (nunca 0s inventado). A faixa **some** quando a query está pendente
+ou em erro (device sem `system-info` não polui a tela); `sysDescr` aparece
+**cru** (S3 expõe o texto do switch, sem parsing). Nota de teste: `getByText`
+não junta text nodes irmãos — label e valor ficam no mesmo text node
+(`{`Uptime: ${...}`}`).
+
+**S5c feito**: saúde SNMP (`SnmpHealth`, S1) na mesma faixa do painel do
+switch — `getDeviceResults(id, 100)` (o endpoint não filtra por tipo; 100
+polls cabem SnmpHealth no meio de Pings e o mais recente vem primeiro) e
+`check === "SnmpHealth"`. Labels: `CPU %` · `Memória %` · `Temperatura °C`
+(chaves `cpuPercent`/`memoryPercent`/`temperatureCelsius`, texto do backend,
+exibido cru). Sem resultado do tipo ⇒ `"Saúde: —"`; resultado falho
+(`values` null) ⇒ `—` por métrica — **nunca 0 inventado**. A faixa some
+em erro/pendência da consulta.
 
 ### S6 — Prevenção (área F) — **exige ADR antes**
 
@@ -210,11 +293,16 @@ Primeira leva: **S1**. Depois S2, S3 (barato), S4, S5. S6 é outro ciclo.
 |---|---|---|
 | 1 | **S3**: Firmware/Uptime do histórico ou coluna nova em `Device`? | **Resolvida no S3**: histórico, sem migração (recomendação adotada) |
 | 7 | **`Firmware` como campo próprio** | **Aberta** — não entrou no S3. Opções: (a) coluna em `Device` + migração, (b) parsing documentado por fabricante sobre `sysDescr`, (c) ler ao vivo da API UniFi (F18 já tem `Firmware` no DTO, sem persistir). Enquanto isso a área A expõe `sysDescr` cru |
-| 2 | **S4**: enums (`Speed`/`Duplex`) ou string livre? | **Aberta** — recomendação: enums da ficha (§B) |
+| 2 | **S4**: enums (`Speed`/`Duplex`) ou string livre? | **Resolvida no S4**: enums da ficha §B (L144-145), persistidos como string (`HasConversion<string>`, padrão da casa) e serializados como texto na API |
 | 3 | **S6**: quem escreve o ADR e quando? | **Aberta** — depois de S1+S2, com histórico real |
 | 4 | Chave de memória no `Values` | **Resolvida no S1**: `memoryPercent` = % em uso. Onde o OID reporta % direta, passa-se como o device reportou; só UniFi calcula (total − livre)/total porque os OIDs dela são de bytes. Valor fora de 0..100 é descartado (bytes no lugar de % não vira número enganoso) |
 | 5 | Falha de banco no lookup do vendor | **Resolvida no S1**: mensagem própria (`Falha ao consultar o device por IP...`), nunca "não cadastrado" |
 | 6 | Fans e PSUs (HP tem OID, os outros não) | **Aberta** — precisa do mapeamento de enumeração do fabricante; sem isso ler seria string sem significado garantido |
+| 8 | **S4**: PoE persiste em `SwitchPort`? | **Resolvida (usuário, 2026-10-15)**: NÃO — ADR-028 §10 nomeia potência PoE como métrica sob demanda (Redis 30-60s) e já é entregue ao vivo (`GetSwitchUnifiPortsQuery`/`UniFiLivePage`). Persistem só Speed/Duplex, **sem ADR novo** |
+| 9 | **S4**: ausência de leitura apaga velocidade/duplex? | **Resolvida no S4**: não — `Observe` só grava o que foi reportado (valor semi-estático sobrevive a poll sem resposta); cadastro manual (`Update`) não mexe nesses campos |
+| 10 | **S4**: `full_duplex` ausente no JSON | **Resolvida no S4**: o parser virava `false` → meio-duplex **inventado**; agora `null` (o DTO já era `bool?`) |
+| 11 | **S4**: taxas fora da enum da ficha (2.5G/5G multi-gig) | **Aberta** — hoje `null` (nada inventado). Opções: incluir no enum da ficha ou trocar a coluna por bps |
+| 12 | **S4**: preenchimento por SNMP puro (switches não-UniFi) | **Aberta** — exige o `SnmpPortDetails` da ficha (não existe; o `SnmpInterfacesMonitoringProvider` atual não lê ifSpeed/ifDuplex). Hoje só o caminho UniFi popula |
 
 ### 7.1 Achado fora do escopo — corrigido no caminho
 
@@ -225,6 +313,25 @@ foram atualizados (`GetSwitchUnifiPortsQueryTests`,
 Sem isso nenhum TDD era possível. Corrigido com stub que **lança**
 `NotImplementedException` — falha alto se algum teste de leitura tentar
 escrever porta. Não é código de produto; é restauro do build.
+
+### 7.2 Achados do S4 — build quebrado por sessão paralela (corrigido no caminho)
+
+O repo **não compilava** ao iniciar o S4 (2026-10-15), por dois motivos que
+não são do escopo desta task — ambos corrigidos porque sem isso nenhum TDD é
+possível, e ambos visíveis/ comentados no código:
+
+1. **DI registrava providers que não existiam**: `DependencyInjection.cs`
+   L358-359 registrava `SnmpColorTonerProvider` e `SnmpPrinterStatusProvider`
+   (F30-T002 impressora). A F30-T002 foi **só planejamento** (docs/43: "nenhuma
+   alteração de código nesta task") — as classes nunca foram criadas.
+   Registradas **comentadas**, com a data e a condição de reativar (criar as
+   classes junto).
+2. **`SetPortConfigAsync` duplicado em 3 fakes** (`CS0111`): o restauro da
+   §7.1 e a sessão paralela adicionaram o mesmo stub nos mesmos arquivos.
+   Mantida a versão que **falha alto**, removida a `Task.CompletedTask`.
+
+Nenhum teste foi escondido: as duas correções foram feitas **antes** do RED do
+S4, e a suíte completa fecha verde (§ evidência do S4).
 
 ---
 

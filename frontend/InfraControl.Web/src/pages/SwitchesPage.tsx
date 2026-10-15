@@ -3,21 +3,25 @@ import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { ListPageShell } from "@/components/ui/ListPageShell";
+import { formatPortDuplex, formatPortSpeed, formatUptime } from "@/utils/format";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { SelectField } from "@/components/ui/SelectField";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import {
+  getDeviceSystemInfo,
   listLocations,
   listSwitchPorts,
   type DeviceItem,
+  type DeviceSystemInfoItem,
   type LocationItem,
   type SwitchPortItem,
 } from "@/services/api/inventory";
 import { listSwitches, getSwitchUnifiPorts, getSwitchZabbixInterfaces, syncSwitchPortsFromUnifi, type ZabbixInterfaceItem } from "@/services/api/network";
 import { setUnifiPortConfig } from "@/services/api/unifi";
 import type { UniFiSwitchPort } from "@/services/api/unifi";
+import { getDeviceResults, type DeviceResults } from "@/services/api/monitoring";
 import {
   useListQuery,
   usePagedQuery,
@@ -41,6 +45,19 @@ import {
  * documentadas em docs/17 (chip Online/Offline sem endpoint de estado,
  * PoE/firmware sem contrato, VLAN por porta só via 1 req/PORTA — futuro).
  */
+
+/**
+ * F30-T001 S5c — métrica do SnmpHealth (`values` chega como texto do
+ * backend: "12", "41"). Ausente ⇒ "—" — nunca 0 inventado.
+ */
+function snmpHealthMetric(
+  values: Record<string, string> | null,
+  key: string,
+  suffix: string,
+): string {
+  const raw = values?.[key];
+  return raw ? `${raw}${suffix}` : "—";
+}
 
 export function SwitchesPage() {
   const [view, setView] = useEntityViewMode("switches", "grid");
@@ -80,6 +97,36 @@ export function SwitchesPage() {
     () => getSwitchZabbixInterfaces(selectedId as string),
     { enabled: selectedId !== null },
   );
+
+  // F30-T001 S5b — uptime + sysDescr (S3). Erro esconde a faixa: device sem
+  // system-info não polui a tela do switch. Envelope null (defensivo) vira
+  // "sem leitura" — mesmo resultado visual, nada inventado.
+  const systemInfo = useObjectQuery<DeviceSystemInfoItem>(
+    ["deviceSystemInfo", selectedId ?? ""],
+    async () =>
+      (await getDeviceSystemInfo(selectedId as string)) ?? {
+        uptimeSeconds: null,
+        sysDescr: null,
+        capturedAtUtc: null,
+      },
+    { enabled: selectedId !== null },
+  );
+
+  // F30-T001 S5c — saúde SNMP (S1) na tela do switch. O endpoint não filtra
+  // por tipo: pede os últimos 100 polls (SnmpHealth pode ficar no meio de
+  // muitos Pings) e o mais recente do tipo já vem primeiro na lista.
+  const healthResults = useObjectQuery<DeviceResults>(
+    ["switchSnmpHealth", selectedId ?? ""],
+    async () =>
+      (await getDeviceResults(selectedId as string, 100)) ?? {
+        deviceId: "",
+        deviceName: "",
+        results: [],
+      },
+    { enabled: selectedId !== null },
+  );
+  const snmpHealth =
+    healthResults.data?.results.find((result) => result.check === "SnmpHealth") ?? null;
 
   // Fase 07c — sync de portas UniFi → cadastro (RoleAccess.Operate).
   const syncMutation = useCreateMutation({
@@ -303,6 +350,39 @@ export function SwitchesPage() {
             </Button>
           )}
         </div>
+
+        {/* F30-T001 S5b — identificação do sistema vinda do histórico SNMP
+            (S3): uptime formatado + sysDescr cru. "—" onde nunca houve
+            leitura; a faixa some se o device não responder. */}
+        {!systemInfo.isPending && !systemInfo.isError && (
+          <div
+            style={{
+              padding: "6px 16px",
+              fontSize: 12,
+              color: "#475569",
+              borderBottom: "1px solid #e5e7eb",
+              display: "flex",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>
+              {`Uptime: ${formatUptime(systemInfo.data?.uptimeSeconds ?? null)}`}
+            </span>
+            <span style={{ fontWeight: 600, overflowWrap: "anywhere" }}>
+              {`Sistema: ${systemInfo.data?.sysDescr ?? "—"}`}
+            </span>
+            {/* F30-T001 S5c — último SnmpHealth (S1). Sem resultado do tipo
+                ⇒ "Saúde: —"; resultado falho ⇒ "—" por métrica. */}
+            {!healthResults.isPending && !healthResults.isError && (
+              <span style={{ fontWeight: 600 }}>
+                {snmpHealth
+                  ? `Saúde: CPU ${snmpHealthMetric(snmpHealth.values, "cpuPercent", "%")} · Memória ${snmpHealthMetric(snmpHealth.values, "memoryPercent", "%")} · Temperatura ${snmpHealthMetric(snmpHealth.values, "temperatureCelsius", "°C")}`
+                  : "Saúde: —"}
+              </span>
+            )}
+          </div>
+        )}
 
         {syncMessage && (
           <div
@@ -654,6 +734,18 @@ export function SwitchesPage() {
                 background={port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9"}
                 color={port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b"}
               />
+            )} style={{ width: 90 }} />
+            {/* F30-T001 S5a — cadastro semi-estático observado (S4): a coluna
+                diz "—" enquanto o device não responder; nunca 0/inventado. */}
+            <Column header="Velocidade" body={(port: SwitchPortItem) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }}>
+                {formatPortSpeed(port.speed)}
+              </span>
+            )} style={{ width: 100 }} />
+            <Column header="Duplex" body={(port: SwitchPortItem) => (
+              <span style={{ fontSize: 13, color: "#64748b" }}>
+                {formatPortDuplex(port.duplex)}
+              </span>
             )} style={{ width: 90 }} />
           </DataTablePanel>
         </div>

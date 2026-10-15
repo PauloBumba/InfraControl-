@@ -37,7 +37,8 @@ public sealed class SearchSwitchPortsQueryHandler(
         return new PagedResult<SwitchPortDto>(
             result.Items
                 .Select(port => new SwitchPortDto(
-                    port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp))
+                    port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp,
+                    port.Speed, port.Duplex))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -59,6 +60,8 @@ public sealed class GetSwitchPortQueryHandler(ISwitchPortRepository repository)
         var port = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Porta '{request.Id}' não encontrado.");
 
-        return new SwitchPortDto(port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp);
+        return new SwitchPortDto(
+            port.Id, port.DeviceId, port.Name, port.Description, port.LinkUp,
+            port.Speed, port.Duplex);
     }
 }

@@ -12,10 +12,13 @@ using Microsoft.Extensions.Logging;
 namespace InfraControl.Application.Network.SwitchPorts.Commands;
 
 // Fase 07c — sincroniza o cadastro de SwitchPort a partir do port_table
-// do controller UniFi. Portas existentes (por nome) têm LinkUp atualizado;
-// portas novas são criadas; portas manuais ausentes do controller são
-// PRESERVADAS (não deletadas — podem ser de switch non-UniFi ou registro
-// manual legítimo). REGRA 8: contadores/PoE NÃO são persistidos.
+// do controller UniFi. Portas existentes (por nome) têm a OBSERVAÇÃO
+// atualizada (LinkUp/velocidade/duplex — F30-T001 S4a); portas novas são
+// criadas; portas manuais ausentes do controller são PRESERVADAS (não
+// deletadas — podem ser de switch non-UniFi ou registro manual legítimo).
+// REGRA 8: contadores/PoE NÃO são persistidos (ADR-028 §10 — PoE continua
+// ao vivo); velocidade/duplex passaram a persistir por serem cadastro
+// semi-estático (docs/42 §B, §7 itens 8-9 do docs/51).
 
 public sealed record SyncPortsResultDto(
     int Created,
@@ -96,13 +99,17 @@ public sealed class SyncSwitchPortsFromUnifiCommandHandler(
 
             if (byName.TryGetValue(name, out var existingPort))
             {
-                // Atualiza apenas LinkUp (name/description já existem).
-                // Re-fetch tracked — SearchAsync é AsNoTracking.
+                // Re-fetch tracked — SearchAsync é AsNoTracking. Observe grava
+                // link/velocidade/duplex (cadastro manual intacto) e devolve
+                // false quando nada mudou — sync idempotente não conta update.
                 var tracked = await repository.GetByIdAsync(
                     existingPort.Id, cancellationToken);
-                if (tracked is not null && tracked.LinkUp != controllerPort.LinkUp)
+                if (tracked is not null
+                    && tracked.Observe(
+                        controllerPort.LinkUp,
+                        SwitchPortSpeedParser.Parse(controllerPort.Speed),
+                        SwitchPortDuplexParser.Parse(controllerPort.FullDuplex)))
                 {
-                    tracked.Update(tracked.Name, tracked.Description, controllerPort.LinkUp);
                     updated++;
                 }
             }
@@ -110,7 +117,10 @@ public sealed class SyncSwitchPortsFromUnifiCommandHandler(
             {
                 var newPort = SwitchPort.Create(
                     request.SwitchId, name, description: null);
-                newPort.Update(newPort.Name, newPort.Description, controllerPort.LinkUp);
+                newPort.Observe(
+                    controllerPort.LinkUp,
+                    SwitchPortSpeedParser.Parse(controllerPort.Speed),
+                    SwitchPortDuplexParser.Parse(controllerPort.FullDuplex));
                 repository.AddAsync(newPort, cancellationToken);
                 byName[name] = newPort;
                 created++;

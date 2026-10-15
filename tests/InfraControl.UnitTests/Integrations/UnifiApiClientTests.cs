@@ -174,9 +174,14 @@ public sealed class UnifiApiClientTests
         ports[0].PortIndex.Should().Be(1);
         ports[0].LinkUp.Should().BeTrue();
         ports[0].Speed.Should().Be("1000");
+        ports[0].FullDuplex.Should().BeTrue();
         ports[0].PortVlan.Should().Be(10);
         ports[0].PoeStatus.Should().Be("RUNNING");
         ports[1].LinkUp.Should().BeFalse();
+        // F30-T001 S4a: a Port 2 não traz "full_duplex" no JSON — ausência é
+        // null, nunca false (que viraria meio-duplex inventado na persistência).
+        ports[1].FullDuplex.Should().BeNull();
+        ports[1].Speed.Should().BeNull("controller reportou \"\"");
     }
 
     [Fact]

@@ -314,19 +314,26 @@ public sealed class SyncUnifiInventoryCommandHandler(
 
             if (byName.TryGetValue(name, out var existingPort))
             {
-                // Re-fetch tracked — SearchAsync é AsNoTracking.
+                // Re-fetch tracked — SearchAsync é AsNoTracking. Observe grava
+                // link/velocidade/duplex e devolve false se nada mudou.
                 var tracked = await switchPortRepository.GetByIdAsync(
                     existingPort.Id, cancellationToken);
-                if (tracked is not null && tracked.LinkUp != controllerPort.LinkUp)
+                if (tracked is not null
+                    && tracked.Observe(
+                        controllerPort.LinkUp,
+                        SwitchPortSpeedParser.Parse(controllerPort.Speed),
+                        SwitchPortDuplexParser.Parse(controllerPort.FullDuplex)))
                 {
-                    tracked.Update(tracked.Name, tracked.Description, controllerPort.LinkUp);
                     updated++;
                 }
             }
             else
             {
                 var newPort = SwitchPort.Create(deviceId, name, description: null);
-                newPort.Update(newPort.Name, newPort.Description, controllerPort.LinkUp);
+                newPort.Observe(
+                    controllerPort.LinkUp,
+                    SwitchPortSpeedParser.Parse(controllerPort.Speed),
+                    SwitchPortDuplexParser.Parse(controllerPort.FullDuplex));
                 switchPortRepository.AddAsync(newPort, cancellationToken);
                 byName[name] = newPort;
                 created++;
