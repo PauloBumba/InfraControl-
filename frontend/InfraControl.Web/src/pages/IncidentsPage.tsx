@@ -24,6 +24,7 @@ import {
   acknowledgeIncident,
   changeIncidentStatus,
   createIncident,
+  generateIncidentKnowledge,
   investigateIncident,
   listIncidents,
   updateIncident,
@@ -174,6 +175,20 @@ export function IncidentsPage() {
     setInvestigationError(null);
     investigationMutation.mutate(incident.id);
   }
+
+  // Fase D (ADR-054) — rascunho de knowledge com IA nasce Draft; o
+  // aviso aponta a revisão/publicação na página Knowledge (ADR-034).
+  const draftMutation = useUpdateMutation({
+    invalidate: [],
+    mutationFn: (id: string) => generateIncidentKnowledge(id),
+    onSuccess: (data) => {
+      setActionError(null);
+      setNotice(
+        `Rascunho de knowledge criado: "${data.title}" — revise e publique na página Knowledge.`,
+      );
+    },
+    onError: (error) => setActionError(mutationErrorMessage(error)),
+  });
 
   function openEdit(incident: IncidentItem) {
     setEditing(incident);
@@ -490,7 +505,7 @@ export function IncidentsPage() {
               <Column header="Resolvido em" body={(incident: IncidentItem) => incident.resolvedAt ? formatDateTime(new Date(incident.resolvedAt)) : "—"} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
               <Column
                 header=""
-                style={{ width: 285 }}
+                style={{ width: 320 }}
                 body={(incident: IncidentItem) => (
                   <Can level="operate">
                     <div className="flex gap-1 align-items-center">
@@ -510,6 +525,15 @@ export function IncidentsPage() {
                         style={{ padding: "4px 8px" }}
                       >
                         <i className="pi pi-sparkles" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        title="Gerar rascunho de knowledge com IA (Draft)"
+                        disabled={draftMutation.isPending}
+                        onClick={() => draftMutation.mutate(incident.id)}
+                        style={{ padding: "4px 8px" }}
+                      >
+                        <i className="pi pi-file-edit" />
                       </Button>
                       {incident.status === "Open" && (
                         <Button
@@ -561,6 +585,15 @@ export function IncidentsPage() {
                   style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
                 >
                   <i className="pi pi-sparkles" /> Investigar
+                </Button>
+                <Button
+                  variant="ghost"
+                  title="Gerar rascunho de knowledge com IA (Draft)"
+                  disabled={draftMutation.isPending}
+                  onClick={() => draftMutation.mutate(incident.id)}
+                  style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
+                >
+                  <i className="pi pi-file-edit" /> Artigo (IA)
                 </Button>
                 {incident.status === "Open" && (
                   <Button

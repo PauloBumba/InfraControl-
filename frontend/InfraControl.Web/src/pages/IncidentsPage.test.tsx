@@ -6,7 +6,7 @@ import { Provider } from "react-redux";
 import { IncidentsPage } from "./IncidentsPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
-import { createIncident, investigateIncident, listIncidents, updateIncident } from "@/services/api/incidents";
+import { createIncident, generateIncidentKnowledge, investigateIncident, listIncidents, updateIncident } from "@/services/api/incidents";
 
 /**
  * F29-T001B — piloto do `useFormErrors`.
@@ -27,12 +27,14 @@ vi.mock("@/services/api/incidents", () => ({
   acknowledgeIncident: vi.fn(),
   updateIncident: vi.fn(),
   investigateIncident: vi.fn(),
+  generateIncidentKnowledge: vi.fn(),
 }));
 
 const listIncidentsMock = vi.mocked(listIncidents);
 const createIncidentMock = vi.mocked(createIncident);
 const updateIncidentMock = vi.mocked(updateIncident);
 const investigateIncidentMock = vi.mocked(investigateIncident);
+const generateIncidentKnowledgeMock = vi.mocked(generateIncidentKnowledge);
 
 function seedIncident() {
   return {
@@ -219,5 +221,37 @@ describe("IncidentsPage — investigação com IA", () => {
       await screen.findByText("IA indisponível: nenhum provedor configurado no servidor."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /fechar/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Knowledge Engineer (ADR-054 · Fase D) — `POST /incidents/{id}/generate-knowledge`
+ * (Operate). O rascunho nasce Draft no backend; a UI só confirma com o
+ * título do artigo e aponta a revisão/publicação na página Knowledge.
+ */
+describe("IncidentsPage — geração de rascunho de knowledge com IA", () => {
+  it("should call the AI draft endpoint and announce the draft for review", async () => {
+    listIncidentsMock.mockResolvedValue(seedIncident());
+    generateIncidentKnowledgeMock.mockResolvedValue({
+      id: "22222222-3333-4444-5555-666666666666",
+      title: "Incidente: chuva no datacenter",
+      content: "## Contexto\n...",
+      status: 0,
+    });
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /gerar rascunho de knowledge com ia/i }),
+    );
+
+    expect(generateIncidentKnowledgeMock).toHaveBeenCalledWith(
+      "11111111-2222-3333-4444-555566667777",
+    );
+    expect(
+      await screen.findByText(/Rascunho de knowledge criado: "Incidente: chuva no datacenter"/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/revise e publique na página Knowledge/)).toBeInTheDocument();
   });
 });

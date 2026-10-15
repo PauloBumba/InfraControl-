@@ -122,3 +122,23 @@ export function investigateIncident(id: string): Promise<InvestigationResult> {
     `/incidents/${id}/investigate`,
   ) as Promise<InvestigationResult>;
 }
+
+/**
+ * Knowledge Engineer (ADR-054 · Fase D) —
+ * `POST /incidents/{id}/generate-knowledge` (Operate): rascunho de
+ * artigo com IA. Nasce `Draft` (workflow ADR-034 intacto) — a publicação
+ * é transição humana na página Knowledge. 503 amigável sem provider
+ * configurado (§44/§57).
+ */
+export interface KnowledgeDraft {
+  id: string;
+  title: string;
+  content: string;
+  status: number;
+}
+
+export function generateIncidentKnowledge(id: string): Promise<KnowledgeDraft> {
+  return api.post<KnowledgeDraft>(
+    `/incidents/${id}/generate-knowledge`,
+  ) as Promise<KnowledgeDraft>;
+}
