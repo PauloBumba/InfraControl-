@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { AiChatEvidence } from "./ai";
 
 /**
  * F17-T003 — conexão da IncidentsPage ao backend (contrato real de
@@ -101,4 +102,23 @@ export function updateIncident(
     description: input.description ?? null,
     severity: input.severity,
   });
+}
+
+/**
+ * AI Investigation (ADR-053 · Fase C) — `POST /incidents/{id}/investigate`
+ * (Operate). Análise LEVEL 0 do incidente com evidências do Knowledge;
+ * 503 amigável quando nenhum provider está configurado (estado degradado §44).
+ */
+export interface InvestigationResult {
+  analysis: string;
+  evidences: AiChatEvidence[];
+  provider: string;
+  model: string;
+  usedFallback: boolean;
+}
+
+export function investigateIncident(id: string): Promise<InvestigationResult> {
+  return api.post<InvestigationResult>(
+    `/incidents/${id}/investigate`,
+  ) as Promise<InvestigationResult>;
 }

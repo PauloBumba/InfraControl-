@@ -6,7 +6,7 @@ import { Provider } from "react-redux";
 import { IncidentsPage } from "./IncidentsPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
-import { createIncident, listIncidents, updateIncident } from "@/services/api/incidents";
+import { createIncident, investigateIncident, listIncidents, updateIncident } from "@/services/api/incidents";
 
 /**
  * F29-T001B — piloto do `useFormErrors`.
@@ -26,11 +26,13 @@ vi.mock("@/services/api/incidents", () => ({
   changeIncidentStatus: vi.fn(),
   acknowledgeIncident: vi.fn(),
   updateIncident: vi.fn(),
+  investigateIncident: vi.fn(),
 }));
 
 const listIncidentsMock = vi.mocked(listIncidents);
 const createIncidentMock = vi.mocked(createIncident);
 const updateIncidentMock = vi.mocked(updateIncident);
+const investigateIncidentMock = vi.mocked(investigateIncident);
 
 function seedIncident() {
   return {
@@ -154,5 +156,68 @@ describe("IncidentsPage — edição de campos", () => {
       "11111111-2222-3333-4444-555566667777",
       expect.objectContaining({ title: "Chuva intensa" }),
     );
+  });
+});
+
+/**
+ * AI Investigation (ADR-053 · Fase C) — `POST /incidents/{id}/investigate`
+ * (Operate). O painel abre com o estado pendente, exibe a análise + as
+ * evidências + provider/modelo; falha (ex.: 503 sem provider) fica DENTRO
+ * do painel, com o botão Fechar ainda disponível.
+ */
+describe("IncidentsPage — investigação com IA", () => {
+  it("should investigate the incident and render analysis with evidences", async () => {
+    listIncidentsMock.mockResolvedValue(seedIncident());
+    investigateIncidentMock.mockResolvedValue({
+      analysis: "Hipótese (Probable): saturação do enlace. [E1]",
+      evidences: [
+        {
+          source: "knowledge",
+          sourceType: "article",
+          citation: "Artigo #7 — Link principal",
+          confidence: "Possible",
+          timestampUtc: "2026-10-01T12:00:00Z",
+        },
+      ],
+      provider: "ollama",
+      model: "qwen2.5-coder:1.5b",
+      usedFallback: false,
+    });
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /investigar incidente com ia/i }),
+    );
+
+    expect(investigateIncidentMock).toHaveBeenCalledWith(
+      "11111111-2222-3333-4444-555566667777",
+    );
+    expect(
+      await screen.findByText("Hipótese (Probable): saturação do enlace. [E1]"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Artigo #7 — Link principal")).toBeInTheDocument();
+    expect(screen.getByText(/ollama · qwen2\.5-coder:1\.5b/)).toBeInTheDocument();
+    expect(screen.getByText("LEVEL 0 · somente análise")).toBeInTheDocument();
+  });
+
+  it("should keep the panel open with the friendly failure when the provider is unavailable", async () => {
+    listIncidentsMock.mockResolvedValue(seedIncident());
+    investigateIncidentMock.mockRejectedValue(
+      new Error("IA indisponível: nenhum provedor configurado no servidor."),
+    );
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /investigar incidente com ia/i }),
+    );
+
+    expect(
+      await screen.findByText("IA indisponível: nenhum provedor configurado no servidor."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /fechar/i })).toBeInTheDocument();
   });
 });

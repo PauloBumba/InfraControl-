@@ -355,6 +355,8 @@ public static class DependencyInjection
         services.AddSingleton<ISnmpClient, SharpSnmpSnmpClient>();
         services.AddScoped<IMonitoringProvider, SnmpTonerProvider>();
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpColorTonerProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpPrinterStatusProvider>();
         services.AddScoped<IMonitoringProvider, SnmpSystemMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, SnmpInterfacesMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
@@ -504,10 +506,13 @@ public static class DependencyInjection
         // servir este registry quando o ADR-039 determinar.
         services.AddScoped<GetActiveIncidentsTool>();
         services.AddScoped<SearchKnowledgeTool>();
+        // Fase C (ADR-053 §4): tool de leitura de 1 incidente por id.
+        services.AddScoped<GetIncidentTool>();
         services.AddScoped<IAiToolRegistry>(provider => new InMemoryToolRegistry(
         [
             provider.GetRequiredService<GetActiveIncidentsTool>(),
             provider.GetRequiredService<SearchKnowledgeTool>(),
+            provider.GetRequiredService<GetIncidentTool>(),
         ]));
         services.AddScoped<IAiToolExecutor, AiToolExecutor>();
 
