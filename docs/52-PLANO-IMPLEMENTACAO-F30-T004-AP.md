@@ -1,8 +1,9 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
 > **Status**: S0 ✅ (`743d010`) · S1 ✅ (`b2a912a`) · S2 ✅ (`94de61b`) ·
-> S3 ✅ (`52f36ff`) — S4: ADR-056 redigido (status **proposto**), aguarda
-> aprovação humana; S1b (banda por cliente) aguarda decisão.
+> S3 ✅ (`52f36ff`) · ADR-056 **aceito** 2026-10-15 — S4 em execução
+> (fatiado abaixo); S1b (banda por cliente) em seguida, autorizados
+> juntos pelo decisor.
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -227,17 +228,33 @@ repo, suíte completa verde, commit próprio (autorizado).
 
 #### Execução do S4 — passo 0 (2026-10-15)
 
-- **ADR-056 redigido** (`docs/adr/ADR-056-PREVENCAO-WIFI-LIMIARES-
-  TENDENCIAS.md`, status **proposto**): tendência determinística sobre o
-  histórico do Zabbix (`IZabbixClient.GetHistoryAsync` já existe desde a
-  F29), limiares 80%/90% de saturação, RSSI < −70 dBm, densidade > 50
-  clientes, ativação opt-in por device, anti-flapping com dupla
-  confirmação; persistência só do Alert/Evento (REGRA 8 / ADR-028 §10 +
-  pipeline ADR-027). Interferência/noise floor, PoE e tela de tendência
-  ficam declarados como fora do primeiro release.
-- **Zero código** — o portão é a aprovação humana do ADR; depois de
-  aprovado, o S4 vira fatias (precedente docs/51 §S6: "redigir ADR,
-  aprovar, depois fatiar").
+- **ADR-056 redigido e APROVADO** (`docs/adr/ADR-056-PREVENCAO-WIFI-
+  LIMIARES-TENDENCIAS.md`, status **aceito**): tendência determinística
+  sobre o histórico do Zabbix (`IZabbixClient.GetHistoryAsync` já existe
+  desde a F29), limiares 80%/90% de saturação, RSSI < −70 dBm, densidade
+  > 50 clientes, ativação opt-in por device, anti-flapping; persistência
+  só do Alert/Evento (REGRA 8 / ADR-028 §10 + pipeline ADR-027).
+  Interferência/noise floor, PoE e tela de tendência ficam declarados
+  como fora do primeiro release.
+- **Fatiamento do S4** (após aprovação, precedente docs/51 §S6):
+  1. **S4a** — núcleo: `WifiPreventionThresholds` (defaults em código) +
+     avaliador puro (janela Zabbix → vereditos, inclinação por mínimos
+     quadrados, "sustentado" = N amostras consecutivas na janela —
+     anti-flamping STATELESS, sem tabela nova de estado);
+  2. **S4b** — comando `EvaluateWifiPreventionCommand` (CQRS +
+     `IAuthorizedRequest`): device → host Zabbix (`IZabbixHostsRepository`)
+     → histórico por métrica (N ≥ 12 exigidos; item ausente = regra não
+     roda) → abre/fecha alertas pelo pipeline existente; opt-in =
+     `MonitoringChecks` do device contém `SnmpRadio` (configuração
+     explícita por device que já existe — sem migração, sem coluna nova);
+  3. **S4c** — gatilho: endpoint manual (`RoleAccess.Operate`) — o
+     driver agendado entra quando o scheduler de polling existir para
+     todos os devices (futura fatia; ADR §1 deixa o driver como decisão
+     de fatia).
+- **Interpretação registrada**: "2 avaliações consecutivas" do ADR §4 é
+  implementada como **2+ amostras consecutivas na janela de histórico** —
+  mesmo efeito anti-flapping, sem estado persistido (a alternativa exigiria
+  tabela nova, que o ADR §2 proíbe).
 
 ---
 

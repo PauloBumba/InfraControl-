@@ -1,7 +1,7 @@
 # ADR-056: Prevenção WiFi — limiares, tendências e histórico via Zabbix
 
-- **Status**: **proposto** (aguarda aprovação humana — docs/51 §S6 e
-  docs/52 §S4 exigem ADR aprovado antes de qualquer código)
+- **Status**: **aceito** (aprovado pelo decisor humano em 2026-10-15 —
+  docs/51 §S6 e docs/52 §S4 exigiam ADR aprovado antes de qualquer código)
 - **Data**: 2026-10-15
 - **Contexto**: F30-T004 S4 (ficha 45 §G — "Histórico e Prevenção").
 
