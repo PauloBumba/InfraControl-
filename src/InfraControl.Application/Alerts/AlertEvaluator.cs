@@ -16,6 +16,9 @@ public static class AlertThresholds
     public const int TonerMinPercent = 20;
     public const int DrumMinPercent = 10;
 
+    /// <summary>F30-T002a: pior toner colorido (C/M/Y) abaixo = Warning.</summary>
+    public const int ColorTonerMinPercent = 20;
+
     /// <summary>Falhas consecutivas de Ping antes de abrir o alerta (F6-T002).</summary>
     public const int PingFailureStreak = 3;
 }
@@ -106,6 +109,14 @@ public sealed class AlertEvaluator(
                 await EvaluateSupplyAsync(
                     device, kind, result, AlertThresholds.DrumMinPercent, "Drum",
                     cancellationToken);
+                break;
+
+            case CheckKind.SnmpColorToner:
+                await EvaluateColorTonerAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.SnmpPrinterStatus:
+                await EvaluatePrinterStatusAsync(device, kind, result, cancellationToken);
                 break;
 
             default:
@@ -249,6 +260,103 @@ public sealed class AlertEvaluator(
             await ResolveActiveAsync(device.Id, kind, cancellationToken);
         }
     }
+
+    /// <summary>
+    /// F30-T002a: avalia a pior cor (worstPercent/worstColor do provider)
+    /// contra o limiar de toner colorido. Sem worstPercent = erro de SNMP
+    /// ou impressora mono-only → não avalia.
+    /// </summary>
+    private async Task EvaluateColorTonerAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null
+            || !result.Values.TryGetValue("worstPercent", out var raw)
+            || !int.TryParse(raw, out var percent))
+            return;
+
+        result.Values.TryGetValue("worstColor", out var color);
+        var colorLabel = string.IsNullOrWhiteSpace(color) ? "Toner colorido" : $"Toner {color}";
+
+        if (percent < AlertThresholds.ColorTonerMinPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"{colorLabel} de '{device.Name}' em {percent}% "
+                    + $"(mínimo {AlertThresholds.ColorTonerMinPercent}%).",
+                cancellationToken);
+        }
+        else
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// F30-T002b: estado da impressora — pior condição prevalece (ordem:
+    /// atolamento Critical > todas as bandejas vazias Critical > tampa
+    /// Warning > bandeja parcial Warning > alertas ativos Warning). Sem
+    /// condição → resolve. Values ausentes (erro SNMP) → não avalia.
+    /// </summary>
+    private async Task EvaluatePrinterStatusAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null)
+            return;
+
+        var inputCount = ReadInt(result.Values, "inputCount");
+        var inputEmptyCount = ReadInt(result.Values, "inputEmptyCount");
+        var inputJammedCount = ReadInt(result.Values, "inputJammedCount");
+        var activeAlertCount = ReadInt(result.Values, "activeAlertCount");
+        var coverOpen = result.Values.TryGetValue("coverOpen", out var rawCover)
+            && string.Equals(rawCover, "true", StringComparison.OrdinalIgnoreCase);
+
+        string? message = null;
+        var severity = AlertSeverity.Warning;
+
+        if (inputJammedCount is > 0)
+        {
+            severity = AlertSeverity.Critical;
+            message = $"Atolamento de papel detectado em '{device.Name}' "
+                + $"({inputJammedCount} bandeja(s) travada(s)).";
+        }
+        else if (inputCount is > 0 && inputEmptyCount >= inputCount)
+        {
+            severity = AlertSeverity.Critical;
+            message = $"Todas as bandejas de '{device.Name}' estão vazias "
+                + $"({inputEmptyCount}/{inputCount}).";
+        }
+        else if (coverOpen)
+        {
+            message = $"Tampa de '{device.Name}' aberta.";
+        }
+        else if (inputEmptyCount is > 0)
+        {
+            message = $"{inputEmptyCount} bandeja(s) de '{device.Name}' sem mídia.";
+        }
+        else if (activeAlertCount is > 0)
+        {
+            message = $"{activeAlertCount} alerta(s) ativo(s) na impressora '{device.Name}'.";
+        }
+
+        if (message is null)
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+            return;
+        }
+
+        await OpenOrSuppressAsync(device, kind, severity, message, cancellationToken);
+    }
+
+    private static int ReadInt(IReadOnlyDictionary<string, string> values, string key)
+        => values.TryGetValue(key, out var raw) && int.TryParse(raw, out var parsed)
+            ? parsed
+            : 0;
 
     /// <summary>
     /// F6-T004: com upstream alcançável (BFS nas Connections) em Incident

@@ -21,7 +21,28 @@ public enum CheckKind
     /// </summary>
     SnmpInterfaces = 6,
 
+    /// 
+    /// F30-T002a: toner colorido C/M/Y (Printer MIB prtMarkerSuppliesTable).
+    /// Não é default do Printer (opt-in por device quando o community SNMP
+    /// estiver liberado) — monocromático continua sendo o SnmpToner.
+    /// </summary>
+    SnmpColorToner = 7,
+
     /// <summary>
+    /// F30-T002b: estado da impressora — bandejas (prtInputStatus), tampa
+    /// (prtCoverStatus) e alertas (prtAlertTable) via Printer MIB. Opt-in,
+    /// não é default do Printer.
+    /// </summary>
+    SnmpPrinterStatus = 8,
+
+    /// <summary>
+    /// F30-T002c: contadores de uso — total de páginas via prtMarkerLifeCount
+    /// (counter monotônico). Informativo: NÃO abre alerta; volume mensal é
+    /// diff entre checks (histórico fica no Zabbix — REGRA 8 ADR-028).
+    /// Opt-in, não é default do Printer.
+    /// </summary>
+    SnmpPrinterCounters = 9
+
     /// F30-T001 (docs/42 §C): saúde do switch (CPU/memória/temperatura),
     /// escolhendo os OIDs por <c>Device.Vendor</c>. Disponível mas NÃO é
     /// default de nenhum tipo (DeviceProfileDefaults intocado): habilitar por
@@ -29,4 +50,5 @@ public enum CheckKind
     /// SnmpInterfaces.
     /// </summary>
     SnmpHealth = 7
+
 }

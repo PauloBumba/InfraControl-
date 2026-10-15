@@ -346,10 +346,23 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     <div className="uni-shell">
       <aside className={sidebarClassName}>
         <div className="uni-sidebar-logo">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-            <circle cx="12" cy="12" r="11" stroke="#3b82f6" strokeWidth="1.5"/>
-            <path d="M8 9 C8 7.5 9.5 6 12 6 C14.5 6 16 7.5 16 9 C16 10.5 14.5 12 12 12 L12 18" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="12" cy="18" r="1" fill="#3b82f6"/>
+          <svg viewBox="0 0 64 64" width="22" height="22">
+            <defs>
+              <linearGradient id="infraSidebarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:1}} />
+                <stop offset="100%" style={{stopColor:'#2563eb',stopOpacity:1}} />
+              </linearGradient>
+            </defs>
+            <rect width="64" height="64" rx="12" fill="url(#infraSidebarGrad)" />
+            <g fill="white">
+              <rect x="16" y="12" width="32" height="40" rx="4" fill="none" stroke="white" strokeWidth="2.5"/>
+              <rect x="20" y="18" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
+              <rect x="20" y="28" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
+              <rect x="20" y="38" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
+              <circle cx="38" cy="21" r="1.5" fill="#22c55e"/>
+              <circle cx="38" cy="31" r="1.5" fill="#22c55e"/>
+              <circle cx="38" cy="41" r="1.5" fill="#eab308"/>
+            </g>
           </svg>
           <span>InfraControl</span>
           <button

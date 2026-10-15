@@ -353,6 +353,271 @@ public sealed class AlertEvaluatorTests : IDisposable
             .Should().BeEmpty();
     }
 
+    // ── F30-T002a: color toner (C/M/Y) ──────────────────────────────────
+
+    [Fact]
+    public async Task ColorTonerWorstBelow20Percent_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-cmy");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpColorToner,
+            Result(CheckKind.SnmpColorToner, true, new Dictionary<string, string>
+            {
+                ["cyanPercent"] = "60",
+                ["magentaPercent"] = "12",
+                ["yellowPercent"] = "80",
+                ["worstPercent"] = "12",
+                ["worstColor"] = "magenta"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpColorToner);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("12%");
+        open[0].Message.Should().Contain("magenta");
+    }
+
+    [Fact]
+    public async Task ColorTonerAboveThreshold_ShouldResolveOpenAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-cmy-2");
+        context.Alerts.Add(Alert.Create(
+            printer.Id, CheckKind.SnmpColorToner, AlertSeverity.Warning, "magenta 12%"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpColorToner,
+            Result(CheckKind.SnmpColorToner, true, new Dictionary<string, string>
+            {
+                ["cyanPercent"] = "60",
+                ["magentaPercent"] = "55",
+                ["yellowPercent"] = "80",
+                ["worstPercent"] = "55",
+                ["worstColor"] = "magenta"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpColorToner))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ColorTonerWithoutWorstPercent_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-cmy-3");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpColorToner,
+            Result(CheckKind.SnmpColorToner, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpColorToner))
+            .Should().BeEmpty("erro de SNMP não avalia nível");
+    }
+
+    // ── F30-T002b: printer status (bandejas/tampa/alertas) ──────────────
+
+    [Fact]
+    public async Task PrinterJammed_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-1");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "2",
+                ["inputEmptyCount"] = "0",
+                ["inputJammedCount"] = "1",
+                ["coverOpen"] = "false",
+                ["activeAlertCount"] = "0"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Atolamento");
+    }
+
+    [Fact]
+    public async Task AllTraysEmpty_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-2");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "2",
+                ["inputEmptyCount"] = "2",
+                ["inputJammedCount"] = "0",
+                ["coverOpen"] = "false",
+                ["activeAlertCount"] = "0"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("vazias");
+    }
+
+    [Fact]
+    public async Task OneTrayEmpty_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-3");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "2",
+                ["inputEmptyCount"] = "1",
+                ["inputJammedCount"] = "0",
+                ["coverOpen"] = "false",
+                ["activeAlertCount"] = "0"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("bandeja");
+    }
+
+    [Fact]
+    public async Task CoverOpen_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-4");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "1",
+                ["inputEmptyCount"] = "0",
+                ["inputJammedCount"] = "0",
+                ["coverOpen"] = "true",
+                ["activeAlertCount"] = "0"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("Tampa");
+    }
+
+    [Fact]
+    public async Task ActiveAlertsWithoutSpecificCondition_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-5");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "1",
+                ["inputEmptyCount"] = "0",
+                ["inputJammedCount"] = "0",
+                ["coverOpen"] = "false",
+                ["activeAlertCount"] = "2"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("2");
+    }
+
+    [Fact]
+    public async Task HealthyStatus_ShouldResolveOpenAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-6");
+        context.Alerts.Add(Alert.Create(
+            printer.Id, CheckKind.SnmpPrinterStatus, AlertSeverity.Warning, "tampa aberta"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "1",
+                ["inputEmptyCount"] = "0",
+                ["inputJammedCount"] = "0",
+                ["coverOpen"] = "false",
+                ["activeAlertCount"] = "0"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PrinterStatusWithoutValues_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-7");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus))
+            .Should().BeEmpty("erro de SNMP não avalia estado");
+    }
+
+    [Fact]
+    public async Task JamBeatsCoverOpen_ShouldOpenCriticalNotWarning()
+    {
+        await using var context = await CreateContextAsync();
+        var printer = await SeedDeviceAsync(context, DeviceType.Printer, "pr-st-8");
+
+        await Evaluator(context).EvaluateAsync(
+            printer, CheckKind.SnmpPrinterStatus,
+            Result(CheckKind.SnmpPrinterStatus, true, new Dictionary<string, string>
+            {
+                ["inputCount"] = "1",
+                ["inputEmptyCount"] = "0",
+                ["inputJammedCount"] = "1",
+                ["coverOpen"] = "true",
+                ["activeAlertCount"] = "1"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, printer.Id, CheckKind.SnmpPrinterStatus);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical,
+            "atolamento é a condição mais grave e prevalece");
+        open[0].Message.Should().Contain("Atolamento");
+    }
+
     // ── F6-T003: auto-abertura de Incident em Alert Critical ─────────────
 
     private static async Task<List<Incident>> OpenIncidentsAsync(
