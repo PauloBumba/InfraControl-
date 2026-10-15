@@ -624,8 +624,10 @@ services:
         condition: service_healthy
       ollama-3:
         condition: service_healthy
+    # 127.0.0.1 e não localhost: o nginx do LB só escuta IPv4 (`listen 80`);
+    # wget em localhost cai no ::1 e marca o container como unhealthy.
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/api/tags"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/api/tags"]
       interval: 30s
       timeout: 5s
       retries: 5
