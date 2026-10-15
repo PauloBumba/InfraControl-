@@ -1,3 +1,4 @@
+using InfraControl.Application.AI;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Antiforgery;
@@ -54,6 +55,17 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             AntiforgeryValidationException => (
                 StatusCodes.Status400BadRequest,
                 ["A requisição não pôde ser validada. Recarregue a página e tente novamente."]),
+            // IA (ADR-052 §6 · docs/34 §44/§57): estado degradado e falha
+            // de provider viram status amigáveis ANTES do catch-all de
+            // InvalidOperationException — nunca 500 genérico nem resposta
+            // inventada. Herdam de InvalidOperationException: a ORDEM
+            // destes casos importa.
+            AiProviderNotConfiguredException => (
+                StatusCodes.Status503ServiceUnavailable,
+                ["O serviço de IA não está configurado neste ambiente. Contate o administrador."]),
+            AiGatewayException => (
+                StatusCodes.Status502BadGateway,
+                ["Não foi possível obter resposta do serviço de IA. Tente novamente em instantes."]),
             KeyNotFoundException => (
                 StatusCodes.Status404NotFound, [UserMessage(exception)]),
             UnauthorizedAccessException => (
