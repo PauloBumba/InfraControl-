@@ -11,6 +11,7 @@ import { ApiError } from "@/services/api/client";
 import {
   getDevice,
   getDeviceStatus,
+  getDeviceSystemInfo,
   listDeviceIps,
   listDeviceMacs,
   listLocations,
@@ -18,6 +19,7 @@ import {
   listSwitchPorts,
   type DeviceItem,
   type DeviceStatusItem,
+  type DeviceSystemInfoItem,
   type IpAddressItem,
   type MacAddressItem,
   type NetworkInterfaceItem,
@@ -28,8 +30,8 @@ import {
   type MonitoringResultItem,
 } from "@/services/api/monitoring";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
-import { formatDateTime } from "@/utils/format";
-import { errorMessage } from "@/hooks/queries";
+import { formatDateTime, formatUptime } from "@/utils/format";
+import { errorMessage, useObjectQuery } from "@/hooks/queries";
 
 /**
  * F17-T017 — DeviceDetailPage conectada ao backend (substitui
@@ -141,6 +143,23 @@ export function DeviceDetailPage() {
 
   // Abas carregam uma vez (ref síncrono protege do duplo-effect do StrictMode).
   const requested = useRef<Set<Tab>>(new Set());
+
+  // F30-T004 S3 (docs/52 §S3) — identificação do sistema pelo histórico SNMP,
+  // no mesmo molde da faixa da SwitchesPage (F30-T001 S5b): uptime formatado
+  // + sysDescr cru, genérico para QUALQUER tipo de device. Erro/pending
+  // escondem a faixa (a falha não polui a página); envelope null vira "sem
+  // leitura" — nada inventado (REGRA 8: o endpoint é sob demanda, sem custo
+  // de agente).
+  const systemInfo = useObjectQuery<DeviceSystemInfoItem>(
+    ["deviceSystemInfo", id ?? ""],
+    async () =>
+      (await getDeviceSystemInfo(id as string)) ?? {
+        uptimeSeconds: null,
+        sysDescr: null,
+        capturedAtUtc: null,
+      },
+    { enabled: id !== undefined },
+  );
 
   const loadDevice = useCallback(async () => {
     if (!id) return;
@@ -345,6 +364,17 @@ export function DeviceDetailPage() {
           {device.serial && <span><i className="pi pi-tag" style={{ marginRight: 4 }} />{device.serial}</span>}
           {device.vendor && <span><i className="pi pi-credit-card" style={{ marginRight: 4 }} />{device.vendor}</span>}
           {device.mac && <span style={{ fontFamily: "monospace" }}>{device.mac}</span>}
+          {/* F30-T004 S3 (docs/52 §S3) — uptime/sysDescr do histórico SNMP
+              (padrão S5b da SwitchesPage): label+valor no mesmo text node;
+              "—" onde nunca houve leitura; some em pending/erro. */}
+          {!systemInfo.isPending && !systemInfo.isError && (
+            <>
+              <span>{`Uptime: ${formatUptime(systemInfo.data?.uptimeSeconds ?? null)}`}</span>
+              <span style={{ overflowWrap: "anywhere" }}>
+                {`Sistema: ${systemInfo.data?.sysDescr ?? "—"}`}
+              </span>
+            </>
+          )}
         </div>
       </div>
 

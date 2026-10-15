@@ -1,8 +1,8 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
 > **Status**: S0 (reparo da fusão) ✅ 2026-10-15 (commit `743d010`) ·
-> S1 ✅ 2026-10-15 (commit `b2a912a`) · S2 ✅ CONCLUÍDO 2026-10-15 (aguarda
-> commit) — S3/S4 aguardam autorização.
+> S1 ✅ (commit `b2a912a`) · S2 ✅ (commit `94de61b`) · S3 ✅ CONCLUÍDO
+> 2026-10-15 (aguarda commit) — S4 (exige ADR) e S1b aguardam decisão.
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -189,6 +189,35 @@ repo, suíte completa verde, commit próprio (autorizado).
 - **Testes**: TDD Vitest (RED na coluna/faixa que falta → GREEN); `tsc`/
   `eslint`/suíte verdes.
 - **Depende**: S1, S2.
+
+#### Execução do S3 (2026-10-15)
+
+- **TDD**: RED confirmado — 2 testes da faixa ("Uptime: 1d 1h" e
+  "Uptime: —") falhando por texto ausente → GREEN 4/4.
+- **Entregue** (`DeviceDetailPage.tsx` + `DeviceDetailPage.test.tsx` novo):
+  - faixa `system-info` na barra de identificação do detalhe do device —
+    `useObjectQuery(["deviceSystemInfo", id], getDeviceSystemInfo)`,
+    **genérica para QUALQUER tipo** (endpoint S3 do T001 já genérico);
+    label+valor no mesmo text node (`Uptime: 1d 1h` via `formatUptime` ·
+    `Sistema: <sysDescr cru>`), "—" onde nunca houve leitura, faixa some
+    em pending/erro — mesmo molde da faixa S5b da SwitchesPage;
+  - 4 testes: faixa com valores, dashes honestos, some em erro (guard) e
+    poll de `SnmpRadio` com chaves por rádio na coluna "Detalhes" (guard
+    nasce verde — a coluna é genérica e já renderizava qualquer `values`).
+- **Confirmado sem código**: `SnmpRadio`/`SnmpHealth` já aparecem no
+  "Últimos polls" do detalhe (coluna Detalhes genérica) — a exigência do
+  escopo está coberta pelo contrato; WiFiPage não mudou (S1 bastou:
+  telemetria de rádios do controller + agregados ao vivo entregues).
+- **Ajustes de teste no caminho** (ambos documentados): clique na aba
+  "Monitoramento" precisou de espera (`findByRole` antes — o click
+  síncrono caía no "Carregando…", a página usa loader manual) e o render
+  ganhou `QueryClientProvider` (a página passou a usar `useObjectQuery`).
+- **Validação**: filtrado **4/4** · `tsc` **0** · `eslint` **0** (1 warning
+  pré-existente PrintersPage) · suíte completa com 9 falhas de timeout em
+  6 arquivos (SwitchesPage/PdiAccompanimentDialog/TasksPage/InvitationsPage/
+  DevicesPage/AccountPage — **0 asserções**, durações 13-20s, mesmo flake
+  de carga registrado no S0/S1; nenhum arquivo do S3) e **36/36 verdes**
+  quando os 6 rodam isolados.
 
 ### S4 — Prevenção (área G) — **exige ADR antes**
 
