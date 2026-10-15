@@ -88,6 +88,18 @@ public sealed class UniFiSettingsCommandsTests
         public Task<UnifiPortsSummaryDto> GetPortsSummaryAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult(new UnifiPortsSummaryDto(0, 0));
+
+        // Fase 07e (ADR-051): membro novo na interface. Este fake serve às
+        // settings — falhar alto se algum teste chegar a escrever porta.
+        public Task SetPortConfigAsync(
+            string deviceMac,
+            int portIndex,
+            bool? disabled,
+            int? portVlan,
+            CancellationToken cancellationToken = default)
+            => throw new NotImplementedException(
+                "Fake não prevê escrita de porta (ADR-051).");
+
         public Task<IReadOnlyList<UnifiClientTrafficDto>> ListClientTrafficAsync(
             CancellationToken cancellationToken = default)
         {

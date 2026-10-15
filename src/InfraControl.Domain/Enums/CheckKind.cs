@@ -19,5 +19,14 @@ public enum CheckKind
     /// de nenhum tipo (DeviceProfileDefaults intocado): habilitar por device
     /// quando o SNMP community estiver liberado.
     /// </summary>
-    SnmpInterfaces = 6
+    SnmpInterfaces = 6,
+
+    /// <summary>
+    /// F30-T001 (docs/42 §C): saúde do switch (CPU/memória/temperatura),
+    /// escolhendo os OIDs por <c>Device.Vendor</c>. Disponível mas NÃO é
+    /// default de nenhum tipo (DeviceProfileDefaults intocado): habilitar por
+    /// device quando o SNMP community estiver liberado — mesmo gate do
+    /// SnmpInterfaces.
+    /// </summary>
+    SnmpHealth = 7
 }

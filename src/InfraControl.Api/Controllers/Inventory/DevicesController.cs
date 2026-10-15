@@ -42,6 +42,14 @@ public sealed class DevicesController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetDeviceConsolidatedStatusQuery(id), cancellationToken)));
 
+    // F30-T001 (docs/42 §A): identificação do switch (uptime/sysDescr) lida
+    // do histórico de polls — sem coluna nova em Device.
+    [HttpGet("{id:guid}/system-info")]
+    [Authorize]
+    public async Task<IActionResult> GetSystemInfo(Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetDeviceSystemInfoQuery(id), cancellationToken)));
+
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Create(

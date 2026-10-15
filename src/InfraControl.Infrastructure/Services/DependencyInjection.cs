@@ -357,6 +357,9 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpDrumProvider>();
         services.AddScoped<IMonitoringProvider, SnmpSystemMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, SnmpInterfacesMonitoringProvider>();
+        // F30-T001 (docs/42 §C): saúde do switch por fabricante — opt-in por
+        // device, mesmo gate do SnmpInterfaces (DeviceProfileDefaults intocado).
+        services.AddScoped<IMonitoringProvider, SnmpHealthMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
