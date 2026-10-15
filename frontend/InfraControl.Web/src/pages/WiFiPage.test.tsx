@@ -9,6 +9,7 @@ import {
   type UnifiSsidItem,
   type UnifiWifi,
 } from "@/services/api/integrations";
+import { getUnifiLiveClients, type UniFiConnectedClient } from "@/services/api/unifi";
 import { listDevices, type DeviceItem } from "@/services/api/inventory";
 
 /**
@@ -28,11 +29,16 @@ vi.mock("@/services/api/integrations", () => ({
   getUnifiInsights: vi.fn(),
 }));
 
+vi.mock("@/services/api/unifi", () => ({
+  getUnifiLiveClients: vi.fn(),
+}));
+
 vi.mock("@/services/api/inventory", () => ({
   listDevices: vi.fn(),
 }));
 
 const getUnifiWifiMock = vi.mocked(getUnifiWifi);
+const getUnifiLiveClientsMock = vi.mocked(getUnifiLiveClients);
 const listDevicesMock = vi.mocked(listDevices);
 
 const ssids: UnifiSsidItem[] = [
@@ -75,6 +81,19 @@ const accessPoints: UnifiAccessPointItem[] = [
 
 const wifi: UnifiWifi = { ssids, accessPoints, capturedAtUtc: "2026-10-11T10:00:00Z" };
 
+/**
+ * F30-T004 S1 — clientes AO VIVO (`GET /integrations/unifi/clients`):
+ * 5 clientes (1 com fio, 4 sem fio), Corp em 2, Visitantes em 1, um sem
+ * essid (vira "—") e média de sinal só dos 2 que informaram (-55/-67 → -61).
+ */
+const liveClients: UniFiConnectedClient[] = [
+  { mac: "aa:bb:cc:dd:ee:01", ip: "10.0.0.1", hostname: "notebook-ana", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: "Corp", networkName: null, signal: -55, isWired: false, lastSeenUnix: 1 },
+  { mac: "aa:bb:cc:dd:ee:02", ip: "10.0.0.2", hostname: "celular-bruno", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: "Corp", networkName: null, signal: -67, isWired: false, lastSeenUnix: 1 },
+  { mac: "aa:bb:cc:dd:ee:03", ip: "10.0.0.3", hostname: "visita-1", apMac: "f0:9f:c2:00:00:02", switchMac: null, essid: "Visitantes", networkName: null, signal: null, isWired: false, lastSeenUnix: 1 },
+  { mac: "aa:bb:cc:dd:ee:04", ip: "10.0.0.4", hostname: "iot-camera", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: null, networkName: null, signal: null, isWired: false, lastSeenUnix: 1 },
+  { mac: "aa:bb:cc:dd:ee:05", ip: "10.0.0.5", hostname: "pc-mesa", apMac: null, switchMac: "f0:9f:c2:00:00:03", essid: null, networkName: null, signal: null, isWired: true, lastSeenUnix: 1 },
+];
+
 const inventoryAp: DeviceItem = {
   id: "dev-1",
   locationId: "loc-1",
@@ -115,6 +134,7 @@ beforeEach(() => {
   // a preferência de visão vive no localStorage — zera p/ default determinístico
   localStorage.clear();
   getUnifiWifiMock.mockResolvedValue(wifi);
+  getUnifiLiveClientsMock.mockResolvedValue(liveClients);
   listDevicesMock.mockResolvedValue({ items: [inventoryAp], totalCount: 1, page: 1, pageSize: 20 });
 });
 
@@ -224,5 +244,50 @@ describe("WiFiPage — casca da lista (C-3: ListPageShell)", () => {
     // duplicado. Se um dia precisar dos dois, é a casca que muda — não aqui.
     expect(screen.getByText("UniFi fora do ar")).toBeInTheDocument();
     expect(screen.queryByText("API fora do ar")).toBeNull();
+  });
+});
+
+/**
+ * F30-T004 S1 (docs/52 §S1) — painel "Clientes ao vivo": agregados do
+ * `GET /integrations/unifi/clients` que JÁ existe (ficha 45 áreas C/E:
+ * clientes por SSID e RSSI médio). Label e valor no MESMO text node —
+ * `getByText` não junta irmãos (lição do S5c do docs/51).
+ */
+describe("WiFiPage — clientes ao vivo (F30-T004 S1)", () => {
+  it("should show total/wired/wireless and average RSSI derived from live clients", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Total: 5")).toBeInTheDocument();
+    expect(screen.getByText("Com fio: 1")).toBeInTheDocument();
+    expect(screen.getByText("Sem fio: 4")).toBeInTheDocument();
+    expect(screen.getByText("RSSI médio: -61 dBm")).toBeInTheDocument();
+  });
+
+  it("should list clients per SSID ordered by count, rendering a missing essid as —", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Corp: 2")).toBeInTheDocument();
+    expect(screen.getByText("Visitantes: 1")).toBeInTheDocument();
+    expect(screen.getByText("—: 1")).toBeInTheDocument();
+  });
+
+  it("should show an empty clients panel with — when the controller reports none", async () => {
+    getUnifiLiveClientsMock.mockResolvedValue([]);
+    renderPage();
+
+    expect(await screen.findByText("Total: 0")).toBeInTheDocument();
+    expect(screen.getByText("RSSI médio: —")).toBeInTheDocument();
+    expect(screen.getByText("Nenhum cliente sem-fio no Controller")).toBeInTheDocument();
+  });
+
+  it("should show — on the clients panel when the probe fails, keeping the rest of the page", async () => {
+    getUnifiLiveClientsMock.mockRejectedValue(new Error("Clients fora do ar"));
+    renderPage();
+
+    expect(await screen.findByText("Total: —")).toBeInTheDocument();
+    expect(screen.getByText("RSSI médio: —")).toBeInTheDocument();
+    // as demais seções seguem vivas com os dados da sondagem de WiFi
+    expect(screen.getByText("Visitantes")).toBeInTheDocument();
+    expect(screen.queryByText("Clients fora do ar")).toBeNull();
   });
 });

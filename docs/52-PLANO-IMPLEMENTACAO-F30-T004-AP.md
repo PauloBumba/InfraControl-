@@ -1,7 +1,7 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
-> **Status**: S0 (reparo da fusão) ✅ CONCLUÍDO 2026-10-15 (commit `c4fbbef`) —
-> S1 a S4 aguardam autorização.
+> **Status**: S0 (reparo da fusão) ✅ CONCLUÍDO 2026-10-15 (commit `743d010`) ·
+> S1 ✅ CONCLUÍDO 2026-10-15 (aguarda commit) — S2 a S4 aguardam autorização.
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -105,6 +105,16 @@ repo, suíte completa verde, commit próprio (autorizado).
 - **Critério de aceite**: a tabela/painel mostra as 3 métricas com `—` quando
   não há clientes; nenhuma chamada de rede nova.
 - **Depende**: nada (dados já no endpoint).
+- **Executado 2026-10-15** (RED: import inexistente + 4 testes de página →
+  GREEN 21/21; `tsc` 0, `eslint` 0): `src/utils/wifiClients.ts`
+  (`summarizeLiveClients`/`formatSignal`) + painel "Clientes ao vivo" na
+  WiFiPage (sem tabela — logo sem seletor de visão; label+valor no mesmo
+  text node).
+- **Desvio registrado**: "clientes por rádio (2.4/5 GHz)" **não é derivável**
+  — a banda não existe em nenhum ponto da cadeia (o parser backend não lê
+  `radio` do `stat/sta`). Entregue o derivável sem backend: total, fio/sem-fio,
+  clientes por SSID e RSSI médio. Banda por cliente vira pendência §7 item 6
+  (candidata a S1b: 1 campo no DTO + parser).
 
 ### S2 — `SnmpRadioProvider` (IEEE 802.11 MIB, área E/D — fallback SNMP)
 
@@ -183,6 +193,10 @@ S0 (reparo) → commit verde → docs/52 (este doc) → autorização
    prioridade, registrar se o operador pedir.
 5. **Estado do AP "Ready/Upgrading/Isolated"** (ficha §B): o parse atual lê
    `state == 1 → Connected` só; granularidade extra exige contrato novo.
+6. **Banda (2.4/5 GHz) por cliente** (ficha §C): o `stat/sta` do controller
+   traz `radio` por cliente, mas o `UnifiConnectedClientDto` não lê esse
+   campo — exige 1 propriedade no DTO + 1 linha no parser (backend). O S1
+   entregou o derivável sem backend; banda = candidata a **S1b**.
 
 ## 8. Fora de escopo desta execução
 
