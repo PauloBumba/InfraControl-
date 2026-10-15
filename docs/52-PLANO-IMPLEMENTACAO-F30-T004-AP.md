@@ -1,8 +1,8 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
-> **Status**: S0 (reparo da fusão) ✅ 2026-10-15 (commit `743d010`) ·
-> S1 ✅ (commit `b2a912a`) · S2 ✅ (commit `94de61b`) · S3 ✅ CONCLUÍDO
-> 2026-10-15 (aguarda commit) — S4 (exige ADR) e S1b aguardam decisão.
+> **Status**: S0 ✅ (`743d010`) · S1 ✅ (`b2a912a`) · S2 ✅ (`94de61b`) ·
+> S3 ✅ (`52f36ff`) — S4: ADR-056 redigido (status **proposto**), aguarda
+> aprovação humana; S1b (banda por cliente) aguarda decisão.
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -224,6 +224,20 @@ repo, suíte completa verde, commit próprio (autorizado).
 - Limiares de saturação (80/90%), tendência de RSSI, densidade de clientes;
   histórico via Zabbix (REGRA 8). **Não começa sem ADR aprovado** — igual ao
   S6 do docs/51.
+
+#### Execução do S4 — passo 0 (2026-10-15)
+
+- **ADR-056 redigido** (`docs/adr/ADR-056-PREVENCAO-WIFI-LIMIARES-
+  TENDENCIAS.md`, status **proposto**): tendência determinística sobre o
+  histórico do Zabbix (`IZabbixClient.GetHistoryAsync` já existe desde a
+  F29), limiares 80%/90% de saturação, RSSI < −70 dBm, densidade > 50
+  clientes, ativação opt-in por device, anti-flapping com dupla
+  confirmação; persistência só do Alert/Evento (REGRA 8 / ADR-028 §10 +
+  pipeline ADR-027). Interferência/noise floor, PoE e tela de tendência
+  ficam declarados como fora do primeiro release.
+- **Zero código** — o portão é a aprovação humana do ADR; depois de
+  aprovado, o S4 vira fatias (precedente docs/51 §S6: "redigir ADR,
+  aprovar, depois fatiar").
 
 ---
 
