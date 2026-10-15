@@ -8,6 +8,10 @@ import {
   type AiChatEvidence,
   type ChatTurn,
 } from "@/services/api/ai";
+import {
+  generateAutomationRecommendations,
+  type AutomationRecommendation,
+} from "@/services/api/automation";
 
 /** Mensagem da tela: turno + anexos de evidência quando é do assistente. */
 interface ChatView {
@@ -21,11 +25,20 @@ interface ChatView {
 
 const MAX_TURNS = 20;
 
+const priorityConfig: Record<string, { label: string; bg: string; color: string }> = {
+  alta: { label: "Alta", bg: "#fee2e2", color: "#dc2626" },
+  "média": { label: "Média", bg: "#fef3c7", color: "#d97706" },
+  baixa: { label: "Baixa", bg: "#dbeafe", color: "#2563eb" },
+};
+
 /**
  * Copilot (ADR-052 · Fase B): chat grounded LEVEL 0 — a IA responde com
  * evidências citadas ([E1]…), nunca inventa e nunca executa ações. O
  * histórico vive na sessão da tela (últimos 20 turnos são o contrato do
  * backend). Sem provider configurado, o 503 vira aviso degradado.
+ *
+ * **Fase F (ADR-055)**: bloco Automation LEVEL 1 — recomendações para o
+ * humano decidir (sem executar, sem aprovação — blueprint §39).
  */
 export function CopilotPage() {
   const [views, setViews] = useState<ChatView[]>([]);
@@ -34,6 +47,38 @@ export function CopilotPage() {
   const [error, setError] = useState<string | null>(null);
   const [notConfigured, setNotConfigured] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const [recommendations, setRecommendations] = useState<AutomationRecommendation[]>([]);
+  const [recMeta, setRecMeta] = useState<{ provider: string; model: string } | null>(null);
+  const [recLoading, setRecLoading] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [recNotConfigured, setRecNotConfigured] = useState(false);
+  const [recLoaded, setRecLoaded] = useState(false);
+
+  async function handleRecommendations() {
+    if (recLoading) return;
+    setRecLoading(true);
+    setRecError(null);
+    setRecNotConfigured(false);
+    try {
+      const response = await generateAutomationRecommendations();
+      setRecommendations(response.items);
+      setRecMeta({ provider: response.provider, model: response.model });
+      setRecLoaded(true);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 503) {
+        setRecNotConfigured(true);
+      } else {
+        setRecError(
+          caught instanceof Error
+            ? caught.message
+            : "Não foi possível gerar as recomendações.",
+        );
+      }
+    } finally {
+      setRecLoading(false);
+    }
+  }
 
   async function handleSend() {
     const question = input.trim();
@@ -85,7 +130,8 @@ export function CopilotPage() {
       ]);
     } finally {
       setSending(false);
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      // `scrollIntoView` não existe no jsdom (testes) — chamada opcional.
+      bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
     }
   }
 
@@ -236,6 +282,113 @@ export function CopilotPage() {
             {sending ? "Enviando…" : "Enviar"}
           </Button>
         </div>
+      </div>
+
+      <div
+        style={{
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: 14,
+          marginTop: 14,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
+              Assistente de automação
+            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+              LEVEL 1 — recomenda; o humano decide e executa (ADR-055).
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => void handleRecommendations()}
+            disabled={recLoading}
+            style={{ padding: "6px 12px" }}
+          >
+            <i className="pi pi-refresh" />{" "}
+            {recLoading ? "Analisando…" : "Gerar recomendações"}
+          </Button>
+        </div>
+
+        {recNotConfigured && (
+          <ErrorBanner message="O serviço de IA não está configurado neste ambiente. Contate o administrador para habilitar o Ollama (profile ai) ou um provedor externo (ADR-050)." />
+        )}
+        {recError && <ErrorBanner message={recError} />}
+
+        {recLoaded && recommendations.length === 0 && !recError && (
+          <p style={{ fontSize: 13, color: "#64748b" }}>
+            Nenhum sinal ativo (incidentes em aberto) para gerar
+            recomendações — sem sinais, a IA não recomenda.
+          </p>
+        )}
+
+        {recommendations.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {recommendations.map((recommendation, index) => {
+              const priority = priorityConfig[recommendation.priority] ?? {
+                label: "Média",
+                bg: "#fef3c7",
+                color: "#d97706",
+              };
+              return (
+                <div
+                  key={index}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {recommendation.title}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        background: priority.bg,
+                        color: priority.color,
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {priority.label}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>
+                    {recommendation.rationale}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ fontSize: 10, color: "#94a3b8" }}>
+              {recMeta?.provider} · {recMeta?.model} — LEVEL 1: nenhuma ação é
+              executada por esta IA.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
