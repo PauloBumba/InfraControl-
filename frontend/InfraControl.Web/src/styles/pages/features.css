@@ -1,0 +1,75 @@
+/* ============================================================
+   FEATURES — recursos organizados em grupos
+   Carregado por FeaturesPage.tsx
+   ============================================================ */
+
+/* Estilos específicos da página de recursos */
+.uni-public-hero h1 {
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+/* Lista dentro dos cards */
+.uni-public-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uni-public-list li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--uni-text-secondary);
+}
+
+/* Band CTA */
+.uni-public-band {
+  max-width: 1080px;
+  margin: 0 auto;
+  background: var(--surface-card, #fff);
+  border: 1px solid var(--uni-border);
+  border-radius: 12px;
+  padding: 32px 24px;
+}
+
+.uni-public-band-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.uni-public-band-text {
+  flex: 1;
+}
+
+.uni-public-band h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--uni-text);
+}
+
+.uni-public-band p {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--uni-text-secondary);
+}
+
+.uni-public-band .uni-public-button {
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .uni-public-band-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .uni-public-band-text {
+    text-align: center;
+  }
+}

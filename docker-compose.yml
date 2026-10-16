@@ -254,6 +254,11 @@ services:
       Ai__OpenAiCompatible__ApiKey: ${OPENAI_API_KEY:-}
       Ai__Gemini__BaseUrl: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       Ai__Gemini__ApiKey: ${GEMINI_API_KEY:-}
+      # Gateway AI — timeout POR TENTATIVA (appsettings: 30s). Em CPU local
+      # (qwen2.5-coder:1.5b) investigação/geração longas passam de 30s e,
+      # com MaxRetries=1, 2×30s viram 502 (AiGatewayException). Operador
+      # levanta via AI_GATEWAY_TIMEOUT no .env (padrão preserva 30s).
+      Ai__Gateway__Timeout: ${AI_GATEWAY_TIMEOUT:-00:00:30}
       Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
       # Bootstrap Admin (opt-in, idempotente; documentado em .env.example e
       # docs/05). Sem repassar aqui a chave nunca chega na API e o primeiro

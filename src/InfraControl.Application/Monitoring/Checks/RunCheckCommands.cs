@@ -101,6 +101,15 @@ public sealed class RunCheckCommandHandler(
                 $"Check '{check}' só se aplica a devices do tipo AccessPoint.",
                 nameof(check));
 
+        // F30-T003 (docs/44): saúde do servidor (HOST-RESOURCES-MIB) é de
+        // Server — mesmo molde dos guards acima; reusado pelo polling.
+        if (kind is CheckKind.SnmpServerCpu or CheckKind.SnmpServerMemory
+                or CheckKind.SnmpServerDisk
+            && device.Type != DeviceType.Server)
+            throw new ArgumentException(
+                $"Check '{check}' só se aplica a devices do tipo Server.",
+                nameof(check));
+
         if (string.IsNullOrWhiteSpace(device.Ip))
         {
             // Sem IP não há tentativa — não grava histórico (F5-T002).

@@ -49,6 +49,7 @@ const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.Sla
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
 const VirtualizationPage = lazy(() => import("@/pages/VirtualizationPage").then(m => ({ default: m.VirtualizationPage })));
 const PrintersPage = lazy(() => import("@/pages/PrintersPage").then(m => ({ default: m.PrintersPage })));
+const ServersPage = lazy(() => import("@/pages/ServersPage").then(m => ({ default: m.ServersPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -431,6 +432,12 @@ function AppContent() {
           <Route path="/printers" element={
             <ProtectedRoute>
               <PrintersPage />
+            </ProtectedRoute>
+          } />
+          {/* F30-T003d — Servidores & Saúde (HOST-RESOURCES-MIB ao vivo). */}
+          <Route path="/servers" element={
+            <ProtectedRoute>
+              <ServersPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFoundPage />} />

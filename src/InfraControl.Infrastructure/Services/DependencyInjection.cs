@@ -368,10 +368,18 @@ public static class DependencyInjection
         // MIB) — opt-in por device, mesmo gate dos demais SNMP; nenhum tipo
         // o tem como default (DeviceProfileDefaults intocado).
         services.AddScoped<IMonitoringProvider, SnmpRadioProvider>();
+<<<<<<< HEAD
         // F30-T004 S4 (ADR-056): prevenção WiFi por tendência — chaves de
         // item Zabbix por métrica (vazia = regra não roda, motivo honesto).
         services.Configure<WifiPreventionOptions>(
             configuration.GetSection(WifiPreventionOptions.SectionName));
+=======
+        // F30-T003 (docs/44): saúde do servidor via HOST-RESOURCES-MIB —
+        // opt-in por device, mesmo gate dos demais checks novos.
+        services.AddScoped<IMonitoringProvider, SnmpServerCpuProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpServerMemoryProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpServerDiskProvider>();
+>>>>>>> 87a017d6ea6b96000a09cb479c2112e8e0d7013b
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
@@ -466,7 +474,16 @@ public static class DependencyInjection
         services.AddSingleton(aiRouting);
 
         // HttpClient do Ollama (named client)
-        services.AddHttpClient("ollama");
+        // Timeout POR TENTATIVA alinhado ao EffectiveTimeout do gateway:
+        // o default do .NET (100s) vencia o policy quando o operador
+        // aumentava Ai:Gateway:Timeout (CPU local) e derrubava chamadas
+        // longas com TaskCanceledException → 502. Margem de 15s deixa o
+        // policy (AiGatewayException, 502 tratado) disparar primeiro e o
+        // HttpClient segue como safety net de transporte.
+        var aiGatewayOptions = configuration.GetSection("Ai:Gateway").Get<AiGatewayOptions>()
+            ?? new AiGatewayOptions();
+        var aiHttpClientTimeout = aiGatewayOptions.EffectiveTimeout + TimeSpan.FromSeconds(15);
+        services.AddHttpClient("ollama", client => client.Timeout = aiHttpClientTimeout);
 
         // Registry de providers v1 (configuração) — multi-provider desde
         // o ADR-050 §1: resolve qualquer IAiProvider registrado abaixo
@@ -484,8 +501,8 @@ public static class DependencyInjection
             configuration.GetSection("Ai:OpenAiCompatible"));
         services.Configure<AiGeminiOptions>(
             configuration.GetSection("Ai:Gemini"));
-        services.AddHttpClient("openai-compatible");
-        services.AddHttpClient("gemini");
+        services.AddHttpClient("openai-compatible", client => client.Timeout = aiHttpClientTimeout);
+        services.AddHttpClient("gemini", client => client.Timeout = aiHttpClientTimeout);
         services.AddScoped<IAiProvider, OpenAiCompatibleProvider>();
         services.AddScoped<IAiProvider, GeminiProvider>();
 
@@ -496,9 +513,7 @@ public static class DependencyInjection
         // acima + hook de auditoria de log (ADR-036/§41 — a persistência
         // da ação AI.* na auditoria de domínio é do S6/ADR-040). Limites
         // por chamada (§55) configuráveis em Ai:Gateway (default do
-        // record vale quando a seção não existe).
-        var aiGatewayOptions = configuration.GetSection("Ai:Gateway").Get<AiGatewayOptions>()
-            ?? new AiGatewayOptions();
+        // record vale quando a seção não existe — declaration em 473).
         services.AddSingleton(aiGatewayOptions);
         // FAI-T007 (S6): hook de auditoria persiste a ação AI.* na
         // auditoria de domínio existente (F0-T014, sem migração) +

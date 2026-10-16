@@ -19,6 +19,24 @@ public static class AlertThresholds
     /// <summary>F30-T002a: pior toner colorido (C/M/Y) abaixo = Warning.</summary>
     public const int ColorTonerMinPercent = 20;
 
+    /// <summary>F30-T003a: CPU do servidor (pior core) ≥ 80% = Warning.</summary>
+    public const int CpuWarningPercent = 80;
+
+    /// <summary>F30-T003a: CPU do servidor (pior core) ≥ 90% = Critical.</summary>
+    public const int CpuCriticalPercent = 90;
+
+    /// <summary>F30-T003b: memória do servidor ≥ 80% = Warning.</summary>
+    public const int MemoryWarningPercent = 80;
+
+    /// <summary>F30-T003b: memória do servidor ≥ 90% = Critical.</summary>
+    public const int MemoryCriticalPercent = 90;
+
+    /// <summary>F30-T003c: pior partição do servidor ≥ 80% = Warning.</summary>
+    public const int DiskWarningPercent = 80;
+
+    /// <summary>F30-T003c: pior partição do servidor ≥ 90% = Critical.</summary>
+    public const int DiskCriticalPercent = 90;
+
     /// <summary>Falhas consecutivas de Ping antes de abrir o alerta (F6-T002).</summary>
     public const int PingFailureStreak = 3;
 }
@@ -141,6 +159,18 @@ public sealed class AlertEvaluator(
 
             case CheckKind.SnmpPrinterStatus:
                 await EvaluatePrinterStatusAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.SnmpServerCpu:
+                await EvaluateServerCpuAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.SnmpServerMemory:
+                await EvaluateServerMemoryAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.SnmpServerDisk:
+                await EvaluateServerDiskAsync(device, kind, result, cancellationToken);
                 break;
 
             default:
@@ -310,6 +340,127 @@ public sealed class AlertEvaluator(
                 device, kind, AlertSeverity.Warning,
                 $"{colorLabel} de '{device.Name}' em {percent}% "
                     + $"(mínimo {AlertThresholds.ColorTonerMinPercent}%).",
+                cancellationToken);
+        }
+        else
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// F30-T003a: CPU do servidor — o pior core (cpuPercent) é o alertável.
+    /// ≥ CpuCriticalPercent → Critical; ≥ CpuWarningPercent → Warning;
+    /// abaixo → resolve. Values ausentes (erro SNMP ou walk vazio) → não avalia.
+    /// Limites stateless por check: "sustained por X min" fica para a task
+    /// de prevenção futura (ficha 44 §H).
+    /// </summary>
+    private async Task EvaluateServerCpuAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null
+            || !result.Values.TryGetValue("cpuPercent", out var raw)
+            || !int.TryParse(raw, out var percent))
+            return;
+
+        if (percent >= AlertThresholds.CpuCriticalPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"CPU de '{device.Name}' em {percent}% "
+                    + $"(crítico ≥ {AlertThresholds.CpuCriticalPercent}%).",
+                cancellationToken);
+        }
+        else if (percent >= AlertThresholds.CpuWarningPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"CPU de '{device.Name}' em {percent}% "
+                    + $"(limite {AlertThresholds.CpuWarningPercent}%).",
+                cancellationToken);
+        }
+        else
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// F30-T003b: memória do servidor — usado (RAM somada da hrStorageTable)
+    /// ≥ MemoryCriticalPercent → Critical; ≥ MemoryWarningPercent → Warning;
+    /// abaixo → resolve. Sem usedPercent (fallback hrMemorySize/erro SNMP)
+    /// → não avalia.
+    /// </summary>
+    private async Task EvaluateServerMemoryAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null
+            || !result.Values.TryGetValue("usedPercent", out var raw)
+            || !int.TryParse(raw, out var percent))
+            return;
+
+        if (percent >= AlertThresholds.MemoryCriticalPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Memória de '{device.Name}' em {percent}% "
+                    + $"(crítico ≥ {AlertThresholds.MemoryCriticalPercent}%).",
+                cancellationToken);
+        }
+        else if (percent >= AlertThresholds.MemoryWarningPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"Memória de '{device.Name}' em {percent}% "
+                    + $"(limite {AlertThresholds.MemoryWarningPercent}%).",
+                cancellationToken);
+        }
+        else
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// F30-T003c: disco do servidor — o pior disco (worstPercent) é o
+    /// alertável: ≥ DiskCriticalPercent → Critical; ≥ DiskWarningPercent →
+    /// Warning; abaixo → resolve. Sem worstPercent (erro SNMP ou walk vazio)
+    /// → não avalia.
+    /// </summary>
+    private async Task EvaluateServerDiskAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null
+            || !result.Values.TryGetValue("worstPercent", out var raw)
+            || !int.TryParse(raw, out var percent))
+            return;
+
+        result.Values.TryGetValue("worstDisk", out var diskRaw);
+        var diskLabel = string.IsNullOrWhiteSpace(diskRaw) ? "Disco" : $"Disco '{diskRaw}'";
+
+        if (percent >= AlertThresholds.DiskCriticalPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"{diskLabel} de '{device.Name}' em {percent}% "
+                    + $"(crítico ≥ {AlertThresholds.DiskCriticalPercent}%).",
+                cancellationToken);
+        }
+        else if (percent >= AlertThresholds.DiskWarningPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"{diskLabel} de '{device.Name}' em {percent}% "
+                    + $"(limite {AlertThresholds.DiskWarningPercent}%).",
                 cancellationToken);
         }
         else
