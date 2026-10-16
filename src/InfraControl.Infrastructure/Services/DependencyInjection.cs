@@ -551,7 +551,15 @@ public static class DependencyInjection
         services.AddScoped<IKeywordSearch, KnowledgeKeywordSearch>();
         services.AddScoped<IReranker, HeuristicReranker>();
         services.AddScoped<IContextBuilder, EvidenceSetContextBuilder>();
-        services.AddScoped<IAiKnowledgeIngestion, KnowledgeIngestionService>();
+        // Factory + GetService<IVectorStore> (mesmo padrão da híbrida abaixo):
+        // sem registro o parâmetro chega null e a ingesta degrada (§46) —
+        // registro direto por tipo faria o ValidateOnBuild do host E2E
+        // derrubar o grafo inteiro por um dependente não registrado.
+        services.AddScoped<IAiKnowledgeIngestion>(provider => new KnowledgeIngestionService(
+            provider.GetRequiredService<IMediator>(),
+            provider.GetRequiredService<IEmbeddingProvider>(),
+            provider.GetService<IVectorStore>(),
+            provider.GetRequiredService<ILogger<KnowledgeIngestionService>>()));
         services.AddScoped<IRetrievalService>(provider => new KnowledgeHybridRetrievalService(
             provider.GetRequiredService<IEmbeddingProvider>(),
             provider.GetService<IVectorStore>(),
