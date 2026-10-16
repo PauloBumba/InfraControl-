@@ -19,6 +19,10 @@ public sealed class DeviceProfileTests
     [InlineData(DeviceType.Server, CheckKind.Ping, CheckKind.SnmpSystem)]
     [InlineData(DeviceType.Camera, CheckKind.Ping, CheckKind.Tcp)]
     [InlineData(DeviceType.Other, CheckKind.Ping)]
+    // F31-T001 / docs/53 D3: VM e vCenter entram na categoria de servidores —
+    // perfil default idêntico ao de Server (Ping + SnmpSystem).
+    [InlineData(DeviceType.VirtualMachine, CheckKind.Ping, CheckKind.SnmpSystem)]
+    [InlineData(DeviceType.VCenter, CheckKind.Ping, CheckKind.SnmpSystem)]
     public void Defaults_ShouldMatchAdr014(DeviceType type, params CheckKind[] expected)
     {
         DeviceProfileDefaults.For(type).Should().Equal(expected);

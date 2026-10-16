@@ -22,7 +22,7 @@ namespace InfraControl.Application.AI.Context;
 public sealed class KnowledgeIngestionService(
     IMediator mediator,
     IEmbeddingProvider embeddingProvider,
-    IVectorStore vectorStore,
+    IVectorStore? vectorStore,
     ILogger<KnowledgeIngestionService> logger) : IAiKnowledgeIngestion
 {
     public async Task<int> IngestArticleAsync(Guid articleId, CancellationToken cancellationToken = default)
@@ -33,6 +33,17 @@ public sealed class KnowledgeIngestionService(
         {
             throw new InvalidOperationException(
                 $"Artigo {articleId} está '{article.Status}' — a ingesta de IA aceita apenas artigos publicados (ADR-038 §3).");
+        }
+
+        // ADR-038 §46: sem pgvector o store não é registrado e a degradação
+        // é PROMETIDA no docstring — retornar 0 com log honesto em vez de
+        // estourar NRE (o IVectorStore? torna o host E2E e o real resolvíveis).
+        if (vectorStore is null)
+        {
+            logger.LogWarning(
+                "Vector store indisponível (pgvector não registrado, ADR-038 §46) — ingesta do artigo {ArticleId} pulada.",
+                articleId);
+            return 0;
         }
 
         var metadata = new Dictionary<string, string>

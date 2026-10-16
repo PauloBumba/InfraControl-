@@ -33,6 +33,7 @@ using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.Application.Monitoring.Polling;
+using InfraControl.Application.Monitoring.Prevention;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.Projects.Ports;
@@ -368,6 +369,10 @@ public static class DependencyInjection
         // MIB) — opt-in por device, mesmo gate dos demais SNMP; nenhum tipo
         // o tem como default (DeviceProfileDefaults intocado).
         services.AddScoped<IMonitoringProvider, SnmpRadioProvider>();
+        // F30-T004 S4 (ADR-056): prevenção WiFi por tendência — chaves de
+        // item Zabbix por métrica (vazia = regra não roda, motivo honesto).
+        services.Configure<WifiPreventionOptions>(
+            configuration.GetSection(WifiPreventionOptions.SectionName));
         // F30-T003 (docs/44): saúde do servidor via HOST-RESOURCES-MIB —
         // opt-in por device, mesmo gate dos demais checks novos.
         services.AddScoped<IMonitoringProvider, SnmpServerCpuProvider>();
@@ -565,7 +570,15 @@ public static class DependencyInjection
         services.AddScoped<IKeywordSearch, KnowledgeKeywordSearch>();
         services.AddScoped<IReranker, HeuristicReranker>();
         services.AddScoped<IContextBuilder, EvidenceSetContextBuilder>();
-        services.AddScoped<IAiKnowledgeIngestion, KnowledgeIngestionService>();
+        // Factory + GetService<IVectorStore> (mesmo padrão da híbrida abaixo):
+        // sem registro o parâmetro chega null e a ingesta degrada (§46) —
+        // registro direto por tipo faria o ValidateOnBuild do host E2E
+        // derrubar o grafo inteiro por um dependente não registrado.
+        services.AddScoped<IAiKnowledgeIngestion>(provider => new KnowledgeIngestionService(
+            provider.GetRequiredService<IMediator>(),
+            provider.GetRequiredService<IEmbeddingProvider>(),
+            provider.GetService<IVectorStore>(),
+            provider.GetRequiredService<ILogger<KnowledgeIngestionService>>()));
         services.AddScoped<IRetrievalService>(provider => new KnowledgeHybridRetrievalService(
             provider.GetRequiredService<IEmbeddingProvider>(),
             provider.GetService<IVectorStore>(),

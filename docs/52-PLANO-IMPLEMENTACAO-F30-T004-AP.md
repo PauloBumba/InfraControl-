@@ -1,8 +1,10 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
 > **Status**: S0 ✅ (`743d010`) · S1 ✅ (`b2a912a`) · S2 ✅ (`94de61b`) ·
-> S3 ✅ (`52f36ff`) — S4: ADR-056 redigido (status **proposto**), aguarda
-> aprovação humana; S1b (banda por cliente) aguarda decisão.
+> S3 ✅ (`52f36ff`) · ADR-056 **aceito** (`8d79bb9`) · S4 ✅ (`2179801`) ·
+> S1b ✅ (banda por cliente — hash no commit desta etapa) — **F30-T004
+> concluída**: ficha §A–§G coberta; pendências restantes são §7
+> (itens futuros com decisão registrada).
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -115,7 +117,25 @@ repo, suíte completa verde, commit próprio (autorizado).
   — a banda não existe em nenhum ponto da cadeia (o parser backend não lê
   `radio` do `stat/sta`). Entregue o derivável sem backend: total, fio/sem-fio,
   clientes por SSID e RSSI médio. Banda por cliente vira pendência §7 item 6
-  (candidata a S1b: 1 campo no DTO + parser).
+  (candidata a S1b: 1 campo no DTO + parser) — **fechada pelo S1b abaixo**.
+
+#### Execução do S1b — banda por cliente (2026-10-15)
+
+- **Backend** (TDD: RED `CS1061 Radio` → GREEN 1/1): campo `Radio` (bruto,
+  "ng"/"na"/…) no `UnifiConnectedClientDto` + `ReadOrNull(item, "radio")`
+  no `ParseConnectedClients` — o backend SÓ repassa o valor bruto; o
+  mapeamento para banda é apresentação (nada inventado no integration).
+- **Front** (TDD: RED 4 testes de `byBand` → GREEN 12/12; RED 3 testes de
+  página → GREEN 13/13): `bandOf` + tabela `BAND_BY_RADIO` documentada
+  (b/g/n/ng → 2.4; a/na/ac → 5; qualquer outro/ausente → `null`), `byBand`
+  no `LiveClientSummary` (ordenado por contagem desc, sem-banda por
+  último) e linha "Por banda: 2.4 GHz 2 · 5 GHz 1 · — 1" no resumo do
+  painel (UM text node — não colide com as linhas de SSID).
+- **Semântica da casa preservada**: rádio desconhecido/ausente agrupa sob
+  `null` renderizado "—"; com-fio fora do agrupamento; cliente sem-fio
+  sem rádio NÃO vira banda inventada.
+- **Testes**: `wifiClients.test.ts` 12/12, `WiFiPage.test.tsx` 13/13,
+  parser UniFi 1/1; `tsc` 0; `eslint` 0 (1 warning pré-existente).
 
 ### S2 — `SnmpRadioProvider` (IEEE 802.11 MIB, área E/D — fallback SNMP)
 
@@ -227,17 +247,75 @@ repo, suíte completa verde, commit próprio (autorizado).
 
 #### Execução do S4 — passo 0 (2026-10-15)
 
-- **ADR-056 redigido** (`docs/adr/ADR-056-PREVENCAO-WIFI-LIMIARES-
-  TENDENCIAS.md`, status **proposto**): tendência determinística sobre o
-  histórico do Zabbix (`IZabbixClient.GetHistoryAsync` já existe desde a
-  F29), limiares 80%/90% de saturação, RSSI < −70 dBm, densidade > 50
-  clientes, ativação opt-in por device, anti-flapping com dupla
-  confirmação; persistência só do Alert/Evento (REGRA 8 / ADR-028 §10 +
-  pipeline ADR-027). Interferência/noise floor, PoE e tela de tendência
-  ficam declarados como fora do primeiro release.
-- **Zero código** — o portão é a aprovação humana do ADR; depois de
-  aprovado, o S4 vira fatias (precedente docs/51 §S6: "redigir ADR,
-  aprovar, depois fatiar").
+- **ADR-056 redigido e APROVADO** (`docs/adr/ADR-056-PREVENCAO-WIFI-
+  LIMIARES-TENDENCIAS.md`, status **aceito**): tendência determinística
+  sobre o histórico do Zabbix (`IZabbixClient.GetHistoryAsync` já existe
+  desde a F29), limiares 80%/90% de saturação, RSSI < −70 dBm, densidade
+  > 50 clientes, ativação opt-in por device, anti-flapping; persistência
+  só do Alert/Evento (REGRA 8 / ADR-028 §10 + pipeline ADR-027).
+  Interferência/noise floor, PoE e tela de tendência ficam declarados
+  como fora do primeiro release.
+- **Fatiamento do S4** (após aprovação, precedente docs/51 §S6):
+  1. **S4a** — núcleo: `WifiPreventionThresholds` (defaults em código) +
+     avaliador puro (janela Zabbix → vereditos, inclinação por mínimos
+     quadrados, "sustentado" = N amostras consecutivas na janela —
+     anti-flamping STATELESS, sem tabela nova de estado);
+  2. **S4b** — comando `EvaluateWifiPreventionCommand` (CQRS +
+     `IAuthorizedRequest`): device → host Zabbix (`IZabbixHostsRepository`)
+     → histórico por métrica (N ≥ 12 exigidos; item ausente = regra não
+     roda) → abre/fecha alertas pelo pipeline existente; opt-in =
+     `MonitoringChecks` do device contém `SnmpRadio` (configuração
+     explícita por device que já existe — sem migração, sem coluna nova);
+  3. **S4c** — gatilho: endpoint manual (`RoleAccess.Operate`) — o
+     driver agendado entra quando o scheduler de polling existir para
+     todos os devices (futura fatia; ADR §1 deixa o driver como decisão
+     de fatia).
+- **Interpretação registrada**: "2 avaliações consecutivas" do ADR §4 é
+  implementada como **2+ amostras consecutivas na janela de histórico** —
+  mesmo efeito anti-flapping, sem estado persistido (a alternativa exigiria
+  tabela nova, que o ADR §2 proíbe).
+
+#### Execução do S4 — S4a/S4b/S4c (2026-10-15)
+
+- **S4a — núcleo puro** (TDD: RED `CS0234/CS0246` → GREEN 11/11):
+  `Application/Monitoring/Prevention/WifiPreventionEvaluator.cs` com
+  `WifiPreventionThresholds` (defaults em código, espírito
+  `AlertThresholds`/ADR-014) e 5 regras — `radio-saturation-critical`
+  (calda ≥ 90% × 2 amostras), `radio-saturation` (≥ 80% × 3),
+  `radio-trend` (> 70% × 2 com inclinação > 0), `rssi-degradation`
+  (média < −70 dBm **ou** queda sustentada × 3) e `client-density`
+  (> 50 × 3). "Sustentado" = N amostras CONSECUTIVAS contínuas no fim da
+  janela (delta ≤ 10 min — amostra perdida não sustenta); inclinação por
+  mínimos quadrados em unidade/minuto; números com `InvariantCulture`
+  (determinístico entre ambientes). Série ausente ou < `MinSamples` (12)
+  = regra NÃO avalia com motivo honesto — nunca "saudável" inventado.
+- **S4b — comando** (TDD: RED `CS0246` → GREEN 10/10):
+  `WifiPreventionCommands.cs` com `WifiPreventionOptions` (seção
+  `WifiPrevention` — chaves de item por métrica; VAZIO = regra não roda,
+  nada de chave inventada), `EvaluateWifiPreventionCommand`
+  (`BaseCommand` + `IAuthorizedRequest`, `RoleAccess.Operate`), DTOs
+  (`Status` Fired/Clean/Skipped com `Reason` honesto) e o handler:
+  device (404) → guard AccessPoint (400) → opt-in `SnmpRadio` no perfil →
+  IP → `IsConfigured` → host por IP no read-model (Enabled, não Missing)
+  → `ListItemsAsync` → item por chave exata → `GetHistoryAsync` da janela
+  de 60 min → descarte de valores não numéricos → avaliador → Alert.
+  Ciclo de vida do Alert reusado INTEIRO: `IAlertEvaluator` ganhou
+  `EvaluateVerdictAsync`/`ResolveVerdictAsync` delegando a
+  `OpenOrSuppressAsync`/`ResolveActiveAsync` (supressão por incidente
+  upstream F6-T004, Critical auto-abre Incident F6-T003, recovery
+  F6-T006) — zero lógica duplicada; kind = `CheckKind.SnmpRadio`, pior
+  veredito primeiro. Regra de lifecycle: sem veredito entre as métricas
+  LIDAS = resolve; NENHUMA métrica lida = Alert intocado (incompleteza
+  não normaliza) e `Evaluated=false` + motivo.
+- **S4c — gatilho manual**: `POST /api/v1/monitoring/wifi-prevention/{id}`
+  no `MonitoringController` (policy Operate, mold do `run-check`); bind
+  das opções em `AddInfrastructure` (mold `SnmpOptions`); seção
+  `WifiPrevention` (chaves vazias) no `appsettings.json`. Driver
+  agendado continua pendência explícita (passo 3 do fatiamento).
+- **Testes**: 21/21 na fatia (`WifiPreventionEvaluatorTests` 11 +
+  `WifiPreventionCommandTests` 10); UnitTests 2524/2524; Arch 152/153
+  (falha `Nginx_Should_Proxy_The_Api_Health_Checks` pré-existente).
+  Sem front nesta fatia.
 
 ---
 
@@ -281,10 +359,9 @@ S0 (reparo) → commit verde → docs/52 (este doc) → autorização
    prioridade, registrar se o operador pedir.
 5. **Estado do AP "Ready/Upgrading/Isolated"** (ficha §B): o parse atual lê
    `state == 1 → Connected` só; granularidade extra exige contrato novo.
-6. **Banda (2.4/5 GHz) por cliente** (ficha §C): o `stat/sta` do controller
-   traz `radio` por cliente, mas o `UnifiConnectedClientDto` não lê esse
-   campo — exige 1 propriedade no DTO + 1 linha no parser (backend). O S1
-   entregou o derivável sem backend; banda = candidata a **S1b**.
+6. ~~**Banda (2.4/5 GHz) por cliente** (ficha §C)~~ — **FECHADA pelo S1b**
+   (2026-10-15): `radio` bruto lido no parser (`UnifiConnectedClientDto.Radio`)
+   e banda derivada na apresentação (`bandOf`/`BAND_BY_RADIO` no utilitário).
 
 ## 8. Fora de escopo desta execução
 

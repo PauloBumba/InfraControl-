@@ -78,6 +78,30 @@ public interface IAlertEvaluator
         string? host,
         string? ip,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F30-T004 S4 (ADR-056): aplica um veredito de PREVENÇÃO calculado
+    /// fora do pipeline de check (janela do Zabbix) ao MESMO ciclo de vida
+    /// — Open/Suppressed por (device, kind), supressão por incidente
+    /// upstream (F6-T004), Critical auto-abre Incident (F6-T003). Retorna
+    /// true quando um alerta novo foi aberto.
+    /// </summary>
+    Task<bool> EvaluateVerdictAsync(
+        Device device,
+        CheckKind kind,
+        AlertSeverity severity,
+        string message,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F30-T004 S4: normalização da prevenção — resolve o alerta ativo de
+    /// (device, kind) se houver (recovery fecha incidentes — F6-T006).
+    /// Retorna true quando um alerta foi resolvido.
+    /// </summary>
+    Task<bool> ResolveVerdictAsync(
+        Device device,
+        CheckKind kind,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class AlertEvaluator(
@@ -616,13 +640,36 @@ public sealed class AlertEvaluator(
             : 0;
 
     /// <summary>
+    /// F30-T004 S4 (ADR-056): delega o veredito de prevenção calculado fora
+    /// ao MESMO ciclo de vida dos alerts de check (Open/Suppressed com
+    /// upstream, Critical auto-abre Incident — F6-T003/T004).
+    /// </summary>
+    public Task<bool> EvaluateVerdictAsync(
+        Device device,
+        CheckKind kind,
+        AlertSeverity severity,
+        string message,
+        CancellationToken cancellationToken = default)
+        => OpenOrSuppressAsync(device, kind, severity, message, cancellationToken);
+
+    /// <summary>
+    /// F30-T004 S4 (ADR-056): normalização da prevenção — resolve o alerta
+    /// ativo de (device, kind) se houver (recovery fecha incidentes).
+    /// </summary>
+    public Task<bool> ResolveVerdictAsync(
+        Device device,
+        CheckKind kind,
+        CancellationToken cancellationToken = default)
+        => ResolveActiveAsync(device.Id, kind, cancellationToken);
+
+    /// <summary>
     /// F6-T004: com upstream alcançável (BFS nas Connections) em Incident
     /// Open, o alerta de qualquer kind nasce/vira <see cref="AlertStatus.Suppressed"/>
     /// e é vinculado ao incidente raiz (N:N) — sem incidente próprio. Sem
     /// upstream: fluxo normal (Open; Critical auto-abre Incident — F6-T003;
     /// alerta Suppressed libera para Open).
     /// </summary>
-    private async Task OpenOrSuppressAsync(
+    private async Task<bool> OpenOrSuppressAsync(
         Device device,
         CheckKind kind,
         AlertSeverity severity,
@@ -633,6 +680,7 @@ public sealed class AlertEvaluator(
             .FindOpenIncidentUpstreamAsync(device.Id, cancellationToken);
         var active = await repository
             .GetActiveAsync(device.Id, kind, cancellationToken);
+        var created = active is null;
 
         if (upstream is not null)
         {
@@ -652,7 +700,7 @@ public sealed class AlertEvaluator(
             await incidentRepository.AddLinkAsync(
                 IncidentAlert.Create(upstream.IncidentId, alert.Id),
                 cancellationToken);
-            return;
+            return created;
         }
 
         if (active is null)
@@ -670,15 +718,17 @@ public sealed class AlertEvaluator(
             // F6-T003: Alert Critical auto-abre Incident.
             await EnsureIncidentAsync(device, active, cancellationToken);
         }
+
+        return created;
     }
 
-    private async Task ResolveActiveAsync(
+    private async Task<bool> ResolveActiveAsync(
         Guid deviceId, CheckKind kind, CancellationToken cancellationToken)
     {
         // Resolve Open e Suppressed (F6-T004) — condição normalizada.
         var active = await repository.GetActiveAsync(deviceId, kind, cancellationToken);
         if (active is null)
-            return;
+            return false;
 
         active.Resolve();
 
@@ -686,6 +736,7 @@ public sealed class AlertEvaluator(
         // vinculados normalizaram (sem vínculos = manual, só fecha por
         // comando).
         await CloseRecoveredIncidentsAsync(active, deviceId, cancellationToken);
+        return true;
     }
 
     private async Task CloseRecoveredIncidentsAsync(

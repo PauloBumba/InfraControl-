@@ -64,6 +64,14 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
             .HasColumnName("description")
             .HasMaxLength(Device.DescriptionMaxLength);
 
+        // F31-T002 / docs/53 D4: vínculos da VM (FK self — 1 hypervisor e
+        // 1 vCenter por VM; backstop Restrict + 409 no handler de exclusão).
+        builder.Property(x => x.HypervisorDeviceId)
+            .HasColumnName("hypervisor_device_id");
+
+        builder.Property(x => x.VCenterDeviceId)
+            .HasColumnName("vcenter_device_id");
+
         // F2-T008 / ADR-014: checks do device como lista CSV ("Ping,SnmpToner").
         builder.Property(x => x.ProfileIsCustom)
             .HasColumnName("profile_is_custom")
@@ -100,9 +108,21 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
             .HasForeignKey(x => x.RackId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne<Device>()
+            .WithMany()
+            .HasForeignKey(x => x.HypervisorDeviceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Device>()
+            .WithMany()
+            .HasForeignKey(x => x.VCenterDeviceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Índice único global LOWER(name) via SQL bruto na migração.
         builder.HasIndex(x => x.LocationId);
         builder.HasIndex(x => x.RackId);
         builder.HasIndex(x => x.Type);
+        builder.HasIndex(x => x.HypervisorDeviceId);
+        builder.HasIndex(x => x.VCenterDeviceId);
     }
 }

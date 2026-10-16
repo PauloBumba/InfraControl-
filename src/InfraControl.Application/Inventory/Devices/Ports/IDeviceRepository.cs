@@ -40,6 +40,24 @@ public interface IDeviceRepository : IRepository<Device>
     /// <summary>F30-T005c: bloqueio de exclusão de NVR — mapeamentos câmera-NVR (409).</summary>
     Task<bool> HasCameraNvrMappingsAsync(Guid nvrId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F31-T002: bloqueio de exclusão — VMs cujo hypervisor/vCenter é este
+    /// device (→ 409; FK Restrict é o backstop).
+    /// </summary>
+    Task<bool> HasLinkedVirtualMachinesAsync(Guid deviceId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F31-T002: "VMs do hypervisor" (hypervisorId) ou "VMs do vCenter"
+    /// (vCenterId) — type=VirtualMachine fixo, term normalizado igual ao SearchAsync.
+    /// </summary>
+    Task<PagedResult<Device>> SearchVirtualMachinesByLinkAsync(
+        Guid? hypervisorId,
+        Guid? vCenterId,
+        string? term,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Todos os devices ordenados por nome (F5-T003: status de ping em massa).</summary>
     Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default);
 

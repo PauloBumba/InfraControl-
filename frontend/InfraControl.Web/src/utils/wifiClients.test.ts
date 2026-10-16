@@ -25,6 +25,7 @@ function client(overrides: Partial<UniFiConnectedClient>): UniFiConnectedClient 
     signal: null,
     isWired: false,
     lastSeenUnix: null,
+    radio: null,
     ...overrides,
   };
 }
@@ -94,8 +95,45 @@ describe("summarizeLiveClients (F30-T004 S1)", () => {
       wired: 0,
       wireless: 0,
       bySsid: [],
+      byBand: [],
       averageSignal: null,
     });
+  });
+
+  it("should group wireless clients by band mapping the raw radio (S1b)", () => {
+    // "ng" = 2.4 GHz, "na" = 5 GHz — mapeamento documentado no utilitário;
+    // nada é inventado no backend (que só repassa o valor bruto).
+    const summary = summarizeLiveClients([
+      client({ essid: "Corp", radio: "ng", signal: -55 }),
+      client({ mac: "aa:bb:cc:dd:ee:02", essid: "Corp", radio: "ng", signal: -60 }),
+      client({ mac: "aa:bb:cc:dd:ee:03", essid: "Corp", radio: "na", signal: -70 }),
+    ]);
+
+    expect(summary.byBand).toEqual([
+      { band: "2.4", count: 2 },
+      { band: "5", count: 1 },
+    ]);
+  });
+
+  it("should group missing/unknown radio under null and skip wired (S1b)", () => {
+    const summary = summarizeLiveClients([
+      // sem rádio informado → null ("—"), nunca banda inventada
+      client({ essid: "Corp", radio: null, signal: -55 }),
+      // rádio fora da tabela conhecida → null honesto
+      client({ mac: "aa:bb:cc:dd:ee:02", essid: "Corp", radio: "zz", signal: -60 }),
+      // com fio: fora do agrupamento por banda (não passa por rádio)
+      client({ mac: "aa:bb:cc:dd:ee:03", isWired: true, radio: "eth" }),
+    ]);
+
+    expect(summary.byBand).toEqual([{ band: null, count: 2 }]);
+  });
+
+  it("should trim and lowercase the raw radio before mapping (S1b)", () => {
+    const summary = summarizeLiveClients([
+      client({ essid: "Corp", radio: " NA ", signal: -55 }),
+    ]);
+
+    expect(summary.byBand).toEqual([{ band: "5", count: 1 }]);
   });
 });
 

@@ -195,6 +195,13 @@ public sealed class DeleteDeviceCommandHandler(
         if (await repository.HasPortsAsync(device.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o device: existem portas vinculadas.");
 
+        // F31-T002: VMs apontando para o device (hypervisor/vCenter) bloqueiam
+        // a exclusão — host e vCenter não podem sumir com VMs vinculadas
+        // (FK Restrict é o backstop). Vem antes das interfaces: para um
+        // hypervisor essa é a mensagem acionável.
+        if (await repository.HasLinkedVirtualMachinesAsync(device.Id, cancellationToken))
+            throw new InvalidOperationException("Não é possível excluir o device: existem VMs vinculadas.");
+
         if (await repository.HasInterfacesAsync(device.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o device: existem interfaces vinculadas.");
 

@@ -125,7 +125,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <ul className="uni-public-footer-links">
               {FOOTER_PRODUCT.map((item) => (
                 <li key={item.to}>
-                  <Link to={item.to}>{item.label}</Link>
+                  <Link
+                      to={item.to}
+                      aria-current={pathname === item.to ? "page" : undefined}
+                    >{item.label}</Link>
                 </li>
               ))}
             </ul>
@@ -136,7 +139,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <ul className="uni-public-footer-links">
               {FOOTER_RESOURCES.map((item) => (
                 <li key={item.to}>
-                  <Link to={item.to}>{item.label}</Link>
+                  <Link
+                      to={item.to}
+                      aria-current={pathname === item.to ? "page" : undefined}
+                    >{item.label}</Link>
                 </li>
               ))}
             </ul>
@@ -146,7 +152,12 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <h6>Contato</h6>
             <ul className="uni-public-footer-links">
               <li>
-                <Link to="/contato">Enviar mensagem</Link>
+                <Link
+                  to="/contato"
+                  aria-current={pathname === "/contato" ? "page" : undefined}
+                >
+                  Enviar mensagem
+                </Link>
               </li>
               <li className="uni-public-footer-meta">
                 Open Source

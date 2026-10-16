@@ -101,7 +101,7 @@ public sealed class UnifiApiClientTests
                 {"meta":{"rc":"ok"},"data":[
                   {"mac":"f4:92:bf:00:11:22","ip":"172.16.10.55","hostname":"iphone",
                    "ap_mac":"74:ac:b9:11:22:33","essid":"Corp-WiFi","signal":-52,
-                   "is_wired":false,"last_seen":1759900000},
+                   "radio":"ng","is_wired":false,"last_seen":1759900000},
                   {"mac":"f4:92:bf:00:44:55","ip":"172.16.10.56","hostname":"pc-023",
                    "sw_mac":"74:ac:b9:44:55:66","is_wired":true,"last_seen":1759900100}
                 ]}
@@ -117,8 +117,12 @@ public sealed class UnifiApiClientTests
         clients[0].Essid.Should().Be("Corp-WiFi");
         clients[0].Signal.Should().Be(-52);
         clients[0].IsWired.Should().BeFalse();
+        // S1b: rádio bruto do controller ("ng" = 2.4 GHz) passa adiante;
+        // cliente com-fio não tem rádio (null honesto, nunca 0/"").
+        clients[0].Radio.Should().Be("ng");
         clients[1].IsWired.Should().BeTrue();
         clients[1].SwitchMac.Should().Be("74:ac:b9:44:55:66");
+        clients[1].Radio.Should().BeNull();
     }
 
     [Fact]

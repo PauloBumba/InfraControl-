@@ -236,4 +236,29 @@ public sealed class AiContextTests
         var failure = await act.Should().ThrowAsync<InvalidOperationException>();
         failure.Which.Message.Should().Contain("apenas artigos publicados");
     }
+
+    [Fact]
+    public async Task Ingest_sem_vector_store_degrada_para_zero_e_nao_explode()
+    {
+        // ADR-038 §46: sem pgvector no ambiente o IVectorStore NÃO é
+        // registrado (DI intencional) — o docstring do serviço promete que o
+        // command "degrada sem store registrado". O ctor obrigatório quebrava
+        // essa promessa: o host E2E (ValidateOnBuild) derrubava INTEIRO na
+        // ausência do registro, e no host real a resolução estourava em tempo
+        // de execução. Degradar = retornar 0 indexados com log honesto.
+        var articleId = Guid.NewGuid();
+        var mediator = new Mock<IMediator>();
+        mediator
+            .Setup(send => send.Send(It.IsAny<GetKnowledgeArticleQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new KnowledgeArticleDto(
+                articleId, "Zabbix", "um parágrafo", null, KnowledgeArticleStatus.Published));
+
+        var service = new KnowledgeIngestionService(
+            mediator.Object, new FakeEmbeddingProvider(), null,
+            NullLogger<KnowledgeIngestionService>.Instance);
+
+        var indexed = await service.IngestArticleAsync(articleId);
+
+        indexed.Should().Be(0, "sem vector store nada é indexado — degradação honesta, sem explosão");
+    }
 }

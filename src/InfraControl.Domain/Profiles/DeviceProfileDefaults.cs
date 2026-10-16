@@ -15,6 +15,10 @@ public static class DeviceProfileDefaults
             [DeviceType.AccessPoint] = [CheckKind.Ping, CheckKind.HttpWan],
             [DeviceType.Switch] = [CheckKind.Ping, CheckKind.SnmpSystem],
             [DeviceType.Server] = [CheckKind.Ping, CheckKind.SnmpSystem],
+            // F31-T001 / docs/53 D3: VM e vCenter entram na categoria de
+            // servidores — perfil default idêntico ao de Server.
+            [DeviceType.VirtualMachine] = [CheckKind.Ping, CheckKind.SnmpSystem],
+            [DeviceType.VCenter] = [CheckKind.Ping, CheckKind.SnmpSystem],
             // F5-T006: câmera monitora a porta 37777 por padrão.
             [DeviceType.Camera] = [CheckKind.Ping, CheckKind.Tcp],
             // F30-T005c: NVR espelha a câmera (ONVIF/SNMP ficam opt-in).

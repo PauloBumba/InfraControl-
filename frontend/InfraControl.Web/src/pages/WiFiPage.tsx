@@ -450,6 +450,21 @@ export function WiFiPage() {
                     clientsError ? "—" : formatSignal(clientSummary.averageSignal)
                   }`}
                 </span>
+                {/* S1b: banda do sem-fio derivada do rádio BRUTO
+                    (ng→2.4, na→5) no utilitário; sem rádio conhecido
+                    agrupa sob "—". Tudo num text node único. */}
+                <span>
+                  {`Por banda: ${
+                    clientsError || clientSummary.byBand.length === 0
+                      ? "—"
+                      : clientSummary.byBand
+                          .map(
+                            (row) =>
+                              `${row.band ? `${row.band} GHz` : "—"} ${row.count}`
+                          )
+                          .join(" · ")
+                  }`}
+                </span>
               </div>
               {clientsError ? (
                 <span style={{ fontSize: 12, color: "#94a3b8" }}>—</span>

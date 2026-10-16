@@ -1,0 +1,5 @@
+# Windows (core.autocrlf=true) convertia .sh para CRLF no checkout; os
+# containers Linux executam os scripts montados/criados a partir do working
+# tree e CRLF quebra com "set: illegal option" (crash-loop do sentinel e do
+# replica, exit 127 no entrypoint do nginx seq-auth). eol=lf trava LF.
+*.sh text eol=lf
