@@ -1476,6 +1476,14 @@ export function TaskDetailPage() {
                 }
               />
               <DataRow
+                label="Criado por"
+                value={
+                  task.createdById
+                    ? task.createdByName ?? `Usuário ${shortId(task.createdById)}`
+                    : <span style={{ color: "#9ca3af" }}>—</span>
+                }
+              />
+              <DataRow
                 label="Responsável"
                 value={
                   task.responsibleId

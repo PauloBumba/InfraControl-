@@ -36,6 +36,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<ZabbixIntegrationSetting> ZabbixIntegrationSettings => Set<ZabbixIntegrationSetting>();
     public DbSet<ZabbixHost> ZabbixHosts => Set<ZabbixHost>();
     public DbSet<UniFiSite> UniFiSites => Set<UniFiSite>();
+    public DbSet<AiProvider> AiProviders => Set<AiProvider>();
+    public DbSet<AiProviderCapability> AiProviderCapabilities => Set<AiProviderCapability>();
     public DbSet<NetworkInterface> NetworkInterfaces => Set<NetworkInterface>();
     public DbSet<MacAddress> MacAddresses => Set<MacAddress>();
     public DbSet<IpAddress> IpAddresses => Set<IpAddress>();
@@ -83,6 +85,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<KnowledgeArticleService> KnowledgeArticleServices => Set<KnowledgeArticleService>();
     public DbSet<RemoteSession> RemoteSessions => Set<RemoteSession>();
     public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
+    public DbSet<CameraNvrMapping> CameraNvrMappings => Set<CameraNvrMapping>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();

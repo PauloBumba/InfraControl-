@@ -30,6 +30,7 @@ public sealed class CreateTaskCommandHandler(
     ITaskItemRepository repository,
     ITaskAssigneeRepository assigneeRepository,
     ITaskHistoryWriter historyWriter,
+    ICurrentUserContext currentUser,
     ILogger<CreateTaskCommandHandler> logger)
     : IRequestHandler<CreateTaskCommand, TaskDto>
 {
@@ -37,6 +38,12 @@ public sealed class CreateTaskCommandHandler(
         CreateTaskCommand request, CancellationToken cancellationToken)
     {
         var priority = ParsePriority(request.Priority);
+
+        // F31-T001: o criador vem do usuário autenticado (mesmo critério
+        // do CreateProjectCommandHandler) — sem sessão não cria task.
+        if (!currentUser.IsAuthenticated || currentUser.UserId is not { } createdById)
+            throw new UnauthorizedAccessException(
+                "Usuário autenticado não identificado para criação da task.");
 
         // F23-T001: responsável precisa existir (404 pt-BR) — o vínculo
         // com assignees é opcional e independente.
@@ -65,7 +72,8 @@ public sealed class CreateTaskCommandHandler(
             request.Description,
             priority,
             request.DueDate,
-            request.ResponsibleId);
+            request.ResponsibleId,
+            createdById);
         task.SetParent(parent?.Id);
 
         await repository.AddAsync(task, cancellationToken);
@@ -82,16 +90,19 @@ public sealed class CreateTaskCommandHandler(
                 cancellationToken);
 
         logger.LogInformation(
-            "Task {TaskId} created ({Kind} — {Title}){Parent}.",
+            "Task {TaskId} created ({Kind} — {Title}){Parent} by {User}.",
             task.Id, task.Kind, task.Title,
-            parent == null ? "" : $" [subtask of {parent.Id}]");
+            parent == null ? "" : $" [subtask of {parent.Id}]",
+            createdById);
 
         var responsibleName = await ResolveResponsibleNameAsync(
             assigneeRepository, task.ResponsibleId, cancellationToken);
+        var createdByName = await ResolveResponsibleNameAsync(
+            assigneeRepository, task.CreatedById, cancellationToken);
 
         return TaskDto.From(
             task, responsibleName: responsibleName,
-            parentTitle: parent?.Title);
+            parentTitle: parent?.Title, createdByName: createdByName);
     }
 
     /// <summary>F23-T001: null/vazio = prioridade padrão Medium.</summary>

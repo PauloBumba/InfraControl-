@@ -2,7 +2,7 @@ namespace InfraControl.Application.Tasks;
 
 /// <summary>TaskItem na leitura (F7-T001; identificação F23-T001;
 /// planejamento/resultado F23-T003; subtarefas/progresso F23-T004/P4a;
-/// Knowledge F23-T005/P5a; PDI F23-T005/P5b).</summary>
+/// Knowledge F23-T005/P5a; PDI F23-T005/P5b; criador F31-T001).</summary>
 public sealed record TaskDto(
     Guid Id,
     string Title,
@@ -30,7 +30,9 @@ public sealed record TaskDto(
     Guid? ParentTaskId,
     string? ParentTitle,
     int SubtaskCount,
-    int? Progress)
+    int? Progress,
+    Guid? CreatedById = null,
+    string? CreatedByName = null)
 {
     internal static TaskDto From(
         Domain.Entities.TaskItem task,
@@ -41,7 +43,8 @@ public sealed record TaskDto(
         Ports.TaskSubtaskStats? subtaskStats = null,
         string? parentTitle = null,
         IReadOnlyCollection<Guid>? articleIds = null,
-        IReadOnlyCollection<Guid>? pdiUserIds = null)
+        IReadOnlyCollection<Guid>? pdiUserIds = null,
+        string? createdByName = null)
         => new(
             task.Id,
             task.Title,
@@ -80,5 +83,10 @@ public sealed record TaskDto(
                 ? (int)Math.Round(
                     100d * stats.Done / stats.NonCancelled,
                     MidpointRounding.AwayFromZero)
-                : null);
+                : null,
+            // F31-T001 — criador (task legada sem preenchimento → null).
+            task.CreatedById,
+            task.CreatedById is null
+                ? null
+                : string.IsNullOrEmpty(createdByName) ? null : createdByName);
 }

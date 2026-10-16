@@ -15,5 +15,12 @@ public enum DeviceType
     Printer = 7,
     Camera = 8,
     Phone = 9,
-    UPS = 10
+    UPS = 10,
+
+    /// <summary>
+    /// F30-T005c (docs/46): gravador NVR — câmera e NVR são devices
+    /// distintos no inventário e a associação é CameraNvrMapping. Aditivo
+    /// no fim; persistido como string (HasConversion em DeviceConfiguration).
+    /// </summary>
+    Nvr = 11
 }

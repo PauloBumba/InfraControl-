@@ -110,6 +110,14 @@ public sealed class RunCheckCommandHandler(
                 $"Check '{check}' só se aplica a devices do tipo Server.",
                 nameof(check));
 
+        // F30-T005a/b (docs/46): checks ONVIF são de câmera/NVR — mesmo
+        // molde dos guards acima; reusado pelo polling.
+        if (kind is CheckKind.OnvifStorage or CheckKind.OnvifRecording
+            && device.Type is not (DeviceType.Camera or DeviceType.Nvr))
+            throw new ArgumentException(
+                $"Check '{check}' só se aplica a devices do tipo Camera ou Nvr.",
+                nameof(check));
+
         if (string.IsNullOrWhiteSpace(device.Ip))
         {
             // Sem IP não há tentativa — não grava histórico (F5-T002).

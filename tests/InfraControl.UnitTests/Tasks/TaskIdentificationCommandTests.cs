@@ -248,6 +248,7 @@ public sealed class TaskIdentificationCommandTests : IDisposable
         var history = new RecordingTaskHistoryWriter();
         var create = new CreateTaskCommandHandler(
             TaskRepo(context), AssigneeRepo(context), history,
+            new FakeCurrentUser(Guid.NewGuid()),
             NullLogger<CreateTaskCommandHandler>.Instance);
         var due = new DateOnly(2026, 12, 1);
 
@@ -275,6 +276,7 @@ public sealed class TaskIdentificationCommandTests : IDisposable
         var create = new CreateTaskCommandHandler(
             TaskRepo(context), AssigneeRepo(context),
             new RecordingTaskHistoryWriter(),
+            new FakeCurrentUser(Guid.NewGuid()),
             NullLogger<CreateTaskCommandHandler>.Instance);
 
         var action = () => create.Handle(

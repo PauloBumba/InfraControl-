@@ -37,6 +37,9 @@ public interface IDeviceRepository : IRepository<Device>
     /// <summary>F7-T003: bloqueio de exclusão — tasks vinculadas ao device.</summary>
     Task<bool> HasTasksAsync(Guid deviceId, CancellationToken cancellationToken = default);
 
+    /// <summary>F30-T005c: bloqueio de exclusão de NVR — mapeamentos câmera-NVR (409).</summary>
+    Task<bool> HasCameraNvrMappingsAsync(Guid nvrId, CancellationToken cancellationToken = default);
+
     /// <summary>Todos os devices ordenados por nome (F5-T003: status de ping em massa).</summary>
     Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default);
 

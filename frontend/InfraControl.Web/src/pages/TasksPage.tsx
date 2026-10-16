@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Column } from "primereact/column";
 import { Button } from "@/components/ui/Button";
@@ -34,8 +34,10 @@ import {
 import { useFormErrors } from "@/hooks/useFormErrors";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
+  activeStateColumns,
   formatDateOnly,
   isOverdue,
+  isTerminalState,
   kindLabel,
   kindOptions,
   priorityOptions,
@@ -59,6 +61,24 @@ import {
 
 export function TasksPage() {
   const [view, setView] = useEntityViewMode("tasks", "kanban");
+
+  // F31-T002 — "Mostrar concluídas" (padrão Kanera/Todoist): o quadro
+  // OCULTA Resolved/Cancelled/Closed por default (board limpo); o toggle
+  // traz de volta para revisão. Preferência persistida por origem.
+  const [showCompleted, setShowCompleted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("tasks:showCompleted") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("tasks:showCompleted", showCompleted ? "1" : "0");
+    } catch {
+      // modo privado/quota — segue só em memória.
+    }
+  }, [showCompleted]);
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TaskItem | null>(null);
@@ -257,13 +277,22 @@ export function TasksPage() {
     }
   }
 
-  const items = tasks.items;
+  // F31-T002 — sem o toggle, o quadro só exibe trabalho ATIVO
+  // (Resolved/Cancelled/Closed ficam fora — some da tela principal
+  // quando finaliza, mas volta com "Mostrar concluídas").
+  const allItems = tasks.items;
+  const items = showCompleted
+    ? allItems
+    : allItems.filter((task) => !isTerminalState(task.state));
+  const hiddenCompletedCount = allItems.length - items.length;
   const totalCount = tasks.totalCount;
-  const truncated = totalCount > items.length;
+  const truncated = totalCount > allItems.length;
   const hasFilters = term !== "" || kindFilter !== "" || stateFilter !== "";
-  const completedCount = items.filter((task) => task.state === "Resolved" || task.state === "Closed").length;
-  const completionPercent = items.length === 0 ? 0 : Math.round((completedCount / items.length) * 100);
+  const completedCount = allItems.filter((task) => task.state === "Resolved" || task.state === "Closed").length;
+  const completionPercent = allItems.length === 0 ? 0 : Math.round((completedCount / allItems.length) * 100);
   const listError = mutationErrorMessage(tasks.error as Error | null);
+  // Colunas do kanban: com o toggle OFF, só as ativas (quadro limpo).
+  const kanbanColumns = showCompleted ? stateColumns : activeStateColumns;
 
   // Opções do responsável: "Sem" + usuários; se o responsável da task em
   // edição não está na lista (usuário removido ou leitura negada), o id
@@ -293,7 +322,13 @@ export function TasksPage() {
       total={totalCount}
       loading={tasks.isPending}
       note={
-        [truncated ? `exibindo as ${items.length} primeiras` : "", hasFilters ? "filtros ativos" : ""]
+        [
+          truncated ? `exibindo as ${allItems.length} primeiras` : "",
+          hasFilters ? "filtros ativos" : "",
+          !showCompleted && hiddenCompletedCount > 0
+            ? `${hiddenCompletedCount} concluída(s) oculta(s)`
+            : "",
+        ]
           .filter(Boolean)
           .join(" · ") || undefined
       }
@@ -306,6 +341,28 @@ export function TasksPage() {
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <ViewSwitcher mode={view} onChange={setView} />
+          {/* F31-T002 — toggle "Mostrar concluídas": default OFF (quadro
+              só com trabalho ativo; ao finalizar, a task some da tela). */}
+          <Button
+            onClick={() => setShowCompleted((value) => !value)}
+            variant="ghost"
+            title={
+              showCompleted
+                ? "Ocultar tarefas concluídas do quadro"
+                : "Mostrar tarefas concluídas (resolvidas/canceladas/fechadas)"
+            }
+            style={{
+              padding: "6px 12px",
+              color: showCompleted ? "#16a34a" : undefined,
+              fontWeight: showCompleted ? 600 : undefined,
+            }}
+          >
+            <i
+              className={`pi ${showCompleted ? "pi-eye" : "pi-eye-slash"}`}
+              style={{ fontSize: 11 }}
+            />{" "}
+            Concluídas
+          </Button>
           <Button
             onClick={() => void tasks.refetch()}
             disabled={tasks.isFetching}
@@ -332,7 +389,12 @@ export function TasksPage() {
     >
 
       <div className="uni-panel uni-task-progress">
-        <div><strong>Conclusão do quadro</strong><span>{completedCount} de {items.length} tarefas resolvidas ou fechadas</span></div>
+        <div>
+          <strong>Conclusão do quadro</strong>
+          <span>
+            {completedCount} de {allItems.length} tarefas resolvidas ou fechadas
+          </span>
+        </div>
         <ProgressBar value={completionPercent} aria-label={`Conclusão do quadro: ${completionPercent}%`} />
       </div>
 
@@ -472,10 +534,16 @@ export function TasksPage() {
         mode={view}
         items={items}
         getKey={(task) => task.id}
-        emptyMessage={listError ? "—" : "Nenhuma tarefa encontrada"}
+        emptyMessage={
+          listError
+            ? "—"
+            : !showCompleted && hiddenCompletedCount > 0
+              ? `Nenhuma tarefa ativa — ${hiddenCompletedCount} concluída(s) oculta(s). Ative "Concluídas" para revisar.`
+              : "Nenhuma tarefa encontrada"
+        }
         kanban={{
           groupOf: (task) => task.state,
-          columns: stateColumns.map((column) => ({ key: column.id, label: column.label })),
+          columns: kanbanColumns.map((column) => ({ key: column.id, label: column.label })),
         }}
         table={
           <DataTablePanel
@@ -545,7 +613,22 @@ export function TasksPage() {
               }
               style={{ width: 130 }}
             />
-            <Column header="Responsável" body={(task: TaskItem) => task.responsibleName ?? "—"} style={{ width: 150 }} />
+            <Column
+              header="Criado / Responsável"
+              body={(task: TaskItem) => (
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ color: "#64748b" }}>
+                    <i className="pi pi-pencil" style={{ fontSize: 9, marginRight: 3 }} />
+                    {task.createdByName ?? "—"}
+                  </div>
+                  <div style={{ color: "#475569" }}>
+                    <i className="pi pi-user" style={{ fontSize: 9, marginRight: 3 }} />
+                    {task.responsibleName ?? "—"}
+                  </div>
+                </div>
+              )}
+              style={{ width: 170 }}
+            />
             <Column
               header="Progresso"
               body={(task: TaskItem) =>
@@ -670,8 +753,9 @@ function TaskCard({
           </span>
         </div>
       )}
-      {/* F23-T001 — prazo (vencido destacado) e responsável resolvido. */}
-      {(task.dueDate || task.responsibleName) && (
+      {/* F23-T001/F31-T001 — prazo, criador e responsável (quem pediu ×
+          quem executa). */}
+      {(task.dueDate || task.responsibleName || task.createdByName) && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 10, marginBottom: 6 }}>
           {task.dueDate && (
             <span
@@ -680,6 +764,12 @@ function TaskCard({
             >
               <i className="pi pi-calendar" style={{ fontSize: 9, marginRight: 3 }} />
               {formatDateOnly(task.dueDate)}{overdue ? " · vencido" : ""}
+            </span>
+          )}
+          {task.createdByName && (
+            <span style={{ color: "#64748b" }} title={`Criado por: ${task.createdByName}`}>
+              <i className="pi pi-pencil" style={{ fontSize: 9, marginRight: 3 }} />
+              {task.createdByName}
             </span>
           )}
           {task.responsibleName && (

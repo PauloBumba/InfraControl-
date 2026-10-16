@@ -1421,4 +1421,231 @@ public sealed class AlertEvaluatorTests : IDisposable
         (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerDisk))
             .Should().BeEmpty("erro de SNMP não avalia disco");
     }
+
+    // ── F30-T005a: OnvifStorage (armazenamento da câmera/NVR, docs/46 §C) ──
+
+    [Fact]
+    public async Task OnvifStorageAtOrAbove90_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-storage-1");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifStorage,
+            Result(CheckKind.OnvifStorage, true, new Dictionary<string, string>
+            {
+                ["usedPercent"] = "95",
+                ["totalMB"] = "102400"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifStorage);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("95%")
+            .And.Contain("crítico ≥ 90%");
+    }
+
+    [Fact]
+    public async Task OnvifStorageBetween80And90_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-storage-2");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifStorage,
+            Result(CheckKind.OnvifStorage, true, new Dictionary<string, string>
+            {
+                ["usedPercent"] = "84"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifStorage);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("limite 80%");
+    }
+
+    [Fact]
+    public async Task OnvifStorageBelowWarning_ShouldResolveActiveAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-storage-3");
+        context.Alerts.Add(Alert.Create(
+            camera.Id, CheckKind.OnvifStorage, AlertSeverity.Critical, "aberto antes"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifStorage,
+            Result(CheckKind.OnvifStorage, true, new Dictionary<string, string>
+            {
+                ["usedPercent"] = "42"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifStorage))
+            .Should().BeEmpty("abaixo do limite resolve o alerta ativo");
+    }
+
+    [Fact]
+    public async Task OnvifStorageWithoutUsedPercent_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-storage-4");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifStorage,
+            Result(CheckKind.OnvifStorage, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifStorage))
+            .Should().BeEmpty("falha do ONVIF não avalia armazenamento");
+    }
+
+    // ── F30-T005b: OnvifRecording (gravação/video loss/tamper, docs/46 §B) ──
+
+    private static Dictionary<string, string> Recording(
+        string? recordingActive = null,
+        string? videoLoss = null,
+        string? tamper = null)
+    {
+        var values = new Dictionary<string, string>();
+        if (recordingActive is not null) values["recordingActive"] = recordingActive;
+        if (videoLoss is not null) values["videoLoss"] = videoLoss;
+        if (tamper is not null) values["tamper"] = tamper;
+        return values;
+    }
+
+    [Fact]
+    public async Task OnvifRecordingStopped_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-1");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, true, Recording(recordingActive: "false")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Gravação parada");
+    }
+
+    [Fact]
+    public async Task OnvifVideoLoss_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-2");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, true,
+                Recording(recordingActive: "true", videoLoss: "true")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Perda de vídeo");
+    }
+
+    [Fact]
+    public async Task OnvifTamper_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-3");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, true,
+                Recording(recordingActive: "true", tamper: "true")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("Tamper");
+    }
+
+    [Fact]
+    public async Task OnvifRecordingHealthy_ShouldResolveActiveAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-4");
+        context.Alerts.Add(Alert.Create(
+            camera.Id, CheckKind.OnvifRecording, AlertSeverity.Critical, "aberto antes"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, true,
+                Recording(recordingActive: "true", videoLoss: "false", tamper: "false")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording))
+            .Should().BeEmpty("estado saudável resolve o alerta ativo");
+    }
+
+    [Fact]
+    public async Task OnvifRecordingStopped_ShouldPrevailOverTamper()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-5");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, true,
+                Recording(recordingActive: "false", videoLoss: "true", tamper: "true")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Gravação parada", "pior condição prevalece");
+    }
+
+    [Fact]
+    public async Task OnvifRecordingWithoutValues_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-6");
+
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OnvifRecordingPartialHealthy_ShouldResolve()
+    {
+        await using var context = await CreateContextAsync();
+        var camera = await SeedDeviceAsync(context, DeviceType.Camera, "cam-rec-7");
+
+        // Sem recordingActive (device não expôs) mas videoLoss/tamper OK.
+        await Evaluator(context).EvaluateAsync(
+            camera, CheckKind.OnvifRecording,
+            Result(CheckKind.OnvifRecording, true,
+                Recording(videoLoss: "false", tamper: "false")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording))
+            .Should().BeEmpty();
+    }
 }

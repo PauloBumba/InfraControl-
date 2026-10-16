@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Providers.Ports;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Infrastructure.AI;
@@ -9,7 +10,9 @@ namespace InfraControl.Infrastructure.AI;
 /// Adaptador Ollama em HTTP puro (ADR-037 §10): sem SDK, usando
 /// <c>IHttpClientFactory</c> + <c>System.Text.Json</c>. Endpoint interno
 /// <c>http://ollama:11434</c> no compose (ADR-041) ou
-/// <c>localhost:11434</c> em dev local.
+/// <c>localhost:11434</c> em dev local. ADR-057 (FAI-T011a): BaseUrl
+/// vem do cadastro primeiro (D3); sem linha, a config (D3-A); linha
+/// inativa = "não configurado" (§44).
 /// </summary>
 public sealed class OllamaProvider : IAiProvider
 {
@@ -20,16 +23,19 @@ public sealed class OllamaProvider : IAiProvider
     };
 
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl;
+    private readonly string _configBaseUrl;
+    private readonly IAiProviderConnectionSource _connectionSource;
 
     public string Name => "ollama";
 
     public OllamaProvider(
         IHttpClientFactory httpClientFactory,
-        IOptions<AiOllamaOptions> options)
+        IOptions<AiOllamaOptions> options,
+        IAiProviderConnectionSource connectionSource)
     {
         _httpClient = httpClientFactory.CreateClient("ollama");
-        _baseUrl = options.Value.BaseUrl.TrimEnd('/');
+        _configBaseUrl = options.Value.BaseUrl.TrimEnd('/');
+        _connectionSource = connectionSource;
     }
 
     /// <summary>
@@ -40,6 +46,8 @@ public sealed class OllamaProvider : IAiProvider
         AiCompletionRequest request,
         CancellationToken cancellationToken = default)
     {
+        var baseUrl = await ResolveBaseUrlAsync(cancellationToken);
+
         var ollamaRequest = new
         {
             model = request.Model ?? "qwen2.5-coder:1.5b",
@@ -54,7 +62,7 @@ public sealed class OllamaProvider : IAiProvider
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            $"{_baseUrl}/api/generate",
+            $"{baseUrl}/api/generate",
             ollamaRequest,
             cancellationToken);
 
@@ -90,8 +98,10 @@ public sealed class OllamaProvider : IAiProvider
     public async Task<IReadOnlyList<string>> ListModelsAsync(
         CancellationToken cancellationToken = default)
     {
+        var baseUrl = await ResolveBaseUrlAsync(cancellationToken);
+
         var response = await _httpClient.GetAsync(
-            $"{_baseUrl}/api/tags",
+            $"{baseUrl}/api/tags",
             cancellationToken);
 
         response.EnsureSuccessStatusCode();
@@ -113,8 +123,9 @@ public sealed class OllamaProvider : IAiProvider
     {
         try
         {
+            var baseUrl = await ResolveBaseUrlAsync(cancellationToken);
             var response = await _httpClient.GetAsync(
-                $"{_baseUrl}/api/tags",
+                $"{baseUrl}/api/tags",
                 cancellationToken);
             return response.IsSuccessStatusCode;
         }
@@ -122,6 +133,27 @@ public sealed class OllamaProvider : IAiProvider
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// ADR-057 D3/D3-A: cadastro primeiro; linha inativa recusa (§44);
+    /// sem linha, a configuração.
+    /// </summary>
+    private async Task<string> ResolveBaseUrlAsync(CancellationToken cancellationToken)
+    {
+        var connection = await _connectionSource.FindConnectionAsync(Name, cancellationToken);
+        if (connection is not null)
+        {
+            if (!connection.IsActive)
+            {
+                throw new AiProviderNotConfiguredException(
+                    $"Provider '{Name}' está inativo no cadastro.");
+            }
+
+            return connection.BaseUrl.TrimEnd('/');
+        }
+
+        return _configBaseUrl;
     }
 
     // DTOs internos para as respostas do Ollama

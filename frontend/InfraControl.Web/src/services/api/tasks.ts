@@ -42,6 +42,8 @@ export interface TaskItem {
   parentTitle: string | null;
   subtaskCount: number;
   progress: number | null;
+  createdById: string | null;
+  createdByName: string | null;
 }
 
 /** `PagedResult<TaskDto>` — o campo `data` do envelope. */

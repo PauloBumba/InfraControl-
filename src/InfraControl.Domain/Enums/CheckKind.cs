@@ -87,6 +87,20 @@ public enum CheckKind
     /// (fixed/removable/flash do HOST-RESOURCES-MIB; pior partição é o
     /// alertável). Opt-in, guard Server-only.
     /// </summary>
-    SnmpServerDisk = 14
+    SnmpServerDisk = 14,
+
+    /// <summary>
+    /// F30-T005a (docs/46 §C): armazenamento/retenção da câmera/NVR via
+    /// ONVIF (transporte HTTP/SOAP — 1ª seam não-SNMP além do probe HTTP).
+    /// Opt-in — default de Camera/Nvr continua Ping+Tcp; guard Camera/Nvr
+    /// no RunCheckCommandHandler (molde dos guards anteriores).
+    /// </summary>
+    OnvifStorage = 15,
+
+    /// <summary>
+    /// F30-T005b (docs/46 §B/C): estado de gravação/video loss/tamper da
+    /// câmera/NVR via ONVIF. Opt-in, guard Camera/Nvr.
+    /// </summary>
+    OnvifRecording = 16
 
 }

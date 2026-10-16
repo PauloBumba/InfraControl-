@@ -68,6 +68,9 @@ public sealed class SearchTasksQueryHandler(
         var responsibleIds = result.Items
             .Where(task => task.ResponsibleId != null)
             .Select(task => task.ResponsibleId!.Value)
+            .Concat(result.Items
+                .Where(task => task.CreatedById != null)
+                .Select(task => task.CreatedById!.Value))
             .Distinct()
             .ToArray();
         var responsibleNames = responsibleIds.Length == 0
@@ -99,7 +102,9 @@ public sealed class SearchTasksQueryHandler(
                 task.ParentTaskId is { } pid
                     && parentTitles.TryGetValue(pid, out var parentTitle) ? parentTitle : null,
                 articles.TryGetValue(task.Id, out var articleIds) ? articleIds : null,
-                pdiOwners.TryGetValue(task.Id, out var pdiUserIds) ? pdiUserIds : null))
+                pdiOwners.TryGetValue(task.Id, out var pdiUserIds) ? pdiUserIds : null,
+                task.CreatedById is { } cid
+                    && responsibleNames.TryGetValue(cid, out var creatorName) ? creatorName : null))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -170,6 +175,9 @@ public sealed class GetTaskQueryHandler(
         var responsibleName = await CreateTaskCommandHandler
             .ResolveResponsibleNameAsync(
                 assigneeRepository, task.ResponsibleId, cancellationToken);
+        var createdByName = await CreateTaskCommandHandler
+            .ResolveResponsibleNameAsync(
+                assigneeRepository, task.CreatedById, cancellationToken);
 
         // F23-T004/P4a: progresso das subtarefas + título do pai.
         var subtaskStats = await repository.GetSubtaskStatsAsync(
@@ -186,6 +194,7 @@ public sealed class GetTaskQueryHandler(
             subtaskStats.TryGetValue(task.Id, out var stats) ? stats : null,
             parentTitle,
             articleIds,
-            pdiUserIds);
+            pdiUserIds,
+            createdByName);
     }
 }

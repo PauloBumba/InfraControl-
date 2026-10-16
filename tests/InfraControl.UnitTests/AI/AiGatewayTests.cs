@@ -50,10 +50,12 @@ public sealed class AiGatewayTests
     /// <summary>Router fixo; selection nula simula capacidade sem mapeamento (§44).</summary>
     private sealed class FakeRouter(AiProviderSelection? selection) : IAiProviderRouter
     {
-        public AiProviderSelection Resolve(AiCapability capability) =>
-            selection
+        public Task<AiProviderSelection> ResolveAsync(
+            AiCapability capability,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(selection
             ?? throw new AiProviderNotConfiguredException(
-                $"Capacidade de IA '{capability}' não está configurada (nenhum provider/modelo associado).");
+                $"Capacidade de IA '{capability}' não está configurada (nenhum provider/modelo associado)."));
     }
 
     private sealed class FakeRegistry(params IAiProvider[] providers) : IAiProviderRegistry

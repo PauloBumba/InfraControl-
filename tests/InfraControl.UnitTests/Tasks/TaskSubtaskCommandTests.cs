@@ -55,11 +55,13 @@ public sealed class TaskSubtaskCommandTests : IDisposable
     }
 
     private static CreateTaskCommandHandler CreateHandler(
-        AppDbContext context, RecordingTaskHistoryWriter history)
+        AppDbContext context, RecordingTaskHistoryWriter history,
+        Guid? actorId = null)
         => new(
             Repo(context),
             AssigneeRepo(context),
             history,
+            new FakeCurrentUser(actorId ?? Guid.NewGuid()),
             NullLogger<CreateTaskCommandHandler>.Instance);
 
     private static SetTaskParentCommandHandler SetParentHandler(

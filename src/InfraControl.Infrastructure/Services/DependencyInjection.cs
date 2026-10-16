@@ -9,6 +9,7 @@ using InfraControl.Application.AI;
 using InfraControl.Application.AI.Context;
 using InfraControl.Application.AI.Evaluation;
 using InfraControl.Application.AI.Health;
+using InfraControl.Application.AI.Providers.Ports;
 using InfraControl.Application.AI.Tools;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Common.Behaviors;
@@ -372,6 +373,14 @@ public static class DependencyInjection
         services.AddScoped<IMonitoringProvider, SnmpServerCpuProvider>();
         services.AddScoped<IMonitoringProvider, SnmpServerMemoryProvider>();
         services.AddScoped<IMonitoringProvider, SnmpServerDiskProvider>();
+        // F30-T005a (docs/46 §C): armazenamento da câmera/NVR via ONVIF —
+        // 1ª seam não-SNMP do monitoring (SOAP 1.2 sem NuGet; credencial
+        // global em OnvifOptions espelhando SnmpOptions; opt-in por device).
+        services.Configure<OnvifOptions>(
+            configuration.GetSection(OnvifOptions.SectionName));
+        services.AddSingleton<IOnvifClient, OnvifSoapClient>();
+        services.AddScoped<IMonitoringProvider, OnvifStorageProvider>();
+        services.AddScoped<IMonitoringProvider, OnvifRecordingProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
@@ -500,6 +509,16 @@ public static class DependencyInjection
 
         // Router de capacidade
         services.AddScoped<IAiProviderRouter, AiProviderRouter>();
+
+        // ADR-057 (FAI-T011a): conexão efetiva = cadastro primeiro (D3);
+        // sem linha, os providers caem na config (D3-A). O par
+        // IAiProviderRepository/AiProviderRepository se auto-registra
+        // pelo RepositoryRegistrar (F0-T024).
+        services.AddScoped<IAiProviderConnectionSource, DatabaseAiProviderConnectionSource>();
+
+        // ADR-057 (FAI-T011a): seed idempotente do cadastro (gatilho no
+        // Program.cs após o build do app).
+        services.AddScoped<AiProviderSeeder>();
 
         // FAI-T005 (S4): liga o gateway (S3) ao registro/router/providers
         // acima + hook de auditoria de log (ADR-036/§41 — a persistência

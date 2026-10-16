@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InfraControl.Application.Tasks.Commands;
 using InfraControl.Application.Tasks.Queries;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
@@ -42,8 +43,18 @@ public sealed class TaskCommandTests : IDisposable
 
     private static RecordingTaskHistoryWriter History() => new();
 
-    private static CreateTaskCommandHandler CreateHandler(AppDbContext context)
+    private sealed class FakeCurrentUser(Guid userId) : ICurrentUserContext
+    {
+        public Guid? UserId { get; } = userId;
+        public string? UserName => "criador@exemplo.test";
+        public bool IsAuthenticated => true;
+        public IReadOnlyCollection<string> Roles => ["Operator"];
+    }
+
+    private static CreateTaskCommandHandler CreateHandler(
+        AppDbContext context, Guid? creatorId = null)
         => new(Repo(context), AssigneeRepo(context), History(),
+            new FakeCurrentUser(creatorId ?? Guid.NewGuid()),
             NullLogger<CreateTaskCommandHandler>.Instance);
 
     // ── Create ───────────────────────────────────────────────────────────
@@ -57,8 +68,9 @@ public sealed class TaskCommandTests : IDisposable
     public async Task Create_ShouldOpenTaskAndReturnDto()
     {
         await using var context = await CreateContextAsync();
+        var creatorId = Guid.NewGuid();
 
-        var dto = await CreateHandler(context).Handle(
+        var dto = await CreateHandler(context, creatorId).Handle(
             new CreateTaskCommand(
                 "Trocar filtro do rack B",
                 "Maintenance",
@@ -70,8 +82,12 @@ public sealed class TaskCommandTests : IDisposable
         dto.State.Should().Be(nameof(TaskState.Open));
         dto.Description.Should().Be("agendada com o datacenter");
 
+        // F31-T001 — o criador vem do usuário autenticado.
+        dto.CreatedById.Should().Be(creatorId);
+
         var saved = await context.Tasks.AsNoTracking().SingleAsync();
         saved.State.Should().Be(TaskState.Open);
+        saved.CreatedById.Should().Be(creatorId);
     }
 
     [Fact]

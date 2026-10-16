@@ -1,4 +1,5 @@
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Providers.Ports;
 using InfraControl.Application.Common.Interfaces;
 
 namespace InfraControl.UnitTests.AI;
@@ -38,10 +39,27 @@ internal sealed class FakeAiProvider(string name) : IAiProvider
 /// <summary>Router fixo; selection nula simula capacidade sem mapeamento (§44).</summary>
 internal sealed class FakeAiRouter(AiProviderSelection? selection) : IAiProviderRouter
 {
-    public AiProviderSelection Resolve(AiCapability capability) =>
-        selection
+    public Task<AiProviderSelection> ResolveAsync(
+        AiCapability capability,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(selection
         ?? throw new AiProviderNotConfiguredException(
-            $"Capacidade de IA '{capability}' não está configurada (nenhum provider/modelo associado).");
+            $"Capacidade de IA '{capability}' não está configurada (nenhum provider/modelo associado)."));
+}
+
+/// <summary>
+/// Fonte de conexão fixa (ADR-057 FAI-T011a). <c>Null</c> = sem linha no
+/// cadastro (os adaptadores caem na config, D3-A).
+/// </summary>
+internal sealed class FakeAiConnectionSource(AiProviderConnection? connection)
+    : IAiProviderConnectionSource
+{
+    public static readonly FakeAiConnectionSource Null = new(connection: null);
+
+    public Task<AiProviderConnection?> FindConnectionAsync(
+        string providerName,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(connection);
 }
 
 internal sealed class FakeAiRegistry(params IAiProvider[] providers) : IAiProviderRegistry

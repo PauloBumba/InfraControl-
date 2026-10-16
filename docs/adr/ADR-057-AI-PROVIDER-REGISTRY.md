@@ -55,7 +55,8 @@ provider**.
 5. **API Key: protegida em repouso, mascarada em toda superfície.**
    Chave nunca em log/audit (`F0-T014` já proíbe payload),
    nunca em resposta de leitura (mostrar só sufixo), nunca em
-   exception. Mecanismo: **D1 fechada** (DataProtection + keyring).
+   exception. Mecanismo: **D1 fechada** (ICredentialProtector/AES-GCM —
+   F11-T006, o mesmo do RemoteAccess/UniFi em código).
 6. **Superfície Admin.** CRUD `Administer` (policies existentes) +
    "testar conexão" (§13) e "listar modelos" (§14) reaproveitando o
    contrato `IAiProvider` já implementado — sem novo contrato de
@@ -68,7 +69,7 @@ provider**.
 
 | # | Questão | Decisão |
 |---|---------|---------|
-| D1 | **Mecanismo da ApiKey em repouso** | **(A) `IDataProtectionProvider`** com o keyring existente (`DataProtection__KeyRingPath` + `CREDENTIAL_ENCRYPTION_KEY`, mesmo padrão do RemoteAccess) — zero dependência nova; vault externo = evolução futura (novo ADR) |
+| D1 | **Mecanismo da ApiKey em repouso** | **(A) `ICredentialProtector`** (AES-256-GCM, F11-T006) — o "mesmo padrão do RemoteAccess" em código é esta porta, não `IDataProtectionProvider`; chave de `RemoteAccess:CredentialEncryption:Key`/`CREDENTIAL_ENCRYPTION_KEY`, já usada pelo UniFi/Zabbix. Descoberto na implementação do FAI-T011a; vault externo = evolução futura (novo ADR) |
 | D2 | **Escopo por empresa/demo** | **(A) cadastro global na v1**, com nota de evolução — o produto não tem modelo de tenant hoje; inventar um aqui seria arquitetura sem requisito. Quando existir empresa/tenant no domínio, nova ADR estende o escopo |
 | D3 | **Fallback para config** | **(A) config `Ai__*` lida só quando o cadastro não tem o provider** — deploy legado não quebra; sem cadastro e sem config → estado "não configurado" §44 |
 

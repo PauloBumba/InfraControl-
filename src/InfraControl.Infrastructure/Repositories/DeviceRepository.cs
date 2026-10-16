@@ -65,6 +65,11 @@ public sealed class DeviceRepository(AppDbContext dbContext) : IDeviceRepository
         => dbContext.TaskDevices.AnyAsync(
             link => link.DeviceId == deviceId, cancellationToken);
 
+    public Task<bool> HasCameraNvrMappingsAsync(
+        Guid nvrId, CancellationToken cancellationToken = default)
+        => dbContext.CameraNvrMappings.AnyAsync(
+            mapping => mapping.NvrId == nvrId, cancellationToken);
+
     public async Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default)
         => await dbContext.Devices
             .AsNoTracking()

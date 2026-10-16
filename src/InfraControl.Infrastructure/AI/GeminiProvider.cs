@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Providers.Ports;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Infrastructure.AI;
@@ -10,6 +11,8 @@ namespace InfraControl.Infrastructure.AI;
 /// Adaptador Google Gemini em HTTP puro (ADR-050 §4 · ADR-037 §10):
 /// <c>POST {BaseUrl}/models/{model}:generateContent</c> com a API key
 /// como query string (a API do Google a exige). Sem SDK de terceiros.
+/// ADR-057 (FAI-T011a): BaseUrl/ApiKey vêm do cadastro primeiro (D3);
+/// sem linha, a config (D3-A); linha inativa = "não configurado" (§44).
 /// </summary>
 public sealed class GeminiProvider : IAiProvider
 {
@@ -21,6 +24,7 @@ public sealed class GeminiProvider : IAiProvider
 
     private readonly HttpClient _httpClient;
     private readonly AiGeminiOptions _options;
+    private readonly IAiProviderConnectionSource _connectionSource;
 
     public string Name => string.IsNullOrWhiteSpace(_options.Name)
         ? "gemini"
@@ -28,10 +32,12 @@ public sealed class GeminiProvider : IAiProvider
 
     public GeminiProvider(
         IHttpClientFactory httpClientFactory,
-        IOptions<AiGeminiOptions> options)
+        IOptions<AiGeminiOptions> options,
+        IAiProviderConnectionSource connectionSource)
     {
         _httpClient = httpClientFactory.CreateClient("gemini");
         _options = options.Value;
+        _connectionSource = connectionSource;
     }
 
     /// <summary>
@@ -42,8 +48,9 @@ public sealed class GeminiProvider : IAiProvider
         AiCompletionRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl)
-            || string.IsNullOrWhiteSpace(_options.ApiKey))
+        var (baseUrl, apiKey) = await ResolveConnectionAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(baseUrl)
+            || string.IsNullOrWhiteSpace(apiKey))
         {
             throw new AiProviderNotConfiguredException(
                 $"Provider Gemini '{Name}' não está configurado (Ai:Gemini:BaseUrl/ApiKey).");
@@ -90,9 +97,9 @@ public sealed class GeminiProvider : IAiProvider
             payload["generationConfig"] = generationConfig;
         }
 
-        var url = $"{_options.BaseUrl.TrimEnd('/')}/models/"
+        var url = $"{baseUrl}/models/"
             + $"{Uri.EscapeDataString(request.Model)}:generateContent"
-            + $"?key={Uri.EscapeDataString(_options.ApiKey)}";
+            + $"?key={Uri.EscapeDataString(apiKey)}";
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -134,14 +141,15 @@ public sealed class GeminiProvider : IAiProvider
     public async Task<IReadOnlyList<string>> ListModelsAsync(
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl)
-            || string.IsNullOrWhiteSpace(_options.ApiKey))
+        var (baseUrl, apiKey) = await ResolveConnectionAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(baseUrl)
+            || string.IsNullOrWhiteSpace(apiKey))
         {
             return _options.Models;
         }
 
-        var url = $"{_options.BaseUrl.TrimEnd('/')}/models"
-            + $"?key={Uri.EscapeDataString(_options.ApiKey)}";
+        var url = $"{baseUrl}/models"
+            + $"?key={Uri.EscapeDataString(apiKey)}";
 
         var response = await _httpClient.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -164,16 +172,17 @@ public sealed class GeminiProvider : IAiProvider
     /// </summary>
     public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl)
-            || string.IsNullOrWhiteSpace(_options.ApiKey))
-        {
-            return false;
-        }
-
         try
         {
-            var url = $"{_options.BaseUrl.TrimEnd('/')}/models"
-                + $"?key={Uri.EscapeDataString(_options.ApiKey)}";
+            var (baseUrl, apiKey) = await ResolveConnectionAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(baseUrl)
+                || string.IsNullOrWhiteSpace(apiKey))
+            {
+                return false;
+            }
+
+            var url = $"{baseUrl}/models"
+                + $"?key={Uri.EscapeDataString(apiKey)}";
 
             var response = await _httpClient.GetAsync(url, cancellationToken);
             return response.IsSuccessStatusCode;
@@ -182,6 +191,28 @@ public sealed class GeminiProvider : IAiProvider
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// ADR-057 D3/D3-A: cadastro primeiro; linha inativa recusa (§44);
+    /// sem linha, a configuração.
+    /// </summary>
+    private async Task<(string BaseUrl, string? ApiKey)> ResolveConnectionAsync(
+        CancellationToken cancellationToken)
+    {
+        var connection = await _connectionSource.FindConnectionAsync(Name, cancellationToken);
+        if (connection is not null)
+        {
+            if (!connection.IsActive)
+            {
+                throw new AiProviderNotConfiguredException(
+                    $"Provider '{Name}' está inativo no cadastro.");
+            }
+
+            return (connection.BaseUrl.TrimEnd('/'), connection.ApiKeyPlain);
+        }
+
+        return (_options.BaseUrl?.TrimEnd('/') ?? string.Empty, _options.ApiKey);
     }
 
     // DTOs internos (camelCase — JsonSerializerDefaults.Web)

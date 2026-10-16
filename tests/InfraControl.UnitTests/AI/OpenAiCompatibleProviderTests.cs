@@ -32,7 +32,8 @@ public sealed class OpenAiCompatibleProviderTests
     {
         var provider = new OpenAiCompatibleProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(name: "")));
+            Options.Create(CreateOptions(name: "")),
+            FakeAiConnectionSource.Null);
 
         provider.Name.Should().Be("openai");
     }
@@ -42,7 +43,8 @@ public sealed class OpenAiCompatibleProviderTests
     {
         var provider = new OpenAiCompatibleProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(name: "groq")));
+            Options.Create(CreateOptions(name: "groq")),
+            FakeAiConnectionSource.Null);
 
         provider.Name.Should().Be("groq");
     }
@@ -60,7 +62,8 @@ public sealed class OpenAiCompatibleProviderTests
             });
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         var result = await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt de teste", Model: "gpt-4o-mini"),
@@ -79,7 +82,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.Content = Json(new { choices = new[] { new { message = new { content = "ok" } } } });
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt", Model: "gpt-4o-mini"),
@@ -96,7 +100,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.Content = Json(new { choices = new[] { new { message = new { content = "ok" } } } });
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions(apiKey: "sk-secreta")));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions(apiKey: "sk-secreta")),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt", Model: "gpt-4o-mini"),
@@ -115,7 +120,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.Content = Json(new { choices = new[] { new { message = new { content = "ok" } } } });
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions(apiKey: null)));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions(apiKey: null)),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt", Model: "gpt-4o-mini"),
@@ -135,7 +141,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.Content = Json(new { choices = new[] { new { message = new { content = "ok" } } } });
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(
@@ -157,7 +164,8 @@ public sealed class OpenAiCompatibleProviderTests
     {
         var provider = new OpenAiCompatibleProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(baseUrl: "")));
+            Options.Create(CreateOptions(baseUrl: "")),
+            FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt", Model: "gpt-4o-mini"),
@@ -172,7 +180,8 @@ public sealed class OpenAiCompatibleProviderTests
     {
         var provider = new OpenAiCompatibleProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions()));
+            Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt"),
@@ -190,7 +199,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.StatusCode = HttpStatusCode.InternalServerError;
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt", Model: "gpt-4o-mini"),
@@ -214,7 +224,8 @@ public sealed class OpenAiCompatibleProviderTests
             });
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
@@ -226,7 +237,8 @@ public sealed class OpenAiCompatibleProviderTests
     {
         var provider = new OpenAiCompatibleProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(baseUrl: "", models: ["modelo-a", "modelo-b"])));
+            Options.Create(CreateOptions(baseUrl: "", models: ["modelo-a", "modelo-b"])),
+            FakeAiConnectionSource.Null);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
@@ -241,7 +253,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.StatusCode = HttpStatusCode.OK;
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         (await provider.TestConnectionAsync(CancellationToken.None)).Should().BeTrue();
     }
@@ -251,7 +264,8 @@ public sealed class OpenAiCompatibleProviderTests
     {
         var provider = new OpenAiCompatibleProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(baseUrl: "")));
+            Options.Create(CreateOptions(baseUrl: "")),
+            FakeAiConnectionSource.Null);
 
         (await provider.TestConnectionAsync(CancellationToken.None)).Should().BeFalse();
     }
@@ -264,7 +278,8 @@ public sealed class OpenAiCompatibleProviderTests
             response.StatusCode = HttpStatusCode.Unauthorized;
         });
 
-        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()));
+        var provider = new OpenAiCompatibleProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         (await provider.TestConnectionAsync(CancellationToken.None)).Should().BeFalse();
     }
