@@ -5,7 +5,9 @@ namespace InfraControl.Application.Integrations.Unifi;
 /// `stat/sta`). Nunca é persistido (REGRA 8/9: telemetria de massa vive
 /// só na origem; consulta sob demanda — F20-T003). `LastSeenUnix` é o
 /// horário informado pelo controller (epoch), distinto do horário da
-/// consulta do InfraControl.
+/// consulta do InfraControl. `Radio` é o valor BRUTO do campo `radio`
+/// ("ng"/"na"/…) — o mapeamento para banda (2.4/5 GHz) é derivado na
+/// apresentação (S1b), nunca aqui.
 /// </summary>
 public sealed record UnifiConnectedClientDto(
     string Mac,
@@ -17,7 +19,8 @@ public sealed record UnifiConnectedClientDto(
     string? NetworkName,
     int? Signal,
     bool IsWired,
-    long? LastSeenUnix);
+    long? LastSeenUnix,
+    string? Radio);
 
 /// <summary>
 /// F26 Fase 4.2: rede/SSID configurado no controller (`rest/networkconf`) —

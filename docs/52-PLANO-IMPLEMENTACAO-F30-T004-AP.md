@@ -1,9 +1,10 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
 > **Status**: S0 ✅ (`743d010`) · S1 ✅ (`b2a912a`) · S2 ✅ (`94de61b`) ·
-> S3 ✅ (`52f36ff`) · ADR-056 **aceito** (`8d79bb9`) · S4 ✅ (hash desta
-> etapa registrado no commit do S1b); S1b (banda por cliente) em
-> execução, autorizados juntos pelo decisor.
+> S3 ✅ (`52f36ff`) · ADR-056 **aceito** (`8d79bb9`) · S4 ✅ (`2179801`) ·
+> S1b ✅ (banda por cliente — hash no commit desta etapa) — **F30-T004
+> concluída**: ficha §A–§G coberta; pendências restantes são §7
+> (itens futuros com decisão registrada).
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -116,7 +117,25 @@ repo, suíte completa verde, commit próprio (autorizado).
   — a banda não existe em nenhum ponto da cadeia (o parser backend não lê
   `radio` do `stat/sta`). Entregue o derivável sem backend: total, fio/sem-fio,
   clientes por SSID e RSSI médio. Banda por cliente vira pendência §7 item 6
-  (candidata a S1b: 1 campo no DTO + parser).
+  (candidata a S1b: 1 campo no DTO + parser) — **fechada pelo S1b abaixo**.
+
+#### Execução do S1b — banda por cliente (2026-10-15)
+
+- **Backend** (TDD: RED `CS1061 Radio` → GREEN 1/1): campo `Radio` (bruto,
+  "ng"/"na"/…) no `UnifiConnectedClientDto` + `ReadOrNull(item, "radio")`
+  no `ParseConnectedClients` — o backend SÓ repassa o valor bruto; o
+  mapeamento para banda é apresentação (nada inventado no integration).
+- **Front** (TDD: RED 4 testes de `byBand` → GREEN 12/12; RED 3 testes de
+  página → GREEN 13/13): `bandOf` + tabela `BAND_BY_RADIO` documentada
+  (b/g/n/ng → 2.4; a/na/ac → 5; qualquer outro/ausente → `null`), `byBand`
+  no `LiveClientSummary` (ordenado por contagem desc, sem-banda por
+  último) e linha "Por banda: 2.4 GHz 2 · 5 GHz 1 · — 1" no resumo do
+  painel (UM text node — não colide com as linhas de SSID).
+- **Semântica da casa preservada**: rádio desconhecido/ausente agrupa sob
+  `null` renderizado "—"; com-fio fora do agrupamento; cliente sem-fio
+  sem rádio NÃO vira banda inventada.
+- **Testes**: `wifiClients.test.ts` 12/12, `WiFiPage.test.tsx` 13/13,
+  parser UniFi 1/1; `tsc` 0; `eslint` 0 (1 warning pré-existente).
 
 ### S2 — `SnmpRadioProvider` (IEEE 802.11 MIB, área E/D — fallback SNMP)
 
@@ -340,10 +359,9 @@ S0 (reparo) → commit verde → docs/52 (este doc) → autorização
    prioridade, registrar se o operador pedir.
 5. **Estado do AP "Ready/Upgrading/Isolated"** (ficha §B): o parse atual lê
    `state == 1 → Connected` só; granularidade extra exige contrato novo.
-6. **Banda (2.4/5 GHz) por cliente** (ficha §C): o `stat/sta` do controller
-   traz `radio` por cliente, mas o `UnifiConnectedClientDto` não lê esse
-   campo — exige 1 propriedade no DTO + 1 linha no parser (backend). O S1
-   entregou o derivável sem backend; banda = candidata a **S1b**.
+6. ~~**Banda (2.4/5 GHz) por cliente** (ficha §C)~~ — **FECHADA pelo S1b**
+   (2026-10-15): `radio` bruto lido no parser (`UnifiConnectedClientDto.Radio`)
+   e banda derivada na apresentação (`bandOf`/`BAND_BY_RADIO` no utilitário).
 
 ## 8. Fora de escopo desta execução
 

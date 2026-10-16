@@ -85,13 +85,15 @@ const wifi: UnifiWifi = { ssids, accessPoints, capturedAtUtc: "2026-10-11T10:00:
  * F30-T004 S1 — clientes AO VIVO (`GET /integrations/unifi/clients`):
  * 5 clientes (1 com fio, 4 sem fio), Corp em 2, Visitantes em 1, um sem
  * essid (vira "—") e média de sinal só dos 2 que informaram (-55/-67 → -61).
+ * S1b: rádios brutos — "ng" = 2.4 GHz × 2, "na" = 5 GHz × 1, um sem
+ * rádio (agrupa sob "—" na banda); com-fio fica fora.
  */
 const liveClients: UniFiConnectedClient[] = [
-  { mac: "aa:bb:cc:dd:ee:01", ip: "10.0.0.1", hostname: "notebook-ana", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: "Corp", networkName: null, signal: -55, isWired: false, lastSeenUnix: 1 },
-  { mac: "aa:bb:cc:dd:ee:02", ip: "10.0.0.2", hostname: "celular-bruno", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: "Corp", networkName: null, signal: -67, isWired: false, lastSeenUnix: 1 },
-  { mac: "aa:bb:cc:dd:ee:03", ip: "10.0.0.3", hostname: "visita-1", apMac: "f0:9f:c2:00:00:02", switchMac: null, essid: "Visitantes", networkName: null, signal: null, isWired: false, lastSeenUnix: 1 },
-  { mac: "aa:bb:cc:dd:ee:04", ip: "10.0.0.4", hostname: "iot-camera", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: null, networkName: null, signal: null, isWired: false, lastSeenUnix: 1 },
-  { mac: "aa:bb:cc:dd:ee:05", ip: "10.0.0.5", hostname: "pc-mesa", apMac: null, switchMac: "f0:9f:c2:00:00:03", essid: null, networkName: null, signal: null, isWired: true, lastSeenUnix: 1 },
+  { mac: "aa:bb:cc:dd:ee:01", ip: "10.0.0.1", hostname: "notebook-ana", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: "Corp", networkName: null, signal: -55, isWired: false, lastSeenUnix: 1, radio: "ng" },
+  { mac: "aa:bb:cc:dd:ee:02", ip: "10.0.0.2", hostname: "celular-bruno", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: "Corp", networkName: null, signal: -67, isWired: false, lastSeenUnix: 1, radio: "na" },
+  { mac: "aa:bb:cc:dd:ee:03", ip: "10.0.0.3", hostname: "visita-1", apMac: "f0:9f:c2:00:00:02", switchMac: null, essid: "Visitantes", networkName: null, signal: null, isWired: false, lastSeenUnix: 1, radio: "ng" },
+  { mac: "aa:bb:cc:dd:ee:04", ip: "10.0.0.4", hostname: "iot-camera", apMac: "f0:9f:c2:00:00:01", switchMac: null, essid: null, networkName: null, signal: null, isWired: false, lastSeenUnix: 1, radio: null },
+  { mac: "aa:bb:cc:dd:ee:05", ip: "10.0.0.5", hostname: "pc-mesa", apMac: null, switchMac: "f0:9f:c2:00:00:03", essid: null, networkName: null, signal: null, isWired: true, lastSeenUnix: 1, radio: null },
 ];
 
 const inventoryAp: DeviceItem = {
@@ -277,6 +279,7 @@ describe("WiFiPage — clientes ao vivo (F30-T004 S1)", () => {
 
     expect(await screen.findByText("Total: 0")).toBeInTheDocument();
     expect(screen.getByText("RSSI médio: —")).toBeInTheDocument();
+    expect(screen.getByText("Por banda: —")).toBeInTheDocument();
     expect(screen.getByText("Nenhum cliente sem-fio no Controller")).toBeInTheDocument();
   });
 
@@ -286,8 +289,21 @@ describe("WiFiPage — clientes ao vivo (F30-T004 S1)", () => {
 
     expect(await screen.findByText("Total: —")).toBeInTheDocument();
     expect(screen.getByText("RSSI médio: —")).toBeInTheDocument();
+    expect(screen.getByText("Por banda: —")).toBeInTheDocument();
     // as demais seções seguem vivas com os dados da sondagem de WiFi
     expect(screen.getByText("Visitantes")).toBeInTheDocument();
     expect(screen.queryByText("Clients fora do ar")).toBeNull();
+  });
+
+  it("should show clients per band derived from the raw radio (S1b)", async () => {
+    // banda vem do RÁDIO BRUTO mapeado no utilitário ("ng"→2.4, "na"→5);
+    // sem rádio conhecido agrupa sob "—" — nunca banda inventada. Tudo em
+    // UM text node (getByText não junta irmãos) para não colidir com as
+    // linhas de SSID.
+    renderPage();
+
+    expect(
+      await screen.findByText("Por banda: 2.4 GHz 2 · 5 GHz 1 · — 1")
+    ).toBeInTheDocument();
   });
 });

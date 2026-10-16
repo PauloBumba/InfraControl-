@@ -83,6 +83,8 @@ export interface UniFiConnectedClient {
   signal: number | null;
   isWired: boolean;
   lastSeenUnix: number | null;
+  /** Rádio BRUTO do controller ("ng"/"na"/…). S1b: banda é derivada no utilitário. */
+  radio: string | null;
 }
 
 export interface UniFiNetwork {

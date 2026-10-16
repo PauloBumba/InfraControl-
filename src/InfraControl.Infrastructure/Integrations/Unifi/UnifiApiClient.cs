@@ -858,7 +858,8 @@ public sealed class UnifiApiClient : IUnifiApiClient
                 Signal: ReadInt(item, "signal"),
                 IsWired: item.TryGetProperty("is_wired", out var wired) &&
                     wired.ValueKind == JsonValueKind.True,
-                LastSeenUnix: ReadLong(item, "last_seen")));
+                LastSeenUnix: ReadLong(item, "last_seen"),
+                Radio: ReadOrNull(item, "radio")));
         }
 
         return clients;
