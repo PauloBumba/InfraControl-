@@ -1,4 +1,4 @@
-# ADR-057: Integração vCenter — inventário e atributos de VM via vSphere Automation API (read-only)
+# ADR-058: Integração vCenter — inventário e atributos de VM via vSphere Automation API (read-only)
 
 - **Status**: **rascunho — aguarda aprovação humana antes de qualquer código** (F31-T005)
 - **Data**: 2026-10-16

@@ -368,18 +368,15 @@ public static class DependencyInjection
         // MIB) — opt-in por device, mesmo gate dos demais SNMP; nenhum tipo
         // o tem como default (DeviceProfileDefaults intocado).
         services.AddScoped<IMonitoringProvider, SnmpRadioProvider>();
-<<<<<<< HEAD
         // F30-T004 S4 (ADR-056): prevenção WiFi por tendência — chaves de
         // item Zabbix por métrica (vazia = regra não roda, motivo honesto).
         services.Configure<WifiPreventionOptions>(
             configuration.GetSection(WifiPreventionOptions.SectionName));
-=======
         // F30-T003 (docs/44): saúde do servidor via HOST-RESOURCES-MIB —
         // opt-in por device, mesmo gate dos demais checks novos.
         services.AddScoped<IMonitoringProvider, SnmpServerCpuProvider>();
         services.AddScoped<IMonitoringProvider, SnmpServerMemoryProvider>();
         services.AddScoped<IMonitoringProvider, SnmpServerDiskProvider>();
->>>>>>> 87a017d6ea6b96000a09cb479c2112e8e0d7013b
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
