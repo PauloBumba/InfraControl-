@@ -23,5 +23,13 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     restoreMocks: true,
+    // Dev com a stack Docker no ar (WSL2 + AV comendo RAM/CPU): os
+    // defaults estouravam em massa —81 falhas, todas "Test timed out in
+    // 5000ms", e o arquivo KnowledgePage flakava sozinho; isolado tudo
+    // passa. Timeout maior + teto de workers = rajada menor sem mascarar
+    // falha real (falha real não resolve nem em15s).
+    testTimeout: 15000,
+    hookTimeout: 20000,
+    maxWorkers: 4,
   },
 });

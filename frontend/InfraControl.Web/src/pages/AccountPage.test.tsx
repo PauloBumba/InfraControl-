@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -156,8 +156,12 @@ describe("AccountPage — perfil (F29-T002)", () => {
     await user.type(field, "Ana Maria");
     await user.click(screen.getByRole("button", { name: /^salvar$/i }));
 
-    expect(updateProfileMock).toHaveBeenCalledTimes(1);
-    expect(updateProfileMock).toHaveBeenCalledWith("Ana Maria");
+    // Sob contenção o clique devolve antes da cadeia do handler invocar a
+    // mutation — espera o chamado em vez de assumir a microtask.
+    await waitFor(() => {
+      expect(updateProfileMock).toHaveBeenCalledTimes(1);
+      expect(updateProfileMock).toHaveBeenCalledWith("Ana Maria");
+    });
     // o e-mail não viaja: é somente leitura nesta tela.
     expect(updateProfileMock).not.toHaveBeenCalledWith("ana@exemplo.com");
   });
