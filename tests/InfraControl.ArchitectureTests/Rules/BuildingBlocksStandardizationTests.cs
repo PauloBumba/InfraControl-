@@ -84,6 +84,7 @@ public class BuildingBlocksStandardizationTests : BaseArchitectureTest
             "InfraControl.Application.Inventory.Virtualization.Queries.SearchVCentersQuery",
             "InfraControl.Application.Inventory.Virtualization.Queries.GetVirtualMachineQuery",
             "InfraControl.Application.Inventory.Virtualization.Queries.GetVCenterQuery",
+            "InfraControl.Application.Inventory.Virtualization.Queries.GetVirtualizationOverviewQuery",
             "InfraControl.Application.Inventory.Virtualization.Commands.AssignHypervisorToVirtualMachineCommand",
             "InfraControl.Application.Inventory.Virtualization.Commands.UnassignHypervisorFromVirtualMachineCommand",
             "InfraControl.Application.Inventory.Virtualization.Commands.AssignVCenterToVirtualMachineCommand",

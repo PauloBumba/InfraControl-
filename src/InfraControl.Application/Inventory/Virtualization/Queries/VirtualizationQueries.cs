@@ -4,6 +4,7 @@ using InfraControl.Application.Inventory.Devices.Commands;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Devices.Queries;
 using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -125,6 +126,107 @@ public sealed record GetVCenterQuery(Guid Id) : IQuery<DeviceDto>, IAuthorizedRe
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
+}
+
+// F31-T003 (docs/53 §4.3): visão agregada da virtualização — read-model em
+// memória sobre o repositório de devices (molde F3-T006 topologia), sem
+// entidade nova e sem migração.
+
+/// <summary>Visão agregada da virtualização.</summary>
+public sealed record VirtualizationOverviewDto(
+    int TotalVirtualMachines,
+    int TotalVCenters,
+    int OrphanVirtualMachines,
+    VirtualizationGroupDto[] ByHypervisor,
+    VirtualizationGroupDto[] ByVCenter,
+    VirtualMachineOverviewItemDto[] VirtualMachines);
+
+/// <summary>Grupo de VMs sob um hypervisor (ou um vCenter) — nome resolvido.</summary>
+public sealed record VirtualizationGroupDto(
+    Guid DeviceId,
+    string Name,
+    int VirtualMachineCount);
+
+/// <summary>VM com os vínculos resolvidos por nome.</summary>
+public sealed record VirtualMachineOverviewItemDto(
+    Guid Id,
+    string Name,
+    string? Ip,
+    Guid? HypervisorId,
+    string? HypervisorName,
+    Guid? VCenterId,
+    string? VCenterName,
+    bool IsOrphan);
+
+public sealed record GetVirtualizationOverviewQuery
+    : IQuery<VirtualizationOverviewDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
+}
+
+public sealed class GetVirtualizationOverviewQueryHandler(IDeviceRepository repository)
+    : IRequestHandler<GetVirtualizationOverviewQuery, VirtualizationOverviewDto>
+{
+    public async Task<VirtualizationOverviewDto> Handle(
+        GetVirtualizationOverviewQuery request,
+        CancellationToken cancellationToken)
+    {
+        var all = await repository.GetAllOrderedByNameAsync(cancellationToken);
+        var byId = all.ToDictionary(device => device.Id);
+
+        string? ResolveName(Guid? deviceId) =>
+            deviceId is Guid key && byId.TryGetValue(key, out var device)
+                ? device.Name
+                : null;
+
+        var virtualMachines = all
+            .Where(device => device.Type == DeviceType.VirtualMachine)
+            .ToList();
+
+        var byHypervisor = virtualMachines
+            .Where(vm => vm.HypervisorDeviceId is not null)
+            .GroupBy(vm => vm.HypervisorDeviceId!.Value)
+            .Select(group => new VirtualizationGroupDto(
+                group.Key,
+                ResolveName(group.Key) ?? group.Key.ToString(),
+                group.Count()))
+            .OrderBy(g => g.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        var byVCenter = virtualMachines
+            .Where(vm => vm.VCenterDeviceId is not null)
+            .GroupBy(vm => vm.VCenterDeviceId!.Value)
+            .Select(group => new VirtualizationGroupDto(
+                group.Key,
+                ResolveName(group.Key) ?? group.Key.ToString(),
+                group.Count()))
+            .OrderBy(g => g.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        bool IsOrphan(Device vm) =>
+            vm.HypervisorDeviceId is null && vm.VCenterDeviceId is null;
+
+        var items = virtualMachines
+            .Select(vm => new VirtualMachineOverviewItemDto(
+                vm.Id,
+                vm.Name,
+                vm.Ip,
+                vm.HypervisorDeviceId,
+                ResolveName(vm.HypervisorDeviceId),
+                vm.VCenterDeviceId,
+                ResolveName(vm.VCenterDeviceId),
+                IsOrphan(vm)))
+            .ToArray();
+
+        return new VirtualizationOverviewDto(
+            virtualMachines.Count,
+            all.Count(device => device.Type == DeviceType.VCenter),
+            virtualMachines.Count(IsOrphan),
+            byHypervisor,
+            byVCenter,
+            items);
+    }
 }
 
 public sealed class GetVCenterQueryHandler(IDeviceRepository repository)

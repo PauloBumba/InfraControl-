@@ -9,9 +9,10 @@
 > **Requisitos vêm do usuário** — nada aqui é inventado; itens não
 > cobertos ficam como pendência §6.
 >
-> **Status (2026-10-16):** T001 concluída (commit `99510b6`) e T002
-> concluída — gate da T002: UnitTests 2559/2559, Arch 154/155 (falha
-> nginx pré-existente), migração `AddVirtualMachineLinks` criada.
+> **Status (2026-10-16):** T001 concluída (commit `99510b6`), T002
+> concluída (commit `7fceacc`, migração `AddVirtualMachineLinks`) e T003
+> concluída — gate da T003: UnitTests 2564/2564, Arch 154/155 (falha
+> nginx pré-existente). T004 (front) em execução; T005 retida na ADR.
 
 ---
 

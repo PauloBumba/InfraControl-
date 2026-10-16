@@ -109,4 +109,11 @@ public sealed class VirtualizationController(ISender sender) : BaseController
     [Authorize]
     public async Task<IActionResult> GetVCenter(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetVCenterQuery(id), cancellationToken)));
+
+    // F31-T003: visão agregada (contagens + órfãs + nomes resolvidos).
+    [HttpGet("virtualization")]
+    [Authorize]
+    public async Task<IActionResult> GetOverview(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetVirtualizationOverviewQuery(), cancellationToken)));
 }
