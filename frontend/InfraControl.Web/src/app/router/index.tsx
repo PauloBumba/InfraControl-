@@ -47,6 +47,7 @@ const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m 
 const LocationsPage = lazy(() => import("@/pages/LocationsPage").then(m => ({ default: m.LocationsPage })));
 const SlaPage = lazy(() => import("@/pages/SlaPage").then(m => ({ default: m.SlaPage })));
 const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ default: m.SwitchesPage })));
+const VirtualizationPage = lazy(() => import("@/pages/VirtualizationPage").then(m => ({ default: m.VirtualizationPage })));
 const PrintersPage = lazy(() => import("@/pages/PrintersPage").then(m => ({ default: m.PrintersPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
@@ -418,6 +419,12 @@ function AppContent() {
           <Route path="/switches" element={
             <ProtectedRoute>
               <SwitchesPage />
+            </ProtectedRoute>
+          } />
+          {/* F31-T004 — Virtualização: VMs, hypervisors e vCenter (read-model). */}
+          <Route path="/virtualization" element={
+            <ProtectedRoute>
+              <VirtualizationPage />
             </ProtectedRoute>
           } />
           {/* F30-T002d — Impressoras & Suprimentos (Printer MIB ao vivo). */}

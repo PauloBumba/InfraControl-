@@ -10,9 +10,11 @@
 > cobertos ficam como pendência §6.
 >
 > **Status (2026-10-16):** T001 concluída (commit `99510b6`), T002
-> concluída (commit `7fceacc`, migração `AddVirtualMachineLinks`) e T003
-> concluída — gate da T003: UnitTests 2564/2564, Arch 154/155 (falha
-> nginx pré-existente). T004 (front) em execução; T005 retida na ADR.
+> concluída (commit `7fceacc`, migração `AddVirtualMachineLinks`), T003
+> concluída (commit `baf66fc` — gate UnitTests 2564/2564, Arch 154/155)
+> e T004 concluída (página front — gate vitest 270/271 com flake
+> KnowledgePage pré-existente isolado verde, tsc 0, eslint 0). Lote 1
+> fechado; T005 (integração vCenter API) retida na ADR.
 
 ---
 
