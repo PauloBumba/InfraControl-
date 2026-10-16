@@ -13,7 +13,8 @@ namespace InfraControl.UnitTests.Inventory;
 /// <summary>
 /// F31-T001 (docs/53 §4.1): VMs e vCenter no inventário — queries dedicadas
 /// delegam ao fluxo de Device (F2-T003) com type fixo (molde F3-T001
-/// SearchSwitchesQuery): DeviceType.VirtualMachine = 11 / VCenter = 12 (D2) e
+/// SearchSwitchesQuery): DeviceType.VirtualMachine = 12 / VCenter = 13 (D2 —
+/// 11 ficou com Nvr no merge da F30-T005c; enum persiste como string) e
 /// perfil default de Server (D3 — "VM entra na categoria de servidores").
 /// Sem entidade nova e sem migração; guarda de tipo → 404 pt-BR.
 /// </summary>
