@@ -14,7 +14,8 @@
 > concluída (commit `baf66fc` — gate UnitTests 2564/2564, Arch 154/155)
 > e T004 concluída (página front — gate vitest 270/271 com flake
 > KnowledgePage pré-existente isolado verde, tsc 0, eslint 0). Lote 1
-> fechado; T005 (integração vCenter API) retida na ADR.
+> fechado; T005 (integração vCenter API) retida na ADR — rascunho
+> **ADR-057** redigido, aguardando aprovação.
 
 ---
 
@@ -84,7 +85,9 @@ Guards (domínio, pt-BR):
    testes de render.
 5. **F31-T005 — Integração vCenter API (FUTURA, fora do lote)**: settings +
    client + sync read-only no padrão F26/F27, atributos ao vivo da VM.
-   **Exige ADR aprovada antes** (TDD só depois do ADR).
+   **Exige ADR aprovada antes** (TDD só depois do ADR) — rascunho
+   redigido em `adr/ADR-057-VCENTER-INTEGRATION-READONLY.md`
+   (2026-10-16, status "rascunho", aguardando aprovação).
 
 ## 5. Fora de escopo desta fase
 
