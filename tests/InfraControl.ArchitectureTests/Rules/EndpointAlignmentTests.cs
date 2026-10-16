@@ -97,7 +97,9 @@ public sealed class EndpointAlignmentTests : BaseArchitectureTest
 
         source.Should().Contain("location = /health");
         source.Should().Contain("location /health/");
-        source.Should().Contain("http://api:8080");
+        // ADR-044 (41b9d7e): o proxy passa a usar o upstream `api_backend`
+        // (load balancing entre réplicas) cujo alvo continua api:8080.
+        source.Should().Contain("server api:8080");
     }
 
     [Fact]

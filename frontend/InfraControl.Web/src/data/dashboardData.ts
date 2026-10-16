@@ -7,6 +7,7 @@ export const navigation: NavItem[] = [
   { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
   { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
   { label: "Impressoras", icon: "pi pi-print", route: "/printers" },
+  { label: "Servidores", icon: "pi pi-desktop", route: "/servers" },
   { label: "Clientes", icon: "pi pi-users", route: "/clients" },
   {
     label: "UniFi",

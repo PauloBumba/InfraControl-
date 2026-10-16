@@ -367,6 +367,11 @@ public static class DependencyInjection
         // MIB) — opt-in por device, mesmo gate dos demais SNMP; nenhum tipo
         // o tem como default (DeviceProfileDefaults intocado).
         services.AddScoped<IMonitoringProvider, SnmpRadioProvider>();
+        // F30-T003 (docs/44): saúde do servidor via HOST-RESOURCES-MIB —
+        // opt-in por device, mesmo gate dos demais checks novos.
+        services.AddScoped<IMonitoringProvider, SnmpServerCpuProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpServerMemoryProvider>();
+        services.AddScoped<IMonitoringProvider, SnmpServerDiskProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
@@ -500,8 +505,7 @@ public static class DependencyInjection
         // acima + hook de auditoria de log (ADR-036/§41 — a persistência
         // da ação AI.* na auditoria de domínio é do S6/ADR-040). Limites
         // por chamada (§55) configuráveis em Ai:Gateway (default do
-        // record vale quando a seção não existe — leitura feita acima,
-        // junto dos HttpClients nomeados, para compartilhar o timeout.
+        // record vale quando a seção não existe — declaration em 473).
         services.AddSingleton(aiGatewayOptions);
         // FAI-T007 (S6): hook de auditoria persiste a ação AI.* na
         // auditoria de domínio existente (F0-T014, sem migração) +

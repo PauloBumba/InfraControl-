@@ -66,6 +66,27 @@ public enum CheckKind
     /// como default (DeviceProfileDefaults intocado); guard AccessPoint-only
     /// no RunCheckCommandHandler (mesmo molde do guard Printer).
     /// </summary>
-    SnmpRadio = 11
+    SnmpRadio = 11,
+
+    /// <summary>
+    /// F30-T003a (docs/44 §B): CPU do servidor por core via hrProcessorLoad
+    /// (HOST-RESOURCES-MIB RFC 2790, universal Windows/Linux). Opt-in — não é
+    /// default do Server (que fica com Ping+SnmpSystem); guard Server-only.
+    /// </summary>
+    SnmpServerCpu = 12,
+
+    /// <summary>
+    /// F30-T003b (docs/44 §C): memória do servidor via hrStorageTable
+    /// (linhas RAM do HOST-RESOURCES-MIB; swap informativo). Opt-in, guard
+    /// Server-only.
+    /// </summary>
+    SnmpServerMemory = 13,
+
+    /// <summary>
+    /// F30-T003c (docs/44 §D): discos do servidor via hrStorageTable
+    /// (fixed/removable/flash do HOST-RESOURCES-MIB; pior partição é o
+    /// alertável). Opt-in, guard Server-only.
+    /// </summary>
+    SnmpServerDisk = 14
 
 }

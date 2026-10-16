@@ -1167,4 +1167,258 @@ public sealed class AlertEvaluatorTests : IDisposable
         AlertThresholds.TonerMinPercent.Should().Be(20);
         AlertThresholds.DrumMinPercent.Should().Be(10);
     }
+
+    // ── F30-T003a: SnmpServerCpu (hrProcessorLoad, pior core) ──────────
+
+    [Fact]
+    public async Task ServerCpuAbove90Percent_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-cpu-1");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerCpu,
+            Result(CheckKind.SnmpServerCpu, true, new Dictionary<string, string>
+            {
+                ["cpuPercent"] = "95",
+                ["averagePercent"] = "90",
+                ["coreCount"] = "4"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerCpu);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("CPU").And.Contain("95");
+    }
+
+    [Fact]
+    public async Task ServerCpuAt85Percent_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-cpu-2");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerCpu,
+            Result(CheckKind.SnmpServerCpu, true, new Dictionary<string, string>
+            {
+                ["cpuPercent"] = "85"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerCpu);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+    }
+
+    [Fact]
+    public async Task ServerCpuBelowThreshold_ShouldResolveOpenAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-cpu-3");
+        context.Alerts.Add(Alert.Create(
+            server.Id, CheckKind.SnmpServerCpu, AlertSeverity.Critical, "CPU 95%"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerCpu,
+            Result(CheckKind.SnmpServerCpu, true, new Dictionary<string, string>
+            {
+                ["cpuPercent"] = "42"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerCpu))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ServerCpuWithoutCpuPercent_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-cpu-4");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerCpu,
+            Result(CheckKind.SnmpServerCpu, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerCpu))
+            .Should().BeEmpty("erro de SNMP não avalia CPU");
+    }
+
+    // ── F30-T003b: SnmpServerMemory (hrStorageTable RAM) ────────────────
+
+    [Fact]
+    public async Task ServerMemoryAbove90Percent_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-mem-1");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerMemory,
+            Result(CheckKind.SnmpServerMemory, true, new Dictionary<string, string>
+            {
+                ["usedPercent"] = "95",
+                ["totalMB"] = "8192"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerMemory);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Memória").And.Contain("95");
+    }
+
+    [Fact]
+    public async Task ServerMemoryAt85Percent_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-mem-2");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerMemory,
+            Result(CheckKind.SnmpServerMemory, true, new Dictionary<string, string>
+            {
+                ["usedPercent"] = "85"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerMemory);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+    }
+
+    [Fact]
+    public async Task ServerMemoryBelowThreshold_ShouldResolveOpenAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-mem-3");
+        context.Alerts.Add(Alert.Create(
+            server.Id, CheckKind.SnmpServerMemory, AlertSeverity.Critical, "Memória 95%"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerMemory,
+            Result(CheckKind.SnmpServerMemory, true, new Dictionary<string, string>
+            {
+                ["usedPercent"] = "40"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerMemory))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ServerMemoryWithoutUsedPercent_ShouldNotEvaluate()
+    {
+        // Fallback hrMemorySize devolve total sem usado — informativo, sem regra.
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-mem-4");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerMemory,
+            Result(CheckKind.SnmpServerMemory, true, new Dictionary<string, string>
+            {
+                ["totalMB"] = "2048"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerMemory))
+            .Should().BeEmpty("sem usedPercent não avalia");
+    }
+
+    // ── F30-T003c: SnmpServerDisk (pior partição) ───────────────────────
+
+    [Fact]
+    public async Task DiskWorstAbove90Percent_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-disk-1");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerDisk,
+            Result(CheckKind.SnmpServerDisk, true, new Dictionary<string, string>
+            {
+                ["worstPercent"] = "95",
+                ["worstDisk"] = "/",
+                ["diskCount"] = "2"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerDisk);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Disco").And.Contain("95");
+    }
+
+    [Fact]
+    public async Task DiskWorstAt85Percent_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-disk-2");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerDisk,
+            Result(CheckKind.SnmpServerDisk, true, new Dictionary<string, string>
+            {
+                ["worstPercent"] = "85",
+                ["worstDisk"] = "/var"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerDisk);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+    }
+
+    [Fact]
+    public async Task DiskWorstBelowThreshold_ShouldResolveOpenAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-disk-3");
+        context.Alerts.Add(Alert.Create(
+            server.Id, CheckKind.SnmpServerDisk, AlertSeverity.Critical, "Disco 95%"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerDisk,
+            Result(CheckKind.SnmpServerDisk, true, new Dictionary<string, string>
+            {
+                ["worstPercent"] = "30",
+                ["worstDisk"] = "/"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerDisk))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DiskWithoutWorstPercent_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var server = await SeedDeviceAsync(context, DeviceType.Server, "srv-disk-4");
+
+        await Evaluator(context).EvaluateAsync(
+            server, CheckKind.SnmpServerDisk,
+            Result(CheckKind.SnmpServerDisk, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, server.Id, CheckKind.SnmpServerDisk))
+            .Should().BeEmpty("erro de SNMP não avalia disco");
+    }
 }
