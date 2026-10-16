@@ -15,5 +15,9 @@ public enum DeviceType
     Printer = 7,
     Camera = 8,
     Phone = 9,
-    UPS = 10
+    UPS = 10,
+    // F31-T001 / docs/53 D2: VMs e vCenter passam a existir no inventário —
+    // a mesma ideia do F3-T001 (Switch = Device com type próprio).
+    VirtualMachine = 11,
+    VCenter = 12
 }

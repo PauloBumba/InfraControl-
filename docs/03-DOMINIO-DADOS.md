@@ -60,6 +60,8 @@ Tipos:
 - Phone
 - UPS
 - Other
+- VirtualMachine <!-- F31-T001 (docs/53 D2): VM no inventário; perfil default = o de Server (D3 — "VM entra na categoria de servidores") -->
+- VCenter <!-- F31-T001 (docs/53 D2): gerenciador vCenter; perfil default = o de Server (D3) -->
 
 ### ExternalDeviceReference (F19-T006)
 
