@@ -14,7 +14,7 @@ public sealed class AiRuntimeHealthService(
             AiProviderSelection selection;
             try
             {
-                selection = router.Resolve(capability);
+                selection = await router.ResolveAsync(capability, cancellationToken);
             }
             catch (AiProviderNotConfiguredException)
             {

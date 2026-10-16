@@ -79,7 +79,7 @@ public sealed class AiGateway : IAiGateway
                     $"Prompt excede o limite de {_options.MaxPromptCharacters} caracteres (§55).");
             }
 
-            selection = _router.Resolve(request.Capability);
+            selection = await _router.ResolveAsync(request.Capability, cancellationToken);
             providerUsed = selection.Provider;
             modelUsed = selection.Model;
 

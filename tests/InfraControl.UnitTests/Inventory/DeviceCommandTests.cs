@@ -292,6 +292,48 @@ public sealed class DeviceCommandTests : IDisposable
             .WithMessage("Não é possível excluir o device: existem portas vinculadas.");
     }
 
+    [Fact]
+    public async Task Delete_NvrWithCameraMappings_ShouldThrowConflictMessage()
+    {
+        // F30-T005c: FK Restrict de nvr_id — o pre-check do handler devolve 409
+        // em vez de deixar estourar violação de FK (500).
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var camera = Device.Create(locationId, "cam-01", DeviceType.Camera);
+        var nvr = Device.Create(locationId, "nvr-01", DeviceType.Nvr);
+        context.Devices.AddRange(camera, nvr);
+        await context.SaveChangesAsync();
+        context.CameraNvrMappings.Add(CameraNvrMapping.Create(camera.Id, nvr.Id, 1));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteDeviceCommand(nvr.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o device: existem mapeamentos câmera-NVR vinculados.");
+        context.Devices.AsNoTracking().Should().ContainSingle(device => device.Id == nvr.Id);
+    }
+
+    [Fact]
+    public async Task Delete_CameraWithMapping_ShouldCascadeRemoveMapping()
+    {
+        // F30-T005c: FK Cascade de camera_id — excluir a câmera remove o vínculo.
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var camera = Device.Create(locationId, "cam-01", DeviceType.Camera);
+        var nvr = Device.Create(locationId, "nvr-01", DeviceType.Nvr);
+        context.Devices.AddRange(camera, nvr);
+        await context.SaveChangesAsync();
+        context.CameraNvrMappings.Add(CameraNvrMapping.Create(camera.Id, nvr.Id, 1));
+        await context.SaveChangesAsync();
+
+        await DeleteHandler(context).Handle(
+            new DeleteDeviceCommand(camera.Id), CancellationToken.None);
+
+        context.CameraNvrMappings.Should().BeEmpty();
+        context.Devices.AsNoTracking().Should().ContainSingle(device => device.Id == nvr.Id);
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────
 
     [Fact]

@@ -23,6 +23,36 @@ public sealed class TaskItemTests
     }
 
     [Fact]
+    public void Create_WithCreator_ShouldPersistCreatedById()
+    {
+        var creatorId = Guid.NewGuid();
+
+        var task = TaskItem.Create(
+            "Instalar AP no 2º andar", TaskKind.Maintenance,
+            createdById: creatorId);
+
+        task.CreatedById.Should().Be(creatorId);
+    }
+
+    [Fact]
+    public void Create_WithoutCreator_ShouldKeepCreatedByIdNull()
+    {
+        var task = TaskItem.Create("Sem criador explícito", TaskKind.Manual);
+
+        task.CreatedById.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_EmptyCreator_ShouldThrowArgumentPtBr()
+    {
+        var action = () => TaskItem.Create(
+            "t", TaskKind.Manual, createdById: Guid.Empty);
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("O id do criador não pode ser vazio.*");
+    }
+
+    [Fact]
     public void Create_WithoutTitle_ShouldThrowArgumentPtBr()
     {
         var action = () => TaskItem.Create("   ", TaskKind.Manual);

@@ -248,6 +248,16 @@ if (builder.Configuration.GetValue<bool>($"{BootstrapAdminOptions.SectionName}:E
     await bootstrapper.RunAsync();
 }
 
+// ADR-057 (FAI-T011a): seed idempotente do cadastro de providers de IA
+// (Ollama default + rotas espelhando a config; nunca sobrescreve o que
+// o operador já cadastrou).
+{
+    using var aiSeedScope = app.Services.CreateScope();
+    var aiProviderSeeder =
+        aiSeedScope.ServiceProvider.GetRequiredService<AiProviderSeeder>();
+    await aiProviderSeeder.SeedAsync();
+}
+
 // ── Pipeline ─────────────────────────────────────────────────────────────
 // ADR-022: tem de ser o primeiro — o restante do pipeline (log de requisição,
 // rate limit por IP, links gerados com Request.Scheme) lê o valor que ele

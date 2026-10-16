@@ -209,6 +209,13 @@ public sealed class DeleteDeviceCommandHandler(
         if (await repository.HasTasksAsync(device.Id, cancellationToken))
             throw new InvalidOperationException("Não é possível excluir o device: existem tasks vinculadas.");
 
+        // F30-T005c: NVR com mapeamentos câmera-NVR — FK Restrict é o backstop
+        // (câmera é Cascade: excluir a câmera remove o vínculo).
+        if (device.Type == DeviceType.Nvr
+            && await repository.HasCameraNvrMappingsAsync(device.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "Não é possível excluir o device: existem mapeamentos câmera-NVR vinculados.");
+
         device.Delete(); // ADR-030 §5 — deviceDeletedDomainEvent na mesma transação
         repository.Remove(device);
         await repository.SaveChangesAsync(cancellationToken);

@@ -464,4 +464,81 @@ public sealed class RunCheckCommandTests : IDisposable
             CancellationToken cancellationToken = default)
             => Task.FromResult(factory());
     }
+
+    // ── F30-T005a: guard ONVIF (Camera/Nvr) ──────────────────────────────
+
+    private sealed class FakeOnvifProvider(string name) : IMonitoringProvider
+    {
+        public string Name => name;
+
+        public bool CanHandle(string providerKey) =>
+            string.Equals(providerKey, name, StringComparison.OrdinalIgnoreCase);
+
+        public Task<MonitoringProviderResult> CheckAsync(
+            string target, CancellationToken cancellationToken = default)
+            => Task.FromResult(new MonitoringProviderResult(
+                true, TimeSpan.FromMilliseconds(9), null,
+                new Dictionary<string, string> { ["usedPercent"] = "10" }));
+    }
+
+    /// <summary>OnvifStorage é Camera/Nvr-only — mesmo molde do guard Printer.</summary>
+    [Theory]
+    [InlineData(DeviceType.Switch)]
+    [InlineData(DeviceType.Server)]
+    [InlineData(DeviceType.AccessPoint)]
+    public async Task RunCheck_OnvifStorage_OnNonCameraNvr_ShouldThrowArgumentPtBrMessage(
+        DeviceType nonCameraType)
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, nonCameraType, "dev-08", "192.0.2.15");
+
+        var action = () => Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("OnvifStorage")))
+            .Handle(new RunCheckCommand(device.Id, "OnvifStorage"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*só se aplica a devices do tipo Camera ou Nvr*");
+        (await RowsAsync(context, device.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunCheck_OnvifStorage_OnCamera_ShouldExecuteAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var camera = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Camera, "cam-02", "192.0.2.31");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("OnvifStorage")))
+            .Handle(new RunCheckCommand(camera.Id, "OnvifStorage"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, camera.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.OnvifStorage);
+    }
+
+    [Fact]
+    public async Task RunCheck_OnvifRecording_OnNvr_ShouldPassGuardAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var nvr = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Nvr, "nvr-01", "192.0.2.32");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("OnvifRecording")))
+            .Handle(new RunCheckCommand(nvr.Id, "OnvifRecording"), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, nvr.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.OnvifRecording);
+    }
 }

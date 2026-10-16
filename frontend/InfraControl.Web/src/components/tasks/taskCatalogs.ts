@@ -17,6 +17,26 @@ export const stateColumns = [
   { id: "Closed", label: "Fechadas", color: "#374151" },
 ];
 
+/**
+ * Estados que encerram o trabalho (mesmo critério do Dashboard:
+ * Resolved/Cancelled/Closed). O quadro OCULTA essas tasks por default
+ * (padrão Kanera/Todoist — board limpo; o toggle "Mostrar concluídas"
+ * traz de volta para revisão).
+ */
+export const TERMINAL_TASK_STATES: readonly string[] = [
+  "Resolved",
+  "Cancelled",
+  "Closed",
+];
+
+export const isTerminalState = (state: string): boolean =>
+  TERMINAL_TASK_STATES.includes(state);
+
+/** Colunas ativas do kanban (sem as terminais) — quadro default limpo. */
+export const activeStateColumns = stateColumns.filter(
+  (column) => !isTerminalState(column.id),
+);
+
 export const stateLabel = (state: string): string =>
   stateColumns.find((column) => column.id === state)?.label ?? state;
 

@@ -33,6 +33,12 @@ public sealed class TaskItem : AggregateRoot
     public DateOnly? DueDate { get; private set; }
     public Guid? ResponsibleId { get; private set; }
 
+    // F31-T001 — quem criou a task (espelho CreatedById do Project):
+    // distingue o autor do pedido de quem executa (ResponsibleId). Sem
+    // FK (mesmo critério do ResponsibleId / ADR-029) — usuário excluído
+    // não apaga o registro histórico. Nulo só em tasks legadas pré-migração.
+    public Guid? CreatedById { get; private set; }
+
     // F23-T003 — planejamento e resultado (Plano de Execução §5): datas
     // previstas de início/fim (o prazo de compromisso continua no
     // DueDate) e o resultado obtido na execução.
@@ -59,7 +65,8 @@ public sealed class TaskItem : AggregateRoot
         string? description = null,
         TaskPriority priority = TaskPriority.Medium,
         DateOnly? dueDate = null,
-        Guid? responsibleId = null)
+        Guid? responsibleId = null,
+        Guid? createdById = null)
     {
         var task = new TaskItem();
         task.Update(title, description);
@@ -68,6 +75,11 @@ public sealed class TaskItem : AggregateRoot
         task.Priority = priority;
         task.DueDate = dueDate;
         task.SetResponsible(responsibleId);
+
+        if (createdById == Guid.Empty)
+            throw new ArgumentException(
+                "O id do criador não pode ser vazio.", nameof(createdById));
+        task.CreatedById = createdById;
 
         // ADR-030 §5 — descarta o Updated transitório do Update interno.
         task.ClearDomainEvents();

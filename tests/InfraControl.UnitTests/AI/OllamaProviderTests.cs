@@ -27,7 +27,7 @@ public sealed class OllamaProviderTests
         var httpClientFactory = CreateHttpClientFactory();
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
 
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         provider.Name.Should().Be("ollama");
     }
@@ -49,7 +49,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var result = await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt de teste"),
@@ -77,7 +77,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt"),
@@ -106,7 +106,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt", Model: "modelo-custom"),
@@ -129,7 +129,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt"),
@@ -149,7 +149,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.Copilot, "prompt"),
@@ -176,7 +176,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
@@ -196,7 +196,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
@@ -213,7 +213,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var result = await provider.TestConnectionAsync(CancellationToken.None);
 
@@ -230,7 +230,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var result = await provider.TestConnectionAsync(CancellationToken.None);
 
@@ -247,7 +247,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         var result = await provider.TestConnectionAsync(CancellationToken.None);
 
@@ -303,7 +303,7 @@ public sealed class OllamaProviderTests
             });
 
         var options = Options.Create(new AiOllamaOptions { BaseUrl = "http://localhost:11434" });
-        var provider = new OllamaProvider(httpClientFactory, options);
+        var provider = new OllamaProvider(httpClientFactory, options, FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(

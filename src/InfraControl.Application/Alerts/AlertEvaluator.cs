@@ -37,6 +37,12 @@ public static class AlertThresholds
     /// <summary>F30-T003c: pior partição do servidor ≥ 90% = Critical.</summary>
     public const int DiskCriticalPercent = 90;
 
+    /// <summary>F30-T005a: armazenamento da câmera/NVR ≥ 80% = Warning.</summary>
+    public const int StorageWarningPercent = 80;
+
+    /// <summary>F30-T005a: armazenamento da câmera/NVR ≥ 90% = Critical.</summary>
+    public const int StorageCriticalPercent = 90;
+
     /// <summary>Falhas consecutivas de Ping antes de abrir o alerta (F6-T002).</summary>
     public const int PingFailureStreak = 3;
 }
@@ -171,6 +177,14 @@ public sealed class AlertEvaluator(
 
             case CheckKind.SnmpServerDisk:
                 await EvaluateServerDiskAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.OnvifStorage:
+                await EvaluateOnvifStorageAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.OnvifRecording:
+                await EvaluateOnvifRecordingAsync(device, kind, result, cancellationToken);
                 break;
 
             default:
@@ -468,6 +482,98 @@ public sealed class AlertEvaluator(
             await ResolveActiveAsync(device.Id, kind, cancellationToken);
         }
     }
+
+    /// <summary>
+    /// F30-T005a: armazenamento da câmera/NVR (ONVIF) — usedPercent ≥
+    /// StorageCriticalPercent → Critical; ≥ StorageWarningPercent → Warning;
+    /// abaixo → resolve. Sem usedPercent (ONVIF indisponível/erro) → não
+    /// avalia (docs/46 §Dados indisponíveis).
+    /// </summary>
+    private async Task EvaluateOnvifStorageAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null
+            || !result.Values.TryGetValue("usedPercent", out var raw)
+            || !int.TryParse(raw, out var percent))
+            return;
+
+        if (percent >= AlertThresholds.StorageCriticalPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Armazenamento de '{device.Name}' em {percent}% "
+                    + $"(crítico ≥ {AlertThresholds.StorageCriticalPercent}%).",
+                cancellationToken);
+        }
+        else if (percent >= AlertThresholds.StorageWarningPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"Armazenamento de '{device.Name}' em {percent}% "
+                    + $"(limite {AlertThresholds.StorageWarningPercent}%).",
+                cancellationToken);
+        }
+        else
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// F30-T005b: estado de gravação da câmera/NVR — pior condição prevalece
+    /// (ordem: gravação parada Critical > perda de vídeo Critical > tamper
+    /// Warning); campos OK → resolve; Values ausentes ou sem campo algum →
+    /// não avalia (docs/46 §Dados indisponíveis).
+    /// </summary>
+    private async Task EvaluateOnvifRecordingAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null)
+            return;
+
+        var recordingActive = ReadBool(result.Values, "recordingActive");
+        var videoLoss = ReadBool(result.Values, "videoLoss");
+        var tamper = ReadBool(result.Values, "tamper");
+
+        if (recordingActive is false)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Gravação parada em '{device.Name}'.",
+                cancellationToken);
+        }
+        else if (videoLoss is true)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Perda de vídeo em '{device.Name}'.",
+                cancellationToken);
+        }
+        else if (tamper is true)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"Tamper detectado em '{device.Name}'.",
+                cancellationToken);
+        }
+        else if (recordingActive.HasValue || videoLoss.HasValue || tamper.HasValue)
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    private static bool? ReadBool(
+        IReadOnlyDictionary<string, string> values, string key)
+        => values.TryGetValue(key, out var raw)
+            && bool.TryParse(raw, out var parsed)
+                ? parsed
+                : null;
 
     /// <summary>
     /// F30-T002b: estado da impressora — pior condição prevalece (ordem:

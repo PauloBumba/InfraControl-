@@ -110,6 +110,8 @@ const umaTarefa = {
   parentTitle: null,
   subtaskCount: 0,
   progress: null,
+  createdById: "9e9a1111-2222-3333-4444-555566667777",
+  createdByName: "Ana",
 };
 
 beforeEach(() => {
@@ -278,5 +280,64 @@ describe("TasksPage — casca da lista (C-3: ListPageShell)", () => {
     await user.click(screen.getByRole("button", { name: "Filtrar" }));
 
     expect(await screen.findByText("1 tarefa · filtros ativos")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F31-T002 — "Mostrar concluídas" (padrão Kanera/Todoist): o quadro
+ * oculta Resolved/Cancelled/Closed por default; o toggle traz de volta.
+ */
+describe("TasksPage — concluídas ocultas por default (F31-T002)", () => {
+  const tarefaConcluida = {
+    ...umaTarefa,
+    id: "2f1a1111-2222-3333-4444-555566667777",
+    title: "Trocar toner da impressora",
+    state: "Resolved",
+  };
+
+  beforeEach(() => {
+    listTasksMock.mockResolvedValue({
+      items: [umaTarefa, tarefaConcluida],
+      totalCount: 2,
+      page: 1,
+      pageSize: 100,
+    });
+  });
+
+  it("should hide terminal-state tasks by default and show a hidden-count note", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Trocar switch do sala B")).toBeInTheDocument();
+    // A concluída some do quadro…
+    expect(screen.queryByText("Trocar toner da impressora")).toBeNull();
+    // …e o nota avisa quantas estão ocultas.
+    expect(await screen.findByText(/1 concluída\(s\) oculta\(s\)/)).toBeInTheDocument();
+  });
+
+  it("should bring completed tasks back when the Concluídas toggle is on", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /Concluídas/ }));
+
+    expect(await screen.findByText("Trocar toner da impressora")).toBeInTheDocument();
+  });
+
+  it("should persist the toggle in localStorage across remounts", async () => {
+    const first = renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /Concluídas/ }));
+    expect(localStorage.getItem("tasks:showCompleted")).toBe("1");
+    first.unmount();
+
+    renderPage();
+    expect(await screen.findByText("Trocar toner da impressora")).toBeInTheDocument();
+  });
+
+  it("should show creator name on the card when present", async () => {
+    renderPage();
+
+    expect(await screen.findByTitle("Criado por: Ana")).toBeInTheDocument();
   });
 });

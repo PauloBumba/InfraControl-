@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using InfraControl.Application.AI;
+using InfraControl.Application.AI.Providers.Ports;
 using Microsoft.Extensions.Options;
 
 namespace InfraControl.Infrastructure.AI;
@@ -10,7 +11,9 @@ namespace InfraControl.Infrastructure.AI;
 /// mesmo contrato <c>/chat/completions</c> + <c>/models</c> da OpenAI —
 /// cobre OpenAI, OpenRouter, Groq, Together e servidores locais (vLLM,
 /// LM Studio, Ollama <c>/v1</c>). Sem SDK de terceiros; a API key é
-/// opcional (servidores locais normalmente não exigem).
+/// opcional (servidores locais normalmente não exigem). ADR-057
+/// (FAI-T011a): BaseUrl/ApiKey vêm do cadastro primeiro (D3); sem
+/// linha, a config (D3-A); linha inativa = "não configurado" (§44).
 /// </summary>
 public sealed class OpenAiCompatibleProvider : IAiProvider
 {
@@ -26,6 +29,7 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
 
     private readonly HttpClient _httpClient;
     private readonly AiOpenAiCompatibleOptions _options;
+    private readonly IAiProviderConnectionSource _connectionSource;
 
     public string Name => string.IsNullOrWhiteSpace(_options.Name)
         ? "openai"
@@ -33,10 +37,12 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
 
     public OpenAiCompatibleProvider(
         IHttpClientFactory httpClientFactory,
-        IOptions<AiOpenAiCompatibleOptions> options)
+        IOptions<AiOpenAiCompatibleOptions> options,
+        IAiProviderConnectionSource connectionSource)
     {
         _httpClient = httpClientFactory.CreateClient("openai-compatible");
         _options = options.Value;
+        _connectionSource = connectionSource;
     }
 
     /// <summary>
@@ -47,7 +53,8 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
         AiCompletionRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        var (baseUrl, apiKey) = await ResolveConnectionAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(baseUrl))
         {
             throw new AiProviderNotConfiguredException(
                 $"Provider OpenAI-compatible '{Name}' não está configurado (Ai:OpenAiCompatible:BaseUrl).");
@@ -82,11 +89,11 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
 
         using var httpRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            $"{_options.BaseUrl.TrimEnd('/')}/chat/completions")
+            $"{baseUrl}/chat/completions")
         {
             Content = JsonContent.Create(payload, options: JsonOptions)
         };
-        ApplyApiKey(httpRequest);
+        ApplyApiKey(httpRequest, apiKey);
 
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -119,15 +126,16 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
     public async Task<IReadOnlyList<string>> ListModelsAsync(
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
+        var (baseUrl, apiKey) = await ResolveConnectionAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(baseUrl))
         {
             return _options.Models;
         }
 
         using var httpRequest = new HttpRequestMessage(
             HttpMethod.Get,
-            $"{_options.BaseUrl.TrimEnd('/')}/models");
-        ApplyApiKey(httpRequest);
+            $"{baseUrl}/models");
+        ApplyApiKey(httpRequest, apiKey);
 
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -148,17 +156,18 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
     /// </summary>
     public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.BaseUrl))
-        {
-            return false;
-        }
-
         try
         {
+            var (baseUrl, apiKey) = await ResolveConnectionAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                return false;
+            }
+
             using var httpRequest = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"{_options.BaseUrl.TrimEnd('/')}/models");
-            ApplyApiKey(httpRequest);
+                $"{baseUrl}/models");
+            ApplyApiKey(httpRequest, apiKey);
 
             var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
             return response.IsSuccessStatusCode;
@@ -169,12 +178,34 @@ public sealed class OpenAiCompatibleProvider : IAiProvider
         }
     }
 
-    private void ApplyApiKey(HttpRequestMessage request)
+    /// <summary>
+    /// ADR-057 D3/D3-A: cadastro primeiro; linha inativa recusa (§44);
+    /// sem linha, a configuração.
+    /// </summary>
+    private async Task<(string BaseUrl, string? ApiKey)> ResolveConnectionAsync(
+        CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+        var connection = await _connectionSource.FindConnectionAsync(Name, cancellationToken);
+        if (connection is not null)
+        {
+            if (!connection.IsActive)
+            {
+                throw new AiProviderNotConfiguredException(
+                    $"Provider '{Name}' está inativo no cadastro.");
+            }
+
+            return (connection.BaseUrl.TrimEnd('/'), connection.ApiKeyPlain);
+        }
+
+        return (_options.BaseUrl?.TrimEnd('/') ?? string.Empty, _options.ApiKey);
+    }
+
+    private void ApplyApiKey(HttpRequestMessage request, string? apiKey)
+    {
+        if (!string.IsNullOrWhiteSpace(apiKey))
         {
             request.Headers.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
         }
     }
 

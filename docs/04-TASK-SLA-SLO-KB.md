@@ -53,6 +53,39 @@ Prioridade, prazo e responsável da spec "TASKS — Plano de Execução" §5
 - `TaskDto` expõe `priority`, `dueDate`, `responsibleId`, `responsibleName`;
   a criação aceita os mesmos campos opcionais.
 
+### Criador × responsável (F31-T001)
+
+Distinção entre **quem pediu** a task e **quem executa** (espelho do
+`Project.CreatedById`):
+
+- `CreatedById` = `Guid?` **sem FK** (mesmo critério do `ResponsibleId` /
+  ADR-029); preenchido no `Create` com o `ICurrentUserContext.UserId` do
+  usuário autenticado (mesmo guard do `CreateProjectCommandHandler` —
+  sem sessão → `UnauthorizedAccessException` → 401). Tasks legadas
+  (anteriores à migração `AddTaskCreatedById`) ficam com `null`.
+- `TaskDto` expõe `createdById` e `createdByName` (resolvido em leitura
+  via `DomainUsers.DisplayName`, batch de 1 consulta junto com os
+  responsáveis). Criador excluído → nome `null`, id preservado.
+- UI: o card da listagem e o card "Identificação" do detalhe mostram
+  **Criado por** (caneta) ao lado de **Responsável** (usuário) — na
+  tabela, a coluna "Criado / Responsável" empilha os dois.
+
+### Quadro de tarefas — concluídas ocultas por default (F31-T002)
+
+Padrão Kanera/Todoist aplicado à `TasksPage` (kanban/tabela/grid):
+
+- Estados **terminais** = `Resolved`/`Cancelled`/`Closed`
+  (`TERMINAL_TASK_STATES` em `taskCatalogs.ts`).
+- Default: o quadro exibe **só trabalho ativo** (colunas Open/InProgress/
+  Waiting/Blocked); ao finalizar uma task, ela **some da tela principal**.
+- Toggle **"Concluídas"** no header (ícone olho) traz de volta as
+  terminais para revisão; preferência persistida em
+  `localStorage["tasks:showCompleted"]`.
+- Nota do shell avisa quantas concluídas estão ocultas
+  ("N concluída(s) oculta(s)"); empty state orienta a ativar o toggle.
+- A barra "Conclusão do quadro" continua calculando sobre o total do
+  servidor (inclui as ocultas), não só as visíveis.
+
 ### Planejamento e resultado (F23-T003)
 
 Continuação do §5 da spec — datas previstas do plano e o resultado da

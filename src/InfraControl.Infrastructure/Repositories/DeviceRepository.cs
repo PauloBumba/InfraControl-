@@ -65,6 +65,11 @@ public sealed class DeviceRepository(AppDbContext dbContext) : IDeviceRepository
         => dbContext.TaskDevices.AnyAsync(
             link => link.DeviceId == deviceId, cancellationToken);
 
+    public Task<bool> HasCameraNvrMappingsAsync(
+        Guid nvrId, CancellationToken cancellationToken = default)
+        => dbContext.CameraNvrMappings.AnyAsync(
+            mapping => mapping.NvrId == nvrId, cancellationToken);
+
     public Task<bool> HasLinkedVirtualMachinesAsync(
         Guid deviceId, CancellationToken cancellationToken = default)
         => dbContext.Devices.AnyAsync(

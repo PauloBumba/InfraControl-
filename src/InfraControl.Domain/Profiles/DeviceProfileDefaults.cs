@@ -21,6 +21,8 @@ public static class DeviceProfileDefaults
             [DeviceType.VCenter] = [CheckKind.Ping, CheckKind.SnmpSystem],
             // F5-T006: câmera monitora a porta 37777 por padrão.
             [DeviceType.Camera] = [CheckKind.Ping, CheckKind.Tcp],
+            // F30-T005c: NVR espelha a câmera (ONVIF/SNMP ficam opt-in).
+            [DeviceType.Nvr] = [CheckKind.Ping, CheckKind.Tcp],
             [DeviceType.Router] = [CheckKind.Ping, CheckKind.SnmpSystem],
             [DeviceType.Firewall] = [CheckKind.Ping, CheckKind.SnmpSystem],
             [DeviceType.Workstation] = [CheckKind.Ping],

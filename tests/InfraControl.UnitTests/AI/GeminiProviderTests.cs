@@ -32,7 +32,8 @@ public sealed class GeminiProviderTests
     {
         var provider = new GeminiProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(name: "")));
+            Options.Create(CreateOptions(name: "")),
+            FakeAiConnectionSource.Null);
 
         provider.Name.Should().Be("gemini");
     }
@@ -52,7 +53,8 @@ public sealed class GeminiProviderTests
             });
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         var result = await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.IncidentAnalysis, "prompt", Model: "gemini-2.0-flash"),
@@ -74,7 +76,8 @@ public sealed class GeminiProviderTests
             });
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.IncidentAnalysis, "prompt", Model: "gemini-2.0-flash"),
@@ -99,7 +102,8 @@ public sealed class GeminiProviderTests
             });
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(
@@ -129,7 +133,8 @@ public sealed class GeminiProviderTests
             });
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         await provider.CompleteAsync(
             new AiCompletionRequest(
@@ -150,7 +155,8 @@ public sealed class GeminiProviderTests
     {
         var provider = new GeminiProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(baseUrl: "")));
+            Options.Create(CreateOptions(baseUrl: "")),
+            FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.IncidentAnalysis, "prompt", Model: "gemini-2.0-flash"),
@@ -165,7 +171,8 @@ public sealed class GeminiProviderTests
     {
         var provider = new GeminiProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(apiKey: "")));
+            Options.Create(CreateOptions(apiKey: "")),
+            FakeAiConnectionSource.Null);
 
         var act = () => provider.CompleteAsync(
             new AiCompletionRequest(AiCapability.IncidentAnalysis, "prompt", Model: "gemini-2.0-flash"),
@@ -190,7 +197,8 @@ public sealed class GeminiProviderTests
             });
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
@@ -202,7 +210,8 @@ public sealed class GeminiProviderTests
     {
         var provider = new GeminiProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(apiKey: "", models: ["gemini-custom"])));
+            Options.Create(CreateOptions(apiKey: "", models: ["gemini-custom"])),
+            FakeAiConnectionSource.Null);
 
         var models = await provider.ListModelsAsync(CancellationToken.None);
 
@@ -217,7 +226,8 @@ public sealed class GeminiProviderTests
             response.StatusCode = HttpStatusCode.OK;
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         (await provider.TestConnectionAsync(CancellationToken.None)).Should().BeTrue();
     }
@@ -227,7 +237,8 @@ public sealed class GeminiProviderTests
     {
         var provider = new GeminiProvider(
             CreateHttpClientFactory(),
-            Options.Create(CreateOptions(apiKey: "")));
+            Options.Create(CreateOptions(apiKey: "")),
+            FakeAiConnectionSource.Null);
 
         (await provider.TestConnectionAsync(CancellationToken.None)).Should().BeFalse();
     }
@@ -240,7 +251,8 @@ public sealed class GeminiProviderTests
             response.StatusCode = HttpStatusCode.BadRequest;
         });
 
-        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()));
+        var provider = new GeminiProvider(factory, Options.Create(CreateOptions()),
+            FakeAiConnectionSource.Null);
 
         (await provider.TestConnectionAsync(CancellationToken.None)).Should().BeFalse();
     }
