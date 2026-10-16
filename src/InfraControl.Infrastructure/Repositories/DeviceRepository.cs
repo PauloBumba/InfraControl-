@@ -65,6 +65,54 @@ public sealed class DeviceRepository(AppDbContext dbContext) : IDeviceRepository
         => dbContext.TaskDevices.AnyAsync(
             link => link.DeviceId == deviceId, cancellationToken);
 
+    public Task<bool> HasLinkedVirtualMachinesAsync(
+        Guid deviceId, CancellationToken cancellationToken = default)
+        => dbContext.Devices.AnyAsync(
+            device => device.HypervisorDeviceId == deviceId
+                   || device.VCenterDeviceId == deviceId,
+            cancellationToken);
+
+    public async Task<PagedResult<Device>> SearchVirtualMachinesByLinkAsync(
+        Guid? hypervisorId,
+        Guid? vCenterId,
+        string? term,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        // F31-T002: type=VirtualMachine fixo — só VMs carregam vínculos.
+        var query = dbContext.Devices.AsNoTracking().AsQueryable()
+            .Where(device => device.Type == DeviceType.VirtualMachine);
+
+        if (hypervisorId.HasValue)
+            query = query.Where(device => device.HypervisorDeviceId == hypervisorId.Value);
+
+        if (vCenterId.HasValue)
+            query = query.Where(device => device.VCenterDeviceId == vCenterId.Value);
+
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            var normalized = term.Trim().ToLowerInvariant();
+            query = query.Where(device =>
+                device.Name.ToLower().Contains(normalized)
+                || (device.Ip != null && device.Ip.ToLower().Contains(normalized))
+                || (device.Serial != null && device.Serial.ToLower().Contains(normalized))
+                || (device.Mac != null && device.Mac.ToLower().Contains(normalized))
+                || (device.Vendor != null && device.Vendor.ToLower().Contains(normalized))
+                || (device.Model != null && device.Model.ToLower().Contains(normalized))
+                || (device.Description != null && device.Description.ToLower().Contains(normalized)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(device => device.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Device>(items, totalCount, page, pageSize);
+    }
+
     public async Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default)
         => await dbContext.Devices
             .AsNoTracking()

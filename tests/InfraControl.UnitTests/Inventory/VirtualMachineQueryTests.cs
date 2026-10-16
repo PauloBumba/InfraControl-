@@ -39,7 +39,9 @@ public sealed class VirtualMachineQueryTests : IDisposable
     }
 
     private static SearchVirtualMachinesQueryHandler SearchVmHandler(AppDbContext context)
-        => new(new SearchDevicesQueryHandler(new DeviceRepository(context)));
+        => new(
+            new SearchDevicesQueryHandler(new DeviceRepository(context)),
+            new DeviceRepository(context));
 
     private static SearchVCentersQueryHandler SearchVCenterHandler(AppDbContext context)
         => new(new SearchDevicesQueryHandler(new DeviceRepository(context)));

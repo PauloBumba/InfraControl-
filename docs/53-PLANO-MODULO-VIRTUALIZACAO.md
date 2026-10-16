@@ -8,6 +8,10 @@
 > credenciais — precedente ADR-042/043).
 > **Requisitos vêm do usuário** — nada aqui é inventado; itens não
 > cobertos ficam como pendência §6.
+>
+> **Status (2026-10-16):** T001 concluída (commit `99510b6`) e T002
+> concluída — gate da T002: UnitTests 2559/2559, Arch 154/155 (falha
+> nginx pré-existente), migração `AddVirtualMachineLinks` criada.
 
 ---
 

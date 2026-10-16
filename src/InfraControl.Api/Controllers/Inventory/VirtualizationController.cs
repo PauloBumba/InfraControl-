@@ -1,9 +1,12 @@
 using InfraControl.Application.Inventory.Virtualization.Queries;
+using InfraControl.Application.Inventory.Virtualization.Commands;
 using InfraControl.Api.Controllers;
+using InfraControl.Api.ViewModels.Inventory;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using InfraControl.Api.Authorization;
 
 namespace InfraControl.Api.Controllers.Inventory;
 
@@ -22,17 +25,74 @@ public sealed class VirtualizationController(ISender sender) : BaseController
         [FromQuery] string? term,
         [FromQuery] Guid? locationId,
         [FromQuery] Guid? rackId,
+        [FromQuery] Guid? hypervisorId,
+        [FromQuery] Guid? vCenterId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new SearchVirtualMachinesQuery(term, page, pageSize, locationId, rackId),
+            new SearchVirtualMachinesQuery(
+                term, page, pageSize, locationId, rackId, hypervisorId, vCenterId),
             cancellationToken)));
 
     [HttpGet("virtual-machines/{id:guid}")]
     [Authorize]
     public async Task<IActionResult> GetVirtualMachine(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetVirtualMachineQuery(id), cancellationToken)));
+
+    // F31-T002: vínculos VM → hypervisor → vCenter (FK self em devices).
+    // Assign devolve a VM atualizada (201); unassign responde 204.
+    [HttpPost("virtual-machines/{virtualMachineId:guid}/hypervisor")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> AssignHypervisor(
+        Guid virtualMachineId,
+        [FromBody] AssignHypervisorViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new AssignHypervisorToVirtualMachineCommand(virtualMachineId, model.HypervisorId),
+            cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
+
+    [HttpDelete("virtual-machines/{virtualMachineId:guid}/hypervisor")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnassignHypervisor(
+        Guid virtualMachineId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new UnassignHypervisorFromVirtualMachineCommand(virtualMachineId),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("virtual-machines/{virtualMachineId:guid}/vcenter")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> AssignVCenter(
+        Guid virtualMachineId,
+        [FromBody] AssignVCenterViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new AssignVCenterToVirtualMachineCommand(virtualMachineId, model.VCenterId),
+            cancellationToken);
+
+        return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
+    }
+
+    [HttpDelete("virtual-machines/{virtualMachineId:guid}/vcenter")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnassignVCenter(
+        Guid virtualMachineId,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(
+            new UnassignVCenterFromVirtualMachineCommand(virtualMachineId),
+            cancellationToken);
+        return NoContent();
+    }
 
     [HttpGet("vcenters")]
     [Authorize]

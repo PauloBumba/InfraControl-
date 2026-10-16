@@ -311,6 +311,15 @@ public sealed class WifiPreventionCommandTests
         public Task<bool> HasTasksAsync(Guid deviceId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
+        public Task<bool> HasLinkedVirtualMachinesAsync(
+            Guid deviceId, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<PagedResult<Device>> SearchVirtualMachinesByLinkAsync(
+            Guid? hypervisorId, Guid? vCenterId, string? term,
+            int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
         public Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(
             CancellationToken cancellationToken = default)
             => throw new NotImplementedException();

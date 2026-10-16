@@ -37,6 +37,24 @@ public interface IDeviceRepository : IRepository<Device>
     /// <summary>F7-T003: bloqueio de exclusão — tasks vinculadas ao device.</summary>
     Task<bool> HasTasksAsync(Guid deviceId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F31-T002: bloqueio de exclusão — VMs cujo hypervisor/vCenter é este
+    /// device (→ 409; FK Restrict é o backstop).
+    /// </summary>
+    Task<bool> HasLinkedVirtualMachinesAsync(Guid deviceId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F31-T002: "VMs do hypervisor" (hypervisorId) ou "VMs do vCenter"
+    /// (vCenterId) — type=VirtualMachine fixo, term normalizado igual ao SearchAsync.
+    /// </summary>
+    Task<PagedResult<Device>> SearchVirtualMachinesByLinkAsync(
+        Guid? hypervisorId,
+        Guid? vCenterId,
+        string? term,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Todos os devices ordenados por nome (F5-T003: status de ping em massa).</summary>
     Task<IReadOnlyList<Device>> GetAllOrderedByNameAsync(CancellationToken cancellationToken = default);
 

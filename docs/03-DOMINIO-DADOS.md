@@ -83,6 +83,8 @@ Switch(Device) 1:N SwitchPort
 SwitchPort N:N Vlan
 NetworkInterface 1:N IpAddress
 Interface N:N Interface via Connection
+VirtualMachine(Device) N:1 hypervisor: Device   (hypervisor_device_id, FK self — F31-T002)
+VirtualMachine(Device) N:1 vCenter: Device      (vcenter_device_id, FK self, type=VCenter — F31-T002)
 ```
 
 ## Connection

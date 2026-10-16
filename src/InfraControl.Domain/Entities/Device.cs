@@ -37,6 +37,12 @@ public sealed class Device : AggregateRoot
     public Guid? VlanId { get; private set; }
     public string? Description { get; private set; }
 
+    /// <summary>F31-T002 (docs/53 D4): hypervisor da VM — FK self, 1 por VM.</summary>
+    public Guid? HypervisorDeviceId { get; private set; }
+
+    /// <summary>F31-T002 (docs/53 D4): vCenter da VM — FK self, 1 por VM.</summary>
+    public Guid? VCenterDeviceId { get; private set; }
+
     /// <summary>Checks aplicados a este device (default do tipo ou override).</summary>
     public IReadOnlyList<CheckKind> MonitoringChecks => _monitoringChecks.AsReadOnly();
 
@@ -158,6 +164,46 @@ public sealed class Device : AggregateRoot
         _monitoringChecks = [.. DeviceProfileDefaults.For(Type)];
         ProfileIsCustom = false;
     }
+
+    /// <summary>
+    /// F31-T002: vincula o hypervisor da VM (D4 — só VM vincula; o alvo
+    /// validado no handler: existe e não é outra VM).
+    /// </summary>
+    public void LinkHypervisor(Guid hypervisorDeviceId)
+    {
+        if (Type != DeviceType.VirtualMachine)
+            throw new ArgumentException(
+                "Apenas VMs podem ter hypervisor vinculado.", nameof(hypervisorDeviceId));
+
+        if (hypervisorDeviceId == Id)
+            throw new ArgumentException(
+                "Uma VM não pode ser hypervisor de si mesma.", nameof(hypervisorDeviceId));
+
+        HypervisorDeviceId = hypervisorDeviceId;
+    }
+
+    /// <summary>F31-T002: desvincula o hypervisor da VM (idempotente).</summary>
+    public void UnlinkHypervisor() => HypervisorDeviceId = null;
+
+    /// <summary>
+    /// F31-T002: vincula o vCenter da VM (D4 — só VM vincula; o alvo é
+    /// validado no handler: existe e é type=VCenter).
+    /// </summary>
+    public void LinkVCenter(Guid vCenterDeviceId)
+    {
+        if (Type != DeviceType.VirtualMachine)
+            throw new ArgumentException(
+                "Apenas VMs podem ter vCenter vinculado.", nameof(vCenterDeviceId));
+
+        if (vCenterDeviceId == Id)
+            throw new ArgumentException(
+                "A VM não pode ser vCenter de si mesma.", nameof(vCenterDeviceId));
+
+        VCenterDeviceId = vCenterDeviceId;
+    }
+
+    /// <summary>F31-T002: desvincula o vCenter da VM (idempotente).</summary>
+    public void UnlinkVCenter() => VCenterDeviceId = null;
 
     internal void ReplaceMonitoringChecksForEf(IReadOnlyList<CheckKind> checks, bool isCustom)
     {

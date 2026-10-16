@@ -21,19 +21,46 @@ public sealed record SearchVirtualMachinesQuery(
     int Page = 1,
     int PageSize = 20,
     Guid? LocationId = null,
-    Guid? RackId = null) : IQuery<PagedResult<DeviceDto>>, IAuthorizedRequest
+    Guid? RackId = null,
+    Guid? HypervisorId = null,
+    Guid? VCenterId = null) : IQuery<PagedResult<DeviceDto>>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
 }
 
-public sealed class SearchVirtualMachinesQueryHandler(SearchDevicesQueryHandler devices)
+public sealed class SearchVirtualMachinesQueryHandler(
+    SearchDevicesQueryHandler devices,
+    IDeviceRepository repository)
     : IRequestHandler<SearchVirtualMachinesQuery, PagedResult<DeviceDto>>
 {
-    public Task<PagedResult<DeviceDto>> Handle(
+    public async Task<PagedResult<DeviceDto>> Handle(
         SearchVirtualMachinesQuery request,
         CancellationToken cancellationToken)
-        => devices.Handle(
+    {
+        // F31-T002: "VMs do hypervisor" / "VMs do vCenter" — filtro de vínculo
+        // (local/rack não se aplicam a "VMs sob um host"); sem filtro, o
+        // caminho do F31-T001 continua intocado (type fixo, sem cache).
+        if (request.HypervisorId is not null || request.VCenterId is not null)
+        {
+            var page = Math.Max(1, request.Page);
+            var pageSize = Math.Clamp(request.PageSize, 1, 100);
+            var linked = await repository.SearchVirtualMachinesByLinkAsync(
+                request.HypervisorId,
+                request.VCenterId,
+                request.Term,
+                page,
+                pageSize,
+                cancellationToken);
+
+            return new PagedResult<DeviceDto>(
+                linked.Items.Select(CreateDeviceCommandHandler.ToDto).ToArray(),
+                linked.TotalCount,
+                linked.Page,
+                linked.PageSize);
+        }
+
+        return await devices.Handle(
             new SearchDevicesQuery(
                 request.LocationId,
                 request.RackId,
@@ -42,6 +69,7 @@ public sealed class SearchVirtualMachinesQueryHandler(SearchDevicesQueryHandler 
                 request.Page,
                 request.PageSize),
             cancellationToken);
+    }
 }
 
 public sealed record SearchVCentersQuery(

@@ -191,6 +191,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
 
+                    b.Property<Guid?>("HypervisorDeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("hypervisor_device_id");
+
                     b.Property<string>("Ip")
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)")
@@ -238,6 +242,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("VCenterDeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vcenter_device_id");
+
                     b.Property<string>("Vendor")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -255,11 +263,15 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("HypervisorDeviceId");
+
                     b.HasIndex("LocationId");
 
                     b.HasIndex("RackId");
 
                     b.HasIndex("Type");
+
+                    b.HasIndex("VCenterDeviceId");
 
                     b.ToTable("devices", (string)null);
                 });
@@ -4339,6 +4351,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("InfraControl.Domain.Entities.Device", b =>
                 {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("HypervisorDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("InfraControl.Domain.Entities.Location", null)
                         .WithMany()
                         .HasForeignKey("LocationId")
@@ -4348,6 +4365,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasOne("InfraControl.Domain.Entities.Rack", null)
                         .WithMany()
                         .HasForeignKey("RackId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("VCenterDeviceId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
