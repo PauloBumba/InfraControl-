@@ -1,5 +1,6 @@
 using InfraControl.Application.Alerts.Queries;
 using InfraControl.Application.Monitoring.Checks;
+using InfraControl.Application.Monitoring.Prevention;
 using InfraControl.Application.Monitoring.Results;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
@@ -38,6 +39,21 @@ public sealed class MonitoringController(ISender sender) : BaseController
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(
             await sender.Send(new RunAllChecksCommand(check), cancellationToken)));
+
+    /// <summary>
+    /// F30-T004 S4 (ADR-056): avaliação de prevenção WiFi de um AP — lê o
+    /// histórico do Zabbix (janela de 60 min) e abre/resolve o Alert pelo
+    /// pipeline existente. Opt-in = device com SnmpRadio no perfil; sem
+    /// pré-requisito a resposta é honesta (Evaluated=false + motivo) —
+    /// nunca um 2xx "saudável" inventado.
+    /// </summary>
+    [HttpPost("wifi-prevention/{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> EvaluateWifiPrevention(
+        Guid id,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new EvaluateWifiPreventionCommand(id), cancellationToken)));
 
     /// <summary>Checks monitoráveis de um device, vindos do perfil (F5-T001).</summary>
     [HttpGet("devices/{deviceId:guid}/checks")]

@@ -32,6 +32,7 @@ using InfraControl.Application.Inventory.Racks.Ports;
 using InfraControl.Application.Monitoring.Checks.Ports;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.Application.Monitoring.Polling;
+using InfraControl.Application.Monitoring.Prevention;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.Projects.Ports;
@@ -367,6 +368,10 @@ public static class DependencyInjection
         // MIB) — opt-in por device, mesmo gate dos demais SNMP; nenhum tipo
         // o tem como default (DeviceProfileDefaults intocado).
         services.AddScoped<IMonitoringProvider, SnmpRadioProvider>();
+        // F30-T004 S4 (ADR-056): prevenção WiFi por tendência — chaves de
+        // item Zabbix por métrica (vazia = regra não roda, motivo honesto).
+        services.Configure<WifiPreventionOptions>(
+            configuration.GetSection(WifiPreventionOptions.SectionName));
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 

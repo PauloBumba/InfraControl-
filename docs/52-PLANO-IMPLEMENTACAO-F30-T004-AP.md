@@ -1,9 +1,9 @@
 # Plano de Execução — F30-T004: Access Point Wi-Fi (implementação)
 
 > **Status**: S0 ✅ (`743d010`) · S1 ✅ (`b2a912a`) · S2 ✅ (`94de61b`) ·
-> S3 ✅ (`52f36ff`) · ADR-056 **aceito** 2026-10-15 — S4 em execução
-> (fatiado abaixo); S1b (banda por cliente) em seguida, autorizados
-> juntos pelo decisor.
+> S3 ✅ (`52f36ff`) · ADR-056 **aceito** (`8d79bb9`) · S4 ✅ (hash desta
+> etapa registrado no commit do S1b); S1b (banda por cliente) em
+> execução, autorizados juntos pelo decisor.
 > **Ficha**: `docs/45-FICHA-TECNICA-ACCESS-POINT.md` (planejamento, 2026-10-13).
 > **Task**: F30-T004 — a ficha é só plano; este documento fatia a **implementação**.
 > **Espelha**: `docs/51-PLANO-IMPLEMENTACAO-F30-T001-SWITCH.md` (mesmo formato,
@@ -255,6 +255,48 @@ repo, suíte completa verde, commit próprio (autorizado).
   implementada como **2+ amostras consecutivas na janela de histórico** —
   mesmo efeito anti-flapping, sem estado persistido (a alternativa exigiria
   tabela nova, que o ADR §2 proíbe).
+
+#### Execução do S4 — S4a/S4b/S4c (2026-10-15)
+
+- **S4a — núcleo puro** (TDD: RED `CS0234/CS0246` → GREEN 11/11):
+  `Application/Monitoring/Prevention/WifiPreventionEvaluator.cs` com
+  `WifiPreventionThresholds` (defaults em código, espírito
+  `AlertThresholds`/ADR-014) e 5 regras — `radio-saturation-critical`
+  (calda ≥ 90% × 2 amostras), `radio-saturation` (≥ 80% × 3),
+  `radio-trend` (> 70% × 2 com inclinação > 0), `rssi-degradation`
+  (média < −70 dBm **ou** queda sustentada × 3) e `client-density`
+  (> 50 × 3). "Sustentado" = N amostras CONSECUTIVAS contínuas no fim da
+  janela (delta ≤ 10 min — amostra perdida não sustenta); inclinação por
+  mínimos quadrados em unidade/minuto; números com `InvariantCulture`
+  (determinístico entre ambientes). Série ausente ou < `MinSamples` (12)
+  = regra NÃO avalia com motivo honesto — nunca "saudável" inventado.
+- **S4b — comando** (TDD: RED `CS0246` → GREEN 10/10):
+  `WifiPreventionCommands.cs` com `WifiPreventionOptions` (seção
+  `WifiPrevention` — chaves de item por métrica; VAZIO = regra não roda,
+  nada de chave inventada), `EvaluateWifiPreventionCommand`
+  (`BaseCommand` + `IAuthorizedRequest`, `RoleAccess.Operate`), DTOs
+  (`Status` Fired/Clean/Skipped com `Reason` honesto) e o handler:
+  device (404) → guard AccessPoint (400) → opt-in `SnmpRadio` no perfil →
+  IP → `IsConfigured` → host por IP no read-model (Enabled, não Missing)
+  → `ListItemsAsync` → item por chave exata → `GetHistoryAsync` da janela
+  de 60 min → descarte de valores não numéricos → avaliador → Alert.
+  Ciclo de vida do Alert reusado INTEIRO: `IAlertEvaluator` ganhou
+  `EvaluateVerdictAsync`/`ResolveVerdictAsync` delegando a
+  `OpenOrSuppressAsync`/`ResolveActiveAsync` (supressão por incidente
+  upstream F6-T004, Critical auto-abre Incident F6-T003, recovery
+  F6-T006) — zero lógica duplicada; kind = `CheckKind.SnmpRadio`, pior
+  veredito primeiro. Regra de lifecycle: sem veredito entre as métricas
+  LIDAS = resolve; NENHUMA métrica lida = Alert intocado (incompleteza
+  não normaliza) e `Evaluated=false` + motivo.
+- **S4c — gatilho manual**: `POST /api/v1/monitoring/wifi-prevention/{id}`
+  no `MonitoringController` (policy Operate, mold do `run-check`); bind
+  das opções em `AddInfrastructure` (mold `SnmpOptions`); seção
+  `WifiPrevention` (chaves vazias) no `appsettings.json`. Driver
+  agendado continua pendência explícita (passo 3 do fatiamento).
+- **Testes**: 21/21 na fatia (`WifiPreventionEvaluatorTests` 11 +
+  `WifiPreventionCommandTests` 10); UnitTests 2524/2524; Arch 152/153
+  (falha `Nginx_Should_Proxy_The_Api_Health_Checks` pré-existente).
+  Sem front nesta fatia.
 
 ---
 
