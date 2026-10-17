@@ -292,3 +292,51 @@ docker compose --profile zabbix down -v
 docker compose pull zabbix-server zabbix-web zabbix-agent zabbix-db
 ```
 
+## 8. Frota de switchs no Zabbix (operação 2026-10-16)
+
+Cadastro via API JSON-RPC (`Admin`/`zabbix`, Bearer token) dos 22 switchs do
+ambiente. Divisão de responsabilidades mantida: **InfraControl** é System of
+Record (device, local, marca, ficha) e faz checks SNMP sob demanda (F29/F30);
+**Zabbix** faz a coleta contínua/histórico/triggers → webhook F16 →
+`MonitoringEvent` → `Alert` → `Incident`. Nada duplicado dos dois lados.
+
+### Host groups e templates
+
+| Group | Hosts | Template | Interface |
+|---|---|---|---|
+| **Switches HP** (22) | 10 × HP A5120/V1910 (`.1`, `.231`–`.234`, `.240`, `.242`, `.250`–`.252`) | *HP Comware HH3C by SNMP* (`10227`) | SNMP `161`, v2c, community `public` |
+| **Switches Intelbras** (23) | 5 × SG 2404 PoE / MR / PoE L2+ (`.220`, `.235`, `.243`, `.244`, `.245`) | *Network Generic Device by SNMP* (`10226`) | SNMP `161`, v2c, community `public` |
+| **Switches de Mesa** (24) | 4 × TP-Link TL-SG108E (`.110`, `.120`, `.140`, `192.168.50.101`) | *ICMP Ping* (`10564`) | Agent `10050` (dummy — simple checks) |
+
+Host técnico = `sw-<ip-com-hífens>`; nome visível = `<sysName> (<ip>)>`;
+tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
+
+### Gotchas da API do Zabbix 8.0 (host.create)
+
+- Params SNMP da interface vão **aninhados em `details`**
+  (`details.version=2`, `details.community="public"`, `details.bulk=1`) —
+  campos planos (`version`, `community` direto no objeto da interface)
+  dão `-32602 Incorrect arguments passed to function`.
+- `hostgroup.create` devolve `{groupids:[...]}` (sem `name`) — mapear a ordem
+  das criações.
+- Template SNMP exige interface tipo 2 senão falha com
+  `Cannot inherit item "snmptrap.fallback" ... host interface of type "SNMP" is required`.
+
+### Verificação (executada)
+
+- 19 hosts criados (20 total com o `Zabbix server` pré-existente).
+- Itens **verdes** (`state=0`, sem erro, fila vazia) nos representantes
+  HP (`.231` — sysDescr/sysName/sysLocation/serial/firmware + ifTable),
+  Intelbras (`.235`, `.244`, `.245` — inclui counter de tráfego) e
+  TP-Link (`.110` — `icmpping=1`, latência ~9 ms).
+
+### Pendências da frota
+
+- `.241`, `.130`, `.150` **offline**: quando ligarem → identificar marca
+  (web/SNMP), ativar SNMP se suportado e cadastrar nos groups acima.
+- TL-SG108E **não tem SNMP no firmware** (auditado via `menuList.js`) —
+  teto é ICMP ping; ver ficha `docs/42` §"Frota Real".
+- Procedimentos de ativação de SNMP por modelo (web EXCU_SHELL / telnet
+  CLI `snmp-server community public read-only`) documentados em
+  `docs/42` §"Limitações e achados operacionais".
+
