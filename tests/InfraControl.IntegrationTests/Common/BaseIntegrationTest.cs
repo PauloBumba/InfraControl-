@@ -117,6 +117,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
+        // F30-T005c: relação câmera-NVR (repositório segue convenção I*Repository)
+        services.AddScoped<InfraControl.Application.Inventory.CameraNvrMappings.Ports.ICameraNvrMappingRepository,
+            CameraNvrMappingRepository>();
         // F27 Fase 2.2/3.1: config da integração Zabbix + hosts sincronizados
         services.AddScoped<IZabbixSettingsRepository, ZabbixSettingsRepository>();
         services.AddScoped<IZabbixHostsRepository, ZabbixHostsRepository>();

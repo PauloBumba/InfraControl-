@@ -246,6 +246,43 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditEntries", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.CameraNvrMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CameraId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("camera_id");
+
+                    b.Property<int>("ChannelNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("channel_number");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("NvrId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("nvr_id");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CameraId")
+                        .HasDatabaseName("ix_camera_nvr_mappings_camera_id");
+
+                    b.HasIndex("NvrId", "ChannelNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_camera_nvr_mappings_nvr_channel");
+
+                    b.ToTable("camera_nvr_mappings", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Connection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4450,6 +4487,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("MonitoringEventId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.CameraNvrMapping", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("CameraId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("InfraControl.Domain.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("NvrId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.Connection", b =>

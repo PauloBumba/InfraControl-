@@ -50,6 +50,7 @@ const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ defa
 const VirtualizationPage = lazy(() => import("@/pages/VirtualizationPage").then(m => ({ default: m.VirtualizationPage })));
 const PrintersPage = lazy(() => import("@/pages/PrintersPage").then(m => ({ default: m.PrintersPage })));
 const ServersPage = lazy(() => import("@/pages/ServersPage").then(m => ({ default: m.ServersPage })));
+const CamerasPage = lazy(() => import("@/pages/CamerasPage").then(m => ({ default: m.CamerasPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -438,6 +439,12 @@ function AppContent() {
           <Route path="/servers" element={
             <ProtectedRoute>
               <ServersPage />
+            </ProtectedRoute>
+          } />
+          {/* F30-T005d — Câmeras & Gravação (ONVIF ao vivo). */}
+          <Route path="/cameras" element={
+            <ProtectedRoute>
+              <CamerasPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFoundPage />} />
