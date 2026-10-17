@@ -169,7 +169,7 @@ export function ServersPage() {
   const resultsError = mutationErrorMessage(results.error as Error | null);
   const selected = servers.items.find((entry) => entry.id === selectedId) ?? null;
 
-  const history = results.data?.results ?? [];
+  const history = useMemo(() => results.data?.results ?? [], [results.data]);
   const latest = useMemo(() => latestByCheck(history), [history]);
 
   const cpuPercent = valueOf(latest.cpu, "cpuPercent");

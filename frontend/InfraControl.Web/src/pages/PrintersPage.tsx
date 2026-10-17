@@ -150,7 +150,7 @@ export function PrintersPage() {
   const resultsError = mutationErrorMessage(results.error as Error | null);
   const selected = printers.items.find((entry) => entry.id === selectedId) ?? null;
 
-  const history = results.data?.results ?? [];
+  const history = useMemo(() => results.data?.results ?? [], [results.data]);
   const latest = useMemo(() => latestByCheck(history), [history]);
 
   const tonerPercent = valueOf(latest.toner, "levelPercent");

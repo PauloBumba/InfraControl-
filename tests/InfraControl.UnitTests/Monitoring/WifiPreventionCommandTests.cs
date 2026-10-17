@@ -311,6 +311,10 @@ public sealed class WifiPreventionCommandTests
         public Task<bool> HasTasksAsync(Guid deviceId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
 
+        public Task<bool> HasCameraNvrMappingsAsync(
+            Guid nvrId, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
         public Task<bool> HasLinkedVirtualMachinesAsync(
             Guid deviceId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
