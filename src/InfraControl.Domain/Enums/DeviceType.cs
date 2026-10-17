@@ -16,18 +16,16 @@ public enum DeviceType
     Camera = 8,
     Phone = 9,
     UPS = 10,
-<<<<<<< HEAD
+    // F31-T001 / docs/53 D2: VMs e vCenter passam a existir no inventário —
+    // a mesma ideia do F3-T001 (Switch = Device com type próprio).
+    VirtualMachine = 11,
+    VCenter = 12,
 
     /// <summary>
     /// F30-T005c (docs/46): gravador NVR — câmera e NVR são devices
     /// distintos no inventário e a associação é CameraNvrMapping. Aditivo
-    /// no fim; persistido como string (HasConversion em DeviceConfiguration).
+    /// no fim (renumerado de 11 para 13 na resolução do merge — VirtualMachine
+    /// reivindicou 11/12 em docs/53; persistido como string, sem impacto).
     /// </summary>
-    Nvr = 11
-=======
-    // F31-T001 / docs/53 D2: VMs e vCenter passam a existir no inventário —
-    // a mesma ideia do F3-T001 (Switch = Device com type próprio).
-    VirtualMachine = 11,
-    VCenter = 12
->>>>>>> 6d1c9f3a66083b23e4de4c0529690bfcb44755e5
+    Nvr = 13
 }
