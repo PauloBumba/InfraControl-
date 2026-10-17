@@ -386,6 +386,18 @@ public static class DependencyInjection
         services.AddSingleton<IOnvifClient, OnvifSoapClient>();
         services.AddScoped<IMonitoringProvider, OnvifStorageProvider>();
         services.AddScoped<IMonitoringProvider, OnvifRecordingProvider>();
+        // F30-T006a (docs/47 §C): registro SIP do telefone via API Yealink
+        // — 2ª seam não-SNMP (HTTP/JSON); credencial global em YealinkOptions
+        // espelhando OnvifOptions; opt-in por device (Phone default = [Ping]).
+        services.Configure<YealinkOptions>(
+            configuration.GetSection(YealinkOptions.SectionName));
+        services.AddSingleton<IYealinkPhoneClient, YealinkPhoneClient>();
+        services.AddScoped<IMonitoringProvider, YealinkSipProvider>();
+        services.AddScoped<IMonitoringProvider, YealinkCallQualityProvider>();
+        // F30-T007a (docs/48 §C): rotas IPv4 do router/firewall via
+        // IP-FORWARD-MIB — opt-in por device (Router/Firewall default =
+        // [Ping, SnmpSystem] intocado).
+        services.AddScoped<IMonitoringProvider, SnmpRouterRoutesProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 

@@ -101,6 +101,35 @@ public enum CheckKind
     /// F30-T005b (docs/46 §B/C): estado de gravação/video loss/tamper da
     /// câmera/NVR via ONVIF. Opt-in, guard Camera/Nvr.
     /// </summary>
-    OnvifRecording = 16
+    OnvifRecording = 16,
 
+    /// <summary>
+    /// F30-T006a (docs/47 §C): registro SIP do telefone via API Yealink
+    /// (HTTP/JSON — 2ª seam não-SNMP). Opt-in — default de Phone continua
+    /// [Ping] (DeviceProfileDefaults intocado); guard Phone-only no
+    /// RunCheckCommandHandler. Tráfego/ifOperStatus do telefone reusa o
+    /// F29-3 SnmpInterfaces (decisão da auditoria T006-0 — sem
+    /// SnmpPhoneProvider novo).
+    /// </summary>
+    YealinkSip = 17,
+
+    /// <summary>
+    /// F30-T006b (docs/47 §D/E): qualidade de chamada (MOS/jitter/latência/
+    /// perda) + PoE via API Yealink. Opt-in, guard Phone-only.
+    /// </summary>
+    YealinkCallQuality = 18,
+
+    /// <summary>
+    /// F30-T007a (docs/48 §C): tabela de rotas IPv4 via IP-FORWARD-MIB
+    /// (ipCidrRouteTable — universal). Opt-in — informativo, sem regra de
+    /// alerta (limiar é específico de modelo). Guard Router/Firewall-only.
+    /// </summary>
+    SnmpRouterRoutes = 19,
+
+    /// <summary>
+    /// F30-T007b (docs/48 §D): sessões TCP via TCP-MIB (tcpConnTable —
+    /// universal). Opt-in — informativo, sem regra de alerta. Guard
+    /// Router/Firewall-only.
+    /// </summary>
+    SnmpRouterSessions = 20
 }

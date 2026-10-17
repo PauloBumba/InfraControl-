@@ -54,6 +54,20 @@
   checks sem LLM (tool selection, authorization, grounding/citations);
   o `IEvaluationScenario` real (Copilot/Ollama) entra na Fase 1 sem
   mudar o harness. Guia: `docs/ai/02-evaluation.md`.
+- **ADR-057 · FAI-T011a/b/c (2026-10-16)**: registry **banco + UI**
+  (evolução do `ConfigurationProviderRegistry` v1) — cadastro
+  `ai_providers`/`ai_provider_capabilities` (migração
+  `20261016010256_AiProviderRegistry`), seed idempotente do Ollama no
+  boot (BaseUrl de `Ai:Ollama`), `AiProviderRouter` async
+  **cadastro-primeiro → config (D3-A) → §44** (linha inativa nunca é
+  burlada pelo config), adaptadores com `IAiProviderConnectionSource`
+  (chave cifrada via `ICredentialProtector`/AES-GCM F11-T006). CRUD
+  Administer `/api/v1/admin/ai-providers` (create/update write-only,
+  activate/deactivate, rota por capacidade, teste §13, modelos §14) +
+  página Admin `/admin/ai-providers` (chave mascarada `••••sufixo4`,
+  campo vazio = preserva). Smoke ao vivo (integration tests × stub
+  HTTP local): cadastro domina router/gateway nas 5 capacidades,
+  remoção de rota → fallback config, provider inativo → §44.
 - Infra pronta para a IA: health checks (`/health/*`), OpenTelemetry +
   collector, Serilog/Seq, SignalR, auditoria persistida (F0-T014),
   autorização por roles (ADR-016), PostgreSQL 17, Redis, RabbitMQ.

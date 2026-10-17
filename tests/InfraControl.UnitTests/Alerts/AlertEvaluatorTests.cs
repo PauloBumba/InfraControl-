@@ -1648,4 +1648,289 @@ public sealed class AlertEvaluatorTests : IDisposable
         (await OpenAlertsAsync(context, camera.Id, CheckKind.OnvifRecording))
             .Should().BeEmpty();
     }
+
+    // ── F30-T006a: YealinkSip (registro SIP, docs/47 §C) ────────────────
+
+    [Fact]
+    public async Task YealinkSipUnregistered_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-sip-1");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkSip,
+            Result(CheckKind.YealinkSip, true, new Dictionary<string, string>
+            {
+                ["sipRegistered"] = "false",
+                ["extension"] = "1001"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkSip);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("Registro SIP").And.Contain("Unregistered");
+    }
+
+    [Fact]
+    public async Task YealinkSipRegistered_ShouldResolveActiveAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-sip-2");
+        context.Alerts.Add(Alert.Create(
+            phone.Id, CheckKind.YealinkSip, AlertSeverity.Critical, "aberto antes"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkSip,
+            Result(CheckKind.YealinkSip, true, new Dictionary<string, string>
+            {
+                ["sipRegistered"] = "true"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkSip))
+            .Should().BeEmpty("registro OK resolve o alerta ativo");
+    }
+
+    [Fact]
+    public async Task YealinkSipWithoutStatus_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-sip-3");
+
+        // Só extension/sipServer — a API não expôs o estado do registro.
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkSip,
+            Result(CheckKind.YealinkSip, true, new Dictionary<string, string>
+            {
+                ["extension"] = "1003"
+            }),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkSip))
+            .Should().BeEmpty("sem estado reconhecido não avalia");
+    }
+
+    [Fact]
+    public async Task YealinkSipFailedCheck_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-sip-4");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkSip,
+            Result(CheckKind.YealinkSip, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkSip))
+            .Should().BeEmpty("falha da API não avalia registro");
+    }
+
+    // ── F30-T006b: YealinkCallQuality (MOS/jitter/latência/perda/PoE) ────
+
+    private static Dictionary<string, string> Quality(
+        string? mos = null,
+        string? jitter = null,
+        string? latency = null,
+        string? loss = null,
+        string? poe = null)
+    {
+        var values = new Dictionary<string, string>();
+        if (mos is not null) values["mos"] = mos;
+        if (jitter is not null) values["jitterMs"] = jitter;
+        if (latency is not null) values["latencyMs"] = latency;
+        if (loss is not null) values["packetLossPercent"] = loss;
+        if (poe is not null) values["poePowered"] = poe;
+        return values;
+    }
+
+    [Fact]
+    public async Task YealinkQualityWithoutPoE_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-1");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true,
+                Quality(mos: "4.5", poe: "false")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("PoE");
+    }
+
+    [Fact]
+    public async Task YealinkQualityLossAtOrAbove10_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-2");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true,
+                Quality(loss: "12.5", mos: "4.0")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("12.5%").And.Contain("crítico ≥ 10%");
+    }
+
+    [Fact]
+    public async Task YealinkQualityMosBelow3_ShouldOpenCriticalAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-3");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true, Quality(mos: "2.8")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Critical);
+        open[0].Message.Should().Contain("2.8").And.Contain("crítico < 3.0");
+    }
+
+    [Fact]
+    public async Task YealinkQualityLossBetween5And10_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-4");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true, Quality(loss: "7.5")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("limite 5%");
+    }
+
+    [Fact]
+    public async Task YealinkQualityMosBetween3And35_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-5");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true, Quality(mos: "3.2")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("limite 3.5");
+    }
+
+    [Fact]
+    public async Task YealinkQualityHighJitter_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-6");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true,
+                Quality(jitter: "65.0", mos: "4.1")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("Jitter").And.Contain("65.0ms");
+    }
+
+    [Fact]
+    public async Task YealinkQualityHighLatency_ShouldOpenWarningAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-7");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true,
+                Quality(latency: "210.0", mos: "4.1", jitter: "10.0")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Severity.Should().Be(AlertSeverity.Warning);
+        open[0].Message.Should().Contain("Latência").And.Contain("210.0ms");
+    }
+
+    [Fact]
+    public async Task YealinkQualityHealthy_ShouldResolveActiveAlert()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-8");
+        context.Alerts.Add(Alert.Create(
+            phone.Id, CheckKind.YealinkCallQuality, AlertSeverity.Warning, "aberto antes"));
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true,
+                Quality(mos: "4.4", jitter: "12.0", latency: "45.0",
+                    loss: "0.1", poe: "true")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality))
+            .Should().BeEmpty("métricas saudáveis resolvem o alerta ativo");
+    }
+
+    [Fact]
+    public async Task YealinkQualityPoEPowerPrevailsOverMos()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-9");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, true,
+                Quality(mos: "2.0", poe: "false")),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var open = await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality);
+        open.Should().ContainSingle();
+        open[0].Message.Should().Contain("PoE", "pior condição prevalece");
+    }
+
+    [Fact]
+    public async Task YealinkQualityWithoutValues_ShouldNotEvaluate()
+    {
+        await using var context = await CreateContextAsync();
+        var phone = await SeedDeviceAsync(context, DeviceType.Phone, "phone-q-10");
+
+        await Evaluator(context).EvaluateAsync(
+            phone, CheckKind.YealinkCallQuality,
+            Result(CheckKind.YealinkCallQuality, succeeded: false),
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        (await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality))
+            .Should().BeEmpty("falha da API não avalia qualidade");
+    }
 }

@@ -33,7 +33,7 @@ public sealed class TaskItem : AggregateRoot
     public DateOnly? DueDate { get; private set; }
     public Guid? ResponsibleId { get; private set; }
 
-    // F31-T001 — quem criou a task (espelho CreatedById do Project):
+    // F32-T001 — quem criou a task (espelho CreatedById do Project):
     // distingue o autor do pedido de quem executa (ResponsibleId). Sem
     // FK (mesmo critério do ResponsibleId / ADR-029) — usuário excluído
     // não apaga o registro histórico. Nulo só em tasks legadas pré-migração.

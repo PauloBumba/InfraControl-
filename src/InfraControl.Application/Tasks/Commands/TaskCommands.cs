@@ -39,7 +39,7 @@ public sealed class CreateTaskCommandHandler(
     {
         var priority = ParsePriority(request.Priority);
 
-        // F31-T001: o criador vem do usuário autenticado (mesmo critério
+        // F32-T001: o criador vem do usuário autenticado (mesmo critério
         // do CreateProjectCommandHandler) — sem sessão não cria task.
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } createdById)
             throw new UnauthorizedAccessException(

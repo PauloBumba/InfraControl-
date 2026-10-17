@@ -43,6 +43,24 @@ public static class AlertThresholds
     /// <summary>F30-T005a: armazenamento da câmera/NVR ≥ 90% = Critical.</summary>
     public const int StorageCriticalPercent = 90;
 
+    /// <summary>F30-T006b: MOS do telefone abaixo = Warning (docs/47).</summary>
+    public const decimal MosWarning = 3.5m;
+
+    /// <summary>F30-T006b: MOS do telefone abaixo = Critical (docs/47).</summary>
+    public const decimal MosCritical = 3.0m;
+
+    /// <summary>F30-T006b: jitter do telefone acima = Warning (ms, docs/47).</summary>
+    public const decimal JitterWarningMs = 50m;
+
+    /// <summary>F30-T006b: latência do telefone acima = Warning (ms, docs/47).</summary>
+    public const decimal LatencyWarningMs = 150m;
+
+    /// <summary>F30-T006b: perda de pacotes acima = Warning (%, docs/47).</summary>
+    public const decimal PacketLossWarningPercent = 5m;
+
+    /// <summary>F30-T006b: perda de pacotes acima = Critical (%, docs/47).</summary>
+    public const decimal PacketLossCriticalPercent = 10m;
+
     /// <summary>Falhas consecutivas de Ping antes de abrir o alerta (F6-T002).</summary>
     public const int PingFailureStreak = 3;
 }
@@ -185,6 +203,14 @@ public sealed class AlertEvaluator(
 
             case CheckKind.OnvifRecording:
                 await EvaluateOnvifRecordingAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.YealinkSip:
+                await EvaluateYealinkSipAsync(device, kind, result, cancellationToken);
+                break;
+
+            case CheckKind.YealinkCallQuality:
+                await EvaluateYealinkCallQualityAsync(device, kind, result, cancellationToken);
                 break;
 
             default:
@@ -572,6 +598,134 @@ public sealed class AlertEvaluator(
         IReadOnlyDictionary<string, string> values, string key)
         => values.TryGetValue(key, out var raw)
             && bool.TryParse(raw, out var parsed)
+                ? parsed
+                : null;
+
+    /// <summary>
+    /// F30-T006a: registro SIP do telefone (Yealink) — <c>sipRegistered</c>
+    /// false → Critical; true → resolve; ausente (API não expôs o estado) →
+    /// não avalia (docs/47 §Dados indisponíveis).
+    /// </summary>
+    private async Task EvaluateYealinkSipAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        var registered = result.Values is null
+            ? null
+            : ReadBool(result.Values, "sipRegistered");
+
+        if (registered is false)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Registro SIP de '{device.Name}' ausente (Unregistered).",
+                cancellationToken);
+        }
+        else if (registered is true)
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// F30-T006b: qualidade de chamada/PoE do telefone — pior condição
+    /// prevalece (ordem: PoE sem energia Critical > perda ≥ 10% Critical >
+    /// MOS &lt; 3.0 Critical > perda ≥ 5% Warning > MOS &lt; 3.5 Warning >
+    /// jitter &gt; 50ms Warning > latência &gt; 150ms Warning); algum campo →
+    /// resolve; Values ausentes ou sem campo algum → não avalia.
+    /// </summary>
+    private async Task EvaluateYealinkCallQualityAsync(
+        Device device,
+        CheckKind kind,
+        MonitoringResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Values is null)
+            return;
+
+        var poePowered = ReadBool(result.Values, "poePowered");
+        var mos = ReadDecimal(result.Values, "mos");
+        var jitter = ReadDecimal(result.Values, "jitterMs");
+        var latency = ReadDecimal(result.Values, "latencyMs");
+        var loss = ReadDecimal(result.Values, "packetLossPercent");
+
+        if (poePowered is false)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Telefone '{device.Name}' sem energia PoE.",
+                cancellationToken);
+        }
+        else if (loss is >= AlertThresholds.PacketLossCriticalPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"Perda de pacotes de '{device.Name}' em {Num(loss!.Value)}% "
+                    + $"(crítico ≥ {Num(AlertThresholds.PacketLossCriticalPercent)}%).",
+                cancellationToken);
+        }
+        else if (mos is not null && mos < AlertThresholds.MosCritical)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Critical,
+                $"MOS de '{device.Name}' em {Num(mos.Value)} "
+                    + $"(crítico < {Num(AlertThresholds.MosCritical)}).",
+                cancellationToken);
+        }
+        else if (loss is >= AlertThresholds.PacketLossWarningPercent)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"Perda de pacotes de '{device.Name}' em {Num(loss!.Value)}% "
+                    + $"(limite {Num(AlertThresholds.PacketLossWarningPercent)}%).",
+                cancellationToken);
+        }
+        else if (mos is not null && mos < AlertThresholds.MosWarning)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"MOS de '{device.Name}' em {Num(mos.Value)} "
+                    + $"(limite {Num(AlertThresholds.MosWarning)}).",
+                cancellationToken);
+        }
+        else if (jitter is > AlertThresholds.JitterWarningMs)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"Jitter de '{device.Name}' em {Num(jitter!.Value)}ms "
+                    + $"(limite {Num(AlertThresholds.JitterWarningMs)}ms).",
+                cancellationToken);
+        }
+        else if (latency is > AlertThresholds.LatencyWarningMs)
+        {
+            await OpenOrSuppressAsync(
+                device, kind, AlertSeverity.Warning,
+                $"Latência de '{device.Name}' em {Num(latency!.Value)}ms "
+                    + $"(limite {Num(AlertThresholds.LatencyWarningMs)}ms).",
+                cancellationToken);
+        }
+        else
+        {
+            await ResolveActiveAsync(device.Id, kind, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Decimal em formato invariante ("3.0" nunca "3,0") — a mensagem de
+    /// alerta não pode variar com a cultura do thread (CI pode rodar en-US).
+    /// </summary>
+    private static string Num(decimal value)
+        => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static decimal? ReadDecimal(
+        IReadOnlyDictionary<string, string> values, string key)
+        => values.TryGetValue(key, out var raw)
+            && decimal.TryParse(
+                raw, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed)
                 ? parsed
                 : null;
 

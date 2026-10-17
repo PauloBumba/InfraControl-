@@ -17,6 +17,8 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/integrations": "administer",
   // F27 Fase 2.2 — configuração Zabbix (espelha a policy Administer do controller).
   "/integrations/zabbix": "administer",
+  // FAI-T011b (ADR-057) — cadastro de providers de IA (Administer).
+  "/admin/ai-providers": "administer",
   // UniFi ao vivo: consulta (Operate) — Operator + Admin.
   "/unifi": "operate",
   "/unifi/dashboard": "operate",

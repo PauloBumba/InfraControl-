@@ -23,6 +23,13 @@ public sealed class Device : AggregateRoot
     public const int ModelMaxLength = 100;
     public const int VendorMaxLength = 100;
     public const int DescriptionMaxLength = 500;
+
+    /// <summary>F30-T006c (docs/47 §A): extensão SIP do telefone.</summary>
+    public const int ExtensionMaxLength = 20;
+
+    /// <summary>F30-T006c (docs/47 §A): host/IP do PBX (servidor SIP).</summary>
+    public const int SipServerMaxLength = 255;
+
     public const int MaxMonitoringChecks = 20;
 
     public Guid LocationId { get; private set; }
@@ -36,6 +43,16 @@ public sealed class Device : AggregateRoot
     public string? Vendor { get; private set; }
     public Guid? VlanId { get; private set; }
     public string? Description { get; private set; }
+
+    /// <summary>
+    /// F30-T006c (docs/47 §A): extensão SIP do telefone — opcional, metadado
+    /// de cadastro (sem guard de tipo: campos como Serial; o dado ao vivo
+    /// continua vindo do check YealinkSip).
+    /// </summary>
+    public string? Extension { get; private set; }
+
+    /// <summary>F30-T006c (docs/47 §A): host/IP do PBX do telefone.</summary>
+    public string? SipServer { get; private set; }
 
     /// <summary>F31-T002 (docs/53 D4): hypervisor da VM — FK self, 1 por VM.</summary>
     public Guid? HypervisorDeviceId { get; private set; }
@@ -64,14 +81,18 @@ public sealed class Device : AggregateRoot
         string? model = null,
         string? vendor = null,
         Guid? vlanId = null,
-        string? description = null)
+        string? description = null,
+        string? extension = null,
+        string? sipServer = null)
     {
         if (locationId == Guid.Empty)
             throw new ArgumentException("O id do local é obrigatório.", nameof(locationId));
 
         var device = new Device();
         device.LocationId = locationId;
-        device.Update(name, type, rackId, ip, mac, serial, model, vendor, vlanId, description);
+        device.Update(
+            name, type, rackId, ip, mac, serial, model, vendor, vlanId, description,
+            extension, sipServer);
         device._monitoringChecks = [.. DeviceProfileDefaults.For(type)];
         device.ProfileIsCustom = false;
 
@@ -96,7 +117,9 @@ public sealed class Device : AggregateRoot
         string? model = null,
         string? vendor = null,
         Guid? vlanId = null,
-        string? description = null)
+        string? description = null,
+        string? extension = null,
+        string? sipServer = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do device é obrigatório.", nameof(name));
@@ -120,6 +143,10 @@ public sealed class Device : AggregateRoot
         var normalizedSerial = NormalizeOptional(serial, SerialMaxLength, "O serial do device", nameof(serial));
         var normalizedModel = NormalizeOptional(model, ModelMaxLength, "O modelo do device", nameof(model));
         var normalizedVendor = NormalizeOptional(vendor, VendorMaxLength, "O fabricante do device", nameof(vendor));
+        var normalizedExtension = NormalizeOptional(
+            extension, ExtensionMaxLength, "A extensão do device", nameof(extension));
+        var normalizedSipServer = NormalizeOptional(
+            sipServer, SipServerMaxLength, "O servidor SIP do device", nameof(sipServer));
 
         if (description?.Length > DescriptionMaxLength)
             throw new ArgumentException(
@@ -135,6 +162,8 @@ public sealed class Device : AggregateRoot
         Vendor = normalizedVendor;
         VlanId = vlanId;
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        Extension = normalizedExtension;
+        SipServer = normalizedSipServer;
         // ADR-014: tipo pode mudar, mas override explícito do operador é preservado.
 
         RaiseDomainEvent(new DeviceUpdatedDomainEvent(Id, Name, Type));

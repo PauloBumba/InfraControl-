@@ -25,7 +25,9 @@ public sealed record CreateDeviceCommand(
     string? Model = null,
     string? Vendor = null,
     Guid? VlanId = null,
-    string? Description = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
+    string? Description = null,
+    string? Extension = null,
+    string? SipServer = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -52,7 +54,9 @@ public sealed class CreateDeviceCommandHandler(
             request.Model,
             request.Vendor,
             request.VlanId,
-            request.Description);
+            request.Description,
+            request.Extension,
+            request.SipServer);
 
         var locationExists = await locationRepository.GetByIdAsync(device.LocationId, cancellationToken);
         if (locationExists is null)
@@ -110,7 +114,9 @@ public sealed class CreateDeviceCommandHandler(
             device.VlanId,
             device.Description,
             device.MonitoringChecks.Select(check => check.ToString()).ToArray(),
-            device.ProfileIsCustom);
+            device.ProfileIsCustom,
+            device.Extension,
+            device.SipServer);
 }
 
 public sealed record UpdateDeviceCommand(
@@ -124,7 +130,9 @@ public sealed record UpdateDeviceCommand(
     string? Model = null,
     string? Vendor = null,
     Guid? VlanId = null,
-    string? Description = null) : BaseCommand, IAuthorizedRequest
+    string? Description = null,
+    string? Extension = null,
+    string? SipServer = null) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -152,7 +160,9 @@ public sealed class UpdateDeviceCommandHandler(
             request.Model,
             request.Vendor,
             request.VlanId,
-            request.Description);
+            request.Description,
+            request.Extension,
+            request.SipServer);
 
         _ = await locationRepository.GetByIdAsync(device.LocationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Local '{device.LocationId}' não encontrado.");

@@ -23,6 +23,10 @@ export interface DeviceItem {
   vendor: string | null;
   vlanId: string | null;
   description: string | null;
+  /** F30-T006c (docs/47 §A) — metadado de cadastro do telefone (opt-in). */
+  extension?: string | null;
+  /** F30-T006c (docs/47 §A) — servidor SIP (PBX) do telefone (opt-in). */
+  sipServer?: string | null;
   monitoringChecks: string[];
   profileIsCustom: boolean;
 }

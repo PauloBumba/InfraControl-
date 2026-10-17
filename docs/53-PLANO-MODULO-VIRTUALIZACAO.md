@@ -51,7 +51,7 @@ integração) vs. F20/F26/F27 (integrações depois).
 ## 3. Modelo de domínio (delta do docs/03)
 
 ```text
-DeviceType:  ... UPS = 10 │ VirtualMachine = 11 │ VCenter = 12   (NOVOS)
+DeviceType:  ... UPS = 10 │ VirtualMachine = 12 │ VCenter = 13   (NOVOS — 11 ficou com Nvr no merge F30-T005c)
 
 Device (devices)
  ├─ type = VirtualMachine ──► HypervisorDeviceId ──► Device (hypervisor)

@@ -169,4 +169,62 @@ public sealed class DeviceTests
 
         device.Type.Should().Be(DeviceType.Router);
     }
+
+    // ── F30-T006c (docs/47 §A): extensão/SIP do telefone ─────────────────
+
+    [Fact]
+    public void Create_Phone_ShouldSetExtensionAndSipServerTrimmed()
+    {
+        var device = Device.Create(
+            SomeLocationId, "phone-01", DeviceType.Phone,
+            extension: "  1001  ",
+            sipServer: "  pbx.local  ");
+
+        device.Extension.Should().Be("1001");
+        device.SipServer.Should().Be("pbx.local");
+    }
+
+    [Fact]
+    public void Create_WithoutPhoneFields_ShouldLeaveThemNull()
+    {
+        var device = Device.Create(SomeLocationId, "sw-01", DeviceType.Switch);
+
+        device.Extension.Should().BeNull();
+        device.SipServer.Should().BeNull();
+    }
+
+    [Fact]
+    public void Update_ShouldApplyAndClearPhoneFields()
+    {
+        var device = Device.Create(
+            SomeLocationId, "phone-01", DeviceType.Phone,
+            extension: "1001", sipServer: "pbx.local");
+
+        device.Update("phone-01", DeviceType.Phone, null);
+
+        device.Extension.Should().BeNull("Update sem extension limpa o campo");
+        device.SipServer.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_WithTooLongExtension_ShouldThrowPtBrMessage()
+    {
+        var action = () => Device.Create(
+            SomeLocationId, "phone-02", DeviceType.Phone,
+            extension: new string('9', Device.ExtensionMaxLength + 1));
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage($"A extensão do device pode ter no máximo {Device.ExtensionMaxLength} caracteres.*");
+    }
+
+    [Fact]
+    public void Create_WithTooLongSipServer_ShouldThrowPtBrMessage()
+    {
+        var action = () => Device.Create(
+            SomeLocationId, "phone-03", DeviceType.Phone,
+            sipServer: new string('h', Device.SipServerMaxLength + 1));
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage($"O servidor SIP do device pode ter no máximo {Device.SipServerMaxLength} caracteres.*");
+    }
 }

@@ -50,6 +50,9 @@ const SwitchesPage = lazy(() => import("@/pages/SwitchesPage").then(m => ({ defa
 const VirtualizationPage = lazy(() => import("@/pages/VirtualizationPage").then(m => ({ default: m.VirtualizationPage })));
 const PrintersPage = lazy(() => import("@/pages/PrintersPage").then(m => ({ default: m.PrintersPage })));
 const ServersPage = lazy(() => import("@/pages/ServersPage").then(m => ({ default: m.ServersPage })));
+const CamerasPage = lazy(() => import("@/pages/CamerasPage").then(m => ({ default: m.CamerasPage })));
+// F30-T006d — Telefones IP: SIP/qualidade PoE (docs/47).
+const PhonesPage = lazy(() => import("@/pages/PhonesPage").then(m => ({ default: m.PhonesPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -59,6 +62,8 @@ const AccountPage = lazy(() => import("@/pages/AccountPage").then(m => ({ defaul
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
 const ReportsPage = lazy(() => import("@/pages/ReportsPage").then(m => ({ default: m.ReportsPage })));
 const CopilotPage = lazy(() => import("@/pages/CopilotPage").then(m => ({ default: m.CopilotPage })));
+// FAI-T011b — cadastro de providers de IA (Administer).
+const AiProvidersPage = lazy(() => import("@/pages/AiProvidersPage").then(m => ({ default: m.AiProvidersPage })));
 // F26-T002 — landing pública de vendas (fora do AppLayout).
 const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
 const FeaturesPage = lazy(() => import("@/pages/FeaturesPage").then(m => ({ default: m.FeaturesPage })));
@@ -397,6 +402,12 @@ function AppContent() {
               <CopilotPage />
             </ProtectedRoute>
           } />
+          {/* FAI-T011b (ADR-057) — Administração → Providers de IA (Administer). */}
+          <Route path="/admin/ai-providers" element={
+            <ProtectedRoute>
+              <AiProvidersPage />
+            </ProtectedRoute>
+          } />
           <Route path="/incidents" element={
             <ProtectedRoute>
               <IncidentsPage />
@@ -438,6 +449,18 @@ function AppContent() {
           <Route path="/servers" element={
             <ProtectedRoute>
               <ServersPage />
+            </ProtectedRoute>
+          } />
+          {/* F30-T005d — Câmeras & Gravação (ONVIF ao vivo). */}
+          <Route path="/cameras" element={
+            <ProtectedRoute>
+              <CamerasPage />
+            </ProtectedRoute>
+          } />
+          {/* F30-T006d — Telefones IP: SIP & Qualidade (Yealink ao vivo). */}
+          <Route path="/phones" element={
+            <ProtectedRoute>
+              <PhonesPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFoundPage />} />

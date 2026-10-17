@@ -42,7 +42,7 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
 
         builder.Property(x => x.ResponsibleId);
 
-        // F31-T001 — criador da task (espelho CreatedById do Project):
+        // F32-T001 — criador da task (espelho CreatedById do Project):
         // sem FK (mesmo critério do ResponsibleId / ADR-029); nulo só em
         // tasks legadas anteriores à migração AddTaskCreatedById.
         builder.Property(x => x.CreatedById);

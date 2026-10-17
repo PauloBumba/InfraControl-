@@ -117,6 +117,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();
         services.AddScoped<IRemoteSessionRepository, RemoteSessionRepository>();
+        // F30-T005c: relação câmera-NVR (repositório segue convenção I*Repository)
+        services.AddScoped<InfraControl.Application.Inventory.CameraNvrMappings.Ports.ICameraNvrMappingRepository,
+            CameraNvrMappingRepository>();
         // F27 Fase 2.2/3.1: config da integração Zabbix + hosts sincronizados
         services.AddScoped<IZabbixSettingsRepository, ZabbixSettingsRepository>();
         services.AddScoped<IZabbixHostsRepository, ZabbixHostsRepository>();
@@ -252,6 +255,48 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // F12-T005: alerta de request lento (Dia 5 — docs/20)
         services.Configure<PerformanceOptions>(options => options.SlowRequestMs = 1000);
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
+
+        // ADR-057 / FAI-T011c: grafo real de IA (cadastro no banco +
+        // router/gateway/adaptadores) p/ smoke de resolução. Sem rede de
+        // verdade: os adaptadores apontam p/ um stub local (HttpListener
+        // na porta fixa 18765 — o mesmo valor do AiOllamaOptions).
+        services.AddHttpClient();
+        services.AddHttpClient("ollama");
+        services.AddHttpClient("openai-compatible");
+        services.AddHttpClient("gemini");
+        services.Configure<InfraControl.Application.AI.AiOllamaOptions>(options =>
+        {
+            options.BaseUrl = "http://127.0.0.1:18765";
+            options.EmbeddingModel = "nomic-embed-text";
+        });
+        services.Configure<InfraControl.Application.AI.AiOpenAiCompatibleOptions>(_ => { });
+        services.Configure<InfraControl.Application.AI.AiGeminiOptions>(_ => { });
+        services.AddSingleton(new InfraControl.Application.AI.AiRoutingOptionsConfiguration
+        {
+            Copilot = new() { Provider = "ollama", DefaultModel = "llama3.2" },
+            IncidentAnalysis = new() { Provider = "ollama", DefaultModel = "llama3.2" },
+            KnowledgeGeneration = new() { Provider = "ollama", DefaultModel = "llama3.2" },
+            Reporting = new() { Provider = "ollama", DefaultModel = "llama3.2" },
+            Automation = new() { Provider = "ollama", DefaultModel = "llama3.2" },
+        });
+        services.AddScoped<InfraControl.Application.AI.IAiProvider, InfraControl.Infrastructure.AI.OllamaProvider>();
+        services.AddScoped<InfraControl.Application.AI.IAiProvider, InfraControl.Infrastructure.AI.OpenAiCompatibleProvider>();
+        services.AddScoped<InfraControl.Application.AI.IAiProvider, InfraControl.Infrastructure.AI.GeminiProvider>();
+        services.AddScoped<InfraControl.Application.AI.IAiProviderRegistry,
+            InfraControl.Application.AI.ConfigurationProviderRegistry>();
+        services.AddScoped<InfraControl.Application.AI.IAiProviderRouter,
+            InfraControl.Application.AI.AiProviderRouter>();
+        services.AddScoped<InfraControl.Application.AI.Providers.Ports.IAiProviderRepository,
+            InfraControl.Infrastructure.Repositories.AiProviderRepository>();
+        services.AddScoped<InfraControl.Application.AI.Providers.Ports.IAiProviderConnectionSource,
+            InfraControl.Infrastructure.AI.DatabaseAiProviderConnectionSource>();
+        services.AddScoped<InfraControl.Infrastructure.AI.AiProviderSeeder>();
+        services.AddSingleton(new InfraControl.Application.AI.AiGatewayOptions());
+        services.AddScoped<InfraControl.Application.Common.Interfaces.IResilienceExecutor,
+            InfraControl.Infrastructure.Services.ResilienceExecutor>();
+        services.AddScoped<InfraControl.Application.AI.IAiAuditSink,
+            InfraControl.Infrastructure.AI.AuditAiAuditSink>();
+        services.AddScoped<InfraControl.Application.AI.IAiGateway, InfraControl.Application.AI.AiGateway>();
 
         // Usuário de teste (roles são a fonte da verdade, ADR-016)
         services.AddSingleton<ICurrentUserContext>(CurrentUser);
