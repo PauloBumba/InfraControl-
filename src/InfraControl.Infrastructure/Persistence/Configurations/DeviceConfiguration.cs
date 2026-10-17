@@ -64,6 +64,15 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
             .HasColumnName("description")
             .HasMaxLength(Device.DescriptionMaxLength);
 
+        // F30-T006c / docs/47 §A: cadastro SIP do telefone (extensão e PBX).
+        builder.Property(x => x.Extension)
+            .HasColumnName("extension")
+            .HasMaxLength(Device.ExtensionMaxLength);
+
+        builder.Property(x => x.SipServer)
+            .HasColumnName("sip_server")
+            .HasMaxLength(Device.SipServerMaxLength);
+
         // F31-T002 / docs/53 D4: vínculos da VM (FK self — 1 hypervisor e
         // 1 vCenter por VM; backstop Restrict + 409 no handler de exclusão).
         builder.Property(x => x.HypervisorDeviceId)

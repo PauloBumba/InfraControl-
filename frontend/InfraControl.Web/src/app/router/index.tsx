@@ -51,6 +51,8 @@ const VirtualizationPage = lazy(() => import("@/pages/VirtualizationPage").then(
 const PrintersPage = lazy(() => import("@/pages/PrintersPage").then(m => ({ default: m.PrintersPage })));
 const ServersPage = lazy(() => import("@/pages/ServersPage").then(m => ({ default: m.ServersPage })));
 const CamerasPage = lazy(() => import("@/pages/CamerasPage").then(m => ({ default: m.CamerasPage })));
+// F30-T006d — Telefones IP: SIP/qualidade PoE (docs/47).
+const PhonesPage = lazy(() => import("@/pages/PhonesPage").then(m => ({ default: m.PhonesPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -453,6 +455,12 @@ function AppContent() {
           <Route path="/cameras" element={
             <ProtectedRoute>
               <CamerasPage />
+            </ProtectedRoute>
+          } />
+          {/* F30-T006d — Telefones IP: SIP & Qualidade (Yealink ao vivo). */}
+          <Route path="/phones" element={
+            <ProtectedRoute>
+              <PhonesPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFoundPage />} />

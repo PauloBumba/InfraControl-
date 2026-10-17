@@ -386,6 +386,14 @@ public static class DependencyInjection
         services.AddSingleton<IOnvifClient, OnvifSoapClient>();
         services.AddScoped<IMonitoringProvider, OnvifStorageProvider>();
         services.AddScoped<IMonitoringProvider, OnvifRecordingProvider>();
+        // F30-T006a (docs/47 §C): registro SIP do telefone via API Yealink
+        // — 2ª seam não-SNMP (HTTP/JSON); credencial global em YealinkOptions
+        // espelhando OnvifOptions; opt-in por device (Phone default = [Ping]).
+        services.Configure<YealinkOptions>(
+            configuration.GetSection(YealinkOptions.SectionName));
+        services.AddSingleton<IYealinkPhoneClient, YealinkPhoneClient>();
+        services.AddScoped<IMonitoringProvider, YealinkSipProvider>();
+        services.AddScoped<IMonitoringProvider, YealinkCallQualityProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 

@@ -226,6 +226,48 @@ public sealed class DeviceCommandTests : IDisposable
             .WithMessage($"Device '{unknownId}' não encontrado.");
     }
 
+    // ── F30-T006c (docs/47 §A): extensão/SIP do telefone ─────────────────
+
+    [Fact]
+    public async Task Create_Phone_ShouldPersistExtensionAndSipServer()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+
+        var result = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "phone-01", "Phone",
+                Extension: "1001", SipServer: "pbx.local"),
+            CancellationToken.None);
+
+        result.Extension.Should().Be("1001");
+        result.SipServer.Should().Be("pbx.local");
+
+        var stored = context.Devices.Single(device => device.Id == result.Id);
+        stored.Extension.Should().Be("1001");
+        stored.SipServer.Should().Be("pbx.local");
+    }
+
+    [Fact]
+    public async Task Update_Phone_ShouldClearExtensionAndSipServerWhenAbsent()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "phone-02", "Phone",
+                Extension: "1002", SipServer: "pbx.local"),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateDeviceCommand(created.Id, "phone-02", "Phone"),
+            CancellationToken.None);
+
+        var stored = context.Devices.Single(device => device.Id == created.Id);
+        stored.Extension.Should().BeNull();
+        stored.SipServer.Should().BeNull();
+    }
+
     // ── Delete ────────────────────────────────────────────────────────────
 
     [Fact]

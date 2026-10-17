@@ -19,4 +19,6 @@ public sealed record DeviceDto(
     Guid? VlanId,
     string? Description,
     IReadOnlyList<string> MonitoringChecks,
-    bool ProfileIsCustom);
+    bool ProfileIsCustom,
+    string? Extension = null,
+    string? SipServer = null);

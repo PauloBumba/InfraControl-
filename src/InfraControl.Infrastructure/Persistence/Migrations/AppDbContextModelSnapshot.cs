@@ -329,6 +329,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
 
+                    b.Property<string>("Extension")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("extension");
+
                     b.Property<Guid?>("HypervisorDeviceId")
                         .HasColumnType("uuid")
                         .HasColumnName("hypervisor_device_id");
@@ -370,6 +375,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("serial");
+
+                    b.Property<string>("SipServer")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("sip_server");
 
                     b.Property<string>("Type")
                         .IsRequired()

@@ -541,4 +541,67 @@ public sealed class RunCheckCommandTests : IDisposable
         rows.Should().ContainSingle();
         rows[0].Kind.Should().Be(CheckKind.OnvifRecording);
     }
+
+    // ── F30-T006a: guard Yealink (Phone) ─────────────────────────────────
+
+    /// <summary>YealinkSip é Phone-only — mesmo molde do guard ONVIF.</summary>
+    [Theory]
+    [InlineData(DeviceType.Switch)]
+    [InlineData(DeviceType.Server)]
+    [InlineData(DeviceType.Camera)]
+    public async Task RunCheck_YealinkSip_OnNonPhone_ShouldThrowArgumentPtBrMessage(
+        DeviceType nonPhoneType)
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, nonPhoneType, "dev-09", "192.0.2.20");
+
+        var action = () => Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("YealinkSip")))
+            .Handle(new RunCheckCommand(device.Id, "YealinkSip"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*só se aplica a devices do tipo Phone*");
+        (await RowsAsync(context, device.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunCheck_YealinkSip_OnPhone_ShouldExecuteAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var phone = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Phone, "phone-01", "192.0.2.33");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("YealinkSip")))
+            .Handle(new RunCheckCommand(phone.Id, "YealinkSip"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, phone.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.YealinkSip);
+    }
+
+    [Fact]
+    public async Task RunCheck_YealinkCallQuality_OnPhone_ShouldPassGuardAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var phone = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Phone, "phone-02", "192.0.2.34");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("YealinkCallQuality")))
+            .Handle(new RunCheckCommand(phone.Id, "YealinkCallQuality"), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, phone.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.YealinkCallQuality);
+    }
 }

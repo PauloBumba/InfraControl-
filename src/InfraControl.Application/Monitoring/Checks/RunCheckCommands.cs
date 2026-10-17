@@ -118,6 +118,14 @@ public sealed class RunCheckCommandHandler(
                 $"Check '{check}' só se aplica a devices do tipo Camera ou Nvr.",
                 nameof(check));
 
+        // F30-T006a/b (docs/47): checks da API Yealink são de telefone —
+        // mesmo molde dos guards acima; reusado pelo polling.
+        if (kind is CheckKind.YealinkSip or CheckKind.YealinkCallQuality
+            && device.Type != DeviceType.Phone)
+            throw new ArgumentException(
+                $"Check '{check}' só se aplica a devices do tipo Phone.",
+                nameof(check));
+
         if (string.IsNullOrWhiteSpace(device.Ip))
         {
             // Sem IP não há tentativa — não grava histórico (F5-T002).

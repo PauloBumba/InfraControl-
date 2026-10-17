@@ -101,6 +101,21 @@ public enum CheckKind
     /// F30-T005b (docs/46 §B/C): estado de gravação/video loss/tamper da
     /// câmera/NVR via ONVIF. Opt-in, guard Camera/Nvr.
     /// </summary>
-    OnvifRecording = 16
+    OnvifRecording = 16,
 
+    /// <summary>
+    /// F30-T006a (docs/47 §C): registro SIP do telefone via API Yealink
+    /// (HTTP/JSON — 2ª seam não-SNMP). Opt-in — default de Phone continua
+    /// [Ping] (DeviceProfileDefaults intocado); guard Phone-only no
+    /// RunCheckCommandHandler. Tráfego/ifOperStatus do telefone reusa o
+    /// F29-3 SnmpInterfaces (decisão da auditoria T006-0 — sem
+    /// SnmpPhoneProvider novo).
+    /// </summary>
+    YealinkSip = 17,
+
+    /// <summary>
+    /// F30-T006b (docs/47 §D/E): qualidade de chamada (MOS/jitter/latência/
+    /// perda) + PoE via API Yealink. Opt-in, guard Phone-only.
+    /// </summary>
+    YealinkCallQuality = 18
 }

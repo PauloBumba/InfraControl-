@@ -10,6 +10,7 @@ export const navigation: NavItem[] = [
   { label: "Impressoras", icon: "pi pi-print", route: "/printers" },
   { label: "Servidores", icon: "pi pi-desktop", route: "/servers" },
   { label: "Câmeras", icon: "pi pi-camera", route: "/cameras" },
+  { label: "Telefones", icon: "pi pi-phone", route: "/phones" },
   { label: "Clientes", icon: "pi pi-users", route: "/clients" },
   {
     label: "UniFi",
