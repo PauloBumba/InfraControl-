@@ -82,7 +82,7 @@ public sealed class TaskCommandTests : IDisposable
         dto.State.Should().Be(nameof(TaskState.Open));
         dto.Description.Should().Be("agendada com o datacenter");
 
-        // F31-T001 — o criador vem do usuário autenticado.
+        // F32-T001 — o criador vem do usuário autenticado.
         dto.CreatedById.Should().Be(creatorId);
 
         var saved = await context.Tasks.AsNoTracking().SingleAsync();

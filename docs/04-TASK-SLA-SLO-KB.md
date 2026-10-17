@@ -53,7 +53,7 @@ Prioridade, prazo e responsável da spec "TASKS — Plano de Execução" §5
 - `TaskDto` expõe `priority`, `dueDate`, `responsibleId`, `responsibleName`;
   a criação aceita os mesmos campos opcionais.
 
-### Criador × responsável (F31-T001)
+### Criador × responsável (F32-T001)
 
 Distinção entre **quem pediu** a task e **quem executa** (espelho do
 `Project.CreatedById`):
@@ -70,7 +70,7 @@ Distinção entre **quem pediu** a task e **quem executa** (espelho do
   **Criado por** (caneta) ao lado de **Responsável** (usuário) — na
   tabela, a coluna "Criado / Responsável" empilha os dois.
 
-### Quadro de tarefas — concluídas ocultas por default (F31-T002)
+### Quadro de tarefas — concluídas ocultas por default (F32-T002)
 
 Padrão Kanera/Todoist aplicado à `TasksPage` (kanban/tabela/grid):
 

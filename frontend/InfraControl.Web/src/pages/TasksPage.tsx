@@ -62,7 +62,7 @@ import {
 export function TasksPage() {
   const [view, setView] = useEntityViewMode("tasks", "kanban");
 
-  // F31-T002 — "Mostrar concluídas" (padrão Kanera/Todoist): o quadro
+  // F32-T002 — "Mostrar concluídas" (padrão Kanera/Todoist): o quadro
   // OCULTA Resolved/Cancelled/Closed por default (board limpo); o toggle
   // traz de volta para revisão. Preferência persistida por origem.
   const [showCompleted, setShowCompleted] = useState<boolean>(() => {
@@ -277,7 +277,7 @@ export function TasksPage() {
     }
   }
 
-  // F31-T002 — sem o toggle, o quadro só exibe trabalho ATIVO
+  // F32-T002 — sem o toggle, o quadro só exibe trabalho ATIVO
   // (Resolved/Cancelled/Closed ficam fora — some da tela principal
   // quando finaliza, mas volta com "Mostrar concluídas").
   const allItems = tasks.items;
@@ -341,7 +341,7 @@ export function TasksPage() {
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <ViewSwitcher mode={view} onChange={setView} />
-          {/* F31-T002 — toggle "Mostrar concluídas": default OFF (quadro
+          {/* F32-T002 — toggle "Mostrar concluídas": default OFF (quadro
               só com trabalho ativo; ao finalizar, a task some da tela). */}
           <Button
             onClick={() => setShowCompleted((value) => !value)}
@@ -753,7 +753,7 @@ function TaskCard({
           </span>
         </div>
       )}
-      {/* F23-T001/F31-T001 — prazo, criador e responsável (quem pediu ×
+      {/* F23-T001/F32-T001 — prazo, criador e responsável (quem pediu ×
           quem executa). */}
       {(task.dueDate || task.responsibleName || task.createdByName) && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 10, marginBottom: 6 }}>

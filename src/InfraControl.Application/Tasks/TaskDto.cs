@@ -2,7 +2,7 @@ namespace InfraControl.Application.Tasks;
 
 /// <summary>TaskItem na leitura (F7-T001; identificação F23-T001;
 /// planejamento/resultado F23-T003; subtarefas/progresso F23-T004/P4a;
-/// Knowledge F23-T005/P5a; PDI F23-T005/P5b; criador F31-T001).</summary>
+/// Knowledge F23-T005/P5a; PDI F23-T005/P5b; criador F32-T001).</summary>
 public sealed record TaskDto(
     Guid Id,
     string Title,
@@ -84,7 +84,7 @@ public sealed record TaskDto(
                     100d * stats.Done / stats.NonCancelled,
                     MidpointRounding.AwayFromZero)
                 : null,
-            // F31-T001 — criador (task legada sem preenchimento → null).
+            // F32-T001 — criador (task legada sem preenchimento → null).
             task.CreatedById,
             task.CreatedById is null
                 ? null

@@ -284,10 +284,10 @@ describe("TasksPage — casca da lista (C-3: ListPageShell)", () => {
 });
 
 /**
- * F31-T002 — "Mostrar concluídas" (padrão Kanera/Todoist): o quadro
+ * F32-T002 — "Mostrar concluídas" (padrão Kanera/Todoist): o quadro
  * oculta Resolved/Cancelled/Closed por default; o toggle traz de volta.
  */
-describe("TasksPage — concluídas ocultas por default (F31-T002)", () => {
+describe("TasksPage — concluídas ocultas por default (F32-T002)", () => {
   const tarefaConcluida = {
     ...umaTarefa,
     id: "2f1a1111-2222-3333-4444-555566667777",

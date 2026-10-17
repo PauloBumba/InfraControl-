@@ -27,6 +27,8 @@ public class InvitationConfiguration : IEntityTypeConfiguration<Invitation>
 
         builder.Property(x => x.Status)
             .HasColumnName("status")
+            .HasConversion<string>()
+            .HasMaxLength(32)
             .IsRequired();
 
         builder.Property(x => x.ExpiresAt)
@@ -92,6 +94,8 @@ public class InvitationRoleConfiguration : IEntityTypeConfiguration<InvitationRo
 
         builder.Property(x => x.Role)
             .HasColumnName("role")
+            .HasConversion<string>()
+            .HasMaxLength(32)
             .IsRequired();
     }
 }
