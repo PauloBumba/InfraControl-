@@ -103,11 +103,14 @@ public sealed class RunCheckCommandHandler(
 
         // F30-T003 (docs/44): saúde do servidor (HOST-RESOURCES-MIB) é de
         // Server — mesmo molde dos guards acima; reusado pelo polling.
+        // F30-T007c (docs/48 §G): estendido para Router/Firewall (MikroTik
+        // expõe os mesmos OIDs HOST-RESOURCES; enum persistido como string
+        // — sem renomear).
         if (kind is CheckKind.SnmpServerCpu or CheckKind.SnmpServerMemory
                 or CheckKind.SnmpServerDisk
-            && device.Type != DeviceType.Server)
+            && device.Type is not (DeviceType.Server or DeviceType.Router or DeviceType.Firewall))
             throw new ArgumentException(
-                $"Check '{check}' só se aplica a devices do tipo Server.",
+                $"Check '{check}' só se aplica a devices do tipo Server, Router ou Firewall.",
                 nameof(check));
 
         // F30-T005a/b (docs/46): checks ONVIF são de câmera/NVR — mesmo

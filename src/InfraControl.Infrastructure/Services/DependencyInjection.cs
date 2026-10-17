@@ -398,6 +398,9 @@ public static class DependencyInjection
         // IP-FORWARD-MIB — opt-in por device (Router/Firewall default =
         // [Ping, SnmpSystem] intocado).
         services.AddScoped<IMonitoringProvider, SnmpRouterRoutesProvider>();
+        // F30-T007b (docs/48 §D): sessões TCP do router/firewall via
+        // TCP-MIB — opt-in por device (Router/Firewall default intocado).
+        services.AddScoped<IMonitoringProvider, SnmpRouterSessionsProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
