@@ -364,4 +364,39 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
 5. **Problemas reais mantidos e traduzidos**: temperatura >50 °C
    (PD1-SW02/.251), temperatura >60 °C (PD1-SW01/.250) e half-duplex em
    GigabitEthernet1/0/13 (R01-SW03/.232) — ações de campo, não ruído.
+ 6. **Fechamento dos PSU2**: `event.acknowledge` com `action=2` (close
+    puro) é ignorado nesta build; funciona `action=3` (acknowledge+close)
+    após o LLD propagar `manual_close=1` ao trigger descoberto. Os 7
+    problemas PSU2 foram fechados com nota em PT ("Falso positivo: HP
+    V1910 de PSU única — slot PSU2 vazio").
+
+### Frota UniFi no Zabbix (2026-10-17)
+
+- Controller: `https://unifi.infovda.com.br:8443`, site `ta262mxg`
+  (API legada `/api/login` + `/api/s/{site}/stat/device`; as rotas UniFi
+  OS `/api/auth/login` e `/proxy/network/...` não existem nesta
+  instalação). Credenciais fora do git — usar só scripts TEMP.
+- 39 dispositivos no controller (~30 APs + 6 switchs). Cadastrados no
+  group **`Switches UniFi`** (groupid 25), template ICMP Ping (10564):
+
+  | Host Zabbix | Nome | Modelo | IP | Estado |
+  | --- | --- | --- | --- | --- |
+  | `sw-192-168-127-248` | USW-Pro-24-PoE | USW-Pro-24-PoE (US24PRO) | 192.168.127.248 | online, icmpping=1 |
+  | `sw-192-168-10-47` | SW_Laudos | Switch Lite 8 PoE (USL8LPB) | 192.168.10.47 | online, icmpping=1 |
+  | `sw-192-168-10-11` | USW-24-PoE | Switch 24 PoE (USL24PB) | 192.168.10.11 | online, icmpping=1 |
+  | `sw-192-168-11-173` | USW-Enterprise-24 | Switch Enterprise 24 PoE (US624P) | 192.168.11.173 | online, icmpping=1 |
+  | `sw-192-168-10-21` | USW-Lite-8-PoE | Switch Lite 8 PoE (USL8LPB) | 192.168.10.21 | online, icmpping=1 |
+  | `sw-172-16-17-54` | USW-Pro-24-PoE-2 | USW-Pro-24-PoE (US24PRO) | 172.16.17.54 | offline (state=2), icmpping=0 |
+
+- **SNMP desligado em todos** (default de fábrica do UniFi — probe v2c
+  `public` com timeout em todos os 5 online). O endpoint
+  `get/settings` do controller devolve 400 via API; habilitar pela UI:
+  **Settings → System → Services → SNMP** (v2c, community `public`).
+  Depois de habilitado: trocar a interface dos hosts para type 2
+  (`details.version=2`, `details.community=public`) e adicionar o
+  template "Network Generic Device by SNMP" (10226).
+- Alcançabilidade: os 5 online respondem ping da máquina dev
+  (subnets 10.x/11.x/127.x roteadas); 172.16.17.54 fora do ar também no
+  controller — problem "Unavailable by ICMP ping" é esperado até
+  religar/adoptar.
 
