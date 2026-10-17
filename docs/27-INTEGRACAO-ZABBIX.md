@@ -369,6 +369,24 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
     após o LLD propagar `manual_close=1` ao trigger descoberto. Os 7
     problemas PSU2 foram fechados com nota em PT ("Falso positivo: HP
     V1910 de PSU única — slot PSU2 vazio").
+ 7. **Sweep de tradução PT (2026-10-17)**: 28 triggers restantes em
+    inglês traduzidos nos 3 templates (10226/10227/10564) — fixos
+    (`foi reiniciado`, `Indisponivel por ICMP ping`, `Sem coleta SNMP`,
+    `Nome do sistema alterado`, perda/tempo de ping, CPU/memória, fan,
+    firmware/SO/substituição) + protótipos (`Link down` → ` sem link`,
+    banda, erros). Fixos propagam imediatamente; descobertos no
+    próximo ciclo LLD (≤1h). Eventos abertos mantêm o nome snapshot da
+    abertura.
+ 8. **Teste E2E de reboot (2026-10-17, SW_Laudos 192.168.10-47)** —
+    watch de 15 min (30× problem.get + icmpping). Resultado:
+    - 00:52 link down no vizinho `.21` Port 2 (enlace para o Laudos);
+    - 00:53:49→00:54:49 `icmpping=0` (~1 min de downtime);
+    - 00:55:11 **`has been restarted`** disparou (sev2) e
+      **autorecuperou** 01:03:30 — detecção de sysUpTime reset OK;
+    - `Unavailable by ICMP ping` **não** disparou: exige falha
+      sustentada (>1 ciclo) — reboot rápido não gera alarme falso;
+    - pós-boot: `.21` Port 2 renegociou e ficou com **velocidade
+      reduzida** (aberto, info) → ação de campo (cabo/enlace .21↔.47).
 
 ### Frota UniFi no Zabbix (2026-10-17)
 
