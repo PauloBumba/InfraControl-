@@ -381,20 +381,26 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
 
   | Host Zabbix | Nome | Modelo | IP | Estado |
   | --- | --- | --- | --- | --- |
-  | `sw-192-168-127-248` | USW-Pro-24-PoE | USW-Pro-24-PoE (US24PRO) | 192.168.127.248 | online, icmpping=1 |
-  | `sw-192-168-10-47` | SW_Laudos | Switch Lite 8 PoE (USL8LPB) | 192.168.10.47 | online, icmpping=1 |
-  | `sw-192-168-10-11` | USW-24-PoE | Switch 24 PoE (USL24PB) | 192.168.10.11 | online, icmpping=1 |
-  | `sw-192-168-11-173` | USW-Enterprise-24 | Switch Enterprise 24 PoE (US624P) | 192.168.11.173 | online, icmpping=1 |
-  | `sw-192-168-10-21` | USW-Lite-8-PoE | Switch Lite 8 PoE (USL8LPB) | 192.168.10.21 | online, icmpping=1 |
+  | `sw-192-168-127-248` | USW-Pro-24-PoE | USW-Pro-24-PoE (US24PRO) | 192.168.127.248 | online, SNMP+ping |
+  | `sw-192-168-10-47` | SW_Laudos | Switch Lite 8 PoE (USL8LPB) | 192.168.10.47 | online, SNMP+ping |
+  | `sw-192-168-10-11` | USW-24-PoE | Switch 24 PoE (USL24PB) | 192.168.10.11 | online, SNMP+ping |
+  | `sw-192-168-11-173` | USW-Enterprise-24 | Switch Enterprise 24 PoE (US624P) | 192.168.11.173 | online, SNMP+ping |
+  | `sw-192-168-10-21` | USW-Lite-8-PoE | Switch Lite 8 PoE (USL8LPB) | 192.168.10.21 | online, SNMP+ping |
   | `sw-172-16-17-54` | USW-Pro-24-PoE-2 | USW-Pro-24-PoE (US24PRO) | 172.16.17.54 | offline (state=2), icmpping=0 |
 
-- **SNMP desligado em todos** (default de fábrica do UniFi — probe v2c
-  `public` com timeout em todos os 5 online). O endpoint
-  `get/settings` do controller devolve 400 via API; habilitar pela UI:
-  **Settings → System → Services → SNMP** (v2c, community `public`).
-  Depois de habilitado: trocar a interface dos hosts para type 2
-  (`details.version=2`, `details.community=public`) e adicionar o
-  template "Network Generic Device by SNMP" (10226).
+- **SNMP já estava habilitado no site** — descoberto via
+  `GET /api/s/{site}/list/setting/snmpd` (o `get/settings` legado devolve
+  400 nesta versão). O detalhe: a **community do site não é `public`**
+  (probe com `public` dá timeout; com a community do site, os 5 online
+  respondem v2c — sysDescr/sysName reais). Community registrada só no
+  Zabbix (config do host, fora do git).
+- Promoção feita (2026-10-17): os **5 online** viraram
+  **SNMPv2c + ICMP ping** — interface SNMP type 2
+  (`details.version=2`) + template "Network Generic Device by SNMP"
+  (10226, que já traz `icmpping` embutido — não acumular com 10564,
+  dá conflito de key). Verificado: `icmpping=1` + `system.name` real
+  nos 5, **0 itens unsupported** no group. O offline (172.16.17.54)
+  ficou ping-only até voltar (evita itens SNMP unsupported).
 - Alcançabilidade: os 5 online respondem ping da máquina dev
   (subnets 10.x/11.x/127.x roteadas); 172.16.17.54 fora do ar também no
   controller — problem "Unavailable by ICMP ping" é esperado até
