@@ -340,3 +340,28 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
   CLI `snmp-server community public read-only`) documentados em
   `docs/42` §"Limitações e achados operacionais".
 
+### Ajustes operacionais (2026-10-17) — ruídos calados e mensagens em PT
+
+1. **Agent de teste**: `ZBX_HOSTNAME` do container `zabbix-agent` mudou de
+   `zabbix-agent-test` para `"Zabbix server"` (compose) — acabou o ruído
+   `cannot process heartbeat ... host not found` a cada heartbeat.
+2. **`Linux: Zabbix agent is not available`**: a interface do host
+   "Zabbix server" apontava `127.0.0.1:10050` (loopback do container do
+   server, sem agent) — alterada via API para DNS `zabbix-agent`
+   (`useip=0`); trigger resolveu (value=0).
+3. **PSU2 falso positivo** (7× HP V1910 — template Comware marca slot
+   PSU2 vazio como crítico em aparelho de PSU única): os 7 triggers
+   descobertos foram **desabilitados por host** (`trigger.update
+   status=1` — triggers descobertos rejeitam `description`/`manual_close`,
+   mas aceitam `status`). O prototype `29757` recebeu `manual_close=1` +
+   nome PT para os próximos ciclos.
+4. **Mensagens em português**: 6 trigger prototypes renomeados nos
+   templates (mantendo macros `{#IFNAME}`/`{#IFALIAS}`/`{#SNMPVALUE}`/
+   `{#ENT_NAME}`): half-duplex, velocidade reduzida e temperatura
+   (atenção/crítico) em PT. Nomes propagam aos triggers descobertos no
+   próximo ciclo LLD (regras com `delay=1h`; `discoveryrule.execute` não
+   existe nesta build para forçar).
+5. **Problemas reais mantidos e traduzidos**: temperatura >50 °C
+   (PD1-SW02/.251), temperatura >60 °C (PD1-SW01/.250) e half-duplex em
+   GigabitEthernet1/0/13 (R01-SW03/.232) — ações de campo, não ruído.
+
