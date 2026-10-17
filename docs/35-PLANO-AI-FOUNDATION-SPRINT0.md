@@ -217,6 +217,8 @@ S3 — AI Gateway mínimo (IAiProvider, router, timeout/retry/fallback,
    ↓
 S4 — Provider & Model Manager v1 (config por env/appsettings conforme
      ADR-037; admin UI só se o ADR exigir já)
+      ……………………………… CONCLUÍDO 2026-10-08/09 (FAI-T004..T006)
+      ……………………………… EVOLUÍDO 2026-10-16 (ADR-057/FAI-T011: banco+UI)
       ………………………………………………………………… CONCLUÍDO 2026-10-09 (FAI-T005:
       registry/router/OllamaProvider + DI completo com IAiGateway,
       LoggingAiAuditSink e Ai:Gateway — unit 1930 · arch 119)
@@ -275,6 +277,12 @@ segundo §46/§67: `docker compose config` · `up` do Ollama · health
 check verde · pull de modelo · evidência de geração real · integração
 AI Gateway↔Ollama · testes de integração · migração do pgvector (se
 aprovada) · 12 migrações pendentes.
+
+> **Amenda (2026-10-16 · ADR-057)**: a integração gateway↔provider com
+> HTTP real agora tem smoke automatizado no caminho cadastro→router→
+> gateway→adaptador (`AiProviderCadastroResolveTests`, stub local —
+> FAI-T011c); a evidência "ao vivo" com Ollama de pé continua pendente
+> de ambiente.
 
 ## 13. Pendências de ambiente (globais)
 

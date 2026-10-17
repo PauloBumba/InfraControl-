@@ -50,6 +50,10 @@ adaptadores + tabelas + UI Admin violaria a regra de "task pequena".
 - Fase 1 sem credencial, sem custo e sem provider pago — decisão de
   provedor externo vira ADR novo.
 - A "Provider & Model Manager" da §11 é entrega incremental (config →
-  banco → UI) sem reescrever o gateway.
+  banco → UI) sem reescrever o gateway. **Concretizada por
+  [ADR-057](ADR-057-AI-PROVIDER-REGISTRY.md) (2026-10-16)**: cadastro
+  no banco (`ai_providers`/`ai_provider_capabilities`) + UI Admin
+  (`/admin/ai-providers`); o config por env permanece como fallback
+  (D3-A) e o estado "não configurado" continua valendo (§44).
 - Capacidades dão telemetria/custo por caso de uso desde o 1º request
   (§15/§55).

@@ -60,6 +60,8 @@ const AccountPage = lazy(() => import("@/pages/AccountPage").then(m => ({ defaul
 const PdiPage = lazy(() => import("@/pages/PdiPage").then(m => ({ default: m.PdiPage })));
 const ReportsPage = lazy(() => import("@/pages/ReportsPage").then(m => ({ default: m.ReportsPage })));
 const CopilotPage = lazy(() => import("@/pages/CopilotPage").then(m => ({ default: m.CopilotPage })));
+// FAI-T011b — cadastro de providers de IA (Administer).
+const AiProvidersPage = lazy(() => import("@/pages/AiProvidersPage").then(m => ({ default: m.AiProvidersPage })));
 // F26-T002 — landing pública de vendas (fora do AppLayout).
 const HomePage = lazy(() => import("@/pages/HomePage").then(m => ({ default: m.HomePage })));
 const FeaturesPage = lazy(() => import("@/pages/FeaturesPage").then(m => ({ default: m.FeaturesPage })));
@@ -396,6 +398,12 @@ function AppContent() {
           <Route path="/ai/copilot" element={
             <ProtectedRoute>
               <CopilotPage />
+            </ProtectedRoute>
+          } />
+          {/* FAI-T011b (ADR-057) — Administração → Providers de IA (Administer). */}
+          <Route path="/admin/ai-providers" element={
+            <ProtectedRoute>
+              <AiProvidersPage />
             </ProtectedRoute>
           } />
           <Route path="/incidents" element={

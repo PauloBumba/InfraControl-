@@ -22,4 +22,10 @@ public interface IAiProviderRepository : IRepository<AiProvider>
 
     Task<bool> CapabilityRouteExistsAsync(
         string capability, CancellationToken cancellationToken = default);
+
+    /// <summary>Remove a rota da capacidade quando existir (idempotente).</summary>
+    Task RemoveCapabilityRouteAsync(
+        string capability, CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -44,14 +44,16 @@ public sealed class AiProviderRepository(AppDbContext dbContext)
         => await dbContext.AiProviderCapabilities
             .AsNoTracking()
             .SingleOrDefaultAsync(
-                route => route.Capability == capability, cancellationToken);
+                route => route.Capability.ToLower()
+                    == capability.ToLower(), cancellationToken);
 
     public async Task UpsertCapabilityRouteAsync(
         AiProviderCapability route, CancellationToken cancellationToken = default)
     {
         var existing = await dbContext.AiProviderCapabilities
             .SingleOrDefaultAsync(
-                item => item.Capability == route.Capability, cancellationToken);
+                item => item.Capability.ToLower()
+                    == route.Capability.ToLower(), cancellationToken);
 
         if (existing is null)
         {
@@ -72,5 +74,21 @@ public sealed class AiProviderRepository(AppDbContext dbContext)
         => await dbContext.AiProviderCapabilities
             .AsNoTracking()
             .AnyAsync(
-                route => route.Capability == capability, cancellationToken);
+                route => route.Capability.ToLower()
+                    == capability.ToLower(), cancellationToken);
+
+    public async Task RemoveCapabilityRouteAsync(
+        string capability, CancellationToken cancellationToken = default)
+    {
+        var existing = await dbContext.AiProviderCapabilities
+            .SingleOrDefaultAsync(
+                route => route.Capability.ToLower()
+                    == capability.ToLower(), cancellationToken);
+
+        if (existing is not null)
+            dbContext.AiProviderCapabilities.Remove(existing);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        => await dbContext.SaveChangesAsync(cancellationToken);
 }
