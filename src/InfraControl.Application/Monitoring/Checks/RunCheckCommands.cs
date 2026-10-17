@@ -126,6 +126,15 @@ public sealed class RunCheckCommandHandler(
                 $"Check '{check}' só se aplica a devices do tipo Phone.",
                 nameof(check));
 
+        // F30-T007a/b (docs/48 §C/§D): rotas (IP-FORWARD-MIB) e sessões
+        // TCP (TCP-MIB) são de router/firewall — mesmo molde dos guards
+        // acima; reusado pelo polling.
+        if (kind is CheckKind.SnmpRouterRoutes or CheckKind.SnmpRouterSessions
+            && device.Type is not (DeviceType.Router or DeviceType.Firewall))
+            throw new ArgumentException(
+                $"Check '{check}' só se aplica a devices do tipo Router ou Firewall.",
+                nameof(check));
+
         if (string.IsNullOrWhiteSpace(device.Ip))
         {
             // Sem IP não há tentativa — não grava histórico (F5-T002).

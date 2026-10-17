@@ -117,5 +117,19 @@ public enum CheckKind
     /// F30-T006b (docs/47 §D/E): qualidade de chamada (MOS/jitter/latência/
     /// perda) + PoE via API Yealink. Opt-in, guard Phone-only.
     /// </summary>
-    YealinkCallQuality = 18
+    YealinkCallQuality = 18,
+
+    /// <summary>
+    /// F30-T007a (docs/48 §C): tabela de rotas IPv4 via IP-FORWARD-MIB
+    /// (ipCidrRouteTable — universal). Opt-in — informativo, sem regra de
+    /// alerta (limiar é específico de modelo). Guard Router/Firewall-only.
+    /// </summary>
+    SnmpRouterRoutes = 19,
+
+    /// <summary>
+    /// F30-T007b (docs/48 §D): sessões TCP via TCP-MIB (tcpConnTable —
+    /// universal). Opt-in — informativo, sem regra de alerta. Guard
+    /// Router/Firewall-only.
+    /// </summary>
+    SnmpRouterSessions = 20
 }

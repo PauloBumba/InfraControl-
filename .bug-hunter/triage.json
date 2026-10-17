@@ -1,0 +1,452 @@
+{
+  "generatedAt": "2026-10-17T02:36:09.745Z",
+  "target": "/home/bumba/Documentos/GitHub/InfraControl-/frontend/InfraControl.Web/src",
+  "totalFiles": 201,
+  "scannableFiles": 200,
+  "strategy": "large-codebase",
+  "modeFile": "modes/large-codebase.md",
+  "needsLoop": true,
+  "fileBudget": 29,
+  "avgLines": 223,
+  "avgTokensPerFile": 2196,
+  "estimatedTotalLines": 44823,
+  "sampledFiles": 30,
+  "plannedChunkCount": 10,
+  "domains": [
+    {
+      "path": "api",
+      "tier": "HIGH",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/router",
+      "tier": "HIGH",
+      "fileCount": 5,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 4,
+        "medium": 0,
+        "low": 0,
+        "context-only": 1
+      }
+    },
+    {
+      "path": "app/store",
+      "tier": "HIGH",
+      "fileCount": 5,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 5,
+        "medium": 0,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "components",
+      "tier": "HIGH",
+      "fileCount": 42,
+      "riskBreakdown": {
+        "critical": 2,
+        "high": 0,
+        "medium": 33,
+        "low": 0,
+        "context-only": 7
+      }
+    },
+    {
+      "path": "services/api",
+      "tier": "HIGH",
+      "fileCount": 33,
+      "riskBreakdown": {
+        "critical": 1,
+        "high": 31,
+        "medium": 0,
+        "low": 0,
+        "context-only": 1
+      }
+    },
+    {
+      "path": "types",
+      "tier": "HIGH",
+      "fileCount": 2,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 1,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": ".",
+      "tier": "MEDIUM",
+      "fileCount": 3,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 3,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "app/providers",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "context",
+      "tier": "MEDIUM",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "data",
+      "tier": "MEDIUM",
+      "fileCount": 3,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 3,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "hooks",
+      "tier": "MEDIUM",
+      "fileCount": 7,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 4,
+        "low": 0,
+        "context-only": 3
+      }
+    },
+    {
+      "path": "pages",
+      "tier": "MEDIUM",
+      "fileCount": 91,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 51,
+        "low": 0,
+        "context-only": 40
+      }
+    },
+    {
+      "path": "services/signalr",
+      "tier": "MEDIUM",
+      "fileCount": 2,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 2,
+        "low": 0,
+        "context-only": 0
+      }
+    },
+    {
+      "path": "utils",
+      "tier": "MEDIUM",
+      "fileCount": 4,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 2,
+        "low": 0,
+        "context-only": 2
+      }
+    },
+    {
+      "path": "test",
+      "tier": "CONTEXT-ONLY",
+      "fileCount": 1,
+      "riskBreakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "context-only": 1
+      }
+    }
+  ],
+  "scanOrder": [
+    "api/ (1 files, HIGH)",
+    "app/router/ (5 files, HIGH)",
+    "app/store/ (5 files, HIGH)",
+    "components/ (42 files, HIGH)",
+    "services/api/ (33 files, HIGH)",
+    "types/ (2 files, HIGH)",
+    "./ (3 files, MEDIUM)",
+    "app/providers/ (1 files, MEDIUM)",
+    "context/ (1 files, MEDIUM)",
+    "data/ (3 files, MEDIUM)",
+    "hooks/ (7 files, MEDIUM)",
+    "pages/ (91 files, MEDIUM)",
+    "services/signalr/ (2 files, MEDIUM)",
+    "utils/ (4 files, MEDIUM)"
+  ],
+  "tokenEstimate": {
+    "recon": 1500,
+    "perHunterChunk": 63684,
+    "totalPipeline": 480700
+  },
+  "recommendations": [
+    "Large codebase — use domain-scoped auditing. Process one domain at a time.",
+    "0 CRITICAL domains to audit first."
+  ],
+  "domainFileLists": {
+    "api": [
+      "api/index.ts"
+    ],
+    "app/router": [
+      "app/router/access.ts",
+      "app/router/index.tsx",
+      "app/router/publicRoutes.test.ts",
+      "app/router/publicRoutes.ts",
+      "app/router/routeLabels.ts"
+    ],
+    "app/store": [
+      "app/store/hooks.ts",
+      "app/store/index.ts",
+      "app/store/slices/authSlice.ts",
+      "app/store/slices/navigationSlice.ts",
+      "app/store/slices/uiSlice.ts"
+    ],
+    "components": [
+      "components/auth/AccessDenied.tsx",
+      "components/auth/Can.tsx",
+      "components/knowledge/knowledgeCatalogs.test.ts",
+      "components/knowledge/knowledgeCatalogs.ts",
+      "components/layout/AppLayout.test.tsx",
+      "components/layout/AppLayout.tsx",
+      "components/marketing/PublicHero.tsx",
+      "components/marketing/PublicLayout.test.tsx",
+      "components/marketing/PublicLayout.tsx",
+      "components/marketing/PublicMarketingRoute.test.tsx",
+      "components/marketing/PublicMarketingRoute.tsx",
+      "components/network/NetworkServicesSection.tsx",
+      "components/pdi/PdiAccompanimentDialog.test.tsx",
+      "components/pdi/PdiAccompanimentDialog.tsx",
+      "components/pdi/PdiDashboardPanels.tsx",
+      "components/pdi/PdiEvaluationDialog.tsx",
+      "components/pdi/PdiReportsDialog.tsx",
+      "components/pdi/PdiStructureDialog.test.tsx",
+      "components/pdi/PdiStructureDialog.tsx",
+      "components/tasks/taskCatalogs.ts",
+      "components/ui/Button.tsx",
+      "components/ui/CopyableId.tsx",
+      "components/ui/DataTablePanel.tsx",
+      "components/ui/Dialog.tsx",
+      "components/ui/EntityView.tsx",
+      "components/ui/ErrorBanner.tsx",
+      "components/ui/FilterBar.tsx",
+      "components/ui/FormField.tsx",
+      "components/ui/InlineMessages.tsx",
+      "components/ui/ListPageShell.test.tsx",
+      "components/ui/ListPageShell.tsx",
+      "components/ui/LoadingBlock.tsx",
+      "components/ui/LoadingRows.tsx",
+      "components/ui/MetricChart.tsx",
+      "components/ui/NoticeBanner.tsx",
+      "components/ui/PageHeader.tsx",
+      "components/ui/Pagination.tsx",
+      "components/ui/SearchInput.tsx",
+      "components/ui/SelectField.tsx",
+      "components/ui/StatusChip.tsx",
+      "components/ui/SwitchField.tsx",
+      "components/ui/UniFiTopologyMap.tsx"
+    ],
+    "services/api": [
+      "services/api/adminUsers.ts",
+      "services/api/ai.ts",
+      "services/api/aiProviders.ts",
+      "services/api/alerts.ts",
+      "services/api/audit.ts",
+      "services/api/auth.test.ts",
+      "services/api/auth.ts",
+      "services/api/automation.ts",
+      "services/api/cameras.ts",
+      "services/api/client.ts",
+      "services/api/clients.ts",
+      "services/api/incidents.ts",
+      "services/api/integrations.ts",
+      "services/api/inventory.ts",
+      "services/api/invitations.ts",
+      "services/api/knowledge.ts",
+      "services/api/monitoring.ts",
+      "services/api/network.ts",
+      "services/api/notifications.ts",
+      "services/api/pdi.ts",
+      "services/api/phones.ts",
+      "services/api/printers.ts",
+      "services/api/projects.ts",
+      "services/api/remoteSessions.ts",
+      "services/api/reports.ts",
+      "services/api/servers.ts",
+      "services/api/sessions.ts",
+      "services/api/settings.ts",
+      "services/api/sla.ts",
+      "services/api/tasks.ts",
+      "services/api/unifi.ts",
+      "services/api/virtualization.ts",
+      "services/api/zabbix.ts"
+    ],
+    "types": [
+      "types/api.ts",
+      "types/roles.ts"
+    ],
+    ".": [
+      "App.tsx",
+      "main.tsx",
+      "vite-env.d.ts"
+    ],
+    "app/providers": [
+      "app/providers/index.tsx"
+    ],
+    "context": [
+      "context/index.ts"
+    ],
+    "data": [
+      "data/dashboardData.ts",
+      "data/deviceData.ts",
+      "data/topologyData.ts"
+    ],
+    "hooks": [
+      "hooks/index.ts",
+      "hooks/queries.test.ts",
+      "hooks/queries.ts",
+      "hooks/useFormErrors.test.tsx",
+      "hooks/useFormErrors.ts",
+      "hooks/useServerSearch.test.tsx",
+      "hooks/useServerSearch.ts"
+    ],
+    "pages": [
+      "pages/AccountPage.test.tsx",
+      "pages/AccountPage.tsx",
+      "pages/AiProvidersPage.test.tsx",
+      "pages/AiProvidersPage.tsx",
+      "pages/AlertsPage.test.tsx",
+      "pages/AlertsPage.tsx",
+      "pages/AuditPage.test.tsx",
+      "pages/AuditPage.tsx",
+      "pages/CamerasPage.test.tsx",
+      "pages/CamerasPage.tsx",
+      "pages/ClientsPage.test.tsx",
+      "pages/ClientsPage.tsx",
+      "pages/ContactPage.test.tsx",
+      "pages/ContactPage.tsx",
+      "pages/CopilotPage.test.tsx",
+      "pages/CopilotPage.tsx",
+      "pages/DashboardPage.test.tsx",
+      "pages/DashboardPage.tsx",
+      "pages/DeviceDetailPage.test.tsx",
+      "pages/DeviceDetailPage.tsx",
+      "pages/DevicesPage.test.tsx",
+      "pages/DevicesPage.tsx",
+      "pages/FeaturesPage.test.tsx",
+      "pages/FeaturesPage.tsx",
+      "pages/ForgotPasswordPage.tsx",
+      "pages/HealthPage.test.tsx",
+      "pages/HealthPage.tsx",
+      "pages/HomePage.test.tsx",
+      "pages/HomePage.tsx",
+      "pages/IncidentsPage.test.tsx",
+      "pages/IncidentsPage.tsx",
+      "pages/InsightsPage.test.tsx",
+      "pages/InsightsPage.tsx",
+      "pages/IntegrationsPage.tsx",
+      "pages/InvitationAcceptancePage.tsx",
+      "pages/InvitationsPage.test.tsx",
+      "pages/InvitationsPage.tsx",
+      "pages/KnowledgePage.test.tsx",
+      "pages/KnowledgePage.tsx",
+      "pages/LocationsPage.test.tsx",
+      "pages/LocationsPage.tsx",
+      "pages/LoginPage.tsx",
+      "pages/LogsPage.tsx",
+      "pages/NetworkPage.test.tsx",
+      "pages/NetworkPage.tsx",
+      "pages/NotFoundPage.tsx",
+      "pages/NotificationsPage.test.tsx",
+      "pages/NotificationsPage.tsx",
+      "pages/PdiPage.test.tsx",
+      "pages/PdiPage.tsx",
+      "pages/PhonesPage.test.tsx",
+      "pages/PhonesPage.tsx",
+      "pages/PrintersPage.test.tsx",
+      "pages/PrintersPage.tsx",
+      "pages/ProjectDetailPage.test.tsx",
+      "pages/ProjectDetailPage.tsx",
+      "pages/ProjectsPage.test.tsx",
+      "pages/ProjectsPage.tsx",
+      "pages/RemotePage.test.tsx",
+      "pages/RemotePage.tsx",
+      "pages/ReportsPage.test.tsx",
+      "pages/ReportsPage.tsx",
+      "pages/ResetPasswordPage.tsx",
+      "pages/ServersPage.test.tsx",
+      "pages/ServersPage.tsx",
+      "pages/SessionsPage.test.tsx",
+      "pages/SessionsPage.tsx",
+      "pages/SettingsPage.test.tsx",
+      "pages/SettingsPage.tsx",
+      "pages/SlaPage.test.tsx",
+      "pages/SlaPage.tsx",
+      "pages/SwitchesPage.test.tsx",
+      "pages/SwitchesPage.tsx",
+      "pages/TaskDetailPage.tsx",
+      "pages/TasksPage.test.tsx",
+      "pages/TasksPage.tsx",
+      "pages/TopologyPage.test.tsx",
+      "pages/TopologyPage.tsx",
+      "pages/UniFiDashboardPage.tsx",
+      "pages/UniFiLivePage.tsx",
+      "pages/UsersPage.test.tsx",
+      "pages/UsersPage.tsx",
+      "pages/VirtualizationPage.test.tsx",
+      "pages/VirtualizationPage.tsx",
+      "pages/WiFiPage.test.tsx",
+      "pages/WiFiPage.tsx",
+      "pages/ZabbixHostsPage.test.tsx",
+      "pages/ZabbixHostsPage.tsx",
+      "pages/ZabbixOverviewPage.test.tsx",
+      "pages/ZabbixOverviewPage.tsx",
+      "pages/ZabbixSettingsPage.tsx"
+    ],
+    "services/signalr": [
+      "services/signalr/connection.ts",
+      "services/signalr/notifications.ts"
+    ],
+    "utils": [
+      "utils/format.test.ts",
+      "utils/format.ts",
+      "utils/wifiClients.test.ts",
+      "utils/wifiClients.ts"
+    ]
+  }
+}

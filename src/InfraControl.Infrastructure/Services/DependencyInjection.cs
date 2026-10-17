@@ -394,6 +394,10 @@ public static class DependencyInjection
         services.AddSingleton<IYealinkPhoneClient, YealinkPhoneClient>();
         services.AddScoped<IMonitoringProvider, YealinkSipProvider>();
         services.AddScoped<IMonitoringProvider, YealinkCallQualityProvider>();
+        // F30-T007a (docs/48 §C): rotas IPv4 do router/firewall via
+        // IP-FORWARD-MIB — opt-in por device (Router/Firewall default =
+        // [Ping, SnmpSystem] intocado).
+        services.AddScoped<IMonitoringProvider, SnmpRouterRoutesProvider>();
         services.AddScoped<IMonitoringProvider, HttpWanMonitoringProvider>();
         services.AddScoped<IMonitoringProvider, TcpMonitoringProvider>();
 
