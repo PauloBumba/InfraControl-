@@ -517,3 +517,53 @@ public class PrinterConsumables
 - F2-T008: DeviceProfile
 - SNMP Printer OIDs Reference: https://snmp-monitoring.info/sensors/printer/
 - PrinterMS OID Reference: https://www.printerms.com/en/resources/printer-oid-reference
+
+---
+
+## Monitoramento no Zabbix — Implantação (2026-10-18)
+
+Esta seção registra o que já está **ao vivo** no Zabbix (template
+`IC Impressora SNMP`, templateid 10887) e o mapeamento com as áreas desta
+ficha (F30). Detalhes operacionais em `docs/27-INTEGRACAO-ZABBIX.md`.
+
+### Cobertura por área da ficha
+
+| Área da ficha | Item/template no Zabbix | Status |
+| --- | --- | --- |
+| A. Identificação | `printer.info[sysDescr]` (modelo, firmware, S/N) + itens genéricos do template 10226 (sysName, sysContact, sysLocation, sysObjectID) | ✅ ao vivo |
+| B. Estado | `printer.status` (hrPrinterStatus, value map em PT) + LLD **alertas** `printer.alerts.discovery` (`prtAlertDescription` → `{#SNMPVALUE}`) com protótipo de severidade (`prtAlertSeverityLevel`) e triggers "Alerta fatal" (≥4) / "Alerta aviso" (=3) — cobre atolamento, tampa aberta, toner esgotado | ✅ ao vivo |
+| C. Consumíveis | LLD **suprimentos** `printer.supplies.discovery` (`prtMarkerSuppliesDescription`), protótipos nível (`prtMarkerSuppliesLevel`) e capacidade (`prtMarkerSuppliesMaxCapacity`), triggers "baixo" (<10%) e "criticamente baixo" (<5%) | ✅ ao vivo |
+| D. Contadores | `printer.pages.total` (`prtMarkerLifeCount` — total de páginas) | ✅ ao vivo (split mono/color, fase 2) |
+| E. Filas | — | ⏳ fora do escopo inicial |
+| F. Logs | — | ⏳ (prtAlertTable é o "estado atual"; histórico fica no history do Zabbix) |
+| G. Prevenção | triggers de nível de suprimento (10%/5%) + uptime/reinicialização (`printer.uptime[sysUpTime]`) | ✅ parcial |
+
+### Validação ao vivo (2026-10-18)
+
+- Canon iR1643i (CC): status=4 "imprimindo", 225.599 páginas, alerta
+  `toner is out (black)` descoberto e **toner preto 0/100** → trigger
+  "criticamente baixo" ativo (ação: trocar toner).
+- HP Laser 408dn (Auditoria): 86.866 páginas, toner 13.800/15.000 (92%),
+  suprimentos descobertos: Black Toner, Imaging Unit (OPC), Fuser,
+  Transfer Roller, Tray 2 Roller/Retard Roller; alerta "Power Saver
+  Mode" descoberto em severidade informativa (sem alarme).
+- Epson e Canons HSSM respondendo idem.
+
+### Particularidades por marca (empiricamente verificado)
+
+- **Canon**: somente **SNMPv1** (`public`); walk da Printer-MIB funciona
+  nativamente; alertas em texto curto.
+- **HP LaserJet/MFP**: **SNMPv2c** (`public`) mas **GETBULK quebra** o
+  walk da Printer-MIB (`genError`) → interface SNMP do host com
+  **`bulk=0`**; alertas vêm com frase inteira (ex.: Power Saver) — nomes
+  de trigger precisam ficar curtos (limite de 200 caracteres).
+- **Epson**: responde SNMPv1.
+
+### Pendências (fase 2)
+
+- Ativar SNMP na `192.168.50.111` (HSSM_HP_SETOR2) pelo painel/web
+  (usuário `user`, senha `1-7`) e promover de ping-only para SNMP+ping.
+- Split mono/color por `prtMarkerSuppliesColorIndex` e contadores
+  por tipo de mídia.
+- LLD de bandejas (`prtInputTable`) e tampas (`prtCoverTable`).
+- Zebra 220/503 e demais Epson: descobrir IPs (VLANs a investigar).

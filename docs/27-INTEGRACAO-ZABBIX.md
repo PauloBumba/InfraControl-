@@ -452,6 +452,12 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
   mas dá timeout em SNMP, e o mesmo com os APs; só o ICMP passa.
   **Pendência: abrir UDP 161 no roteador/firewall inter-sites** (origem
   192.168.11.121 → destino 192.168.50.0/24) e promover os 10 a SNMP+ping.
+   **Correção (2026-10-18, tarde — via impressoras HSSM): não é firewall.**
+   As Canon `50.103/104/124` responderam SNMP v1 `public` da mesma origem →
+   UDP 161 para 50.x está aberto. APs e switch `50.101` seguem sem SNMP →
+   a config SNMP do site `3tc82kak` provavelmente **não foi
+   salva/propagada** na UI (Enable + community `hsds` + Apply); retestar
+   com `ap-hssm-retest.ps1`.
 - Mesh existe só no HSDS: `AP_Servico_Social`(10-61) ↔ `AP_Direção`
   (10-176) apontam um para o outro (loop de mesh) e `AP_SalaDeAula2`
   (10-48) sobe via `AP_Direção` — hoje estável; religar os 3 em cabo
@@ -472,4 +478,61 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
     **substitui** a lista (incluir todos os grupos desejados);
   - `selectGroups` em `host.get` vem vazio — descobrir pertencimento via
     `hostgroup.get` + `selectHosts`.
+
+### Frota de Impressoras no Zabbix (2026-10-18)
+
+- Template **`IC Impressora SNMP`** (templateid **10887**, template group
+  `Templates IC` id 35 — nesta build templates vão em *template group*,
+  não host group; `template.create` recusa `groups` de hostgroup com
+  "object does not exist"). Criado conforme o F30 (`docs/43`):
+  - itens base: `printer.status` (hrPrinterStatus + value map "Status da
+    impressora" em PT), `printer.pages.total` (prtMarkerLifeCount),
+    `printer.uptime[sysUpTime]`, `printer.info[sysDescr]`;
+  - LLD **suprimentos** `printer.supplies.discovery`: protótipos nível
+    (`prtMarkerSuppliesLevel`) e capacidade (`prtMarkerSuppliesMaxCapacity`)
+    + triggers "Suprimento X baixo" (<10%, warning) e "criticamente baixo"
+    (<5%, average);
+  - LLD **alertas** `printer.alerts.discovery`: protótipo severidade
+    (`prtAlertSeverityLevel`) + triggers "Alerta fatal" (≥4, high) e
+    "Alerta aviso" (=3, warning) — atolamento/tampa/toner esgotado.
+- Cada host SNMP liga **10226 (Network Generic Device) + 10887**; grupos
+  `Impressoras` (31) + `Impressoras HSDS` (32) / `Impressoras HSSM` (33).
+- **37 hosts cadastrados (só online)**: HSDS 33 + HSSM 3 Canons
+  (`50.103/104/124`) + `HSSM_HP_SETOR2` (`50.111`) ping-only.
+  Marcas: Canon = **SNMPv1** `public`; HP = **SNMPv2c** `public`;
+  Epson `22.65` = v1. Hosts técnicos `prn-<ip-hífens>`.
+- Descobertas fora da planilha e cadastradas `*_SEM_SETOR_*`: Epson
+  `22.65`, HP MFP 432fdn `22.70`, HP `22.75`, Canon `22.210`;
+  **PS_CONSULTORIO_1 real = `22.110`** (S/N BRBSS210HK; a planilha dizia
+  .100, que é o AUDITORIA). Rotulos trocados na planilha: `22.202`
+  (OPME) e `22.193` (Tesouraria) são **Canon** na verdade; `22.181`
+  (rotulado Canon) é **HP**.
+- Fora por estarem offline (ordem: "offline deixa quieto"): `22.199`
+  Laudos, `22.115` CONSULTORIO_2, `22.220` CONSULTORIO_3, `50.198`
+  HSSM_AMBULATORIO.
+- **Gotchas de API (impressoras, build trunk 8.0)**:
+  - LLD `walk[<oid>]` falha com "invalid object format..." (os valores
+    chegam como `OID = STRING: "texto"` e a nova API exige JSON) — usar o
+    formato legado **`discovery[{#SNMPVALUE}, <oid>]`**;
+  - `discoveryrule.create` não aceita `item_prototypes` embutidos (nem
+    `type=17` — enum novo, SNMP=20): criar a regra vazia e os protótipos
+    via **`itemprototype.create`** com **`ruleid`**;
+  - `triggerprototype.create` **sem hostid/ruleid/name** (o `description`
+    é o nome exibido, máx. 200 chars — alertas HP trazem frase inteira);
+  - `discoveryrule.update` usa **`itemid`** (não `discoveryruleid`);
+  - **GETBULK (v2c, `bulk=1`) quebra os HP** com `genError` no walk da
+    Printer-MIB → `bulk=0` em todas as interfaces SNMP das impressoras;
+  - `history.get` de itens float/char precisa do **`history` explícito**
+    (0=float, 1=char, 3=unsigned), senão volta vazio;
+  - `host.create` falha com "Incorrect arguments..." se a interface SNMP
+    não tiver **`dns=''`** e `details` com **inteiros**.
+- Verificado ao vivo (2026-10-18): Canon CC "imprimindo" (status=4),
+  225.599 páginas, **toner preto 0/100 → trigger crítico ativo**; HP
+  Auditoria 86.866 páginas, toner 92%, 6 suprimentos (toner, OPC, fuser,
+  transfer, rollers); alerta HP "Power Saver Mode" descoberto em
+  severidade informativa (sem alarme).
+- Pendências: ativar SNMP na `50.111` (painel, usuário `user` /
+  senha `1-7`) e promover; IPs/setores das Zebra 220/503 e
+  `HSDS_NIR_CE`; ULTRASSOM_A4 (planilha "164_1" — só há um device no
+  .164, Tomografia A3).
 
