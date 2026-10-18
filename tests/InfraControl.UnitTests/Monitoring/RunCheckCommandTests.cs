@@ -651,4 +651,73 @@ public sealed class RunCheckCommandTests : IDisposable
         rows.Should().ContainSingle();
         rows[0].Kind.Should().Be(CheckKind.SnmpRouterRoutes);
     }
+
+    [Theory]
+    [InlineData(DeviceType.Router)]
+    [InlineData(DeviceType.Firewall)]
+    public async Task RunCheck_SnmpRouterSessions_OnRouterOrFirewall_ShouldPassGuardAndPersist(
+        DeviceType routerType)
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, routerType, "rtr-02", "192.0.2.36");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("SnmpRouterSessions")))
+            .Handle(new RunCheckCommand(device.Id, "SnmpRouterSessions"), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, device.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.SnmpRouterSessions);
+    }
+
+    // ── F30-T007c: guard de saúde estendido (Server+Router+Firewall) ────
+
+    /// <summary>
+    /// SnmpServerCpu aceita Server, Router e Firewall (HOST-RESOURCES é
+    /// universal — MikroTik expõe os mesmos OIDs); AccessPoint continua
+    /// rejeitado.
+    /// </summary>
+    [Theory]
+    [InlineData(DeviceType.Server)]
+    [InlineData(DeviceType.Router)]
+    [InlineData(DeviceType.Firewall)]
+    public async Task RunCheck_SnmpServerCpu_OnServerRouterFirewall_ShouldPassGuardAndPersist(
+        DeviceType healthType)
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, healthType, "dev-11", "192.0.2.37");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("SnmpServerCpu")))
+            .Handle(new RunCheckCommand(device.Id, "SnmpServerCpu"), CancellationToken.None);
+
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, device.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.SnmpServerCpu);
+    }
+
+    [Fact]
+    public async Task RunCheck_SnmpServerCpu_OnAccessPoint_ShouldThrowArgumentPtBrMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, DeviceType.AccessPoint, "ap-01", "192.0.2.38");
+
+        var action = () => Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("SnmpServerCpu")))
+            .Handle(new RunCheckCommand(device.Id, "SnmpServerCpu"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*só se aplica a devices do tipo Server, Router ou Firewall*");
+        (await RowsAsync(context, device.Id)).Should().BeEmpty();
+    }
 }

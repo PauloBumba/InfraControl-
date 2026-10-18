@@ -53,6 +53,8 @@ const ServersPage = lazy(() => import("@/pages/ServersPage").then(m => ({ defaul
 const CamerasPage = lazy(() => import("@/pages/CamerasPage").then(m => ({ default: m.CamerasPage })));
 // F30-T006d — Telefones IP: SIP/qualidade PoE (docs/47).
 const PhonesPage = lazy(() => import("@/pages/PhonesPage").then(m => ({ default: m.PhonesPage })));
+// F30-T007d — Routers & Firewalls: rotas/sessões SNMP (docs/48).
+const RoutersPage = lazy(() => import("@/pages/RoutersPage").then(m => ({ default: m.RoutersPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -461,6 +463,12 @@ function AppContent() {
           <Route path="/phones" element={
             <ProtectedRoute>
               <PhonesPage />
+            </ProtectedRoute>
+          } />
+          {/* F30-T007d — Routers & Firewalls: rotas/sessões (SNMP ao vivo). */}
+          <Route path="/routers" element={
+            <ProtectedRoute>
+              <RoutersPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFoundPage />} />
