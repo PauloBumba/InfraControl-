@@ -427,3 +427,25 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
   controller — problem "Unavailable by ICMP ping" é esperado até
   religar/adoptar.
 
+### Frota de APs UniFi no Zabbix (2026-10-18)
+
+- 33 APs (`type=uap`) do mesmo controller cadastrados no group
+  **`Access Points UniFi`** (groupid 28) — cobre HSDS (192.168.10.x/11.x),
+  HSSM (192.168.125.x) e o site remoto (172.16.17.x).
+- **30 híbridos SNMPv2c + ICMP ping** (template 10226, community do site) —
+  o SNMP respondeu no probe para os 3 modelos existentes (UAP-AC-LR, U6+,
+  UAP-LR); **3 ping-only** (offline no cadastro: `ap-192-168-1-5` OPME e
+  `ap-172-16-17-53/56` site remoto) — promover a SNMP quando ligarem.
+- Métricas por AP: ping (perda/resposta), sysDescr/sysName/uptime SNMP e
+  **13 interfaces via LLD** (eth0 1 Gbps, rádios `wifi0`/`wifi1`, SSIDs
+  `wifi*ap*`, VLAN `.13`, bridge `br0`) com bits/erros/velocidade/status.
+- Hosts técnicos `ap-<ip-hífens>`; nomes visíveis sem acento, com `/` e
+  espaço substituídos por `_` (nome visível precisa ser único; o body
+  Latin-1 do PowerShell 5.1 corrompe JSON com acento).
+- Gotcha de API: em `host.create` os campos SNMP (`version`, `community`,
+  `bulk`) vão **aninhados em `details`** (`details=@{version=2;...}`) — no
+  topo do objeto o erro é "Incorrect arguments passed to function".
+- Verificado (2026-10-18): 33 hosts no group, valores ao vivo (AP_TI:
+  ping=1, 8,9 ms, uptime 30d, 13 ifaces LLD); 10 itens unsupported são os
+  pings dos 3 offline (comportamento esperado, igual ao sw-172-16-17-54).
+
