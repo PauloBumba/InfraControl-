@@ -249,6 +249,9 @@ Evidência do ciclo real (2026-10-03): eventos Zabbix `8` (Problem) e `9`
 
 A infraestrutura do Zabbix 8.0 é executada via Docker Compose sob o perfil dedicado `zabbix` (`profiles: ["zabbix"]`).
 
+> Instalação e sincronização de agentes em máquinas Windows/Linux (nativas ou container):
+> ver `55-INSTALACAO-AGENTES-ZABBIX.md`.
+
 ### Imagens Oficiais & Serviços
 
 | Serviço | Container | Imagem Oficial | Porta Host / Container | Volume / Persistência |
