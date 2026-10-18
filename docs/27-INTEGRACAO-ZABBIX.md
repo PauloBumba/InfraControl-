@@ -429,23 +429,47 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
 
 ### Frota de APs UniFi no Zabbix (2026-10-18)
 
-- 33 APs (`type=uap`) do mesmo controller cadastrados no group
-  **`Access Points UniFi`** (groupid 28) — cobre HSDS (192.168.10.x/11.x),
-  HSSM (192.168.125.x) e o site remoto (172.16.17.x).
-- **30 híbridos SNMPv2c + ICMP ping** (template 10226, community do site) —
-  o SNMP respondeu no probe para os 3 modelos existentes (UAP-AC-LR, U6+,
-  UAP-LR); **3 ping-only** (offline no cadastro: `ap-192-168-1-5` OPME e
-  `ap-172-16-17-53/56` site remoto) — promover a SNMP quando ligarem.
-- Métricas por AP: ping (perda/resposta), sysDescr/sysName/uptime SNMP e
-  **13 interfaces via LLD** (eth0 1 Gbps, rádios `wifi0`/`wifi1`, SSIDs
-  `wifi*ap*`, VLAN `.13`, bridge `br0`) com bits/erros/velocidade/status.
+- O controller tem **3 sites**: `ta262mxg` = **HSDS**, `3tc82kak` =
+  **HSSM** (APs na VLAN 50 = 192.168.50.x) e `p9z655lk` = **ASIDS-Lages**
+  (ainda sem cadastro). A conta `hsdsti` é admin de site **sem permissão
+  de settings** (rotas `get/set/*` → 400; `/api/self` mostra
+  `is_super:false`) — SNMP/config só via UI.
+- **43 APs** no umbrella **`Access Points UniFi`** (groupid 28), separados
+  por unidade: **`Access Points HSDS`** (groupid 29) = 31 APs
+  (192.168.10.x/11.x, 125.x, `ap-192-168-1-5`) e **`Access Points HSSM`**
+  (groupid 30) = 12 (os 10 × 192.168.50.x + os 2 remotos
+  `ap-172-16-17-53/56`, offline).
+- **HSDS**: 30 híbridos SNMPv2c + ICMP (template 10226, community `hsds`)
+  + 3 ping-only (offline no cadastro; promover quando ligarem).
+- **HSSM**: 10 APs (U7PG2/U7LR — Setor2/3, Farmácia, Consultórios, CC,
+  Secretária/Externa, Refeitório) cadastrados **ping-only** (10/10 ping=1).
+  Todos em **uplink cabeado** (9 × 1 Gbps; AP-Setor3-303 só 100 Mbps →
+  verificar cabo/enlace); **sem mesh no HSSM**. SNMP ativado na UI do site
+  (contact/location `ti@hsds`), mas **bloqueio de rede confirmado** em
+  2026-10-18: o UDP 161 de 192.168.11.121 para 192.168.50.0/24 é filtrado
+  no caminho (gateway 192.168.10.1 → roteador inter-sites `10.253.1.17`) —
+  a switch `192.168.50.101` (SNMP ativo, community `public`) responde ping
+  mas dá timeout em SNMP, e o mesmo com os APs; só o ICMP passa.
+  **Pendência: abrir UDP 161 no roteador/firewall inter-sites** (origem
+  192.168.11.121 → destino 192.168.50.0/24) e promover os 10 a SNMP+ping.
+- Mesh existe só no HSDS: `AP_Servico_Social`(10-61) ↔ `AP_Direção`
+  (10-176) apontam um para o outro (loop de mesh) e `AP_SalaDeAula2`
+  (10-48) sobe via `AP_Direção` — hoje estável; religar os 3 em cabo
+  quando houver instabilidade.
+- Métricas por AP híbrido: ping (perda/resposta), sysDescr/sysName/uptime
+  SNMP e **13 interfaces via LLD** (eth0 1 Gbps, rádios `wifi0`/`wifi1`,
+  SSIDs `wifi*ap*`, VLAN `.13`, bridge `br0`) com bits/erros/velocidade/
+  status. Verificado ao vivo: HSSM 10/10 ping=1; AP_TI ping=1 8,9 ms.
 - Hosts técnicos `ap-<ip-hífens>`; nomes visíveis sem acento, com `/` e
   espaço substituídos por `_` (nome visível precisa ser único; o body
   Latin-1 do PowerShell 5.1 corrompe JSON com acento).
-- Gotcha de API: em `host.create` os campos SNMP (`version`, `community`,
-  `bulk`) vão **aninhados em `details`** (`details=@{version=2;...}`) — no
-  topo do objeto o erro é "Incorrect arguments passed to function".
-- Verificado (2026-10-18): 33 hosts no group, valores ao vivo (AP_TI:
-  ping=1, 8,9 ms, uptime 30d, 13 ifaces LLD); 10 itens unsupported são os
-  pings dos 3 offline (comportamento esperado, igual ao sw-172-16-17-54).
+- Gotchas de API (build trunk 8.0):
+  - em `host.create` os campos SNMP (`version`, `community`, `bulk`) vão
+    **aninhados em `details`** — no topo: "Incorrect arguments passed to
+    function";
+  - `hostgroup.massupdate` **não existe**; `host.update` usa **`hostid`
+    singular** (`hostids` → "parameter hostid is missing") e `groups`
+    **substitui** a lista (incluir todos os grupos desejados);
+  - `selectGroups` em `host.get` vem vazio — descobrir pertencimento via
+    `hostgroup.get` + `selectHosts`.
 
