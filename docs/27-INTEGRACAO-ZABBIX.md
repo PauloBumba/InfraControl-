@@ -292,3 +292,135 @@ docker compose --profile zabbix down -v
 docker compose pull zabbix-server zabbix-web zabbix-agent zabbix-db
 ```
 
+## 8. Frota de switchs no Zabbix (operação 2026-10-16)
+
+Cadastro via API JSON-RPC (`Admin`/`zabbix`, Bearer token) dos 22 switchs do
+ambiente. Divisão de responsabilidades mantida: **InfraControl** é System of
+Record (device, local, marca, ficha) e faz checks SNMP sob demanda (F29/F30);
+**Zabbix** faz a coleta contínua/histórico/triggers → webhook F16 →
+`MonitoringEvent` → `Alert` → `Incident`. Nada duplicado dos dois lados.
+
+### Host groups e templates
+
+| Group | Hosts | Template | Interface |
+|---|---|---|---|
+| **Switches HP** (22) | 10 × HP A5120/V1910 (`.1`, `.231`–`.234`, `.240`, `.242`, `.250`–`.252`) | *HP Comware HH3C by SNMP* (`10227`) | SNMP `161`, v2c, community `public` |
+| **Switches Intelbras** (23) | 5 × SG 2404 PoE / MR / PoE L2+ (`.220`, `.235`, `.243`, `.244`, `.245`) | *Network Generic Device by SNMP* (`10226`) | SNMP `161`, v2c, community `public` |
+| **Switches de Mesa** (24) | 4 × TP-Link TL-SG108E (`.110`, `.120`, `.140`, `192.168.50.101`) | *ICMP Ping* (`10564`) | Agent `10050` (dummy — simple checks) |
+
+Host técnico = `sw-<ip-com-hífens>`; nome visível = `<sysName> (<ip>)>`;
+tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
+
+### Gotchas da API do Zabbix 8.0 (host.create)
+
+- Params SNMP da interface vão **aninhados em `details`**
+  (`details.version=2`, `details.community="public"`, `details.bulk=1`) —
+  campos planos (`version`, `community` direto no objeto da interface)
+  dão `-32602 Incorrect arguments passed to function`.
+- `hostgroup.create` devolve `{groupids:[...]}` (sem `name`) — mapear a ordem
+  das criações.
+- Template SNMP exige interface tipo 2 senão falha com
+  `Cannot inherit item "snmptrap.fallback" ... host interface of type "SNMP" is required`.
+
+### Verificação (executada)
+
+- 19 hosts criados (20 total com o `Zabbix server` pré-existente).
+- Itens **verdes** (`state=0`, sem erro, fila vazia) nos representantes
+  HP (`.231` — sysDescr/sysName/sysLocation/serial/firmware + ifTable),
+  Intelbras (`.235`, `.244`, `.245` — inclui counter de tráfego) e
+  TP-Link (`.110` — `icmpping=1`, latência ~9 ms).
+
+### Pendências da frota
+
+- `.241`, `.130`, `.150` **offline**: quando ligarem → identificar marca
+  (web/SNMP), ativar SNMP se suportado e cadastrar nos groups acima.
+- TL-SG108E **não tem SNMP no firmware** (auditado via `menuList.js`) —
+  teto é ICMP ping; ver ficha `docs/42` §"Frota Real".
+- Procedimentos de ativação de SNMP por modelo (web EXCU_SHELL / telnet
+  CLI `snmp-server community public read-only`) documentados em
+  `docs/42` §"Limitações e achados operacionais".
+
+### Ajustes operacionais (2026-10-17) — ruídos calados e mensagens em PT
+
+1. **Agent de teste**: `ZBX_HOSTNAME` do container `zabbix-agent` mudou de
+   `zabbix-agent-test` para `"Zabbix server"` (compose) — acabou o ruído
+   `cannot process heartbeat ... host not found` a cada heartbeat.
+2. **`Linux: Zabbix agent is not available`**: a interface do host
+   "Zabbix server" apontava `127.0.0.1:10050` (loopback do container do
+   server, sem agent) — alterada via API para DNS `zabbix-agent`
+   (`useip=0`); trigger resolveu (value=0).
+3. **PSU2 falso positivo** (7× HP V1910 — template Comware marca slot
+   PSU2 vazio como crítico em aparelho de PSU única): os 7 triggers
+   descobertos foram **desabilitados por host** (`trigger.update
+   status=1` — triggers descobertos rejeitam `description`/`manual_close`,
+   mas aceitam `status`). O prototype `29757` recebeu `manual_close=1` +
+   nome PT para os próximos ciclos.
+4. **Mensagens em português**: 6 trigger prototypes renomeados nos
+   templates (mantendo macros `{#IFNAME}`/`{#IFALIAS}`/`{#SNMPVALUE}`/
+   `{#ENT_NAME}`): half-duplex, velocidade reduzida e temperatura
+   (atenção/crítico) em PT. Nomes propagam aos triggers descobertos no
+   próximo ciclo LLD (regras com `delay=1h`; `discoveryrule.execute` não
+   existe nesta build para forçar).
+5. **Problemas reais mantidos e traduzidos**: temperatura >50 °C
+   (PD1-SW02/.251), temperatura >60 °C (PD1-SW01/.250) e half-duplex em
+   GigabitEthernet1/0/13 (R01-SW03/.232) — ações de campo, não ruído.
+ 6. **Fechamento dos PSU2**: `event.acknowledge` com `action=2` (close
+    puro) é ignorado nesta build; funciona `action=3` (acknowledge+close)
+    após o LLD propagar `manual_close=1` ao trigger descoberto. Os 7
+    problemas PSU2 foram fechados com nota em PT ("Falso positivo: HP
+    V1910 de PSU única — slot PSU2 vazio").
+ 7. **Sweep de tradução PT (2026-10-17)**: 28 triggers restantes em
+    inglês traduzidos nos 3 templates (10226/10227/10564) — fixos
+    (`foi reiniciado`, `Indisponivel por ICMP ping`, `Sem coleta SNMP`,
+    `Nome do sistema alterado`, perda/tempo de ping, CPU/memória, fan,
+    firmware/SO/substituição) + protótipos (`Link down` → ` sem link`,
+    banda, erros). Fixos propagam imediatamente; descobertos no
+    próximo ciclo LLD (≤1h). Eventos abertos mantêm o nome snapshot da
+    abertura.
+ 8. **Teste E2E de reboot (2026-10-17, SW_Laudos 192.168.10-47)** —
+    watch de 15 min (30× problem.get + icmpping). Resultado:
+    - 00:52 link down no vizinho `.21` Port 2 (enlace para o Laudos);
+    - 00:53:49→00:54:49 `icmpping=0` (~1 min de downtime);
+    - 00:55:11 **`has been restarted`** disparou (sev2) e
+      **autorecuperou** 01:03:30 — detecção de sysUpTime reset OK;
+    - `Unavailable by ICMP ping` **não** disparou: exige falha
+      sustentada (>1 ciclo) — reboot rápido não gera alarme falso;
+    - pós-boot: `.21` Port 2 renegociou e ficou com **velocidade
+      reduzida** (aberto, info) → ação de campo (cabo/enlace .21↔.47).
+
+### Frota UniFi no Zabbix (2026-10-17)
+
+- Controller: `https://unifi.infovda.com.br:8443`, site `ta262mxg`
+  (API legada `/api/login` + `/api/s/{site}/stat/device`; as rotas UniFi
+  OS `/api/auth/login` e `/proxy/network/...` não existem nesta
+  instalação). Credenciais fora do git — usar só scripts TEMP.
+- 39 dispositivos no controller (~30 APs + 6 switchs). Cadastrados no
+  group **`Switches UniFi`** (groupid 25), template ICMP Ping (10564):
+
+  | Host Zabbix | Nome | Modelo | IP | Estado |
+  | --- | --- | --- | --- | --- |
+  | `sw-192-168-127-248` | USW-Pro-24-PoE | USW-Pro-24-PoE (US24PRO) | 192.168.127.248 | online, SNMP+ping |
+  | `sw-192-168-10-47` | SW_Laudos | Switch Lite 8 PoE (USL8LPB) | 192.168.10.47 | online, SNMP+ping |
+  | `sw-192-168-10-11` | USW-24-PoE | Switch 24 PoE (USL24PB) | 192.168.10.11 | online, SNMP+ping |
+  | `sw-192-168-11-173` | USW-Enterprise-24 | Switch Enterprise 24 PoE (US624P) | 192.168.11.173 | online, SNMP+ping |
+  | `sw-192-168-10-21` | USW-Lite-8-PoE | Switch Lite 8 PoE (USL8LPB) | 192.168.10.21 | online, SNMP+ping |
+  | `sw-172-16-17-54` | USW-Pro-24-PoE-2 | USW-Pro-24-PoE (US24PRO) | 172.16.17.54 | offline (state=2), icmpping=0 |
+
+- **SNMP já estava habilitado no site** — descoberto via
+  `GET /api/s/{site}/list/setting/snmpd` (o `get/settings` legado devolve
+  400 nesta versão). O detalhe: a **community do site não é `public`**
+  (probe com `public` dá timeout; com a community do site, os 5 online
+  respondem v2c — sysDescr/sysName reais). Community registrada só no
+  Zabbix (config do host, fora do git).
+- Promoção feita (2026-10-17): os **5 online** viraram
+  **SNMPv2c + ICMP ping** — interface SNMP type 2
+  (`details.version=2`) + template "Network Generic Device by SNMP"
+  (10226, que já traz `icmpping` embutido — não acumular com 10564,
+  dá conflito de key). Verificado: `icmpping=1` + `system.name` real
+  nos 5, **0 itens unsupported** no group. O offline (172.16.17.54)
+  ficou ping-only até voltar (evita itens SNMP unsupported).
+- Alcançabilidade: os 5 online respondem ping da máquina dev
+  (subnets 10.x/11.x/127.x roteadas); 172.16.17.54 fora do ar também no
+  controller — problem "Unavailable by ICMP ping" é esperado até
+  religar/adoptar.
+

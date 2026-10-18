@@ -540,6 +540,73 @@ Cenários a simular:
 
 ---
 
+## Frota Real do Ambiente (operação 2026-10-16)
+
+Levantamento ao vivo: cada um dos 22 switchs acessado pela web (IP/usuário/senha),
+classificado por `sysDescr` SNMP + interface web, com SNMP ativado onde o firmware
+suporta. Resultado: **15 com SNMP ativo**, **4 sem SNMP no firmware** (ping),
+**3 offline**.
+
+### Classificação
+
+| IP | Local | sysName | Fabricante / Modelo | Monitoramento | Zabbix (grupo → template) |
+|---|---|---|---|---|---|
+| 192.168.127.1 | CPD | SW_Core | HP A5120-24G EI | SNMPv2c `public` | Switches HP → *HP Comware HH3C by SNMP* (10227) |
+| 192.168.127.231 | CPD | R01-SW02 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.232 | CPD | R01-SW03 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.233 | CPD | R01-SW04 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.234 | CPD | R01-SW05 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.240 | Almoxarifado | R02-SW01 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.242 | Setor 1 | R02-SW03 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.250 | OPME | PD1-SW01 | HP V1910-24G-PoE 170W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.251 | OPME | PD1-SW02 | HP V1910-24G-PoE 170W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.252 | OPME | PD1-SW03 | HP V1910-24G-PoE 365W | SNMPv2c `public` | Switches HP → 10227 |
+| 192.168.127.235 | CPD | R01-SW06 | Intelbras SG 2404 PoE | SNMPv2c `public` (nativo) | Switches Intelbras → *Network Generic Device by SNMP* (10226) |
+| 192.168.127.243 | Setor 1 | R03-SW01 | Intelbras SG 2404 PoE | SNMPv2c `public` (nativo) | Switches Intelbras → 10226 |
+| 192.168.127.220 | Pronto Socorro | SG 2404 PoE | Intelbras SG 2404 PoE | SNMPv2c `public` (nativo) | Switches Intelbras → 10226 |
+| 192.168.127.244 | Setor 1 | INTELBRAS-SW02 | Intelbras SG 2404 MR L2+ (fw 1.00.38) | SNMPv2c `public` — **ativado na operação** via web (EXCU_SHELL) | Switches Intelbras → 10226 |
+| 192.168.127.245 | Setor 1 | SG 2404 PoE L2+ | Intelbras SG 2404 PoE L2+ (fw 2.0.0) | SNMPv2c `public` — **ativado na operação** via telnet CLI | Switches Intelbras → 10226 |
+| 192.168.127.110 | Centro Cirúrgico | Centro Cirurgico | TP-Link TL-SG108E | **ICMP ping** (sem SNMP) | Switches de Mesa → *ICMP Ping* (10564) |
+| 192.168.127.120 | Sanificação | Sanificacao | TP-Link TL-SG108E | **ICMP ping** (sem SNMP) | Switches de Mesa → 10564 |
+| 192.168.127.140 | Auditoria | Auditoria | TP-Link TL-SG108E | **ICMP ping** (sem SNMP) | Switches de Mesa → 10564 |
+| 192.168.50.101 | Farmácia HSSM | Farmacia HSSM | TP-Link TL-SG108E | **ICMP ping** (sem SNMP) | Switches de Mesa → 10564 |
+| 192.168.127.241 | Setor 1 | R02-SW01 | — | **offline** — identificar e ativar SNMP quando ligar | (pendente) |
+| 192.168.127.130 | Comissões | Comissões | — | **offline** — identificar e ativar SNMP quando ligar | (pendente) |
+| 192.168.127.150 | NIR CE | NIR CE | — | **offline** — identificar e ativar SNMP quando ligar | (pendente) |
+
+> A classificação **não** segue a suposição inicial da tabela original
+> ("tudo HP"): a frota é multivendor de verdade (HP, Intelbras e TP-Link
+> misturados), confirmada por `sysDescr` + web UI em cada equipamento.
+
+### Limitações e achados operacionais
+
+1. **TP-Link TL-SG108E não possui SNMP no firmware.** O menu inteiro da web UI
+   foi auditado (`menuList.js`): não existe item SNMP — não é configuração
+   desligada, é recurso inexistente. Teto = ICMP Ping. Se a regra de negócio
+   exigir mais, é troca de equipamento, não de configuração.
+2. **Intelbras SG 2404 MR (`.244`)**: SNMP desabilitado de fábrica. Ativação
+   pela web UI (GoAhead + CLI `EXCU_SHELL`): login `logCheck` →
+   `snmp enable` + traps em modo CONF; comunidade `public` passa a responder
+   (`sysDescr = "SG 2404 MR L2+ Gigabit Ethernet Switch"`).
+3. **Intelbras SG 2404 PoE L2+ (`.245`, fw 2.0.0)**: o SNMP global liga pela
+   web API (POST `data/snmpGlobalConfig1.json` com `enable:1` +
+   `_tid_`/`usrLvl` na query), **mas** as stores de view/community do
+   firmware retornam `errorcode: 1` para qualquer operação (defeito do build
+   — stores não-SNMP funcionam normalmente). Community criada pela **CLI
+   telnet**: `enable` → `configure` → `snmp-server community public
+   read-only`. Prova do estado final: `show snmp` → "SNMP agent is enabled"
+   + contagem de `Unknown community name` cainho a zero para respostas.
+4. **Framework web "su" (OEM TP-Link)**: sessão sem cookie; login
+   `POST data/login.json` devolve `_tid_`+`usrLvl` que devem ir **na query**
+   de toda chamada (`?usrLvl=&_tid_=`). `errorcode 5` = *sessionTimeout*
+   (fazer `GET /` antes do login); `errorcode 0` = sucesso. Servidor é
+   single-connection: pausar ~700 ms entre requests.
+5. **HP (A5120/V1910)**: SNMP `public` já nativo; dados completos (serial,
+   firmware, uptime, ifTable com velocidade/PoE) confirmados ao vivo no
+   Zabbix.
+
+---
+
 ## Referências
 
 - ADR-028: Arquitetura da Camada de Integrações

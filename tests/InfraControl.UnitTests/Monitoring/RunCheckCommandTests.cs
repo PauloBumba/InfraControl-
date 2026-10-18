@@ -586,6 +586,70 @@ public sealed class RunCheckCommandTests : IDisposable
         rows[0].Kind.Should().Be(CheckKind.YealinkSip);
     }
 
+    // ── F30-T007c: guard estendido SnmpServerCpu/Memory/Disk (Server/Router/Firewall) ──
+
+    /// <summary>SnmpServerCpu é Server/Router/Firewall-only (T007c estendeu).</summary>
+    [Theory]
+    [InlineData(DeviceType.Switch)]
+    [InlineData(DeviceType.Printer)]
+    [InlineData(DeviceType.Camera)]
+    public async Task RunCheck_SnmpServerCpu_OnNonServerRouterFirewall_ShouldThrowArgumentPtBrMessage(
+        DeviceType nonAllowedType)
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var device = await SeedDeviceAsync(
+            context, location.Id, nonAllowedType, "dev-10", "192.0.2.16");
+
+        var action = () => Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("SnmpServerCpu")))
+            .Handle(new RunCheckCommand(device.Id, "SnmpServerCpu"), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*só se aplica a devices do tipo Server, Router ou Firewall*");
+        (await RowsAsync(context, device.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunCheck_SnmpServerCpu_OnRouter_ShouldExecuteAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var router = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Router, "rtr-01", "192.0.2.34");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("SnmpServerCpu")))
+            .Handle(new RunCheckCommand(router.Id, "SnmpServerCpu"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, router.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.SnmpServerCpu);
+    }
+
+    [Fact]
+    public async Task RunCheck_SnmpServerCpu_OnFirewall_ShouldExecuteAndPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var location = await SeedLocationAsync(context);
+        var firewall = await SeedDeviceAsync(
+            context, location.Id, DeviceType.Firewall, "fw-01", "192.0.2.35");
+
+        var result = await Handler(
+                context, new FakeRegistry(new FakeOnvifProvider("SnmpServerCpu")))
+            .Handle(new RunCheckCommand(firewall.Id, "SnmpServerCpu"), CancellationToken.None);
+
+        result.Executed.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+
+        var rows = await RowsAsync(context, firewall.Id);
+        rows.Should().ContainSingle();
+        rows[0].Kind.Should().Be(CheckKind.SnmpServerCpu);
+    }
+
     [Fact]
     public async Task RunCheck_YealinkCallQuality_OnPhone_ShouldPassGuardAndPersist()
     {
