@@ -58,6 +58,7 @@
 53. [Plano de módulo Virtualização](53-PLANO-MODULO-VIRTUALIZACAO.md)
 54. [Checklist de caça-bugs](54-CHECKLIST-CACA-BUGS.md)
 55. [Relatório de caça-bugs — frontend](55-RELATORIO-CACA-BUGS-FRONT.md)
+55. [Instalação de agentes Zabbix (Windows/Linux) e sincronização](55-INSTALACAO-AGENTES-ZABBIX.md)
 
 ## ADRs
 
