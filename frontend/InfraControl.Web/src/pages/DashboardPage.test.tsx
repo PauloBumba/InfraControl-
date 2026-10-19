@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { DashboardPage } from "./DashboardPage";
 import { listAlerts } from "@/services/api/alerts";
 import { listClients } from "@/services/api/clients";
@@ -47,10 +47,16 @@ const invitation: InvitationItem = {
   decidedAt: null,
 };
 
+function CurrentPath() {
+  const location = useLocation();
+  return <output>{`${location.pathname}${location.search}`}</output>;
+}
+
 function renderPage() {
   return render(
     <MemoryRouter>
       <DashboardPage />
+      <CurrentPath />
     </MemoryRouter>,
   );
 }
@@ -105,5 +111,13 @@ describe("DashboardPage — tom de erro e aviso (F29-T004)", () => {
 
     await user.click(screen.getByRole("button", { name: "Dispensar aviso" }));
     expect(screen.queryByText("Convite de ana@exemplo.com aceito.")).toBeNull();
+  });
+
+  it("offers a quick 'Novo projeto' action that deep-links to the create dialog", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Novo projeto" }));
+    expect(screen.getByText("/projects?novo=1")).toBeInTheDocument();
   });
 });

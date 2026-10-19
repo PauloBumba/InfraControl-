@@ -51,7 +51,13 @@ public sealed record UnifiSwitchPortDto(
     bool? PoeEnable,
     string? PoeStatus,
     string? Media,
-    string? ClientMac);
+    string? ClientMac,
+    // ADR-059 §3 (H6): estado ADMINISTRATIVO da porta (port_conf_enabled).
+    // `LinkUp` é telemetria (cabo) e NUNCA deve dirigir escrita — antes o
+    // front inferia `disabled: !linkUp` e uma porta com link null era
+    // DESABILITADA ao clicar "Habilitar". Default true = ausência no
+    // payload (mesma semântica do stat/device em UnifiApiClient).
+    bool Enabled = true);
 
 /// <summary>
 /// F26 Fase 6: nó de topologia derivado do stat/device (ao vivo —

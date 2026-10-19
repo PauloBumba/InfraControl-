@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -53,10 +53,10 @@ function CurrentPath() {
   return <output>{location.pathname}</output>;
 }
 
-function renderPage() {
+function renderPage(initialEntries?: string[]) {
   return render(
     <Provider store={store}>
-      <MemoryRouter>
+      <MemoryRouter {...(initialEntries ? { initialEntries } : {})}>
         <ProjectsPage />
         <CurrentPath />
       </MemoryRouter>
@@ -172,6 +172,17 @@ describe("ProjectsPage", () => {
       plannedStartDate: null,
       plannedEndDate: null,
     });
+  });
+
+  it("opens the create dialog when arriving with ?novo=1 (deep-link do dashboard)", async () => {
+    vi.mocked(listProjects).mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 20 });
+
+    renderPage(["/projects?novo=1"]);
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Novo projeto")).toBeInTheDocument();
+    // o parâmetro é consumido: navegação fica só com /projects
+    expect(screen.getByText("/projects")).toBeInTheDocument();
   });
 
   it("edits a project through the edit dialog, keeping code and leader", async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Button } from "@/components/ui/Button";
@@ -105,6 +105,7 @@ function formOf(project: ProjectItem): ProjectForm {
 
 export function ProjectsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [term, setTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
@@ -233,6 +234,16 @@ export function ProjectsPage() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  // Deep-link do dashboard (`/projects?novo=1`): abre o diálogo de criação
+  // uma única vez e limpa o parâmetro para não reabrir em navegações futuras.
+  useEffect(() => {
+    if (searchParams.get("novo") !== "1") return;
+    openCreate();
+    const next = new URLSearchParams(searchParams);
+    next.delete("novo");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const statusOptions = useMemo(
     () => ["All", "Draft", "Planned", "InProgress", "PendingFinalApproval", "Completed", "Cancelled", "OnHold"],

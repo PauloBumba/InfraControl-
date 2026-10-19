@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from "react-redux";
@@ -253,5 +253,95 @@ describe("IncidentsPage — geração de rascunho de knowledge com IA", () => {
       await screen.findByText(/Rascunho de knowledge criado: "Incidente: chuva no datacenter"/),
     ).toBeInTheDocument();
     expect(screen.getByText(/revise e publique na página Knowledge/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * ADR-059 §3 (H7): a investigação usa uma mutation compartilhada — sem o
+ * guard de id, a resposta LENTA do incidente A sobrescrevia o painel já
+ * aberto do B (cabeçalho = B, corpo = análise de A).
+ */
+describe("IncidentsPage — investigação não cruza painéis (H7)", () => {
+  it("keeps incident B's panel when A's slower response arrives later", async () => {
+    const doisIncidentes = {
+      items: [
+        {
+          id: "11111111-2222-3333-4444-555566667777",
+          title: "Chuva no datacenter",
+          description: null,
+          severity: "Critical",
+          status: "Open",
+          deviceId: null,
+          openedAt: "2026-10-11T10:00:00Z",
+          resolvedAt: null,
+          alertCount: 0,
+          alertIds: [],
+          rootCause: null,
+        },
+        {
+          id: "22222222-3333-4444-5555-666677778888",
+          title: "Falha de energia no rack 3",
+          description: null,
+          severity: "Major",
+          status: "Open",
+          deviceId: null,
+          openedAt: "2026-10-11T11:00:00Z",
+          resolvedAt: null,
+          alertCount: 0,
+          alertIds: [],
+          rootCause: null,
+        },
+      ],
+      totalCount: 2,
+      page: 1,
+      pageSize: 20,
+    };
+    listIncidentsMock.mockResolvedValue(doisIncidentes);
+
+    let resolveA!: (value: {
+      analysis: string;
+      evidences: never[];
+      provider: string;
+      model: string;
+      usedFallback: boolean;
+    }) => void;
+    const slowA = new Promise<Parameters<typeof resolveA>[0]>((resolve) => {
+      resolveA = resolve;
+    });
+    investigateIncidentMock
+      .mockReturnValueOnce(slowA)
+      .mockResolvedValueOnce({
+        analysis: "Análise de B",
+        evidences: [],
+        provider: "ollama",
+        model: "qwen2.5-coder:1.5b",
+        usedFallback: false,
+      });
+
+    renderPage();
+    const user = userEvent.setup();
+
+    const botoes = await screen.findAllByRole("button", {
+      name: /investigar incidente com ia/i,
+    });
+    await user.click(botoes[0]!); // A — resposta lenta, fica pendente
+    await user.click(botoes[1]!); // B — resolve na frente
+
+    expect(await screen.findByText("Análise de B")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveA({
+        analysis: "Análise de A",
+        evidences: [],
+        provider: "ollama",
+        model: "qwen2.5-coder:1.5b",
+        usedFallback: false,
+      });
+    });
+
+    // O painel continua sendo o de B — a resposta atrasada de A é ignorada.
+    expect(screen.getByText("Análise de B")).toBeInTheDocument();
+    expect(screen.queryByText("Análise de A")).toBeNull();
+    expect(screen.getByText(/Falha de energia no rack 3/)).toBeInTheDocument();
   });
 });

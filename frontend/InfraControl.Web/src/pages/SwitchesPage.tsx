@@ -582,7 +582,11 @@ export function SwitchesPage() {
                       {
                         switchId: selectedId!,
                         portIndex: port.portIndex,
-                        body: { disabled: !port.linkUp },
+                        // ADR-059 §3 (H6): escrita pelo estado ADMINISTRATIVO
+                        // (`enabled`); `linkUp` é telemetria — antes
+                        // `disabled: !linkUp` DESABILITAVA porta com link
+                        // null ao clicar "Habilitar".
+                        body: { disabled: !port.enabled },
                       },
                       {
                         onSuccess: (data) => {
@@ -597,7 +601,7 @@ export function SwitchesPage() {
                   }}
                   style={{ fontSize: 10, padding: "2px 6px" }}
                 >
-                  {port.linkUp ? "Desabilitar" : "Habilitar"}
+                  {port.enabled ? "Desabilitar" : "Habilitar"}
                 </Button>
                 <Button
                   variant="ghost"

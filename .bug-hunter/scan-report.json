@@ -1,0 +1,117 @@
+{
+ "scanId": "front-2026-10-17",
+ "target": "frontend/InfraControl.Web/src",
+ "mode": "scan-only single-pass",
+ "triage": {
+  "strategy": "large-codebase",
+  "totalFiles": 201,
+  "needsLoop": true
+ },
+ "totals": {
+  "findings": 48,
+  "confirmed": 14,
+  "manualReview": 34,
+  "dismissed": 0
+ },
+ "confirmed": [
+  {
+   "id": "H1",
+   "file": "services/api/invitations.ts",
+   "line": 73,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "H2",
+   "file": "services/api/projects.ts",
+   "line": 298,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "H3",
+   "file": "services/api/knowledge.ts",
+   "line": 208,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "H4",
+   "file": "pages/DevicesPage.tsx",
+   "line": 178,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "H5",
+   "file": "pages/TaskDetailPage.tsx",
+   "line": 233,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "H6",
+   "file": "pages/SwitchesPage.tsx",
+   "line": 585,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "H7",
+   "file": "pages/IncidentsPage.tsx",
+   "line": 162,
+   "severity": "high",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M1",
+   "file": "pages/DeviceDetailPage.tsx",
+   "line": 145,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M2",
+   "file": "pages/TaskDetailPage.tsx",
+   "line": 312,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M3",
+   "file": "pages/AiProvidersPage.tsx",
+   "line": 183,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M4",
+   "file": "pages/NotificationsPage.tsx",
+   "line": 153,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M5",
+   "file": "pages/ZabbixSettingsPage.tsx",
+   "line": 188,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M6",
+   "file": "pages/SettingsPage.tsx",
+   "line": 170,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  },
+  {
+   "id": "M7",
+   "file": "pages/DashboardPage.tsx",
+   "line": 284,
+   "severity": "medium",
+   "verdict": "REAL_BUG"
+  }
+ ],
+ "report": "docs/55-RELATORIO-CACA-BUGS-FRONT.md"
+}

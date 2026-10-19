@@ -287,3 +287,4 @@ Desktop.ini
 # Temporary files
 *.swp
 *~
+.aider*

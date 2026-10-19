@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate, useParams, Navigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import {
   sessionCheckFailed,
@@ -160,6 +160,21 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+/**
+ * ADR-059 §3 (H5): `key={id}` remonta o detalhe da task no troca de
+ * pai↔subtarefa na URL. Sem o remount o estado (task carregada,
+ * `loading=false`) sobrevivia à troca de `:id` — a tela mostrava a task A
+ * sob a URL de B e um "Excluir" confirmava e excluía A.
+ */
+function TaskDetailRoute() {
+  const { id } = useParams();
+  return (
+    <ProtectedRoute>
+      <TaskDetailPage key={id} />
+    </ProtectedRoute>
+  );
 }
 
 function AppContent() {
@@ -340,12 +355,9 @@ function AppContent() {
               <TasksPage />
             </ProtectedRoute>
           } />
-          {/* F23-T002 — detalhe da tarefa (leitura = read, como /devices/:id). */}
-          <Route path="/tasks/:id" element={
-            <ProtectedRoute>
-              <TaskDetailPage />
-            </ProtectedRoute>
-          } />
+          {/* F23-T002 — detalhe da tarefa (leitura = read, como /devices/:id).
+              ADR-059 §3 (H5): TaskDetailRoute garante key={id} (remount). */}
+          <Route path="/tasks/:id" element={<TaskDetailRoute />} />
           <Route path="/projects" element={
             <ProtectedRoute>
               <ProjectsPage />

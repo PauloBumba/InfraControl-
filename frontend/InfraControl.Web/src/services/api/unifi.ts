@@ -108,6 +108,9 @@ export function getUnifiNetworks(): Promise<UniFiNetwork[]> {
 export interface UniFiSwitchPort {
   portIndex: number;
   name: string;
+  /** Estado ADMINISTRATIVO (ADR-059 §3/H6) — fonte do botão Habilitar/Desabilitar. */
+  enabled: boolean;
+  /** Telemetria do cabo (true/false/null) — NUNCA dirigir escrita. */
   linkUp: boolean | null;
   speed: string | null;
   fullDuplex: boolean | null;

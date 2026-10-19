@@ -11,10 +11,11 @@ import type { UserRole } from "@/types/roles";
  * REMOVIDO do backend; a operação "trocar papéis" vira diff de
  * add/remove nestas rotas.
  *
- * Enums: na LISTAGEM `roles` vem NUMÉRICO (enum sem JsonStringEnumConverter
- * no MVC: 1=Viewer, 2=Operator, 3=Admin); no PATH da rota `{role}` vai o
- * NOME (`Admin`), aceito case-insensitive pelo model binding; no BODY do
- * convite `roles` é coleção NUMÉRICA (mesma regra do MVC).
+ * Enums (ADR-059 §1): o contrato de enum viaja como STRING no wire. Na
+ * LISTAGEM `roles` ainda vem numérico (DTO legado, exceção documentada);
+ * no PATH da rota `{role}` vai o NOME (`Admin`), case-insensitive; no
+ * BODY do convite `roles` são NOMES (H1: antes era numérico e quebrava
+ * contra o view model string).
  */
 export interface AdminUser {
   userId: string;
@@ -73,7 +74,7 @@ export function createInvitation(input: {
 }): Promise<{ invitationId: string; token: string } | null> {
   return api.post<{ invitationId: string; token: string }>("/admin/invitations", {
     email: input.email,
-    roles: [ROLE_VALUE[input.role]],
+    roles: [input.role],
     expiresInDays: input.expiresInDays ?? 7,
   });
 }

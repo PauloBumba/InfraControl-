@@ -59,7 +59,8 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
             ? $"{Request.Scheme}://{Request.Host}"
             : configured.TrimEnd('/');
         var result = await sender.Send(
-            new CreateInvitationCommand(model.Email, model.Roles, inviterId, model.ExpiresInDays, baseUrl),
+            new CreateInvitationCommand(
+                model.Email, ParseRoles(model.Roles), inviterId, model.ExpiresInDays, baseUrl),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -71,7 +72,7 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
         [FromBody] UpdateInvitationViewModel model,
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new UpdateInvitationCommand(invitationId, model.Roles),
+            new UpdateInvitationCommand(invitationId, ParseRoles(model.Roles)),
             cancellationToken)));
 
     [HttpDelete("{invitationId:guid}")]
@@ -80,4 +81,21 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
         await sender.Send(new CancelInvitationCommand(invitationId), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>
+    /// ADR-059 §2 — contrato de enum = string no wire; o parse para
+    /// <c>UserRole</c> acontece aqui (molde do Search de status acima;
+    /// case-insensitive). Valor desconhecido → ArgumentException → 400
+    /// pt-BR pelo GlobalExceptionHandler.
+    /// </summary>
+    private static IReadOnlyCollection<Domain.Enums.UserRole> ParseRoles(
+        IReadOnlyCollection<string>? roles)
+        => (roles ?? [])
+            .Select(role => Enum.TryParse<Domain.Enums.UserRole>(
+                    role, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)
+                ? parsed
+                : throw new ArgumentException(
+                    $"Função inválida: '{role}'. Use 'Admin', 'Operator' ou 'Viewer'."))
+            .Distinct()
+            .ToArray();
 }

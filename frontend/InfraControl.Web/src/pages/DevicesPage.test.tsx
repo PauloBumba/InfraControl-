@@ -11,6 +11,7 @@ import {
   createDevice,
   listDevices,
   listLocations,
+  listSwitchPorts,
   type DeviceItem,
 } from "@/services/api/inventory";
 
@@ -75,6 +76,7 @@ vi.mock("@/components/ui/SelectField", () => ({
 const listDevicesMock = vi.mocked(listDevices);
 const listLocationsMock = vi.mocked(listLocations);
 const createDeviceMock = vi.mocked(createDevice);
+const listSwitchPortsMock = vi.mocked(listSwitchPorts);
 
 const umaLocalizacao = { id: "loc-1", name: "Sala Rack A", description: null };
 
@@ -297,5 +299,28 @@ describe("DevicesPage — casca da lista (C-3: ListPageShell)", () => {
     expect(
       await screen.findByText("50 dispositivos · mostrando 2 (refine por tipo)"),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * ADR-059 §3 (H4): a query de devices PENDENTE não pode alimentar um
+ * useEffect em loop. Antes da fix, `items = data?.items ?? []` criava um
+ * array novo por render e a aba "Por Switch" re-disparava o efeito à
+ * exaustão (loop infinito de render; permanente em erro). Com a lista vazia
+ * de identidade estável (hooks/queries), o efeito roda uma vez, não busca
+ * portas sem switches e o jsdom não estoura "Maximum update depth".
+ */
+describe("DevicesPage — aba Por Switch com query pendente (H4)", () => {
+  it("does not fetch ports nor loop while devices are pending", async () => {
+    listDevicesMock.mockReturnValue(new Promise(() => {}) as never);
+    renderPage();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /por switch/i }),
+    );
+
+    // Dá tempo do efeito re-disparar se a identidade da lista não for estável.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(listSwitchPortsMock).not.toHaveBeenCalled();
   });
 });
