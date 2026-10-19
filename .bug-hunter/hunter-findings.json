@@ -1,0 +1,60 @@
+[
+  {
+    "bugId": "F1-cache-invalidation-never-matches",
+    "severity": "Medium",
+    "category": "logic",
+    "file": "src/InfraControl.Application/Common/Behaviors/CacheInvalidationBehavior.cs",
+    "lines": "22-25",
+    "claim": "A invalidação de cache (CacheKeysToInvalidate) é sempre um no-op: a chave bruta declarada pelo comando nunca corresponde à chave construída pelo CachingBehavior, então mutations não limpam cache e leituras ficam stale até o TTL.",
+    "evidence": "CachingBehavior.cs:26 grava a chave no formato `infracontrol:{CacheKeyBuilder.Build(...)}` = `infracontrol:q:{userId}:{roles}:{CacheKey}:{paramsHash}` (user + roles + hash de params embutidos).\nCacheInvalidationBehavior.cs:22-23 chama `cache.RemoveAsync(key)` com a chave BRUTA declarada pelo comando, sem prefixo `infracontrol:`, sem usuário/roles/hash.\nSyncSwitchPortsFromUnifiCommand.cs:32 é o ÚNICO uso de produção e declara `switchPorts:{SwitchId}` — formato que nenhum ICacheableQuery escreve.\nCacheKeyBuilder.TagIndexKey existe (CacheKeyBuilder.cs:29) mas nenhuma chamada em produção — mecanismo de tag nunca foi ligado.\nRedisCacheService.RemoveAsync (RedisCacheService.cs:41-44) e HybridCacheService.RemoveAsync (HybridCacheService.cs:57-69) removem apenas a chave exata, sem resolução de tag/prefixo.\nNenhuma query de switch ports é cacheável hoje (GetSwitchPortQuery : IQuery cru, SwitchPortQueries.cs:49) — o wiring de invalidação é morto: remove uma chave que ninguém grava.",
+    "runtimeTrigger": "Hoje: nenhum caminho de dados stale comprovado (nada cacheado casa com a chave invalidada). Gatilho garantido do modo-falha: qualquer ICacheableQuery adicionada num recurso com comando que usa CacheKeysToInvalidate continuará servindo dados antigos por até o TTL (5 min default) porque a invalidação remove a chave errada em silêncio (só Debug log). É um contrato CQRS estruturalmente incoerente — armadilha para o próximo slice.",
+    "crossReferences": [
+      "src/InfraControl.Application/Common/Behaviors/CachingBehavior.cs:26",
+      "src/InfraControl.BuildingBlocks/Application/CacheKeyBuilder.cs:15-29",
+      "src/InfraControl.Application/Network/SwitchPorts/Commands/SyncSwitchPortsFromUnifiCommand.cs:32",
+      "src/InfraControl.Infrastructure/Caching/HybridCacheService.cs:57",
+      "docs/08 (ADR-010 cache híbrido)",
+      "AGENTS.md seção CQRS: invalidação via CacheKeysToInvalidate"
+    ],
+    "confidenceScore": 90,
+    "stride": "N/A",
+    "cwe": "N/A"
+  },
+  {
+    "bugId": "F2-rate-limit-409-not-429",
+    "severity": "Low",
+    "category": "api-contract",
+    "file": "src/InfraControl.Application/Common/Behaviors/RateLimitingBehavior.cs",
+    "lines": "30-45",
+    "claim": "Quando o RateLimitingBehavior do pipeline MediatR dispara, ele lança InvalidOperationException que o GlobalExceptionHandler mapeia para 409 Conflict — status errado para rate limit (deveria ser 429 Too Many Requests com Retry-After).",
+    "evidence": "RateLimitingBehavior.cs lança `InvalidOperationException(\"Limite de requisições excedido.\")` quando IRateLimiter.TryAcquireAsync retorna false.\nGlobalExceptionHandler.cs:86-90 mapeia InvalidOperationException → StatusCodes.Status409Conflict.\nCobertura HTTP real usa AddHttpRateLimiting + UseRateLimiter (Program.cs) que retorna 429 corretamente — o comportamento MediatR só alcançaria chamadores não-HTTP (workers).\nIRateLimitRequest tem ZERO implementações de produção (grep em src/: só a interface e o behavior) — hoje o caminho é inatingível.",
+    "runtimeTrigger": "Inatingível hoje: nenhum comando/query de produção implementa IRateLimitRequest. Torna-se real assim que o primeiro comando declarar IRateLimitRequest (ex.: login/throttle) e for chamado via pipeline — status 409 em vez de 429 quebra clientes/monitoramento que esperam 429+Retry-After. Latente, contrato errado no código que já existe.",
+    "crossReferences": [
+      "src/InfraControl.Api/Middleware/GlobalExceptionHandler.cs:86-90",
+      "src/InfraControl.Application/Common/Interfaces/IRateLimiter.cs",
+      "Program.cs UseRateLimiter (429 HTTP — caminho correto)"
+    ],
+    "confidenceScore": 75,
+    "stride": "N/A",
+    "cwe": "N/A"
+  },
+  {
+    "bugId": "F3-invitation-email-no-rollback",
+    "severity": "Low",
+    "category": "logic",
+    "file": "src/InfraControl.Application/Identity/Invitations/Commands/InvitationCommands.cs",
+    "lines": "59-75",
+    "claim": "O comentário (e TASKS F1-T017) prometem que falha de envio de e-mail desfaz a linha do convite via TransactionBehavior, mas não existe transação no pipeline e o handler persiste ANTES do envio — falha real de e-mail deixa o convite órfão pendente e o admin toma 409 \"convite pendente\" ao recriar.",
+    "evidence": "InvitationCommands.cs:59-61: `await repository.SaveChangesAsync(...)` ANTES de `emailSender.SendInvitationAsync(...)` (linha 74).\nInvitationCommands.cs:64-67 comentário afirma: \"Com o TransactionBehavior uma falha de envio desfaz a linha\".\nTransactionBehavior.cs não chama BeginTransactionAsync — só SaveChangesAsync após sucesso; nenhum BeginTransactionAsync existe no pipeline de comandos (grep: só InvitationAccountPort/IdentityAdminProvisioner/IdentityAuthenticationService).\nAppDbContext.SaveChangesAsync (AppDbContext.cs:124-133) não cria transação — só ApplyAuditFields + DispatchDomainEvents + base.\nTASKS F1-T017 documenta \"falha de envio com TransactionBehavior desfaz a linha (admin recria sem 409 pendente)\" — comportamento documentado não corresponde ao código.",
+    "runtimeTrigger": "Latente: hoje IIdentityEmailSender de produção é LoggingIdentityEmailSender (nunca lança). Gatilho real: trocar pelo provider SMTP real (planejado em IdentityEmailSender) — timeout SMTP lança → exceção propaga → linha do convite JÁ COMMITADA permanece pendente → admin recriar → handler GetPendingByEmailAsync acha a linha → InvalidOperationException 409 \"Já existe um convite pendente\" — exatamente o cenário que a decisão F1-T017 disse resolver.",
+    "crossReferences": [
+      "src/InfraControl.Application/Common/Behaviors/TransactionBehavior.cs",
+      "src/InfraControl.Infrastructure/Persistence/AppDbContext.cs:124-133",
+      "TASKS.md F1-T017 (decisão de rollback)",
+      "src/InfraControl.Infrastructure/Identity/LoggingIdentityEmailSender (único adapter real hoje)"
+    ],
+    "confidenceScore": 85,
+    "stride": "N/A",
+    "cwe": "N/A"
+  }
+]

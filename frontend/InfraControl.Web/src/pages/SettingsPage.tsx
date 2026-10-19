@@ -164,12 +164,10 @@ export function SettingsPage() {
                       style={{ width: "100%" }}
                     />
                   </div>
-                  <ToggleRow
-                    title="Modo Escuro"
-                    description="Usar tema escuro na interface"
-                    checked={darkMode}
-                    onChange={setDarkMode}
-                  />
+                  {/* ADR-059 §4 (M6): o toggle "Modo Escuro" foi OCULTADO —
+                      darkMode persiste no backend mas nenhum consumidor
+                      aplica tema (função morta). Theming exige ADR próprio;
+                      o valor round-trip na API continua intacto. */}
                   <ToggleRow
                     title="Atualização Automática"
                     description="Atualizar dados do dashboard automaticamente"

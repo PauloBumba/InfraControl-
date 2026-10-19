@@ -242,5 +242,9 @@ public sealed class MfaLoginTests
             _store[key] = true;
             return Task.FromResult(true);
         }
+        public Task TagAsync(string tag, string key, TimeSpan? duration, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+        public Task InvalidateTagAsync(string tag, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

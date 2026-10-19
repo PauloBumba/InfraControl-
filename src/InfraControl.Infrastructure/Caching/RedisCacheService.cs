@@ -52,4 +52,30 @@ public class RedisCacheService : ICacheService, IIdempotencyStore, IRedisCacheSt
     {
         return await _database.StringSetAsync(key, "1", expiry, When.NotExists);
     }
+
+    public async Task TagAsync(string tag, string key, TimeSpan? expiry, CancellationToken cancellationToken = default)
+    {
+        var indexKey = BuildingBlocks.Application.CacheKeyBuilder.TagIndexKey(tag);
+        await _database.SetAddAsync(indexKey, key);
+        if (expiry.HasValue)
+            await _database.KeyExpireAsync(indexKey, expiry.Value);
+    }
+
+    public async Task<IReadOnlyCollection<string>> GetTagMembersAsync(string tag, CancellationToken cancellationToken = default)
+    {
+        var members = await _database.SetMembersAsync(BuildingBlocks.Application.CacheKeyBuilder.TagIndexKey(tag));
+        return members.Select(member => member.ToString()).ToArray();
+    }
+
+    public async Task RemoveTagAsync(string tag, CancellationToken cancellationToken = default)
+    {
+        var indexKey = BuildingBlocks.Application.CacheKeyBuilder.TagIndexKey(tag);
+        var members = await _database.SetMembersAsync(indexKey);
+        if (members.Length > 0)
+            await _database.KeyDeleteAsync(members.Select(member => (RedisKey)member.ToString()!).ToArray());
+        await _database.KeyDeleteAsync(indexKey);
+    }
+
+    public Task InvalidateTagAsync(string tag, CancellationToken cancellationToken = default)
+        => RemoveTagAsync(tag, cancellationToken);
 }

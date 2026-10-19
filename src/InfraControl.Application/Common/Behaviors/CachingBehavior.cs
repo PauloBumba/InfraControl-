@@ -32,6 +32,14 @@ public sealed class CachingBehavior<TRequest, TResponse>(
 
         var response = await next();
         await cache.SetAsync(key, response, cacheable.CacheDuration ?? TimeSpan.FromMinutes(5), cancellationToken);
+        foreach (var tag in cacheable.CacheTags.Where(tag => !string.IsNullOrWhiteSpace(tag)))
+        {
+            await cache.TagAsync(
+                tag,
+                key,
+                cacheable.CacheDuration ?? TimeSpan.FromMinutes(5),
+                cancellationToken);
+        }
         logger.LogDebug("Cached response for {CacheKey}", key);
         return response;
     }

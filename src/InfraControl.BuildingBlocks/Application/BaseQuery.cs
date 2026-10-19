@@ -8,4 +8,5 @@ public abstract record BaseQuery<TResponse> : IQuery<TResponse>, ICacheableQuery
 {
     public virtual string CacheKey => GetType().Name;
     public virtual TimeSpan? CacheDuration => TimeSpan.FromMinutes(5);
+    public virtual IReadOnlyCollection<string> CacheTags => [];
 }

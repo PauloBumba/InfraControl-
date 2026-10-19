@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from "react-redux";
@@ -9,6 +9,7 @@ import { sessionChecked } from "@/app/store/slices/authSlice";
 import {
   getAiProviders,
   createAiProvider,
+  listAiProviderModels,
   setAiProviderActive,
   testAiProviderConnection,
   type AiProviderList,
@@ -211,5 +212,71 @@ describe("AiProvidersPage", () => {
     expect((await screen.findAllByText("ollama")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Cadastrar provider" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Desativar" })).toBeNull();
+  });
+});
+
+/**
+ * ADR-059 §3 (M3): "Listar modelos" só preenche o form do provider que
+ * foi clicado E que é o editado — antes escrevia newModels+editModels
+ * sempre, e o clique no B substituía o models já digitado no form de A.
+ */
+describe("AiProvidersPage — Listar modelos não polui o form de outro (M3)", () => {
+  it("keeps A's edited models when listing models of B", async () => {
+    getAiProvidersMock.mockResolvedValue(
+      makeList({
+        providers: [
+          {
+            id: "11111111-1111-1111-1111-111111111111",
+            name: "ollama",
+            baseUrl: "http://ollama:11434",
+            active: true,
+            apiKeySet: true,
+            apiKeyMasked: "••••cret",
+            models: ["llama3.2"],
+          },
+          {
+            id: "99999999-9999-9999-9999-999999999999",
+            name: "openai",
+            baseUrl: "https://api.openai.com",
+            active: true,
+            apiKeySet: false,
+            apiKeyMasked: null,
+            models: ["gpt-4o"],
+          },
+        ],
+      }),
+    );
+    vi.mocked(listAiProviderModels).mockImplementation(async (id: string) => ({
+      models: id.startsWith("9999") ? ["gpt-4o-mini"] : ["qwen3"],
+      error: null,
+    }));
+
+    const user = userEvent.setup();
+    renderPage();
+
+    // Abre o form de edição do provider A e digita modelos próprios.
+    const editar = await screen.findAllByRole("button", { name: "Editar" });
+    await user.click(editar[0]!);
+    const input = await screen.findByLabelText("Modelos (separados por vírgula)");
+    await user.clear(input);
+    await user.type(input, "modelos-digitados-em-a");
+
+    // "Listar modelos" do provider B NÃO pode sobrescrever o form de A.
+    const listar = screen.getAllByRole("button", { name: "Listar modelos" });
+    await user.click(listar[1]!);
+    await waitFor(() =>
+      expect(vi.mocked(listAiProviderModels)).toHaveBeenCalledWith(
+        "99999999-9999-9999-9999-999999999999",
+      ),
+    );
+    expect(screen.getByLabelText("Modelos (separados por vírgula)")).toHaveValue(
+      "modelos-digitados-em-a",
+    );
+
+    // No provider A (editado), o click preenche o form.
+    await user.click(listar[0]!);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Modelos (separados por vírgula)")).toHaveValue("qwen3"),
+    );
   });
 });

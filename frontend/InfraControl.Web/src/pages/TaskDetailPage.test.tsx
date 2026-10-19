@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider, useParams } from "react-router-dom";
@@ -30,6 +31,7 @@ vi.mock("@/services/api/tasks", async (importOriginal) => {
     getTaskSla: vi.fn(),
     getTaskSlaPauses: vi.fn(),
     deleteTask: vi.fn(),
+    updateTask: vi.fn(),
   };
 });
 
@@ -72,6 +74,7 @@ vi.mock("@/services/api/pdi", async (importOriginal) => {
 
 import {
   getTask,
+  updateTask,
   getTaskComments,
   getTaskCriteria,
   getTaskEvidence,
@@ -84,6 +87,7 @@ import {
 } from "@/services/api/tasks";
 
 const getTaskMock = vi.mocked(getTask);
+const updateTaskMock = vi.mocked(updateTask);
 
 function umaTask(id: string, title: string): TaskItem {
   return {
@@ -178,7 +182,9 @@ describe("TaskDetailPage — remount no troca de :id (H5)", () => {
 
     expect(await screen.findByText("Task A")).toBeInTheDocument();
 
-    await router.navigate("/tasks/task-b");
+    await act(async () => {
+      await router.navigate("/tasks/task-b");
+    });
 
     // Remount: o estado de A não sobrevive — tela de loading, sem A.
     expect(screen.queryByText("Task A")).toBeNull();
@@ -187,5 +193,51 @@ describe("TaskDetailPage — remount no troca de :id (H5)", () => {
     resolveB(taskB);
     expect(await screen.findByText("Task B")).toBeInTheDocument();
     expect(screen.queryByText("Task A")).toBeNull();
+  });
+});
+
+/**
+ * ADR-059 §3 (M2): `run()` só executa o `after` no sucesso — antes o
+ * diálogo fechava e o texto digitado era apagado mesmo quando a mutação
+ * falhava (banner de erro + digitação perdida).
+ */
+describe("TaskDetailPage — falha de mutação preserva o diálogo (M2)", () => {
+  it("keeps the data dialog open with the typed title when save fails", async () => {
+    getTaskMock.mockResolvedValue(umaTask("task-a", "Task A"));
+    updateTaskMock.mockRejectedValue(new Error("recusado pelo servidor"));
+
+    const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [{ path: "/tasks/:id", element: <Routed /> }],
+      { initialEntries: ["/tasks/task-a"] },
+    );
+    render(
+      <Provider store={store}>
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+            })
+          }
+        >
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </Provider>,
+    );
+
+    await screen.findByText("Task A");
+    // Dois "Editar" (Descrição/dados primeiro, Identificação depois).
+    const editar = screen.getAllByRole("button", { name: /editar/i });
+    await user.click(editar[0]!);
+
+    const titulo = await screen.findByLabelText("Título");
+    await user.clear(titulo);
+    await user.type(titulo, "Novo título digitado");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await screen.findByText("recusado pelo servidor")).toBeInTheDocument();
+    // Diálogo aberto + texto preservado (antes: fechava e limpava).
+    expect(screen.getByText("Editar dados da tarefa")).toBeInTheDocument();
+    expect(screen.getByLabelText("Título")).toHaveValue("Novo título digitado");
   });
 });

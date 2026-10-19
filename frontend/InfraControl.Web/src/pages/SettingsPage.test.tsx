@@ -54,8 +54,20 @@ describe("SettingsPage — preferências reais", () => {
     expect(await screen.findByText("Preferências")).toBeInTheDocument();
     expect(getAccountSettingsMock).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("switch", { name: "Modo Escuro" }),
+      screen.getByRole("switch", { name: "Atualização Automática" }),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * ADR-059 §4 (M6): o toggle "Modo Escuro" era função morta — persistia
+   * darkMode no backend mas nenhum consumidor aplica tema. Foi OCULTADO;
+   * theming exige ADR próprio. O valor continua round-trip na API.
+   */
+  it("does not show the dead dark-mode toggle (M6)", async () => {
+    renderPage();
+
+    await screen.findByText("Preferências");
+    expect(screen.queryByRole("switch", { name: "Modo Escuro" })).toBeNull();
   });
 
   it("should save toggled preferences via PUT", async () => {

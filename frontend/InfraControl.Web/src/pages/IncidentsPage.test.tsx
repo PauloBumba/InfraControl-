@@ -342,6 +342,9 @@ describe("IncidentsPage — investigação não cruza painéis (H7)", () => {
     // O painel continua sendo o de B — a resposta atrasada de A é ignorada.
     expect(screen.getByText("Análise de B")).toBeInTheDocument();
     expect(screen.queryByText("Análise de A")).toBeNull();
-    expect(screen.getByText(/Falha de energia no rack 3/)).toBeInTheDocument();
+    // Título do B aparece no cabeçalho do painel E na linha da tabela.
+    expect(
+      screen.getAllByText(/Falha de energia no rack 3/).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

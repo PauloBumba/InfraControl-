@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { NotificationsPage } from "./NotificationsPage";
@@ -8,6 +8,7 @@ import { sessionChecked } from "@/app/store/slices/authSlice";
 import {
   listFeed,
   listPreferences,
+  setPreference,
   type NotificationFeedItem,
 } from "@/services/api/notifications";
 
@@ -38,6 +39,7 @@ vi.mock("@/services/signalr/notifications", () => ({
 
 const listFeedMock = vi.mocked(listFeed);
 const listPreferencesMock = vi.mocked(listPreferences);
+const setPreferenceMock = vi.mocked(setPreference);
 
 const feed: NotificationFeedItem[] = [
   {
@@ -131,5 +133,42 @@ describe("NotificationsPage — visões linha do tempo / grid / quadro (aba Feed
     // queryAllByRole (e não getAllByRole): getAllByRole LANÇA quando não há
     // nenhum match, em vez de devolver [].
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
+  });
+});
+
+/**
+ * ADR-059 §3 (M4): com o GET de preferências falho, a UI mostra "Ativo"
+ * (fallback) e o toggle deve inverter o valor EFETIVO — antes
+ * `!undefined = true` reativava o canal quando o usuário clicava para
+ * desligar.
+ */
+describe("NotificationsPage — toggle com preferências falhas (M4)", () => {
+  it("turns the channel off when the preferences map is empty", async () => {
+    store.dispatch(
+      sessionChecked({
+        id: "3f1a1111-2222-3333-4444-555566667777",
+        email: "ana@exemplo.com",
+        displayName: "Ana",
+        roles: ["Operator"],
+      }),
+    );
+    listPreferencesMock.mockRejectedValue(new Error("offline"));
+    setPreferenceMock.mockResolvedValue(null);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Preferências" }));
+
+    // Fallback exibido = Ativo; o clique precisa DESLIGAR (false).
+    await user.click(await screen.findByRole("switch", { name: "Email: ativo" }));
+
+    await waitFor(() =>
+      expect(setPreferenceMock).toHaveBeenCalledWith(
+        "3f1a1111-2222-3333-4444-555566667777",
+        2,
+        false,
+      ),
+    );
   });
 });

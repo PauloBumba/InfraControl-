@@ -20,6 +20,8 @@ public sealed class BuildingBlocksTests
 
         query.CacheKey.Should().Be(nameof(TestQuery));
         query.CacheDuration.Should().Be(TimeSpan.FromMinutes(5));
+        query.CacheTags.Should().BeEmpty(
+            "a opt-in de tags é por query: o default vazio não registra índice nenhum");
     }
 
     [Fact]

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "runId": "backend-arch-2026-10-18",
+  "generatedAt": "2026-10-18T00:00:00.000Z",
+  "mode": "scan-only single-pass (local-sequential)",
+  "target": "src/",
+  "filesScanned": 1190,
+  "threatModelLoaded": false,
+  "dependencies": {
+    "status": "not-applicable",
+    "reason": "Varredura focada em arquitetura interna (.NET pipeline/persistência/cache); sem análise de CVEs de dependências nesta passada."
+  },
+  "counts": {
+    "findings": 3,
+    "confirmed": 3,
+    "dismissed": 0,
+    "manualReview": 0,
+    "unreviewed": 0
+  },
+  "confirmed": [
+    {
+      "id": "F1-cache-invalidation-never-matches",
+      "finding": {
+        "bugId": "F1-cache-invalidation-never-matches",
+        "severity": "Medium",
+        "category": "logic",
+        "file": "src/InfraControl.Application/Common/Behaviors/CacheInvalidationBehavior.cs",
+        "lines": "22-25",
+        "claim": "A invalidação de cache (CacheKeysToInvalidate) é sempre um no-op: a chave bruta declarada pelo comando nunca corresponde à chave construída pelo CachingBehavior, então mutations não limpam cache e leituras ficam stale até o TTL.",
+        "evidence": "CachingBehavior.cs:26 grava a chave no formato `infracontrol:{CacheKeyBuilder.Build(...)}` = `infracontrol:q:{userId}:{roles}:{CacheKey}:{paramsHash}` (user + roles + hash de params embutidos).\nCacheInvalidationBehavior.cs:22-23 chama `cache.RemoveAsync(key)` com a chave BRUTA declarada pelo comando, sem prefixo `infracontrol:`, sem usuário/roles/hash.\nSyncSwitchPortsFromUnifiCommand.cs:32 é o ÚNICO uso de produção e declara `switchPorts:{SwitchId}` — formato que nenhum ICacheableQuery escreve.\nCacheKeyBuilder.TagIndexKey existe (CacheKeyBuilder.cs:29) mas nenhuma chamada em produção — mecanismo de tag nunca foi ligado.\nRedisCacheService.RemoveAsync (RedisCacheService.cs:41-44) e HybridCacheService.RemoveAsync (HybridCacheService.cs:57-69) removem apenas a chave exata, sem resolução de tag/prefixo.\nNenhuma query de switch ports é cacheável hoje (GetSwitchPortQuery : IQuery cru, SwitchPortQueries.cs:49) — o wiring de invalidação é morto: remove uma chave que ninguém grava.",
+        "runtimeTrigger": "Hoje: nenhum caminho de dados stale comprovado (nada cacheado casa com a chave invalidada). Gatilho garantido do modo-falha: qualquer ICacheableQuery adicionada num recurso com comando que usa CacheKeysToInvalidate continuará servindo dados antigos por até o TTL (5 min default) porque a invalidação remove a chave errada em silêncio (só Debug log). É um contrato CQRS estruturalmente incoerente — armadilha para o próximo slice.",
+        "crossReferences": [
+          "src/InfraControl.Application/Common/Behaviors/CachingBehavior.cs:26",
+          "src/InfraControl.BuildingBlocks/Application/CacheKeyBuilder.cs:15-29",
+          "src/InfraControl.Application/Network/SwitchPorts/Commands/SyncSwitchPortsFromUnifiCommand.cs:32",
+          "src/InfraControl.Infrastructure/Caching/HybridCacheService.cs:57",
+          "docs/08 (ADR-010 cache híbrido)",
+          "AGENTS.md seção CQRS: invalidação via CacheKeysToInvalidate"
+        ],
+        "confidenceScore": 90,
+        "stride": "N/A",
+        "cwe": "N/A"
+      },
+      "verdict": {
+        "bugId": "F1-cache-invalidation-never-matches",
+        "verdict": "REAL_BUG",
+        "trueSeverity": "Medium",
+        "confidenceScore": 92,
+        "confidenceLabel": "high",
+        "verificationMode": "INDEPENDENTLY_VERIFIED",
+        "analysisSummary": "Re-li em separado: CachingBehavior.cs:19-33 grava `infracontrol:{CacheKeyBuilder.Build(...)}` (Build = q:{userId}:{roles}:{CacheKey}:{paramsHash}); CacheInvalidationBehavior.cs:22-23 remove a chave BRUTA com RemoveAsync exato; HybridCacheService.cs:57-69 e RedisCacheService.cs:41-44 não resolvem tag/prefixo; CacheKeyBuilder.TagIndexKey (linha 29) tem zero chamadas de produção; SyncSwitchPortsFromUnifiCommand.cs:32 é a única invalidação declarada e nenhuma query existe com aquele CacheKey (GetSwitchPortQuery em SwitchPortQueries.cs:49 é IQuery cru). Tracei o gatilho: mutation com CacheKeysToInvalidate → RemoveAsync(chave inexistente) → no-op silencioso (só Debug log) → qualquer ICacheableQuery futura nesse recurso fica stale até o TTL default de 5 min. O contrato é incoerente por construção — nenhum valor declarável pode casar com a chave gravada. Impacto operacional atual é zero (nada cacheado casa), mas é falha silenciosa garantida de um cross-cutting concern do CQRS e armadilha de slice — Medium justificado (fails silently), não Critical (sem corrupção de dados).",
+        "suggestedFix": "Ligar o desenho de tag que já existe: (1) CachingBehavior registra a chave construída num set Redis `tagidx:{tag}` (TagIndexKey) — o tag vem de um novo membro opcional em ICacheableQuery ou é derivado do CacheKey; (2) ICacheInvalidatingRequest passa a declarar tags; (3) HybridCacheService.RemoveAsync resolve tag → membros do set → remove cada chave nos dois níveis (Redis + MemoryFallbackStore) e apaga o set. Alternativa mínima enquanto não há query cacheável de switch ports: remover o wiring morto de SyncSwitchPortsFromUnifiCommand até existir query cacheável correspondente, para não induzir ao falso senso de invalidação."
+      }
+    },
+    {
+      "id": "F2-rate-limit-409-not-429",
+      "finding": {
+        "bugId": "F2-rate-limit-409-not-429",
+        "severity": "Low",
+        "category": "api-contract",
+        "file": "src/InfraControl.Application/Common/Behaviors/RateLimitingBehavior.cs",
+        "lines": "30-45",
+        "claim": "Quando o RateLimitingBehavior do pipeline MediatR dispara, ele lança InvalidOperationException que o GlobalExceptionHandler mapeia para 409 Conflict — status errado para rate limit (deveria ser 429 Too Many Requests com Retry-After).",
+        "evidence": "RateLimitingBehavior.cs lança `InvalidOperationException(\"Limite de requisições excedido.\")` quando IRateLimiter.TryAcquireAsync retorna false.\nGlobalExceptionHandler.cs:86-90 mapeia InvalidOperationException → StatusCodes.Status409Conflict.\nCobertura HTTP real usa AddHttpRateLimiting + UseRateLimiter (Program.cs) que retorna 429 corretamente — o comportamento MediatR só alcançaria chamadores não-HTTP (workers).\nIRateLimitRequest tem ZERO implementações de produção (grep em src/: só a interface e o behavior) — hoje o caminho é inatingível.",
+        "runtimeTrigger": "Inatingível hoje: nenhum comando/query de produção implementa IRateLimitRequest. Torna-se real assim que o primeiro comando declarar IRateLimitRequest (ex.: login/throttle) e for chamado via pipeline — status 409 em vez de 429 quebra clientes/monitoramento que esperam 429+Retry-After. Latente, contrato errado no código que já existe.",
+        "crossReferences": [
+          "src/InfraControl.Api/Middleware/GlobalExceptionHandler.cs:86-90",
+          "src/InfraControl.Application/Common/Interfaces/IRateLimiter.cs",
+          "Program.cs UseRateLimiter (429 HTTP — caminho correto)"
+        ],
+        "confidenceScore": 75,
+        "stride": "N/A",
+        "cwe": "N/A"
+      },
+      "verdict": {
+        "bugId": "F2-rate-limit-409-not-429",
+        "verdict": "REAL_BUG",
+        "trueSeverity": "Low",
+        "confidenceScore": 85,
+        "confidenceLabel": "medium",
+        "verificationMode": "INDEPENDENTLY_VERIFIED",
+        "analysisSummary": "Re-li RateLimitingBehavior.cs:24-30 (throw InvalidOperationException(\"Limite de requisições excedido.\")) e GlobalExceptionHandler.cs:86 (InvalidOperationException => 409 Conflict). O mapeamento está errado: rate limit é 429 Too Many Requests com Retry-After, e clientes/monitoramento que tratam 429 quebram. Confirmei que IRateLimitRequest não tem implementação de produção (grep em src/: só interface + behavior) — gatilho exige um comando futuro que implemente a interface, mas o código errado já existe no comportamento registrado para todos os requests. Severidade Low (requires unusual conditions — primeiro uso futuro da interface), mantida do Hunter.",
+        "suggestedFix": "Criar `RateLimitExceededException` no BuildingBlocks.Application (ou Application.Common), lançá-la no RateLimitingBehavior, e mapeá-la no GlobalExceptionHandler para 429 com header Retry-After (o limiter já calcula a janela — plumbá-la na exceção quando possível)."
+      }
+    },
+    {
+      "id": "F3-invitation-email-no-rollback",
+      "finding": {
+        "bugId": "F3-invitation-email-no-rollback",
+        "severity": "Low",
+        "category": "logic",
+        "file": "src/InfraControl.Application/Identity/Invitations/Commands/InvitationCommands.cs",
+        "lines": "59-75",
+        "claim": "O comentário (e TASKS F1-T017) prometem que falha de envio de e-mail desfaz a linha do convite via TransactionBehavior, mas não existe transação no pipeline e o handler persiste ANTES do envio — falha real de e-mail deixa o convite órfão pendente e o admin toma 409 \"convite pendente\" ao recriar.",
+        "evidence": "InvitationCommands.cs:59-61: `await repository.SaveChangesAsync(...)` ANTES de `emailSender.SendInvitationAsync(...)` (linha 74).\nInvitationCommands.cs:64-67 comentário afirma: \"Com o TransactionBehavior uma falha de envio desfaz a linha\".\nTransactionBehavior.cs não chama BeginTransactionAsync — só SaveChangesAsync após sucesso; nenhum BeginTransactionAsync existe no pipeline de comandos (grep: só InvitationAccountPort/IdentityAdminProvisioner/IdentityAuthenticationService).\nAppDbContext.SaveChangesAsync (AppDbContext.cs:124-133) não cria transação — só ApplyAuditFields + DispatchDomainEvents + base.\nTASKS F1-T017 documenta \"falha de envio com TransactionBehavior desfaz a linha (admin recria sem 409 pendente)\" — comportamento documentado não corresponde ao código.",
+        "runtimeTrigger": "Latente: hoje IIdentityEmailSender de produção é LoggingIdentityEmailSender (nunca lança). Gatilho real: trocar pelo provider SMTP real (planejado em IdentityEmailSender) — timeout SMTP lança → exceção propaga → linha do convite JÁ COMMITADA permanece pendente → admin recriar → handler GetPendingByEmailAsync acha a linha → InvalidOperationException 409 \"Já existe um convite pendente\" — exatamente o cenário que a decisão F1-T017 disse resolver.",
+        "crossReferences": [
+          "src/InfraControl.Application/Common/Behaviors/TransactionBehavior.cs",
+          "src/InfraControl.Infrastructure/Persistence/AppDbContext.cs:124-133",
+          "TASKS.md F1-T017 (decisão de rollback)",
+          "src/InfraControl.Infrastructure/Identity/LoggingIdentityEmailSender (único adapter real hoje)"
+        ],
+        "confidenceScore": 85,
+        "stride": "N/A",
+        "cwe": "N/A"
+      },
+      "verdict": {
+        "bugId": "F3-invitation-email-no-rollback",
+        "verdict": "REAL_BUG",
+        "trueSeverity": "Low",
+        "confidenceScore": 88,
+        "confidenceLabel": "high",
+        "verificationMode": "INDEPENDENTLY_VERIFIED",
+        "analysisSummary": "Re-li InvitationCommands.cs:44-75: AddAsync + SaveChangesAsync (linhas 59-61) ANTES de SendInvitationAsync (74); o comentário 64-67 promete rollback via TransactionBehavior. Re-li TransactionBehavior.cs completo: só next() + SaveChangesAsync pós-sucesso — sem BeginTransactionAsync; AppDbContext.cs:124-133 (SaveChangesAsync = audit fields + domain events + base) também não cria transação; único BeginTransactionAsync do projeto está fora do pipeline (IdentityAuthenticationService/IdentityAdminProvisioner/InvitationAccountPort). LoggingIdentityEmailSender (IdentityAuthenticationService.cs:500-513) só loga e nunca lança — gatilho hoje impossível, mas a decisão documentada F1-T017 descreve comportamento que o código não implementa: com provider SMTP real, falha de envio deixa a linha commitada, pendente, e o recriar toma 409 do GetPendingByEmailAsync. Low (requires unusual conditions — provider real ainda não existe).",
+        "suggestedFix": "Reordenar o handler: enviar o e-mail ANTES do SaveChangesAsync do convite (o acceptUrl usa invitation.Id, que é gerado no Invitation.Create — domínio, não no banco). Assim, falha de envio propaga com nenhuma linha persistida, o comentário/TASKS voltam a ser verdadeiros e o admin recria sem 409 pendente, sem depender de transação ambiental."
+      }
+    }
+  ],
+  "dismissed": [],
+  "manualReview": [],
+  "unreviewed": []
+}

@@ -53,7 +53,7 @@ Fonte: `docs/24-BUILDING-BLOCKS.md` + `BuildingBlocksStandardizationTests`. Não
 | --- | --- |
 | Command | `BaseCommand` / `BaseCommand<T>` + `IAuthorizedRequest` (`RoleAccess`) — **nunca** `IRequest` / `ICommand` cru |
 | Query | `BaseQuery<T>` + `IAuthorizedRequest` — **nunca** `IQuery` cru (cache via `CachingBehavior` / `ICacheableQuery`) |
-| Invalidação | Via `CacheKeysToInvalidate` do `BaseCommand` + `ICacheInvalidatingRequest` quando precisar limpar chaves após mutation (contrato já existente; não inventar prefix wipe) |
+| Invalidação | Via `CacheKeysToInvalidate` do `BaseCommand` + `ICacheInvalidatingRequest` quando precisar limpar cache após mutation — os valores são **tags** resolvidas por `InvalidateTagAsync` (`tagidx:{tag}`); a query cacheável declara a mesma tag em `CacheTags` (docs/08 §Invalidação por tag) — nunca chave bruta e nunca prefix wipe |
 | Persistência | Porta `I*Repository` + `*Repository` (auto-registro F0-T024); migração **sem** `--no-build` |
 | API | Envelope `ApiResponse`; policies/`RoleAccess` alinhados ao módulo |
 

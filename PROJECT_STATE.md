@@ -113,8 +113,9 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 > **Contexto**: caça-bugs scan-only (bug-hunter, 6 hunters) confirmou 14 REAL_BUG em 48 achados — relatório `docs/55-RELATORIO-CACA-BUGS-FRONT.md`, checklist `docs/54-CHECKLIST-CACA-BUGS.md`. **ADR-059 aceito**: contrato JSON de enum viaja como string (view model string+parse molde Incident, ou enum tipado só com `[JsonStringEnumConverter]` molde PDI; converter global proibido); regras anti-regressão para efeitos/rotas/mutations/estado administrativo UniFi.
 
 - [x] **F33-T001 Contrato enum string (H1–H3)** <!-- 2026-10-17: convites (create+update) string+parse no controller; Projects ReviewDecision com converter molde PDI; knowledge front manda nome do enum. Unit 2844/2844, arch 159/159, front verde. -->
-- [ ] **F33-T002 Frontend altos H4–H7**
-- [ ] **F33-T003 Médios M1–M4 + M6 ocultar toggle**
+- [x] **F33-T002 Frontend altos H4–H7** <!-- 2026-10-17: identidade estável de lista vazia (H4), key={id} no detalhe de task (H5), estado administrativo UniFi no botão de porta (H6), guard síncrono de investigação (H7). Vitest 303/303, unit 2844/2844, arch 159/159. -->
+- [x] **F33-T003 Médios M1–M4 + M6 ocultar toggle** <!-- 2026-10-17: reset de abas no :id, run() com after-só-no-sucesso, Listar modelos só no form editado, toggle com valor efetivo, Modo Escuro oculto. Vitest 308/308. -->
+- [x] **Fase 33 concluída** — lote 1 da caça-bugs (H1–H7 + M1–M4/M6) fechado; pendências: M5 (task própria), 34 manual-review, smoke UniFi ao vivo, migração response-side legado (ADR-059 §4).
 
 ## Fase 34 — Acesso remoto: gateway Guacamole (2026-10-17)
 
@@ -122,7 +123,16 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 
 - [x] **F34-T001 ADR-060 aceita** <!-- 2026-10-17: Status rascunho → aceita; D1–D5 formalizadas; autoriza Fase 2+. -->
 - [ ] **F34-T000 Inventário/políticas do hospital** <!-- pendências fora do repo: Windows/Linux por setor, IP/MAC, chave SSH, LGPD gravação, operador. -->
-- [ ] **F34-T002..T009** — ver TASKS.md Fase 34 (gateway Docker → pilotos Linux/Windows → integração ficha → Zabbix/governança → operação/expansão)
+- [x] **F34-T002 Gateway em containers + rede + HTTPS** <!-- 2026-10-18: profile `remote` (init→db→guacd→guacamole), DMZ 2 redes, nginx `/guacamole/` WS upstream variável; REST token + HTTPS 200 e2e no ar. -->
+- [ ] **F34-T003..T009** — ver TASKS.md Fase 34 (banco/MFA/kill switch → pilotos Linux/Windows → integração ficha → Zabbix/governança → operação/expansão)
+
+## Fase 35 — Lote de correções da caça-bugs backend (arquitetura; 2026-10-18)
+
+> **Contexto**: caça-bugs scan-only backend (bug-hunter, local-sequential, foco arquitetura) confirmou **3 REAL_BUG em 3 achados** (`.bug-hunter/backend-scan-report.json`; cobertura parcial declarada 30/1190). ADR-059 já tratou o lado front (Fase 33).
+
+- [x] **F35-T001 Invalidação de cache por tag (F1, medium)** <!-- 2026-10-18: CacheKeysToInvalidate virou tags resolvidas (tagidx:{tag}) — query declara CacheTags, CachingBehavior indexa, CacheInvalidationBehavior invalida via InvalidateTagAsync nos dois níveis (Redis+fallback). Fim do no-op silencioso. Build 0, unit 2849/2849, arch 159/159, integração 206/206. -->
+- [ ] **F35-T002 Rate limit MediatR → 429 (F2, low, latente)**
+- [ ] **F35-T003 Convite: e-mail antes do save (F3, low, latente)**
 
 ## Fase 13 — Frontend UI/UX (UniFi-Style)
 

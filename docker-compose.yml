@@ -344,6 +344,11 @@ services:
     environment:
       <<: *app-env
       Backup__Path: /app/backups
+      # F34-T003 (ADR-060): banco do gateway de acesso remoto incluído no
+      # MESMO BackupWorker — prefixo próprio ("guacamole-*.dump") e
+      # heartbeat "latest-guacamole.json" ao lado do latest.json principal.
+      Backup__AdditionalTargets__0__ConnectionString: "Host=guacamole-db;Port=5432;Database=guacamole;Username=guacamole;Password=${GUACAMOLE_DB_PASSWORD:-guacamole_dev_password_2026}"
+      Backup__AdditionalTargets__0__FileNamePrefix: guacamole
       UnifiSync__IntervalMinutes: ${UNIFI_SYNC_INTERVAL_MINUTES:-30}
     volumes:
       - postgres_backups:/app/backups
@@ -374,6 +379,10 @@ services:
     restart: unless-stopped
     networks:
       - infracontrol
+      # F34-T003: workers entra em remote_access SOMENTE para alcançar
+      # guacamole-db:5432 no pg_dump/pg_restore do alvo adicional do
+      # backup (a rede foi fechada para o resto da plataforma no T002).
+      - remote_access
 
   frontend:
     build:
@@ -678,6 +687,9 @@ services:
     image: guacamole/guacamole:1.6.0
     container_name: infracontrol-guacamole-init
     profiles: ["remote"]
+    # user root: a imagem roda non-root e o one-shot grava no volume nomeado
+    # (raiz root-owned); só escreve o SQL e encerra.
+    user: root
     command: ["/bin/sh", "-c", "/opt/guacamole/bin/initdb.sh --postgresql > /sql/initdb.sql"]
     volumes:
       - guacamole_init:/sql

@@ -163,6 +163,19 @@ export function DeviceDetailPage() {
 
   const loadDevice = useCallback(async () => {
     if (!id) return;
+    // ADR-059 §3 (M1): a troca de :id zera o cache de abas (requested) e os
+    // dados carregados — antes a aba clicada em B não recarregava e
+    // mostrava results/alerts/interfaces/ports do device A sob a URL de B.
+    requested.current.clear();
+    setResults([]);
+    setAlerts([]);
+    setAlertsTotal(0);
+    setInterfaces([]);
+    setIps([]);
+    setMacs([]);
+    setAddrTotals({ networkInterfaces: 0, ipAddresses: 0, macAddresses: 0 });
+    setPorts([]);
+    setPortsTotal(0);
     setLoading(true);
     setError(null);
     setNotFound(false);

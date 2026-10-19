@@ -1,0 +1,20 @@
+[
+  {
+    "bugId": "F1-cache-invalidation-never-matches",
+    "response": "ACCEPT",
+    "analysisSummary": "Reli todos os cross-references. A incoerência é estrutural e inequívoca: CachingBehavior.cs:26 monta a chave como `infracontrol:q:{userId}:{roles}:{CacheKey}:{paramsHash}` (CacheKeyBuilder.Build embute usuário, roles e hash de params), enquanto CacheInvalidationBehavior.cs:22-23 chama RemoveAsync com a chave BRUTA declarada pelo comando. Nenhuma declaração possível de CacheKeysToInvalidate pode resultar na mesma string da chave gravada — o mecanismo é um no-op por construção. Único uso de produção (SyncSwitchPortsFromUnifiCommand.cs:32, chave `switchPorts:{SwitchId}`) não casa com nenhuma query existente (GetSwitchPortQuery é IQuery cru, não cacheável; nenhuma outra query usa esse CacheKey). TagIndexKey (CacheKeyBuilder.cs:29) não tem nenhuma chamada em produção — o desenho de tag nunca foi ligado. RedisCacheService.RemoveAsync e HybridCacheService.RemoveAsync removem só a chave exata. O hunter já declarou honestamente que hoje não há caminho de dados stale comprovado para switch ports (nada cacheado casa), mas o contrato CQRS é funcionalmente morto e é garantidamente no-op para qualquer ICacheableQuery futura sob um recurso invalidado — defeito arquitetural real, não false positive.",
+    "counterEvidence": "Nenhuma. Re-li CachingBehavior.cs:19-33, CacheInvalidationBehavior.cs:14-26, CacheKeyBuilder.cs completo, HybridCacheService.cs:57-69, RedisCacheService.cs:41-44, SyncSwitchPortsFromUnifiCommand.cs:30-34, SwitchPortQueries.cs:49. Grep confirma: só 1 declaração de CacheKeysToInvalidate em produção e só 2 overrides de CacheKey (ZabbixProblemsQueries, sem invalidação correspondente — dependem de TTL 30s por design)."
+  },
+  {
+    "bugId": "F2-rate-limit-409-not-429",
+    "response": "ACCEPT",
+    "analysisSummary": "Re-li RateLimitingBehavior.cs:24-30 (throw InvalidOperationException) e GlobalExceptionHandler.cs:86 (InvalidOperationException => 409). O mapeamento está errado para o significado HTTP de rate limit (429 + Retry-After). Não cai na hard exclusion #2 (não é sugestão genérica de rate limit; é status errado num comportamento já escrito). Aceito como latente com severidade low: grep confirma zero implementações de produção de IRateLimitRequest, então hoje o caminho é inatingível — o hunter já declarou isso. O bug é o contrato errado no código que existe, que se materializa no primeiro comando que usar IRateLimitRequest.",
+    "counterEvidence": "Nenhum contra-argumento sólido: o único disprove possível seria 'nunca vai ser usado', o que é especulativo nas duas direções — o comportamento e a interface existem de produção e o próximo slice pode ativá-los."
+  },
+  {
+    "bugId": "F3-invitation-email-no-rollback",
+    "response": "ACCEPT",
+    "analysisSummary": "Re-li InvitationCommands.cs:44-75, TransactionBehavior.cs completo, AppDbContext.cs:124-133 e LoggingIdentityEmailSender (IdentityAuthenticationService.cs:500-513). Fatos confirmados: (1) o handler persiste a linha ANTES de enviar o e-mail; (2) o comentário do próprio handler promete rollback via TransactionBehavior; (3) TransactionBehavior não abre transação — só SaveChangesAsync pós-sucesso; (4) nenhum BeginTransactionAsync no pipeline de comandos; (5) o único IIdentityEmailSender de produção é LoggingIdentityEmailSender, que só loga e nunca lança. Aceito como latente/low: o gatilho real (falha de envio) é impossível hoje, mas a decisão documentada F1-T017 e o comentário do código descrevem um comportamento que o código atual não implementa — quando o provider SMTP real entrar, a falha deixa convite órfão pendente e o recriar toma 409, exatamente o cenário prometido como resolvido. Defeito de contrato documentado vs código, honestamente classificado como latente pelo hunter.",
+    "counterEvidence": "Nenhum: TransactionBehavior.cs:19-27 não contém BeginTransactionAsync; AppDbContext.SaveChangesAsync só faz ApplyAuditFields + DispatchDomainEvents + base."
+  }
+]
