@@ -5,6 +5,7 @@
 #   aplicação completa:         docker compose --profile app up -d
 #   sistema + observabilidade:  docker compose --profile app --profile obs up -d
 #   IA (Ollama):                docker compose --profile ai up -d   (ADR-041)
+#   WhatsApp (Evolution API):   docker compose --profile evolution up -d   (ADR-059)
 #
 # ESCALA HORIZONTAL (ADR-044):
 #   docker compose --profile app up -d --scale api=2
@@ -551,6 +552,123 @@ services:
     networks:
       - infracontrol
 
+  # ---------------- profile: evolution (F33-T001 — ADR-059) ----------------
+  # Evolution API v2 (WhatsApp) para levar eventos do Zabbix ao grupo da
+  # empresa. Sobe só com: docker compose --profile evolution up -d.
+  # A API do InfraControl NÃO depende deste profile (opt-in, espelho do `ai`):
+  # sem ele, o canal WhatsApp fica no adaptador de logging (ADR-059 §4).
+  # Imagem PINADA por tag (nunca latest): o contrato da Evolution muda entre
+  # majors v1/v2 (ADR-059 §2). Credenciais só via .env (AGENTS.md).
+  evolution-db:
+    image: postgres:17-alpine
+    container_name: infracontrol-evolution-db
+    profiles: ["evolution"]
+    environment:
+      POSTGRES_DB: ${EVOLUTION_DB_NAME:-evolution}
+      POSTGRES_USER: ${EVOLUTION_DB_USER:-evolution}
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD:-evolution_dev_password_2026}
+    ports:
+      - "${EVOLUTION_DB_PORT:-5435}:5432"
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVOLUTION_DB_USER:-evolution} -d ${EVOLUTION_DB_NAME:-evolution}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  evolution-redis:
+    image: redis:7-alpine
+    container_name: infracontrol-evolution-redis
+    profiles: ["evolution"]
+    # appendonly: a Evolution guarda estado de sessão no Redis — AOF evita
+    # perda de sessão a cada restart do container.
+    command: ["sh", "-c", "exec redis-server --appendonly yes"]
+    ports:
+      - "${EVOLUTION_REDIS_PORT:-6380}:6379"
+    volumes:
+      - evolution_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  evolution-api:
+    # ADR-059 §2 (spike F33-T001, 2026-10-18): a documentação da Evolution
+    # aponta "atendai/evolution-api" — repositório INEXISTENTE no Docker Hub
+    # (404). O repo oficial é evoapicloud/evolution-api; tag "latest" aponta
+    # build mais antigo que v2.3.7 (por isso pinamos). v2.3.7 = última
+    # estável v2 (2025-12-05); 2.4.0 é ainda RC. Atualizar tag = spike
+    # refeito + este ADR revisado antes do deploy.
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: infracontrol-evolution-api
+    profiles: ["evolution"]
+    ports:
+      - "${EVOLUTION_API_PORT:-8081}:8080"
+    environment:
+      # URL interna na rede do compose (§48): a API InfraControl chama
+      # http://evolution-api:8080 — nunca localhost entre containers.
+      SERVER_URL: http://evolution-api:8080
+      SERVER_PORT: 8080
+      # Header `apikey` exigido por toda chamada — mesmo valor consumido
+      # pelo dispatcher (Notifications:Channels:WhatsApp:ApiKey).
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-evolution_dev_api_key_2026}
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${EVOLUTION_DB_USER:-evolution}:${EVOLUTION_DB_PASSWORD:-evolution_dev_password_2026}@evolution-db:5432/${EVOLUTION_DB_NAME:-evolution}?schema=evolution_api
+      DATABASE_CONNECTION_CLIENT_NAME: infracontrol_evolution
+      # Só o que o canal de notificação precisa: persistir a instância.
+      # Mensagens/contatos/chats desligados = banco enxuto (envio é saída,
+      # não um bot de atendimento — ADR-059 §1).
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/1
+      CACHE_REDIS_PREFIX_KEY: infracontrol_evolution
+      # Sessão WhatsApp no banco (não no Redis): sobrevive a restart do
+      # cache sem novo QR.
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      # Sem RabbitMQ/S3: o repo já tem broker próprio e o canal envia só
+      # texto (ADR-059 §1 — sem mídia).
+      RABBITMQ_ENABLED: "false"
+      SQS_ENABLED: "false"
+      S3_ENABLED: "false"
+      # F33-T001: DEBUG foi usado no spike para diagnosticar o loop da issue
+      # #1408 (revertido em 2026-10-18). Manter INFO: com instância conectada
+      # a N grupos, DEBUG infla o log do Docker sem controle.
+      LOG_LEVEL: INFO
+      LOG_COLOR: "false"
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      evolution-db:
+        condition: service_healthy
+      evolution-redis:
+        condition: service_healthy
+    # Imagem node:24-alpine (busybox wget). Spike F33-T001 (2026-10-18): na
+    # v2.3.7 NÃO existe /ping (404); a raiz "/" responde 200 sem autenticar
+    # e sem redirect-hostile. Todo o resto exige header apikey (401 = OK).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
   # ---------------- profile: ai (Fase AI — ADR-041) ----------------
   # Runtime local de LLM da AI Foundation com escalabilidade horizontal.
   # Só sobe com --profile ai; a API NÃO depende dele (estado "não configurado"
@@ -654,6 +772,9 @@ volumes:
   zabbix_db_data:
   zabbix_server_snmptraps:
   zabbix_server_mibs:
+  evolution_db_data:
+  evolution_redis_data:
+  evolution_instances:
   ollama_1_data:
   ollama_2_data:
   ollama_3_data:
