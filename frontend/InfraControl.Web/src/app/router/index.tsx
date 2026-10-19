@@ -163,7 +163,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * ADR-059 §3 (H5): `key={id}` remonta o detalhe da task no troca de
+ * ADR-061 §3 (H5): `key={id}` remonta o detalhe da task no troca de
  * pai↔subtarefa na URL. Sem o remount o estado (task carregada,
  * `loading=false`) sobrevivia à troca de `:id` — a tela mostrava a task A
  * sob a URL de B e um "Excluir" confirmava e excluía A.
@@ -356,7 +356,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
           {/* F23-T002 — detalhe da tarefa (leitura = read, como /devices/:id).
-              ADR-059 §3 (H5): TaskDetailRoute garante key={id} (remount). */}
+              ADR-061 §3 (H5): TaskDetailRoute garante key={id} (remount). */}
           <Route path="/tasks/:id" element={<TaskDetailRoute />} />
           <Route path="/projects" element={
             <ProtectedRoute>

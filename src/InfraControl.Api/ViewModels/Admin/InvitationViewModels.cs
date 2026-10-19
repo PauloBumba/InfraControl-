@@ -1,6 +1,6 @@
 namespace InfraControl.Api.ViewModels.Admin;
 
-// ADR-059 §1 (H1): o contrato JSON de enum viaja como STRING — os VMs
+// ADR-061 §1 (H1): o contrato JSON de enum viaja como STRING — os VMs
 // recebem os nomes ("Admin"/"Operator"/"Viewer") e o controller parseia
 // para UserRole (molde do Search de status na própria classe). Antes os
 // VMs eram enum tipado sem conversor: o STJ esperava número e o PUT do

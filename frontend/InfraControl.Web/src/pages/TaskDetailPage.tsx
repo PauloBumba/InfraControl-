@@ -310,7 +310,7 @@ export function TaskDetailPage() {
 
   /** Executa uma mutação, mostra o aviso pt-BR e recarrega a tela. */
   /**
-   * ADR-059 §3 (M2): `after` roda SÓ no sucesso — antes os helpers fechavam
+   * ADR-061 §3 (M2): `after` roda SÓ no sucesso — antes os helpers fechavam
    * o diálogo e limpavam o texto mesmo quando a mutação falhava (digitação
    * perdida, usuário vendo só o banner).
    */

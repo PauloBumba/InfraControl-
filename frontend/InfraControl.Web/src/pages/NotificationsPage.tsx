@@ -150,7 +150,7 @@ export function NotificationsPage() {
 
   async function toggle(channel: number) {
     if (!userId) return;
-    // ADR-059 §3 (M4): o valor EFETIVO é o exibido (`?? true` quando o GET
+    // ADR-061 §3 (M4): o valor EFETIVO é o exibido (`?? true` quando o GET
     // falhou) — antes `!undefined = true` reativava o canal quando o
     // usuário clicava para DESLIGAR com o mapa vazio.
     const current = enabledByChannel[channel] ?? true;

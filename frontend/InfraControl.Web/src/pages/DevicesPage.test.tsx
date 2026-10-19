@@ -303,7 +303,7 @@ describe("DevicesPage — casca da lista (C-3: ListPageShell)", () => {
 });
 
 /**
- * ADR-059 §3 (H4): a query de devices PENDENTE não pode alimentar um
+ * ADR-061 §3 (H4): a query de devices PENDENTE não pode alimentar um
  * useEffect em loop. Antes da fix, `items = data?.items ?? []` criava um
  * array novo por render e a aba "Por Switch" re-disparava o efeito à
  * exaustão (loop infinito de render; permanente em erro). Com a lista vazia

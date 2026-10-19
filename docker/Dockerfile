@@ -52,8 +52,22 @@ ENTRYPOINT ["dotnet", "InfraControl.Api.dll"]
 # ------------------------------------------------ runtime dos workers --------
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS workers
 WORKDIR /app
-# Instala iputils-ping para suporte a ping ICMP (base Debian/Ubuntu)
-RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
+# Instala iputils-ping para suporte a ping ICMP e postgresql-client-17
+# (pg_dump/pg_restore): F12-T003 exigia o binário no host do Workers — em
+# container ele nunca existiu (Win32Exception(2)) e, mesmo com o default da
+# Ubuntu noble (pg_dump 16), o backup falhava com "server version mismatch"
+# contra os postgres:17 (main e guacamole). Descoberto no F34-T003
+# (2026-10-18): /app/backups ficou SEMPRE vazio. Repo PGDG oficial — não há
+# PG 17 no archive da Ubuntu e o buildkit não alcança registry.1.docker.io
+# (não dá pra copiar binários da imagem postgres:17, ver linha 1).
+RUN apt-get update && apt-get install -y iputils-ping curl ca-certificates gnupg \
+ && install -d /usr/share/postgresql-common/pgdg \
+ && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+ && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+    > /etc/apt/sources.list.d/pgdg.list \
+ && apt-get update && apt-get install -y postgresql-client-17 \
+ && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/backups && chown -R $APP_UID /app/backups
 COPY --from=workers-build /out/workers ./
 USER $APP_UID

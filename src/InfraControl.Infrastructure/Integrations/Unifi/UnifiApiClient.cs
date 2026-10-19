@@ -986,7 +986,7 @@ public sealed class UnifiApiClient : IUnifiApiClient
                 ClientMac: FirstNonEmpty(
                     ReadOrNull(item, "client_mac"),
                     ReadOrNull(item, "dot1x_v2ope")),
-                // ADR-059 §3 (H6): estado administrativo — port_conf_enabled
+                // ADR-061 §3 (H6): estado administrativo — port_conf_enabled
                 // (port_table) com fallback "enabled"; ausente ⇒ true.
                 Enabled: item.TryGetProperty("port_conf_enabled", out var pce)
                     ? pce.ValueKind == JsonValueKind.True

@@ -42,7 +42,7 @@ type PagedQueryOptions<T> = Omit<
 >;
 
 /**
- * ADR-059 §3 (H4): identidade ESTÁVEL para a lista vazia — `?? []` em cada
+ * ADR-061 §3 (H4): identidade ESTÁVEL para a lista vazia — `?? []` em cada
  * render criava um array novo e qualquer `useEffect` com `items` na dep
  * re-disparava em loop enquanto a query estava pendente ou em erro
  * (DevicesPage "Por Switch" entrava em loop infinito de render).

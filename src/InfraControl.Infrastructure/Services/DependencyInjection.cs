@@ -1,3 +1,4 @@
+using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Email;
 using InfraControl.Application.Notifications.Webhook;
 using InfraControl.Application.Notifications.Slack;
@@ -235,7 +236,28 @@ public static class DependencyInjection
 
         services.AddScoped<ISlackNotificationDispatcher, LoggingSlackNotificationDispatcher>();
         services.AddScoped<ITelegramNotificationDispatcher, LoggingTelegramNotificationDispatcher>();
-        services.AddScoped<IWhatsAppNotificationDispatcher, LoggingWhatsAppNotificationDispatcher>();
+
+        // ADR-059 §4 (F33-T002): canal WhatsApp REAL via Evolution API,
+        // condicional — Evolution:BaseUrl vazio mantém o adaptador de log
+        // (dev/teste sem a stack do profile `evolution` não quebra);
+        // preenchido → dispatcher real com a MESMA política Polly do n8n.
+        services.AddScoped<LoggingWhatsAppNotificationDispatcher>();
+        services.AddScoped<EvolutionApiWhatsAppNotificationDispatcher>();
+        services.AddScoped<IWhatsAppNotificationDispatcher>(provider =>
+        {
+            var whatsapp = provider
+                .GetRequiredService<IOptions<NotificationChannelsOptions>>()
+                .Value.WhatsApp;
+            return string.IsNullOrWhiteSpace(whatsapp.BaseUrl)
+                ? provider.GetRequiredService<LoggingWhatsAppNotificationDispatcher>()
+                : provider.GetRequiredService<EvolutionApiWhatsAppNotificationDispatcher>();
+        });
+        services.AddHttpClient(EvolutionApiWhatsAppNotificationDispatcher.HttpClientName)
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15))
+            .AddResilienceHandler(
+                "evolution-api",
+                static (builder, _) => EvolutionApiWhatsAppNotificationDispatcher.ConfigureResilience(builder));
+
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
 

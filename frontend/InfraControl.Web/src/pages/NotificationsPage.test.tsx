@@ -137,7 +137,7 @@ describe("NotificationsPage — visões linha do tempo / grid / quadro (aba Feed
 });
 
 /**
- * ADR-059 §3 (M4): com o GET de preferências falho, a UI mostra "Ativo"
+ * ADR-061 §3 (M4): com o GET de preferências falho, a UI mostra "Ativo"
  * (fallback) e o toggle deve inverter o valor EFETIVO — antes
  * `!undefined = true` reativava o canal quando o usuário clicava para
  * desligar.

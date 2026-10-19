@@ -333,7 +333,7 @@ describe("SwitchesPage — saúde SNMP do switch (F30-T001 S5c)", () => {
 });
 
 /**
- * ADR-059 §3 (H6): o botão Habilitar/Desabilitar escreve pelo estado
+ * ADR-061 §3 (H6): o botão Habilitar/Desabilitar escreve pelo estado
  * ADMINISTRATIVO (`enabled`), nunca pela telemetria do cabo (`linkUp`).
  * Antes: `disabled: !linkUp` — porta com linkUp null (cabo desplugado) era
  * DESABILITADA ao clicar "Habilitar" (bug de escrita em equipamento real).

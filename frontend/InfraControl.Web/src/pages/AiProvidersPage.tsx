@@ -179,7 +179,7 @@ export function AiProvidersPage() {
     mutationFn: (id: string) => listAiProviderModels(id),
     onSuccess: (result, id) => {
       setModelResults((prev) => ({ ...prev, [id]: result }));
-      // ADR-059 §3 (M3): só o form do provider SENDO EDITADO recebe os
+      // ADR-061 §3 (M3): só o form do provider SENDO EDITADO recebe os
       // modelos — antes setNewModels+setEditModels eram escritos sempre e
       // "Listar modelos" do B substituía o models digitado em A.
       if (result.error === null && id === editId) {

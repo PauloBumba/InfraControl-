@@ -57,19 +57,21 @@ public sealed class CreateInvitationCommandHandler(
             request.CreatedBy,
             request.Roles.Distinct().ToArray());
 
-        await repository.AddAsync(invitation, cancellationToken);
-        await repository.SaveChangesAsync(cancellationToken);
-
-        // F1-T017: o convite é MANDADO POR E-MAIL pelo mesmo canal do
-        // forgot-password (IIdentityEmailSender — adaptador de logging hoje;
-        // provider real troca sem tocar Application). Com o TransactionBehavior
-        // uma falha de envio desfaz a linha e o admin pode recriar sem esbarrar
-        // no "convite pendente". Token é URL-safe (base64url), igual ao reset.
+        // F1-T017 / F35-T003 (caça-bugs backend F3): o e-mail é mandado
+        // ANTES de persistir — invitation.Id nasce no domínio (Invitation.
+        // Create), não no banco. Assim, falha de envio propaga com NENHUMA
+        // linha commitada: o admin recria sem esbarrar no "convite
+        // pendente" (GetPendingByEmailAsync 409). Token é URL-safe
+        // (base64url), igual ao reset. IIdentityEmailSender é adaptador de
+        // logging hoje; provider real troca sem tocar Application.
         var baseUrl = request.BaseUrl ?? string.Empty;
         // Página pública de aceite no frontend (pendência F1-T017 fechada) —
         // o link não bate mais na API (GET era 405): /invitations/{id}?token=.
         var acceptUrl = $"{baseUrl.TrimEnd('/')}/invitations/{invitation.Id}?token={token}";
         await emailSender.SendInvitationAsync(normalizedEmail, acceptUrl, cancellationToken);
+
+        await repository.AddAsync(invitation, cancellationToken);
+        await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Invitation {InvitationId} created for {Email}.", invitation.Id, normalizedEmail);
 

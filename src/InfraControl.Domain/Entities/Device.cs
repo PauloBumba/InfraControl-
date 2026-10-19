@@ -54,6 +54,12 @@ public sealed class Device : AggregateRoot
     /// <summary>F30-T006c (docs/47 §A): host/IP do PBX do telefone.</summary>
     public string? SipServer { get; private set; }
 
+    /// <summary>
+    /// F34-T006 (ADR-060): SO informado — null = não informado (ficha não
+    /// oferece "Acesso remoto"); validação por tipo em <see cref="Update"/>.
+    /// </summary>
+    public DeviceOperatingSystem? OperatingSystem { get; private set; }
+
     /// <summary>F31-T002 (docs/53 D4): hypervisor da VM — FK self, 1 por VM.</summary>
     public Guid? HypervisorDeviceId { get; private set; }
 
@@ -83,7 +89,8 @@ public sealed class Device : AggregateRoot
         Guid? vlanId = null,
         string? description = null,
         string? extension = null,
-        string? sipServer = null)
+        string? sipServer = null,
+        DeviceOperatingSystem? operatingSystem = null)
     {
         if (locationId == Guid.Empty)
             throw new ArgumentException("O id do local é obrigatório.", nameof(locationId));
@@ -92,7 +99,7 @@ public sealed class Device : AggregateRoot
         device.LocationId = locationId;
         device.Update(
             name, type, rackId, ip, mac, serial, model, vendor, vlanId, description,
-            extension, sipServer);
+            extension, sipServer, operatingSystem);
         device._monitoringChecks = [.. DeviceProfileDefaults.For(type)];
         device.ProfileIsCustom = false;
 
@@ -119,7 +126,8 @@ public sealed class Device : AggregateRoot
         Guid? vlanId = null,
         string? description = null,
         string? extension = null,
-        string? sipServer = null)
+        string? sipServer = null,
+        DeviceOperatingSystem? operatingSystem = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do device é obrigatório.", nameof(name));
@@ -152,6 +160,12 @@ public sealed class Device : AggregateRoot
             throw new ArgumentException(
                 $"A descrição do device pode ter no máximo {DescriptionMaxLength} caracteres.", nameof(description));
 
+        if (operatingSystem is not null && !SupportsOperatingSystem(type))
+            throw new ArgumentException(
+                "O sistema operacional só pode ser informado para Server, Workstation, "
+                + "VirtualMachine, Router ou Firewall.",
+                nameof(operatingSystem));
+
         Name = name;
         Type = type;
         RackId = rackId;
@@ -164,6 +178,7 @@ public sealed class Device : AggregateRoot
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         Extension = normalizedExtension;
         SipServer = normalizedSipServer;
+        OperatingSystem = operatingSystem;
         // ADR-014: tipo pode mudar, mas override explícito do operador é preservado.
 
         RaiseDomainEvent(new DeviceUpdatedDomainEvent(Id, Name, Type));
@@ -239,6 +254,11 @@ public sealed class Device : AggregateRoot
         _monitoringChecks = [.. checks];
         ProfileIsCustom = isCustom;
     }
+
+    /// <summary>F34-T006: tipos que aceitam SO (alvos de RDP/SSH no gateway).</summary>
+    private static bool SupportsOperatingSystem(DeviceType type) =>
+        type is DeviceType.Server or DeviceType.Workstation or DeviceType.VirtualMachine
+            or DeviceType.Router or DeviceType.Firewall;
 
     private static string? NormalizeOptional(string? value, int maxLength, string label, string paramName)
     {

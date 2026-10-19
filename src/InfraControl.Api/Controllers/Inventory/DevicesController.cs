@@ -70,7 +70,8 @@ public sealed class DevicesController(ISender sender) : BaseController
                 model.VlanId,
                 model.Description,
                 model.Extension,
-                model.SipServer),
+                model.SipServer,
+                model.OperatingSystem),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -97,7 +98,8 @@ public sealed class DevicesController(ISender sender) : BaseController
                 model.VlanId,
                 model.Description,
                 model.Extension,
-                model.SipServer),
+                model.SipServer,
+                model.OperatingSystem),
             cancellationToken);
         return NoContent();
     }

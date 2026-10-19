@@ -197,7 +197,7 @@ export function deleteArticle(id: string): Promise<null> {
 }
 
 /**
- * F24 status (ADR-034) — POST {id}/status. ADR-059 §2 (H3): o contrato de
+ * F24 status (ADR-034) — POST {id}/status. ADR-061 §2 (H3): o contrato de
  * enum viaja como STRING no wire — aqui o número do DTO legado é
  * convertido para o nome do enum ("Draft", "InReview"…) antes do POST;
  * antes mandávamos o número e o view model (string) rejeitava o binding

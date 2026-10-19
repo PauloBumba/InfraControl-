@@ -46,8 +46,36 @@ Config (Workers appsettings, sobrescrever por env em produção):
 
 ```text
 Backup:Enabled, Backup:IntervalHours, Backup:RetentionDays,
-Backup:Path, Backup:FileNamePrefix, Backup:TimeoutSeconds
+Backup:Path, Backup:FileNamePrefix, Backup:TimeoutSeconds,
+Backup:AdditionalTargets (lista de { ConnectionString, FileNamePrefix })
 ```
+
+### Alvos adicionais (F34-T003, 2026-10-18)
+
+O mesmo worker também derrama o banco do gateway de acesso remoto
+(Guacamole, ADR-060). `Backup:AdditionalTargets` aceita
+`{ ConnectionString, FileNamePrefix }`: cada alvo ganha dump com o
+próprio prefixo, poda independente (`retention` por prefixo) e heartbeat
+próprio em `backups/latest-{prefix}.json`; o alvo primário preserva
+`latest.json`. Alvo com `ConnectionString` vazio é pulado; falha em
+qualquer alvo torna o resultado da execução `Success=false` (o dump dos
+demais alvos é mantido — agregado `Error`, logs individuais).
+
+No compose, o Workers participa da rede `remote_access` para alcançar
+`guacamole-db` por `pg_dump` (server-to-server, senha só via env
+`Backup__AdditionalTargets__0__ConnectionString`). `AdditionalTargets`
+vazio = comportamento byte a byte do F12-T003.
+
+#### Correção do carrier (F34-T003, 2026-10-18)
+
+O BackupWorker **nunca tinha funcionado em Docker**: a imagem do
+Workers não trazia `pg_dump` (`Win32Exception (2): ... No such file or
+directory`) e o default da Ubuntu noble (pg_dump 16) falharia com
+`server version mismatch` contra os `postgres:17` (main e guacamole).
+Evidência: `/app/backups` ficou vazio de 2026-10-15 até 2026-10-18.
+A imagem agora instala `postgresql-client-17` do repo oficial PGDG
+(docker/Dockerfile, stage `workers`). Com o fix, a 1ª execução gerou
+`infracontrol-*.dump` + `guacamole-*.dump` + os dois heartbeats.
 
 ### Runbook — backup falhando
 
@@ -91,3 +119,28 @@ instrução** — nunca skip escondido.
 
 Restauração manual em produção (mesmo caminho do runbook acima):
 sempre validar com consulta de contagem ao final.
+
+### Restauração do banco do gateway (F34-T003, 2026-10-18 — TESTADO)
+
+Round-trip ao vivo no `guacamole-db` (dev), espelhando o critério do
+CI:
+
+1. marker de estado: `CREATE TABLE t003_restore_marker (x int)` +
+   `INSERT ... VALUES (42)` no banco do gateway;
+2. backup do worker (execução imediata do `BackupWorker`):
+   `guacamole-20261019-012233.dump` (74 890 bytes);
+3. destruição do estado: `docker compose --profile remote stop
+   guacamole` + remoção do container e do volume `guacamole_db_data` +
+   `up -d guacamole-db` (o `guacamole-init` reexecuta → baseline com 23
+   tabelas `guacamole_*`; marker **AUSENTE** confirmado via psql);
+4. restore: `docker exec -i infracontrol-guacamole-db pg_restore -U
+   guacamole -d guacamole --clean --if-exists --no-owner < dump`
+   (exit 0, sem erro);
+5. verificação: marker = **42** restaurado, 23 tabelas, seed
+   `guacadmin` presente;
+6. `docker compose --profile remote start guacamole` → container
+   healthy + token REST via HTTPS
+   (`POST /guacamole/api/tokens`) → `authToken`.
+
+Kill switch executado no mesmo dia (detalhes e senha de break-glass em
+`docs/57-ACESSO-REMOTO-OPERACAO.md`).

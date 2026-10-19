@@ -178,7 +178,7 @@ describe("DeviceDetailPage — poll de SnmpRadio no detalhe (docs/52 §S3, guard
 
 
 /**
- * ADR-059 §3 (M1): a troca de :id zera o cache de abas (requested) e os
+ * ADR-061 §3 (M1): a troca de :id zera o cache de abas (requested) e os
  * dados carregados — a aba clicada em B recarrega e nunca mostra
  * results/alerts/interfaces/ports do device A sob a URL de B.
  */

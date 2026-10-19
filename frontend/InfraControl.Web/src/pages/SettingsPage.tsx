@@ -164,7 +164,7 @@ export function SettingsPage() {
                       style={{ width: "100%" }}
                     />
                   </div>
-                  {/* ADR-059 §4 (M6): o toggle "Modo Escuro" foi OCULTADO —
+                  {/* ADR-061 §4 (M6): o toggle "Modo Escuro" foi OCULTADO —
                       darkMode persiste no backend mas nenhum consumidor
                       aplica tema (função morta). Theming exige ADR próprio;
                       o valor round-trip na API continua intacto. */}

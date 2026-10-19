@@ -73,6 +73,13 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
             .HasColumnName("sip_server")
             .HasMaxLength(Device.SipServerMaxLength);
 
+        // F34-T006 (ADR-060): SO informado — string (precedente Type) e
+        // nullable (null = não informado).
+        builder.Property(x => x.OperatingSystem)
+            .HasColumnName("operating_system")
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
         // F31-T002 / docs/53 D4: vínculos da VM (FK self — 1 hypervisor e
         // 1 vCenter por VM; backstop Restrict + 409 no handler de exclusão).
         builder.Property(x => x.HypervisorDeviceId)

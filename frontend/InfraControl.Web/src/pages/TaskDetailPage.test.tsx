@@ -10,7 +10,7 @@ import { sessionChecked } from "@/app/store/slices/authSlice";
 import type { TaskItem } from "@/services/api/tasks";
 
 /**
- * ADR-059 §3 (H5): a rota /tasks/:id usa `key={id}` (TaskDetailRoute no
+ * ADR-061 §3 (H5): a rota /tasks/:id usa `key={id}` (TaskDetailRoute no
  * router) — o remount zera o estado na troca pai↔subtarefa. Sem isso, a
  * task A ficava na tela sob a URL de B (loading=false) e um "Excluir"
  * confirmava e excluía A. Aqui se tranca: ao navegar para B, A DESAPARECE
@@ -197,7 +197,7 @@ describe("TaskDetailPage — remount no troca de :id (H5)", () => {
 });
 
 /**
- * ADR-059 §3 (M2): `run()` só executa o `after` no sucesso — antes o
+ * ADR-061 §3 (M2): `run()` só executa o `after` no sucesso — antes o
  * diálogo fechava e o texto digitado era apagado mesmo quando a mutação
  * falhava (banner de erro + digitação perdida).
  */

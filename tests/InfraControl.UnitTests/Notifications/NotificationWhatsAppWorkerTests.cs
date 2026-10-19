@@ -52,7 +52,8 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
     }
 
     private async Task<(AppDbContext Context, NotificationWhatsAppWorker Worker, FakeDispatcher Dispatcher, Guid DeliveryId)> CreateAsync(
-        string phone = "+5511999990000")
+        string phone = "+5511999990000",
+        string groupId = "")
     {
         var context = new AppDbContext(_options);
         await context.Database.EnsureCreatedAsync();
@@ -78,7 +79,7 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         var channels = new NotificationChannelsOptions
         {
             Default = ["Email", "SignalR", "WhatsApp"],
-            WhatsApp = new WhatsAppChannelOptions { Phone = phone },
+            WhatsApp = new WhatsAppChannelOptions { Phone = phone, GroupId = groupId },
         };
 
         var worker = new NotificationWhatsAppWorker(
@@ -124,14 +125,35 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
     }
 
     /// <summary>
-    /// Config mudou entre enfileirar e despachar (Phone esvaziado): a
-    /// delivery vira Failed com erro pt-BR apontando a seção — F9-T009
-    /// cuidará do retry.
+    /// ADR-059 §3 (F33-T003): com GroupId configurado o destino é o
+    /// GRUPO, mesmo existindo Phone individual (retrocompatível).
     /// </summary>
     [Fact]
-    public async Task ProcessPending_WithoutPhone_ShouldMarkFailedWithConfigError()
+    public async Task ProcessPending_WithGroupId_ShouldSendToGroupInsteadOfPhone()
     {
-        var (context, worker, dispatcher, deliveryId) = await CreateAsync(phone: "");
+        var (context, worker, dispatcher, deliveryId) = await CreateAsync(
+            phone: "+5511999990000", groupId: "120363431225988863@g.us");
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(1);
+        dispatcher.Sent.Should().ContainSingle(m => m.DeliveryId == deliveryId);
+        dispatcher.Sent[0].Phone.Should().Be("120363431225988863@g.us");
+
+        var delivery = await context.NotificationDeliveries
+            .AsNoTracking().SingleAsync(d => d.Id == deliveryId);
+        delivery.Status.Should().Be(DeliveryStatus.Sent);
+    }
+
+    /// <summary>
+    /// Config mudou entre enfileirar e despachar (GroupId e Phone
+    /// esvaziados): a delivery vira Failed com erro pt-BR apontando a
+    /// seção — F9-T009 cuidará do retry.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPending_WithoutGroupIdAndPhone_ShouldMarkFailedWithConfigError()
+    {
+        var (context, worker, dispatcher, deliveryId) = await CreateAsync(phone: "", groupId: "");
 
         var processed = await worker.ProcessPendingAsync(CancellationToken.None);
 
@@ -140,6 +162,7 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         var delivery = await context.NotificationDeliveries
             .AsNoTracking().SingleAsync(d => d.Id == deliveryId);
         delivery.Status.Should().Be(DeliveryStatus.Failed);
+        delivery.LastError.Should().Contain("GroupId");
         delivery.LastError.Should().Contain("Phone");
     }
 

@@ -73,7 +73,7 @@ public sealed class InvitationsControllerTests
     }
 
     /// <summary>
-    /// ADR-059 §2 (H1): o contrato JSON de enum viaja como STRING — o
+    /// ADR-061 §2 (H1): o contrato JSON de enum viaja como STRING — o
     /// controller parseia para <see cref="UserRole"/> (molde do Search de
     /// status na própria classe), case-insensitive, como já faz o handler
     /// de knowledge. Antes, o VM recebia o enum tipado e o STJ esperava

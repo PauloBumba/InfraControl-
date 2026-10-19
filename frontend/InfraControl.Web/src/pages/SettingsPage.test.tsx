@@ -59,7 +59,7 @@ describe("SettingsPage — preferências reais", () => {
   });
 
   /**
-   * ADR-059 §4 (M6): o toggle "Modo Escuro" era função morta — persistia
+   * ADR-061 §4 (M6): o toggle "Modo Escuro" era função morta — persistia
    * darkMode no backend mas nenhum consumidor aplica tema. Foi OCULTADO;
    * theming exige ADR próprio. O valor continua round-trip na API.
    */

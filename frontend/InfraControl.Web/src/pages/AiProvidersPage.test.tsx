@@ -216,7 +216,7 @@ describe("AiProvidersPage", () => {
 });
 
 /**
- * ADR-059 §3 (M3): "Listar modelos" só preenche o form do provider que
+ * ADR-061 §3 (M3): "Listar modelos" só preenche o form do provider que
  * foi clicado E que é o editado — antes escrevia newModels+editModels
  * sempre, e o clique no B substituía o models já digitado no form de A.
  */

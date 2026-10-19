@@ -17,7 +17,11 @@ public interface IRateLimitRequest
 
 public interface IRateLimiter
 {
-    Task<bool> TryAcquireAsync(
+    /// <summary>
+    /// F35-T002: além do booleano, devolve a janela restante quando o
+    /// limite estoura (Retry-After do HTTP 429 — o limiter conhece o TTL).
+    /// </summary>
+    Task<(bool Acquired, TimeSpan? RetryAfter)> TryAcquireAsync(
         string key,
         RateLimitCategory category,
         CancellationToken cancellationToken = default);

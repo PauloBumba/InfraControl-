@@ -17,7 +17,7 @@ public sealed class RedisRateLimiter(IConnectionMultiplexer redis) : IRateLimite
 
     private const string IncrementScript = "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; return count;";
 
-    public async Task<bool> TryAcquireAsync(
+    public async Task<(bool Acquired, TimeSpan? RetryAfter)> TryAcquireAsync(
         string key,
         RateLimitCategory category,
         CancellationToken cancellationToken = default)
@@ -29,6 +29,9 @@ public sealed class RedisRateLimiter(IConnectionMultiplexer redis) : IRateLimite
             IncrementScript,
             new[] { new RedisKey(redisKey) },
             new[] { (RedisValue)ttlSeconds.ToString() });
-        return current <= limit;
+        // F35-T002: janela restante para Retry-After quando rejeitado.
+        return current <= limit
+            ? (true, null)
+            : (false, TimeSpan.FromSeconds(ttlSeconds));
     }
 }

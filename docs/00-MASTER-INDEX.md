@@ -57,9 +57,12 @@
 52. [Plano — implementação F30-T004 AP](52-PLANO-IMPLEMENTACAO-F30-T004-AP.md)
 53. [Plano de módulo Virtualização](53-PLANO-MODULO-VIRTUALIZACAO.md)
 54. [Checklist de caça-bugs](54-CHECKLIST-CACA-BUGS.md)
-55. [Relatório de caça-bugs — frontend](55-RELATORIO-CACA-BUGS-FRONT.md)
 55. [Instalação de agentes Zabbix (Windows/Linux) e sincronização](55-INSTALACAO-AGENTES-ZABBIX.md)
-56. [Plano — canal WhatsApp com imagens de incidente (Zabbix → SkiaSharp → Evolution)](56-PLANO-CANAL-WHATSAPP-IMAGEM.md)
+56. [Plano F33-T005 — mensagem com gráfico (texto + imagem no WhatsApp via Evolution)](56-PLANO-CANAL-WHATSAPP-IMAGEM.md)
+57. [Acesso remoto — operação (Guacamole, Fase 34 / ADR-060)](57-ACESSO-REMOTO-OPERACAO.md)
+58. [Relatório de caça-bugs — frontend](58-RELATORIO-CACA-BUGS-FRONT.md)
+59. [Checklist de validação — caça-bugs frontend](59-CHECKLIST-VALIDACAO-CACABUGS-FRONT.md)
+60. [Checklist de validação — caça-bugs backend](60-CHECKLIST-VALIDACAO-CACABUGS-BACKEND.md)
 
 ## ADRs
 

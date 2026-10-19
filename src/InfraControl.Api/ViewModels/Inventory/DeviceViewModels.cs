@@ -13,7 +13,8 @@ public sealed record CreateDeviceViewModel(
     Guid? VlanId = null,
     string? Description = null,
     string? Extension = null,
-    string? SipServer = null);
+    string? SipServer = null,
+    string? OperatingSystem = null);
 
 public sealed record UpdateDeviceViewModel(
     string Name,
@@ -27,7 +28,8 @@ public sealed record UpdateDeviceViewModel(
     Guid? VlanId = null,
     string? Description = null,
     string? Extension = null,
-    string? SipServer = null);
+    string? SipServer = null,
+    string? OperatingSystem = null);
 
 /// <summary>F2-T008: envia lista de checks (enum CheckKind) ou useDefault=true.</summary>
 public sealed record UpdateDeviceProfileViewModel(

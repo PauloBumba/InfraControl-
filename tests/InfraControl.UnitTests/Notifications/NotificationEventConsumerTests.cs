@@ -431,6 +431,84 @@ public sealed class NotificationEventConsumerTests : IDisposable
             .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
     }
 
+    /// <summary>ADR-059 §3 (F33-T003): GroupId sozinho já é destino válido — Phone não é mais obrigatório.</summary>
+    [Fact]
+    public async Task Consume_WithWhatsAppGroupIdOnly_ShouldQueueWhatsAppDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR", "WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { Phone = "", GroupId = "120363431225988863@g.us" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "grupo-whatsapp@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        var delivery = await context.NotificationDeliveries.AsNoTracking()
+            .SingleAsync(d => d.Channel == NotificationChannel.WhatsApp);
+        delivery.UserId.Should().Be(userId);
+        delivery.Status.Should().Be(DeliveryStatus.Pending);
+    }
+
+    /// <summary>
+    /// Destino único do grupo (ADR-059 §3): N destinatários habilitados
+    /// → UMA delivery WhatsApp por notificação (sem fanout por usuário).
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithWhatsAppGroupId_ShouldQueueSingleDeliveryForMultipleRecipients()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { GroupId = "120363431225988863@g.us" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "op1@exemplo.test", "Operador 1", UserRole.Operator));
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "op2@exemplo.test", "Operador 2", UserRole.Operator));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: null, recipientRoles: [UserRole.Operator.ToString()],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(1);
+    }
+
+    /// <summary>Grupo com TODOS os destinatários com preferência desligada = sem delivery (regra F9-T003).</summary>
+    [Fact]
+    public async Task Consume_WithWhatsAppGroupIdAndAllPreferencesDisabled_ShouldNotQueueWhatsAppDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { GroupId = "120363431225988863@g.us" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        context.DomainUsers.Add(User.Create(userId, "grupo-off@exemplo.test", "Desligado"));
+        context.NotificationPreferences.Add(NotificationPreference.Create(
+            userId, NotificationChannel.WhatsApp, enabled: false));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
+    }
+
     /// <summary>WhatsApp na lista mas SEM destino = pula (Warning) e os canais seguem.</summary>
     [Fact]
     public async Task Consume_WithWhatsAppUnconfigured_ShouldSkipWhatsAppAndQueueDefaults()

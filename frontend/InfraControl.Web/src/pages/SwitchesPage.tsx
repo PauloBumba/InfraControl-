@@ -582,7 +582,7 @@ export function SwitchesPage() {
                       {
                         switchId: selectedId!,
                         portIndex: port.portIndex,
-                        // ADR-059 §3 (H6): escrita pelo estado ADMINISTRATIVO
+                        // ADR-061 §3 (H6): escrita pelo estado ADMINISTRATIVO
                         // (`enabled`); `linkUp` é telemetria — antes
                         // `disabled: !linkUp` DESABILITAVA porta com link
                         // null ao clicar "Habilitar".

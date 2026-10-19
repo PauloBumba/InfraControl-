@@ -183,7 +183,7 @@ public sealed class UnifiApiClientTests
         ports[0].FullDuplex.Should().BeTrue();
         ports[0].PortVlan.Should().Be(10);
         ports[0].PoeStatus.Should().Be("RUNNING");
-        // ADR-059 §3 (H6): estado ADMINISTRATIVO vem do controller — é ele
+        // ADR-061 §3 (H6): estado ADMINISTRATIVO vem do controller — é ele
         // que dirige o botão Habilitar/Desabilitar, não o link do cabo.
         ports[0].Enabled.Should().BeTrue();
         ports[1].LinkUp.Should().BeFalse();

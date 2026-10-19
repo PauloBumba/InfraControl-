@@ -295,6 +295,10 @@ services:
       Notifications__Channels__Default__1: ${NOTIFY_DEFAULT_1:-SignalR}
       Notifications__Channels__Telegram__ChatId: ${TELEGRAM_CHAT_ID:-}
       Notifications__Channels__WhatsApp__Phone: ${WHATSAPP_PHONE:-}
+      Notifications__Channels__WhatsApp__GroupId: ${WHATSAPP_GROUP_ID:-}
+      Notifications__Channels__WhatsApp__BaseUrl: ${EVOLUTION_BASE_URL:-}
+      Notifications__Channels__WhatsApp__ApiKey: ${EVOLUTION_API_KEY:-}
+      Notifications__Channels__WhatsApp__InstanceId: ${WHATSAPP_INSTANCE:-}
       Notifications__Channels__Webhook__Url: ${WEBHOOK_URL:-}
       Notifications__Channels__Webhook__Secret: ${WEBHOOK_SECRET:-}
       Notifications__Channels__Slack__Channel: ${SLACK_CHANNEL:-}
@@ -561,7 +565,6 @@ services:
     networks:
       - infracontrol
 
-<<<<<<< HEAD
   # ---------------- profile: evolution (F33-T001 — ADR-059) ----------------
   # Evolution API v2 (WhatsApp) para levar eventos do Zabbix ao grupo da
   # empresa. Sobe só com: docker compose --profile evolution up -d.
@@ -671,7 +674,14 @@ services:
     # e sem redirect-hostile. Todo o resto exige header apikey (401 = OK).
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
-=======
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
   # ---------------- profile: remote (Fase 34 — ADR-060) ----------------
   # Gateway de acesso remoto (Guacamole p/ RDP+SSH, decisão D1). Sobe com
   # `docker compose --profile remote up -d`. NENHUMA porta publicada no host:
@@ -762,21 +772,16 @@ services:
       # Página de login no contexto padrão /guacamole/ (curl: base Ubuntu do
       # image temurin; ajustado empiricamente se ausente na primeira subida).
       test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost:8080/guacamole/ || exit 1"]
->>>>>>> 0381f3da779879a88f617096c788af9e2b41e752
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 40s
     restart: unless-stopped
     networks:
-<<<<<<< HEAD
-      - infracontrol
-=======
       # DMZ simples: guacamole é o ÚNICO membro em ambas as redes — nginx e
       # API alcançam via infracontrol; db e guacd só existem em remote_access.
       - infracontrol
       - remote_access
->>>>>>> 0381f3da779879a88f617096c788af9e2b41e752
 
   # ---------------- profile: ai (Fase AI — ADR-041) ----------------
   # Runtime local de LLM da AI Foundation com escalabilidade horizontal.

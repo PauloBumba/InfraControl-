@@ -27,7 +27,8 @@ public sealed record CreateDeviceCommand(
     Guid? VlanId = null,
     string? Description = null,
     string? Extension = null,
-    string? SipServer = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
+    string? SipServer = null,
+    string? OperatingSystem = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -56,7 +57,8 @@ public sealed class CreateDeviceCommandHandler(
             request.VlanId,
             request.Description,
             request.Extension,
-            request.SipServer);
+            request.SipServer,
+            ParseOperatingSystem(request.OperatingSystem));
 
         var locationExists = await locationRepository.GetByIdAsync(device.LocationId, cancellationToken);
         if (locationExists is null)
@@ -99,6 +101,20 @@ public sealed class CreateDeviceCommandHandler(
         return parsed;
     }
 
+    /// <summary>F34-T006: vazio/null = não informado; nome inválido → 400 pt-BR.</summary>
+    internal static Domain.Enums.DeviceOperatingSystem? ParseOperatingSystem(string? operatingSystem)
+    {
+        if (string.IsNullOrWhiteSpace(operatingSystem))
+            return null;
+
+        if (!Enum.TryParse(operatingSystem.Trim(), ignoreCase: true, out Domain.Enums.DeviceOperatingSystem parsed))
+            throw new ArgumentException(
+                $"Sistema operacional inválido: '{operatingSystem}'. Use Windows, Linux ou Other.",
+                nameof(operatingSystem));
+
+        return parsed;
+    }
+
     internal static DeviceDto ToDto(Device device) =>
         new(
             device.Id,
@@ -116,7 +132,8 @@ public sealed class CreateDeviceCommandHandler(
             device.MonitoringChecks.Select(check => check.ToString()).ToArray(),
             device.ProfileIsCustom,
             device.Extension,
-            device.SipServer);
+            device.SipServer,
+            device.OperatingSystem?.ToString());
 }
 
 public sealed record UpdateDeviceCommand(
@@ -132,7 +149,8 @@ public sealed record UpdateDeviceCommand(
     Guid? VlanId = null,
     string? Description = null,
     string? Extension = null,
-    string? SipServer = null) : BaseCommand, IAuthorizedRequest
+    string? SipServer = null,
+    string? OperatingSystem = null) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -162,7 +180,8 @@ public sealed class UpdateDeviceCommandHandler(
             request.VlanId,
             request.Description,
             request.Extension,
-            request.SipServer);
+            request.SipServer,
+            CreateDeviceCommandHandler.ParseOperatingSystem(request.OperatingSystem));
 
         _ = await locationRepository.GetByIdAsync(device.LocationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Local '{device.LocationId}' não encontrado.");

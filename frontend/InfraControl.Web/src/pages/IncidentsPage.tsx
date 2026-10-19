@@ -156,7 +156,7 @@ export function IncidentsPage() {
   });
   // Fase C (ADR-053) — investigação não altera estado do servidor, só
   // devolve análise; sem invalidação de lista.
-  // ADR-059 §3 (H7): mutation única compartilhada — o guard de id (REF
+  // ADR-061 §3 (H7): mutation única compartilhada — o guard de id (REF
   // síncrono; o estado do closure atrasa um render e deixava B ser
   // ignorado/ A sobrescrever) impede que a resposta LENTA do incidente A
   // sobrescreva o painel aberto do B (cabeçalho = investigating, corpo =

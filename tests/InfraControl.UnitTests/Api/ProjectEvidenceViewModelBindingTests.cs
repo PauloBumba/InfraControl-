@@ -5,7 +5,7 @@ using InfraControl.Api.ViewModels.Projects;
 namespace InfraControl.UnitTests.Api;
 
 /// <summary>
-/// ADR-059 §2 (H2): <c>ReviewProjectEvidenceViewModel.Decision</c> aceita
+/// ADR-061 §2 (H2): <c>ReviewProjectEvidenceViewModel.Decision</c> aceita
 /// a string que o front envia ("Validated"/"Rejected"). Sem o
 /// <c>[JsonStringEnumConverter]</c> (molde PDI) o STJ espera número e TODO
 /// POST de revisão de evidência de projeto caía em 400 de model binding.

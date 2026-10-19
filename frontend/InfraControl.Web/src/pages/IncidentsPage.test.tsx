@@ -257,7 +257,7 @@ describe("IncidentsPage — geração de rascunho de knowledge com IA", () => {
 });
 
 /**
- * ADR-059 §3 (H7): a investigação usa uma mutation compartilhada — sem o
+ * ADR-061 §3 (H7): a investigação usa uma mutation compartilhada — sem o
  * guard de id, a resposta LENTA do incidente A sobrescrevia o painel já
  * aberto do B (cabeçalho = B, corpo = análise de A).
  */

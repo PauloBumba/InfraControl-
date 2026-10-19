@@ -10,10 +10,10 @@ namespace InfraControl.Api.Workers;
 
 /// <summary>
 /// Notification Worker do canal WhatsApp (F9-T007, docs/07): despacha via
-/// `IWhatsAppNotificationDispatcher` para o Phone da config global
-/// (Notifications:Channels:WhatsApp) — espelho do Telegram (F9-T006).
-/// Phone esvaziado entre enfileirar e despachar vira Failed com erro
-/// pt-BR apontando a seção.
+/// `IWhatsAppNotificationDispatcher` — ADR-059 §3 (F33-T003): destino é o
+/// `GroupId` (broadcast no grupo) com fallback para o `Phone` individual
+/// (Notifications:Channels:WhatsApp). Nenhum dos dois = Failed com erro
+/// pt-BR apontando a seção (mesmo contrato do espelho Telegram).
 /// </summary>
 public sealed class NotificationWhatsAppWorker(
     IServiceScopeFactory scopeFactory,
@@ -27,15 +27,18 @@ public sealed class NotificationWhatsAppWorker(
         IServiceProvider services,
         CancellationToken cancellationToken)
     {
-        var phone = channelsOptions.Value.WhatsApp.Phone;
-        if (string.IsNullOrWhiteSpace(phone))
+        var whatsapp = channelsOptions.Value.WhatsApp;
+        var destination = !string.IsNullOrWhiteSpace(whatsapp.GroupId)
+            ? whatsapp.GroupId
+            : whatsapp.Phone;
+        if (string.IsNullOrWhiteSpace(destination))
             throw new InvalidOperationException(
-                "Canal WhatsApp sem Phone configurado (Notifications:Channels:WhatsApp:Phone).");
+                "Canal WhatsApp sem GroupId nem Phone configurado (Notifications:Channels:WhatsApp).");
 
         return services.GetRequiredService<IWhatsAppNotificationDispatcher>().SendAsync(
             new WhatsAppNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
-                phone, item.Title, item.Message, item.CreatedAt),
+                destination, item.Title, item.Message, item.CreatedAt),
             cancellationToken);
     }
 }

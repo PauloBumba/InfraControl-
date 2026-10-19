@@ -362,10 +362,13 @@ public sealed class NotificationEventConsumer(
                 return false;
 
             case NotificationChannel.WhatsApp:
-                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.Phone))
+                // ADR-059 §3 (F33-T003): destino é o GroupId (broadcast no
+                // grupo); Phone individual segue aceito (retrocompatível).
+                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.GroupId)
+                    || !string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.Phone))
                     return true;
                 logger.LogWarning(
-                    "Canal WhatsApp em Notifications:Channels:Default sem Phone configurado — deliveries não enfileiradas.");
+                    "Canal WhatsApp em Notifications:Channels:Default sem GroupId nem Phone configurado — deliveries não enfileiradas.");
                 return false;
 
             case NotificationChannel.Webhook:
@@ -395,6 +398,9 @@ public sealed class NotificationEventConsumer(
     /// resolvidas + dedup). Preferência desligada = sem delivery (default
     /// habilitado); canal Email exige e-mail cadastrado. Quais canais
     /// entram no fanout vem de <see cref="ResolveFanoutChannels"/> (F9-T006).
+    /// ADR-059 §3 (F33-T003): WhatsApp com GroupId = destino único do
+    /// grupo → UMA delivery por notificação quando ≥1 destinatário
+    /// habilitado; Phone individual e demais canais seguem 1 por usuário.
     /// </summary>
     private async Task QueueDeliveriesAsync(
         Notification notification, NotificationChannel channel, CancellationToken cancellationToken)
@@ -415,6 +421,9 @@ public sealed class NotificationEventConsumer(
                 .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken)
             : [];
 
+        var groupBroadcast = channel == NotificationChannel.WhatsApp
+            && !string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.GroupId);
+
         var added = false;
         foreach (var userId in userIds)
         {
@@ -433,6 +442,11 @@ public sealed class NotificationEventConsumer(
             dbContext.NotificationDeliveries.Add(NotificationDelivery.Create(
                 notification.Id, userId, channel));
             added = true;
+
+            // Broadcast no grupo: destino único — 1 delivery por
+            // notificação (o caminho normal continua 1 por usuário).
+            if (groupBroadcast)
+                break;
         }
 
         if (added)

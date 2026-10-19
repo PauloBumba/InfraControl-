@@ -1,5 +1,6 @@
 using InfraControl.Application.AI;
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
@@ -28,6 +29,12 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         else
             logger.LogWarning(exception, "Handled exception → {StatusCode} (TraceId {TraceId})",
                 statusCode, httpContext.TraceIdentifier);
+
+        // F35-T002: 429 Too Many Requests leva Retry-After quando o
+        // limiter informou a janela restante.
+        if (exception is RateLimitExceededException { RetryAfter: { } retryAfter })
+            httpContext.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
 
         httpContext.Response.StatusCode = statusCode;
         httpContext.Response.ContentType = "application/json";
@@ -75,6 +82,12 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
                 [UserMessage(exception)]),
             ArgumentException => (
                 StatusCodes.Status400BadRequest, [UserMessage(exception)]),
+            // F35-T002 (caça-bugs backend F2): rate limit é 429 Too Many
+            // Requests (com Retry-After), nunca 409. ANTES de Invalid-
+            // OperationException — RateLimitExceededException herda de
+            // Exception, mas a ordem documenta a precedência.
+            RateLimitExceededException => (
+                StatusCodes.Status429TooManyRequests, [UserMessage(exception)]),
             DuplicateRequestException => (
                 StatusCodes.Status409Conflict, [UserMessage(exception)]),
             InvalidOperationException => (

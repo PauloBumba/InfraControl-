@@ -21,4 +21,5 @@ public sealed record DeviceDto(
     IReadOnlyList<string> MonitoringChecks,
     bool ProfileIsCustom,
     string? Extension = null,
-    string? SipServer = null);
+    string? SipServer = null,
+    string? OperatingSystem = null);

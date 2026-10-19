@@ -363,6 +363,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("name");
 
+                    b.Property<string>("OperatingSystem")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("operating_system");
+
                     b.Property<bool>("ProfileIsCustom")
                         .HasColumnType("boolean")
                         .HasColumnName("profile_is_custom");

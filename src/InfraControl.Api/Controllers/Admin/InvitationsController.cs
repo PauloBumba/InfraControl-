@@ -83,7 +83,7 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
     }
 
     /// <summary>
-    /// ADR-059 §2 — contrato de enum = string no wire; o parse para
+    /// ADR-061 §2 — contrato de enum = string no wire; o parse para
     /// <c>UserRole</c> acontece aqui (molde do Search de status acima;
     /// case-insensitive). Valor desconhecido → ArgumentException → 400
     /// pt-BR pelo GlobalExceptionHandler.

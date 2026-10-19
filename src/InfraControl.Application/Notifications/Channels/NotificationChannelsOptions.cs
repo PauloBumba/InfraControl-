@@ -32,10 +32,28 @@ public sealed class TelegramChannelOptions
     public string ChatId { get; set; } = string.Empty;
 }
 
-/// <summary>Destino global do canal WhatsApp (número que recebe as mensagens).</summary>
+/// <summary>
+/// Destino global do canal WhatsApp (ADR-059 §3): <see cref="Phone"/> é o
+/// número individual (F9-T007, retrocompatível); <see cref="GroupId"/>
+/// (formato <c>&lt;id&gt;@g.us</c>) é o destino GRUPO e é **prioritário**
+/// — destino único por canal (ADR-059 §1: proibido destino por usuário).
+/// <see cref="BaseUrl"/> vazio = canal fica no adaptador de logging (opt-in).
+/// </summary>
 public sealed class WhatsAppChannelOptions
 {
     public string Phone { get; set; } = string.Empty;
+
+    /// <summary>JID do grupo (&lt;id&gt;@g.us) — prioritário sobre Phone.</summary>
+    public string GroupId { get; set; } = string.Empty;
+
+    /// <summary>URL da Evolution API consumida pelo dispatcher (vazio = logging).</summary>
+    public string BaseUrl { get; set; } = string.Empty;
+
+    /// <summary>Header <c>apikey</c> da Evolution — nunca em log/DTO/exceção.</summary>
+    public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>Nome da instância WhatsApp criada na Evolution.</summary>
+    public string InstanceId { get; set; } = string.Empty;
 }
 
 /// <summary>Destino global do canal Webhook (URL que recebe o POST).</summary>

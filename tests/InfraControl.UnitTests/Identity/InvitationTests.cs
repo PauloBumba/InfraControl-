@@ -188,6 +188,45 @@ public sealed class InvitationTests
             "sem origem o link sai relativo — a página pública de aceite é /invitations/{id}");
     }
 
+    /// <summary>
+    /// F35-T003 (caça-bugs backend F3): o e-mail é mandado ANTES de
+    /// persistir — falha de envio propaga com NENHUMA linha no banco,
+    /// então o admin pode recriar sem esbarrar no "convite pendente"
+    /// (o comentário antigo prometia rollback via TransactionBehavior,
+    /// mas o pipeline nunca cria transação).
+    /// </summary>
+    [Fact]
+    public async Task CreateHandler_ShouldNotPersistInvitationWhenEmailFails()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddMediatR(configuration =>
+            configuration.RegisterServicesFromAssembly(typeof(CreateInvitationCommand).Assembly));
+        services.AddDbContext<AppDbContext>(options => options.UseSqlite(connection));
+        services.AddScoped<IDomainEventService, DomainEventService>();
+        services.AddScoped<IInvitationRepository, InvitationRepository>();
+        services.AddScoped<IInvitationAccountPort, NoOpInvitationAccountPort>();
+        services.AddScoped<IIdentityEmailSender, ThrowingEmailSender>();
+        await using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreatedAsync();
+
+        var handler = scope.ServiceProvider.GetRequiredService<
+            IRequestHandler<CreateInvitationCommand, CreateInvitationResult>>();
+
+        var action = () => handler.Handle(
+            new CreateInvitationCommand("boom@example.com", [UserRole.Viewer], Guid.NewGuid()),
+            CancellationToken.None);
+
+        await action.Should().ThrowAsync<InvalidOperationException>("a falha de envio deve propagar");
+
+        var repository = scope.ServiceProvider.GetRequiredService<IInvitationRepository>();
+        var stored = await repository.GetPendingByEmailAsync("boom@example.com");
+        stored.Should().BeNull("nenhuma linha pode ficar commitada quando o e-mail falha antes do save");
+    }
+
     [Fact]
     public async Task CreateHandler_ShouldRejectDuplicatePending()
     {
@@ -420,6 +459,19 @@ public sealed class InvitationTests
             string password,
             CancellationToken cancellationToken = default)
             => Task.FromResult(Application.Identity.Authentication.OperationResult.Success());
+    }
+
+    /// <summary>
+    /// F35-T003: simula provider SMTP real quebrado — o handler não pode
+    /// persistir o convite quando o envio falha.
+    /// </summary>
+    private sealed class ThrowingEmailSender : IIdentityEmailSender
+    {
+        public Task SendPasswordResetAsync(string email, string resetUrl, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("SMTP indisponível (simulado).");
+
+        public Task SendInvitationAsync(string email, string acceptUrl, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("SMTP indisponível (simulado).");
     }
 
     /// <summary>

@@ -52,7 +52,7 @@ public sealed record UnifiSwitchPortDto(
     string? PoeStatus,
     string? Media,
     string? ClientMac,
-    // ADR-059 §3 (H6): estado ADMINISTRATIVO da porta (port_conf_enabled).
+    // ADR-061 §3 (H6): estado ADMINISTRATIVO da porta (port_conf_enabled).
     // `LinkUp` é telemetria (cabo) e NUNCA deve dirigir escrita — antes o
     // front inferia `disabled: !linkUp` e uma porta com link null era
     // DESABILITADA ao clicar "Habilitar". Default true = ausência no

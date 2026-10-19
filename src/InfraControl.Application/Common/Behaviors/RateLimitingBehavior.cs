@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.BuildingBlocks.Application;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -19,10 +20,14 @@ public sealed class RateLimitingBehavior<TRequest, TResponse>(
             return await next();
 
         var key = rateLimited.RateLimitKey ?? typeof(TRequest).Name;
-        if (!await limiter.TryAcquireAsync(key, rateLimited.Category, cancellationToken))
+        var (acquired, retryAfter) = await limiter.TryAcquireAsync(key, rateLimited.Category, cancellationToken);
+        if (!acquired)
         {
+            // F35-T002 (caça-bugs backend F2): 429 Too Many Requests com
+            // Retry-After — nunca InvalidOperationException (que casava
+            // como 409 no GlobalExceptionHandler).
             logger.LogWarning("Rate limit exceeded for {RequestName} with key {RateLimitKey}", typeof(TRequest).Name, key);
-            throw new InvalidOperationException("Limite de requisições excedido.");
+            throw new RateLimitExceededException("Limite de requisições excedido.", retryAfter);
         }
 
         return await next();

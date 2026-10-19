@@ -11,7 +11,7 @@ import type { UserRole } from "@/types/roles";
  * REMOVIDO do backend; a operação "trocar papéis" vira diff de
  * add/remove nestas rotas.
  *
- * Enums (ADR-059 §1): o contrato de enum viaja como STRING no wire. Na
+ * Enums (ADR-061 §1): o contrato de enum viaja como STRING no wire. Na
  * LISTAGEM `roles` ainda vem numérico (DTO legado, exceção documentada);
  * no PATH da rota `{role}` vai o NOME (`Admin`), case-insensitive; no
  * BODY do convite `roles` são NOMES (H1: antes era numérico e quebrava
