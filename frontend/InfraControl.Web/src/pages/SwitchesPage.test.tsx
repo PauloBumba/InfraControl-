@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SwitchesPage } from "./SwitchesPage";
@@ -7,6 +8,7 @@ import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
 import { getDeviceSystemInfo, listLocations, listSwitchPorts } from "@/services/api/inventory";
 import { getDeviceResults } from "@/services/api/monitoring";
+import { setUnifiPortConfig } from "@/services/api/unifi";
 import {
   getSwitchUnifiPorts,
   getSwitchZabbixInterfaces,
@@ -52,6 +54,13 @@ vi.mock("@/services/api/monitoring", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/api/monitoring")>();
   return { ...actual, getDeviceResults: vi.fn() };
 });
+
+vi.mock("@/services/api/unifi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/api/unifi")>();
+  return { ...actual, setUnifiPortConfig: vi.fn() };
+});
+
+const setUnifiPortConfigMock = vi.mocked(setUnifiPortConfig);
 
 const deviceResultsMock = vi.mocked(getDeviceResults);
 
@@ -320,5 +329,83 @@ describe("SwitchesPage — saúde SNMP do switch (F30-T001 S5c)", () => {
     expect(
       await screen.findByText("Saúde: CPU — · Memória — · Temperatura —"),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * ADR-059 §3 (H6): o botão Habilitar/Desabilitar escreve pelo estado
+ * ADMINISTRATIVO (`enabled`), nunca pela telemetria do cabo (`linkUp`).
+ * Antes: `disabled: !linkUp` — porta com linkUp null (cabo desplugado) era
+ * DESABILITADA ao clicar "Habilitar" (bug de escrita em equipamento real).
+ */
+describe("SwitchesPage — escrita de porta usa estado administrativo (H6)", () => {
+  it("sends disabled=false when the port is enabled but has linkUp=null", async () => {
+    listSwitchesMock.mockResolvedValue({
+      items: [switchItem],
+      totalCount: 1,
+      page: 1,
+      pageSize: 100,
+    });
+    listSwitchPortsMock.mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 100,
+    });
+    unifiPortsMock.mockResolvedValue([
+      {
+        portIndex: 5,
+        name: "Port 5",
+        enabled: true,
+        linkUp: null,
+        speed: null,
+        fullDuplex: null,
+        portVlan: null,
+        poeEnable: null,
+        poeStatus: null,
+        media: null,
+        clientMac: null,
+      },
+    ]);
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Desabilitar" }));
+
+    await waitFor(() =>
+      expect(setUnifiPortConfigMock).toHaveBeenCalledWith(switchItem.id, 5, {
+        disabled: false,
+      }),
+    );
+  });
+
+  it("labels the button by the admin state, not the link", async () => {
+    listSwitchesMock.mockResolvedValue({
+      items: [switchItem],
+      totalCount: 1,
+      page: 1,
+      pageSize: 100,
+    });
+    listSwitchPortsMock.mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 100,
+    });
+    unifiPortsMock.mockResolvedValue([
+      {
+        portIndex: 7,
+        name: "Port 7",
+        enabled: false,
+        linkUp: true,
+        speed: null,
+        fullDuplex: null,
+        portVlan: null,
+        poeEnable: null,
+        poeStatus: null,
+        media: null,
+        clientMac: null,
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "Habilitar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Desabilitar" })).toBeNull();
   });
 });

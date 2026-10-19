@@ -41,6 +41,14 @@ type PagedQueryOptions<T> = Omit<
   "queryKey" | "queryFn"
 >;
 
+/**
+ * ADR-059 §3 (H4): identidade ESTÁVEL para a lista vazia — `?? []` em cada
+ * render criava um array novo e qualquer `useEffect` com `items` na dep
+ * re-disparava em loop enquanto a query estava pendente ou em erro
+ * (DevicesPage "Por Switch" entrava em loop infinito de render).
+ */
+const EMPTY_ITEMS: never[] = [];
+
 /** Lista paginada com cache/chave React Query. */
 export function usePagedQuery<T>(
   queryKey: QueryKey,
@@ -55,7 +63,7 @@ export function usePagedQuery<T>(
 
   return {
     ...query,
-    items: query.data?.items ?? [],
+    items: query.data?.items ?? (EMPTY_ITEMS as T[]),
     totalCount: query.data?.totalCount ?? 0,
   };
 }
@@ -75,7 +83,7 @@ export function useListQuery<T>(
 
   return {
     ...query,
-    items: query.data ?? [],
+    items: query.data ?? (EMPTY_ITEMS as T[]),
   };
 }
 

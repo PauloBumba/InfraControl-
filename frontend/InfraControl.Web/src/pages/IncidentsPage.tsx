@@ -156,14 +156,19 @@ export function IncidentsPage() {
   });
   // Fase C (ADR-053) — investigação não altera estado do servidor, só
   // devolve análise; sem invalidação de lista.
+  // ADR-059 §3 (H7): mutation única compartilhada — o guard de id impede
+  // que a resposta LENTA do incidente A sobrescreva o painel aberto do B
+  // (cabeçalho = investigating, corpo = investigation).
   const investigationMutation = useUpdateMutation({
     invalidate: [],
     mutationFn: (id: string) => investigateIncident(id),
-    onSuccess: (data) => {
+    onSuccess: (data, id) => {
+      if (investigating?.id !== id) return;
       setInvestigation(data);
       setInvestigationError(null);
     },
-    onError: (error) => {
+    onError: (error, id) => {
+      if (investigating?.id !== id) return;
       setInvestigation(null);
       setInvestigationError(mutationErrorMessage(error));
     },

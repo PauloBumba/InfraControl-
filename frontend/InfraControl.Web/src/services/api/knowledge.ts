@@ -197,15 +197,29 @@ export function deleteArticle(id: string): Promise<null> {
 }
 
 /**
- * F24 status (ADR-034) — POST {id}/status. `status` viaja como NÚMERO (enum
- * sem JsonStringEnumConverter). Fora da matriz = 409 pt-BR; desconhecido =
+ * F24 status (ADR-034) — POST {id}/status. ADR-059 §2 (H3): o contrato de
+ * enum viaja como STRING no wire — aqui o número do DTO legado é
+ * convertido para o nome do enum ("Draft", "InReview"…) antes do POST;
+ * antes mandávamos o número e o view model (string) rejeitava o binding
+ * com 400 em toda transição. Fora da matriz = 409 pt-BR; desconhecido =
  * 400. O seletor da UI só oferece as transições de
  * `knowledgeNextStatuses` (espelho do domínio).
  */
+export const ARTICLE_STATUS_NAMES: Record<number, string> = {
+  [ARTICLE_STATUS_DRAFT]: "Draft",
+  [ARTICLE_STATUS_PUBLISHED]: "Published",
+  [ARTICLE_STATUS_ARCHIVED]: "Archived",
+  [ARTICLE_STATUS_IN_REVIEW]: "InReview",
+  [ARTICLE_STATUS_APPROVED]: "Approved",
+  [ARTICLE_STATUS_UPDATED]: "Updated",
+  [ARTICLE_STATUS_OBSOLETE]: "Obsolete",
+  [ARTICLE_STATUS_REJECTED]: "Rejected",
+};
+
 export function changeArticleStatus(id: string, status: number): Promise<KnowledgeArticle | null> {
   return api.post<KnowledgeArticle>(
     `/knowledge/articles/${encodeURIComponent(id)}/status`,
-    { status },
+    { status: ARTICLE_STATUS_NAMES[status] ?? String(status) },
   );
 }
 

@@ -552,6 +552,7 @@ services:
     networks:
       - infracontrol
 
+<<<<<<< HEAD
   # ---------------- profile: evolution (F33-T001 — ADR-059) ----------------
   # Evolution API v2 (WhatsApp) para levar eventos do Zabbix ao grupo da
   # empresa. Sobe só com: docker compose --profile evolution up -d.
@@ -661,13 +662,109 @@ services:
     # e sem redirect-hostile. Todo o resto exige header apikey (401 = OK).
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+=======
+  # ---------------- profile: remote (Fase 34 — ADR-060) ----------------
+  # Gateway de acesso remoto (Guacamole p/ RDP+SSH, decisão D1). Sobe com
+  # `docker compose --profile remote up -d`. NENHUMA porta publicada no host:
+  # acesso só via nginx (HTTPS /guacamole/) — padrão ADR-022 (Seq sem porta).
+  # Propriedades validadas no spike das docs oficiais Guacamole v1.6.0
+  # (F34-T002): convenção propriedade→UPPER com "_" + POSTGRESQL_ENABLED +
+  # GUACD_HOSTNAME + HTTP_AUTH_ENABLED (header auth embutida na imagem).
+  # Schema NÃO é auto-criado (docs): guacamole-init gera o SQL
+  # (initdb.sh --postgresql) num volume e o postgres aplica em
+  # /docker-entrypoint-initdb.d na PRIMEIRA subida (datadir vazio).
+
+  guacamole-init:
+    image: guacamole/guacamole:1.6.0
+    container_name: infracontrol-guacamole-init
+    profiles: ["remote"]
+    command: ["/bin/sh", "-c", "/opt/guacamole/bin/initdb.sh --postgresql > /sql/initdb.sql"]
+    volumes:
+      - guacamole_init:/sql
+    restart: "no"
+    networks:
+      - remote_access
+
+  guacamole-db:
+    image: postgres:17-alpine
+    container_name: infracontrol-guacamole-db
+    profiles: ["remote"]
+    environment:
+      POSTGRES_DB: guacamole
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_dev_password_2026}
+    volumes:
+      - guacamole_db_data:/var/lib/postgresql/data
+      - guacamole_init:/docker-entrypoint-initdb.d:ro
+    depends_on:
+      guacamole-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guacamole -d guacamole"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - remote_access
+
+  guacd:
+    image: guacamole/guacd:1.6.0
+    container_name: infracontrol-guacd
+    profiles: ["remote"]
+    # Sem porta publicada:4822 só alcançável por guacamole (rede remote_access).
+    # Egress para os alvos reais (LAN) sai pelo NAT do host — a regra de
+    # firewall do host restringindo destinos permitidos é OBRIGATÓRIA antes do
+    # piloto (F34-T003+; "destinos alcançáveis apenas a partir do gateway").
+    restart: unless-stopped
+    networks:
+      - remote_access
+
+  guacamole:
+    image: guacamole/guacamole:1.6.0
+    container_name: infracontrol-guacamole
+    profiles: ["remote"]
+    environment:
+      GUACD_HOSTNAME: guacd
+      GUACD_PORT: "4822"
+      POSTGRESQL_ENABLED: "true"
+      POSTGRESQL_HOSTNAME: guacamole-db
+      POSTGRESQL_PORT: "5432"
+      POSTGRESQL_DATABASE: guacamole
+      POSTGRESQL_USER: guacamole
+      POSTGRESQL_PASSWORD: ${GUACAMOLE_DB_PASSWORD:-guacamole_dev_password_2026}
+      # SSO (ADR-060 D2): extensão header auth embutida na imagem Docker.
+      # ALERTA das docs Guacamole: o header DEVE ser saneado — só a
+      # plataforma (server-to-server) pode defini-lo; o nginx limpa
+      # X-Remote-User/REMOTE_USER de toda requisição externa (anti-spoofing).
+      HTTP_AUTH_ENABLED: "true"
+      HTTP_AUTH_HEADER: X-Remote-User
+      # Sessão do gateway expira por inatividade (min) — Fase 6 refina.
+      API_SESSION_TIMEOUT: "60"
+    depends_on:
+      guacamole-db:
+        condition: service_healthy
+      guacd:
+        condition: service_started
+    healthcheck:
+      # Página de login no contexto padrão /guacamole/ (curl: base Ubuntu do
+      # image temurin; ajustado empiricamente se ausente na primeira subida).
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost:8080/guacamole/ || exit 1"]
+>>>>>>> 0381f3da779879a88f617096c788af9e2b41e752
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 40s
     restart: unless-stopped
     networks:
+<<<<<<< HEAD
       - infracontrol
+=======
+      # DMZ simples: guacamole é o ÚNICO membro em ambas as redes — nginx e
+      # API alcançam via infracontrol; db e guacd só existem em remote_access.
+      - infracontrol
+      - remote_access
+>>>>>>> 0381f3da779879a88f617096c788af9e2b41e752
 
   # ---------------- profile: ai (Fase AI — ADR-041) ----------------
   # Runtime local de LLM da AI Foundation com escalabilidade horizontal.
@@ -782,6 +879,8 @@ volumes:
   project-evidence:
   api_data_protection:
   postgres_backups:
+  guacamole_db_data:
+  guacamole_init:
 
 networks:
   infracontrol:
@@ -790,3 +889,9 @@ networks:
       config:
         - subnet: ${INFRACONTROL_NETWORK_SUBNET:-172.30.240.0/24}
           ip_range: ${INFRACONTROL_DYNAMIC_IP_RANGE:-172.30.240.128/25}
+  # F34-T002 (ADR-060): rede restrita do gateway de acesso remoto —
+  # guacamole-db e guacamole-guacd vivem SÓ aqui; guacamole é o único
+  # membro também presente em infracontrol. Não internal:true porque o
+  # guacd precisa de egress p/ LAN (restrito por firewall do host).
+  remote_access:
+    driver: bridge

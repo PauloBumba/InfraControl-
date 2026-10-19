@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-16
+**Última atualização:** 2026-10-17
 
 ## Regra operacional
 
@@ -107,6 +107,22 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 
 - [x] **F32-T001 CreatedById na Task** <!-- CONCLUÍDA 2026-10-15: TaskItem.CreatedById (Guid? sem FK ADR-029) preenchido no Create via ICurrentUserContext (guard de sessão espelhando CreateProjectCommandHandler); TaskDto createdById/createdByName (batch GetUserNamesAsync); migração AddTaskCreatedById (uuid nullable PascalCase, precedente DueDate/ResponsibleId; script idempotente validado). Front: card + tabela + detalhe Identificação com "Criado por" × "Responsável". Testes: 3 novos TaskItemTests + asserts em Create_ShouldOpenTaskAndReturnDto; 4 construtores ajustados. Unit Tasks 284/284. -->
 - [x] **F32-T002 Board limpo: concluídas ocultas + toggle** <!-- CONCLUÍDA 2026-10-15: TERMINAL_TASK_STATES (Resolved/Cancelled/Closed) em taskCatalogs; TasksPage com showCompleted (default false, localStorage["tasks:showCompleted"]); sem toggle = só ativos (finalizada SOME da tela principal); kanban só colunas ativas; nota "N concluída(s) oculta(s)"; empty state orienta; toggle "Concluídas" (olho) no header. Testes: 4 novos TasksPage.test.tsx. Vitest 10/10; tsc + build ✓. -->
+
+## Fase 33 — Lote 1 de correções da caça-bugs frontend (2026-10-17)
+
+> **Contexto**: caça-bugs scan-only (bug-hunter, 6 hunters) confirmou 14 REAL_BUG em 48 achados — relatório `docs/55-RELATORIO-CACA-BUGS-FRONT.md`, checklist `docs/54-CHECKLIST-CACA-BUGS.md`. **ADR-059 aceito**: contrato JSON de enum viaja como string (view model string+parse molde Incident, ou enum tipado só com `[JsonStringEnumConverter]` molde PDI; converter global proibido); regras anti-regressão para efeitos/rotas/mutations/estado administrativo UniFi.
+
+- [x] **F33-T001 Contrato enum string (H1–H3)** <!-- 2026-10-17: convites (create+update) string+parse no controller; Projects ReviewDecision com converter molde PDI; knowledge front manda nome do enum. Unit 2844/2844, arch 159/159, front verde. -->
+- [ ] **F33-T002 Frontend altos H4–H7**
+- [ ] **F33-T003 Médios M1–M4 + M6 ocultar toggle**
+
+## Fase 34 — Acesso remoto: gateway Guacamole (2026-10-17)
+
+> **Contexto**: plano de 7 fases aprovado pelo usuário — sessão RDP/SSH pelo navegador com auditoria, sem expor RDP/SSH à rede e sem credencial no navegador. **ADR-060 aceita** (Guacamole p/ ambos; SSO pela plataforma com MFA TOTP ADR-019; gravação RDP+SSH; Credential Store F11-T006 única fonte; probe RDP F11-T003 mantido como pré-verificação). Execução sequencial: **uma task por vez**, só avança de fase com a anterior fechada. Detalhes e critérios em TASKS.md Fase 34.
+
+- [x] **F34-T001 ADR-060 aceita** <!-- 2026-10-17: Status rascunho → aceita; D1–D5 formalizadas; autoriza Fase 2+. -->
+- [ ] **F34-T000 Inventário/políticas do hospital** <!-- pendências fora do repo: Windows/Linux por setor, IP/MAC, chave SSH, LGPD gravação, operador. -->
+- [ ] **F34-T002..T009** — ver TASKS.md Fase 34 (gateway Docker → pilotos Linux/Windows → integração ficha → Zabbix/governança → operação/expansão)
 
 ## Fase 13 — Frontend UI/UX (UniFi-Style)
 

@@ -397,6 +397,18 @@ export function DashboardPage() {
         </div>
       )}
 
+      {/* Ação rápida do index: criar projeto — deep-link abre o diálogo na
+          própria página de projetos (`?novo=1`). */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button
+          variant="primary"
+          icon="pi pi-plus"
+          onClick={() => navigate("/projects?novo=1")}
+        >
+          Novo projeto
+        </Button>
+      </div>
+
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
         <MiniStat

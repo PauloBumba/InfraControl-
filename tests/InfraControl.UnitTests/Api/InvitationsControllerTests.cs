@@ -3,6 +3,7 @@ using InfraControl.Api.Controllers.Admin;
 using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Admin;
 using InfraControl.Application.Identity.Invitations.Commands;
+using InfraControl.Application.Identity.Invitations.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Enums;
 using MediatR;
@@ -61,7 +62,7 @@ public sealed class InvitationsControllerTests
             new Claim(ClaimTypes.Role, UserRole.Admin.ToString()));
 
         var model = new CreateInvitationViewModel(
-            "convite@exemplo.test", [UserRole.Viewer], 7);
+            "convite@exemplo.test", ["Viewer"], 7);
 
         var result = await controller.Create(model, CancellationToken.None);
 
@@ -71,6 +72,90 @@ public sealed class InvitationsControllerTests
         captured!.CreatedBy.Should().Be(inviterId);
     }
 
+    /// <summary>
+    /// ADR-059 §2 (H1): o contrato JSON de enum viaja como STRING — o
+    /// controller parseia para <see cref="UserRole"/> (molde do Search de
+    /// status na própria classe), case-insensitive, como já faz o handler
+    /// de knowledge. Antes, o VM recebia o enum tipado e o STJ esperava
+    /// número — o front manda <c>["Admin"]</c> e todo PUT caía em 400.
+    /// </summary>
+    [Theory]
+    [InlineData("Viewer")]
+    [InlineData("viewer")]
+    [InlineData("Admin")]
+    public async Task Create_Should_Parse_Roles_From_Strings(string role)
+    {
+        var captured = default(CreateInvitationCommand?);
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(mediator => mediator.Send(It.IsAny<CreateInvitationCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<CreateInvitationResult>, CancellationToken>(
+                (command, _) => captured = (CreateInvitationCommand)command)
+            .ReturnsAsync(new CreateInvitationResult(Guid.NewGuid(), "token"));
+
+        var controller = ControllerWith(
+            sender,
+            null,
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()));
+
+        await controller.Create(
+            new CreateInvitationViewModel("convite@exemplo.test", [role], 7),
+            CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.Roles.Should().Equal(
+            Enum.Parse<UserRole>(role, ignoreCase: true));
+    }
+
+    [Fact]
+    public async Task Create_Should_Reject_An_Unknown_Role_String()
+    {
+        var sender = new Mock<ISender>();
+        var controller = ControllerWith(
+            sender,
+            null,
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()));
+
+        var act = () => controller.Create(
+            new CreateInvitationViewModel("convite@exemplo.test", ["Root"], 7),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*Root*");
+        sender.Verify(
+            mediator => mediator.Send(It.IsAny<CreateInvitationCommand>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>PUT (ADR-030 §1) — mesmo parse de strings do POST.</summary>
+    [Fact]
+    public async Task Update_Should_Parse_Roles_From_Strings()
+    {
+        var invitationId = Guid.NewGuid();
+        var captured = default(UpdateInvitationCommand?);
+
+        var sender = new Mock<ISender>();
+        sender
+            .Setup(mediator => mediator.Send(It.IsAny<UpdateInvitationCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<InvitationDto>, CancellationToken>(
+                (command, _) => captured = (UpdateInvitationCommand)command)
+            .ReturnsAsync(new InvitationDto(
+                invitationId, "convite@exemplo.test", Domain.Enums.InvitationStatus.Pending,
+                DateTime.UtcNow.AddDays(7), DateTime.UtcNow, Guid.NewGuid(),
+                ["Operator"], null, null, null, null));
+
+        var controller = ControllerWith(sender);
+
+        await controller.Update(
+            invitationId,
+            new UpdateInvitationViewModel(["operator", "Viewer"]),
+            CancellationToken.None);
+
+        captured.Should().NotBeNull();
+        captured!.Roles.Should().Equal(UserRole.Operator, UserRole.Viewer);
+    }
+
     [Fact]
     public async Task Create_Should_Be_Unauthorized_Without_A_Session_Claim()
     {
@@ -78,7 +163,7 @@ public sealed class InvitationsControllerTests
         var controller = ControllerWith(sender);
 
         var model = new CreateInvitationViewModel(
-            "convite@exemplo.test", [UserRole.Viewer], 7);
+            "convite@exemplo.test", ["Viewer"], 7);
 
         var result = await controller.Create(model, CancellationToken.None);
 
@@ -113,7 +198,7 @@ public sealed class InvitationsControllerTests
             new Claim(ClaimTypes.Role, UserRole.Admin.ToString()));
 
         await controller.Create(
-            new CreateInvitationViewModel("convite@exemplo.test", [UserRole.Viewer], 7),
+            new CreateInvitationViewModel("convite@exemplo.test", ["Viewer"], 7),
             CancellationToken.None);
 
         captured.Should().NotBeNull();
@@ -145,7 +230,7 @@ public sealed class InvitationsControllerTests
         controller.Request.Host = new HostString("app.intra.example");
 
         await controller.Create(
-            new CreateInvitationViewModel("convite@exemplo.test", [UserRole.Viewer], 7),
+            new CreateInvitationViewModel("convite@exemplo.test", ["Viewer"], 7),
             CancellationToken.None);
 
         captured.Should().NotBeNull();

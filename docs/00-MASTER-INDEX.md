@@ -57,6 +57,7 @@
 52. [Plano — implementação F30-T004 AP](52-PLANO-IMPLEMENTACAO-F30-T004-AP.md)
 53. [Plano de módulo Virtualização](53-PLANO-MODULO-VIRTUALIZACAO.md)
 54. [Checklist de caça-bugs](54-CHECKLIST-CACA-BUGS.md)
+55. [Relatório de caça-bugs — frontend](55-RELATORIO-CACA-BUGS-FRONT.md)
 55. [Instalação de agentes Zabbix (Windows/Linux) e sincronização](55-INSTALACAO-AGENTES-ZABBIX.md)
 
 ## ADRs
