@@ -59,6 +59,7 @@
 54. [Checklist de caça-bugs](54-CHECKLIST-CACA-BUGS.md)
 55. [Relatório de caça-bugs — frontend](55-RELATORIO-CACA-BUGS-FRONT.md)
 55. [Instalação de agentes Zabbix (Windows/Linux) e sincronização](55-INSTALACAO-AGENTES-ZABBIX.md)
+56. [Plano — canal WhatsApp com imagens de incidente (Zabbix → SkiaSharp → Evolution)](56-PLANO-CANAL-WHATSAPP-IMAGEM.md)
 
 ## ADRs
 
