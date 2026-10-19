@@ -55,6 +55,7 @@ public sealed class PostgresBackupServiceTests : IDisposable
         options.Path.Should().Be("backups");
         options.FileNamePrefix.Should().Be("infracontrol");
         options.TimeoutSeconds.Should().Be(3600);
+        options.AdditionalTargets.Should().BeEmpty();
     }
 
     [Fact]
@@ -78,6 +79,126 @@ public sealed class PostgresBackupServiceTests : IDisposable
         File.Exists(status).Should().BeTrue();
         (await File.ReadAllTextAsync(status))
             .Should().Contain(result.FileName!);
+    }
+
+    [Fact]
+    public async Task RunOnce_WithAdditionalTarget_ShouldDumpBothTargetsWithOwnPrefixAndStatus()
+    {
+        Directory.CreateDirectory(_directory);
+        var guacamoleConnection =
+            "Host=guacamole-db;Port=5432;Database=guacamole;Username=guacamole;Password=GuacSenha!1";
+        var options = BuildOptions(o => o.AdditionalTargets.Add(
+            new BackupTargetOptions
+            {
+                ConnectionString = guacamoleConnection,
+                FileNamePrefix = "guacamole"
+            }));
+        var runner = new FakeProcessRunner { OnRun = args => WriteDumpFile(args) };
+
+        var result = await Service(runner, options).RunOnceAsync(CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.FileName.Should().StartWith("infracontrol-").And.EndWith(".dump");
+
+        // Dois dumps, prefixos próprios, retenção por prefixo intacta.
+        Directory.EnumerateFiles(_directory, "infracontrol-*.dump")
+            .Should().HaveCount(1);
+        Directory.EnumerateFiles(_directory, "guacamole-*.dump")
+            .Should().HaveCount(1);
+
+        // Heartbeat principal preservado + heartbeat do alvo adicional.
+        File.Exists(Path.Combine(_directory, "latest.json")).Should().BeTrue();
+        var guacStatus = Path.Combine(_directory, "latest-guacamole.json");
+        File.Exists(guacStatus).Should().BeTrue();
+        (await File.ReadAllTextAsync(guacStatus))
+            .Should().Contain("guacamole-");
+
+        // Senha de cada alvo só no ambiente da própria chamada (nunca em argv).
+        runner.ArgumentCalls.Should().HaveCount(2);
+        runner.EnvironmentCalls[0]!["PGPASSWORD"].Should().Be("SenhaDev!1");
+        runner.EnvironmentCalls[1]!["PGPASSWORD"].Should().Be("GuacSenha!1");
+        runner.ArgumentCalls.Should().OnlyContain(args =>
+            !args.Any(arg => arg.Contains("SenhaDev!1", StringComparison.Ordinal) ||
+                             arg.Contains("GuacSenha!1", StringComparison.Ordinal)));
+        runner.ArgumentCalls[1].Should().Contain("guacamole-db").And.Contain("guacamole");
+    }
+
+    [Fact]
+    public async Task RunOnce_WhenAdditionalTargetFails_ShouldFailButKeepPrimaryDump()
+    {
+        Directory.CreateDirectory(_directory);
+        var options = BuildOptions(o => o.AdditionalTargets.Add(
+            new BackupTargetOptions
+            {
+                ConnectionString = "Host=guacamole-db;Port=5432;Database=guacamole;Username=guacamole;Password=x",
+                FileNamePrefix = "guacamole"
+            }));
+        var runner = new FakeProcessRunner
+        {
+            OnRunIndexed = (index, args) =>
+            {
+                if (index == 1)
+                    return new ProcessResult(1, "pg_dump: guacamole-db recusou a conexão");
+                WriteDumpFile(args);
+                return new ProcessResult(0, string.Empty);
+            }
+        };
+
+        var result = await Service(runner, options).RunOnceAsync(CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("guacamole-db recusou a conexão");
+
+        // O dump principal sobrevive à falha do adicional (alvos independentes).
+        Directory.EnumerateFiles(_directory, "infracontrol-*.dump")
+            .Should().HaveCount(1);
+        File.Exists(Path.Combine(_directory, "latest.json")).Should().BeTrue();
+
+        // Do adicional falho: nem dump parcial nem heartbeat.
+        Directory.EnumerateFiles(_directory, "guacamole-*.dump").Should().BeEmpty();
+        File.Exists(Path.Combine(_directory, "latest-guacamole.json")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RunOnce_WhenAdditionalTargetHasEmptyConnectionString_ShouldSkipIt()
+    {
+        var options = BuildOptions(o => o.AdditionalTargets.Add(
+            new BackupTargetOptions { ConnectionString = " ", FileNamePrefix = "vazio" }));
+        var runner = new FakeProcessRunner { OnRun = args => WriteDumpFile(args) };
+
+        var result = await Service(runner, options).RunOnceAsync(CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        runner.ArgumentCalls.Should().HaveCount(1);
+        Directory.EnumerateFiles(_directory, "vazio-*.dump").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RunOnce_WithAdditionalTarget_ShouldPruneEachPrefixIndependently()
+    {
+        Directory.CreateDirectory(_directory);
+        var oldMain = Path.Combine(_directory, "infracontrol-20200101-000000.dump");
+        var oldGuac = Path.Combine(_directory, "guacamole-20200101-000000.dump");
+        await File.WriteAllTextAsync(oldMain, "velho");
+        await File.WriteAllTextAsync(oldGuac, "velho");
+        File.SetLastWriteTimeUtc(oldMain, DateTime.UtcNow.AddDays(-10));
+        File.SetLastWriteTimeUtc(oldGuac, DateTime.UtcNow.AddDays(-10));
+        var options = BuildOptions(o => o.AdditionalTargets.Add(
+            new BackupTargetOptions
+            {
+                ConnectionString = "Host=guacamole-db;Database=guacamole;Username=guacamole;Password=x",
+                FileNamePrefix = "guacamole"
+            }));
+        var runner = new FakeProcessRunner { OnRun = args => WriteDumpFile(args) };
+
+        var result = await Service(runner, options).RunOnceAsync(CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Pruned.Should().Be(2);
+        File.Exists(oldMain).Should().BeFalse();
+        File.Exists(oldGuac).Should().BeFalse();
+        Directory.EnumerateFiles(_directory, "*.dump")
+            .Should().HaveCount(2); // um novo por prefixo
     }
 
     [Fact]
@@ -140,8 +261,12 @@ public sealed class PostgresBackupServiceTests : IDisposable
         public string StandardError { get; init; } = string.Empty;
         public bool WaitForCancellation { get; init; }
         public Action<IReadOnlyList<string>>? OnRun { get; init; }
-        public IReadOnlyList<string>? LastArguments { get; private set; }
-        public IReadOnlyDictionary<string, string>? LastEnvironment { get; private set; }
+        public Func<int, IReadOnlyList<string>, ProcessResult>? OnRunIndexed { get; init; }
+        public List<IReadOnlyList<string>> ArgumentCalls { get; } = [];
+        public List<IReadOnlyDictionary<string, string>?> EnvironmentCalls { get; } = [];
+        public IReadOnlyList<string>? LastArguments => ArgumentCalls.Count == 0 ? null : ArgumentCalls[^1];
+        public IReadOnlyDictionary<string, string>? LastEnvironment =>
+            EnvironmentCalls.Count == 0 ? null : EnvironmentCalls[^1];
 
         public async Task<ProcessResult> RunAsync(
             string fileName,
@@ -149,11 +274,14 @@ public sealed class PostgresBackupServiceTests : IDisposable
             IReadOnlyDictionary<string, string> environment,
             CancellationToken cancellationToken)
         {
-            LastArguments = arguments;
-            LastEnvironment = environment;
+            ArgumentCalls.Add(arguments);
+            EnvironmentCalls.Add(environment);
 
             if (WaitForCancellation)
                 await Task.Delay(Timeout.Infinite, cancellationToken);
+
+            if (OnRunIndexed is not null)
+                return OnRunIndexed(ArgumentCalls.Count - 1, arguments);
 
             OnRun?.Invoke(arguments);
             return new ProcessResult(ExitCode, StandardError);

@@ -163,8 +163,10 @@ public sealed class UnifiApiClientTests
                   {"mac":"74:ac:b9:00:00:01","name":"sw-01","model":"USW-24-POE","type":"usw","ip":"10.0.0.2",
                    "port_table":[
                      {"port_idx":1,"name":"Port 1","up":true,"speed":"1000","full_duplex":true,
-                      "port_vlan":10,"poe_enable":true,"poe_power":"RUNNING","media":"1000BASE-T"},
-                     {"port_idx":2,"name":"Port 2","up":false,"speed":"","port_vlan":10,"poe_enable":false}
+                      "port_vlan":10,"poe_enable":true,"poe_power":"RUNNING","media":"1000BASE-T",
+                      "port_conf_enabled":true},
+                     {"port_idx":2,"name":"Port 2","up":false,"speed":"","port_vlan":10,"poe_enable":false,
+                      "port_conf_enabled":false}
                    ]},
                   {"mac":"74:ac:b9:00:00:02","name":"ap-01","model":"U7PG2","type":"uap","ip":"10.0.0.3","port_table":[]}
                 ]}
@@ -181,7 +183,11 @@ public sealed class UnifiApiClientTests
         ports[0].FullDuplex.Should().BeTrue();
         ports[0].PortVlan.Should().Be(10);
         ports[0].PoeStatus.Should().Be("RUNNING");
+        // ADR-059 §3 (H6): estado ADMINISTRATIVO vem do controller — é ele
+        // que dirige o botão Habilitar/Desabilitar, não o link do cabo.
+        ports[0].Enabled.Should().BeTrue();
         ports[1].LinkUp.Should().BeFalse();
+        ports[1].Enabled.Should().BeFalse();
         // F30-T001 S4a: a Port 2 não traz "full_duplex" no JSON — ausência é
         // null, nunca false (que viraria meio-duplex inventado na persistência).
         ports[1].FullDuplex.Should().BeNull();

@@ -106,6 +106,55 @@ public sealed class HybridCacheServiceTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public async Task InvalidateTagAsync_RemovesMemberKeysFromRedisAndFallback()
+    {
+        var redis = new FakeRedisStore();
+        var service = CreateService(redis, out _);
+        await service.SetAsync("infracontrol:q:user-a", "valor-a", TimeSpan.FromMinutes(5));
+        await service.SetAsync("infracontrol:q:user-b", "valor-b", TimeSpan.FromMinutes(5));
+        await service.TagAsync("switchPorts:1", "infracontrol:q:user-a", TimeSpan.FromMinutes(5));
+        await service.TagAsync("switchPorts:1", "infracontrol:q:user-b", TimeSpan.FromMinutes(5));
+
+        await service.InvalidateTagAsync("switchPorts:1");
+
+        (await service.GetAsync<string>("infracontrol:q:user-a")).Should().BeNull();
+        (await service.GetAsync<string>("infracontrol:q:user-b")).Should().BeNull();
+        redis.TagStore.Should().NotContainKey("switchPorts:1");
+    }
+
+    [Fact]
+    public async Task InvalidateTagAsync_WhenRedisIsDown_InvalidatesFallbackOnlyWithoutThrowing()
+    {
+        var redis = new FakeRedisStore { Down = true };
+        var service = CreateService(redis, out var logger);
+        await service.SetAsync("infracontrol:q:user-a", "valor-a", TimeSpan.FromMinutes(5));
+        await service.TagAsync("switchPorts:1", "infracontrol:q:user-a", TimeSpan.FromMinutes(5));
+
+        var invalidate = () => service.InvalidateTagAsync("switchPorts:1");
+        await invalidate.Should().NotThrowAsync();
+
+        (await service.GetAsync<string>("infracontrol:q:user-a")).Should().BeNull();
+        logger.Warnings.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task InvalidateTagAsync_WithKeysOnlyInFallback_RemovesThem()
+    {
+        // Redis caiu no Set (fallback guardou) e voltou sem o índice — a
+        // união dos dois índices precisa cobrir o caso, senão fica órfão.
+        var redis = new FakeRedisStore { Down = true };
+        var service = CreateService(redis, out _);
+        await service.SetAsync("infracontrol:q:user-a", "valor-a", TimeSpan.FromMinutes(5));
+        await service.TagAsync("switchPorts:1", "infracontrol:q:user-a", TimeSpan.FromMinutes(5));
+        redis.Down = false; // Redis volta sem índice de tag
+
+        await service.InvalidateTagAsync("switchPorts:1");
+
+        redis.Store.Should().NotContainKey("infracontrol:q:user-a");
+        (await service.GetAsync<string>("infracontrol:q:user-a")).Should().BeNull();
+    }
+
     private static HybridCacheService CreateService(
         FakeRedisStore redis, out ListLogger logger)
     {
@@ -159,6 +208,31 @@ public sealed class HybridCacheServiceTests
                 return Task.FromResult(false);
             Store[key] = 1;
             return Task.FromResult(true);
+        }
+
+        public Dictionary<string, HashSet<string>> TagStore { get; } = new();
+
+        public Task TagAsync(string tag, string key, TimeSpan? expiry, CancellationToken cancellationToken = default)
+        {
+            Touch("Tag");
+            if (!TagStore.TryGetValue(tag, out var members))
+                TagStore[tag] = members = [];
+            members.Add(key);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyCollection<string>> GetTagMembersAsync(string tag, CancellationToken cancellationToken = default)
+        {
+            Touch("GetTagMembers");
+            return Task.FromResult<IReadOnlyCollection<string>>(
+                TagStore.TryGetValue(tag, out var members) ? members.ToArray() : []);
+        }
+
+        public Task RemoveTagAsync(string tag, CancellationToken cancellationToken = default)
+        {
+            Touch("RemoveTag");
+            TagStore.Remove(tag);
+            return Task.CompletedTask;
         }
     }
 

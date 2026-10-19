@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, createMemoryRouter, RouterProvider } from "react-router-dom";
 import { DeviceDetailPage } from "./DeviceDetailPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
@@ -172,5 +173,82 @@ describe("DeviceDetailPage — poll de SnmpRadio no detalhe (docs/52 §S3, guard
     expect(
       await screen.findByText("radioCount=2 · channel.5=6 · ssid.5=Corp"),
     ).toBeInTheDocument();
+  });
+});
+
+
+/**
+ * ADR-059 §3 (M1): a troca de :id zera o cache de abas (requested) e os
+ * dados carregados — a aba clicada em B recarrega e nunca mostra
+ * results/alerts/interfaces/ports do device A sob a URL de B.
+ */
+describe("DeviceDetailPage — troca de :id zera as abas (M1)", () => {
+  it("does not keep A's monitoring results while B loads", async () => {
+    getDeviceMock.mockImplementation(async (id: string) =>
+      id === "ap-001"
+        ? apDevice
+        : { ...apDevice, id: "ap-002", name: "ap-sala-02" },
+    );
+    resultsMock.mockImplementation(async (id: string) => {
+      if (id === "ap-001") {
+        return {
+          deviceId: "ap-001",
+          deviceName: "ap-sala-01",
+          results: [
+            {
+              id: "poll-a",
+              check: "Ping",
+              succeeded: true,
+              durationMs: 12,
+              error: null,
+              values: { probe: "resultado-do-device-A" },
+              checkedAt: "2026-10-11T10:00:00Z",
+            },
+          ],
+        };
+      }
+      return new Promise(() => {}) as never; // B fica pendente
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/devices/:id",
+          element: (
+            <>
+              <Link to="/devices/ap-002">ir-para-b</Link>
+              <DeviceDetailPage />
+            </>
+          ),
+        },
+      ],
+      { initialEntries: ["/devices/ap-001"] },
+    );
+
+    render(
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </Provider>,
+    );
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /monitoramento/i }));
+    // A coluna Detalhes renderiza `key=value` ("probe=resultado-do-device-A").
+    expect(await screen.findByText(/resultado-do-device-A/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "ir-para-b" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText(/resultado-do-device-A/)).toBeNull(),
+    );
+    // Nome do B aparece no breadcrumb e no h1.
+    expect(
+      (await screen.findAllByText("ap-sala-02")).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

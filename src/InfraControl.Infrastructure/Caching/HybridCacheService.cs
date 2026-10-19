@@ -104,4 +104,76 @@ public sealed class HybridCacheService(
             return fallback.TryAcquire(key, expiry);
         }
     }
+
+    public async Task TagAsync(string tag, string key, TimeSpan? duration, CancellationToken cancellationToken = default)
+    {
+        // Mesma política do SetAsync: grava no fallback primeiro para a tag
+        // sobreviver a uma falha subsequente do Redis dentro do TTL.
+        fallback.Tag(tag, key, duration);
+
+        try
+        {
+            await redis.TagAsync(tag, key, duration, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Redis indisponível para indexação de tag; índice mantido no fallback. Tag: {CacheTag}",
+                tag);
+        }
+    }
+
+    public async Task InvalidateTagAsync(string tag, CancellationToken cancellationToken = default)
+    {
+        // União dos índices: o Redis é o primário distribuído, mas o
+        // fallback pode conter chaves gravadas com o Redis fora — as duas
+        // fontes precisam ser resolvidas para a invalidação não deixar órfã.
+        var members = new HashSet<string>(fallback.GetTagMembers(tag), StringComparer.Ordinal);
+
+        try
+        {
+            foreach (var member in await redis.GetTagMembersAsync(tag, cancellationToken))
+                members.Add(member);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Redis indisponível para leitura de tag; invalidando só o fallback. Tag: {CacheTag}",
+                tag);
+        }
+
+        foreach (var key in members)
+        {
+            fallback.Remove(key);
+
+            try
+            {
+                await redis.RemoveAsync(key, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Redis indisponível para remoção de chave da tag. Tag: {CacheTag} Chave: {CacheKey}",
+                    tag,
+                    key);
+            }
+        }
+
+        fallback.RemoveTag(tag);
+
+        try
+        {
+            await redis.RemoveTagAsync(tag, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Redis indisponível para remoção do índice de tag. Tag: {CacheTag}",
+                tag);
+        }
+    }
 }

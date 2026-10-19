@@ -12,4 +12,8 @@ public interface IRedisCacheStore
     Task RemoveAsync(string key, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default);
     Task<bool> TryAcquireAsync(string key, TimeSpan expiry, CancellationToken cancellationToken = default);
+
+    Task TagAsync(string tag, string key, TimeSpan? expiry, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<string>> GetTagMembersAsync(string tag, CancellationToken cancellationToken = default);
+    Task RemoveTagAsync(string tag, CancellationToken cancellationToken = default);
 }

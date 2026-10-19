@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Can } from "@/components/auth/Can";
@@ -156,25 +156,29 @@ export function IncidentsPage() {
   });
   // Fase C (ADR-053) — investigação não altera estado do servidor, só
   // devolve análise; sem invalidação de lista.
-  // ADR-059 §3 (H7): mutation única compartilhada — o guard de id impede
-  // que a resposta LENTA do incidente A sobrescreva o painel aberto do B
-  // (cabeçalho = investigating, corpo = investigation).
+  // ADR-059 §3 (H7): mutation única compartilhada — o guard de id (REF
+  // síncrono; o estado do closure atrasa um render e deixava B ser
+  // ignorado/ A sobrescrever) impede que a resposta LENTA do incidente A
+  // sobrescreva o painel aberto do B (cabeçalho = investigating, corpo =
+  // investigation).
+  const investigatingIdRef = useRef<string | null>(null);
   const investigationMutation = useUpdateMutation({
     invalidate: [],
     mutationFn: (id: string) => investigateIncident(id),
     onSuccess: (data, id) => {
-      if (investigating?.id !== id) return;
+      if (investigatingIdRef.current !== id) return;
       setInvestigation(data);
       setInvestigationError(null);
     },
     onError: (error, id) => {
-      if (investigating?.id !== id) return;
+      if (investigatingIdRef.current !== id) return;
       setInvestigation(null);
       setInvestigationError(mutationErrorMessage(error));
     },
   });
 
   function openInvestigation(incident: IncidentItem) {
+    investigatingIdRef.current = incident.id;
     setInvestigating(incident);
     setInvestigation(null);
     setInvestigationError(null);

@@ -8,8 +8,10 @@
 
 ## Resumo
 
-> **Status dos fixes**: H1, H2 e H3 **CORRIGIDOS** em 2026-10-17 (F33-T001,
-> ADR-059 aceito). H4–H7 e médios em F33-T002/T003 (TASKS.md Fase 33).
+> **Status dos fixes**: H1–H7 e M1–M4/M6 **CORRIGIDOS** em 2026-10-17
+> (F33-T001/T002/T003, ADR-059 aceito; lote 1 FECHADO). Restam: M5
+> (payload opcional do Zabbix — task própria), 34 `manual-review` e o
+> response-side legado de enums (TASKS.md Fase 33).
 
 | | |
 |---|---|

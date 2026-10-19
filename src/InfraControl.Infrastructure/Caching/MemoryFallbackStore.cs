@@ -10,6 +10,7 @@ namespace InfraControl.Infrastructure.Caching;
 public sealed class MemoryFallbackStore(TimeProvider timeProvider)
 {
     private readonly ConcurrentDictionary<string, Entry> _entries = new();
+    private readonly ConcurrentDictionary<string, TagEntry> _tags = new();
     private readonly object _acquireGate = new();
 
     public void Set(string key, string value, TimeSpan? expiry)
@@ -40,6 +41,35 @@ public sealed class MemoryFallbackStore(TimeProvider timeProvider)
 
     public bool Exists(string key) => Get(key) is not null;
 
+    /// <summary>Indexa a chave sob a tag de invalidação (tagidx:{tag}).</summary>
+    public void Tag(string tag, string key, TimeSpan? expiry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        DateTimeOffset? expiresAt = expiry is { } ttl ? timeProvider.GetUtcNow() + ttl : null;
+        _tags.AddOrUpdate(
+            tag,
+            _ => new TagEntry([key], expiresAt),
+            (_, existing) => new TagEntry([.. existing.Keys, key], expiresAt));
+    }
+
+    /// <summary>Chaves vivas indexadas sob a tag (índice expirado → vazio).</summary>
+    public IReadOnlyCollection<string> GetTagMembers(string tag)
+    {
+        if (!_tags.TryGetValue(tag, out var entry))
+            return [];
+
+        if (entry.ExpiresAt is { } expiresAt && expiresAt <= timeProvider.GetUtcNow())
+        {
+            _tags.TryRemove(new KeyValuePair<string, TagEntry>(tag, entry));
+            return [];
+        }
+
+        return entry.Keys;
+    }
+
+    public void RemoveTag(string tag) => _tags.TryRemove(tag, out _);
+
     /// <summary>Janela best-effort single-instance (modo degradado).</summary>
     public bool TryAcquire(string key, TimeSpan expiry)
     {
@@ -60,4 +90,5 @@ public sealed class MemoryFallbackStore(TimeProvider timeProvider)
         => entry.ExpiresAt is { } expiresAt && expiresAt <= timeProvider.GetUtcNow();
 
     private sealed record Entry(string Value, DateTimeOffset? ExpiresAt);
+    private sealed record TagEntry(IReadOnlyCollection<string> Keys, DateTimeOffset? ExpiresAt);
 }

@@ -48,6 +48,44 @@ Operações normais devem usar fallback seguro quando possível.
 
 Operações críticas podem adotar política mais restritiva.
 
+## Invalidação por tag (2026-10-18, F1 da caça-bugs backend)
+
+A chave gravada pelo `CachingBehavior` embute usuário, roles e hash dos
+parâmetros (`infracontrol:q:{userId}:{roles}:{CacheKey}:{paramsHash}` via
+`CacheKeyBuilder.Build`) — um comando do lado da mutation **nunca** consegue
+deduzir essa string para apagá-la. Antes desta correção,
+`CacheKeysToInvalidate` chamava `RemoveAsync` com a chave bruta declarada:
+o resultado era um no-op silencioso (só log de Debug).
+
+O contrato agora fecha pelas tags — `CacheKeyBuilder.TagIndexKey`
+(`tagidx:{tag}`), mecanismo que já existia no BuildingBlocks e estava sem
+ligação:
+
+```text
+Query com CacheTags ["switchPorts:{id}"]
+→ CachingBehavior grava a chave E indexa em tagidx:switchPorts:{id}
+   (Redis set + índice no MemoryFallbackStore, TTL = CacheDuration)
+
+Mutation com CacheKeysToInvalidate ["switchPorts:{id}"]
+→ CacheInvalidationBehavior chama InvalidateTagAsync(tag)
+→ resolve a união dos índices (Redis + fallback)
+→ apaga cada chave membro nos dois níveis + o próprio índice
+```
+
+Regras:
+
+- Query declara as tags em `ICacheableQuery.CacheTags` (default vazio =
+  não participa de invalidação).
+- Comando declara as **mesmas tags** em `CacheKeysToInvalidate` (o nome do
+  membro está preservado — é o contrato existente; não inventar prefix wipe).
+- `HybridCacheService.InvalidateTagAsync` cobre Redis caído (invalida só o
+  fallback, Warning no log) e a união dos dois índices (chave gravada com o
+  Redis fora não fica órfã quando ele volta sem o índice).
+
+Verificado por: `MissingBehaviorTests` (registro de tag + fim a fim
+query→mutation→requery) e `HybridCacheServiceTests` (invalidação nos dois
+níveis + degradação).
+
 ## Implementação (2026-09-24)
 
 ### Cache híbrido — ADR-010

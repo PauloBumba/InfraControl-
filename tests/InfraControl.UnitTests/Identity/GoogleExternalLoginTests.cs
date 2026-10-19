@@ -390,5 +390,9 @@ public sealed class GoogleExternalLoginTests
 
         public Task<bool> TryAcquireAsync(string key, TimeSpan expiry, CancellationToken cancellationToken = default)
             => Task.FromResult(true);
+        public Task TagAsync(string tag, string key, TimeSpan? duration, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+        public Task InvalidateTagAsync(string tag, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

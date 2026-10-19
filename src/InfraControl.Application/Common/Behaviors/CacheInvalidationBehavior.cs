@@ -19,10 +19,15 @@ public sealed class CacheInvalidationBehavior<TRequest, TResponse>(
         if (request is not ICacheInvalidatingRequest invalidatingRequest)
             return response;
 
-        foreach (var key in invalidatingRequest.CacheKeysToInvalidate.Where(key => !string.IsNullOrWhiteSpace(key)))
+        // F1: os valores de CacheKeysToInvalidate são TAGS (não chaves
+        // brutas) — a chave gravada pelo CachingBehavior embute usuário,
+        // roles e hash de params e nunca casaria com um valor declarado do
+        // lado da mutation. A tag (tagidx:{tag}) é o índice que resolve
+        // todas as variantes; ver docs/08 e CacheKeyBuilder.TagIndexKey.
+        foreach (var tag in invalidatingRequest.CacheKeysToInvalidate.Where(tag => !string.IsNullOrWhiteSpace(tag)))
         {
-            await cache.RemoveAsync(key, cancellationToken);
-            logger.LogDebug("Cache key {CacheKey} invalidated after {RequestName}.", key, typeof(TRequest).Name);
+            await cache.InvalidateTagAsync(tag, cancellationToken);
+            logger.LogDebug("Cache tag {CacheTag} invalidated after {RequestName}.", tag, typeof(TRequest).Name);
         }
 
         return response;

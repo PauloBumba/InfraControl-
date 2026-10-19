@@ -309,7 +309,16 @@ export function TaskDetailPage() {
   }, []);
 
   /** Executa uma mutação, mostra o aviso pt-BR e recarrega a tela. */
-  async function run(action: () => Promise<unknown>, successMessage: string) {
+  /**
+   * ADR-059 §3 (M2): `after` roda SÓ no sucesso — antes os helpers fechavam
+   * o diálogo e limpavam o texto mesmo quando a mutação falhava (digitação
+   * perdida, usuário vendo só o banner).
+   */
+  async function run(
+    action: () => Promise<unknown>,
+    successMessage: string,
+    after?: () => void,
+  ) {
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -317,6 +326,7 @@ export function TaskDetailPage() {
       await action();
       setNotice(successMessage);
       await load();
+      after?.();
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -333,8 +343,8 @@ export function TaskDetailPage() {
     await run(
       () => updateTask(id, { title: trimmed, description: dataDescription.trim() || undefined }),
       "Dados da tarefa atualizados.",
+      () => setDataOpen(false),
     );
-    setDataOpen(false);
   }
 
   async function saveIdentification() {
@@ -346,8 +356,8 @@ export function TaskDetailPage() {
           responsibleId: responsibleId || undefined,
         }),
       "Identificação atualizada.",
+      () => setIdentOpen(false),
     );
-    setIdentOpen(false);
   }
 
   // F23-T003 — planejamento/resultado (§5) e replanejo (§13).
@@ -360,8 +370,8 @@ export function TaskDetailPage() {
           plannedEnd: plannedEnd || undefined,
         }),
       "Planejamento atualizado.",
+      () => setPlanOpen(false),
     );
-    setPlanOpen(false);
   }
 
   async function saveReplan() {
@@ -379,16 +389,16 @@ export function TaskDetailPage() {
           reason,
         }),
       "Tarefa replanejada.",
+      () => setReplanOpen(false),
     );
-    setReplanOpen(false);
   }
 
   async function saveResult() {
     await run(
       () => updateTaskResult(id, resultText.trim() || undefined),
       "Resultado salvo.",
+      () => setResultOpen(false),
     );
-    setResultOpen(false);
   }
 
   // F23-T003 — critérios de aceite (§12): adicionar, marcar/desmarcar e
@@ -401,8 +411,11 @@ export function TaskDetailPage() {
       setError("Descreva o critério antes de adicionar.");
       return;
     }
-    await run(() => addTaskCriterion(id, description), "Critério adicionado.");
-    setCriterionText("");
+    await run(
+      () => addTaskCriterion(id, description),
+      "Critério adicionado.",
+      () => setCriterionText(""),
+    );
   }
 
   async function toggleCriterion(criterion: TaskCriterion) {
@@ -440,10 +453,12 @@ export function TaskDetailPage() {
           parentId: id,
         }),
       "Subtarefa criada.",
+      () => {
+        setSubtaskTitle("");
+        setSubtaskDescription("");
+        setSubtaskOpen(false);
+      },
     );
-    setSubtaskTitle("");
-    setSubtaskDescription("");
-    setSubtaskOpen(false);
   }
 
   /** Desvincula a subtarefa do pai (vira task raiz) após confirmação. */
@@ -470,9 +485,11 @@ export function TaskDetailPage() {
     await run(
       () => addTaskImpediment(id, description),
       "Impedimento registrado.",
+      () => {
+        setImpedText("");
+        setImpedOpen(false);
+      },
     );
-    setImpedText("");
-    setImpedOpen(false);
   }
 
   async function toggleImpediment(impediment: TaskImpediment) {
@@ -504,10 +521,12 @@ export function TaskDetailPage() {
     await run(
       () => uploadTaskEvidence(id, file, note || undefined),
       `Evidência "${file.name}" anexada.`,
+      () => {
+        setEvidenceFile(null);
+        setEvidenceNote("");
+        if (evidenceInputRef.current) evidenceInputRef.current.value = "";
+      },
     );
-    setEvidenceFile(null);
-    setEvidenceNote("");
-    if (evidenceInputRef.current) evidenceInputRef.current.value = "";
   }
 
   async function removeEvidence() {
@@ -530,8 +549,11 @@ export function TaskDetailPage() {
       setError("Dê um nome à fase antes de adicionar.");
       return;
     }
-    await run(() => addTaskPhase(id, name), "Fase adicionada.");
-    setPhaseText("");
+    await run(
+      () => addTaskPhase(id, name),
+      "Fase adicionada.",
+      () => setPhaseText(""),
+    );
   }
 
   async function togglePhase(phase: TaskPhase) {
@@ -563,8 +585,11 @@ export function TaskDetailPage() {
       setError("Escreva um comentário antes de enviar.");
       return;
     }
-    await run(() => addTaskComment(id, content), "Comentário adicionado.");
-    setCommentText("");
+    await run(
+      () => addTaskComment(id, content),
+      "Comentário adicionado.",
+      () => setCommentText(""),
+    );
   }
 
   async function move(target: string) {
