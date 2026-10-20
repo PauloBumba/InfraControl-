@@ -241,6 +241,10 @@ services:
       OpenTelemetry__Endpoint: http://otel-collector:4317
       DataProtection__KeyRingPath: /app/var/data-protection-keys
       RemoteAccess__CredentialEncryption__Key: ${CREDENTIAL_ENCRYPTION_KEY:-3ewHa9GEGWR7P+141SZYke9RTS71FmBw36PESzVgR+k=}
+      # F34-T007 dev: credencial de teste do Credential Store (host fake
+      # 10.0.0.50) para exercitar o mint de token do gateway em dev.
+      RemoteAccess__Ssh__Username: ${REMOTE_SSH_USERNAME:-infracontrol_dev}
+      RemoteAccess__Ssh__Password: ${REMOTE_SSH_PASSWORD:-InfraControl_Dev_2026}
       # F34-T007 / ADR-060 D2 — SSO do gateway: a API minta o token
       # server-to-server (header X-Remote-User) neste endpoint INTERNO.
       # Só alcançável na rede do compose; sem o profile `remote` o valor
@@ -475,6 +479,10 @@ services:
     ports:
       - "${ZABBIX_DB_PORT:-5433}:5432"
     volumes:
+      # Rollback 2026-10-19 (decisão do usuário, docs/27 §Migração): volta ao
+      # volume original 8.0.0rc2 (107 hosts, histórico, webhooks F16). O volume
+      # do teste 7.4.15 (zabbix_db_data_v74) fica preservado como 2º backup,
+      # junto com o pg_dump backups/zbx-80rc2-20261018.dump.
       - zabbix_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zabbix -d zabbix"]
@@ -486,9 +494,13 @@ services:
       - infracontrol
 
   zabbix-server:
-    # F18-T001 (decisão do usuário 2026-10-03): 7.4.15 → 8.0 trunk (alpine-trunk,
-    # próximo LTS com feedback positivo da comunidade no LinkedIn - HA nativo,
-    # Postgres 18, ClickHouse, JSON nativo).
+    # F18-T001: 7.4.15 → 8.0 trunk (2026-10-03). Tentativa de migração para o
+    # 7.4-alpine ESTÁVEL (2026-10-18/19, docs/27 §Migração) falhou em
+    # produção: o trunk 8.0.0rc2 removeu os dashboards de host do banco (bug)
+    # e renomeou/quebrou métodos da API a cada build — decisão do usuário em
+    # 2026-10-19: ROLLBACK para trunk + volume original (zabbix_db_data).
+    # Bancos preservados: zabbix_db_data (ativo, 8.0.0rc2) + zabbix_db_data_v74
+    # (teste 7.4.15) + pg_dump em temp/opencode/backups/.
     image: zabbix/zabbix-server-pgsql:alpine-trunk
     container_name: infracontrol-zabbix-server
     profiles: ["zabbix"]
@@ -507,7 +519,10 @@ services:
       zabbix-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "nc -z 127.0.0.1 10051 || exit 1"]
+      # netstat em vez de nc -z: o nc conectava no trapper 10051 e fechava sem
+      # JSON, logando "trapper got non-JSON data" a cada 10s (ruído infinito).
+      # netstat -lnt só verifica que a porta está LISTEN, sem conexão.
+      test: ["CMD-SHELL", "netstat -lnt | grep -q ':10051' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -561,7 +576,9 @@ services:
     # compose oficial do Zabbix não define healthcheck para o agent; usa-se o
     # mesmo padrão de TCP do zabbix-server (agent2 alpine traz nc).
     healthcheck:
-      test: ["CMD-SHELL", "nc -z 127.0.0.1 10050 || exit 1"]
+      # Mesmo padrão do server: netstat sem conexão (nc -z conecta e fechava,
+      # poluindo o log do server com "trapper got non-JSON data").
+      test: ["CMD-SHELL", "netstat -lnt | grep -q ':10050' || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -888,7 +905,8 @@ volumes:
   redis_sentinel_3_data:
   rabbitmq_data:
   seq_data:
-  zabbix_db_data:
+  zabbix_db_data:      # ⚠️ ativo (8.0.0rc2, rollback 2026-10-19) — NÃO apagar; ver docs/27 §Migração
+  zabbix_db_data_v74:  # backup do teste 7.4.15 (2026-10-18/19) — NÃO apagar
   zabbix_server_snmptraps:
   zabbix_server_mibs:
   evolution_db_data:

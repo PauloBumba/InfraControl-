@@ -294,9 +294,6 @@ public sealed class AlertEvaluator(
         await incidentRepository.AddLinkAsync(
             IncidentAlert.Create(incident.Id, alert.Id), cancellationToken);
 
-        // F33-T004: "Alerta criado" pendente acompanha o incidente.
-        alert.SetHasIncident();
-
         return new(alert.Id, incident.Id, Suppressed: false);
     }
 
@@ -872,12 +869,9 @@ public sealed class AlertEvaluator(
 
         if (severity == AlertSeverity.Critical)
         {
-            // F6-T003: Alert Critical auto-abre Incident.
+            // F6-T003: Alert Critical auto-abre Incident (o evento
+            // AlertCreated nasce com HasIncident=true — F33-T004/ADR-059).
             await EnsureIncidentAsync(device, active, cancellationToken);
-
-            // F33-T004: evento "Alerta criado" pendente ganha HasIncident
-            // (no-op quando o alerta já existia — sem evento pendente).
-            active.SetHasIncident();
         }
 
         return created;

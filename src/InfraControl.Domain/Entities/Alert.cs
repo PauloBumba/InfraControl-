@@ -53,10 +53,14 @@ public sealed class Alert : AggregateRoot
             Message = message.Trim()
         };
 
-        // F33-T004/ADR-059: só Critical vira notificação "Alerta criado".
+        // F33-T004/ADR-059: Critical avisa (decisões 2/3). HasIncident
+        // nasce true porque Critical sempre garante incidente no MESMO
+        // fluxo (F6-T003 — EnsureIncidentAsync); Suppressed no nascer
+        // remove o evento em Suppress().
         if (severity == AlertSeverity.Critical)
-            alert.RaiseDomainEvent(
-                new AlertCreatedDomainEvent(alert.Id, severity, deviceId, alert.Message));
+            alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
+                alert.Id, severity, alert.DeviceId, alert.Message,
+                hasIncident: true));
 
         return alert;
     }
@@ -98,10 +102,13 @@ public sealed class Alert : AggregateRoot
             Message = message.Trim()
         };
 
-        // F33-T004/ADR-059: só Critical vira notificação "Alerta criado".
+        // F33-T004/ADR-059: Critical externo (Zabbix) avisa — o incidente
+        // é garantido no mesmo fluxo (ADR-027 §3, "Incident SOMENTE se
+        // Critical"); Suppressed no nascer remove o evento em Suppress().
         if (severity == AlertSeverity.Critical)
-            alert.RaiseDomainEvent(
-                new AlertCreatedDomainEvent(alert.Id, severity, deviceId, alert.Message));
+            alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
+                alert.Id, severity, alert.DeviceId, alert.Message,
+                hasIncident: true));
 
         return alert;
     }
@@ -121,25 +128,15 @@ public sealed class Alert : AggregateRoot
     /// <summary>F6-T004: Open → Suppressed (upstream com incidente aberto).</summary>
     public void Suppress()
     {
-        if (Status != AlertStatus.Open)
-            return;
+        if (Status == AlertStatus.Open)
+        {
+            Status = AlertStatus.Suppressed;
 
-        Status = AlertStatus.Suppressed;
-
-        // F33-T004/ADR-059: suprimido não notifica "Alerta criado" — o
-        // incidente upstream já foi notificado pelo IncidentCreated.
-        RemoveDomainEvents<AlertCreatedDomainEvent>();
-    }
-
-    /// <summary>
-    /// F33-T004: o avaliador marca o vínculo de incidente no evento ainda
-    /// pendente (dispatch dos domain events é no SaveChanges, posterior).
-    /// No-op quando não há AlertCreated pendente (alerta já existente).
-    /// </summary>
-    public void SetHasIncident()
-    {
-        foreach (var domainEvent in DomainEvents.OfType<AlertCreatedDomainEvent>())
-            domainEvent.HasIncident = true;
+            // F33-T004/ADR-059: alerta Critical que nasce vítima de
+            // incidente upstream não notifica "Alerta Critical criado" —
+            // o grupo já recebe o "Incidente aberto" do incidente raiz.
+            RemoveDomainEvent<AlertCreatedDomainEvent>();
+        }
     }
 
     /// <summary>

@@ -27,6 +27,27 @@
   --uni-green: #22c55e;
   --uni-red: #ef4444;
   --uni-yellow: #eab308;
+  /* Superfícies derivadas (antes cores fixas embutidas nos seletores) —
+     viram juntas no tema escuro (services/theme.ts + bloco [data-theme]). */
+  --uni-hover: #f3f4f6;          /* hover genérico de linha/item */
+  --uni-active-bg: #eff6ff;      /* fundo do item ativo (nav/aba/menu) */
+  --uni-divider: #f3f4f6;        /* divisórias internas (painéis/listas) */
+  --uni-row-hover: #f9fafb;      /* hover de linha de tabela */
+  --uni-table-head-bg: #f9fafb;  /* cabeçalho de tabela */
+  --uni-surface-alt: #fafbfc;    /* rodapé de modal */
+  --uni-field-bg: #ffffff;       /* fundo de input/select */
+  --uni-ghost-bg: #ffffff;       /* botão ghost */
+  --uni-ghost-text: #374151;
+  --uni-msg-text: #475569;       /* texto de mensagem de modal */
+  --uni-dropdown-bg: #ffffff;    /* popup do menu da conta e dropdowns */
+  --uni-dropdown-hover: #f3f4f6;
+  --uni-overlay: rgba(15, 23, 42, 0.45);   /* backdrop de modal */
+  --uni-overlay-soft: rgba(255, 255, 255, 0.65); /* overlay de carregamento */
+  --uni-chip-blue-bg: #eff6ff;    /* tintes dos ícones de card/alerta */
+  --uni-chip-purple-bg: #f5f3ff;
+  --uni-chip-green-bg: #f0fdf4;
+  --uni-chip-yellow-bg: #fefce8;
+  --uni-chip-red-bg: #fef2f2;
   /* Tokens de espaçamento */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -34,6 +55,43 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-2xl: 48px;
+}
+
+/* =============================================
+   TEMA ESCURO (2026-10-19) — `data-theme="dark"` no <html>, alternado no
+   dropdown de perfil (sidebar E header) e persistido em localStorage
+   (services/theme.ts). Só REDECLARA variáveis: quem usa var(--uni-*) escurece
+   junto sem duplicar seletores. Cores fixas embutidas (landing pública,
+   gráficos Chart.js) não acompanham — pendência conhecida.
+   ============================================= */
+[data-theme="dark"] {
+  --uni-bg: #0b1220;
+  --uni-surface: #131b2d;
+  --uni-border: #263248;
+  --uni-text: #e5eaf2;
+  --uni-text-secondary: #9aa7bd;
+  --uni-text-muted: #6b7a94;
+  --uni-accent-hover: #60a5fa;
+  --uni-hover: #1c2740;
+  --uni-active-bg: rgba(59, 130, 246, 0.16);
+  --uni-divider: #212c42;
+  --uni-row-hover: #18223a;
+  --uni-table-head-bg: #18223a;
+  --uni-surface-alt: #101828;
+  --uni-field-bg: #0f1729;
+  --uni-ghost-bg: #131b2d;
+  --uni-ghost-text: #cbd5e1;
+  --uni-msg-text: #a8b3c7;
+  --uni-dropdown-bg: #18223a;
+  --uni-dropdown-hover: #223052;
+  --uni-overlay: rgba(2, 6, 16, 0.62);
+  --uni-overlay-soft: rgba(11, 18, 32, 0.65);
+  --uni-chip-blue-bg: rgba(59, 130, 246, 0.16);
+  --uni-chip-purple-bg: rgba(139, 92, 246, 0.16);
+  --uni-chip-green-bg: rgba(34, 197, 94, 0.16);
+  --uni-chip-yellow-bg: rgba(234, 179, 8, 0.16);
+  --uni-chip-red-bg: rgba(239, 68, 68, 0.16);
+  color-scheme: dark;
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -109,58 +167,18 @@ ul, ol { list-style: none; }
   width: 100%;
 }
 .uni-nav-item i { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
-.uni-nav-item:hover { background: #f3f4f6; color: var(--uni-text); }
+.uni-nav-item:hover { background: var(--uni-hover); color: var(--uni-text); }
 .uni-nav-item.active {
-  background: #eff6ff;
+  background: var(--uni-active-bg);
   color: var(--uni-accent);
   font-weight: 600;
 }
 .uni-nav-item.active i { color: var(--uni-accent); }
 
-/* Dropdown do sidebar (2026-10-14): o filho abre DENTRO da lista, sob o pai. */
-.uni-nav-sublist {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  margin: 1px 0 3px;
-  padding: 0 0 0 22px;
-  list-style: none;
-  position: relative;
-}
-/* Filete que amarra os filhos ao pai, no estilo de árvore. */
-.uni-nav-sublist::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 6px;
-  left: 18px;
-  width: 1px;
-  background: var(--uni-border);
-}
-.uni-nav-subitem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  color: var(--uni-text-secondary);
-  font-size: 12.5px;
-  font-weight: 500;
-  position: relative;
-  transition: all 0.12s;
-  text-align: left;
-  width: 100%;
-}
-.uni-nav-subitem i { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
-.uni-nav-subitem:hover { background: #f3f4f6; color: var(--uni-text); }
-.uni-nav-subitem.active {
-  background: #eff6ff;
-  color: var(--uni-accent);
-  font-weight: 600;
-}
-.uni-nav-subitem.active i { color: var(--uni-accent); }
-/* Recolhido (60px) não cabe submenu: some junto com o rótulo do pai. */
-.uni-sidebar.collapsed .uni-nav-sublist { display: none; }
+/* Dropdown do sidebar (2026-10-19): o filho abre num POPUP flutuante do
+   PrimeReact (estilo do menu em styles/prime-overrides.css, `.p-menu`).
+   O inline `.uni-nav-sublist` saiu; com o sidebar recolhido o popup
+   flutua por cima em vez de não abrir. */
 
 .uni-nav-badge {
   margin-left: auto;
@@ -187,7 +205,7 @@ ul, ol { list-style: none; }
   cursor: pointer;
   transition: background 0.12s;
 }
-.uni-user-card:hover { background: #f3f4f6; }
+.uni-user-card:hover { background: var(--uni-hover); }
 .uni-user-avatar {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -209,7 +227,7 @@ ul, ol { list-style: none; }
   border-radius: 6px;
   flex-shrink: 0;
 }
-.uni-user-logout:hover:not(:disabled) { background: #f3f4f6; color: var(--uni-red); }
+.uni-user-logout:hover:not(:disabled) { background: var(--uni-hover); color: var(--uni-red); }
 .uni-user-logout:disabled { opacity: 0.6; cursor: not-allowed; }
 .uni-sidebar.collapsed .uni-user-info { display: none; }
 
@@ -258,7 +276,7 @@ ul, ol { list-style: none; }
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #f3f4f6;
+  background: var(--uni-hover);
   border: 1px solid var(--uni-border);
   border-radius: 6px;
   padding: 5px 10px;
@@ -283,7 +301,7 @@ ul, ol { list-style: none; }
   position: relative;
   transition: all 0.12s;
 }
-.uni-topbar-icon:hover { background: #f3f4f6; color: var(--uni-text); }
+.uni-topbar-icon:hover { background: var(--uni-hover); color: var(--uni-text); }
 .uni-notif-badge {
   position: absolute; top: 4px; right: 4px;
   min-width: 14px; height: 14px; padding: 0 3px;
@@ -319,15 +337,15 @@ ul, ol { list-style: none; }
   color: var(--uni-text-secondary); font-size: 12px;
   white-space: nowrap; transition: all 0.12s;
 }
-.uni-tab:hover { background: #f3f4f6; color: var(--uni-text); }
-.uni-tab.active { background: #eff6ff; color: var(--uni-accent); font-weight: 600; }
+.uni-tab:hover { background: var(--uni-hover); color: var(--uni-text); }
+.uni-tab.active { background: var(--uni-active-bg); color: var(--uni-accent); font-weight: 600; }
 .uni-tab i { font-size: 11px; }
 .uni-tab-close {
   display: flex; align-items: center; justify-content: center;
   width: 14px; height: 14px; border-radius: 3px;
   opacity: 0.4; transition: opacity 0.12s;
 }
-.uni-tab-close:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+.uni-tab-close:hover { opacity: 1; background: var(--uni-hover); }
 .uni-tab-close i { font-size: 8px; }
 
 /* ============ CONTENT ============ */
@@ -351,7 +369,7 @@ ul, ol { list-style: none; }
 .uni-panel-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--uni-divider);
 }
 .uni-panel-header h2 { font-size: 13px; font-weight: 600; }
 .uni-panel-body { padding: 16px; }
@@ -373,15 +391,15 @@ ul, ol { list-style: none; }
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; flex-shrink: 0;
 }
-.uni-device-icon.gateway { background: #eff6ff; color: #3b82f6; }
-.uni-device-icon.switch { background: #f5f3ff; color: #8b5cf6; }
-.uni-device-icon.ap { background: #f0fdf4; color: #22c55e; }
+.uni-device-icon.gateway { background: var(--uni-chip-blue-bg); color: #3b82f6; }
+.uni-device-icon.switch { background: var(--uni-chip-purple-bg); color: #8b5cf6; }
+.uni-device-icon.ap { background: var(--uni-chip-green-bg); color: #22c55e; }
 .uni-device-name { font-size: 13px; font-weight: 600; }
 .uni-device-model { font-size: 11px; color: var(--uni-text-muted); }
 .uni-device-details {
   display: flex; flex-wrap: wrap; gap: 6px 14px;
-  padding: 10px 0; border-top: 1px solid #f3f4f6;
-  border-bottom: 1px solid #f3f4f6; margin-bottom: 10px;
+  padding: 10px 0; border-top: 1px solid var(--uni-divider);
+  border-bottom: 1px solid var(--uni-divider); margin-bottom: 10px;
 }
 .uni-device-detail { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--uni-text-muted); }
 .uni-device-detail i { font-size: 10px; }
@@ -402,7 +420,7 @@ ul, ol { list-style: none; }
   gap: 2px;
   padding: 6px 4px;
   border-radius: 6px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--uni-border);
   transition: all 0.12s;
   cursor: pointer;
   min-height: 56px;
@@ -414,7 +432,7 @@ ul, ol { list-style: none; }
 .uni-client-table-name { display: flex; align-items: center; gap: 8px; }
 .uni-client-table-icon {
   width: 28px; height: 28px; border-radius: 6px;
-  background: #f3f4f6; display: flex; align-items: center; justify-content: center;
+  background: var(--uni-hover); display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: var(--uni-text-muted);
 }
 
@@ -422,18 +440,18 @@ ul, ol { list-style: none; }
 .uni-alerts-list { display: flex; flex-direction: column; }
 .uni-alert-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px; border-bottom: 1px solid #f3f4f6;
+  padding: 12px 16px; border-bottom: 1px solid var(--uni-divider);
   transition: background 0.1s;
 }
-.uni-alert-row:hover { background: #f9fafb; }
+.uni-alert-row:hover { background: var(--uni-row-hover); }
 .uni-alert-icon {
   width: 32px; height: 32px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; flex-shrink: 0;
 }
-.uni-alert-icon.warning { background: #fefce8; color: #ca8a04; }
-.uni-alert-icon.critical { background: #fef2f2; color: #dc2626; }
-.uni-alert-icon.info { background: #eff6ff; color: #3b82f6; }
+.uni-alert-icon.warning { background: var(--uni-chip-yellow-bg); color: #ca8a04; }
+.uni-alert-icon.critical { background: var(--uni-chip-red-bg); color: #dc2626; }
+.uni-alert-icon.info { background: var(--uni-chip-blue-bg); color: #3b82f6; }
 .uni-alert-body { flex: 1; }
 .uni-alert-title { font-size: 12px; font-weight: 500; }
 .uni-alert-detail { font-size: 11px; color: var(--uni-text-muted); margin-top: 1px; }
@@ -447,8 +465,8 @@ ul, ol { list-style: none; }
   font-size: 12px; font-weight: 500;
   color: var(--uni-text-secondary); transition: all 0.12s; text-align: left;
 }
-.uni-settings-nav-item:hover { background: #f3f4f6; color: var(--uni-text); }
-.uni-settings-nav-item.active { background: #eff6ff; color: var(--uni-accent); }
+.uni-settings-nav-item:hover { background: var(--uni-hover); color: var(--uni-text); }
+.uni-settings-nav-item.active { background: var(--uni-active-bg); color: var(--uni-accent); }
 .uni-settings-nav-item i { font-size: 13px; }
 .uni-settings-panel {
   background: var(--uni-surface);
@@ -463,13 +481,13 @@ ul, ol { list-style: none; }
   width: 100%; max-width: 320px;
   padding: 6px 10px; border: 1px solid var(--uni-border);
   border-radius: 5px; font-size: 12px;
-  background: white; color: var(--uni-text); transition: border-color 0.15s;
+  background: var(--uni-field-bg); color: var(--uni-text); transition: border-color 0.15s;
 }
 .uni-settings-field input:focus,
 .uni-settings-field select:focus { outline: none; border-color: var(--uni-accent); }
 .uni-toggle-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+  padding: 10px 0; border-bottom: 1px solid var(--uni-divider);
 }
 .uni-toggle-row:last-child { border-bottom: none; }
 .uni-toggle-info { display: flex; flex-direction: column; gap: 1px; }
@@ -505,7 +523,7 @@ ul, ol { list-style: none; }
   align-items: center; justify-content: center;
   min-height: 400px; gap: 10px;
 }
-.uni-page-empty i { font-size: 40px; color: #d1d5db; }
+.uni-page-empty i { font-size: 40px; color: var(--uni-text-muted); }
 .uni-page-empty h2 { font-size: 16px; color: var(--uni-text-secondary); font-weight: 600; }
 .uni-page-empty p { font-size: 12px; color: var(--uni-text-muted); }
 
@@ -522,7 +540,7 @@ ul, ol { list-style: none; }
 .uni-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--uni-overlay);
   border: none;
   cursor: pointer;
   padding: 0;
@@ -568,7 +586,7 @@ ul, ol { list-style: none; }
   transition: background 0.12s, color 0.12s;
 }
 .uni-modal-close:hover {
-  background: #f3f4f6;
+  background: var(--uni-hover);
   color: var(--uni-text);
 }
 .uni-modal-body {
@@ -579,7 +597,7 @@ ul, ol { list-style: none; }
 .uni-modal-footer {
   padding: 12px 16px;
   border-top: 1px solid var(--uni-border);
-  background: #fafbfc;
+  background: var(--uni-surface-alt);
   flex-shrink: 0;
 }
 .uni-modal-actions {
@@ -592,7 +610,7 @@ ul, ol { list-style: none; }
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: #475569;
+  color: var(--uni-msg-text);
 }
 .uni-btn {
   display: inline-flex;
@@ -613,12 +631,12 @@ ul, ol { list-style: none; }
   cursor: not-allowed;
 }
 .uni-btn-ghost {
-  background: #fff;
+  background: var(--uni-ghost-bg);
   border-color: var(--uni-border);
-  color: #374151;
+  color: var(--uni-ghost-text);
 }
 .uni-btn-ghost:hover:not(:disabled) {
-  background: #f9fafb;
+  background: var(--uni-row-hover);
 }
 .uni-btn-primary {
   background: var(--uni-accent);
@@ -738,7 +756,7 @@ ul, ol { list-style: none; }
   padding: 10px 12px;
   font-size: 13px;
   color: var(--uni-text);
-  background: #fff;
+  background: var(--uni-field-bg);
   border: 1px solid var(--uni-border);
   border-radius: 8px;
   outline: none;
@@ -748,7 +766,7 @@ ul, ol { list-style: none; }
   border-color: var(--uni-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
-.uni-login-input:disabled { background: #f9fafb; color: var(--uni-text-muted); }
+.uni-login-input:disabled { background: var(--uni-row-hover); color: var(--uni-text-muted); }
 .uni-login-password { position: relative; }
 .uni-login-password .uni-login-input { padding-right: 38px; }
 .uni-login-password button {

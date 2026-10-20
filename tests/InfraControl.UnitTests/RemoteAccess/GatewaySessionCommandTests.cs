@@ -5,6 +5,7 @@ using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.RemoteAccess;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -243,7 +244,7 @@ public sealed class GatewaySessionCommandTests : IDisposable
 
         var closed = await new CloseRemoteSessionCommandHandler(
                 new RemoteSessionRepository(context), new RemoteConnectionRegistry())
-            .Handle(new CloseRemoteSessionCommand(device.Id, opened.Id), CancellationToken.None);
+            .Handle(new CloseRemoteSessionCommand(device.Id, opened.SessionId), CancellationToken.None);
 
         closed.Status.Should().Be("Closed");
         closed.EndedAt.Should().NotBeNull();

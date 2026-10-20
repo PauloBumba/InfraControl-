@@ -4,15 +4,15 @@ using InfraControl.Domain.Enums;
 namespace InfraControl.Domain.Events;
 
 /// <summary>
-/// F33-T004/ADR-059 §decisões 2/3: alerta <b>Critical</b> criado (os 3
-/// pontos de criação — Alert.Create nativo, CreateExternal Zabbix,
-/// EvaluateVerdictAsync prevenção — passam pelas fábricas do Alert).
-/// Warning e alerta que nasce Suppressed NÃO levantam (o incidente
-/// upstream já foi notificado pelo IncidentCreatedDomainEvent). O
-/// NotificationEventConsumer avisa Operator+Admin; a 2ª mensagem
-/// "Incidente aberto" vem do próprio IncidentCreatedDomainEvent da
-/// abertura — 2 mensagens distintas para o mesmo problema (decisão
-/// explícita do usuário, ADR-059 §decisões 3).
+/// F33-T004/ADR-059 (decisões 2/3): alerta <b>Critical</b> criado (nativo
+/// F6, prevenção F30 ou externo Zabbix ADR-027 — todos passam por
+/// Alert.Create/CreateExternal). O NotificationEventConsumer avisa as
+/// roles Operator e Admin; a segunda mensagem da decisão 3 ("Incidente
+/// aberto") é o IncidentCreatedDomainEvent do incidente garantido no
+/// MESMO fluxo (F6-T003 nativo / ADR-027 §3 externo) — por isso
+/// <see cref="HasIncident"/> nasce <c>true</c>. Warning NÃO levanta;
+/// Critical que nasce Suppressed (vítima de incidente upstream —
+/// Alert.Suppress) também não: o grupo já recebe o incidente raiz.
 /// </summary>
 public sealed class AlertCreatedDomainEvent : DomainEvent
 {
@@ -20,28 +20,21 @@ public sealed class AlertCreatedDomainEvent : DomainEvent
         Guid alertId,
         AlertSeverity severity,
         Guid? deviceId,
-        string message)
+        string message,
+        bool hasIncident)
     {
         AlertId = alertId;
         Severity = severity;
         DeviceId = deviceId;
         Message = message;
+        HasIncident = hasIncident;
     }
 
     public Guid AlertId { get; }
     public AlertSeverity Severity { get; }
     public Guid? DeviceId { get; }
     public string Message { get; }
-
-    /// <summary>
-    /// O alerta Critical acompanha um incidente (F6-T003/ADR-027). Nasce
-    /// <c>false</c> na fábrica do Alert; o avaliador marca
-    /// <c>true</c> depois de garantir o vínculo
-    /// (<c>Alert.SetHasIncident</c>) — evento ainda não despachado
-    /// nesse ponto (dispatch é no SaveChanges).
-    /// </summary>
-    public bool HasIncident { get; internal set; }
-
+    public bool HasIncident { get; }
     public override string EventType => nameof(AlertCreatedDomainEvent);
 }
 

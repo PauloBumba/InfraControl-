@@ -64,3 +64,24 @@ export function closeSession(
     `/inventory/devices/${deviceId}/remote/sessions/${sessionId}`,
   );
 }
+
+/** Sessão mintada no gateway (F34-T007, ADR-060) — o token é de uso único
+ * na URL `{path}?token=…` (janela nova); o navegador nunca vê credencial. */
+export interface RemoteGatewaySession {
+  sessionId: string;
+  protocol: "Ssh" | "Rdp";
+  token: string;
+  path: string;
+}
+
+/**
+ * Abre sessão pelo gateway Guacamole (Operate) → 201. Falhas pt-BR do
+ * backend: device sem IP/SO → 400; sem credencial ou gateway fora → 409.
+ */
+export function openGatewaySession(
+  deviceId: string,
+): Promise<RemoteGatewaySession | null> {
+  return api.post<RemoteGatewaySession>(
+    `/inventory/devices/${deviceId}/remote/sessions/gateway`,
+  );
+}

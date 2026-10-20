@@ -153,90 +153,71 @@ public sealed class AlertTests
         alert.ResolvedAt.Should().BeNull();
     }
 
-    // ── F33-T004/ADR-059: AlertCreatedDomainEvent (só Critical) ───────
+    // ── F33-T004/ADR-059: AlertCreatedDomainEvent (só Critical) ──────
 
     [Fact]
-    public void Create_Critical_ShouldRaiseAlertCreatedWithFields()
+    public void Create_Critical_ShouldRaiseAlertCreatedDomainEvent()
     {
         var device = Guid.NewGuid();
         var alert = Alert.Create(
             device, CheckKind.Ping, AlertSeverity.Critical,
             "Device 'sw-01' está fora do ar (ping falhou).");
 
+        // Critical sempre garante incidente no mesmo fluxo (F6-T003).
         var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
         created.AlertId.Should().Be(alert.Id);
         created.Severity.Should().Be(AlertSeverity.Critical);
         created.DeviceId.Should().Be(device);
-        created.Message.Should().Contain("sw-01");
-        created.HasIncident.Should().BeFalse("o avaliador marca após garantir o vínculo");
-        created.EventType.Should().Be(nameof(AlertCreatedDomainEvent));
+        created.Message.Should().Be("Device 'sw-01' está fora do ar (ping falhou).");
+        created.HasIncident.Should().BeTrue();
     }
 
     [Fact]
-    public void Create_Warning_ShouldNotRaiseAlertCreated()
+    public void Create_Warning_ShouldNotRaiseAlertCreatedDomainEvent()
     {
         var alert = Alert.Create(
-            Guid.NewGuid(), CheckKind.SnmpToner, AlertSeverity.Warning, "toner 18%");
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Warning, "latência alta");
 
         alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
-            "Warning não vira notificação (ADR-059 §6 — volume mínimo)");
+            "só Critical notifica (decisão 2 do ADR-059: eventos = Critical)");
     }
 
     [Fact]
-    public void CreateExternal_Critical_ShouldRaiseAlertCreated()
+    public void CreateExternal_Critical_ShouldRaiseAlertCreatedDomainEvent()
     {
         var alert = Alert.CreateExternal(
-            Guid.NewGuid(), "ext-42", Guid.NewGuid(), kind: null,
-            AlertSeverity.Critical, "Host 'db-01' sem resposta.",
-            MonitoringSource.Zabbix);
+            Guid.NewGuid(), "10451", Guid.NewGuid(), kind: null,
+            AlertSeverity.Critical, "CPU em 98%", MonitoringSource.Zabbix);
 
         var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
         created.AlertId.Should().Be(alert.Id);
         created.Severity.Should().Be(AlertSeverity.Critical);
-        created.Message.Should().Contain("db-01");
+        created.Message.Should().Be("CPU em 98%");
+        created.HasIncident.Should().BeTrue(
+            "externo Critical garante incidente no mesmo fluxo (ADR-027 §3)");
     }
 
     [Fact]
-    public void CreateExternal_Warning_ShouldNotRaiseAlertCreated()
+    public void CreateExternal_Warning_ShouldNotRaiseAlertCreatedDomainEvent()
     {
         var alert = Alert.CreateExternal(
-            Guid.NewGuid(), "ext-43", Guid.NewGuid(), kind: null,
-            AlertSeverity.Warning, "CPU 75%.",
-            MonitoringSource.Zabbix);
+            Guid.NewGuid(), "10452", Guid.NewGuid(), kind: null,
+            AlertSeverity.Warning, "disco em 85%", MonitoringSource.Zabbix);
 
         alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty();
     }
 
     [Fact]
-    public void Suppress_WithPendingAlertCreated_ShouldDropIt()
+    public void Suppress_AtBirth_ShouldRemovePendingAlertCreatedDomainEvent()
     {
         var alert = Alert.Create(
             Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
 
+        // Vítima de incidente upstream (F6-T004) — nasce Suppressed.
         alert.Suppress();
 
-        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
-            "suprimido não notifica 'Alerta criado' — o incidente upstream já avisou");
         alert.Status.Should().Be(AlertStatus.Suppressed);
-    }
-
-    [Fact]
-    public void SetHasIncident_ShouldMarkPendingEventOnly()
-    {
-        var alert = Alert.Create(
-            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
-
-        alert.SetHasIncident();
-
-        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single()
-            .HasIncident.Should().BeTrue();
-
-        // No-op quando não há evento pendente (alerta já existente).
-        var warning = Alert.Create(
-            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Warning, "cpu 70%");
-        var action = () => warning.SetHasIncident();
-
-        action.Should().NotThrow();
-        warning.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty();
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "o grupo já recebe o Incidente aberto do incidente raiz — sem duplicar");
     }
 }

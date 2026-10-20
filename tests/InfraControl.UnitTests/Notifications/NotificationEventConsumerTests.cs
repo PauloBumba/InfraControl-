@@ -765,4 +765,74 @@ public sealed class NotificationEventConsumerTests : IDisposable
         (await context.NotificationDeliveries.AsNoTracking()
             .CountAsync(d => d.Channel == NotificationChannel.Slack)).Should().Be(0);
     }
+
+    // ── F33-T004/ADR-059: AlertCreatedDomainEvent (Critical) ─────────
+
+    /// <summary>
+    /// Decisões 2/3: alerta Critical avisa Operator + Admin; no WhatsApp
+    /// com GroupId o fanout deduplica em UMA delivery por notificação
+    /// (a 2ª mensagem "Incidente aberto" vem do
+    /// IncidentCreatedDomainEvent do incidente garantido no mesmo fluxo).
+    /// </summary>
+    [Fact]
+    public async Task Consume_AlertCreated_ShouldNotifyOperatorAdminAndQueueSingleWhatsAppDelivery()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions { GroupId = "120363431225988863@g.us" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "op@exemplo.test", "Operador", UserRole.Operator));
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "admin@exemplo.test", "Admin", UserRole.Admin));
+        await context.SaveChangesAsync();
+        var domainEvent = new AlertCreatedDomainEvent(
+            Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(),
+            "Device 'sw-01' está fora do ar (ping falhou).", hasIncident: true);
+
+        await consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Alerta Critical criado",
+            $"O alerta '{domainEvent.Message}' foi aberto ({domainEvent.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            CancellationToken.None);
+
+        var notification = await context.Notifications.AsNoTracking().SingleAsync();
+        notification.EventId.Should().Be(domainEvent.EventId);
+        notification.Title.Should().Be("Alerta Critical criado");
+        notification.Message.Should().Contain("sw-01").And.Contain("(Critical)");
+
+        var roles = await context.NotificationRecipients.AsNoTracking()
+            .Select(recipient => recipient.Role).ToListAsync();
+        roles.Should().BeEquivalentTo(["Operator", "Admin"]);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(delivery => delivery.Channel == NotificationChannel.WhatsApp))
+            .Should().Be(1, "grupo é destino único — 1 delivery por notificação (T003)");
+    }
+
+    /// <summary>Inbox ×2 (docs/06): reentrega do RabbitMQ não duplica.</summary>
+    [Fact]
+    public async Task Consume_AlertCreatedSameEventTwice_ShouldNotDuplicate()
+    {
+        var (context, consumer) = await CreateAsync();
+        var domainEvent = new AlertCreatedDomainEvent(
+            Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(),
+            "CPU em 98%", hasIncident: true);
+        var handle = () => consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Alerta Critical criado",
+            $"O alerta '{domainEvent.Message}' foi aberto ({domainEvent.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            CancellationToken.None);
+
+        await handle();
+        await handle();
+
+        (await context.Notifications.AsNoTracking().CountAsync()).Should().Be(1);
+        (await context.NotificationRecipients.AsNoTracking().CountAsync()).Should().Be(2);
+        (await context.ProcessedMessages.AsNoTracking().CountAsync()).Should().Be(1);
+    }
 }

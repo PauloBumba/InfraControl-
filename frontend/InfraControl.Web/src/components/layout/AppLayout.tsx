@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router-dom";
 import { Badge } from "primereact/badge";
 import { Menu } from "primereact/menu";
+import type { MenuItem } from "primereact/menuitem";
 import { navigation, secondaryNavigation, type NavItem } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
@@ -21,6 +22,7 @@ import {
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 import { canReach, routeLevel } from "@/app/router/access";
 import { allNavItems, labelForRoute } from "@/app/router/routeLabels";
+import { readStoredTheme, toggleTheme, type Theme } from "@/services/theme";
 
 /**
  * `activeRoute` é a **rota** atual (identidade), não o rótulo — F29-T005.
@@ -89,6 +91,15 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
 
   const [signingOut, setSigningOut] = useState(false);
 
+  // Tema claro/escuro (2026-10-19 — "alterar a cor" = alternar tema): a
+  // preferência vive no localStorage (services/theme.ts) e o efeito é o
+  // atributo data-theme no <html>, que redeclara as variáveis --uni-*.
+  const [theme, setTheme] = useState<Theme>(readStoredTheme);
+
+  const handleToggleTheme = useCallback(() => {
+    setTheme((current) => toggleTheme(current));
+  }, []);
+
   const handleLogout = useCallback(async () => {
     setSigningOut(true);
     try {
@@ -102,14 +113,26 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     }
   }, [dispatch, routerNavigate]);
 
-  // Dropdown do usuário no footer do sidebar
+  // Dropdown do usuário — as MESMAS opções nos DOIS dropdowns (footer do
+  // sidebar e avatar do header): perfil (/account com nome), troca de senha
+  // (/account, seção Segurança), tema claro/escuro e sair.
   const userMenuRef = useRef<Menu>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuItems = [
+  const userMenuItems: MenuItem[] = [
     {
-      label: "Minha Conta",
+      label: "Meu perfil",
+      icon: "pi pi-user",
+      command: () => routerNavigate("/account"),
+    },
+    {
+      label: "Alterar senha",
       icon: "pi pi-key",
       command: () => routerNavigate("/account"),
+    },
+    {
+      label: theme === "dark" ? "Tema claro" : "Tema escuro",
+      icon: theme === "dark" ? "pi pi-sun" : "pi pi-moon",
+      command: handleToggleTheme,
     },
     {
       label: signingOut ? "Saindo…" : "Sair",
@@ -119,14 +142,22 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     },
   ];
 
-  // Dropdown do sidebar — decisão 2026-10-14: o filho expande DENTRO do
-  // sidebar, sob o pai; o `<Menu>` popup flutuante saiu. A identidade é a
-  // ROTA (F29-T005), não o label: os dois "Zabbix" não podem dividir o
-  // estado de expandido.
-  const [expandedRoute, setExpandedRoute] = useState<string | null>(null);
-  const toggleExpanded = useCallback((route: string) => {
-    setExpandedRoute((current) => (current === route ? null : route));
-  }, []);
+  // Avatar do header (2026-10-19): as MESMAS opções da conta num popup
+  // próprio — o footer do sidebar não sai (decisão: adicionar, não mover).
+  const topbarUserMenuRef = useRef<Menu>(null);
+  const [topbarMenuOpen, setTopbarMenuOpen] = useState(false);
+
+  // Dropdown do sidebar — decisão 2026-10-19: REVERTE a de 2026-10-14. O
+  // filho abre num `<Menu>` POPUP, um Menu POR PAI com filho (UniFi/Zabbix):
+  // cada instância mantém o `target` do próprio outside-click vivo (o
+  // `useOverlayListener` só refaz o lookup quando `when` muda — dois
+  // gatilhos numa instância só deixariam o listener velho e o 2º clique
+  // fecharia em vez de abrir o outro). A identidade continua sendo a ROTA
+  // (F29-T005), não o label; `onShow`/`onHide` são a fonte da verdade do
+  // estado aberto, então `aria-expanded` volta ao repouso mesmo após
+  // clique fora ou Escape.
+  const navMenuRefs = useRef<Record<string, Menu | null>>({});
+  const [openNavRoute, setOpenNavRoute] = useState<string | null>(null);
 
   // Real dynamic badges (F18-T008 / F17-T009)
   const [sidebarBadges, setSidebarBadges] = useState<{
@@ -285,56 +316,74 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     (item.items ?? []).some((child) => child.route === activeRoute || hasActiveChild(child));
 
   /**
-   * Linha do sidebar. Item com filho vira dropdown INLINE (decisão
-   * 2026-10-14): o clique no pai navega para a própria rota E alterna a
-   * expansão; os filhos aparecem logo abaixo, num `.uni-nav-sublist`.
+   * Filhos → `MenuItem` do popup, com o MESMO filtro de role dos pais
+   * (`canSee`): exibição apenas — quem autoriza de verdade é o backend.
+   */
+  const toMenuItems = (items: NavItem[]): MenuItem[] =>
+    items
+      .filter((child) => canSee(child.route))
+      .map((child) => ({
+        label: child.label,
+        icon: child.icon,
+        command: () => navigate(child.route),
+        ...(child.items?.length ? { items: toMenuItems(child.items) } : {}),
+      }));
+
+  /**
+   * Linha do sidebar. Item com filho abre um dropdown POPUP flutuante
+   * (decisão 2026-10-19): o clique no pai navega para a própria rota E
+   * alterna o menu com os filhos; o inline (`.uni-nav-sublist`) saiu.
    *
-   * Com o sidebar recolhido (60px, só ícones) não cabe submenu — o pai
-   * continua navegando e o usuário expande o sidebar para alcançar os filhos.
+   * Com o sidebar recolhido (60px) o popup ABRE normalmente — ele flutua
+   * por cima (antes o inline não cabia). A seta usa só a rotação do CSS
+   * (`.expanded` → 180°, com transição): trocar o ícone PARA cima E
+   * rotacionar faria a seta apontar para baixo com o grupo aberto.
    */
   const renderNavItem = (item: NavItem) => {
-    const children = (item.items ?? []).filter((child) => canSee(child.route));
+    const children = toMenuItems(item.items ?? []);
     const hasSubmenu = children.length > 0;
-    const expanded = hasSubmenu && (expandedRoute === item.route || hasActiveChild(item));
+    const expanded = hasSubmenu && openNavRoute === item.route;
     const badge = getItemBadge(item.label, item.badge);
+    // Contexto do grupo: o popup não abre sozinho numa rota-filha, então o
+    // pai acende quando a rota corrente é dele ou de um filho.
+    const context = activeRoute === item.route || hasActiveChild(item);
 
     return (
       <li key={item.route}>
         <button
-          className={`uni-nav-item ${activeRoute === item.route ? "active" : ""} ${expanded ? "expanded" : ""}`}
+          className={`uni-nav-item ${context ? "active" : ""} ${expanded ? "expanded" : ""}`}
           aria-current={activeRoute === item.route ? "page" : undefined}
+          aria-haspopup={hasSubmenu ? "menu" : undefined}
           aria-expanded={hasSubmenu ? expanded : undefined}
-          onClick={() => {
-            // F29-T005: o pai navega para a própria rota; o submenu abre
-            // como atalho para os filhos.
+          onClick={(event) => {
+            // F29-T005: o pai navega para a própria rota; o popup abre/
+            // fecha como atalho para os filhos.
             navigate(item.route);
-            if (hasSubmenu && !sidebarCollapsed) toggleExpanded(item.route);
+            if (!hasSubmenu) return;
+            const menu = navMenuRefs.current[item.route];
+            if (expanded) menu?.hide(event);
+            else menu?.show(event);
           }}
           title={item.label}
         >
           <i className={item.icon} />
           <span>{item.label}</span>
-          {hasSubmenu && (
-            <i className={`pi ${expanded ? "pi-angle-up" : "pi-angle-down"} uni-nav-arrow`} />
-          )}
+          {hasSubmenu && <i className="pi pi-angle-down uni-nav-arrow" />}
           {badge && <Badge value={badge} className="uni-nav-badge" />}
         </button>
-        {hasSubmenu && expanded && !sidebarCollapsed && (
-          <ul className="uni-nav-sublist">
-            {children.map((child) => (
-              <li key={child.route}>
-                <button
-                  className={`uni-nav-subitem ${activeRoute === child.route ? "active" : ""}`}
-                  aria-current={activeRoute === child.route ? "page" : undefined}
-                  onClick={() => navigate(child.route)}
-                  title={child.label}
-                >
-                  <i className={child.icon} />
-                  <span>{child.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        {hasSubmenu && (
+          <Menu
+            ref={(element) => {
+              navMenuRefs.current[item.route] = element;
+            }}
+            model={children}
+            popup
+            aria-label={item.label}
+            onShow={() => setOpenNavRoute(item.route)}
+            onHide={() =>
+              setOpenNavRoute((current) => (current === item.route ? null : current))
+            }
+          />
         )}
       </li>
     );
@@ -462,23 +511,24 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                   style={{
                     position: "absolute", top: "calc(100% + 6px)", right: 0,
                     width: 340, maxHeight: 380, overflowY: "auto",
-                    background: "white", border: "1px solid #e5e7eb",
+                    background: "var(--uni-dropdown-bg)",
+                    border: "1px solid var(--uni-border)",
                     borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                     zIndex: 60, padding: 6,
                   }}
                 >
                   {searching && (
-                    <div style={{ padding: "10px 10px", fontSize: 12, color: "#6b7280" }}>
+                    <div style={{ padding: "10px 10px", fontSize: 12, color: "var(--uni-text-muted)" }}>
                       Buscando…
                     </div>
                   )}
                   {!searching && searchError && (
-                    <div style={{ padding: "10px 10px", fontSize: 12, color: "#b91c1c" }}>
+                    <div style={{ padding: "10px 10px", fontSize: 12, color: "var(--uni-red)" }}>
                       {searchError}
                     </div>
                   )}
                   {!searching && !searchError && searchResults.length === 0 && (
-                    <div style={{ padding: "10px 10px", fontSize: 12, color: "#9ca3af" }}>
+                    <div style={{ padding: "10px 10px", fontSize: 12, color: "var(--uni-text-muted)" }}>
                       Nada encontrado para "{searchTerm.trim()}".
                     </div>
                   )}
@@ -496,18 +546,18 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                           cursor: navigable ? "pointer" : "default",
                         }}
                         onMouseEnter={(event) => {
-                          if (navigable) event.currentTarget.style.background = "#f3f4f6";
+                          if (navigable) event.currentTarget.style.background = "var(--uni-dropdown-hover)";
                         }}
                         onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                       >
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "#f1f5f9", color: "#475569", flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "var(--uni-hover)", color: "var(--uni-text-secondary)", flexShrink: 0 }}>
                           {SEARCH_TYPE_LABEL[item.type] ?? item.type}
                         </span>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "#1f2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--uni-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {item.name}
                         </span>
                         {item.subtitle && (
-                          <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: "auto", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, color: "var(--uni-text-muted)", marginLeft: "auto", flexShrink: 0 }}>
                             {item.subtitle}
                           </span>
                         )}
@@ -515,7 +565,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                     );
                   })}
                   {!searching && !searchError && searchTotal > searchResults.length && (
-                    <div style={{ padding: "6px 8px", fontSize: 10, color: "#9ca3af", borderTop: "1px solid #f3f4f6", marginTop: 4 }}>
+                    <div style={{ padding: "6px 8px", fontSize: 10, color: "var(--uni-text-muted)", borderTop: "1px solid var(--uni-divider)", marginTop: 4 }}>
                       {searchResults.length} de {searchTotal} resultados — refine a busca
                     </div>
                   )}
@@ -538,8 +588,8 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                     top: "calc(100% + 6px)",
                     right: 0,
                     width: 180,
-                    background: "white",
-                    border: "1px solid #e5e7eb",
+                    background: "var(--uni-dropdown-bg)",
+                    border: "1px solid var(--uni-border)",
                     borderRadius: 8,
                     boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                     zIndex: 60,
@@ -565,7 +615,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       cursor: "pointer",
                       textAlign: "left",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--uni-dropdown-hover)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <i className="pi pi-server" style={{ color: "#3b82f6" }} />
@@ -590,7 +640,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       cursor: "pointer",
                       textAlign: "left",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--uni-dropdown-hover)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <i className="pi pi-exclamation-triangle" style={{ color: "#ef4444" }} />
@@ -615,7 +665,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                       cursor: "pointer",
                       textAlign: "left",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--uni-dropdown-hover)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <i className="pi pi-check-square" style={{ color: "#06b6d4" }} />
@@ -637,7 +687,24 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                 <span className="uni-notif-badge">{sidebarBadges.notifications}</span>
               )}
             </button>
-            <div className="uni-topbar-avatar" title={displayName}>{initials}</div>
+            <button
+              className="uni-topbar-avatar"
+              title={displayName}
+              aria-label={`Opções de ${displayName}`}
+              aria-haspopup="menu"
+              aria-expanded={topbarMenuOpen}
+              onClick={(event) => topbarUserMenuRef.current?.toggle(event)}
+            >
+              {initials}
+            </button>
+            <Menu
+              ref={topbarUserMenuRef}
+              model={userMenuItems}
+              popup
+              aria-label="Opções da conta"
+              onShow={() => setTopbarMenuOpen(true)}
+              onHide={() => setTopbarMenuOpen(false)}
+            />
           </div>
         </header>
 
