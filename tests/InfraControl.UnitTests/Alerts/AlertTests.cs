@@ -152,4 +152,91 @@ public sealed class AlertTests
         alert.Status.Should().Be(AlertStatus.Open);
         alert.ResolvedAt.Should().BeNull();
     }
+
+    // ── F33-T004/ADR-059: AlertCreatedDomainEvent (só Critical) ───────
+
+    [Fact]
+    public void Create_Critical_ShouldRaiseAlertCreatedWithFields()
+    {
+        var device = Guid.NewGuid();
+        var alert = Alert.Create(
+            device, CheckKind.Ping, AlertSeverity.Critical,
+            "Device 'sw-01' está fora do ar (ping falhou).");
+
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.AlertId.Should().Be(alert.Id);
+        created.Severity.Should().Be(AlertSeverity.Critical);
+        created.DeviceId.Should().Be(device);
+        created.Message.Should().Contain("sw-01");
+        created.HasIncident.Should().BeFalse("o avaliador marca após garantir o vínculo");
+        created.EventType.Should().Be(nameof(AlertCreatedDomainEvent));
+    }
+
+    [Fact]
+    public void Create_Warning_ShouldNotRaiseAlertCreated()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.SnmpToner, AlertSeverity.Warning, "toner 18%");
+
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "Warning não vira notificação (ADR-059 §6 — volume mínimo)");
+    }
+
+    [Fact]
+    public void CreateExternal_Critical_ShouldRaiseAlertCreated()
+    {
+        var alert = Alert.CreateExternal(
+            Guid.NewGuid(), "ext-42", Guid.NewGuid(), kind: null,
+            AlertSeverity.Critical, "Host 'db-01' sem resposta.",
+            MonitoringSource.Zabbix);
+
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.AlertId.Should().Be(alert.Id);
+        created.Severity.Should().Be(AlertSeverity.Critical);
+        created.Message.Should().Contain("db-01");
+    }
+
+    [Fact]
+    public void CreateExternal_Warning_ShouldNotRaiseAlertCreated()
+    {
+        var alert = Alert.CreateExternal(
+            Guid.NewGuid(), "ext-43", Guid.NewGuid(), kind: null,
+            AlertSeverity.Warning, "CPU 75%.",
+            MonitoringSource.Zabbix);
+
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Suppress_WithPendingAlertCreated_ShouldDropIt()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+
+        alert.Suppress();
+
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "suprimido não notifica 'Alerta criado' — o incidente upstream já avisou");
+        alert.Status.Should().Be(AlertStatus.Suppressed);
+    }
+
+    [Fact]
+    public void SetHasIncident_ShouldMarkPendingEventOnly()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+
+        alert.SetHasIncident();
+
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single()
+            .HasIncident.Should().BeTrue();
+
+        // No-op quando não há evento pendente (alerta já existente).
+        var warning = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Warning, "cpu 70%");
+        var action = () => warning.SetHasIncident();
+
+        action.Should().NotThrow();
+        warning.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty();
+    }
 }

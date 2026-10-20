@@ -29,6 +29,7 @@ public sealed class NotificationEventCatalogTests
             nameof(InvitationAcceptedDomainEvent),
             nameof(IncidentCreatedDomainEvent),
             nameof(IncidentResolvedDomainEvent),
+            nameof(AlertCreatedDomainEvent),
             nameof(AlertResolvedDomainEvent),
             nameof(PdiCreatedDomainEvent),
             nameof(PdiUpdatedDomainEvent),
@@ -65,6 +66,7 @@ public sealed class NotificationEventCatalogTests
         [
             nameof(IncidentCreatedDomainEvent),
             nameof(IncidentResolvedDomainEvent),
+            nameof(AlertCreatedDomainEvent),
             nameof(AlertResolvedDomainEvent),
         ]);
         identity.Select(e => e.EventType).Should().Contain(

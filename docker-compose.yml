@@ -241,6 +241,11 @@ services:
       OpenTelemetry__Endpoint: http://otel-collector:4317
       DataProtection__KeyRingPath: /app/var/data-protection-keys
       RemoteAccess__CredentialEncryption__Key: ${CREDENTIAL_ENCRYPTION_KEY:-3ewHa9GEGWR7P+141SZYke9RTS71FmBw36PESzVgR+k=}
+      # F34-T007 / ADR-060 D2 — SSO do gateway: a API minta o token
+      # server-to-server (header X-Remote-User) neste endpoint INTERNO.
+      # Só alcançável na rede do compose; sem o profile `remote` o valor
+      # permanece e o serviço cai → erro pt-BR explícito na ficha.
+      RemoteAccess__Guacamole__BaseUrl: http://guacamole:8080/guacamole
       ProjectEvidence__StoragePath: var/project-evidence
       # Fase AI (ADR-041): base URL do Ollama DENTRO da rede do compose —
       # DNS por nome de serviço, nunca localhost entre containers (§48).

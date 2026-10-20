@@ -65,6 +65,22 @@ public sealed class RemoteSessionsController(ISender sender) : BaseController
                 new OpenRdpSessionCommand(deviceId), cancellationToken)));
 
     /// <summary>
+    /// Abre uma sessão pelo GATEWAY Guacamole (F34-T007, ADR-060): valida
+    /// IP + SO + credencial, minta token SSO (header auth server-to-server)
+    /// e registra a sessão. Devolve <c>{sessionId, protocol, token,
+    /// path}</c> — o front abre <c>{origin}{path}?token=…</c> em nova aba.
+    /// </summary>
+    [HttpPost("gateway")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> OpenGatewaySession(
+        Guid deviceId,
+        CancellationToken cancellationToken = default)
+        => StatusCode(
+            StatusCodes.Status201Created,
+            ApiResponse.Ok(await sender.Send(
+                new OpenRemoteGatewaySessionCommand(deviceId), cancellationToken)));
+
+    /// <summary>
     /// Encerra a sessão de acesso remoto (SSH/RDP) e descarta a conexão
     /// (F11-T003: comando protocolo-agnóstico).
     /// </summary>

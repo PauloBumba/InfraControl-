@@ -324,3 +324,79 @@ describe("DevicesPage — aba Por Switch com query pendente (H4)", () => {
     expect(listSwitchPortsMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * F34-T006 (ADR-060) — SO do equipamento: o select só existe para os
+ * tipos com acesso remoto (espelha o guard do domínio) e o valor viaja
+ * no payload de criação (default = omitido → coluna null).
+ */
+describe("DevicesPage — SO do equipamento (F34-T006)", () => {
+  it("should show the OS select only for remote-access-eligible types", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await openCreate(user);
+
+    // Sem tipo selecionado (ou incompatível) não existe o campo.
+    expect(
+      within(form()).queryByRole("combobox", { name: "Sistema operacional" }),
+    ).toBeNull();
+
+    fireEvent.change(tipo(), { target: { value: "Printer" } });
+    expect(
+      within(form()).queryByRole("combobox", { name: "Sistema operacional" }),
+    ).toBeNull();
+
+    fireEvent.change(tipo(), { target: { value: "Server" } });
+    expect(
+      within(form()).getByRole("combobox", { name: "Sistema operacional" }),
+    ).toBeInTheDocument();
+  });
+
+  it("should send operatingSystem in the create payload when chosen", async () => {
+    createDeviceMock.mockResolvedValue(null);
+    renderPage();
+    const user = userEvent.setup();
+    await openCreate(user);
+
+    await user.type(nome(), "srv-web-01");
+    fireEvent.change(tipo(), { target: { value: "Server" } });
+    fireEvent.change(localizacao(), { target: { value: "loc-1" } });
+    fireEvent.change(
+      within(form()).getByRole("combobox", { name: "Sistema operacional" }),
+      { target: { value: "Windows" } },
+    );
+
+    submit();
+
+    await vi.waitFor(() =>
+      expect(createDeviceMock).toHaveBeenCalledWith(
+        expect.objectContaining({ operatingSystem: "Windows" }),
+      ),
+    );
+  });
+
+  it("should omit operatingSystem when the type is ineligible", async () => {
+    createDeviceMock.mockResolvedValue(null);
+    renderPage();
+    const user = userEvent.setup();
+    await openCreate(user);
+
+    await user.type(nome(), "prt-01");
+    fireEvent.change(tipo(), { target: { value: "Server" } });
+    fireEvent.change(localizacao(), { target: { value: "loc-1" } });
+    fireEvent.change(
+      within(form()).getByRole("combobox", { name: "Sistema operacional" }),
+      { target: { value: "Linux" } },
+    );
+    // Troca para tipo incompatível: o SO estale não pode viajar (400 do guard).
+    fireEvent.change(tipo(), { target: { value: "Printer" } });
+
+    submit();
+
+    await vi.waitFor(() =>
+      expect(createDeviceMock).toHaveBeenCalledWith(
+        expect.objectContaining({ operatingSystem: undefined }),
+      ),
+    );
+  });
+});

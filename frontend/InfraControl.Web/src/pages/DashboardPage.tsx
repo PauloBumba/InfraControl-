@@ -140,6 +140,7 @@ export function DashboardPage() {
   const [openAlertTotal, setOpenAlertTotal] = useState(0);
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
   const [incidentTotal, setIncidentTotal] = useState(0);
+  const [openIncidentTotal, setOpenIncidentTotal] = useState(0);
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [clientTotal, setClientTotal] = useState(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -158,10 +159,13 @@ export function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [devicePage, alertPage, incidentPage, clientPage, taskPage] = await Promise.all([
+      const [devicePage, alertPage, incidentPage, openIncidentPage, clientPage, taskPage] = await Promise.all([
         listDevices({ pageSize: 6 }),
         listAlerts({ status: "open", pageSize: 100 }),
         listIncidents({ pageSize: 5 }),
+        // M7: "active" = != Resolved no servidor — o totalCount é o número
+        // real de abertos (filtrar no front sobre a 1ª página mentia o KPI).
+        listIncidents({ status: "active", pageSize: 1 }),
         listClients("", 1, 5),
         listTasks({ pageSize: 100 }),
       ]);
@@ -171,6 +175,7 @@ export function DashboardPage() {
       setOpenAlertTotal(alertPage.totalCount);
       setIncidents(incidentPage.items);
       setIncidentTotal(incidentPage.totalCount);
+      setOpenIncidentTotal(openIncidentPage.totalCount);
       setClients(clientPage.items);
       setClientTotal(clientPage.totalCount);
       setTasks(taskPage.items);
@@ -281,7 +286,6 @@ export function DashboardPage() {
   const openTasks = tasks.filter((task) => !TERMINAL_TASK_STATES.includes(task.state));
   const inProgressTasks = openTasks.filter((task) => task.state === "InProgress");
   const criticalOpenAlerts = openAlerts.filter((alert) => alert.severity === "Critical");
-  const openIncidents = incidents.filter((inc) => inc.status !== "Resolved");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -432,7 +436,7 @@ export function DashboardPage() {
           label="Incidentes"
           value={loading ? "…" : String(incidentTotal)}
           color="#ef4444"
-          sub={`${openIncidents.length} em aberto`}
+          sub={`${openIncidentTotal} em aberto`}
           onClick={() => navigate("/incidents")}
         />
         <MiniStat

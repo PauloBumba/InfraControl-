@@ -17,6 +17,14 @@ public abstract class AggregateRoot : Entity
         _domainEvents.Add(domainEvent);
     }
 
+    /// <summary>
+    /// Remove pendentes de um tipo ainda não despachados (F33-T004:
+    /// Alert.Suppress descarta o AlertCreatedDomainEvent — suprimido não
+    /// notifica "Alerta criado").
+    /// </summary>
+    protected void RemoveDomainEvents<TEvent>() where TEvent : IDomainEvent
+        => _domainEvents.RemoveAll(domainEvent => domainEvent is TEvent);
+
     public void ClearDomainEvents()
     {
         _domainEvents.Clear();

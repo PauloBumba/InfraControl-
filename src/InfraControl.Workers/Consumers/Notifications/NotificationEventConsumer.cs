@@ -33,6 +33,7 @@ public sealed class NotificationEventConsumer(
       IConsumer<InvitationAcceptedDomainEvent>,
       IConsumer<IncidentCreatedDomainEvent>,
       IConsumer<IncidentResolvedDomainEvent>,
+      IConsumer<AlertCreatedDomainEvent>,
       IConsumer<AlertResolvedDomainEvent>,
       IConsumer<PdiCreatedDomainEvent>,
       IConsumer<PdiUpdatedDomainEvent>
@@ -64,6 +65,22 @@ public sealed class NotificationEventConsumer(
             context.Message.EventType,
             "Incidente resolvido",
             $"O incidente '{context.Message.Title}' foi resolvido ({context.Message.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            context.CancellationToken);
+
+    /// <summary>
+    /// F33-T004/ADR-059 §decisões 2/3: alerta Critical criado →
+    /// Operator + Admin. A 2ª mensagem do problema ("Incidente aberto")
+    /// vem do próprio IncidentCreatedDomainEvent da abertura do
+    /// incidente — 2 mensagens distintas, decisão explícita do usuário.
+    /// </summary>
+    public Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Alerta criado",
+            $"O alerta '{context.Message.Message}' foi criado ({context.Message.Severity}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken);

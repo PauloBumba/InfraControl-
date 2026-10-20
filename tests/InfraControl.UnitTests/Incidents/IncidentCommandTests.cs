@@ -208,6 +208,39 @@ public sealed class IncidentCommandTests : IDisposable
         filtered.Items.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// M7 (caça-bugs): "active" = qualquer estado != Resolved — o KPI do
+    /// Dashboard usa o totalCount do servidor em vez de filtrar a 1ª página.
+    /// </summary>
+    [Fact]
+    public async Task Search_ActiveStatus_ShouldCountAllUnresolved()
+    {
+        await using var context = await CreateContextAsync();
+        var create = CreateHandler(context);
+        var first = await create.Handle(
+            new CreateIncidentCommand("resolved-me", IncidentSeverity.Critical),
+            CancellationToken.None);
+        var second = await create.Handle(
+            new CreateIncidentCommand("investigating-me", IncidentSeverity.Low),
+            CancellationToken.None);
+        await create.Handle(
+            new CreateIncidentCommand("still-open", IncidentSeverity.Medium),
+            CancellationToken.None);
+
+        await new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
+            new UpdateIncidentStatusCommand(first.Id, "resolved"),
+            CancellationToken.None);
+        await new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
+            new UpdateIncidentStatusCommand(second.Id, "investigating"),
+            CancellationToken.None);
+
+        var active = await new SearchIncidentsQueryHandler(Repo(context)).Handle(
+            new SearchIncidentsQuery(Status: "active"), CancellationToken.None);
+
+        active.TotalCount.Should().Be(2, "resolved fica de fora; investigating e open contam");
+        active.Items.Select(i => i.Title).Should().BeEquivalentTo(["investigating-me", "still-open"]);
+    }
+
     [Fact]
     public async Task Search_InvalidStatus_ShouldThrowArgumentPtBr()
     {

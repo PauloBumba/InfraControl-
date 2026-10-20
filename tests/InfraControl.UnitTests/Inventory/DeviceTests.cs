@@ -227,4 +227,47 @@ public sealed class DeviceTests
         action.Should().Throw<ArgumentException>()
             .WithMessage($"O servidor SIP do device pode ter no máximo {Device.SipServerMaxLength} caracteres.*");
     }
+
+    [Fact]
+    public void Create_WithOperatingSystem_ShouldPersistOnServer()
+    {
+        var device = Device.Create(
+            SomeLocationId, "srv-01", DeviceType.Server,
+            operatingSystem: DeviceOperatingSystem.Windows);
+
+        device.OperatingSystem.Should().Be(DeviceOperatingSystem.Windows);
+    }
+
+    [Fact]
+    public void Create_WithoutOperatingSystem_ShouldLeaveNull()
+    {
+        var device = Device.Create(SomeLocationId, "sw-01", DeviceType.Switch);
+
+        device.OperatingSystem.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_WithOperatingSystemOnUnsupportedType_ShouldThrowPtBrMessage()
+    {
+        var action = () => Device.Create(
+            SomeLocationId, "printer-01", DeviceType.Printer,
+            operatingSystem: DeviceOperatingSystem.Linux);
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("O sistema operacional só pode ser informado para*");
+    }
+
+    [Fact]
+    public void Update_ShouldApplyAndClearOperatingSystem()
+    {
+        var device = Device.Create(
+            SomeLocationId, "srv-02", DeviceType.Server,
+            operatingSystem: DeviceOperatingSystem.Linux);
+
+        device.Update("srv-02", DeviceType.Server, null, operatingSystem: DeviceOperatingSystem.Windows);
+        device.OperatingSystem.Should().Be(DeviceOperatingSystem.Windows);
+
+        device.Update("srv-02", DeviceType.Server, null, operatingSystem: null);
+        device.OperatingSystem.Should().BeNull();
+    }
 }

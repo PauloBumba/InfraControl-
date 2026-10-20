@@ -453,6 +453,19 @@ public static class DependencyInjection
         services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
 
+        // F34-T007 / ADR-060 D2 — SSO do gateway (Guacamole): minta de token
+        // server-to-server via header X-Remote-User. BaseUrl só no profile
+        // remote (env no compose); vazio = erro pt-BR explícito no handler.
+        services.AddHttpClient(GuacamoleGateway.HttpClientName, (sp, client) =>
+        {
+            var baseUrl = sp.GetRequiredService<IConfiguration>()
+                .GetSection(GuacamoleGateway.BaseUrlKey).Value;
+            if (!string.IsNullOrWhiteSpace(baseUrl))
+                client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<IGuacamoleGateway, GuacamoleGateway>();
+
         // Outbox
         services.AddScoped<IInboxStore, InboxStore>();
         services.AddScoped<IAuditWriter, AuditWriter>();

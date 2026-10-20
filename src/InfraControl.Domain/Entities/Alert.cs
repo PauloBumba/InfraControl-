@@ -43,7 +43,7 @@ public sealed class Alert : AggregateRoot
         if (string.IsNullOrWhiteSpace(message))
             throw new ArgumentException("A mensagem do alerta é obrigatória.", nameof(message));
 
-        return new Alert
+        var alert = new Alert
         {
             DeviceId = deviceId,
             Kind = kind,
@@ -52,6 +52,13 @@ public sealed class Alert : AggregateRoot
             Status = AlertStatus.Open,
             Message = message.Trim()
         };
+
+        // F33-T004/ADR-059: só Critical vira notificação "Alerta criado".
+        if (severity == AlertSeverity.Critical)
+            alert.RaiseDomainEvent(
+                new AlertCreatedDomainEvent(alert.Id, severity, deviceId, alert.Message));
+
+        return alert;
     }
 
     /// <summary>
@@ -79,7 +86,7 @@ public sealed class Alert : AggregateRoot
         if (source == MonitoringSource.Native)
             throw new ArgumentException("A fonte de um alerta externa não pode ser Native.", nameof(source));
 
-        return new Alert
+        var alert = new Alert
         {
             MonitoringEventId = monitoringEventId,
             ExternalProblemId = externalProblemId.Trim(),
@@ -90,6 +97,13 @@ public sealed class Alert : AggregateRoot
             Status = AlertStatus.Open,
             Message = message.Trim()
         };
+
+        // F33-T004/ADR-059: só Critical vira notificação "Alerta criado".
+        if (severity == AlertSeverity.Critical)
+            alert.RaiseDomainEvent(
+                new AlertCreatedDomainEvent(alert.Id, severity, deviceId, alert.Message));
+
+        return alert;
     }
 
     public void Resolve()
@@ -107,8 +121,25 @@ public sealed class Alert : AggregateRoot
     /// <summary>F6-T004: Open → Suppressed (upstream com incidente aberto).</summary>
     public void Suppress()
     {
-        if (Status == AlertStatus.Open)
-            Status = AlertStatus.Suppressed;
+        if (Status != AlertStatus.Open)
+            return;
+
+        Status = AlertStatus.Suppressed;
+
+        // F33-T004/ADR-059: suprimido não notifica "Alerta criado" — o
+        // incidente upstream já foi notificado pelo IncidentCreated.
+        RemoveDomainEvents<AlertCreatedDomainEvent>();
+    }
+
+    /// <summary>
+    /// F33-T004: o avaliador marca o vínculo de incidente no evento ainda
+    /// pendente (dispatch dos domain events é no SaveChanges, posterior).
+    /// No-op quando não há AlertCreated pendente (alerta já existente).
+    /// </summary>
+    public void SetHasIncident()
+    {
+        foreach (var domainEvent in DomainEvents.OfType<AlertCreatedDomainEvent>())
+            domainEvent.HasIncident = true;
     }
 
     /// <summary>

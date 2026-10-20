@@ -45,10 +45,14 @@ public interface IIncidentRepository : IRepository<Incident>
     Task<IReadOnlyList<Guid>> GetLinkedIdsToAlertAsync(
         Guid alertId, CancellationToken cancellationToken = default);
 
-    /// <summary>Paginado, mais recente primeiro — filtros device/status.</summary>
+    /// <summary>
+    /// Paginado, mais recente primeiro — filtros device/status.
+    /// M7 (caça-bugs): <paramref name="statuses"/> é um IN de estados
+    /// (ex.: todos exceto Resolved para "abertos"); null = sem filtro.
+    /// </summary>
     Task<PagedResult<IncidentWithAlertCount>> SearchAsync(
         Guid? deviceId,
-        IncidentStatus? status,
+        IReadOnlyCollection<IncidentStatus>? statuses,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);

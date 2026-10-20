@@ -98,6 +98,24 @@ const typeNames: Record<string, string> = {
 };
 const DEVICE_TYPES = Object.keys(typeNames);
 
+/**
+ * F34-T006 (ADR-060) — SO informado do equipamento. Só aparece para os
+ * tipos com acesso remoto (espelha o guard em Device.Update): com SO
+ * registrado a ficha oferece "Acesso remoto" pelo gateway (F34-T007).
+ */
+const OPERATING_SYSTEM_NAMES: Record<string, string> = {
+  Windows: "Windows",
+  Linux: "Linux",
+  Other: "Outro",
+};
+const OS_ELIGIBLE_TYPES = new Set([
+  "Server",
+  "Workstation",
+  "VirtualMachine",
+  "Router",
+  "Firewall",
+]);
+
 export function DevicesPage() {
   const navigate = useNavigate();
   const [view, setView] = useEntityViewMode("devices", "grid");
@@ -127,6 +145,7 @@ export function DevicesPage() {
   const [model, setModel] = useState("");
   const [vendor, setVendor] = useState("");
   const [description, setDescription] = useState("");
+  const [operatingSystem, setOperatingSystem] = useState("");
   // F29-T001C-2 — as três validações aqui são de TRÊS campos diferentes
   // (nome, tipo, localização), e esta página era a única do recorte sem um
   // sequer `FormField`: os recados saíam todos no mesmo `<div>` no pé do
@@ -213,6 +232,7 @@ export function DevicesPage() {
     setModel("");
     setVendor("");
     setDescription("");
+    setOperatingSystem("");
     resetFormError();
     setCreating(true);
   }
@@ -227,6 +247,7 @@ export function DevicesPage() {
     setModel(device.model ?? "");
     setVendor(device.vendor ?? "");
     setDescription(device.description ?? "");
+    setOperatingSystem(device.operatingSystem ?? "");
     resetFormError();
     setCreating(true);
   }
@@ -248,6 +269,10 @@ export function DevicesPage() {
       return;
     }
     resetFormError();
+    // SO só viaja para tipos elegíveis (espelha o guard do domínio — evita
+    // 400 quando o usuário seleciona SO e troca o tipo para um incompatível).
+    const operatingSystemPayload =
+      operatingSystem && OS_ELIGIBLE_TYPES.has(type) ? operatingSystem : undefined;
     try {
       if (editing) {
         await updateMutation.mutateAsync({
@@ -258,6 +283,7 @@ export function DevicesPage() {
           model: model.trim() || undefined,
           vendor: vendor.trim() || undefined,
           description: description.trim() || undefined,
+          operatingSystem: operatingSystemPayload,
         });
       } else {
         await createMutation.mutateAsync({
@@ -268,6 +294,7 @@ export function DevicesPage() {
           model: model.trim() || undefined,
           vendor: vendor.trim() || undefined,
           description: description.trim() || undefined,
+          operatingSystem: operatingSystemPayload,
         });
       }
       setCreating(false);
@@ -414,6 +441,23 @@ export function DevicesPage() {
                 style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
               />
             </FormField>
+            {OS_ELIGIBLE_TYPES.has(type) && (
+              <FormField label="Sistema operacional" error={null}>
+                <SelectField
+                  value={operatingSystem}
+                  onChange={setOperatingSystem}
+                  placeholder="SO (opcional)"
+                  style={{ width: "100%" }}
+                  options={[
+                    { value: "", label: "SO (opcional)" },
+                    ...Object.entries(OPERATING_SYSTEM_NAMES).map(([value, label]) => ({
+                      value,
+                      label,
+                    })),
+                  ]}
+                />
+              </FormField>
+            )}
           </div>
           <FormField label="Descrição" error={null}>
             <textarea

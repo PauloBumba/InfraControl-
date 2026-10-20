@@ -41,6 +41,9 @@ public static class NotificationEventCatalog
             "IncidentResolvedDomainEvent", "Operational",
             "Incidente resolvido (só o InfraControl decide — regra 7 ADR-028)."),
         new(
+            "AlertCreatedDomainEvent", "Operational",
+            "Alerta de monitoramento Critical criado (ADR-059 — só Critical vira notificação)."),
+        new(
             "AlertResolvedDomainEvent", "Operational",
             "Alerta de monitoramento resolvido."),
         new(
