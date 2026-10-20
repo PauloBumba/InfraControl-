@@ -16,7 +16,8 @@ public sealed record PendingDeliveryItem(
     string Message,
     string EventType,
     DateTime CreatedAt,
-    string? RecipientEmail);
+    string? RecipientEmail,
+    Guid? DeviceId = null);
 
 public interface INotificationDeliveryRepository : IRepository<NotificationDelivery>
 {

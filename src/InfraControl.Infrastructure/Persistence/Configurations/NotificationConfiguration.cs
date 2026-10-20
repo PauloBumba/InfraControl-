@@ -34,6 +34,9 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .HasMaxLength(Notification.MessageMaxLength)
             .IsRequired();
 
+        builder.Property(x => x.DeviceId)
+            .HasColumnName("device_id");
+
         builder.Property(x => x.CreateDateTime)
             .HasColumnName("create_datetime")
             .IsRequired();

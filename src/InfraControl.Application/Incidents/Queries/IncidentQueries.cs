@@ -24,10 +24,10 @@ public sealed class SearchIncidentsQueryHandler(IIncidentRepository repository)
     {
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
-        var status = ParseStatus(request.Status);
+        var statuses = ParseStatuses(request.Status);
 
         var result = await repository.SearchAsync(
-            request.DeviceId, status, page, pageSize, cancellationToken);
+            request.DeviceId, statuses, page, pageSize, cancellationToken);
 
         return new PagedResult<IncidentDto>(
             result.Items.Select(item => IncidentDto.From(
@@ -35,18 +35,30 @@ public sealed class SearchIncidentsQueryHandler(IIncidentRepository repository)
             result.TotalCount, result.Page, result.PageSize);
     }
 
-    internal static IncidentStatus? ParseStatus(string? status)
+    /// <summary>
+    /// M7 (caça-bugs): "active" = qualquer estado != Resolved (KPI do
+    /// Dashboard precisa do totalCount de abertos — filtrar no front sobre
+    /// a 1ª página mentia o número). Nome de enum continua aceito
+    /// (case-insensitive) e devolve coleção unitária; null/vazio = sem filtro.
+    /// </summary>
+    internal static IReadOnlyCollection<IncidentStatus>? ParseStatuses(string? status)
     {
         if (string.IsNullOrWhiteSpace(status))
             return null;
 
-        if (!Enum.TryParse(status.Trim(), ignoreCase: true, out IncidentStatus parsed))
+        var trimmed = status.Trim();
+        if (string.Equals(trimmed, "active", StringComparison.OrdinalIgnoreCase))
+            return Enum.GetValues<IncidentStatus>()
+                .Where(value => value != IncidentStatus.Resolved)
+                .ToArray();
+
+        if (!Enum.TryParse(trimmed, ignoreCase: true, out IncidentStatus parsed))
             throw new ArgumentException(
-                $"Status inválido: '{status}'. Use open, investigating, "
+                $"Status inválido: '{status}'. Use active, open, investigating, "
                 + "identified, monitoring ou resolved.",
                 nameof(status));
 
-        return parsed;
+        return [parsed];
     }
 }
 

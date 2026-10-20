@@ -869,7 +869,8 @@ public sealed class AlertEvaluator(
 
         if (severity == AlertSeverity.Critical)
         {
-            // F6-T003: Alert Critical auto-abre Incident.
+            // F6-T003: Alert Critical auto-abre Incident (o evento
+            // AlertCreated nasce com HasIncident=true — F33-T004/ADR-059).
             await EnsureIncidentAsync(device, active, cancellationToken);
         }
 

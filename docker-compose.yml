@@ -241,6 +241,20 @@ services:
       OpenTelemetry__Endpoint: http://otel-collector:4317
       DataProtection__KeyRingPath: /app/var/data-protection-keys
       RemoteAccess__CredentialEncryption__Key: ${CREDENTIAL_ENCRYPTION_KEY:-3ewHa9GEGWR7P+141SZYke9RTS71FmBw36PESzVgR+k=}
+      # F34-T007 dev: credencial de teste do Credential Store (host fake
+      # 10.0.0.50) para exercitar o mint de token do gateway em dev.
+      RemoteAccess__Ssh__Username: ${REMOTE_SSH_USERNAME:-infracontrol_dev}
+      RemoteAccess__Ssh__Password: ${REMOTE_SSH_PASSWORD:-InfraControl_Dev_2026}
+      # F34-T007 / ADR-060 D2 — SSO do gateway: a API minta o token
+      # server-to-server (header X-Remote-User) neste endpoint INTERNO.
+      # Só alcançável na rede do compose; sem o profile `remote` o valor
+      # permanece e o serviço cai → erro pt-BR explícito na ficha.
+      RemoteAccess__Guacamole__BaseUrl: http://guacamole:8080/guacamole
+      # F34-T008: REST de administração cria/granta conexão do device
+      # server-to-server (senha nunca chega ao navegador — D4).
+      RemoteAccess__Guacamole__AdminUser: ${GUACAMOLE_ADMIN_USER:-guacadmin}
+      RemoteAccess__Guacamole__AdminPassword: ${GUACAMOLE_ADMIN_PASSWORD:-guacadmin_dev_password_2026}
+      RemoteAccess__Guacamole__DataSource: ${GUACAMOLE_DATASOURCE:-postgresql}
       ProjectEvidence__StoragePath: var/project-evidence
       # Fase AI (ADR-041): base URL do Ollama DENTRO da rede do compose —
       # DNS por nome de serviço, nunca localhost entre containers (§48).

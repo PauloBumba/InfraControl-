@@ -74,7 +74,7 @@ public sealed class IncidentRepository(AppDbContext dbContext)
 
     public async Task<PagedResult<IncidentWithAlertCount>> SearchAsync(
         Guid? deviceId,
-        IncidentStatus? status,
+        IReadOnlyCollection<IncidentStatus>? statuses,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -82,7 +82,7 @@ public sealed class IncidentRepository(AppDbContext dbContext)
         var query =
             from incident in dbContext.Incidents.AsNoTracking()
             where (deviceId == null || incident.DeviceId == deviceId)
-                && (status == null || incident.Status == status)
+                && (statuses == null || statuses.Contains(incident.Status))
             orderby incident.CreateDateTime descending
             select incident;
 

@@ -30,6 +30,12 @@ import {
   type MonitoringResultItem,
 } from "@/services/api/monitoring";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
+import {
+  closeSession,
+  listDeviceSessions,
+  openGatewaySession,
+  type RemoteSessionItem,
+} from "@/services/api/remoteSessions";
 import { formatDateTime, formatUptime } from "@/utils/format";
 import { errorMessage, useObjectQuery } from "@/hooks/queries";
 
@@ -141,6 +147,12 @@ export function DeviceDetailPage() {
   const [portsTotal, setPortsTotal] = useState(0);
   const [portsLoading, setPortsLoading] = useState(false);
 
+  // F34-T007 (ADR-060) — histórico de sessões de acesso remoto na ficha +
+  // botão que minta token no gateway (server-to-server; senha nunca no front).
+  const [sessions, setSessions] = useState<RemoteSessionItem[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [gatewayOpening, setGatewayOpening] = useState(false);
+
   // Abas carregam uma vez (ref síncrono protege do duplo-effect do StrictMode).
   const requested = useRef<Set<Tab>>(new Set());
 
@@ -176,6 +188,7 @@ export function DeviceDetailPage() {
     setAddrTotals({ networkInterfaces: 0, ipAddresses: 0, macAddresses: 0 });
     setPorts([]);
     setPortsTotal(0);
+    setSessions([]);
     setLoading(true);
     setError(null);
     setNotFound(false);
@@ -197,6 +210,59 @@ export function DeviceDetailPage() {
   useEffect(() => {
     void loadDevice();
   }, [loadDevice]);
+
+  // F34-T007 — sessões do device (leitura barata; recarrega após abrir/
+  // encerrar). Falha esconde a lista com "—" (mesmo molde dos polls).
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    setRemoteLoading(true);
+    listDeviceSessions(id, 20)
+      .then((data) => {
+        if (!cancelled) setSessions(data?.sessions ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSessions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRemoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  async function openRemoteGateway() {
+    if (!id) return;
+    setGatewayOpening(true);
+    try {
+      const opened = await openGatewaySession(id);
+      if (opened) {
+        // Monta a URL no ORIGIN atual (nginx → /guacamole/) — sem senha,
+        // sem config de host no backend (D2/D4).
+        window.open(
+          `${opened.path}?token=${encodeURIComponent(opened.token)}`,
+          "_blank",
+          "noopener",
+        );
+      }
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setGatewayOpening(false);
+    }
+  }
+
+  async function endRemoteSession(sessionId: string) {
+    if (!id) return;
+    try {
+      await closeSession(id, sessionId);
+      const data = await listDeviceSessions(id, 20);
+      setSessions(data?.sessions ?? []);
+    } catch (caught) {
+      setError(errorMessage(caught));
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -368,6 +434,25 @@ export function DeviceDetailPage() {
         <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: `${color}15`, color }}>
           {device.type}
         </span>
+        {/* F34-T007 (ADR-060 D1/D2) — só aparece com SO informado (F34-T006):
+            o backend valida permissão/credencial e minta o token; o navegador
+            só abre a aba do gateway. */}
+        {device.operatingSystem && (
+          <button
+            onClick={() => void openRemoteGateway()}
+            disabled={gatewayOpening}
+            title={`Abrir ${device.operatingSystem === "Windows" ? "RDP" : "SSH"} pelo gateway de acesso remoto`}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+              borderRadius: 6, border: "1px solid #2563eb", background: "#2563eb",
+              color: "white", fontSize: 12, fontWeight: 600,
+              cursor: gatewayOpening ? "wait" : "pointer", opacity: gatewayOpening ? 0.7 : 1,
+            }}
+          >
+            <i className="pi pi-external-link" style={{ fontSize: 11 }} />
+            {gatewayOpening ? "Abrindo…" : "Acesso remoto"}
+          </button>
+        )}
       </div>
 
       {/* Info bar */}
@@ -412,6 +497,7 @@ export function DeviceDetailPage() {
 
       {/* Geral */}
       {tab === "geral" && (
+        <>
         <div className="uni-panel">
           <div className="uni-panel-header"><h2>Identificação</h2></div>
           <div className="uni-panel-body">
@@ -422,6 +508,7 @@ export function DeviceDetailPage() {
             <InfoRow label="Serial" value={device.serial ?? "—"} />
             <InfoRow label="Modelo" value={device.model ?? "—"} />
             <InfoRow label="Vendor" value={device.vendor ?? "—"} />
+            <InfoRow label="Sistema operacional" value={device.operatingSystem ?? "—"} />
             <InfoRow label="Localização" value={locations[device.locationId] ?? device.locationId} />
             <InfoRow label="Descrição" value={device.description ?? "—"} />
             <InfoRow label="Perfil de checks" value={device.profileIsCustom ? "personalizado (override)" : "padrão do tipo"} />
@@ -441,6 +528,66 @@ export function DeviceDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* F34-T007 (ADR-060) — histórico de sessões do gateway/SSH/RDP:
+            início, fim, usuário e resultado (critério da task). */}
+        <div className="uni-panel" style={{ marginTop: 12 }}>
+          <div className="uni-panel-header">
+            <h2>Sessões de acesso remoto</h2>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>mais recentes primeiro</span>
+          </div>
+          <div className="uni-panel-body">
+            {sessions.length === 0 ? (
+              <span style={{ fontSize: 12, color: "#6b7280" }}>
+                {remoteLoading ? "Carregando…" : "Nenhuma sessão registrada."}
+              </span>
+            ) : (
+              sessions.map((session) => (
+                <div
+                  key={session.id}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "8px 0",
+                    fontSize: 12, borderTop: "1px solid #f3f4f6",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4,
+                      background: session.protocol === "Rdp" ? "#eff6ff" : "#f0fdf4",
+                      color: session.protocol === "Rdp" ? "#2563eb" : "#15803d",
+                    }}
+                  >
+                    {session.protocol === "Rdp" ? "RDP" : "SSH"}
+                  </span>
+                  <span style={{ color: "#64748b" }}>{formatDateTime(new Date(session.startedAt))}</span>
+                  {session.status === "Active" ? (
+                    <StatusChip label="Ativa" background="#f0fdf4" color="#15803d" fontWeight={600} fontSize={10} />
+                  ) : session.status === "Closed" ? (
+                    <StatusChip label="Encerrada" background="#f1f5f9" color="#64748b" fontWeight={600} fontSize={10} />
+                  ) : (
+                    <StatusChip label={`Falha${session.failureReason ? `: ${session.failureReason}` : ""}`} background="#fef2f2" color="#dc2626" fontWeight={600} fontSize={10} />
+                  )}
+                  {session.endedAt && (
+                    <span style={{ color: "#94a3b8" }}>→ {formatDateTime(new Date(session.endedAt))}</span>
+                  )}
+                  {session.status === "Active" && (
+                    <button
+                      onClick={() => void endRemoteSession(session.id)}
+                      style={{
+                        marginLeft: "auto", padding: "3px 10px", borderRadius: 6,
+                        border: "1px solid #e2e8f0", background: "white", color: "#dc2626",
+                        fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Encerrar
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        </>
       )}
 
       {/* Monitoramento */}

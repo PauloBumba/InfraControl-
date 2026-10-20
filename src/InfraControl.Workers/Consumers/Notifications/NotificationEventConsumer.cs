@@ -53,7 +53,8 @@ public sealed class NotificationEventConsumer(
             $"O incidente '{context.Message.Title}' foi aberto ({context.Message.Severity}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
-            context.CancellationToken);
+            context.CancellationToken,
+            deviceId: context.Message.DeviceId);
 
     /// <summary>
     /// F19-T007: resolução do incidente (regra 7: só o InfraControl decide)
@@ -67,7 +68,8 @@ public sealed class NotificationEventConsumer(
             $"O incidente '{context.Message.Title}' foi resolvido ({context.Message.Severity}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
-            context.CancellationToken);
+            context.CancellationToken,
+            deviceId: context.Message.DeviceId);
 
     /// <summary>
     /// F33-T004/ADR-059 (decisões 2/3): alerta Critical criado → Operator
@@ -83,7 +85,8 @@ public sealed class NotificationEventConsumer(
             $"O alerta '{context.Message.Message}' foi aberto ({context.Message.Severity}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
-            context.CancellationToken);
+            context.CancellationToken,
+            deviceId: context.Message.DeviceId);
 
     /// <summary>F19-T007: alerta resolvido → Operator + Admin.</summary>
     public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
@@ -94,7 +97,8 @@ public sealed class NotificationEventConsumer(
             $"O alerta '{context.Message.Message}' foi resolvido.",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
-            context.CancellationToken);
+            context.CancellationToken,
+            deviceId: context.Message.DeviceId);
 
     /// <summary>
     /// PDI criado (docs/29 §8, regra do usuário 2026-10-04): notifica o
@@ -262,11 +266,14 @@ public sealed class NotificationEventConsumer(
         Guid? recipientUserId,
         string[] recipientRoles,
         CancellationToken cancellationToken,
-        NotificationChannel[]? channels = null)
+        NotificationChannel[]? channels = null,
+        Guid? deviceId = null)
     {
         // Valida antes de marcar o inbox — erro de domínio não pode virar
         // mensagem perdida (processed sem notification).
-        var notification = Notification.Create(eventId, eventType, title, message);
+        // F33-T005: DeviceId do evento viaja até o worker de WhatsApp
+        // (série histórica do gráfico no Zabbix).
+        var notification = Notification.Create(eventId, eventType, title, message, deviceId);
 
         var firstDelivery = await inboxStore.TryMarkProcessedAsync(
             eventId, ConsumerName, cancellationToken);

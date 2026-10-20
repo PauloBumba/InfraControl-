@@ -116,6 +116,70 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
 
     // ── Policies (spec ADR-059 §4 — idêntica ao n8n) ─────────────────
 
+    // ── F33-T005: sendMedia + fallback texto ──────────────────────────
+
+    [Fact]
+    public async Task SendAsync_WithChart_ShouldPostSendMediaWithCaptionAndPng()
+    {
+        var recording = new RecordingHandler();
+        var dispatcher = Create(recording);
+        var message = Message() with { Chart = Chart() };
+
+        await dispatcher.SendAsync(message);
+
+        recording.Request!.RequestUri!.ToString()
+            .Should().Be("http://evolution.exemplo.test/message/sendMedia/infracontrol");
+        recording.Request.Headers.GetValues("apikey").Single()
+            .Should().Be("chave-secreta");
+
+        var body = JsonDocument.Parse(recording.Body!);
+        body.RootElement.GetProperty("number").GetString()
+            .Should().Be("120363431225988863@g.us");
+        body.RootElement.GetProperty("mediatype").GetString().Should().Be("image");
+        body.RootElement.GetProperty("mimetype").GetString().Should().Be("image/png");
+        body.RootElement.GetProperty("fileName").GetString()
+            .Should().Be("infracontrol-evento.png");
+        body.RootElement.GetProperty("caption").GetString()
+            .Should().Contain("Alerta resolvido")
+            .And.Contain("sw-01");
+        var media = body.RootElement.GetProperty("media").GetString()!;
+        Convert.FromBase64String(media).Should().StartWith([0x89, 0x50, 0x4E, 0x47]);
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenRendererFails_ShouldFallbackToText()
+    {
+        var recording = new RecordingHandler();
+        var dispatcher = Create(recording, renderer: new ThrowingRenderer());
+
+        await dispatcher.SendAsync(Message() with { Chart = Chart() });
+
+        recording.Request!.RequestUri!.ToString()
+            .Should().EndWith("/message/sendText/infracontrol",
+                "geração do PNG falhou → o evento NUNCA fica por enviar");
+        var body = JsonDocument.Parse(recording.Body!);
+        body.RootElement.GetProperty("text").GetString()
+            .Should().Contain("Alerta resolvido");
+    }
+
+    [Fact]
+    public async Task SendAsync_WhenMediaFails_ShouldFallbackToText()
+    {
+        var recording = new RecordingHandler(HttpStatusCode.InternalServerError);
+        var dispatcher = Create(recording);
+
+        var send = () => dispatcher.SendAsync(Message() with { Chart = Chart() });
+
+        // Sem Polly no harness de teste, o 5xx do sendMedia vira exceção
+        // INTERNAMENTE tratada → degrada para sendText (que aqui também
+        // responde 5xx → a exceção final sobe para o worker).
+        await send.Should().ThrowAsync<HttpRequestException>();
+
+        recording.Request!.RequestUri!.ToString()
+            .Should().EndWith("/message/sendText/infracontrol",
+                "falha de rede no sendMedia → fallback texto");
+    }
+
     [Fact]
     public void RetryOptions_ShouldMatchSpecOfThreeExponentialRetries()
     {
@@ -213,13 +277,23 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
             "Alerta resolvido", "O alerta 'sw-01' foi resolvido.",
             DateTime.UtcNow);
 
+    private static IncidentChartData Chart()
+        => new(
+            ChartCardKind.Incident, "Alerta Critical criado", "sw-01",
+            "Critical", DateTime.UtcNow,
+            [
+                new ChartSeriesPoint(DateTime.UtcNow.AddMinutes(-30), 92),
+                new ChartSeriesPoint(DateTime.UtcNow.AddMinutes(-10), 98)
+            ]);
+
     private static EvolutionApiWhatsAppNotificationDispatcher Create(
         HttpMessageHandler handler,
         string groupId = "120363431225988863@g.us",
         string phone = "5511999999999",
         string baseUrl = "http://evolution.exemplo.test",
         string apiKey = "chave-secreta",
-        string instanceId = "infracontrol")
+        string instanceId = "infracontrol",
+        IIncidentImageRenderer? renderer = null)
     {
         var factory = new SingleClientFactory(handler);
         var options = Options.Create(new NotificationChannelsOptions
@@ -236,7 +310,20 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
 
         return new EvolutionApiWhatsAppNotificationDispatcher(
             factory, options,
+            renderer ?? new FakeRenderer(),
             NullLogger<EvolutionApiWhatsAppNotificationDispatcher>.Instance);
+    }
+
+    private sealed class FakeRenderer : IIncidentImageRenderer
+    {
+        public byte[] RenderPng(IncidentChartData data)
+            => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
+    }
+
+    private sealed class ThrowingRenderer : IIncidentImageRenderer
+    {
+        public byte[] RenderPng(IncidentChartData data)
+            => throw new InvalidOperationException("fonte indisponível");
     }
 
     private sealed class SingleClientFactory(HttpMessageHandler handler) : IHttpClientFactory

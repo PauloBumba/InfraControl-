@@ -27,6 +27,8 @@ export interface DeviceItem {
   extension?: string | null;
   /** F30-T006c (docs/47 §A) — servidor SIP (PBX) do telefone (opt-in). */
   sipServer?: string | null;
+  /** F34-T006 (ADR-060) — SO informado; null = sem "Acesso remoto" na ficha. */
+  operatingSystem?: string | null;
   monitoringChecks: string[];
   profileIsCustom: boolean;
 }
@@ -206,6 +208,7 @@ export function createDevice(input: {
   model?: string;
   vendor?: string;
   description?: string;
+  operatingSystem?: string;
 }): Promise<DeviceItem | null> {
   return api.post<DeviceItem>("/inventory/devices", {
     locationId: input.locationId,
@@ -215,6 +218,7 @@ export function createDevice(input: {
     model: input.model || undefined,
     vendor: input.vendor || undefined,
     description: input.description || undefined,
+    operatingSystem: input.operatingSystem || undefined,
   });
 }
 
@@ -231,6 +235,7 @@ export async function updateDevice(
     model?: string;
     vendor?: string;
     description?: string;
+    operatingSystem?: string;
   },
 ): Promise<null> {
   return api.put<null>(`/inventory/devices/${id}`, {
@@ -240,6 +245,7 @@ export async function updateDevice(
     model: input.model || null,
     vendor: input.vendor || null,
     description: input.description || null,
+    operatingSystem: input.operatingSystem || null,
   });
 }
 

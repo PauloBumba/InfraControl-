@@ -31,6 +31,11 @@ export interface PagedIncidents {
 }
 
 export interface IncidentFilters {
+  /**
+   * Nome do enum (Open/Investigating/Identified/Monitoring/Resolved) ou o
+   * alias `active` = qualquer estado != Resolved (M7 — o Dashboard usa o
+   * totalCount do servidor para o KPI "em aberto").
+   */
   status?: string;
   deviceId?: string;
   page?: number;

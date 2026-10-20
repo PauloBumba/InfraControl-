@@ -19,10 +19,19 @@ public sealed class Notification : Entity
     public string Title { get; private set; } = string.Empty;
     public string Message { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// F33-T005/ADR-059: device do evento de origem (Alert/Incident) —
+    /// carregado até o worker de WhatsApp para buscar a série histórica
+    /// no Zabbix e renderizar o gráfico da mensagem. Nulos para eventos
+    /// sem device (Identity/PDI).
+    /// </summary>
+    public Guid? DeviceId { get; private set; }
+
     private Notification() { }
 
     public static Notification Create(
-        Guid eventId, string eventType, string title, string message)
+        Guid eventId, string eventType, string title, string message,
+        Guid? deviceId = null)
     {
         if (eventId == Guid.Empty)
             throw new ArgumentException("O evento de origem é obrigatório.", nameof(eventId));
@@ -53,7 +62,8 @@ public sealed class Notification : Entity
             EventId = eventId,
             EventType = eventType.Trim(),
             Title = title.Trim(),
-            Message = message.Trim()
+            Message = message.Trim(),
+            DeviceId = deviceId
         };
     }
 }

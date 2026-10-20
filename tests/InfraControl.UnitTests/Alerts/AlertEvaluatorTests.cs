@@ -2,6 +2,7 @@ using FluentAssertions;
 using InfraControl.Application.Alerts;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
+using InfraControl.Domain.Events;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Services;
 using InfraControl.Infrastructure.Repositories;
@@ -1932,5 +1933,84 @@ public sealed class AlertEvaluatorTests : IDisposable
 
         (await OpenAlertsAsync(context, phone.Id, CheckKind.YealinkCallQuality))
             .Should().BeEmpty("falha da API não avalia qualidade");
+    }
+
+    // ── F33-T004/ADR-059: AlertCreatedDomainEvent pelos 3 pontos ──────
+
+    /// <summary>
+    /// Prevenção (EvaluateVerdictAsync → OpenOrSuppressAsync) com
+    /// Critical: evento levantado com HasIncident=true (auto-abertura do
+    /// incidente F6-T003 acontece no mesmo ciclo).
+    /// </summary>
+    [Fact]
+    public async Task EvaluateVerdict_Critical_ShouldRaiseAlertCreatedWithIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+
+        await Evaluator(context).EvaluateVerdictAsync(
+            device, CheckKind.Ping, AlertSeverity.Critical,
+            "Device 'sw-01' está fora do ar (ping falhou).",
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        // Query SEM AsNoTracking → instância trackeada com os eventos
+        // pendentes (o contexto de teste não tem IMediator — não despacha).
+        var alert = await context.Alerts.SingleAsync(a => a.DeviceId == device.Id);
+
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.AlertId.Should().Be(alert.Id);
+        created.Severity.Should().Be(AlertSeverity.Critical);
+        created.Message.Should().Contain("sw-01");
+        created.HasIncident.Should().BeTrue("Critical auto-abre incidente (F6-T003)");
+        (await OpenIncidentsAsync(context, device.Id)).Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task EvaluateVerdict_Warning_ShouldNotRaiseAlertCreated()
+    {
+        await using var context = await CreateContextAsync();
+        var device = await SeedDeviceAsync(context);
+
+        await Evaluator(context).EvaluateVerdictAsync(
+            device, CheckKind.Ping, AlertSeverity.Warning,
+            "CPU 75% (prevenção).",
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var alert = await context.Alerts.SingleAsync(a => a.DeviceId == device.Id);
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "Warning não vira notificação (ADR-059 §6)");
+    }
+
+    /// <summary>
+    /// Prevenção em device com incidente upstream: o alerta nasce
+    /// Suppressed → o AlertCreated pendente é descartado (o incidente
+    /// upstream já foi notificado pelo IncidentCreated).
+    /// </summary>
+    [Fact]
+    public async Task EvaluateVerdict_CriticalWithUpstreamIncident_ShouldNotRaiseAlertCreated()
+    {
+        await using var context = await CreateContextAsync();
+        var up = await SeedDeviceAsync(context, name: "sw-core");
+        var down = await SeedDeviceAsync(context, name: "sw-edge");
+        await ConnectAsync(context, up, down);
+        var rootIncident = Incident.Create(
+            "core fora do ar", IncidentSeverity.Critical, deviceId: up.Id);
+        context.Incidents.Add(rootIncident);
+        await context.SaveChangesAsync();
+
+        await Evaluator(context).EvaluateVerdictAsync(
+            down, CheckKind.Ping, AlertSeverity.Critical,
+            "Device 'sw-edge' está fora do ar (ping falhou).",
+            CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        var alert = await context.Alerts.SingleAsync(a => a.DeviceId == down.Id);
+        alert.Status.Should().Be(AlertStatus.Suppressed);
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "suprimido não notifica 'Alerta criado'");
+        (await OpenIncidentsAsync(context, down.Id)).Should().BeEmpty(
+            "downstream não cria incidente próprio enquanto suprimido");
     }
 }

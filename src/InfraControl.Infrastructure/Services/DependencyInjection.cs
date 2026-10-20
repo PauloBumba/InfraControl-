@@ -53,6 +53,7 @@ using InfraControl.Infrastructure.Integrations.Unifi;
 using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.NetworkServices;
+using InfraControl.Infrastructure.Notifications;
 using InfraControl.Infrastructure.NetworkServices.Ports;
 using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
@@ -258,6 +259,11 @@ public static class DependencyInjection
                 "evolution-api",
                 static (builder, _) => EvolutionApiWhatsAppNotificationDispatcher.ConfigureResilience(builder));
 
+        // F33-T005/ADR-059 decisão 7: cartão PNG (SkiaSharp) + série
+        // histórica do Zabbix; sem dado a mensagem degrada para texto.
+        services.AddSingleton<IIncidentImageRenderer, SkiaIncidentImageRenderer>();
+        services.AddScoped<IWhatsAppChartFactory, ZabbixWhatsAppChartFactory>();
+
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();
 
@@ -452,6 +458,19 @@ public static class DependencyInjection
         services.AddScoped<ConfigurationRemoteCredentialSource>();
         services.AddScoped<IRemoteCredentialSource, StoreRemoteCredentialSource>();
         services.AddSingleton<IRemoteConnectionRegistry, RemoteConnectionRegistry>();
+
+        // F34-T007 / ADR-060 D2 — SSO do gateway (Guacamole): minta de token
+        // server-to-server via header X-Remote-User. BaseUrl só no profile
+        // remote (env no compose); vazio = erro pt-BR explícito no handler.
+        services.AddHttpClient(GuacamoleGateway.HttpClientName, (sp, client) =>
+        {
+            var baseUrl = sp.GetRequiredService<IConfiguration>()
+                .GetSection(GuacamoleGateway.BaseUrlKey).Value;
+            if (!string.IsNullOrWhiteSpace(baseUrl))
+                client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<IGuacamoleGateway, GuacamoleGateway>();
 
         // Outbox
         services.AddScoped<IInboxStore, InboxStore>();

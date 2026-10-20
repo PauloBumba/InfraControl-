@@ -120,4 +120,58 @@ describe("DashboardPage — tom de erro e aviso (F29-T004)", () => {
     await user.click(screen.getByRole("button", { name: "Novo projeto" }));
     expect(screen.getByText("/projects?novo=1")).toBeInTheDocument();
   });
+
+  // M7 (caça-bugs): o "N em aberto" do KPI Incidentes vem do totalCount do
+  // servidor com status=active (≠ Resolved) — não do filtro local sobre a
+  // 1ª página de 5.
+  it("shows the open-incident KPI from the server active total, not the local page slice", async () => {
+    vi.mocked(listIncidents).mockImplementation(async (filters) => {
+      if (filters?.status === "active") {
+        return { items: [], totalCount: 12, page: 1, pageSize: 1 } as never;
+      }
+      return {
+        items: [
+          {
+            id: "1",
+            title: "já resolvido",
+            description: null,
+            severity: "Low",
+            status: "Resolved",
+            deviceId: null,
+            openedAt: "2026-10-01T10:00:00Z",
+            resolvedAt: "2026-10-02T10:00:00Z",
+            alertCount: 0,
+            alertIds: [],
+            rootCause: null,
+          },
+          {
+            id: "2",
+            title: "aberto",
+            description: null,
+            severity: "Critical",
+            status: "Open",
+            deviceId: null,
+            openedAt: "2026-10-10T10:00:00Z",
+            resolvedAt: null,
+            alertCount: 1,
+            alertIds: ["a1"],
+            rootCause: null,
+          },
+        ],
+        totalCount: 40,
+        page: 1,
+        pageSize: 5,
+      } as never;
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("12 em aberto")).toBeInTheDocument();
+    // O valor principal continua sendo o total geral (40).
+    expect(screen.getByText("40")).toBeInTheDocument();
+    // A chamada de contagem usa o alias do servidor.
+    expect(vi.mocked(listIncidents)).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "active" }),
+    );
+  });
 });
