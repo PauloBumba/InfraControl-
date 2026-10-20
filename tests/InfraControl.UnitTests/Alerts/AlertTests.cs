@@ -152,4 +152,72 @@ public sealed class AlertTests
         alert.Status.Should().Be(AlertStatus.Open);
         alert.ResolvedAt.Should().BeNull();
     }
+
+    // ── F33-T004/ADR-059: AlertCreatedDomainEvent (só Critical) ──────
+
+    [Fact]
+    public void Create_Critical_ShouldRaiseAlertCreatedDomainEvent()
+    {
+        var device = Guid.NewGuid();
+        var alert = Alert.Create(
+            device, CheckKind.Ping, AlertSeverity.Critical,
+            "Device 'sw-01' está fora do ar (ping falhou).");
+
+        // Critical sempre garante incidente no mesmo fluxo (F6-T003).
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.AlertId.Should().Be(alert.Id);
+        created.Severity.Should().Be(AlertSeverity.Critical);
+        created.DeviceId.Should().Be(device);
+        created.Message.Should().Be("Device 'sw-01' está fora do ar (ping falhou).");
+        created.HasIncident.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_Warning_ShouldNotRaiseAlertCreatedDomainEvent()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Warning, "latência alta");
+
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "só Critical notifica (decisão 2 do ADR-059: eventos = Critical)");
+    }
+
+    [Fact]
+    public void CreateExternal_Critical_ShouldRaiseAlertCreatedDomainEvent()
+    {
+        var alert = Alert.CreateExternal(
+            Guid.NewGuid(), "10451", Guid.NewGuid(), kind: null,
+            AlertSeverity.Critical, "CPU em 98%", MonitoringSource.Zabbix);
+
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.AlertId.Should().Be(alert.Id);
+        created.Severity.Should().Be(AlertSeverity.Critical);
+        created.Message.Should().Be("CPU em 98%");
+        created.HasIncident.Should().BeTrue(
+            "externo Critical garante incidente no mesmo fluxo (ADR-027 §3)");
+    }
+
+    [Fact]
+    public void CreateExternal_Warning_ShouldNotRaiseAlertCreatedDomainEvent()
+    {
+        var alert = Alert.CreateExternal(
+            Guid.NewGuid(), "10452", Guid.NewGuid(), kind: null,
+            AlertSeverity.Warning, "disco em 85%", MonitoringSource.Zabbix);
+
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Suppress_AtBirth_ShouldRemovePendingAlertCreatedDomainEvent()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+
+        // Vítima de incidente upstream (F6-T004) — nasce Suppressed.
+        alert.Suppress();
+
+        alert.Status.Should().Be(AlertStatus.Suppressed);
+        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
+            "o grupo já recebe o Incidente aberto do incidente raiz — sem duplicar");
+    }
 }

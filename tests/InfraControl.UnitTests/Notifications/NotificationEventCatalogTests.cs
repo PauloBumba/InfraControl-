@@ -28,6 +28,7 @@ public sealed class NotificationEventCatalogTests
             nameof(UserRoleRemovedDomainEvent),
             nameof(InvitationAcceptedDomainEvent),
             nameof(IncidentCreatedDomainEvent),
+            nameof(AlertCreatedDomainEvent),
             nameof(IncidentResolvedDomainEvent),
             nameof(AlertResolvedDomainEvent),
             nameof(PdiCreatedDomainEvent),
@@ -64,6 +65,7 @@ public sealed class NotificationEventCatalogTests
         operational.Select(e => e.EventType).Should().BeEquivalentTo(
         [
             nameof(IncidentCreatedDomainEvent),
+            nameof(AlertCreatedDomainEvent),
             nameof(IncidentResolvedDomainEvent),
             nameof(AlertResolvedDomainEvent),
         ]);

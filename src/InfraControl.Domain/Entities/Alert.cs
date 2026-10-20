@@ -43,7 +43,7 @@ public sealed class Alert : AggregateRoot
         if (string.IsNullOrWhiteSpace(message))
             throw new ArgumentException("A mensagem do alerta é obrigatória.", nameof(message));
 
-        return new Alert
+        var alert = new Alert
         {
             DeviceId = deviceId,
             Kind = kind,
@@ -52,6 +52,17 @@ public sealed class Alert : AggregateRoot
             Status = AlertStatus.Open,
             Message = message.Trim()
         };
+
+        // F33-T004/ADR-059: Critical avisa (decisões 2/3). HasIncident
+        // nasce true porque Critical sempre garante incidente no MESMO
+        // fluxo (F6-T003 — EnsureIncidentAsync); Suppressed no nascer
+        // remove o evento em Suppress().
+        if (severity == AlertSeverity.Critical)
+            alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
+                alert.Id, severity, alert.DeviceId, alert.Message,
+                hasIncident: true));
+
+        return alert;
     }
 
     /// <summary>
@@ -79,7 +90,7 @@ public sealed class Alert : AggregateRoot
         if (source == MonitoringSource.Native)
             throw new ArgumentException("A fonte de um alerta externa não pode ser Native.", nameof(source));
 
-        return new Alert
+        var alert = new Alert
         {
             MonitoringEventId = monitoringEventId,
             ExternalProblemId = externalProblemId.Trim(),
@@ -90,6 +101,16 @@ public sealed class Alert : AggregateRoot
             Status = AlertStatus.Open,
             Message = message.Trim()
         };
+
+        // F33-T004/ADR-059: Critical externo (Zabbix) avisa — o incidente
+        // é garantido no mesmo fluxo (ADR-027 §3, "Incident SOMENTE se
+        // Critical"); Suppressed no nascer remove o evento em Suppress().
+        if (severity == AlertSeverity.Critical)
+            alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
+                alert.Id, severity, alert.DeviceId, alert.Message,
+                hasIncident: true));
+
+        return alert;
     }
 
     public void Resolve()
@@ -108,7 +129,14 @@ public sealed class Alert : AggregateRoot
     public void Suppress()
     {
         if (Status == AlertStatus.Open)
+        {
             Status = AlertStatus.Suppressed;
+
+            // F33-T004/ADR-059: alerta Critical que nasce vítima de
+            // incidente upstream não notifica "Alerta Critical criado" —
+            // o grupo já recebe o "Incidente aberto" do incidente raiz.
+            RemoveDomainEvent<AlertCreatedDomainEvent>();
+        }
     }
 
     /// <summary>

@@ -4,7 +4,7 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-17
+**Última atualização:** 2026-10-19
 
 ## Regra operacional
 
@@ -135,6 +135,12 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] **F35-T002 Rate limit MediatR → 429 (F2, low, latente)** <!-- 2026-10-19: RateLimitExceededException + Retry-After; unit 2871/2871. -->
 - [x] **F35-T003 Convite: e-mail antes do save (F3, low, latente)** <!-- 2026-10-19: envio antes do persist; falha = nenhuma linha. Checklist docs/60. -->
 - [x] **Fase 35 concluída** — caça-bugs backend lote 1 fechado (F1+F2+F3); pendências: cobertura 30/1190 (novo loop), smoke SMTP real.
+
+## Fase 36 — Frontend: dropdown no header + submenu do sidebar em popup (2026-10-19)
+
+> **Contexto**: pedido do usuário (2026-10-19): **(1)** avatar do topo vira dropdown com as opções da conta; **(3)** submenu do sidebar volta a ser popup flutuante (reversão da decisão 2026-10-14 de expansão inline), com componentes PrimeReact já existentes.
+
+- [x] **F36-T001 Avatar no header + submenu do sidebar em popup** <!-- 2026-10-19: avatar = <button> aria-haspopup/aria-expanded abrindo <Menu popup> com Minha Conta/Sair (footer do sidebar intacto — decisão: adicionar, não mover); submenu = <Menu popup> POR PAI com filho (UniFi/Zabbix) — um Menu por gatilho mantém o target do outside-click vivo (useOverlayListener só refaz o lookup quando `when` muda; 2 gatilhos numa instância só = listener velho, 2º clique fechava); F29-T005 preservado (pai navega p/ própria rota E alterna o popup), identidade por ROTA, filhos com o mesmo filtro `canSee`, `onShow`/`onHide` como fonte da verdade do `aria-expanded`, pai `.active` como contexto quando a rota corrente é filho, sidebar 60px agora abre o popup, filho navega e fecha; seta corrigida (pi-angle-up + rotate(180) = baixo; ficou angle-down + rotação CSS); CSS morto `.uni-nav-sublist`/`.uni-nav-subitem` removido; shim `offsetParent` no setup do vitest (jsdom: `getHiddenElementDimensions` deixava `display:none` no overlay — popup invisível). TDD: 7 testes novos RED → 10/10 GREEN; suíte front 310/310 (56 arquivos), tsc 0, eslint limpo, vite build ✓. Pendências: commit; smoke visual ao vivo. Detalhes: TASKS.md Fase 36. -->
 
 ## Fase 13 — Frontend UI/UX (UniFi-Style)
 

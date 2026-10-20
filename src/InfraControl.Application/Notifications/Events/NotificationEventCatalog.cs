@@ -38,6 +38,9 @@ public static class NotificationEventCatalog
             "IncidentCreatedDomainEvent", "Operational",
             "Incidente aberto no InfraControl (alerta crítico, webhook Zabbix ou abertura manual)."),
         new(
+            "AlertCreatedDomainEvent", "Operational",
+            "Alerta Critical criado (nativo, prevenção ou Zabbix) — o incidente é a mensagem separada."),
+        new(
             "IncidentResolvedDomainEvent", "Operational",
             "Incidente resolvido (só o InfraControl decide — regra 7 ADR-028)."),
         new(

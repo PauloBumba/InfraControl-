@@ -17,6 +17,15 @@ public abstract class AggregateRoot : Entity
         _domainEvents.Add(domainEvent);
     }
 
+    /// <summary>
+    /// F33-T004/ADR-059: remove um evento pendente específico — o alerta
+    /// Critical que nasce Suppressed (vítima de incidente upstream) não
+    /// pode notificar "Alerta Critical criado" (o grupo já recebe o
+    /// incidente raiz).
+    /// </summary>
+    protected void RemoveDomainEvent<TEvent>() where TEvent : IDomainEvent
+        => _domainEvents.RemoveAll(domainEvent => domainEvent is TEvent);
+
     public void ClearDomainEvents()
     {
         _domainEvents.Clear();

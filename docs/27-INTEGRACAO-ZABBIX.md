@@ -132,6 +132,54 @@ O Zabbix não envia esse JSON pronto: **o script da media type monta o
 payload**. A configuração abaixo foi criada via JSON-RPC e validada de
 ponta-a-ponta (PROBLEM → alert → incidente; OK → alert `Resolved`).
 
+> **Tentativa de migração 7.4.15 — REVERTIDA em 2026-10-19 (ver §7):** numa
+> tentativa de estabilizar o stack (o trunk 8.0 renomeava/quebrava métodos
+> da API a cada build), as imagens foram pinadas em `7.4.15-alpine` com
+> banco **novo** (`zabbix_db_data_v74`) e toda a configuração desta seção
+> foi recriada via JSON-RPC. No mesmo dia o usuário decidiu **ROLLBACK**:
+> o compose voltou para `alpine-trunk` + volume original `zabbix_db_data`
+> (107 hosts e webhooks do F16 intactos), revalidado de ponta a ponta —
+> smoke PROBLEM (evento 2515) + recovery (evento 2532, casado no
+> `monitoring_events`), tráfego real fluindo e dedup casando
+> problem↔recovery de antes do rollback. Os IDs abaixo (**104/105**,
+> item **69668**, trigger **32552**) pertencem ao banco de teste v74
+> (preservado como backup, junto do pg_dump `zbx-80rc2-20261018.dump`);
+> **no volume ativo valem os IDs originais do F16**: media types **105**
+> (Problem) / **106** (Recovery), action **7**, item trapper `test.value`
+> **72011**, trigger **33178** (host `Zabbix server` 10084). Auth:
+> `user.login` (Admin/zabbix) → session token no header
+> `Authorization: Bearer` (o campo `auth` no corpo é rejeitado; o
+> parâmetro de login no build trunk é `username`, não `user`).
+>
+> **Gotchas da API 7.4.15** (mantidos como referência para a migração
+> futura quando o 8.0 estabilizar):
+> - `opmessage_medias` **foi removido**: o `mediatypeid` vai **dentro do
+>   objeto `opmessage`** (`opmessage: { default_msg, subject, message,
+>   mediatypeid }`); operation aceita só `opmessage` +
+>   `opmessage_grp`/`opmessage_usr`.
+> - `filter` do `action.create` exige `evaltype` (usar `'1'` com
+>   `conditions: []`).
+> - `trigger.create` não aceita `hostid` (o host vem da expression).
+> - Params de listagem pluralizados: `event.get` usa `objectids` (array),
+>   `alert.get` usa `actionids` (array).
+> - Smoke de 2026-10-19 no **banco de teste v74** (comandos §4.3): PROBLEM
+>   validado de ponta a ponta — evento 25 → action 7 → alert 1 (media 104,
+>   `status=1`) → `POST /api/v1/integrations/zabbix/problems` **200** →
+>   `MonitoringEvent` + `Alert` + `Incident`. OK entregue (evento 33 →
+>   alert 2, media 105, `status=1`), mas a ingestão do recovery colidiu
+>   com o **histórico real** já gravado no `monitoring_events`: o eventid
+>   33 (contador do Zabbix local reiniciado com o banco novo) já existia
+>   (evento real de 2026-10-17) → `23505 IX_monitoring_events_source_
+>   external_event_id`. Artefato do sandbox (banco novo reutilizando
+>   eventids baixos já ingeridos); em produção os eventids são
+>   monotônicos. **Moot após o rollback** — o volume original tem
+>   contagem própria consistente com o histórico.
+> - Smoke de 2026-10-19 **pós-rollback** (volume original, trunk): PROBLEM
+>   (evento 2515) → action 7 → alert (media 105, `status=1`) → ingestão
+>   **200**; recovery (evento 2532) → media 106 → evento casado como
+>   `Recovered` no `monitoring_events`. Tráfego real (107 hosts) fluindo
+>   em paralelo — problemas e recoveries ingeridos normalmente.
+
 > **Gotchas do Zabbix 8.0** (aprendidos na implementação):
 > - Não existe condição `value = PROBLEM/OK` na action: **uma action só**,
 >   com `operations` (PROBLEM) + `recovery_operations` (OK).
@@ -203,8 +251,10 @@ return 'OK';
 ### 4.3 Gatilho de teste
 
 - Host `Zabbix server` (hostid 10084) · item trapper `test.value`
-  (itemid 72011, `type: 2`) · trigger `last(/Zabbix server/test.value)=1`
-  (triggerid 33178, severidade 4/High).
+  (itemid 69668, `type: 2`, recriado 2026-10-19 — o volume novo do
+  `zabbix-db` levou os antigos 72011/33178) · trigger
+  `last(/Zabbix server/test.value)=1` (triggerid 32552, severidade
+  4/High).
 
 ```bash
 # PROBLEM (1) e OK (0) — disparado de dentro do container do server:
@@ -215,7 +265,9 @@ docker exec infracontrol-zabbix-server zabbix_sender -z 127.0.0.1 \
 Smoke test manual por curl (equivalente ao que o script envia):
 
 ```bash
-curl -X POST http://localhost:8086/api/v1/integrations/zabbix/problems \
+# A API não é publicada no host — o curl roda de dentro da rede do compose
+# (ex.: dentro do próprio container do Zabbix server):
+docker exec infracontrol-zabbix-server curl -s -X POST http://api:8080/api/v1/integrations/zabbix/problems \
   -H "Content-Type: application/json" \
   -H "X-Zabbix-Token: <token>" \
   -d '{"eventId":"1","host":"srv-teste","ip":"192.0.2.10","name":"Teste webhook","severity":3,"status":"PROBLEM"}'
@@ -267,6 +319,15 @@ A infraestrutura do Zabbix 8.0 é executada via Docker Compose sob o perfil dedi
 > registro sair de *devel* (pendência registrada no TASKS F18-T001). Portas
 > vindas do `.env` — **8086** para o web porque `8085` é do `HTTP_PORT` do
 > frontend; token de integração em `ZABBIX_TOKEN` (`.env`).
+>
+> **Migração para 7.4.15 tentada e REVERTIDA (2026-10-19):** as imagens
+> foram pinadas em `7.4.15-alpine` com banco novo (`zabbix_db_data_v74`)
+> para fugir da instabilidade do trunk; no mesmo dia o usuário optou pelo
+> **rollback** (trunk + volume original `zabbix_db_data`), por causa do
+> bug do trunk que removeu os dashboards de host e das quebras de API a
+> cada build. Backups preservados: volume `zabbix_db_data_v74` (banco
+> 7.4.15 do teste) + pg_dump `backups/zbx-80rc2-20261018.dump`. Gotchas
+> da API 7.4 em §4 (referência para a migração futura).
 
 ### Credenciais e Acesso de Desenvolvimento
 
