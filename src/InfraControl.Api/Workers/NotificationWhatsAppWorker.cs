@@ -21,7 +21,7 @@ public sealed class NotificationWhatsAppWorker(
     ILogger<NotificationWhatsAppWorker> logger)
     : NotificationChannelWorkerBase(scopeFactory, logger, NotificationChannel.WhatsApp)
 {
-    protected override Task DispatchAsync(
+    protected override async Task DispatchAsync(
         PendingDeliveryItem item,
         NotificationDelivery delivery,
         IServiceProvider services,
@@ -35,10 +35,44 @@ public sealed class NotificationWhatsAppWorker(
             throw new InvalidOperationException(
                 "Canal WhatsApp sem GroupId nem Phone configurado (Notifications:Channels:WhatsApp).");
 
-        return services.GetRequiredService<IWhatsAppNotificationDispatcher>().SendAsync(
+        // F33-T005/ADR-059: tenta montar o cartão (série Zabbix + Skia);
+        // factory ausente/falha/série vazia = Chart null → sendText puro.
+        var chart = await TryCreateChartAsync(item, services, cancellationToken);
+
+        await services.GetRequiredService<IWhatsAppNotificationDispatcher>().SendAsync(
             new WhatsAppNotificationMessage(
                 item.DeliveryId, item.NotificationId, item.UserId,
-                destination, item.Title, item.Message, item.CreatedAt),
+                destination, item.Title, item.Message, item.CreatedAt,
+                Chart: chart),
             cancellationToken);
+    }
+
+    private async Task<IncidentChartData?> TryCreateChartAsync(
+        PendingDeliveryItem item,
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        var factory = services.GetService<IWhatsAppChartFactory>();
+        if (factory is null)
+            return null;
+
+        try
+        {
+            return await factory.TryCreateAsync(
+                item.DeviceId, item.Title, item.EventType, item.CreatedAt,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(
+                exception,
+                "WhatsApp {DeliveryId}: sem gráfico (fábrica falhou) — envio em texto.",
+                item.DeliveryId);
+            return null;
+        }
     }
 }

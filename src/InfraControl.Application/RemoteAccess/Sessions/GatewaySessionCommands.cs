@@ -69,14 +69,19 @@ public sealed class OpenRemoteGatewaySessionCommandHandler(
             ?? throw new UnauthorizedAccessException(
                 "Autenticação é necessária para esta requisição.");
 
-        // Presença da credencial validada aqui (mensagem pt-BR do fallback
-        // em ConfigurationRemoteCredentialSource) — o valor NUNCA sai da
-        // memória nem vira DTO (D4); o guacd a usa na conexão com o alvo.
-        _ = await credentialSource.GetCredentialAsync(device.Id, cancellationToken);
+        // Credencial validada aqui (mensagem pt-BR do fallback em
+        // ConfigurationRemoteCredentialSource) — o valor NUNCA sai da memória
+        // nem vira DTO (D4); no gateway vira a conexão Guacamole (T008: cria/
+        // atualiza conexão + grant do usuário header-auth, server-to-server).
+        var credential = await credentialSource.GetCredentialAsync(
+            device.Id, cancellationToken);
 
         var protocol = device.OperatingSystem == DeviceOperatingSystem.Windows
             ? RemoteProtocol.Rdp
             : RemoteProtocol.Ssh;
+
+        await gateway.EnsureDeviceConnectionAsync(
+            device.Name, device.Ip!, protocol, credential, userName, cancellationToken);
 
         var token = await gateway.CreateTokenAsync(userName, cancellationToken);
 

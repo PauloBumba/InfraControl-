@@ -79,6 +79,11 @@ public sealed class GatewaySessionCommandTests : IDisposable
 
         public string? LastUserName { get; private set; }
 
+        public string? EnsuredDeviceName { get; private set; }
+        public string? EnsuredHostname { get; private set; }
+        public RemoteProtocol? EnsuredProtocol { get; private set; }
+        public string? EnsuredGrantToUser { get; private set; }
+
         public Task<string> CreateTokenAsync(
             string userName, CancellationToken cancellationToken = default)
         {
@@ -86,6 +91,21 @@ public sealed class GatewaySessionCommandTests : IDisposable
             return _error is null
                 ? Task.FromResult($"token-{Guid.NewGuid():N}")
                 : throw new InvalidOperationException(_error);
+        }
+
+        public Task EnsureDeviceConnectionAsync(
+            string deviceName,
+            string hostname,
+            RemoteProtocol protocol,
+            RemoteCredential credential,
+            string grantToUser,
+            CancellationToken cancellationToken = default)
+        {
+            EnsuredDeviceName = deviceName;
+            EnsuredHostname = hostname;
+            EnsuredProtocol = protocol;
+            EnsuredGrantToUser = grantToUser;
+            return Task.CompletedTask;
         }
     }
 
@@ -132,6 +152,10 @@ public sealed class GatewaySessionCommandTests : IDisposable
         dto.Path.Should().Be("/guacamole/");
         dto.SessionId.Should().NotBe(Guid.Empty);
         gateway.LastUserName.Should().Be("unit-test", "o header X-Remote-User é o usuário da plataforma");
+        gateway.EnsuredDeviceName.Should().Be(device.Name);
+        gateway.EnsuredHostname.Should().Be("192.0.2.90");
+        gateway.EnsuredProtocol.Should().Be(RemoteProtocol.Rdp);
+        gateway.EnsuredGrantToUser.Should().Be("unit-test");
 
         var row = await context.RemoteSessions
             .AsNoTracking()

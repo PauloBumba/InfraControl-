@@ -13,7 +13,8 @@ public sealed record WhatsAppNotificationMessage(
     string Phone,
     string Title,
     string Message,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    IncidentChartData? Chart = null);
 
 public interface IWhatsAppNotificationDispatcher
 {

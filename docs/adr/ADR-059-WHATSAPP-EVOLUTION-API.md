@@ -265,21 +265,37 @@ pode banir o número conectado. O usuário decidiu usar o número pessoal
 
 ## Itens a validar no spike F33-T005 (gráfico — antes do código seguir)
 
-- [ ] Contrato real de `sendMedia` na v2.3.7: campos exatos (`mediatype`,
+- [x] Contrato real de `sendMedia` na v2.3.7: campos exatos (`mediatype`,
       `mimetype`, `media` em base64, `caption`, `fileName`), limite de
       tamanho (WhatsApp ~5MB) e comportamento com destino de **grupo**
       (`number` `@g.us`).
-- [ ] **Fonte de dados do gráfico — DEFINIDA pelo usuário (2026-10-18)**:
+- [x] **Fonte de dados do gráfico — DEFINIDA pelo usuário (2026-10-18)**:
       "os Zabbix têm essa informação" → fonte = **API de `history` do
       Zabbix** (o payload do webhook, docs/27, não traz histórico — será
       consultado no momento do envio). Validar no spike: endpoint e auth
       da API do Zabbix a partir do worker, janela/retenção do gráfico,
       item/trigger do device e o comportamento **sem histórico**
       (fallback = só texto — decisão 7 + §4).
-- [ ] Lib .NET **headless** de renderização de PNG (sem dependência
+- [x] Lib .NET **headless** de renderização de PNG (sem dependência
       alienígena — espírito ADR-048 §4) + tamanho e tempo de geração
       aceitáveis dentro do worker.
-- [ ] Resultado do spike **atualizado neste ADR** (como no F33-T001).
+- [x] Resultado do spike **atualizado neste ADR** (seção abaixo).
+
+## Resultados do spike F33-T005 (gráfico — 2026-10-19)
+
+Executado nesta máquina (Docker 29.7.2) contra a Evolution `v2.3.7` real.
+
+| Item | Resultado |
+|---|---|
+| Rota e método | `POST /message/sendMedia/{InstanceId}` com header `apikey` |
+| Campos do corpo | `number` (grupo `@g.us` ou número), `mediatype=image`, `mimetype=image/png`, `media` (PNG em base64 puro, **sem** prefixo `data:`), `caption` (texto completo da mensagem), `fileName` (ex.: `infracontrol-evento.png`) |
+| Destino de grupo | `number=120363431225988863@g.us` aceito (200/201 como no `sendText`) |
+| Limite de tamanho | ~5MB de mídia (WhatsApp Business) — PNG 800×450 gerado fica ~30–80KB, folga enorme |
+| Fonte da série | API `history` do Zabbix via `IZabbixClient.GetHistoryAsync(itemId, from, to, limit)` — janela 2h, 240 pontos, item preferido `cpu`/`load`/`ping`; host resolvido por nome→contains→IP da interface; **sem host/item/histórico = `null` → canal degrada para texto** |
+| Lib de renderização | **SkiaSharp 4.153.1** + `SkiaSharp.NativeAssets.Linux` (headless, managed, sem binário alienígena; PNG 800×450, 3 cores de acento por kind); exige fonte TTF no container → `fonts-dejavu-core` instalado no Dockerfile (api + workers) |
+| Comportamento sem histórico | `IWhatsAppChartFactory.TryCreateAsync` devolve `null` (Zabbix sem config, device sem host, série vazia, ou erro de rede — nunca lança); worker envia `message.Chart = null` → dispatcher `sendText` puro |
+| Fallback obrigatório | Dispatcher: `try RenderPng + sendMedia` → `catch` (não-cancel) loga Warning e reenvia como `sendText`; mídia que falha **nunca** deixa o evento por enviar (decisão 7 + §4) |
+| Integração | `Notification.DeviceId` (migração `AddNotificationDeviceId`, coluna `device_id` nullable) viaja do evento até o worker (`PendingDeliveryItem.DeviceId` → `WhatsAppNotificationMessage.Chart`); DI `AddSingleton<IIncidentImageRenderer, SkiaIncidentImageRenderer>` + `AddScoped<IWhatsAppChartFactory, ZabbixWhatsAppChartFactory>` |
 
 ## Resultados do spike (F33-T001 — 2026-10-18)
 

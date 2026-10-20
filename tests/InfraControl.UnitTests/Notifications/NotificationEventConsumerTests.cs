@@ -82,6 +82,31 @@ public sealed class NotificationEventConsumerTests : IDisposable
         recipient.Role.Should().BeNull();
     }
 
+    /// <summary>
+    /// F33-T005: o DeviceId do evento (ex.: IncidentCreatedDomainEvent)
+    /// persiste na Notification — é por aí que a série histórica do
+    /// Zabbix chega ao cartão do WhatsApp.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithDeviceId_ShouldPersistItOnNotification()
+    {
+        var (context, consumer) = await CreateAsync();
+        var domainEvent = new IncidentCreatedDomainEvent(
+            Guid.NewGuid(), "sw-01", IncidentSeverity.Critical, Guid.NewGuid());
+        var deviceId = domainEvent.DeviceId!.Value;
+
+        await consumer.HandleAsync(
+            domainEvent.EventId, domainEvent.EventType,
+            "Incidente aberto", $"O incidente '{domainEvent.Title}' foi aberto ({domainEvent.Severity}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            CancellationToken.None,
+            deviceId: deviceId);
+
+        var notification = await context.Notifications.AsNoTracking().SingleAsync();
+        notification.DeviceId.Should().Be(deviceId);
+    }
+
     [Fact]
     public async Task Consume_SameEventTwice_ShouldNotDuplicate()
     {

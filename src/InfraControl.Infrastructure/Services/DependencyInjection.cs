@@ -53,6 +53,7 @@ using InfraControl.Infrastructure.Integrations.Unifi;
 using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.NetworkServices;
+using InfraControl.Infrastructure.Notifications;
 using InfraControl.Infrastructure.NetworkServices.Ports;
 using InfraControl.Infrastructure.RemoteAccess;
 using InfraControl.Infrastructure.Repositories;
@@ -257,6 +258,11 @@ public static class DependencyInjection
             .AddResilienceHandler(
                 "evolution-api",
                 static (builder, _) => EvolutionApiWhatsAppNotificationDispatcher.ConfigureResilience(builder));
+
+        // F33-T005/ADR-059 decisão 7: cartão PNG (SkiaSharp) + série
+        // histórica do Zabbix; sem dado a mensagem degrada para texto.
+        services.AddSingleton<IIncidentImageRenderer, SkiaIncidentImageRenderer>();
+        services.AddScoped<IWhatsAppChartFactory, ZabbixWhatsAppChartFactory>();
 
         services.AddScoped<IIdentityAdministrationService, IdentityAdministrationService>();
         services.AddScoped<IAdminIdentityProvisioner, IdentityAdminProvisioner>();

@@ -250,6 +250,11 @@ services:
       # Só alcançável na rede do compose; sem o profile `remote` o valor
       # permanece e o serviço cai → erro pt-BR explícito na ficha.
       RemoteAccess__Guacamole__BaseUrl: http://guacamole:8080/guacamole
+      # F34-T008: REST de administração cria/granta conexão do device
+      # server-to-server (senha nunca chega ao navegador — D4).
+      RemoteAccess__Guacamole__AdminUser: ${GUACAMOLE_ADMIN_USER:-guacadmin}
+      RemoteAccess__Guacamole__AdminPassword: ${GUACAMOLE_ADMIN_PASSWORD:-guacadmin_dev_password_2026}
+      RemoteAccess__Guacamole__DataSource: ${GUACAMOLE_DATASOURCE:-postgresql}
       ProjectEvidence__StoragePath: var/project-evidence
       # Fase AI (ADR-041): base URL do Ollama DENTRO da rede do compose —
       # DNS por nome de serviço, nunca localhost entre containers (§48).

@@ -24,6 +24,7 @@ namespace InfraControl.Infrastructure.Services;
 public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     IHttpClientFactory httpClientFactory,
     IOptions<NotificationChannelsOptions> channelsOptions,
+    IIncidentImageRenderer imageRenderer,
     ILogger<EvolutionApiWhatsAppNotificationDispatcher> logger) : IWhatsAppNotificationDispatcher
 {
     /// <summary>Nome do client (policies Polly registradas na DI).</summary>
@@ -93,11 +94,51 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
                 "Canal WhatsApp sem destino (Notifications:Channels:WhatsApp:GroupId ou Phone).");
 
         var client = httpClientFactory.CreateClient(HttpClientName);
-        var url = $"{whatsapp.BaseUrl.TrimEnd('/')}/message/sendText/{whatsapp.InstanceId}";
+        var text = BuildText(message);
+
+        // F33-T005/ADR-059 decisão 7: com gráfico, tenta sendMedia com o
+        // PNG (caption = mesmo texto); geração ou envio da mídia falhou →
+        // log Warning e o evento sai em TEXTO — nunca fica por enviar por
+        // causa do gráfico. Polly cobre as duas chamadas (handler do client).
+        if (message.Chart is not null)
+        {
+            try
+            {
+                var png = imageRenderer.RenderPng(message.Chart);
+                await SendMediaAsync(
+                    client, whatsapp, number, png, text,
+                    message.DeliveryId, cancellationToken);
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    exception,
+                    "WhatsApp {DeliveryId}: falha no envio do gráfico — fallback para sendText.",
+                    message.DeliveryId);
+            }
+        }
+
+        await SendTextAsync(client, whatsapp, number, text, message, cancellationToken);
+    }
+
+    private async Task SendTextAsync(
+        HttpClient client,
+        WhatsAppChannelOptions whatsapp,
+        string number,
+        string text,
+        WhatsAppNotificationMessage message,
+        CancellationToken cancellationToken)
+    {
+        var url = $"{whatsapp.BaseUrl!.TrimEnd('/')}/message/sendText/{whatsapp.InstanceId}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            Content = JsonContent.Create(new EvolutionSendText(number, BuildText(message)))
+            Content = JsonContent.Create(new EvolutionSendText(number, text))
         };
         request.Headers.TryAddWithoutValidation("apikey", whatsapp.ApiKey);
 
@@ -113,6 +154,42 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     }
 
     /// <summary>
+    /// F33-T005: contrato do sendMedia na v2.3.7 — <c>{ number, mediatype,
+    /// mimetype, media (base64), caption, fileName }</c> (rota viva
+    /// confirmada no spike F33-T001; corpo sondado no spike da T005).
+    /// </summary>
+    private async Task SendMediaAsync(
+        HttpClient client,
+        WhatsAppChannelOptions whatsapp,
+        string number,
+        byte[] png,
+        string caption,
+        Guid messageDeliveryId,
+        CancellationToken cancellationToken)
+    {
+        var url = $"{whatsapp.BaseUrl!.TrimEnd('/')}/message/sendMedia/{whatsapp.InstanceId}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = JsonContent.Create(new EvolutionSendMedia(
+                number,
+                Mediatype: "image",
+                Mimetype: "image/png",
+                Media: Convert.ToBase64String(png),
+                Caption: caption,
+                FileName: "infracontrol-evento.png"))
+        };
+        request.Headers.TryAddWithoutValidation("apikey", whatsapp.ApiKey);
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        logger.LogInformation(
+            "WhatsApp {DeliveryId} enviado via Evolution (sendMedia, {Bytes} bytes PNG) para {Number}: HTTP {StatusCode}.",
+            messageDeliveryId, png.Length, number, (int)response.StatusCode);
+    }
+
+    /// <summary>
     /// Texto simples do WhatsApp (ADR-059 §4): título + mensagem + data do
     /// evento. Com o gráfico habilitado (F33-T005) este mesmo texto vira a
     /// caption do sendMedia.
@@ -124,4 +201,13 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     private sealed record EvolutionSendText(
         [property: JsonPropertyName("number")] string Number,
         [property: JsonPropertyName("text")] string Text);
+
+    /// <summary>Corpo do sendMedia (spike F33-T005).</summary>
+    private sealed record EvolutionSendMedia(
+        [property: JsonPropertyName("number")] string Number,
+        [property: JsonPropertyName("mediatype")] string Mediatype,
+        [property: JsonPropertyName("mimetype")] string Mimetype,
+        [property: JsonPropertyName("media")] string Media,
+        [property: JsonPropertyName("caption")] string Caption,
+        [property: JsonPropertyName("fileName")] string FileName);
 }

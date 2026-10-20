@@ -51,9 +51,29 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         }
     }
 
+    /// <summary>F33-T005: fábrica de cartão (série Zabbix) controlável nos testes.</summary>
+    private sealed class FakeChartFactory : IWhatsAppChartFactory
+    {
+        public IncidentChartData? Result { get; set; }
+        public bool Throw { get; set; }
+        public Guid? LastDeviceId { get; private set; }
+
+        public Task<IncidentChartData?> TryCreateAsync(
+            Guid? deviceId, string title, string eventType, DateTime eventAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            LastDeviceId = deviceId;
+            if (Throw)
+                throw new InvalidOperationException("zabbix offline");
+            return Task.FromResult(Result);
+        }
+    }
+
     private async Task<(AppDbContext Context, NotificationWhatsAppWorker Worker, FakeDispatcher Dispatcher, Guid DeliveryId)> CreateAsync(
         string phone = "+5511999990000",
-        string groupId = "")
+        string groupId = "",
+        FakeChartFactory? chartFactory = null,
+        Guid? notificationDeviceId = null)
     {
         var context = new AppDbContext(_options);
         await context.Database.EnsureCreatedAsync();
@@ -61,7 +81,8 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         var user = User.Create(Guid.NewGuid(), "whatsapp-worker@exemplo.test", "Worker WhatsApp");
         context.DomainUsers.Add(user);
         var notification = Notification.Create(
-            Guid.NewGuid(), "UserCreatedDomainEvent", "Título", "Mensagem.");
+            Guid.NewGuid(), "UserCreatedDomainEvent", "Título", "Mensagem.",
+            notificationDeviceId);
         context.Notifications.Add(notification);
         await context.SaveChangesAsync();
 
@@ -74,6 +95,8 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
         services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
         services.AddScoped<IWhatsAppNotificationDispatcher>(_ => dispatcher);
+        if (chartFactory is not null)
+            services.AddScoped<IWhatsAppChartFactory>(_ => chartFactory);
         var provider = services.BuildServiceProvider();
 
         var channels = new NotificationChannelsOptions
@@ -178,5 +201,52 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
 
         processed.Should().Be(0);
         dispatcher.Sent.Should().BeEmpty();
+    }
+
+    // ── F33-T005: cartão (série Zabbix) na mensagem ───────────────────
+
+    [Fact]
+    public async Task ProcessPending_WithChartFactory_ShouldAttachChartAndDeviceId()
+    {
+        var deviceId = Guid.NewGuid();
+        var chart = new IncidentChartData(
+            ChartCardKind.Incident, "Título", "sw-01", "Critical", DateTime.UtcNow,
+            [new ChartSeriesPoint(DateTime.UtcNow, 99)]);
+        var factory = new FakeChartFactory { Result = chart };
+        var (context, worker, dispatcher, deliveryId) = await CreateAsync(
+            chartFactory: factory, notificationDeviceId: deviceId);
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(1);
+        dispatcher.Sent[0].Chart.Should().BeSameAs(chart,
+            "a fábrica devolveu dados → o message carrega o cartão");
+        factory.LastDeviceId.Should().Be(deviceId,
+            "o DeviceId persistido na Notification viaja até a fábrica");
+    }
+
+    [Fact]
+    public async Task ProcessPending_WhenChartFactoryThrows_ShouldSendWithoutChart()
+    {
+        var factory = new FakeChartFactory { Throw = true };
+        var (context, worker, dispatcher, _) = await CreateAsync(chartFactory: factory);
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(1,
+            "falha do gráfico nunca bloqueia o envio — degrada para texto");
+        dispatcher.Sent.Should().ContainSingle();
+        dispatcher.Sent[0].Chart.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ProcessPending_WithoutChartFactory_ShouldSendWithoutChart()
+    {
+        var (context, worker, dispatcher, _) = await CreateAsync();
+
+        var processed = await worker.ProcessPendingAsync(CancellationToken.None);
+
+        processed.Should().Be(1);
+        dispatcher.Sent[0].Chart.Should().BeNull();
     }
 }
