@@ -10,29 +10,31 @@ public sealed class User : AggregateRoot
 
     public string Email { get; private set; } = string.Empty;
     public string DisplayName { get; private set; } = string.Empty;
+    public string? FullName { get; private set; }
     public bool IsActive { get; private set; }
     public IReadOnlyCollection<UserRole> Roles => _roleAssignments.Select(assignment => assignment.Role).ToArray();
     public IReadOnlyCollection<UserRoleAssignment> RoleAssignments => _roleAssignments.AsReadOnly();
 
     private User() { }
 
-    private User(Guid id, string email, string displayName, UserRole initialRole, bool isActive)
+    private User(Guid id, string email, string displayName, string? fullName, UserRole initialRole, bool isActive)
         : base(id)
     {
         Email = NormalizeEmail(email);
         DisplayName = RequireDisplayName(displayName);
+        FullName = NormalizeFullName(fullName);
         IsActive = isActive;
         _roleAssignments.Add(new UserRoleAssignment(Id, initialRole));
         RaiseDomainEvent(new UserCreatedDomainEvent(Id, Email));
     }
 
-    public static User Create(string email, string displayName, UserRole initialRole = UserRole.Viewer)
-        => new(Guid.NewGuid(), email, displayName, initialRole, isActive: true);
+    public static User Create(string email, string displayName, string? fullName = null, UserRole initialRole = UserRole.Viewer)
+        => new(Guid.NewGuid(), email, displayName, fullName, initialRole, isActive: true);
 
-    public static User Create(Guid id, string email, string displayName, UserRole initialRole = UserRole.Viewer)
+    public static User Create(Guid id, string email, string displayName, string? fullName, UserRole initialRole = UserRole.Viewer)
     {
         if (id == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(id));
-        return new(id, email, displayName, initialRole, isActive: true);
+        return new(id, email, displayName, fullName, initialRole, isActive: true);
     }
 
     /// <summary>
@@ -40,7 +42,7 @@ public sealed class User : AggregateRoot
     /// ativação (auto-registro e aceite de convite) só ficam ativos após
     /// definição de senha via convite ou ativação manual por administrador.
     /// </summary>
-    public static User CreatePending(Guid id, string email, string displayName, IEnumerable<UserRole> roles)
+    public static User CreatePending(Guid id, string email, string displayName, string? fullName, IEnumerable<UserRole> roles)
     {
         if (id == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(id));
 
@@ -48,7 +50,7 @@ public sealed class User : AggregateRoot
         if (distinctRoles.Length == 0)
             throw new ArgumentException("Ao menos uma função é obrigatória.", nameof(roles));
 
-        var user = new User(id, email, displayName, distinctRoles[0], isActive: false);
+        var user = new User(id, email, displayName, fullName, distinctRoles[0], isActive: false);
         foreach (var role in distinctRoles.Skip(1))
             user._roleAssignments.Add(new UserRoleAssignment(user.Id, role));
 
@@ -93,16 +95,18 @@ public sealed class User : AggregateRoot
         RaiseDomainEvent(new UserEnabledDomainEvent(Id));
     }
 
-    public void Update(string displayName, string email)
+    public void Update(string displayName, string email, string? fullName = null)
     {
         var newEmail = NormalizeEmail(email);
         var newDisplayName = RequireDisplayName(displayName);
+        var newFullName = NormalizeFullName(fullName);
 
-        if (Email == newEmail && DisplayName == newDisplayName)
+        if (Email == newEmail && DisplayName == newDisplayName && FullName == newFullName)
             return;
 
         Email = newEmail;
         DisplayName = newDisplayName;
+        FullName = newFullName;
         Touch();
         RaiseDomainEvent(new UserUpdatedDomainEvent(Id, DisplayName, Email));
     }
@@ -128,5 +132,14 @@ public sealed class User : AggregateRoot
             throw new ArgumentException("O nome de exibição é obrigatório.", nameof(displayName));
 
         return displayName.Trim();
+    }
+
+    private static string? NormalizeFullName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName))
+            return null;
+
+        var trimmed = fullName.Trim();
+        return trimmed.Length > 200 ? trimmed[..200] : trimmed;
     }
 }

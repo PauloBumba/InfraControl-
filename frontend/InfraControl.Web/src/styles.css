@@ -11,6 +11,8 @@
 @import './styles/pages/home.css';
 @import './styles/pages/features.css';
 @import './styles/pages/contact.css';
+@import './styles/pages/login.css';
+@import './styles/pages/public-dark.css';
 
 :root {
   --uni-sidebar-w: 220px;
@@ -20,6 +22,7 @@
   --uni-accent-hover: #2563eb;
   --uni-bg: #f0f2f5;
   --uni-surface: #ffffff;
+  --surface-card: #ffffff;
   --uni-border: #e5e7eb;
   --uni-text: #1a1a1a;
   --uni-text-secondary: #6b7280;
@@ -67,6 +70,7 @@
 [data-theme="dark"] {
   --uni-bg: #0b1220;
   --uni-surface: #131b2d;
+  --surface-card: #131b2d;
   --uni-border: #263248;
   --uni-text: #e5eaf2;
   --uni-text-secondary: #9aa7bd;
@@ -91,6 +95,7 @@
   --uni-chip-green-bg: rgba(34, 197, 94, 0.16);
   --uni-chip-yellow-bg: rgba(234, 179, 8, 0.16);
   --uni-chip-red-bg: rgba(239, 68, 68, 0.16);
+  --chip-red-bg: rgba(239, 68, 68, 0.16);
   color-scheme: dark;
 }
 

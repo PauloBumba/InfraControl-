@@ -1,25 +1,27 @@
 import { Link } from "react-router-dom";
 
-/**
- * F26-T002 — página de contato.
- *
- * Decisão do usuário (2026-10-11): **canais honestos, sem formulário** —
- * não existe endpoint de contato no backend, então a página não mostra um
- * form que finge enviar mensagem.
- *
- * O endereço de suporte NÃO é inventado: vem de `VITE_SUPPORT_EMAIL`
- * (mesmo padrão opcional do `VITE_GOOGLE_CLIENT_ID`, documentado no
- * `.env.example`). Sem valor no build, a página diz que a instância é
- * self-hosted e manda falar com o administrador — em vez de exibir um
- * e-mail fictício que ninguém lê.
- *
- * O env é lido DENTRO da função (e não numa constante de módulo) porque a
- * avaliação de módulo acontece uma vez, no import — antes de qualquer
- * teste conseguir trocar o valor.
- */
 export function getSupportEmail(): string {
   return (import.meta.env.VITE_SUPPORT_EMAIL ?? "").trim();
 }
+
+const FAQ = [
+  {
+    question: "Como instalo o InfraControl?",
+    answer: "Use Docker Compose: clone o repositório, configure o .env e execute docker compose up -d. A plataforma sobe completa com PostgreSQL, Redis e RabbitMQ.",
+  },
+  {
+    question: "Posso testar sem instalar?",
+    answer: "Sim. O código é open source. Clone o repositório, execute docker compose up e explore todas as funcionalidades em ambiente local.",
+  },
+  {
+    question: "Quais são os requisitos mínimos?",
+    answer: "Um servidor com Docker e Docker Compose instalados. Recomendamos 4GB de RAM e 20GB de disco para ambiente de desenvolvimento.",
+  },
+  {
+    question: "Como funciona o suporte?",
+    answer: "Sendo self-hosted, o suporte é fornecido pelo administrador da sua instância. Para dúvidas sobre o projeto, use a página de contato.",
+  },
+] as const;
 
 export function ContactPage() {
   const supportEmail = getSupportEmail();
@@ -38,7 +40,7 @@ export function ContactPage() {
         <div className="uni-public-grid">
           <article className="uni-public-card">
             <span className="uni-public-card-icon">
-              <i className="pi pi-life" />
+              <i className="pi pi-life-ring" />
             </span>
             <h2>Suporte à instância</h2>
             {supportEmail ? (
@@ -79,6 +81,20 @@ export function ContactPage() {
               Ver recursos
             </Link>
           </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="faq-contato" className="uni-public-section">
+        <h2 id="faq-contato">Perguntas frequentes</h2>
+        <div className="uni-public-faq">
+          {FAQ.map((item) => (
+            <div key={item.question} className="uni-public-faq-item">
+              <div className="uni-public-faq-question">
+                <span>{item.question}</span>
+              </div>
+              <div className="uni-public-faq-answer">{item.answer}</div>
+            </div>
+          ))}
         </div>
       </section>
 

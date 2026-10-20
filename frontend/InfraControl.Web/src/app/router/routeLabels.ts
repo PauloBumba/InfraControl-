@@ -15,11 +15,28 @@ import { navigation, secondaryNavigation } from "@/data/dashboardData";
  * Corrigir renomeando um label não resolve: o próximo duplicado repetiria o
  * bug. Daqui em diante tudo se compara por `item.route`.
  */
-export const allNavItems = [...navigation, ...secondaryNavigation];
+
+/** Achata todos os itens (incluindo sub-itens) para um array de NavItem. */
+function flattenItems(): { label: string; route: string }[] {
+  const result: { label: string; route: string }[] = [];
+  for (const group of [...navigation, ...secondaryNavigation]) {
+    for (const item of group.items) {
+      result.push({ label: item.label, route: item.route });
+      if (item.items) {
+        for (const child of item.items) {
+          result.push({ label: child.label, route: child.route });
+        }
+      }
+    }
+  }
+  return result;
+}
+
+const allItems = flattenItems();
 
 /** Rota → rótulo (injetivo: nenhuma rota é chave de mais de um item). */
 const routeLabelMap: Record<string, string> = Object.fromEntries(
-  allNavItems.map((item) => [item.route, item.label]),
+  allItems.map((item) => [item.route, item.label]),
 );
 routeLabelMap["/"] = "Início";
 routeLabelMap["/dashboard"] = "Visão Geral";
@@ -28,7 +45,7 @@ routeLabelMap["/account"] = "Minha Conta";
 
 /** Rótulo → rota. Só para MIGRAR abas antigas; navegar nunca passa por aqui. */
 const legacyLabelRouteMap: Record<string, string> = Object.fromEntries(
-  allNavItems.map((item) => [item.label, item.route]),
+  allItems.map((item) => [item.label, item.route]),
 );
 
 /**

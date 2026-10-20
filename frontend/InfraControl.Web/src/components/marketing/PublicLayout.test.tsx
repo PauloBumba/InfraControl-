@@ -16,7 +16,7 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route
-          path="/home"
+          path="/"
           element={
             <PublicLayout>
               <p>conteúdo da home</p>
@@ -38,16 +38,16 @@ function renderAt(path: string) {
 
 describe("PublicLayout (F26-T002)", () => {
   it("should render the brand and the shared navigation", () => {
-    renderAt("/home");
+    renderAt("/");
 
     const nav = screen.getByRole("navigation", { name: "Navegação principal" });
-    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/home");
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute("href", "/");
     expect(within(nav).getByRole("link", { name: "Recursos" })).toHaveAttribute("href", "/recursos");
     expect(within(nav).getByRole("link", { name: "Contato" })).toHaveAttribute("href", "/contato");
   });
 
   it("should always offer the login entry point", () => {
-    renderAt("/home");
+    renderAt("/");
 
     expect(screen.getAllByRole("link", { name: /entrar/i }).length).toBeGreaterThan(0);
     for (const link of screen.getAllByRole("link", { name: /entrar/i })) {
@@ -70,7 +70,7 @@ describe("PublicLayout (F26-T002)", () => {
   });
 
   it("should render children inside a main landmark and keep a footer", () => {
-    const { container } = renderAt("/home");
+    const { container } = renderAt("/");
 
     expect(screen.getByText("conteúdo da home")).toBeInTheDocument();
     expect(container.querySelector("main")).not.toBeNull();

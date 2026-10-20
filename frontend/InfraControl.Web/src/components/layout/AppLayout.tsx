@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "primereact/badge";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
-import { navigation, secondaryNavigation, type NavItem } from "@/data/dashboardData";
+import { navigation, secondaryNavigation, type NavItem, type NavGroup } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { toggleSidebar, setMobileOpen } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs, removeTab } from "@/app/store/slices/navigationSlice";
@@ -21,7 +21,7 @@ import {
 } from "@/services/signalr/notifications";
 import { ACCESS_LEVEL_LABEL, highestAccessLevel } from "@/types/roles";
 import { canReach, routeLevel } from "@/app/router/access";
-import { allNavItems, labelForRoute } from "@/app/router/routeLabels";
+import { labelForRoute } from "@/app/router/routeLabels";
 import { readStoredTheme, toggleTheme, type Theme } from "@/services/theme";
 
 /**
@@ -119,6 +119,11 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   const userMenuRef = useRef<Menu>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuItems: MenuItem[] = [
+    {
+      label: "Ver Meus Dados",
+      icon: "pi pi-id-card",
+      command: () => routerNavigate("/account"),
+    },
     {
       label: "Meu perfil",
       icon: "pi pi-user",
@@ -235,7 +240,19 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   // F29-T005 — busca por ROTA (a lista vem de `routeLabels`, fonte única das
   // duas listas do menu): por rótulo, o "Zabbix" primário achava o item
   // secundário (ícone e aba errados).
-  const getNavItem = (route: string) => allNavItems.find((item) => item.route === route);
+  const getNavItem = (route: string): NavItem | undefined => {
+    for (const group of [...navigation, ...secondaryNavigation]) {
+      const found = group.items.find((item) => item.route === route);
+      if (found) return found;
+      for (const item of group.items) {
+        if (item.items) {
+          const child = item.items.find((c) => c.route === route);
+          if (child) return child;
+        }
+      }
+    }
+    return undefined;
+  };
 
   // Busca global (fecha a task aberta "Busca global no frontend", F2-T007):
   // o input do topbar era UI morta — agora com debounce de 300ms sobre
@@ -307,84 +324,82 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   // (administer) vê tudo; Operator/Viewer não enxergam as rotas administer
   // nem as abas recentes delas. Exibição apenas — o backend autoriza de verdade.
   const canSee = (route: string) => canReach(user?.roles, routeLevel(route));
-  const visibleNavigation = navigation.filter((item) => canSee(item.route));
-  const visibleSecondaryNavigation = secondaryNavigation.filter((item) => canSee(item.route));
+
+  /** Filtra um grupo de navegação pelo nível de acesso do utilizador. */
+  const filterGroup = (group: NavGroup): NavGroup => ({
+    ...group,
+    items: group.items
+      .filter((item) => canSee(item.route))
+      .map((item) =>
+        item.items ? { ...item, items: item.items.filter((child) => canSee(child.route)) } : item,
+      ),
+  });
+
+  const visibleNavigation = navigation.map(filterGroup).filter((group) => group.items.length > 0);
+  const visibleSecondaryNavigation = secondaryNavigation.map(filterGroup).filter((group) => group.items.length > 0);
   const visibleRecentTabs = recentTabs.filter((route) => canSee(route));
 
-  /** Um filho já aberto quando a rota corrente é dele — o grupo vira contexto. */
-  const hasActiveChild = (item: NavItem): boolean =>
-    (item.items ?? []).some((child) => child.route === activeRoute || hasActiveChild(child));
+  /** Verifica se alguma rota do grupo (ou dos seus filhos) está ativa. */
+  const groupHasActive = (group: NavGroup): boolean =>
+    group.items.some(
+      (item) =>
+        item.route === activeRoute ||
+        (item.items?.some((child) => child.route === activeRoute) ?? false),
+    );
 
   /**
-   * Filhos → `MenuItem` do popup, com o MESMO filtro de role dos pais
+   * Itens de um grupo → `MenuItem` do popup, com o MESMO filtro de role
    * (`canSee`): exibição apenas — quem autoriza de verdade é o backend.
    */
   const toMenuItems = (items: NavItem[]): MenuItem[] =>
-    items
-      .filter((child) => canSee(child.route))
-      .map((child) => ({
-        label: child.label,
-        icon: child.icon,
-        command: () => navigate(child.route),
-        ...(child.items?.length ? { items: toMenuItems(child.items) } : {}),
-      }));
+    items.map((child) => ({
+      label: child.label,
+      icon: child.icon,
+      command: () => navigate(child.route),
+      ...(child.items?.length ? { items: toMenuItems(child.items) } : {}),
+    }));
 
   /**
-   * Linha do sidebar. Item com filho abre um dropdown POPUP flutuante
-   * (decisão 2026-10-19): o clique no pai navega para a própria rota E
-   * alterna o menu com os filhos; o inline (`.uni-nav-sublist`) saiu.
-   *
-   * Com o sidebar recolhido (60px) o popup ABRE normalmente — ele flutua
-   * por cima (antes o inline não cabia). A seta usa só a rotação do CSS
-   * (`.expanded` → 180°, com transição): trocar o ícone PARA cima E
-   * rotacionar faria a seta apontar para baixo com o grupo aberto.
+   * Grupo do sidebar — abre um dropdown POPUP flutuante com os itens.
+   * O grupo não tem rota própria: só expande/recolhe.
    */
-  const renderNavItem = (item: NavItem) => {
-    const children = toMenuItems(item.items ?? []);
-    const hasSubmenu = children.length > 0;
-    const expanded = hasSubmenu && openNavRoute === item.route;
-    const badge = getItemBadge(item.label, item.badge);
-    // Contexto do grupo: o popup não abre sozinho numa rota-filha, então o
-    // pai acende quando a rota corrente é dele ou de um filho.
-    const context = activeRoute === item.route || hasActiveChild(item);
+  const renderNavGroup = (group: NavGroup) => {
+    const menuKey = `group:${group.label}`;
+    const menuItems = toMenuItems(group.items);
+    const expanded = openNavRoute === menuKey;
+    const active = groupHasActive(group);
+    const badge = getItemBadge(group.label);
 
     return (
-      <li key={item.route}>
+      <li key={group.label}>
         <button
-          className={`uni-nav-item ${context ? "active" : ""} ${expanded ? "expanded" : ""}`}
-          aria-current={activeRoute === item.route ? "page" : undefined}
-          aria-haspopup={hasSubmenu ? "menu" : undefined}
-          aria-expanded={hasSubmenu ? expanded : undefined}
+          className={`uni-nav-item uni-nav-group ${active ? "active" : ""} ${expanded ? "expanded" : ""}`}
+          aria-haspopup="menu"
+          aria-expanded={expanded}
           onClick={(event) => {
-            // F29-T005: o pai navega para a própria rota; o popup abre/
-            // fecha como atalho para os filhos.
-            navigate(item.route);
-            if (!hasSubmenu) return;
-            const menu = navMenuRefs.current[item.route];
+            const menu = navMenuRefs.current[menuKey];
             if (expanded) menu?.hide(event);
             else menu?.show(event);
           }}
-          title={item.label}
+          title={group.label}
         >
-          <i className={item.icon} />
-          <span>{item.label}</span>
-          {hasSubmenu && <i className="pi pi-angle-down uni-nav-arrow" />}
+          <i className={group.icon} />
+          <span>{group.label}</span>
+          <i className="pi pi-angle-down uni-nav-arrow" />
           {badge && <Badge value={badge} className="uni-nav-badge" />}
         </button>
-        {hasSubmenu && (
-          <Menu
-            ref={(element) => {
-              navMenuRefs.current[item.route] = element;
-            }}
-            model={children}
-            popup
-            aria-label={item.label}
-            onShow={() => setOpenNavRoute(item.route)}
-            onHide={() =>
-              setOpenNavRoute((current) => (current === item.route ? null : current))
-            }
-          />
-        )}
+        <Menu
+          ref={(element) => {
+            navMenuRefs.current[menuKey] = element;
+          }}
+          model={menuItems}
+          popup
+          aria-label={group.label}
+          onShow={() => setOpenNavRoute(menuKey)}
+          onHide={() =>
+            setOpenNavRoute((current) => (current === menuKey ? null : current))
+          }
+        />
       </li>
     );
   };
@@ -425,13 +440,13 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
 
         <nav className="uni-nav" aria-label="Navegação principal">
           <ul className="uni-nav-list">
-            {visibleNavigation.map(renderNavItem)}
+            {visibleNavigation.map(renderNavGroup)}
           </ul>
 
           <div className="uni-nav-divider" />
 
           <ul className="uni-nav-list">
-            {visibleSecondaryNavigation.map(renderNavItem)}
+            {visibleSecondaryNavigation.map(renderNavGroup)}
           </ul>
         </nav>
 
@@ -456,7 +471,14 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
             </button>
             <Menu
               ref={userMenuRef}
-              model={userMenuItems}
+              model={[
+                {
+                  label: "Ver Meus Dados",
+                  icon: "pi pi-id-card",
+                  command: () => routerNavigate("/account"),
+                },
+                ...userMenuItems.filter((item) => item.label !== "Ver Meus Dados"),
+              ]}
               popup
               onHide={() => setUserMenuOpen(false)}
             />

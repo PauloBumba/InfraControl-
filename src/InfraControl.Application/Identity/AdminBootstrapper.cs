@@ -29,7 +29,7 @@ public sealed class AdminBootstrapper(
             return new AdminBootstrapResult(false, true, "The configured email already exists.");
         }
 
-        var user = User.Create(Guid.NewGuid(), email, options.DisplayName, UserRole.Admin);
+        var user = User.Create(Guid.NewGuid(), email, options.DisplayName, fullName: null, initialRole: UserRole.Admin);
         await provisioner.ProvisionAsync(user, options.Password, cancellationToken);
 
         logger.LogInformation("Bootstrap Admin created the first administrator with id {UserId}.", user.Id);

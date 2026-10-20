@@ -1,0 +1,156 @@
+/* ============================================================
+   PUBLIC DARK THEME — suporte completo ao tema escuro nas páginas
+   públicas (landing, login, contato, recursos)
+   Carregado condicionalmente quando data-theme="dark"
+   ============================================================ */
+
+[data-theme="dark"] .uni-public-header {
+  background: var(--surface-card);
+  border-bottom-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-nav-link {
+  color: var(--uni-text-secondary);
+}
+
+[data-theme="dark"] .uni-public-nav-link:hover {
+  background: var(--uni-hover);
+  color: var(--uni-text);
+}
+
+[data-theme="dark"] .uni-public-nav-link-active {
+  color: var(--uni-accent);
+  background: var(--uni-hover);
+}
+
+[data-theme="dark"] .uni-public-button-ghost {
+  color: var(--uni-text);
+  border-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-button-ghost:hover {
+  background: var(--uni-hover);
+  border-color: var(--uni-text-muted);
+}
+
+[data-theme="dark"] .uni-public-card {
+  background: var(--surface-card);
+  border-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--uni-accent);
+}
+
+[data-theme="dark"] .uni-public-band {
+  background: var(--surface-card);
+  border-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-footer {
+  background: var(--surface-card);
+  border-top-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-terminal {
+  background: #0d1117;
+}
+
+[data-theme="dark"] .uni-public-terminal-bar {
+  background: #161b22;
+  border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .uni-public-terminal pre {
+  background: #0d1117;
+}
+
+[data-theme="dark"] .uni-public-mockup {
+  background: var(--surface-card);
+  border-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-mockup-header {
+  background: var(--uni-bg);
+  border-bottom-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-mockup-body {
+  background: var(--uni-bg);
+}
+
+[data-theme="dark"] .uni-public-mockup-card {
+  background: var(--surface-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .uni-public-arch-layer {
+  background: var(--surface-card);
+  border-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-arch-layer.primary {
+  background: var(--uni-bg);
+  border-color: var(--uni-accent);
+}
+
+[data-theme="dark"] .uni-public-timeline-dot {
+  border-color: var(--surface-card);
+}
+
+/* Login page dark theme */
+[data-theme="dark"] .uni-login {
+  background: var(--uni-bg);
+}
+
+[data-theme="dark"] .uni-login-card {
+  background: var(--surface-card);
+  border-color: var(--uni-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .uni-login-input {
+  background: var(--uni-field-bg);
+  border-color: var(--uni-border);
+  color: var(--uni-text);
+}
+
+[data-theme="dark"] .uni-login-input::placeholder {
+  color: var(--uni-text-muted);
+}
+
+[data-theme="dark"] .uni-login-label {
+  color: var(--uni-text-secondary);
+}
+
+[data-theme="dark"] .uni-login-alert {
+  background: var(--uni-chip-red-bg);
+  border-color: var(--uni-red);
+  color: var(--uni-text);
+}
+
+[data-theme="dark"] .uni-login-divider {
+  color: var(--uni-text-muted);
+}
+
+[data-theme="dark"] .uni-login-divider::before,
+[data-theme="dark"] .uni-login-divider::after {
+  background: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-login-footer {
+  border-top-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-login-link {
+  color: var(--uni-accent);
+}
+
+[data-theme="dark"] .uni-login-link:hover {
+  color: var(--uni-accent-hover);
+}
+
+[data-theme="dark"] .uni-login-brand p {
+  color: var(--uni-text-secondary);
+}

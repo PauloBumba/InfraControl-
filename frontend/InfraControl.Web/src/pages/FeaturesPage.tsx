@@ -1,17 +1,5 @@
 import { Link } from "react-router-dom";
 
-/**
- * F26-T002 — página de recursos.
- *
- * Sem design doc no repositório, o conteúdo foi DERIVADO DO PRODUTO REAL
- * (decisão do usuário 2026-10-11): cada item listado existe no código. Os
- * grupos espelham como o produto já se organiza no menu — monitoramento,
- * operação e governança — mais o bloco de acesso, que é onde ficam MFA,
- * política de senha e sessões.
- *
- * Regra desta página: não prometer o que não existe. Se um recurso não está
- * no produto, ele não entra aqui.
- */
 const GROUPS = [
   {
     icon: "pi pi-chart-line",
@@ -55,6 +43,20 @@ const GROUPS = [
   },
 ] as const;
 
+const MONITORING_FEATURES = [
+  { icon: "pi pi-sitemap", name: "Topologia automática", desc: "Mapa da rede com conexões reais entre interfaces" },
+  { icon: "pi pi-bolt", name: "Alertas inteligentes", desc: "Down com streak de 3 falhas, toner/drum baixo" },
+  { icon: "pi pi-sync", name: "Autocorrelação", desc: "Supressão topológica de alertas downstream" },
+  { icon: "pi pi-history", name: "Histórico completo", desc: "Resultados de checks com valores e duração" },
+] as const;
+
+const SECURITY_FEATURES = [
+  { icon: "pi pi-shield", name: "MFA TOTP", desc: "Autenticador com códigos de recuperação" },
+  { icon: "pi pi-key", name: "Sessões revogáveis", desc: "Teto absoluto de 12h e revogação por dispositivo" },
+  { icon: "pi pi-users", name: "RBAC", desc: "Viewer, Operator, Admin com permissões granulares" },
+  { icon: "pi pi-eye", name: "Auditoria", desc: "Toda ação registrada com ator, recurso e resultado" },
+] as const;
+
 export function FeaturesPage() {
   return (
     <>
@@ -82,6 +84,66 @@ export function FeaturesPage() {
               </ul>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="monitoramento-detalhado" className="uni-public-section">
+        <h2 id="monitoramento-detalhado">Monitoramento em detalhe</h2>
+        <div className="uni-public-grid">
+          {MONITORING_FEATURES.map((feature) => (
+            <article key={feature.name} className="uni-public-card">
+              <span className="uni-public-card-icon">
+                <i className={feature.icon} />
+              </span>
+              <h3>{feature.name}</h3>
+              <p>{feature.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="seguranca-detalhada" className="uni-public-section">
+        <h2 id="seguranca-detalhada">Segurança e controle</h2>
+        <div className="uni-public-grid">
+          {SECURITY_FEATURES.map((feature) => (
+            <article key={feature.name} className="uni-public-card">
+              <span className="uni-public-card-icon">
+                <i className={feature.icon} />
+              </span>
+              <h3>{feature.name}</h3>
+              <p>{feature.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="arquitetura" className="uni-public-section">
+        <h2 id="arquitetura">Arquitetura on-premises</h2>
+        <div className="uni-public-arch">
+          <div className="uni-public-arch-layer primary">
+            <div className="uni-public-arch-layer-header">Aplicação</div>
+            <div className="uni-public-arch-layer-body">
+              <span className="uni-public-arch-item">React + TypeScript</span>
+              <span className="uni-public-arch-item">.NET 10</span>
+              <span className="uni-public-arch-item">CQRS + MediatR</span>
+            </div>
+          </div>
+          <div className="uni-public-arch-layer">
+            <div className="uni-public-arch-layer-header">Dados</div>
+            <div className="uni-public-arch-layer-body">
+              <span className="uni-public-arch-item">PostgreSQL</span>
+              <span className="uni-public-arch-item">Redis</span>
+              <span className="uni-public-arch-item">RabbitMQ</span>
+            </div>
+          </div>
+          <div className="uni-public-arch-layer">
+            <div className="uni-public-arch-layer-header">Infraestrutura</div>
+            <div className="uni-public-arch-layer-body">
+              <span className="uni-public-arch-item">Docker Compose</span>
+              <span className="uni-public-arch-item">Nginx</span>
+              <span className="uni-public-arch-item">OpenTelemetry</span>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,0 +1,295 @@
+/* ============================================================
+   LOGIN — estilos da página de login
+   ============================================================ */
+
+.uni-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--uni-bg);
+}
+
+.uni-login-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface-card);
+  border: 1px solid var(--uni-border);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.uni-login-card-narrow {
+  max-width: 380px;
+}
+
+.uni-login-brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.uni-login-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.uni-login-brand h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--uni-text);
+  margin: 0 0 4px;
+}
+
+.uni-login-brand p {
+  font-size: 13px;
+  color: var(--uni-text-secondary);
+  margin: 0;
+}
+
+.uni-login-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--chip-red-bg, #fef2f2);
+  border: 1px solid var(--uni-red);
+  color: var(--uni-text);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.uni-login-alert i {
+  color: var(--uni-red);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.uni-login-alert button {
+  margin-left: auto;
+  color: var(--uni-text-muted);
+  font-size: 12px;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.uni-login-alert button:hover {
+  color: var(--uni-text);
+}
+
+.uni-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.uni-login-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uni-text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.uni-login-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--uni-border);
+  background: var(--uni-field-bg, #fff);
+  color: var(--uni-text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.uni-login-input:focus {
+  outline: none;
+  border-color: var(--uni-accent);
+}
+
+.uni-login-input::placeholder {
+  color: var(--uni-text-muted);
+}
+
+.uni-login-password {
+  position: relative;
+}
+
+.uni-login-password input {
+  padding-right: 40px;
+}
+
+.uni-login-password button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--uni-text-muted);
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.uni-login-password button:hover {
+  color: var(--uni-text);
+}
+
+.uni-login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--uni-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 4px;
+}
+
+.uni-login-submit:hover:not(:disabled) {
+  background: var(--uni-accent-hover);
+}
+
+.uni-login-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.uni-login-submit i {
+  font-size: 14px;
+}
+
+.uni-login-link {
+  background: none;
+  border: none;
+  color: var(--uni-accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.uni-login-link:hover {
+  color: var(--uni-accent-hover);
+  text-decoration: underline;
+}
+
+.uni-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--uni-text-muted);
+  font-size: 12px;
+}
+
+.uni-login-divider::before,
+.uni-login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--uni-border);
+}
+
+.uni-login-social {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uni-login-social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--uni-border);
+  background: var(--surface-card);
+  color: var(--uni-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.uni-login-social-btn:hover:not(:disabled) {
+  background: var(--uni-hover);
+  border-color: var(--uni-text-muted);
+}
+
+.uni-login-social-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.uni-login-social-btn i {
+  font-size: 16px;
+}
+
+.uni-login-facebook i {
+  color: #1877f2;
+}
+
+.uni-login-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--uni-border);
+  text-align: center;
+}
+
+/* InputOtp customization */
+.uni-input-otp {
+  width: 100%;
+}
+
+.uni-input-otp .p-inputotp-input {
+  width: 44px;
+  height: 48px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--uni-border);
+  background: var(--uni-field-bg, #fff);
+  color: var(--uni-text);
+  transition: border-color 0.15s;
+}
+
+.uni-input-otp .p-inputotp-input:focus {
+  border-color: var(--uni-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Responsividade */
+@media (max-width: 480px) {
+  .uni-login {
+    padding: 16px;
+  }
+
+  .uni-login-card {
+    padding: 24px 20px;
+  }
+
+  .uni-login-brand h1 {
+    font-size: 20px;
+  }
+
+  .uni-input-otp .p-inputotp-input {
+    width: 38px;
+    height: 44px;
+    font-size: 16px;
+  }
+}

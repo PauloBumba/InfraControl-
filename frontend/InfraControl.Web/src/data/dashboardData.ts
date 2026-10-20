@@ -1,63 +1,105 @@
 export type NavItem = { label: string; icon: string; badge?: string; route: string; items?: NavItem[] };
+export type NavGroup = { label: string; icon: string; items: NavItem[] };
 
-export const navigation: NavItem[] = [
-  { label: "Visão Geral", icon: "pi pi-th-large", route: "/dashboard" },
-  { label: "Topologia", icon: "pi pi-directions", route: "/topology" },
-  { label: "WiFi", icon: "pi pi-wifi", route: "/wifi" },
-  { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
-  { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
-  { label: "Virtualização", icon: "pi pi-cloud", route: "/virtualization" },
-  { label: "Impressoras", icon: "pi pi-print", route: "/printers" },
-  { label: "Servidores", icon: "pi pi-desktop", route: "/servers" },
-  { label: "Câmeras", icon: "pi pi-camera", route: "/cameras" },
-  { label: "Telefones", icon: "pi pi-phone", route: "/phones" },
-  { label: "Roteadores", icon: "pi pi-network", route: "/routers" },
-  { label: "Clientes", icon: "pi pi-users", route: "/clients" },
+export const navigation: NavGroup[] = [
   {
-    label: "UniFi",
-    icon: "pi pi-wifi",
-    route: "/unifi",
+    label: "Infraestrutura",
+    icon: "pi pi-server",
     items: [
-      { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
-      { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
+      { label: "Visão Geral", icon: "pi pi-th-large", route: "/dashboard" },
+      { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
+      { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
+      { label: "Roteadores", icon: "pi pi-network", route: "/routers" },
+      { label: "Servidores", icon: "pi pi-desktop", route: "/servers" },
+      { label: "Virtualização", icon: "pi pi-cloud", route: "/virtualization" },
+      { label: "Impressoras", icon: "pi pi-print", route: "/printers" },
+      { label: "Câmeras", icon: "pi pi-camera", route: "/cameras" },
+      { label: "Telefones", icon: "pi pi-phone", route: "/phones" },
     ],
   },
-  { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
   {
-    label: "Zabbix",
+    label: "Rede",
+    icon: "pi pi-share-alt",
+    items: [
+      { label: "Topologia", icon: "pi pi-directions", route: "/topology" },
+      { label: "WiFi", icon: "pi pi-wifi", route: "/wifi" },
+      { label: "Clientes", icon: "pi pi-users", route: "/clients" },
+      { label: "Rede", icon: "pi pi-share-alt", route: "/network" },
+    ],
+  },
+  {
+    label: "Monitoramento",
     icon: "pi pi-eye",
-    route: "/zabbix",
     items: [
-      { label: "Monitoramento", icon: "pi pi-eye", route: "/zabbix" },
-      { label: "Hosts", icon: "pi pi-list-alt", route: "/zabbix/hosts" },
+      {
+        label: "UniFi",
+        icon: "pi pi-wifi",
+        route: "/unifi",
+        items: [
+          { label: "UniFi Ao Vivo", icon: "pi pi-wifi", route: "/unifi" },
+          { label: "Dashboard UniFi", icon: "pi pi-chart-bar", route: "/unifi/dashboard" },
+        ],
+      },
+      {
+        label: "Zabbix",
+        icon: "pi pi-eye",
+        route: "/zabbix",
+        items: [
+          { label: "Monitoramento", icon: "pi pi-eye", route: "/zabbix" },
+          { label: "Hosts", icon: "pi pi-list-alt", route: "/zabbix/hosts" },
+        ],
+      },
     ],
   },
-  { label: "Locations", icon: "pi pi-map-marker", route: "/locations" },
+  {
+    label: "Organização",
+    icon: "pi pi-building",
+    items: [
+      { label: "Locations", icon: "pi pi-map-marker", route: "/locations" },
+    ],
+  },
 ];
 
-export const secondaryNavigation: NavItem[] = [
-  { label: "Insights", icon: "pi pi-chart-bar", route: "/insights" },
-  { label: "Alertas", icon: "pi pi-bell", route: "/alerts" },
-  { label: "Incidentes", icon: "pi pi-exclamation-triangle", route: "/incidents" },
-  { label: "Tarefas", icon: "pi pi-check-square", route: "/tasks" },
-  { label: "Copilot IA", icon: "pi pi-sparkles", route: "/ai/copilot" },
-  { label: "Providers IA", icon: "pi pi-server", route: "/admin/ai-providers" },
-  { label: "Projetos", icon: "pi pi-briefcase", route: "/projects" },
-  { label: "SLA/SLO", icon: "pi pi-chart-line", route: "/sla" },
-  { label: "Notificações", icon: "pi pi-envelope", route: "/notifications" },
-  { label: "Acesso Remoto", icon: "pi pi-external-link", route: "/remote" },
-  { label: "Conhecimento", icon: "pi pi-book", route: "/knowledge" },
-  { label: "Logs", icon: "pi pi-list", route: "/logs" },
-  { label: "Health", icon: "pi pi-heart", route: "/status" },
-  { label: "PDI", icon: "pi pi-id-card", route: "/pdi" },
-  { label: "Relatórios", icon: "pi pi-file", route: "/reports" },
-  { label: "Usuários", icon: "pi pi-user", route: "/users" },
-  { label: "Convites", icon: "pi pi-send", route: "/invitations" },
-  { label: "Auditoria", icon: "pi pi-history", route: "/audit" },
-  { label: "Sessões", icon: "pi pi-mobile", route: "/sessions" },
-  { label: "Integrações", icon: "pi pi-link", route: "/integrations" },
-  { label: "Zabbix", icon: "pi pi-cloud", route: "/integrations/zabbix" },
-  { label: "Configurações", icon: "pi pi-cog", route: "/settings" },
+export const secondaryNavigation: NavGroup[] = [
+  {
+    label: "Operação",
+    icon: "pi pi-bolt",
+    items: [
+      { label: "Insights", icon: "pi pi-chart-bar", route: "/insights" },
+      { label: "Alertas", icon: "pi pi-bell", route: "/alerts" },
+      { label: "Incidentes", icon: "pi pi-exclamation-triangle", route: "/incidents" },
+      { label: "Tarefas", icon: "pi pi-check-square", route: "/tasks" },
+      { label: "Projetos", icon: "pi pi-briefcase", route: "/projects" },
+      { label: "SLA/SLO", icon: "pi pi-chart-line", route: "/sla" },
+      { label: "Notificações", icon: "pi pi-envelope", route: "/notifications" },
+      { label: "Acesso Remoto", icon: "pi pi-external-link", route: "/remote" },
+    ],
+  },
+  {
+    label: "Conhecimento",
+    icon: "pi pi-book",
+    items: [
+      { label: "Conhecimento", icon: "pi pi-book", route: "/knowledge" },
+      { label: "PDI", icon: "pi pi-id-card", route: "/pdi" },
+      { label: "Relatórios", icon: "pi pi-file", route: "/reports" },
+      { label: "Copilot IA", icon: "pi pi-sparkles", route: "/ai/copilot" },
+    ],
+  },
+  {
+    label: "Administração",
+    icon: "pi pi-cog",
+    items: [
+      { label: "Usuários", icon: "pi pi-user", route: "/users" },
+      { label: "Convites", icon: "pi pi-send", route: "/invitations" },
+      { label: "Auditoria", icon: "pi pi-history", route: "/audit" },
+      { label: "Sessões", icon: "pi pi-mobile", route: "/sessions" },
+      { label: "Integrações", icon: "pi pi-link", route: "/integrations" },
+      { label: "Providers IA", icon: "pi pi-server", route: "/admin/ai-providers" },
+      { label: "Logs", icon: "pi pi-list", route: "/logs" },
+      { label: "Health", icon: "pi pi-heart", route: "/status" },
+      { label: "Configurações", icon: "pi pi-cog", route: "/settings" },
+    ],
+  },
 ];
 
 // ============ SUBSYSTEMS ============

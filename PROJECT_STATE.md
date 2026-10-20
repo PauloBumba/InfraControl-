@@ -142,6 +142,18 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 
 - [x] **F36-T001 Avatar no header + submenu do sidebar em popup** <!-- 2026-10-19: avatar = <button> aria-haspopup/aria-expanded abrindo <Menu popup> com Minha Conta/Sair (footer do sidebar intacto — decisão: adicionar, não mover); submenu = <Menu popup> POR PAI com filho (UniFi/Zabbix) — um Menu por gatilho mantém o target do outside-click vivo (useOverlayListener só refaz o lookup quando `when` muda; 2 gatilhos numa instância só = listener velho, 2º clique fechava); F29-T005 preservado (pai navega p/ própria rota E alterna o popup), identidade por ROTA, filhos com o mesmo filtro `canSee`, `onShow`/`onHide` como fonte da verdade do `aria-expanded`, pai `.active` como contexto quando a rota corrente é filho, sidebar 60px agora abre o popup, filho navega e fecha; seta corrigida (pi-angle-up + rotate(180) = baixo; ficou angle-down + rotação CSS); CSS morto `.uni-nav-sublist`/`.uni-nav-subitem` removido; shim `offsetParent` no setup do vitest (jsdom: `getHiddenElementDimensions` deixava `display:none` no overlay — popup invisível). TDD: 7 testes novos RED → 10/10 GREEN; suíte front 310/310 (56 arquivos), tsc 0, eslint limpo, vite build ✓. Pendências: commit; smoke visual ao vivo. Detalhes: TASKS.md Fase 36. -->
 
+## Fase 37 — Frontend: landing profissional + dark/light + login social (2026-10-19)
+
+> **Contexto**: pedido do usuário (2026-10-19) — "AJUSTO DE FRONT TUDO QUE FOR PUBLICO PRECISA TER MESMO HEADER E FOOTER E AS PAGINAS ESTAO MUITO SIMPLES PRECISA ESTAR MAIS SEÇAO E DAR UMA IMPRESSAO QUE UM SITE OFICIAL E NAO AMADOR, ADD O ICONE DE FACEBOOK E GOOGLE NO LOGIN COMO LOGIN SOCIAL MELHOR ISSO, ADD DARK E LIGHT, DEIXA AS PAGINAS PROFISSIONAIS COM BOM HEADER E FOOTER E RESPONSIVO".
+
+- [x] **F37-T001 Tema dark/light nas páginas públicas** <!-- 2026-10-19: `--surface-card` adicionado ao `:root` e ao `[data-theme="dark"]`; novo `public-dark.css` com suporte completo ao tema escuro em header, nav, cards, footer, login, terminal, timeline, arch, mockup; import no styles.css. -->
+- [x] **F37-T002 PublicLayout profissional** <!-- 2026-10-19: header com toggle de tema (lua/sol), menu mobile hamburger com dropdown, nav desktop oculta < 720px; footer com 4 colunas (Produto/Recursos/Empresa), redes sociais (GitHub/LinkedIn/Twitter), links Privacidade/Termos, copyright dinâmico; componente `InfraLogo` extraído para reutilização. -->
+- [x] **F37-T003 HomePage com mais seções** <!-- 2026-10-19: seção de estatísticas (24/7, 100%, 3, ∞), "Como funciona" em 4 passos (Instale/Descubra/Monitore/Opere), seção de integrações (Zabbix, UniFi, SNMP, Guacamole, Knowledge Base, SignalR), FAQ accordion com 4 perguntas. -->
+- [x] **F37-T004 FeaturesPage com mais seções** <!-- 2026-10-19: seção "Monitoramento em detalhe" (4 cards), seção "Segurança e controle" (4 cards), seção "Arquitetura on-premises" com diagrama de 3 camadas. -->
+- [x] **F37-T005 ContactPage com FAQ** <!-- 2026-10-19: seção de FAQ com 4 perguntas (instalação, teste, requisitos, suporte). -->
+- [x] **F37-T006 Botão Facebook no login** <!-- 2026-10-19: botão "Continuar com Facebook" com ícone, mesmo padrão visual do Google; clique mostra mensagem "Login com Facebook disponível em breve." (backend não suporta Facebook ainda); `login.css` criado com todos os estilos da página de login. -->
+- [x] **F37-T007 Build e testes** <!-- 2026-10-19: tsc 0 erros, vite build ✓ (14.74s), vitest 313/313. -->
+
 ## Fase 13 — Frontend UI/UX (UniFi-Style)
 
 - [x] F13-T001 CSS Variables + Paleta UniFi

@@ -1,11 +1,353 @@
 /* ============================================================
-   PUBLIC COMPONENTS — mockup, terminal, timeline, diagrama, badges
-   Componentes visuais reutilizáveis em páginas públicas
+   PUBLIC COMPONENTS — toggle de tema, menu mobile, redes sociais,
+   stats, seções expandidas
    ============================================================ */
+
+/* Toggle de tema no header público */
+.uni-public-theme-toggle {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--uni-border);
+  background: var(--surface-card);
+  color: var(--uni-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.uni-public-theme-toggle:hover {
+  background: var(--uni-hover);
+  color: var(--uni-text);
+  border-color: var(--uni-text-muted);
+}
+
+/* Menu mobile toggle */
+.uni-public-mobile-toggle {
+  display: none;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--uni-border);
+  background: var(--surface-card);
+  color: var(--uni-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.uni-public-nav-desktop {
+  display: flex;
+}
+
+/* Mobile menu dropdown */
+.uni-public-mobile-menu {
+  display: none;
+  border-top: 1px solid var(--uni-border);
+  background: var(--surface-card);
+  padding: 8px 20px 16px;
+}
+
+.uni-public-mobile-menu .uni-public-nav {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.uni-public-mobile-menu .uni-public-nav-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Redes sociais no footer */
+.uni-public-social {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.uni-public-social-link {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--uni-border);
+  background: var(--surface-card);
+  color: var(--uni-text-secondary);
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.uni-public-social-link:hover {
+  background: var(--uni-hover);
+  color: var(--uni-accent);
+  border-color: var(--uni-accent);
+}
+
+/* Footer bottom links */
+.uni-public-footer-bottom-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.uni-public-footer-bottom-links a {
+  font-size: 12px;
+  color: var(--uni-text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.uni-public-footer-bottom-links a:hover {
+  color: var(--uni-accent);
+}
+
+/* Seção de estatísticas */
+.uni-public-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.uni-public-stat {
+  text-align: center;
+  padding: 24px 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--uni-border);
+  border-radius: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.uni-public-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.uni-public-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--uni-accent);
+  margin-bottom: 4px;
+}
+
+.uni-public-stat-label {
+  font-size: 13px;
+  color: var(--uni-text-secondary);
+}
+
+/* Seção "Como funciona" */
+.uni-public-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.uni-public-step {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.uni-public-step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--uni-accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.uni-public-step h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--uni-text);
+  margin: 0 0 8px;
+}
+
+.uni-public-step p {
+  font-size: 13px;
+  color: var(--uni-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Seção de integrações */
+.uni-public-integrations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.uni-public-integration {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--uni-border);
+  border-radius: 10px;
+  transition: all 0.15s;
+}
+
+.uni-public-integration:hover {
+  border-color: var(--uni-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.uni-public-integration-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--uni-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--uni-accent);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.uni-public-integration-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uni-text);
+}
+
+/* Seção FAQ */
+.uni-public-faq {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uni-public-faq-item {
+  background: var(--surface-card);
+  border: 1px solid var(--uni-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.uni-public-faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--uni-text);
+  text-align: left;
+}
+
+.uni-public-faq-question i {
+  color: var(--uni-text-muted);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.uni-public-faq-item.open .uni-public-faq-question i {
+  transform: rotate(180deg);
+}
+
+.uni-public-faq-answer {
+  padding: 0 20px 16px;
+  font-size: 13px;
+  color: var(--uni-text-secondary);
+  line-height: 1.6;
+}
+
+/* Seção de CTA expandida */
+.uni-public-cta-section {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.uni-public-cta-section h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--uni-text);
+  margin: 0 0 12px;
+}
+
+.uni-public-cta-section p {
+  font-size: 15px;
+  color: var(--uni-text-secondary);
+  margin: 0 0 20px;
+}
+
+/* Responsividade */
+@media (max-width: 720px) {
+  .uni-public-nav-desktop {
+    display: none;
+  }
+
+  .uni-public-mobile-toggle {
+    display: inline-flex;
+  }
+
+  .uni-public-mobile-menu {
+    display: block;
+  }
+
+  .uni-public-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .uni-public-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .uni-public-integrations {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .uni-public-footer-bottom {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .uni-public-footer-bottom-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .uni-public-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .uni-public-integrations {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* ============================================================
    TERMINAL — code blocks estilo terminal
-   Similar ao ss-terminal do Sentinel
    ============================================================ */
 
 .uni-public-terminal {
@@ -62,7 +404,6 @@
 
 /* ============================================================
    TIMELINE — timeline vertical
-   Similar ao ss-timeline do Sentinel
    ============================================================ */
 
 .uni-public-timeline {
@@ -117,7 +458,6 @@
 
 /* ============================================================
    DIAGRAMA — camadas de arquitetura
-   Similar ao ss-arch do Sentinel
    ============================================================ */
 
 .uni-public-arch {
@@ -179,7 +519,6 @@
 
 /* ============================================================
    BADGES — badges de plataforma/status
-   Similar ao ss-platform-badge do Sentinel
    ============================================================ */
 
 .uni-public-badge {
@@ -235,7 +574,6 @@
 
 /* ============================================================
    MOCKUP — visual do dashboard
-   Similar ao ss-mockup do Sentinel
    ============================================================ */
 
 .uni-public-mockup {
@@ -286,7 +624,7 @@
   color: var(--uni-text);
 }
 
-/* Responsividade */
+/* Responsividade componentes antigos */
 @media (max-width: 720px) {
   .uni-public-timeline {
     gap: 12px;

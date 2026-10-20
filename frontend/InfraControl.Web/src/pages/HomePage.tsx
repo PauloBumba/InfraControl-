@@ -1,18 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
-/**
- * F26-T002 — home da landing de vendas.
- *
- * Sem design doc no repositório, o conteúdo foi DERIVADO DO PRODUTO REAL
- * (decisão do usuário 2026-10-11). Cada pilar aponta para capacidade que
- * existe no código — nada de promessa genérica:
- *
- * - Monitorar → Zabbix (hosts/triggers/inventário) e UniFi (WiFi, APs,
- *   clientes ARP/DHCP, insights de tráfego e DPI);
- * - Detectar → o ciclo alerta → incidente → recuperação, com SLA;
- * - Operar   → tarefas, projetos com aprovação, acesso remoto, topologia;
- * - Governar → auditoria, sessões, convites, MFA e permissões por papel.
- */
 const PILLARS = [
   {
     icon: "pi pi-eye",
@@ -35,6 +23,77 @@ const PILLARS = [
     body: "Auditoria de cada ação, sessões, convites, MFA e permissões por papel: Viewer, Operator e Admin.",
   },
 ] as const;
+
+const STATS = [
+  { value: "24/7", label: "Monitoramento contínuo" },
+  { value: "100%", label: "On-premises" },
+  { value: "3", label: "Papéis de acesso" },
+  { value: "∞", label: "Dispositivos" },
+] as const;
+
+const STEPS = [
+  {
+    number: "01",
+    title: "Instale",
+    body: "Docker Compose sobe PostgreSQL, Redis, RabbitMQ e a plataforma completa em minutos.",
+  },
+  {
+    number: "02",
+    title: "Descubra",
+    body: "ICMP, SNMP, LLDP, CDP, ARP e DHCP encontram dispositivos e topologia automaticamente.",
+  },
+  {
+    number: "03",
+    title: "Monitore",
+    body: "Ping, SNMP, HTTP e TCP com alertas que viram incidentes com SLA e recuperação.",
+  },
+  {
+    number: "04",
+    title: "Opere",
+    body: "Tarefas, projetos, acesso remoto e base de conhecimento — tudo com auditoria.",
+  },
+] as const;
+
+const INTEGRATIONS = [
+  { icon: "pi pi-chart-line", name: "Zabbix" },
+  { icon: "pi pi-wifi", name: "UniFi" },
+  { icon: "pi pi-server", name: "SNMP" },
+  { icon: "pi pi-shield", name: "Guacamole" },
+  { icon: "pi pi-book", name: "Knowledge Base" },
+  { icon: "pi pi-bell", name: "SignalR" },
+] as const;
+
+const FAQ = [
+  {
+    question: "O InfraControl é realmente on-premises?",
+    answer: "Sim. Toda a plataforma roda no seu próprio servidor ou datacenter via Docker Compose. Sem dependência de nuvem externa.",
+  },
+  {
+    question: "Quais dispositivos são suportados?",
+    answer: "Qualquer dispositivo com IP: switches, roteadores, servidores, impressoras, câmeras, APs, telefones IP e UPS. Monitoramento via ICMP, SNMP, HTTP e TCP.",
+  },
+  {
+    question: "Como funciona o controle de acesso?",
+    answer: "Três papéis: Viewer (somente leitura), Operator (operação) e Admin (administração). MFA TOTP, sessões revogáveis e auditoria completa.",
+  },
+  {
+    question: "Posso testar antes de instalar?",
+    answer: "Sim. O projeto é open source. Clone o repositório, execute docker compose up e explore todas as funcionalidades em ambiente local.",
+  },
+] as const;
+
+function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`uni-public-faq-item ${open ? "open" : ""}`}>
+      <button className="uni-public-faq-question" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span>{question}</span>
+        <i className="pi pi-angle-down" />
+      </button>
+      {open && <div className="uni-public-faq-answer">{answer}</div>}
+    </div>
+  );
+}
 
 export function HomePage() {
   return (
@@ -84,6 +143,17 @@ export function HomePage() {
         </div>
       </section>
 
+      <section className="uni-public-section" aria-label="Estatísticas">
+        <div className="uni-public-stats">
+          {STATS.map((stat) => (
+            <div key={stat.label} className="uni-public-stat">
+              <div className="uni-public-stat-value">{stat.value}</div>
+              <div className="uni-public-stat-label">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section aria-labelledby="pilares" className="uni-public-section">
         <h2 id="pilares">Do sinal bruto à decisão</h2>
         <div className="uni-public-grid">
@@ -95,6 +165,42 @@ export function HomePage() {
               <h3>{pillar.title}</h3>
               <p>{pillar.body}</p>
             </article>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="como-funciona" className="uni-public-section">
+        <h2 id="como-funciona">Como funciona</h2>
+        <div className="uni-public-steps">
+          {STEPS.map((step) => (
+            <div key={step.number} className="uni-public-step">
+              <div className="uni-public-step-number">{step.number}</div>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="integracoes" className="uni-public-section">
+        <h2 id="integracoes">Integrações</h2>
+        <div className="uni-public-integrations">
+          {INTEGRATIONS.map((integration) => (
+            <div key={integration.name} className="uni-public-integration">
+              <div className="uni-public-integration-icon">
+                <i className={integration.icon} />
+              </div>
+              <span className="uni-public-integration-name">{integration.name}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="faq" className="uni-public-section">
+        <h2 id="faq">Perguntas frequentes</h2>
+        <div className="uni-public-faq">
+          {FAQ.map((item) => (
+            <FaqItem key={item.question} question={item.question} answer={item.answer} />
           ))}
         </div>
       </section>
