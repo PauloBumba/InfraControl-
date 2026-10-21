@@ -2,7 +2,7 @@
 
 Escopo: operação do gateway de acesso remoto (Fase 34 — ADR-060).
 Arquitetura e decisões: `docs/adr/ADR-060-ACESSO-REMOTO-GATEWAY.md`.
-Inventário e políticas do hospital: `F34-T000` (fora do repo, pendente).
+Inventário e políticas do hospital: `F34-T000` (fora do repo, pendente — estrutura para preenchimento em `docs/62-F34-T000-FASE0-INVENTARIO-POLITICAS.md`).
 
 ## Subir / desligar o gateway
 
@@ -52,4 +52,4 @@ gateway".
 - firewall de **egress do guacd no HOST**: restringir destinos
   permitidos (LAN autorizada) — não expressável em compose;
 - `docker-compose.production.yml` sem profile `remote` (deploy real);
-- inventário Windows/Linux e políticas (`F34-T000` — usuário).
+- inventário Windows/Linux e políticas (`F34-T000` — usuário; checklist em `docs/62-F34-T000-FASE0-INVENTARIO-POLITICAS.md`).

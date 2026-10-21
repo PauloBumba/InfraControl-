@@ -244,8 +244,21 @@
   font-size: 16px;
 }
 
-.uni-login-facebook i {
-  color: #1877f2;
+/* Dentro do PublicLayout (header/footer partilhados), as páginas de auth
+   (login, recuperação, redefinição, convite) centram o cartão sem forçar
+   100vh — o header/footer já ocupam espaço. */
+.uni-public-main > .uni-login {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.uni-public-main > .uni-login-card,
+.uni-public-main > .uni-login > .uni-login-card {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .uni-login-footer {

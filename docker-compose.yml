@@ -307,6 +307,7 @@ services:
       NetworkServices__TimeoutSeconds: ${NETWORK_SERVICES_TIMEOUT_SECONDS:-5}
       Notifications__Channels__Default__0: ${NOTIFY_DEFAULT_0:-Email}
       Notifications__Channels__Default__1: ${NOTIFY_DEFAULT_1:-SignalR}
+      Notifications__Channels__Default__2: ${NOTIFY_DEFAULT_2:-}
       Notifications__Channels__Telegram__ChatId: ${TELEGRAM_CHAT_ID:-}
       Notifications__Channels__WhatsApp__Phone: ${WHATSAPP_PHONE:-}
       Notifications__Channels__WhatsApp__GroupId: ${WHATSAPP_GROUP_ID:-}

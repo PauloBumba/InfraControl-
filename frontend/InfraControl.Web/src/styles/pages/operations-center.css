@@ -1,0 +1,498 @@
+/* ============================================================
+   CENTRAL DE OPERAÇÕES — kiosk (ADR-063, F37-T001) + F37-T007
+   Painel legível à distância: header do painel, grid de cards,
+   chips de status e barras de métrica.
+
+   2026-10-21 — Painel fixo (sem rotação): o painel passa a exibir
+   TODOS os módulos ao mesmo tempo em colunas (`.uni-ops-board` →
+   seções `.uni-ops-section`, uma por módulo). A barra de abas, a
+   rotação automática e o badge de rotação foram removidos por
+   decisão explícita (tela fixa de exibição contínua mostrando o
+   estado de cada coisa, sem troca automática).
+
+   F37-T007: a página nasceu com classes Tailwind que o projeto
+   NÃO possui (o stack é PrimeFlex + utilitários próprios), então
+   grid-cols-*, rounded-*, shadow, bg-blue-600 e as barras h-3
+   morriam — "Tela cheia" ficava texto branco sem fundo
+   (invisível) e no dark o painel virava texto claro sobre
+   boxes brancos. Tudo aqui é escopado em `.uni-ops-page` e usa
+   os tokens `--uni-*` (o tema escuro vira sozinho).
+
+   Cores de estado (`--ops-*-fg`) são definidas por página para
+   garantir contraste nos dois temas; preenchimentos de barra
+   usam os semânticos --uni-green/red/yellow.
+   ============================================================ */
+
+.uni-ops-page {
+  --ops-ok-fg: #15803d;
+  --ops-warn-fg: #a16207;
+  --ops-crit-fg: #b91c1c;
+
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--uni-text);
+}
+
+[data-theme="dark"] .uni-ops-page {
+  --ops-ok-fg: #4ade80;
+  --ops-warn-fg: #facc15;
+  --ops-crit-fg: #f87171;
+}
+
+/* ---------- header do painel ---------- */
+
+.uni-ops-header {
+  background: var(--uni-surface);
+  border-bottom: 1px solid var(--uni-border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  padding: 16px 24px;
+}
+
+.uni-ops-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.uni-ops-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.uni-ops-title {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.uni-ops-subtitle {
+  font-size: 1.15rem;
+  color: var(--uni-text-secondary);
+}
+
+.uni-ops-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.uni-ops-audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 16px;
+  border-right: 1px solid var(--uni-border);
+}
+
+/* ---------- botões do painel ---------- */
+
+.uni-ops-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--uni-hover);
+  color: var(--uni-text);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.uni-ops-btn:hover {
+  border-color: var(--uni-accent);
+}
+
+.uni-ops-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.uni-ops-btn.is-purple {
+  background: var(--uni-chip-purple-bg);
+  color: #7c3aed;
+}
+
+.uni-ops-btn.is-blue {
+  background: var(--uni-chip-blue-bg);
+  color: var(--uni-accent);
+}
+
+.uni-ops-btn.is-green {
+  background: var(--uni-chip-green-bg);
+  color: var(--ops-ok-fg);
+}
+
+.uni-ops-btn.is-primary {
+  background: var(--uni-accent);
+  border-color: var(--uni-accent);
+  color: #ffffff;
+}
+
+.uni-ops-btn.is-primary:hover {
+  background: var(--uni-accent-hover);
+  border-color: var(--uni-accent-hover);
+}
+
+[data-theme="dark"] .uni-ops-btn.is-purple {
+  color: #a78bfa;
+}
+
+/* ---------- conteúdo ---------- */
+
+.uni-ops-main {
+  flex: 1;
+  padding: 24px;
+}
+
+/* ---------- board fixo (todas as seções ao mesmo tempo) ---------- */
+
+.uni-ops-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.uni-ops-section {
+  background: var(--uni-surface);
+  border: 1px solid var(--uni-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  padding: 16px;
+}
+
+.uni-ops-section-head {
+  margin-bottom: 12px;
+}
+
+.uni-ops-section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Dentro do board as seções são colunas: os cards empilham em 1 coluna
+   (o grid padrão de 3 colunas do painel inteiro não cabe na seção). */
+.uni-ops-section .uni-ops-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* Cards mais enxutos dentro do board (mais densidade na TV). */
+.uni-ops-section .uni-ops-card {
+  padding: 16px;
+}
+
+.uni-ops-section .uni-ops-card-title {
+  font-size: 1.2rem;
+}
+
+.uni-ops-updated {
+  font-size: 0.9rem;
+  color: var(--uni-text-muted);
+}
+
+/* grid responsivo — substitui o grid-cols-* do Tailwind (inexistente aqui). */
+.uni-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 1440px) {
+  .uni-ops-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .uni-ops-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .uni-ops-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- card ---------- */
+
+.uni-ops-card {
+  background: var(--uni-surface);
+  border: 1px solid var(--uni-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  padding: 24px;
+}
+
+.uni-ops-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.uni-ops-card-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+/* ---------- chip de status ---------- */
+
+.uni-ops-chip {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--uni-hover);
+  color: var(--uni-text-secondary);
+}
+
+.uni-ops-chip--online,
+.uni-ops-chip--success {
+  background: var(--uni-chip-green-bg);
+  color: var(--ops-ok-fg);
+}
+
+.uni-ops-chip--warning {
+  background: var(--uni-chip-yellow-bg);
+  color: var(--ops-warn-fg);
+}
+
+.uni-ops-chip--offline,
+.uni-ops-chip--error {
+  background: var(--uni-chip-red-bg);
+  color: var(--ops-crit-fg);
+}
+
+/* ---------- métricas (CPU/mem/disco, toner/drum) ---------- */
+
+.uni-ops-metric {
+  margin-bottom: 12px;
+}
+
+.uni-ops-metric-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+}
+
+.uni-ops-metric-head span:first-child {
+  color: var(--uni-text-secondary);
+}
+
+.uni-ops-metric-head span:last-child {
+  font-weight: 600;
+}
+
+.uni-ops-bar {
+  width: 100%;
+  height: 12px;
+  background: var(--uni-divider);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.uni-ops-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--uni-green);
+  transition: width 0.3s;
+}
+
+.uni-ops-bar-fill.is-warn {
+  background: var(--uni-yellow);
+}
+
+.uni-ops-bar-fill.is-crit {
+  background: var(--uni-red);
+}
+
+.uni-ops-error {
+  background: var(--uni-chip-red-bg);
+  color: var(--ops-crit-fg);
+  border: 1px solid var(--uni-red);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+.uni-ops-note {
+  color: var(--uni-text-muted);
+  font-style: italic;
+  font-size: 0.95rem;
+}
+
+/* ---------- switches: caixas de portas ---------- */
+
+.uni-ops-uptime {
+  font-size: 1.1rem;
+  color: var(--uni-text-secondary);
+  margin-bottom: 16px;
+}
+
+.uni-ops-stat-row {
+  display: flex;
+  gap: 16px;
+}
+
+.uni-ops-stat {
+  flex: 1;
+  text-align: center;
+  padding: 16px 8px;
+  border-radius: 10px;
+  background: var(--uni-chip-blue-bg);
+}
+
+.uni-ops-stat.is-green {
+  background: var(--uni-chip-green-bg);
+}
+
+.uni-ops-stat.is-red {
+  background: var(--uni-chip-red-bg);
+}
+
+.uni-ops-stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--uni-accent);
+}
+
+.uni-ops-stat.is-green .uni-ops-stat-value {
+  color: var(--ops-ok-fg);
+}
+
+.uni-ops-stat.is-red .uni-ops-stat-value {
+  color: var(--ops-crit-fg);
+}
+
+.uni-ops-stat-label {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--uni-text-secondary);
+}
+
+/* ---------- rede: valores grandes ---------- */
+
+.uni-ops-field {
+  margin-bottom: 14px;
+}
+
+.uni-ops-field-label {
+  font-size: 0.9rem;
+  color: var(--uni-text-secondary);
+  margin-bottom: 2px;
+}
+
+.uni-ops-field-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--uni-accent);
+}
+
+.uni-ops-field-value.is-green {
+  color: var(--ops-ok-fg);
+}
+
+.uni-ops-field-value.is-warn {
+  color: var(--ops-warn-fg);
+}
+
+.uni-ops-field-value.is-crit {
+  color: var(--ops-crit-fg);
+}
+
+.uni-ops-field-value.is-text {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--uni-text);
+}
+
+/* ---------- câmeras: indicador de gravação ---------- */
+
+.uni-ops-rec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--uni-text-secondary);
+}
+
+.uni-ops-rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--uni-text-muted);
+}
+
+.uni-ops-rec-dot.is-recording {
+  background: var(--uni-red);
+  animation: uni-ops-pulse 1.2s ease-in-out infinite;
+}
+
+.uni-ops-speaking-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--uni-accent);
+  animation: uni-ops-pulse 1s ease-in-out infinite;
+}
+
+@keyframes uni-ops-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.uni-ops-speaking {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--uni-accent);
+}
+
+.uni-ops-audio-error {
+  font-size: 0.75rem;
+  color: var(--ops-crit-fg);
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- ajustes finos no tema escuro ---------- */
+
+[data-theme="dark"] .uni-ops-header {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .uni-ops-card,
+[data-theme="dark"] .uni-ops-section {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}

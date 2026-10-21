@@ -232,36 +232,26 @@ export function LoginPage() {
           )}
         </form>
 
-        {!mfaStep && (
+        {!mfaStep && googleClientId && (
           <>
             <div className="uni-login-divider"><span>ou continue com</span></div>
             <div className="uni-login-social">
-              {googleClientId && (
-                <div className="uni-login-social-btn">
-                  <GoogleOAuthProvider clientId={googleClientId}>
-                    <GoogleLogin
-                      onSuccess={(response) => {
-                        if (response.credential) void handleGoogle(response.credential);
-                      }}
-                      onError={() => dispatch(loginFailed("Login com Google cancelado ou indisponível."))}
-                      useOneTap={false}
-                      theme="outline"
-                      size="large"
-                      shape="rectangular"
-                      width="100%"
-                      text="continue_with"
-                    />
-                  </GoogleOAuthProvider>
-                </div>
-              )}
-              <button
-                className="uni-login-social-btn uni-login-facebook"
-                onClick={() => dispatch(loginFailed("Login com Facebook disponível em breve."))}
-                disabled={pending}
-              >
-                <i className="pi pi-facebook" />
-                <span>Continuar com Facebook</span>
-              </button>
+              <div className="uni-login-social-btn">
+                <GoogleOAuthProvider clientId={googleClientId}>
+                  <GoogleLogin
+                    onSuccess={(response) => {
+                      if (response.credential) void handleGoogle(response.credential);
+                    }}
+                    onError={() => dispatch(loginFailed("Login com Google cancelado ou indisponível."))}
+                    useOneTap={false}
+                    theme="outline"
+                    size="large"
+                    shape="rectangular"
+                    width="100%"
+                    text="continue_with"
+                  />
+                </GoogleOAuthProvider>
+              </div>
             </div>
           </>
         )}

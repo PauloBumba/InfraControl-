@@ -101,6 +101,7 @@ export const secondaryNavigation: NavGroup[] = [
       { label: "Auditoria", icon: "pi pi-history", route: "/audit" },
       { label: "Sessões", icon: "pi pi-mobile", route: "/sessions" },
       { label: "Integrações", icon: "pi pi-link", route: "/integrations" },
+      { label: "WhatsApp", icon: "pi pi-whatsapp", route: "/integrations/whatsapp" },
       { label: "Providers IA", icon: "pi pi-server", route: "/admin/ai-providers" },
       { label: "Logs", icon: "pi pi-list", route: "/logs" },
       { label: "Health", icon: "pi pi-heart", route: "/status" },

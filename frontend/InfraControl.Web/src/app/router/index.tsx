@@ -26,6 +26,8 @@ const UniFiLivePage = lazy(() => import("@/pages/UniFiLivePage").then(m => ({ de
 const UniFiDashboardPage = lazy(() => import("@/pages/UniFiDashboardPage").then(m => ({ default: m.UniFiDashboardPage })));
 const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m => ({ default: m.IntegrationsPage })));
 const ZabbixSettingsPage = lazy(() => import("@/pages/ZabbixSettingsPage").then(m => ({ default: m.ZabbixSettingsPage })));
+// ADR-062 — gestão do canal WhatsApp (Evolution API): conexão/QR, grupos e teste.
+const WhatsAppSettingsPage = lazy(() => import("@/pages/WhatsAppSettingsPage").then(m => ({ default: m.WhatsAppSettingsPage })));
 const ZabbixHostsPage = lazy(() => import("@/pages/ZabbixHostsPage").then(m => ({ default: m.ZabbixHostsPage })));
 const ZabbixOverviewPage = lazy(() => import("@/pages/ZabbixOverviewPage").then(m => ({ default: m.ZabbixOverviewPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
@@ -219,17 +221,20 @@ function AppContent() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Login, recuperação de senha e aceite de convite usam o PublicLayout
-  // (header/footer compartilhados) e têm SessionGate para validar a sessão
-  // com o backend. O /reset-password é privado (exige login) e vive no
-  // bloco protegido abaixo.
+  // Login, recuperação/redefinição de senha e aceite de convite usam o
+  // PublicLayout (header/footer compartilhados) e têm SessionGate para
+  // validar a sessão com o backend. Todas estas páginas são públicas — o
+  // /reset-password chega por link e-maiado com email+token (o token É a
+  // prova, não é preciso sessão).
   if (
     location.pathname === "/login" ||
     location.pathname === "/forgot-password" ||
+    location.pathname === "/reset-password" ||
     location.pathname.startsWith("/invitations/")
   ) {
     const isPublicPage =
       location.pathname === "/forgot-password" ||
+      location.pathname === "/reset-password" ||
       location.pathname.startsWith("/invitations/");
 
     if (authStatus === "authenticated" && !isPublicPage) {
@@ -243,6 +248,7 @@ function AppContent() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
             </Routes>
           </Suspense>
@@ -320,6 +326,12 @@ function AppContent() {
           <Route path="/integrations/zabbix" element={
             <ProtectedRoute>
               <ZabbixSettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* ADR-062 — Administração → Integrações → WhatsApp (Administer). */}
+          <Route path="/integrations/whatsapp" element={
+            <ProtectedRoute>
+              <WhatsAppSettingsPage />
             </ProtectedRoute>
           } />
           {/* F27 Fase 10.3 — Infraestrutura → Visão geral Zabbix (leitura). */}
@@ -401,12 +413,6 @@ function AppContent() {
           <Route path="/account" element={
             <ProtectedRoute>
               <AccountPage />
-            </ProtectedRoute>
-          } />
-          {/* Redefinição de senha — privado, exige login. */}
-          <Route path="/reset-password" element={
-            <ProtectedRoute>
-              <ResetPasswordPage />
             </ProtectedRoute>
           } />
           {/* F37-T001 — Central de Operações (painel kiosk) */}

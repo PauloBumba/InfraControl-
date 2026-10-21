@@ -140,13 +140,8 @@ public sealed class GuacamoleGateway(
                     maxConnectionTime = 0,
                     maxIdleTime = 0,
                     failoverOnly = false,
-                    parameters = new Dictionary<string, string>
-                    {
-                        ["hostname"] = hostname,
-                        ["port"] = port.ToString(),
-                        ["username"] = credential.Username,
-                        ["password"] = credential.Password,
-                    },
+                    parameters = BuildConnectionParameters(
+                        protocol, hostname, port, credential),
                     attributes = new Dictionary<string, string>(),
                 }, JsonOptions);
 
@@ -215,6 +210,33 @@ public sealed class GuacamoleGateway(
                 _ = patched;
             }
         }
+    }
+
+    /// <summary>
+    /// Parâmetros da conexão por protocolo. RDP com <c>ignore-cert=true</c>
+    /// (piloto F34-T005): máquinas reais usam certificado autoassinado e o
+    /// guacd recusa o TLS sem isso ("untrusted/self-signed certificate" no
+    /// log, sessão nunca renderiza). SSH não aceita o parâmetro — fica só
+    /// hostname/porta/credencial.
+    /// </summary>
+    private static Dictionary<string, string> BuildConnectionParameters(
+        RemoteProtocol protocol,
+        string hostname,
+        int port,
+        RemoteCredential credential)
+    {
+        var parameters = new Dictionary<string, string>
+        {
+            ["hostname"] = hostname,
+            ["port"] = port.ToString(),
+            ["username"] = credential.Username,
+            ["password"] = credential.Password,
+        };
+
+        if (protocol == RemoteProtocol.Rdp)
+            parameters["ignore-cert"] = "true";
+
+        return parameters;
     }
 
     private async Task<string> GetAdminTokenAsync(

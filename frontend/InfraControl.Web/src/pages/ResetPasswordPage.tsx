@@ -10,11 +10,11 @@ function toMessage(error: unknown, fallback: string): string {
 }
 
 /**
- * Página privada de redefinição de senha — acessível apenas por usuários
- * logados. O email e token vêm como query params (fluxo interno da plataforma).
- * O token de uso único (Redis, 30 min), conta ativa e política de senha
- * continuam valendo no servidor (F1-T015/ADR-017: escrita autenticada exige
- * antiforgery, que é enviado automaticamente pelo client.ts).
+ * Página pública de redefinição de senha — acessada pelo link e-maiado
+ * (email + token como query params). O token de uso único (Redis, 30 min),
+ * conta ativa e política de senha continuam valendo no servidor. A página
+ * roda dentro do PublicLayout (header/footer partilhados), como as demais
+ * telas públicas (login, recuperação, convite).
  */
 export function ResetPasswordPage() {
   const navigate = useNavigate();

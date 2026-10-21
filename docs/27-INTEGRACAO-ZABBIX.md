@@ -8,6 +8,13 @@
   leitura, tarefa, conhecimento). Notificação fanout concluída na F16-T002
   (`IncidentCreatedDomainEvent` → outbox → consumer, destinatários Operator
   + Admin — cobre webhook, manual e auto-abertura).
+- **Canal WhatsApp (F33 — ADR-059)**: eventos do Zabbix podem ser levados ao
+  grupo de WhatsApp da empresa via Evolution API. O fluxo completo é:
+  Zabbix → webhook → MonitoringEvent → Alert → Incident → Outbox → RabbitMQ
+  → NotificationEventConsumer → NotificationWhatsAppWorker → Evolution API
+  → Grupo WhatsApp (com gráfico da métrica quando há histórico). Ver
+  [docs/07-NOTIFICACOES.md](07-NOTIFICACOES.md#canal-whatsapp-f9-t007--f33--evolution-api)
+  para configuração e runbook.
 
 ## 1. Endpoint
 

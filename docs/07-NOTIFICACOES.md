@@ -177,14 +177,170 @@ pendência, junto do SMTP do docs/05). ChatId esvaziado entre enfileirar e
 despachar vira `Failed` com erro pt-BR apontando a seção
 (`Notifications:Channels:Telegram:ChatId`).
 
-## Canal WhatsApp (F9-T007)
+## Canal WhatsApp (F9-T007 + F33 — Evolution API)
 
-Espelho do Telegram (F9-T006): o consumer enfileira `NotificationDelivery`
-(WhatsApp) por usuário final quando o canal está em `Default` **e**
-`WhatsApp:Phone` está preenchido (sem Phone = Warning, sem delivery). O
-`NotificationWhatsAppWorker` (mesmo loop base, 2s) despacha via porta
-`IWhatsAppNotificationDispatcher` (`Phone` global + `Title`/`Message`) e
-marca `Sent`/`Failed`. O adaptador é `LoggingWhatsAppNotificationDispatcher`
+### Versão real (F33 — ADR-059)
+
+Desde a F33, o canal WhatsApp pode usar a **Evolution API** como transporte
+de saída para eventos do Zabbix (incidentes e alertas críticos). O fluxo
+completo é:
+
+```text
+Zabbix (PROBLEM/OK)
+  → POST /api/v1/integrations/zabbix/problems   [F16-T001, ADR-023]
+  → MonitoringEventIngestor → Alert + Incident  [F19, ADR-027]
+  → IncidentCreatedDomainEvent / IncidentResolvedDomainEvent / AlertResolvedDomainEvent
+  → Outbox → RabbitMQ → NotificationEventConsumer [idempotente via Inbox]
+  → NotificationDelivery (canal WhatsApp)        [destino global: 1 delivery por notificação]
+  → NotificationWhatsAppWorker
+  → EvolutionApiWhatsAppNotificationDispatcher  [POST /message/sendText ou /message/sendMedia]
+  → Grupo de WhatsApp "Estudo Arquitetura"
+```
+
+#### Configuração (ADR-059 §3)
+
+Seção `Notifications:Channels:WhatsApp` estendida com campos para Evolution:
+
+```json
+"Notifications": {
+  "Channels": {
+    "WhatsApp": {
+      "Phone": "",                // Destino individual (mantido, retrocompatível)
+      "GroupId": "",              // Destino grupo (<id>@g.us) — **prioritário sobre Phone**
+      "BaseUrl": "",              // URL da Evolution (http://evolution-api:8080 no compose)
+      "ApiKey": "",              // Header apikey — fora de DTO/log/resposta
+      "InstanceId": ""            // Nome da instância Evolution
+    }
+  }
+}
+```
+
+- `GroupId` ou `Phone` preenchido = canal enviável; ambos vazios = Warning, sem delivery.
+- `GroupId` **prioritário** sobre `Phone` — quando há grupo, ignora o número individual.
+- `BaseUrl` **vazio** → mantém `LoggingWhatsAppNotificationDispatcher` (dev/teste sem Evolution
+  não quebra — linha de DI condicional).
+- `BaseUrl` preenchido → dispatcher real `EvolutionApiWhatsAppNotificationDispatcher`.
+
+#### Infraestrutura Evolution (F33-T001 — ADR-059 §2)
+
+Profile `evolution` no Docker Compose (3 containers, rede `infracontrol`):
+
+| Serviço | Imagem (pinada) | Porta host | Papel |
+|---|---|---|---|
+| `evolution-api` | `evoapicloud/evolution-api:v2.3.7` | `EVOLUTION_API_PORT` (8081) | API REST + instância WhatsApp |
+| `evolution-db` | `postgres:17-alpine` | `EVOLUTION_DB_PORT` (5435) | Estado das instâncias/sessões |
+| `evolution-redis` | `redis:7-alpine` | `EVOLUTION_REDIS_PORT` (6380) | Cache/sessão da Evolution |
+
+Sobe com: `docker compose --profile evolution up -d`
+
+#### Dispatcher real (F33-T002 — ADR-059 §4)
+
+`EvolutionApiWhatsAppNotificationDispatcher` (Infrastructure/Services):
+
+- **Texto puro** (`sendText`): `POST {BaseUrl}/message/sendText/{InstanceId}` com header `apikey`,
+  corpo `{ number: <GroupId|Phone>, text: <mensagem> }` — contrato real validado no spike.
+- **Texto + gráfico** (`sendMedia`, F33-T005 — decisão 7 do ADR-059): `POST /message/sendMedia/{InstanceId}`
+  com `mediatype=image`, `mimetype=image/png`, `media=<base64>`, `caption=<texto>`, `fileName`.
+  Fonte da série = API `history` do Zabbix (janela 2h, 240 pontos, item preferido `cpu`/`load`/`ping`);
+  **sem histórico** = fallback automático para `sendText`.
+- Resiliência idêntica ao n8n (F19-T007): retry 3× backoff exponencial 1s/2s/4s com jitter +
+  circuit breaker (5 falhas em 30s → aberto 60s); 4xx sem retry; erro de rede/5xx → retry.
+- Nenhum SDK da Evolution — só `HttpClient` (padrão do repo).
+
+#### Dedup de fanout (F33-T003 — ADR-059 §5)
+
+Quando `GroupId` está preenchido (destino global em grupo), o canal WhatsApp cria
+**1 delivery por notificação** (não por usuário) se ≥1 destinatário tiver o canal
+habilitado. Isso evita N mensagens idênticas no grupo quando há N usuários
+Operator/Admin. `Phone` individual (sem GroupId) mantém 1 delivery/usuário.
+
+#### Eventos enviados (F33-T004 — ADR-059 decisões 2/3)
+
+Quatro tipos de evento geram mensagem no grupo:
+
+1. **Incidente aberto** (`IncidentCreatedDomainEvent`)
+2. **Incidente resolvido** (`IncidentResolvedDomainEvent`)
+3. **Alerta resolvido** (`AlertResolvedDomainEvent`)
+4. **Alerta criado (Critical)** (`AlertCreatedDomainEvent` — nova fábrica, só quando Critical)
+
+Decisão explícita do usuário: "Alerta criado (Critical)" **e** "Incidente aberto" são
+enviados como **2 mensagens distintas** para o mesmo problema — duplicidade aceita
+para dar mais contexto no grupo.
+
+#### Risco do número pessoal (ADR-059 §6)
+
+A Evolution API usa conexão não-oficial (WhatsApp Web/Baileys). A Meta pode banir
+o número conectado. O usuário decidiu usar o número pessoal (2026-10-18) ciente
+do risco. Mitigações:
+
+- Volume mínimo: só 4 tipos de evento, sem alerta Warning, sem spam de polling.
+- Sem loop de disparada: retry/DLQ (5 tentativas) + circuit breaker.
+- Kill switch sem deploy: remover `WhatsApp` de `Notifications:Channels:Default`.
+- Runbook de emergência: desativar canal = remover do fanout; reconexão = novo QR.
+- Migração futura registrada: chip dedicado (número novo) elimina o risco ao usuário.
+
+#### Runbook de operação
+
+**Subir a infraestrutura:**
+
+```bash
+docker compose --profile evolution up -d
+```
+
+**Conectar o WhatsApp (uma vez, manual):**
+
+1. Acesse `http://localhost:8081/manager` (manager UI da Evolution).
+2. Crie a instância com o nome configurado em `WHATSAPP_INSTANCE` (default: `Admin`).
+3. Escaneie o QR code com o número remetente (número pessoal — decisão do usuário).
+4. Workaround issue #1408 (pairing code quebrado na v2.3.7): se o QR não conectar,
+   faça `create → DELETE /instance/logout/{instance} → connect` (validado no spike).
+5. A sessão persiste restart do container (creds no Postgres, `CACHE_REDIS_SAVE_INSTANCES=false`).
+
+**Descobrir o JID do grupo:**
+
+```bash
+curl http://localhost:8081/group/fetchAllGroups/Admin?getParticipants=false \
+  -H "apikey: $EVOLUTION_API_KEY"
+```
+
+Encontre o grupo "Estudo Arquitetura" e copie o JID (`<id>@g.us`). Preencha
+`WHATSAPP_GROUP_ID` no `.env`.
+
+**Ativar o canal no InfraControl:**
+
+1. Preencha `EVOLUTION_BASE_URL`, `EVOLUTION_API_KEY`, `WHATSAPP_INSTANCE`,
+   `WHATSAPP_GROUP_ID` no `.env`.
+2. Adicione `WhatsApp` a `NOTIFY_DEFAULT_*` (ex.: `NOTIFY_DEFAULT_2=WhatsApp`).
+3. Reinicie a API e os Workers: `docker compose --profile app restart api workers`.
+
+**Desativar kill switch (sem deploy):**
+
+Remova `WhatsApp` de `NOTIFY_DEFAULT_*` e reinicie API/Workers. O canal volta ao
+adaptador de logging.
+
+**Reconectar após banimento/queda:**
+
+1. Acesse o manager UI (`http://localhost:8081/manager`).
+2. Delete a instância e crie uma nova (mesmo nome).
+3. Escaneie o QR novamente.
+4. A sessão nova é persistente.
+
+**Migrar para chip dedicado (futuro):**
+
+1. Adquira um novo número (chip).
+2. Crie uma nova instância na Evolution (novo nome).
+3. Conecte o QR com o novo número.
+4. Troque `WHATSAPP_INSTANCE` no `.env` para o novo nome.
+5. O canal usa o novo número sem mudar código.
+
+### Versão original (F9-T007 — adaptador de log)
+
+Antes da F33, o espelho do Telegram (F9-T006): o consumer enfileira
+`NotificationDelivery` (WhatsApp) por usuário final quando o canal está em
+`Default` **e** `WhatsApp:Phone` está preenchido (sem Phone = Warning, sem
+delivery). O `NotificationWhatsAppWorker` (mesmo loop base, 2s) despacha via
+porta `IWhatsAppNotificationDispatcher` (`Phone` global + `Title`/`Message`)
+e marca `Sent`/`Failed`. O adaptador é `LoggingWhatsAppNotificationDispatcher`
 (Infrastructure) — nenhuma chamada real à API; um adaptador com credencial
 (Cloud API/Business) troca a implementação sem tocar em Application
 (credencial real = pendência, junto do SMTP e do bot token do Telegram).

@@ -3,10 +3,21 @@ import { useAudio } from "../hooks";
 
 /**
  * Painel central kiosk — Central de Operações (ADR-063 F37-T001)
- * Layout legível à distância com cartões de disponibilidade, rotação automática
- * e tela cheia. Dados fakes para validar UX/visual antes de conectar backend real.
+ * Layout legível à distância com cartões de disponibilidade e tela cheia.
+ * Dados fakes para validar UX/visual antes de conectar backend real.
  *
  * F37-T002: Alertas sonoros e por voz (validação com dados fakes)
+ *
+ * F37-T007: estilos passam a ser o CSS próprio do projeto
+ * (`styles/pages/operations-center.css`, classes `uni-ops-*` + tokens
+ * `--uni-*`).
+ *
+ * 2026-10-21 — Painel fixo (sem rotação): o painel de TV/NOC passa a exibir
+ * TODOS os módulos simultaneamente em colunas (uma seção por módulo), sem
+ * troca automática de tela nem abas. O usuário especificou tela fixa de
+ * exibição contínua mostrando o estado de cada coisa — a rotação automática
+ * de 30s por módulo (F37-T001) foi removida por decisão explícita. Os
+ * controles de áudio (F37-T002) e tela cheia permanecem.
  */
 
 type Module = "servers" | "switches" | "printers" | "network" | "backup" | "cameras";
@@ -108,14 +119,8 @@ const FAKE_CAMERAS: CameraStatus[] = [
 ];
 
 function StatusChip({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    online: "bg-green-100 text-green-800 border-green-300",
-    offline: "bg-red-100 text-red-800 border-red-300",
-    warning: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    success: "bg-green-100 text-green-800 border-green-300",
-    error: "bg-red-100 text-red-800 border-red-300",
-  };
-
+  // Cor por estado vem do CSS (`.uni-ops-chip--{status}`) com tokens --uni-*
+  // e variáveis locais --ops-*-fg: contraste garantido nos dois temas.
   const labels: Record<string, string> = {
     online: "Online",
     offline: "Offline",
@@ -124,18 +129,14 @@ function StatusChip({ status }: { status: string }) {
     error: "Erro",
   };
 
-  return (
-    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${colors[status] || colors.warning}`}>
-      {labels[status] || status}
-    </span>
-  );
+  return <span className={`uni-ops-chip uni-ops-chip--${status}`}>{labels[status] || status}</span>;
 }
 
 export function OperationsCenterPage() {
-  const [currentModule, setCurrentModule] = useState<Module>("servers");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [rotationEnabled, setRotationEnabled] = useState(true);
-  const rotationInterval = 30000; // 30 segundos por módulo
+  // Relógio do painel: numa tela fixa de exibição contínua o "Última
+  // atualização" não pode ficar congelado — atualiza a cada 30s.
+  const [now, setNow] = useState(() => new Date());
 
   // Integração de áudio (F37-T002)
   const {
@@ -149,35 +150,14 @@ export function OperationsCenterPage() {
     updateConfig: updateAudioConfig,
   } = useAudio();
 
-  // Rotação automática de módulos
   useEffect(() => {
-    if (!rotationEnabled) return;
-
-    const interval = setInterval(() => {
-      setCurrentModule((prev) => {
-        const currentIndex = MODULES.findIndex((m) => m.id === prev);
-        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % MODULES.length : 0;
-        const nextModule = MODULES[nextIndex];
-        return nextModule?.id || "servers";
-      });
-    }, rotationInterval);
-
-    return () => clearInterval(interval);
-  }, [rotationEnabled, rotationInterval]);
-
-  // Anunciar mudança de módulo (F37-T002 - validação com dados fakes)
-  useEffect(() => {
-    if (!audioInitialized) return;
-
-    const moduleInfo = MODULES.find((m) => m.id === currentModule);
-    if (moduleInfo?.label) {
-      announce(`Exibindo ${moduleInfo.label}`, "info");
-    }
-  }, [currentModule, audioInitialized, announce]);
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   // Simular anúncios de alertas críticos (F37-T002 - validação com dados fakes)
   useEffect(() => {
-    if (!audioInitialized || !rotationEnabled) return;
+    if (!audioInitialized) return;
 
     const interval = setInterval(() => {
       // Simular alerta crítico aleatório
@@ -194,7 +174,7 @@ export function OperationsCenterPage() {
     }, 60000); // A cada 60 segundos
 
     return () => clearInterval(interval);
-  }, [audioInitialized, rotationEnabled, announce]);
+  }, [audioInitialized, announce]);
 
   // Tela cheia
   const toggleFullscreen = useCallback(() => {
@@ -231,50 +211,50 @@ export function OperationsCenterPage() {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  const renderModule = () => {
-    switch (currentModule) {
+  const renderModule = (module: Module) => {
+    switch (module) {
       case "servers":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="uni-ops-grid">
             {FAKE_SERVERS.map((server) => (
-              <div key={server.name} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-bold text-gray-900">{server.name}</h3>
+              <div key={server.name} className="uni-ops-card">
+                <div className="uni-ops-card-head">
+                  <h3 className="uni-ops-card-title">{server.name}</h3>
                   <StatusChip status={server.status} />
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">CPU</span>
-                      <span className="font-medium">{server.cpu}%</span>
+                <div>
+                  <div className="uni-ops-metric">
+                    <div className="uni-ops-metric-head">
+                      <span>CPU</span>
+                      <span>{server.cpu}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="uni-ops-bar">
                       <div
-                        className={`h-3 rounded-full ${server.cpu > 80 ? "bg-red-500" : server.cpu > 60 ? "bg-yellow-500" : "bg-green-500"}`}
+                        className={`uni-ops-bar-fill ${server.cpu > 80 ? "is-crit" : server.cpu > 60 ? "is-warn" : ""}`}
                         style={{ width: `${server.cpu}%` }}
                       />
                     </div>
                   </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Memória</span>
-                      <span className="font-medium">{server.memory}%</span>
+                  <div className="uni-ops-metric">
+                    <div className="uni-ops-metric-head">
+                      <span>Memória</span>
+                      <span>{server.memory}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="uni-ops-bar">
                       <div
-                        className={`h-3 rounded-full ${server.memory > 80 ? "bg-red-500" : server.memory > 60 ? "bg-yellow-500" : "bg-green-500"}`}
+                        className={`uni-ops-bar-fill ${server.memory > 80 ? "is-crit" : server.memory > 60 ? "is-warn" : ""}`}
                         style={{ width: `${server.memory}%` }}
                       />
                     </div>
                   </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Disco</span>
-                      <span className="font-medium">{server.disk}%</span>
+                  <div className="uni-ops-metric">
+                    <div className="uni-ops-metric-head">
+                      <span>Disco</span>
+                      <span>{server.disk}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="uni-ops-bar">
                       <div
-                        className={`h-3 rounded-full ${server.disk > 80 ? "bg-red-500" : server.disk > 60 ? "bg-yellow-500" : "bg-green-500"}`}
+                        className={`uni-ops-bar-fill ${server.disk > 80 ? "is-crit" : server.disk > 60 ? "is-warn" : ""}`}
                         style={{ width: `${server.disk}%` }}
                       />
                     </div>
@@ -287,26 +267,26 @@ export function OperationsCenterPage() {
 
       case "switches":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="uni-ops-grid">
             {FAKE_SWITCHES.map((sw) => (
-              <div key={sw.name} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-bold text-gray-900">{sw.name}</h3>
+              <div key={sw.name} className="uni-ops-card">
+                <div className="uni-ops-card-head">
+                  <h3 className="uni-ops-card-title">{sw.name}</h3>
                   <StatusChip status={sw.status} />
                 </div>
-                <div className="text-lg text-gray-600 mb-4">Uptime: {sw.uptime}</div>
-                <div className="flex gap-4">
-                  <div className="flex-1 bg-blue-50 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-blue-600">{sw.ports.total}</div>
-                    <div className="text-sm text-gray-600">Total</div>
+                <div className="uni-ops-uptime">Uptime: {sw.uptime}</div>
+                <div className="uni-ops-stat-row">
+                  <div className="uni-ops-stat">
+                    <div className="uni-ops-stat-value">{sw.ports.total}</div>
+                    <div className="uni-ops-stat-label">Total</div>
                   </div>
-                  <div className="flex-1 bg-green-50 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-green-600">{sw.ports.up}</div>
-                    <div className="text-sm text-gray-600">Up</div>
+                  <div className="uni-ops-stat is-green">
+                    <div className="uni-ops-stat-value">{sw.ports.up}</div>
+                    <div className="uni-ops-stat-label">Up</div>
                   </div>
-                  <div className="flex-1 bg-red-50 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-red-600">{sw.ports.down}</div>
-                    <div className="text-sm text-gray-600">Down</div>
+                  <div className="uni-ops-stat is-red">
+                    <div className="uni-ops-stat-value">{sw.ports.down}</div>
+                    <div className="uni-ops-stat-label">Down</div>
                   </div>
                 </div>
               </div>
@@ -316,47 +296,45 @@ export function OperationsCenterPage() {
 
       case "printers":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="uni-ops-grid">
             {FAKE_PRINTERS.map((printer) => (
-              <div key={printer.name} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">{printer.name}</h3>
+              <div key={printer.name} className="uni-ops-card">
+                <div className="uni-ops-card-head">
+                  <h3 className="uni-ops-card-title">{printer.name}</h3>
                   <StatusChip status={printer.status} />
                 </div>
-                {printer.error && (
-                  <div className="bg-red-50 text-red-800 p-2 rounded mb-4 text-sm">{printer.error}</div>
-                )}
-                <div className="space-y-2">
+                {printer.error && <div className="uni-ops-error">{printer.error}</div>}
+                <div>
                   {printer.toner !== null && (
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">Toner</span>
-                        <span className="font-medium">{printer.toner}%</span>
+                    <div className="uni-ops-metric">
+                      <div className="uni-ops-metric-head">
+                        <span>Toner</span>
+                        <span>{printer.toner}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="uni-ops-bar">
                         <div
-                          className={`h-2 rounded-full ${printer.toner < 20 ? "bg-red-500" : printer.toner < 40 ? "bg-yellow-500" : "bg-green-500"}`}
+                          className={`uni-ops-bar-fill ${printer.toner < 20 ? "is-crit" : printer.toner < 40 ? "is-warn" : ""}`}
                           style={{ width: `${printer.toner}%` }}
                         />
                       </div>
                     </div>
                   )}
                   {printer.drum !== null && (
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600">Cilindro</span>
-                        <span className="font-medium">{printer.drum}%</span>
+                    <div className="uni-ops-metric">
+                      <div className="uni-ops-metric-head">
+                        <span>Cilindro</span>
+                        <span>{printer.drum}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="uni-ops-bar">
                         <div
-                          className={`h-2 rounded-full ${printer.drum < 20 ? "bg-red-500" : printer.drum < 40 ? "bg-yellow-500" : "bg-green-500"}`}
+                          className={`uni-ops-bar-fill ${printer.drum < 20 ? "is-crit" : printer.drum < 40 ? "is-warn" : ""}`}
                           style={{ width: `${printer.drum}%` }}
                         />
                       </div>
                     </div>
                   )}
                   {printer.toner === null && printer.drum === null && (
-                    <div className="text-sm text-gray-500 italic">Estado aproximado não disponível neste modelo</div>
+                    <div className="uni-ops-note">Estado aproximado não disponível neste modelo</div>
                   )}
                 </div>
               </div>
@@ -366,25 +344,27 @@ export function OperationsCenterPage() {
 
       case "network":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="uni-ops-grid">
             {FAKE_NETWORK.map((net) => (
-              <div key={net.name} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">{net.name}</h3>
+              <div key={net.name} className="uni-ops-card">
+                <div className="uni-ops-card-head">
+                  <h3 className="uni-ops-card-title">{net.name}</h3>
                   <StatusChip status={net.status} />
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Download</div>
-                    <div className="text-2xl font-bold text-blue-600">{net.bandwidth.down} Mbps</div>
+                <div>
+                  <div className="uni-ops-field">
+                    <div className="uni-ops-field-label">Download</div>
+                    <div className="uni-ops-field-value">{net.bandwidth.down} Mbps</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Upload</div>
-                    <div className="text-2xl font-bold text-green-600">{net.bandwidth.up} Mbps</div>
+                  <div className="uni-ops-field">
+                    <div className="uni-ops-field-label">Upload</div>
+                    <div className="uni-ops-field-value is-green">{net.bandwidth.up} Mbps</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-600 mb-1">Latência</div>
-                    <div className={`text-2xl font-bold ${net.latency > 50 ? "text-red-600" : net.latency > 30 ? "text-yellow-600" : "text-green-600"}`}>
+                  <div className="uni-ops-field">
+                    <div className="uni-ops-field-label">Latência</div>
+                    <div
+                      className={`uni-ops-field-value ${net.latency > 50 ? "is-crit" : net.latency > 30 ? "is-warn" : "is-green"}`}
+                    >
                       {net.latency} ms
                     </div>
                   </div>
@@ -396,18 +376,22 @@ export function OperationsCenterPage() {
 
       case "backup":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="uni-ops-grid">
             {FAKE_BACKUP.map((backup) => (
-              <div key={backup.name} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">{backup.name}</h3>
+              <div key={backup.name} className="uni-ops-card">
+                <div className="uni-ops-card-head">
+                  <h3 className="uni-ops-card-title">{backup.name}</h3>
                   <StatusChip status={backup.status} />
                 </div>
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-600">Último backup</div>
-                  <div className="text-lg font-medium">{backup.lastBackup}</div>
-                  <div className="text-sm text-gray-600">Tamanho</div>
-                  <div className="text-lg font-medium">{backup.size}</div>
+                <div>
+                  <div className="uni-ops-field">
+                    <div className="uni-ops-field-label">Último backup</div>
+                    <div className="uni-ops-field-value is-text">{backup.lastBackup}</div>
+                  </div>
+                  <div className="uni-ops-field">
+                    <div className="uni-ops-field-label">Tamanho</div>
+                    <div className="uni-ops-field-value is-text">{backup.size}</div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -416,16 +400,16 @@ export function OperationsCenterPage() {
 
       case "cameras":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="uni-ops-grid">
             {FAKE_CAMERAS.map((cam) => (
-              <div key={cam.name} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">{cam.name}</h3>
+              <div key={cam.name} className="uni-ops-card">
+                <div className="uni-ops-card-head">
+                  <h3 className="uni-ops-card-title">{cam.name}</h3>
                   <StatusChip status={cam.status} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${cam.recording ? "bg-red-500 animate-pulse" : "bg-gray-400"}`} />
-                  <span className="text-sm">{cam.recording ? "Gravando" : "Parada"}</span>
+                <div className="uni-ops-rec">
+                  <div className={`uni-ops-rec-dot ${cam.recording ? "is-recording" : ""}`} />
+                  <span>{cam.recording ? "Gravando" : "Parada"}</span>
                 </div>
               </div>
             ))}
@@ -437,25 +421,23 @@ export function OperationsCenterPage() {
     }
   };
 
-  const currentModuleInfo = MODULES.find((m) => m.id === currentModule) || MODULES[0];
-
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="uni-ops-page">
       {/* Header simplificado do painel */}
-      <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-900">InfraControle</h1>
-            <span className="text-xl text-gray-500">Central de Operações</span>
+      <header className="uni-ops-header">
+        <div className="uni-ops-header-row">
+          <div className="uni-ops-brand">
+            <h1 className="uni-ops-title">InfraControle</h1>
+            <span className="uni-ops-subtitle">Central de Operações</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="uni-ops-tools">
             {/* Controles de áudio (F37-T002) */}
-            <div className="flex items-center gap-2 border-r border-gray-300 pr-4">
+            <div className="uni-ops-audio">
               {!audioInitialized ? (
                 <button
                   onClick={handleInitAudio}
                   disabled={audioInitializing}
-                  className="px-3 py-1 rounded text-sm font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 disabled:opacity-50 flex items-center gap-2"
+                  className="uni-ops-btn is-purple"
                 >
                   <i className={`pi ${audioInitializing ? "pi-spinner pi-spin" : "pi-volume-up"}`} />
                   <span>{audioInitializing ? "Inicializando..." : "Ativar áudio"}</span>
@@ -465,46 +447,37 @@ export function OperationsCenterPage() {
                   <button
                     onClick={handleTestAudio}
                     disabled={isSpeaking}
-                    className="px-3 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:opacity-50 flex items-center gap-2"
+                    className="uni-ops-btn is-blue"
                   >
                     <i className="pi pi-volume-up" />
                     <span>Testar</span>
                   </button>
                   <button
                     onClick={toggleAudio}
-                    className={`px-3 py-1 rounded text-sm font-medium ${audioConfig.enabled ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"} flex items-center gap-2`}
+                    className={`uni-ops-btn ${audioConfig.enabled ? "is-green" : ""}`}
                   >
                     <i className={`pi ${audioConfig.enabled ? "pi-volume-up" : "pi-volume-off"}`} />
                     <span>{audioConfig.enabled ? "Áudio on" : "Áudio off"}</span>
                   </button>
                   {isSpeaking && (
-                    <div className="flex items-center gap-1 text-sm text-blue-600">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+                    <div className="uni-ops-speaking">
+                      <div className="uni-ops-speaking-dot" />
                       <span>Falando</span>
                     </div>
                   )}
                 </>
               )}
               {audioInitError && (
-                <span className="text-xs text-red-600 max-w-xs truncate" title={audioInitError}>
+                <span className="uni-ops-audio-error" title={audioInitError}>
                   Erro
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Rotação:</span>
-              <button
-                onClick={() => setRotationEnabled(!rotationEnabled)}
-                className={`px-3 py-1 rounded text-sm font-medium ${rotationEnabled ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
-              >
-                {rotationEnabled ? "Ativada" : "Pausada"}
-              </button>
+            <div className="uni-ops-updated">
+              Última atualização: {now.toLocaleTimeString("pt-BR")}
             </div>
-            <button
-              onClick={toggleFullscreen}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
+            <button onClick={toggleFullscreen} className="uni-ops-btn is-primary">
               <i className={`pi ${isFullscreen ? "pi-window-minimize" : "pi-window-maximize"}`} />
               <span>{isFullscreen ? "Sair de tela cheia" : "Tela cheia"}</span>
             </button>
@@ -512,49 +485,22 @@ export function OperationsCenterPage() {
         </div>
       </header>
 
-      {/* Barra de módulos */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="flex gap-2 overflow-x-auto">
-          {MODULES.map((module) => (
-            <button
-              key={module.id}
-              onClick={() => setCurrentModule(module.id)}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                currentModule === module.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              <i className={`pi ${module.icon}`} />
-              <span className="font-medium">{module.label}</span>
-            </button>
+      {/* Painel fixo: todos os módulos visíveis ao mesmo tempo (sem rotação) */}
+      <main className="uni-ops-main">
+        <div className="uni-ops-board">
+          {MODULES.map((moduleInfo) => (
+            <section key={moduleInfo.id} className="uni-ops-section">
+              <div className="uni-ops-section-head">
+                <h2 className="uni-ops-section-title">
+                  <i className={`pi ${moduleInfo.icon}`} />
+                  {moduleInfo.label}
+                </h2>
+              </div>
+              {renderModule(moduleInfo.id)}
+            </section>
           ))}
         </div>
-      </div>
-
-      {/* Conteúdo do módulo atual */}
-      <main className="p-6">
-        <div className="mb-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <i className={`pi ${currentModuleInfo?.icon}`} />
-            {currentModuleInfo?.label}
-          </h2>
-          <div className="text-sm text-gray-500">
-            Última atualização: {new Date().toLocaleTimeString("pt-BR")}
-          </div>
-        </div>
-        {renderModule()}
       </main>
-
-      {/* Indicador de rotação */}
-      {rotationEnabled && (
-        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg px-4 py-2 border border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-sm text-gray-600">Rotação automática: {rotationInterval / 1000}s</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
