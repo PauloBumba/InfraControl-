@@ -28,11 +28,10 @@ export function ContactPage() {
   return (
     <>
       <section className="uni-public-hero">
-        <p className="uni-public-eyebrow">Contato</p>
-        <h1>Fale com a gente</h1>
+        <p className="uni-public-eyebrow">Suporte e contato</p>
+        <h1>Encontre o caminho certo para sua dúvida</h1>
         <p className="uni-public-lead">
-          O InfraControl é self-hosted: quem o implanta é quem opera. Escolha
-          o canal certo para o seu caso.
+          O InfraControl é self-hosted: sua equipe controla a implantação e a operação. Escolha o canal adequado para o seu caso.
         </p>
       </section>
 
@@ -42,10 +41,10 @@ export function ContactPage() {
             <span className="uni-public-card-icon">
               <i className="pi pi-life-ring" />
             </span>
-            <h2>Suporte à instância</h2>
+            <h2>Suporte da sua instância</h2>
             {supportEmail ? (
               <p>
-                Dúvidas sobre a instância que você usa:{" "}
+                Dúvidas sobre o uso da sua instância:{" "}
                 <a href={`mailto:${supportEmail}`}>{supportEmail}</a>
               </p>
             ) : (
@@ -61,9 +60,9 @@ export function ContactPage() {
             <span className="uni-public-card-icon">
               <i className="pi pi-key" />
             </span>
-            <h2>Acesso e senha</h2>
+            <h2>Problemas de acesso</h2>
             <p>
-              Não consegue entrar, esqueceu a senha ou quer trocá-la? O login
+              Não consegue entrar, esqueceu a senha ou precisa trocá-la? O login
               e a recuperação de senha ficam na própria tela de entrada.
             </p>
           </article>
@@ -72,10 +71,10 @@ export function ContactPage() {
             <span className="uni-public-card-icon">
               <i className="pi pi-book" />
             </span>
-            <h2>O que a plataforma faz</h2>
+            <h2>Funcionalidades da plataforma</h2>
             <p>
-              Antes de perguntar, veja a lista completa de recursos —
-              monitoramento, operação, governança e acesso.
+              Antes de perguntar, explore a lista completa de recursos —
+              monitoramento, operação, governança e segurança.
             </p>
             <Link to="/recursos" className="uni-public-card-link">
               Ver recursos
@@ -85,7 +84,7 @@ export function ContactPage() {
       </section>
 
       <section aria-labelledby="faq-contato" className="uni-public-section">
-        <h2 id="faq-contato">Perguntas frequentes</h2>
+        <h2 id="faq-contato">Dúvidas comuns</h2>
         <div className="uni-public-faq">
           {FAQ.map((item) => (
             <div key={item.question} className="uni-public-faq-item">
@@ -99,7 +98,7 @@ export function ContactPage() {
       </section>
 
       <section aria-labelledby="entrar" className="uni-public-band">
-        <h2 id="entrar">Já tem um usuário?</h2>
+        <h2 id="entrar">Já tem acesso à sua instância?</h2>
         <Link to="/login" className="uni-public-button">
           Entrar
         </Link>

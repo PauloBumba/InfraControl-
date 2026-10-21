@@ -61,11 +61,10 @@ export function FeaturesPage() {
   return (
     <>
       <section className="uni-public-hero">
-        <p className="uni-public-eyebrow">Recursos</p>
-        <h1>O que o InfraControl faz</h1>
+        <p className="uni-public-eyebrow">Recursos completos</p>
+        <h1>Descubra o poder da operação centralizada</h1>
         <p className="uni-public-lead">
-          Do monitoramento ao conhecimento da equipe, tudo em uma plataforma —
-          com as mesmas permissões e a mesma auditoria do início ao fim.
+          Uma ferramenta única para monitorar, detectar, operar e governar toda a sua infraestrutura — com segurança, rastreabilidade e controle total.
         </p>
       </section>
 
@@ -88,7 +87,7 @@ export function FeaturesPage() {
       </section>
 
       <section aria-labelledby="monitoramento-detalhado" className="uni-public-section">
-        <h2 id="monitoramento-detalhado">Monitoramento em detalhe</h2>
+        <h2 id="monitoramento-detalhado">Monitoramento inteligente e automatizado</h2>
         <div className="uni-public-grid">
           {MONITORING_FEATURES.map((feature) => (
             <article key={feature.name} className="uni-public-card">
@@ -103,7 +102,7 @@ export function FeaturesPage() {
       </section>
 
       <section aria-labelledby="seguranca-detalhada" className="uni-public-section">
-        <h2 id="seguranca-detalhada">Segurança e controle</h2>
+        <h2 id="seguranca-detalhada">Segurança de nível empresarial</h2>
         <div className="uni-public-grid">
           {SECURITY_FEATURES.map((feature) => (
             <article key={feature.name} className="uni-public-card">
@@ -118,7 +117,7 @@ export function FeaturesPage() {
       </section>
 
       <section aria-labelledby="arquitetura" className="uni-public-section">
-        <h2 id="arquitetura">Arquitetura on-premises</h2>
+        <h2 id="arquitetura">Arquitetura moderna e 100% on-premises</h2>
         <div className="uni-public-arch">
           <div className="uni-public-arch-layer primary">
             <div className="uni-public-arch-layer-header">Aplicação</div>
@@ -148,7 +147,7 @@ export function FeaturesPage() {
       </section>
 
       <section aria-labelledby="falar" className="uni-public-band">
-        <h2 id="falar">Quer saber como isso se aplica à sua operação?</h2>
+        <h2 id="falar">Pronto para transformar sua operação?</h2>
         <div className="uni-public-actions">
           <Link to="/contato" className="uni-public-button">
             Falar com a gente

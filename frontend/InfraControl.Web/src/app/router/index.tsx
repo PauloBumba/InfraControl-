@@ -191,13 +191,9 @@ function AppContent() {
    */
   const handleNavigate = (route: string) => navigate(route);
 
-  // Se estiver autenticado e acessar a raiz `/`, redirecionar para o dashboard
-  if (authStatus === "authenticated" && location.pathname === "/") {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   // F26-T002 — landing pública de vendas: header/footer COMPARTILHADOS e
   // conteúdo que muda por rota. A rota raiz `/` é a landing pública (para não autenticados).
+  // Rotas públicas não dependem do backend e funcionam mesmo sem authStatus disponível.
   if (isPublicMarketingPath(location.pathname)) {
     return (
       <PublicMarketingRoute>
@@ -216,11 +212,15 @@ function AppContent() {
     );
   }
 
-  // Login, recuperação/redefinição de senha e aceite de convite não têm
-  // layout — e não redirecionam: quem já tem sessão confirmada vai direto
-  // para o app, mas os destinos de link e-maiado continuam públicos (o
-  // /reset-password de um usuário logado é legítimo: o backend derruba as
-  // sessões ao redefinir, inclusive a atual).
+  // Se estiver autenticado e acessar a raiz `/`, redirecionar para o dashboard
+  // (só aplica após verificação de rotas públicas acima)
+  if (authStatus === "authenticated" && location.pathname === "/") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Login, recuperação/redefinição de senha e aceite de convite usam o
+  // PublicLayout (header/footer compartilhados) mas têm SessionGate para
+  // validar sessão com o backend.
   if (
     location.pathname === "/login" ||
     location.pathname === "/forgot-password" ||
@@ -237,21 +237,26 @@ function AppContent() {
     }
 
     return (
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
-        </Routes>
-      </Suspense>
+      <PublicLayout>
+        <SessionGate>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
+            </Routes>
+          </Suspense>
+        </SessionGate>
+      </PublicLayout>
     );
   }
 
   return (
     <AppLayout activeRoute={location.pathname} onNavigate={handleNavigate}>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
+      <SessionGate>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardPage />
@@ -486,14 +491,11 @@ function AppContent() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+      </SessionGate>
     </AppLayout>
   );
 }
 
 export function AppRouter() {
-  return (
-    <SessionGate>
-      <AppContent />
-    </SessionGate>
-  );
+  return <AppContent />;
 }

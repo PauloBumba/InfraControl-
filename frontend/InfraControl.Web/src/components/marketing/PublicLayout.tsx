@@ -58,6 +58,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(readStoredTheme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Não mostrar botão "Entrar" quando já estiver na página de login
+  const isLoginPage = pathname === "/login";
+
   const handleToggleTheme = () => {
     setTheme((current) => toggleTheme(current));
   };
@@ -102,9 +105,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             >
               <i className={`pi ${theme === "dark" ? "pi-sun" : "pi-moon"}`} />
             </button>
-            <Link to="/login" className="uni-public-button uni-public-button-small">
-              Entrar
-            </Link>
+            {!isLoginPage && (
+              <Link to="/login" className="uni-public-button uni-public-button-small">
+                Entrar
+              </Link>
+            )}
             <button
               className="uni-public-mobile-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -132,6 +137,18 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                     </Link>
                   </li>
                 ))}
+                {!isLoginPage && (
+                  <li>
+                    <Link
+                      to="/login"
+                      className={navLinkClass(pathname === "/login")}
+                      aria-current={pathname === "/login" ? "page" : undefined}
+                      onClick={handleNavClick}
+                    >
+                      Entrar
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
           </div>

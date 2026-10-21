@@ -10,7 +10,7 @@ const PILLARS = [
   {
     icon: "pi pi-bolt",
     title: "Detectar",
-    body: "Alertas viram incidentes com SLA, responsável e histórico de recuperação — sem planilha paralela.",
+    body: "Alertas viram incidentes com SLA, responsável e histórico de recuperação — sem planilhas paralelas.",
   },
   {
     icon: "pi pi-wrench",
@@ -101,11 +101,10 @@ export function HomePage() {
       <section className="uni-public-hero">
         <div className="uni-public-hero-content">
           <div className="uni-public-hero-text">
-            <p className="uni-public-eyebrow">Plataforma de operação de infraestrutura</p>
-            <h1>Toda a operação de infraestrutura em um só lugar</h1>
+            <p className="uni-public-eyebrow">Plataforma on-premises de operação de TI</p>
+            <h1>Centralize sua infraestrutura. Tome decisões antecipadas.</h1>
             <p className="uni-public-lead">
-              Monitoramento, alertas que viram incidentes com SLA, tarefas, projetos
-              e a base de conhecimento da sua equipe — com auditoria de cada ação.
+              Monitore dispositivos, antecipe falhas, gerencie incidentes e mantenha o conhecimento da sua equipe — tudo em uma plataforma self-hosted, sem depender de nuvens externas.
             </p>
             <div className="uni-public-actions">
               <Link to="/login" className="uni-public-button">
@@ -155,7 +154,7 @@ export function HomePage() {
       </section>
 
       <section aria-labelledby="pilares" className="uni-public-section">
-        <h2 id="pilares">Do sinal bruto à decisão</h2>
+        <h2 id="pilares">Do dado bruto à ação inteligente</h2>
         <div className="uni-public-grid">
           {PILLARS.map((pillar) => (
             <article key={pillar.title} className="uni-public-card">
@@ -208,10 +207,9 @@ export function HomePage() {
       <section aria-labelledby="ja-tem-instancia" className="uni-public-band">
         <div className="uni-public-band-content">
           <div className="uni-public-band-text">
-            <h2 id="ja-tem-instancia">Já tem uma instância?</h2>
+            <h2 id="ja-tem-instancia">Pronto para operar?</h2>
             <p>
-              Entre com seu usuário e senha, ou com a conta Google liberada na sua
-              organização.
+              Acesse sua instância e comece a transformar dados em decisões.
             </p>
           </div>
           <Link to="/login" className="uni-public-button">

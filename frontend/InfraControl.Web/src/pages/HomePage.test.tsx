@@ -29,7 +29,7 @@ describe("HomePage (F26-T002)", () => {
     renderPage();
 
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading.textContent?.toLowerCase()).toContain("operação de infraestrutura");
+    expect(heading.textContent?.toLowerCase()).toContain("infraestrutura");
   });
 
   it("should show the four pillars derived from the real product", () => {
