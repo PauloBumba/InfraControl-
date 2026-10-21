@@ -3,3 +3,5 @@ import type { RootState, AppDispatch } from "../app/store";
 
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
 export const useAppSelector = useSelector.withTypes<RootState>();
+
+export { useAudio } from "./useAudio";

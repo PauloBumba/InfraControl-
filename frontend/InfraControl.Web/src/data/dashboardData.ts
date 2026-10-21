@@ -18,6 +18,13 @@ export const navigation: NavGroup[] = [
     ],
   },
   {
+    label: "Operações",
+    icon: "pi pi-desktop",
+    items: [
+      { label: "Central de Operações", icon: "pi pi-desktop", route: "/operations-center" },
+    ],
+  },
+  {
     label: "Rede",
     icon: "pi pi-share-alt",
     items: [

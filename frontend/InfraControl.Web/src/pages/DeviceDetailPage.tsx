@@ -32,10 +32,15 @@ import {
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
 import {
   closeSession,
+  deleteDeviceCredential,
+  getDeviceCredential,
   listDeviceSessions,
   openGatewaySession,
+  putDeviceCredential,
+  type DeviceCredentialState,
   type RemoteSessionItem,
 } from "@/services/api/remoteSessions";
+import { useCan } from "@/app/router/access";
 import { formatDateTime, formatUptime } from "@/utils/format";
 import { errorMessage, useObjectQuery } from "@/hooks/queries";
 
@@ -153,6 +158,15 @@ export function DeviceDetailPage() {
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [gatewayOpening, setGatewayOpening] = useState(false);
 
+  // F34-T008 UI — credencial por device (Administer; senha nunca volta do
+  // backend). Sem credencial própria o acesso cai no fallback global.
+  const canAdminister = useCan("administer");
+  const [credential, setCredential] = useState<DeviceCredentialState | null>(null);
+  const [credUser, setCredUser] = useState("");
+  const [credPassword, setCredPassword] = useState("");
+  const [credSaving, setCredSaving] = useState(false);
+  const [credNotice, setCredNotice] = useState<string | null>(null);
+
   // Abas carregam uma vez (ref síncrono protege do duplo-effect do StrictMode).
   const requested = useRef<Set<Tab>>(new Set());
 
@@ -261,6 +275,58 @@ export function DeviceDetailPage() {
       setSessions(data?.sessions ?? []);
     } catch (caught) {
       setError(errorMessage(caught));
+    }
+  }
+
+  // Credencial do device — só Administer enxerga o painel (o GET exige a
+  // role no backend); falha não polui a página.
+  useEffect(() => {
+    if (!id || !canAdminister) return;
+    let cancelled = false;
+    getDeviceCredential(id)
+      .then((state) => {
+        if (cancelled) return;
+        setCredential(state);
+        setCredUser(state?.username ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setCredential(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, canAdminister]);
+
+  async function saveCredential() {
+    if (!id || !credUser.trim() || !credPassword) return;
+    setCredSaving(true);
+    setCredNotice(null);
+    try {
+      const state = await putDeviceCredential(id, credUser.trim(), credPassword);
+      setCredential(state);
+      setCredUser(state?.username ?? credUser.trim());
+      setCredPassword("");
+      setCredNotice("Credencial salva — a próxima sessão já usa o novo usuário/senha.");
+    } catch (caught) {
+      setCredNotice(errorMessage(caught));
+    } finally {
+      setCredSaving(false);
+    }
+  }
+
+  async function removeCredential() {
+    if (!id) return;
+    setCredSaving(true);
+    setCredNotice(null);
+    try {
+      await deleteDeviceCredential(id);
+      setCredential(null);
+      setCredUser("");
+      setCredNotice("Credencial removida — usando a credencial global do ambiente.");
+    } catch (caught) {
+      setCredNotice(errorMessage(caught));
+    } finally {
+      setCredSaving(false);
     }
   }
 
@@ -587,6 +653,80 @@ export function DeviceDetailPage() {
             )}
           </div>
         </div>
+
+        {/* F34-T008 UI — credencial por device (Administer): o navegador só
+            manda usuário+senha uma vez; depois disso a sessão Guacamole é
+            montada server-to-server e a senha nunca volta (D4). */}
+        {canAdminister && (
+          <div className="uni-panel" style={{ marginTop: 12 }}>
+            <div className="uni-panel-header">
+              <h2>Credencial de acesso remoto</h2>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                {credential?.hasCredential
+                  ? `credencial própria do device · rotacionada em ${credential.rotatedAt ? formatDateTime(new Date(credential.rotatedAt)) : "—"}`
+                  : "sem credencial própria — usando a global do ambiente"}
+              </span>
+            </div>
+            <div className="uni-panel-body">
+              {credNotice && (
+                <div style={{ fontSize: 11, color: "#2563eb", marginBottom: 8 }}>{credNotice}</div>
+              )}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <label style={{ fontSize: 11, color: "#6b7280" }}>
+                  Usuário
+                  <input
+                    value={credUser}
+                    onChange={(event) => setCredUser(event.target.value)}
+                    placeholder="ex.: guacpilot"
+                    style={{
+                      display: "block", marginTop: 3, padding: "6px 10px", borderRadius: 6,
+                      border: "1px solid #e2e8f0", fontSize: 12, width: 200,
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 11, color: "#6b7280" }}>
+                  Senha
+                  <input
+                    type="password"
+                    value={credPassword}
+                    onChange={(event) => setCredPassword(event.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    style={{
+                      display: "block", marginTop: 3, padding: "6px 10px", borderRadius: 6,
+                      border: "1px solid #e2e8f0", fontSize: 12, width: 200,
+                    }}
+                  />
+                </label>
+                <button
+                  onClick={() => void saveCredential()}
+                  disabled={credSaving || !credUser.trim() || !credPassword}
+                  style={{
+                    padding: "7px 14px", borderRadius: 6, border: "1px solid #2563eb",
+                    background: "#2563eb", color: "white", fontSize: 12, fontWeight: 600,
+                    cursor: credSaving || !credUser.trim() || !credPassword ? "default" : "pointer",
+                    opacity: credSaving || !credUser.trim() || !credPassword ? 0.6 : 1,
+                  }}
+                >
+                  {credSaving ? "Salvando…" : credential?.hasCredential ? "Rotacionar" : "Salvar"}
+                </button>
+                {credential?.hasCredential && (
+                  <button
+                    onClick={() => void removeCredential()}
+                    disabled={credSaving}
+                    style={{
+                      padding: "7px 12px", borderRadius: 6, border: "1px solid #e2e8f0",
+                      background: "white", color: "#dc2626", fontSize: 12, fontWeight: 600,
+                      cursor: credSaving ? "default" : "pointer",
+                    }}
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         </>
       )}
 

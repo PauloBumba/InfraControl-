@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.WhatsApp;
 using Microsoft.Extensions.Logging;
@@ -23,10 +24,22 @@ namespace InfraControl.Infrastructure.Services;
 /// </summary>
 public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     IHttpClientFactory httpClientFactory,
-    IOptions<NotificationChannelsOptions> channelsOptions,
+    IWhatsAppOptionsResolver optionsResolver,
     IIncidentImageRenderer imageRenderer,
     ILogger<EvolutionApiWhatsAppNotificationDispatcher> logger) : IWhatsAppNotificationDispatcher
 {
+    public EvolutionApiWhatsAppNotificationDispatcher(
+        IHttpClientFactory httpClientFactory,
+        IOptions<NotificationChannelsOptions> channelsOptions,
+        IIncidentImageRenderer imageRenderer,
+        ILogger<EvolutionApiWhatsAppNotificationDispatcher> logger)
+        : this(
+            httpClientFactory,
+            new StaticWhatsAppOptionsResolver(channelsOptions.Value.WhatsApp),
+            imageRenderer,
+            logger)
+    {
+    }
     /// <summary>Nome do client (policies Polly registradas na DI).</summary>
     public const string HttpClientName = "evolution-api";
 
@@ -70,7 +83,9 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
         WhatsAppNotificationMessage message,
         CancellationToken cancellationToken = default)
     {
-        var whatsapp = channelsOptions.Value.WhatsApp;
+        // ADR-062: options efetivas por request (banco → env) — o Grupo
+        // escolhido na UI (banco) é refletido sem restart.
+        var whatsapp = await optionsResolver.ResolveAsync(cancellationToken);
 
         if (string.IsNullOrWhiteSpace(whatsapp.BaseUrl))
             throw new InvalidOperationException(

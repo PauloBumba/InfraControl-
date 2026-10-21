@@ -28,8 +28,14 @@ public sealed class User : AggregateRoot
         RaiseDomainEvent(new UserCreatedDomainEvent(Id, Email));
     }
 
+    public static User Create(string email, string displayName, UserRole initialRole)
+        => new(Guid.NewGuid(), email, displayName, null, initialRole, isActive: true);
+
     public static User Create(string email, string displayName, string? fullName = null, UserRole initialRole = UserRole.Viewer)
         => new(Guid.NewGuid(), email, displayName, fullName, initialRole, isActive: true);
+
+    public static User Create(Guid id, string email, string displayName, UserRole initialRole = UserRole.Viewer)
+        => new(id, email, displayName, null, initialRole, isActive: true);
 
     public static User Create(Guid id, string email, string displayName, string? fullName, UserRole initialRole = UserRole.Viewer)
     {
@@ -42,6 +48,9 @@ public sealed class User : AggregateRoot
     /// ativação (auto-registro e aceite de convite) só ficam ativos após
     /// definição de senha via convite ou ativação manual por administrador.
     /// </summary>
+    public static User CreatePending(Guid id, string email, string displayName, IEnumerable<UserRole> roles)
+        => CreatePending(id, email, displayName, null, roles);
+
     public static User CreatePending(Guid id, string email, string displayName, string? fullName, IEnumerable<UserRole> roles)
     {
         if (id == Guid.Empty) throw new ArgumentException("O id do usuário é obrigatório.", nameof(id));

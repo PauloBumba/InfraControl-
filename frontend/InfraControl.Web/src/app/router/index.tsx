@@ -11,7 +11,7 @@ import { routeLevel, useCan } from "@/app/router/access";
 import { isPublicMarketingPath } from "@/app/router/publicRoutes";
 import { AccessDenied } from "@/components/auth/AccessDenied";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PublicLayout } from "@/components/marketing/PublicLayout";
+import { PublicLayout, PublicHeaderFooterLayout } from "@/components/marketing/PublicLayout";
 import { PublicMarketingRoute } from "@/components/marketing/PublicMarketingRoute";
 
 const DashboardPage = lazy(() => import("@/pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
@@ -55,6 +55,7 @@ const CamerasPage = lazy(() => import("@/pages/CamerasPage").then(m => ({ defaul
 const PhonesPage = lazy(() => import("@/pages/PhonesPage").then(m => ({ default: m.PhonesPage })));
 // F30-T007d — Routers & Firewalls: rotas/sessões SNMP (docs/48).
 const RoutersPage = lazy(() => import("@/pages/RoutersPage").then(m => ({ default: m.RoutersPage })));
+const OperationsCenterPage = lazy(() => import("@/pages/OperationsCenterPage").then(m => ({ default: m.OperationsCenterPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -216,20 +217,17 @@ function AppContent() {
     );
   }
 
-  // Login, recuperação/redefinição de senha e aceite de convite não têm
-  // layout — e não redirecionam: quem já tem sessão confirmada vai direto
-  // para o app, mas os destinos de link e-maiado continuam públicos (o
-  // /reset-password de um usuário logado é legítimo: o backend derruba as
-  // sessões ao redefinir, inclusive a atual).
+  // Login, recuperação de senha e aceite de convite não têm layout — e não
+  // redirecionam: quem já tem sessão confirmada vai direto para o app, mas
+  // os destinos de link e-maiado continuam públicos (o /reset-password agora
+  // é privado, exige login primeiro).
   if (
     location.pathname === "/login" ||
     location.pathname === "/forgot-password" ||
-    location.pathname === "/reset-password" ||
     location.pathname.startsWith("/invitations/")
   ) {
     const isPublicPage =
       location.pathname === "/forgot-password" ||
-      location.pathname === "/reset-password" ||
       location.pathname.startsWith("/invitations/");
 
     if (authStatus === "authenticated" && !isPublicPage) {
@@ -240,8 +238,11 @@ function AppContent() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/forgot-password" element={
+            <PublicHeaderFooterLayout>
+              <ForgotPasswordPage />
+            </PublicHeaderFooterLayout>
+          } />
           <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
         </Routes>
       </Suspense>
@@ -397,6 +398,18 @@ function AppContent() {
           <Route path="/account" element={
             <ProtectedRoute>
               <AccountPage />
+            </ProtectedRoute>
+          } />
+          {/* Redefinição de senha — privado, exige login. */}
+          <Route path="/reset-password" element={
+            <ProtectedRoute>
+              <ResetPasswordPage />
+            </ProtectedRoute>
+          } />
+          {/* F37-T001 — Central de Operações (painel kiosk) */}
+          <Route path="/operations-center" element={
+            <ProtectedRoute>
+              <OperationsCenterPage />
             </ProtectedRoute>
           } />
           <Route path="/pdi" element={

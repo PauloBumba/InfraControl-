@@ -11,6 +11,11 @@
   background: var(--uni-bg);
 }
 
+/* Para páginas privadas dentro do AppLayout, centraliza o card */
+.uni-content .uni-login-card {
+  margin: 40px auto;
+}
+
 .uni-login-card {
   width: 100%;
   max-width: 420px;

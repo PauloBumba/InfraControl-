@@ -13,6 +13,7 @@ import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import {
   closeSession,
   listDeviceSessions,
+  openGatewaySession,
   openRdpSession,
   openSshSession,
   type RemoteSessionItem,
@@ -117,13 +118,33 @@ export function RemotePage() {
     },
     onError: (error) => setActionError(mutationErrorMessage(error)),
   });
+  // F34-T007/T008 — sessão via gateway (terminal real no navegador; o token
+  // mintado abre em nova aba e a credencial nunca passa pelo front).
+  const gatewayMutation = useUpdateMutation({
+    invalidate: ["remoteSessions"],
+    mutationFn: (deviceId: string) => openGatewaySession(deviceId),
+    onSuccess: (opened) => {
+      setActionError(null);
+      if (opened) {
+        window.open(
+          `${opened.path}?token=${encodeURIComponent(opened.token)}`,
+          "_blank",
+          "noopener",
+        );
+        setNotice(`Sessão ${opened.protocol === "Rdp" ? "RDP" : "SSH"} aberta pelo gateway em '${selected?.name ?? ""}'.`);
+      }
+    },
+    onError: (error) => setActionError(mutationErrorMessage(error)),
+  });
 
   const busy =
-    openMutation.isPending
-      ? (openMutation.variables?.protocol ?? null)
-      : closeMutation.isPending
-        ? `close:${closeMutation.variables?.sessionId ?? ""}`
-        : null;
+    gatewayMutation.isPending
+      ? "gateway"
+      : openMutation.isPending
+        ? (openMutation.variables?.protocol ?? null)
+        : closeMutation.isPending
+          ? `close:${closeMutation.variables?.sessionId ?? ""}`
+          : null;
 
   function selectDevice(device: DeviceItem) {
     setSelected(device);
@@ -199,7 +220,11 @@ export function RemotePage() {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280" }}>
                   <span style={{ fontFamily: "monospace" }}>{device.ip ?? "sem IP"}</span>
-                  <span>{device.model ?? ""}</span>
+                  {device.operatingSystem && (
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4, background: device.operatingSystem === "Windows" ? "#eff6ff" : "#f0fdf4", color: device.operatingSystem === "Windows" ? "#2563eb" : "#15803d" }}>
+                      {device.operatingSystem}
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -225,7 +250,19 @@ export function RemotePage() {
               </span>
             </div>
             {canOperate && (
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {selected.operatingSystem && (
+                  <Button
+                    variant="primary"
+                    onClick={() => gatewayMutation.mutate(selected.id)}
+                    disabled={!!busy || !selected.ip}
+                    title={!selected.ip ? "Device sem IP — acesso remoto indisponível" : `Abrir terminal real via gateway (${selected.operatingSystem === "Windows" ? "RDP" : "SSH"})`}
+                    style={{ padding: "6px 14px", cursor: selected.ip && !busy ? "pointer" : "default", opacity: busy ? 0.6 : 1 }}
+                  >
+                    <i className="pi pi-external-link" style={{ fontSize: 11 }} />
+                    {busy === "gateway" ? "Abrindo…" : "Acesso remoto"}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   onClick={() => open("ssh")}

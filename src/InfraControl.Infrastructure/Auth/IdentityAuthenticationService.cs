@@ -59,7 +59,7 @@ public sealed class IdentityAuthenticationService(
         if (!createResult.Succeeded)
             return OperationResult.Failure(createResult.Errors.Select(error => error.Description).ToArray());
 
-        var domainUser = User.CreatePending(identityUser.Id, email, request.DisplayName, [UserRole.Viewer]);
+        var domainUser = User.CreatePending(identityUser.Id, email, request.DisplayName, null, [UserRole.Viewer]);
         dbContext.DomainUsers.Add(domainUser);
         await EnsureRoleAsync(UserRole.Viewer.ToString(), cancellationToken);
         EnsureSucceeded(await userManager.AddToRoleAsync(identityUser, UserRole.Viewer.ToString()), "atribuição de função");

@@ -34,6 +34,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<ExternalDeviceReference> ExternalDeviceReferences => Set<ExternalDeviceReference>();
     public DbSet<UniFiIntegrationSetting> UniFiIntegrationSettings => Set<UniFiIntegrationSetting>();
     public DbSet<ZabbixIntegrationSetting> ZabbixIntegrationSettings => Set<ZabbixIntegrationSetting>();
+    public DbSet<WhatsAppIntegrationSetting> WhatsAppIntegrationSettings => Set<WhatsAppIntegrationSetting>();
     public DbSet<ZabbixHost> ZabbixHosts => Set<ZabbixHost>();
     public DbSet<UniFiSite> UniFiSites => Set<UniFiSite>();
     public DbSet<AiProvider> AiProviders => Set<AiProvider>();
@@ -114,6 +115,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<ProjectImpediment> ProjectImpediments => Set<ProjectImpediment>();
     public DbSet<ProjectEvidence> ProjectEvidences => Set<ProjectEvidence>();
     public DbSet<ProjectHistoryEntry> ProjectHistoryEntries => Set<ProjectHistoryEntry>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

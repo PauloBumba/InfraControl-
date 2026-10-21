@@ -65,7 +65,7 @@ public sealed class InvitationAccountPort(
             throw new InvalidOperationException(
                 $"Não foi possível provisionar a conta convidada: {string.Join("; ", createResult.Errors.Select(error => error.Description))}");
 
-        var domainUser = User.CreatePending(identityUser.Id, normalizedEmail, normalizedEmail, roles);
+        var domainUser = User.CreatePending(identityUser.Id, normalizedEmail, normalizedEmail, null, roles);
         dbContext.DomainUsers.Add(domainUser);
 
         foreach (var role in domainUser.Roles)
