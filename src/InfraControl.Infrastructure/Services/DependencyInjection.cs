@@ -21,6 +21,7 @@ using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Ports;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Incidents.Ports;
@@ -50,6 +51,7 @@ using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Integrations.Unifi;
+using InfraControl.Infrastructure.Integrations.WhatsApp;
 using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.NetworkServices;
@@ -246,9 +248,12 @@ public static class DependencyInjection
         services.AddScoped<EvolutionApiWhatsAppNotificationDispatcher>();
         services.AddScoped<IWhatsAppNotificationDispatcher>(provider =>
         {
-            var whatsapp = provider
-                .GetRequiredService<IOptions<NotificationChannelsOptions>>()
-                .Value.WhatsApp;
+            // ADR-062: BaseUrl efetiva vem do resolver (banco → env) — a
+            // escolha Logging vs Evolution acompanha a config persistida.
+            var resolver = provider.GetRequiredService<IWhatsAppOptionsResolver>();
+            var whatsapp = resolver.ResolveAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
             return string.IsNullOrWhiteSpace(whatsapp.BaseUrl)
                 ? provider.GetRequiredService<LoggingWhatsAppNotificationDispatcher>()
                 : provider.GetRequiredService<EvolutionApiWhatsAppNotificationDispatcher>();
@@ -258,6 +263,16 @@ public static class DependencyInjection
             .AddResilienceHandler(
                 "evolution-api",
                 static (builder, _) => EvolutionApiWhatsAppNotificationDispatcher.ConfigureResilience(builder));
+
+        // ADR-062: config do canal WhatsApp persistida em banco (linha
+        // única, ApiKey AES-GCM) com fallback para env
+        // (Notifications:Channels:WhatsApp). O resolver devolve as options
+        // EFETIVAS por request — o Grupo escolhido na UI (banco) vira o
+        // destino do broadcast sem restart. O EvolutionInstanceClient
+        // (gestão: QR/grupos/teste) reusa o mesmo named client do dispatcher.
+        services.AddScoped<IWhatsAppEnvOptionsAccessor, WhatsAppEnvOptionsAccessor>();
+        services.AddScoped<IWhatsAppOptionsResolver, WhatsAppOptionsResolver>();
+        services.AddScoped<IEvolutionInstanceClient, EvolutionInstanceClient>();
 
         // F33-T005/ADR-059 decisão 7: cartão PNG (SkiaSharp) + série
         // histórica do Zabbix; sem dado a mensagem degrada para texto.

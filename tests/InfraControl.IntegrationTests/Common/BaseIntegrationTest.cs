@@ -5,6 +5,7 @@ using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
@@ -24,6 +25,7 @@ using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
+using InfraControl.Infrastructure.Integrations.WhatsApp;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.RemoteAccess;
@@ -123,6 +125,11 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // F27 Fase 2.2/3.1: config da integração Zabbix + hosts sincronizados
         services.AddScoped<IZabbixSettingsRepository, ZabbixSettingsRepository>();
         services.AddScoped<IZabbixHostsRepository, ZabbixHostsRepository>();
+
+        // ADR-062: config da integração WhatsApp (linha singleton)
+        services.AddScoped<IWhatsAppSettingsRepository, WhatsAppSettingsRepository>();
+        services.AddScoped<IWhatsAppEnvOptionsAccessor, WhatsAppEnvOptionsAccessor>();
+        services.AddScoped<IWhatsAppOptionsResolver, WhatsAppOptionsResolver>();
 
         // Monitoring: registry real + PingMonitoringProvider com ICMP falso
         services.AddScoped(typeof(IProviderRegistry<>), typeof(ProviderRegistry<>));

@@ -51,6 +51,32 @@ vi.mock("@/services/api/alerts", async (importOriginal) => {
   return { ...actual, listAlerts: vi.fn() };
 });
 
+vi.mock("@/services/api/remoteSessions", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/api/remoteSessions")>();
+  return {
+    ...actual,
+    listDeviceSessions: vi.fn(),
+    openGatewaySession: vi.fn(),
+    closeSession: vi.fn(),
+    getDeviceCredential: vi.fn(),
+    putDeviceCredential: vi.fn(),
+    deleteDeviceCredential: vi.fn(),
+  };
+});
+
+import {
+  getDeviceCredential,
+  listDeviceSessions,
+  openGatewaySession,
+  putDeviceCredential,
+} from "@/services/api/remoteSessions";
+
+const listSessionsMock = vi.mocked(listDeviceSessions);
+const gatewayMock = vi.mocked(openGatewaySession);
+const getCredentialMock = vi.mocked(getDeviceCredential);
+const putCredentialMock = vi.mocked(putDeviceCredential);
+
 const getDeviceMock = vi.mocked(getDevice);
 const statusMock = vi.mocked(getDeviceStatus);
 const locationsMock = vi.mocked(listLocations);
@@ -92,6 +118,18 @@ beforeEach(() => {
   systemInfoMock.mockResolvedValue({ uptimeSeconds: null, sysDescr: null, capturedAtUtc: null });
   resultsMock.mockResolvedValue({ deviceId: apDevice.id, deviceName: apDevice.name, results: [] });
   alertsMock.mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 5 });
+  listSessionsMock.mockResolvedValue({
+    deviceId: apDevice.id,
+    deviceName: apDevice.name,
+    sessions: [],
+  });
+  getCredentialMock.mockResolvedValue({
+    deviceId: apDevice.id,
+    username: "",
+    hasCredential: false,
+    rotatedAt: null,
+    updatedAt: "2026-01-01T00:00:00Z",
+  });
 });
 
 function renderPage() {
@@ -250,5 +288,78 @@ describe("DeviceDetailPage — troca de :id zera as abas (M1)", () => {
     expect(
       (await screen.findAllByText("ap-sala-02")).length,
     ).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("DeviceDetailPage — acesso remoto via gateway + credencial (F34-T007/T008 UI)", () => {
+  const linuxDevice: DeviceItem = {
+    ...apDevice,
+    id: "lin-001",
+    type: "Workstation",
+    name: "pc-fedora",
+    operatingSystem: "Linux",
+  };
+
+  it("should show the gateway button only with operatingSystem and open the token URL", async () => {
+    getDeviceMock.mockResolvedValue(linuxDevice);
+    gatewayMock.mockResolvedValue({
+      sessionId: "sess-1",
+      protocol: "Ssh",
+      token: "abc123",
+      path: "/guacamole/",
+    });
+    const openSpy = vi
+      .spyOn(window, "open")
+      .mockImplementation(() => null);
+
+    renderPage();
+    const user = userEvent.setup();
+
+    const button = await screen.findByRole("button", { name: /acesso remoto/i });
+    await user.click(button);
+
+    await waitFor(() => expect(gatewayMock).toHaveBeenCalledWith("ap-001"));
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith(
+        "/guacamole/?token=abc123",
+        "_blank",
+        "noopener",
+      ),
+    );
+    openSpy.mockRestore();
+  });
+
+  it("should hide the gateway button when operatingSystem is missing", async () => {
+    renderPage();
+    await screen.findByText("Identificação");
+    expect(
+      screen.queryByRole("button", { name: /acesso remoto/i }),
+    ).toBeNull();
+  });
+
+  it("should save a per-device credential via PUT (Administer)", async () => {
+    putCredentialMock.mockResolvedValue({
+      deviceId: linuxDevice.id,
+      username: "guacpilot",
+      hasCredential: true,
+      rotatedAt: "2026-10-20T00:00:00Z",
+      updatedAt: "2026-10-20T00:00:00Z",
+    });
+
+    renderPage();
+    const user = userEvent.setup();
+
+    const userInput = await screen.findByPlaceholderText("ex.: guacpilot");
+    await user.type(userInput, "guacpilot");
+    await user.type(screen.getByPlaceholderText("••••••••"), "S3nh@Dev_2026");
+    await user.click(screen.getByRole("button", { name: /salvar/i }));
+
+    await waitFor(() =>
+      expect(putCredentialMock).toHaveBeenCalledWith(
+        "ap-001",
+        "guacpilot",
+        "S3nh@Dev_2026",
+      ),
+    );
   });
 });

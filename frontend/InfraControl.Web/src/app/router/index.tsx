@@ -55,6 +55,7 @@ const CamerasPage = lazy(() => import("@/pages/CamerasPage").then(m => ({ defaul
 const PhonesPage = lazy(() => import("@/pages/PhonesPage").then(m => ({ default: m.PhonesPage })));
 // F30-T007d — Routers & Firewalls: rotas/sessões SNMP (docs/48).
 const RoutersPage = lazy(() => import("@/pages/RoutersPage").then(m => ({ default: m.RoutersPage })));
+const OperationsCenterPage = lazy(() => import("@/pages/OperationsCenterPage").then(m => ({ default: m.OperationsCenterPage })));
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(m => ({ default: m.LoginPage })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then(m => ({ default: m.ResetPasswordPage })));
@@ -218,18 +219,17 @@ function AppContent() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Login, recuperação/redefinição de senha e aceite de convite usam o
-  // PublicLayout (header/footer compartilhados) mas têm SessionGate para
-  // validar sessão com o backend.
+  // Login, recuperação de senha e aceite de convite usam o PublicLayout
+  // (header/footer compartilhados) e têm SessionGate para validar a sessão
+  // com o backend. O /reset-password é privado (exige login) e vive no
+  // bloco protegido abaixo.
   if (
     location.pathname === "/login" ||
     location.pathname === "/forgot-password" ||
-    location.pathname === "/reset-password" ||
     location.pathname.startsWith("/invitations/")
   ) {
     const isPublicPage =
       location.pathname === "/forgot-password" ||
-      location.pathname === "/reset-password" ||
       location.pathname.startsWith("/invitations/");
 
     if (authStatus === "authenticated" && !isPublicPage) {
@@ -243,7 +243,6 @@ function AppContent() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/invitations/:id" element={<InvitationAcceptancePage />} />
             </Routes>
           </Suspense>
@@ -402,6 +401,18 @@ function AppContent() {
           <Route path="/account" element={
             <ProtectedRoute>
               <AccountPage />
+            </ProtectedRoute>
+          } />
+          {/* Redefinição de senha — privado, exige login. */}
+          <Route path="/reset-password" element={
+            <ProtectedRoute>
+              <ResetPasswordPage />
+            </ProtectedRoute>
+          } />
+          {/* F37-T001 — Central de Operações (painel kiosk) */}
+          <Route path="/operations-center" element={
+            <ProtectedRoute>
+              <OperationsCenterPage />
             </ProtectedRoute>
           } />
           <Route path="/pdi" element={

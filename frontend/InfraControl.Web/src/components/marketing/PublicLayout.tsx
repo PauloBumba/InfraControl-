@@ -235,3 +235,98 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+export function PublicHeaderFooterLayout({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(readStoredTheme);
+
+  const handleToggleTheme = () => {
+    setTheme((current) => toggleTheme(current));
+  };
+
+  return (
+    <div className="uni-public">
+      <header className="uni-public-header">
+        <div className="uni-public-container uni-public-bar">
+          <Link to="/" className="uni-public-brand">
+            <span className="uni-public-logo">
+              <InfraLogo size={28} />
+            </span>
+            <span>InfraControl</span>
+          </Link>
+
+          <div className="uni-public-bar-actions">
+            <button
+              className="uni-public-theme-toggle"
+              onClick={handleToggleTheme}
+              aria-label={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+              title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+            >
+              <i className={`pi ${theme === "dark" ? "pi-sun" : "pi-moon"}`} />
+            </button>
+            <Link to="/login" className="uni-public-button uni-public-button-small">
+              Entrar
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="uni-public-main" style={{ padding: "48px 0" }}>{children}</main>
+
+      <footer className="uni-public-footer">
+        <div className="uni-public-container uni-public-footer-grid">
+          <div className="uni-public-footer-brand">
+            <div className="uni-public-footer-logo">
+              <InfraLogo size={32} />
+              <span className="uni-public-footer-brand-text">InfraControl</span>
+            </div>
+            <p className="uni-public-footer-description">
+              Plataforma on-premises de monitoramento e operação de infraestrutura de TI.
+            </p>
+          </div>
+
+          <div className="uni-public-footer-section">
+            <h6>Produto</h6>
+            <ul className="uni-public-footer-links">
+              {FOOTER_PRODUCT.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.to}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="uni-public-footer-section">
+            <h6>Recursos</h6>
+            <ul className="uni-public-footer-links">
+              {FOOTER_RESOURCES.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.to}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="uni-public-footer-section">
+            <h6>Empresa</h6>
+            <ul className="uni-public-footer-links">
+              {FOOTER_COMPANY.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.to}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="uni-public-container uni-public-footer-bottom">
+          <small>&copy; {new Date().getFullYear()} InfraControl. Todos os direitos reservados.</small>
+          <div className="uni-public-footer-bottom-links">
+            <Link to="/contato">Privacidade</Link>
+            <Link to="/contato">Termos</Link>
+            <small>v0.1-foundation</small>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

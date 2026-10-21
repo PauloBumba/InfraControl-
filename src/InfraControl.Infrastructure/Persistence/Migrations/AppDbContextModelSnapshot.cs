@@ -195,6 +195,81 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("alerts", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.Announcement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acknowledged_at");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("fingerprint");
+
+                    b.Property<int>("MaxRepeats")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(3)
+                        .HasColumnName("max_repeats");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("message");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("priority");
+
+                    b.Property<int>("RepeatCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("repeat_count");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_at");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("info")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fingerprint")
+                        .HasDatabaseName("IX_announcements_fingerprint");
+
+                    b.HasIndex("Priority")
+                        .HasDatabaseName("IX_announcements_priority");
+
+                    b.HasIndex("ScheduledAt", "AcknowledgedAt")
+                        .HasDatabaseName("IX_announcements_scheduled_acknowledged");
+
+                    b.ToTable("announcements", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.AuditEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3837,6 +3912,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
+                    b.Property<string>("FullName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -4045,6 +4124,72 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("vlans", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.WhatsAppIntegrationSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApiKeyEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("api_key_encrypted");
+
+                    b.Property<string>("BaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("base_url");
+
+                    b.Property<string>("ConnectionState")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("connection_state");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<string>("GroupId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("group_id");
+
+                    b.Property<string>("InstanceId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("instance_id");
+
+                    b.Property<string>("LastTestError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_test_error");
+
+                    b.Property<bool>("LastTestOk")
+                        .HasColumnType("boolean")
+                        .HasColumnName("last_test_ok");
+
+                    b.Property<DateTime?>("LastTestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_tested_at_utc");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("phone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("whatsapp_integration_settings", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.ZabbixHost", b =>

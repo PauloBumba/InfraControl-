@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -17,12 +18,15 @@ namespace InfraControl.Workers.Consumers.Notifications;
 /// via ProcessedMessage (EventId + Consumer, docs/06) e cria a
 /// Notification + seus destinatários (F9-T002) no banco. Os canais do
 /// fanout vêm de Notifications:Channels:Default (F9-T006 — o admin escolhe;
-/// antes era fixo SignalR+Email).
+/// antes era fixo SignalR+Email). ADR-062: a checagem de destino do
+/// WhatsApp (GroupId/Phone) usa o <see cref="IWhatsAppOptionsResolver"/>
+/// (banco → env) — o Grupo escolhido na UI é refletido no fanout/dedup.
 /// </summary>
 public sealed class NotificationEventConsumer(
     AppDbContext dbContext,
     IInboxStore inboxStore,
     IOptions<NotificationChannelsOptions> channelsOptions,
+    IWhatsAppOptionsResolver whatsAppOptionsResolver,
     ILogger<NotificationEventConsumer> logger)
     : IConsumer<UserCreatedDomainEvent>,
       IConsumer<UserDisabledDomainEvent>,
@@ -38,6 +42,20 @@ public sealed class NotificationEventConsumer(
       IConsumer<PdiCreatedDomainEvent>,
       IConsumer<PdiUpdatedDomainEvent>
 {
+    public NotificationEventConsumer(
+        AppDbContext dbContext,
+        IInboxStore inboxStore,
+        IOptions<NotificationChannelsOptions> channelsOptions,
+        ILogger<NotificationEventConsumer> logger)
+        : this(
+            dbContext,
+            inboxStore,
+            channelsOptions,
+            new StaticWhatsAppOptionsResolver(channelsOptions.Value.WhatsApp),
+            logger)
+    {
+    }
+
     public const string ConsumerName = "NotificationConsumer";
 
     /// <summary>
@@ -321,12 +339,15 @@ public sealed class NotificationEventConsumer(
 
         // Canais por evento (PDI: criação Email+SignalR, edição SignalR) —
         // sem lista explícita, o fanout default de F9-T006 (Default config).
+        // ADR-062: destino WhatsApp (GroupId/Phone) resolvido por request
+        // (banco → env) — o Grupo escolhido na UI vale sem restart.
+        var whatsapp = await whatsAppOptionsResolver.ResolveAsync(cancellationToken);
         var fanout = channels is null
-            ? ResolveFanoutChannels()
-            : channels.Where(IsSendable).Distinct().ToList();
+            ? await ResolveFanoutChannelsAsync(whatsapp, cancellationToken)
+            : channels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList();
 
         foreach (var channel in fanout)
-            await QueueDeliveriesAsync(notification, channel, cancellationToken);
+            await QueueDeliveriesAsync(notification, channel, whatsapp, cancellationToken);
     }
 
     /// <summary>
@@ -337,7 +358,8 @@ public sealed class NotificationEventConsumer(
     /// canal da lista for enviável, o fallback é Email — a notificação não
     /// morre por configuração incompleta.
     /// </summary>
-    private List<NotificationChannel> ResolveFanoutChannels()
+    private async Task<List<NotificationChannel>> ResolveFanoutChannelsAsync(
+        WhatsAppChannelOptions whatsapp, CancellationToken cancellationToken)
     {
         var configured = new List<NotificationChannel>();
         foreach (var raw in channelsOptions.Value.Default)
@@ -354,7 +376,7 @@ public sealed class NotificationEventConsumer(
                 configured.Add(channel);
         }
 
-        var sendable = configured.Where(IsSendable).ToList();
+        var sendable = configured.Where(c => IsSendable(c, whatsapp)).ToList();
         if (sendable.Count == 0)
         {
             logger.LogWarning(
@@ -362,6 +384,7 @@ public sealed class NotificationEventConsumer(
             sendable.Add(NotificationChannel.Email);
         }
 
+        await Task.CompletedTask;
         return sendable;
     }
 
@@ -370,7 +393,7 @@ public sealed class NotificationEventConsumer(
     /// com destino na config exigem a seção preenchida; canais ainda sem
     /// worker (canais futuros) não são enviáveis até a task deles.
     /// </summary>
-    private bool IsSendable(NotificationChannel channel)
+    private bool IsSendable(NotificationChannel channel, WhatsAppChannelOptions whatsapp)
     {
         switch (channel)
         {
@@ -388,8 +411,9 @@ public sealed class NotificationEventConsumer(
             case NotificationChannel.WhatsApp:
                 // ADR-059 §3 (F33-T003): destino é o GroupId (broadcast no
                 // grupo); Phone individual segue aceito (retrocompatível).
-                if (!string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.GroupId)
-                    || !string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.Phone))
+                // ADR-062: destino vem do resolver (banco → env).
+                if (!string.IsNullOrWhiteSpace(whatsapp.GroupId)
+                    || !string.IsNullOrWhiteSpace(whatsapp.Phone))
                     return true;
                 logger.LogWarning(
                     "Canal WhatsApp em Notifications:Channels:Default sem GroupId nem Phone configurado — deliveries não enfileiradas.");
@@ -427,7 +451,8 @@ public sealed class NotificationEventConsumer(
     /// habilitado; Phone individual e demais canais seguem 1 por usuário.
     /// </summary>
     private async Task QueueDeliveriesAsync(
-        Notification notification, NotificationChannel channel, CancellationToken cancellationToken)
+        Notification notification, NotificationChannel channel,
+        WhatsAppChannelOptions whatsapp, CancellationToken cancellationToken)
     {
         var userIds = await new NotificationRecipientRepository(dbContext)
             .ResolveUserIdsAsync(notification.Id, cancellationToken);
@@ -445,8 +470,9 @@ public sealed class NotificationEventConsumer(
                 .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken)
             : [];
 
+        // ADR-062: destino GroupId vem do resolver (banco → env).
         var groupBroadcast = channel == NotificationChannel.WhatsApp
-            && !string.IsNullOrWhiteSpace(channelsOptions.Value.WhatsApp.GroupId);
+            && !string.IsNullOrWhiteSpace(whatsapp.GroupId);
 
         var added = false;
         foreach (var userId in userIds)

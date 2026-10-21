@@ -85,3 +85,38 @@ export function openGatewaySession(
     `/inventory/devices/${deviceId}/remote/sessions/gateway`,
   );
 }
+
+/** Estado da credencial por device (F11-T006; Administer) — senha nunca aparece. */
+export interface DeviceCredentialState {
+  deviceId: string;
+  username: string;
+  hasCredential: boolean;
+  rotatedAt: string | null;
+  updatedAt: string;
+}
+
+/** Lê o estado (username/flags) — Administer; sem credencial → fallback global. */
+export function getDeviceCredential(
+  deviceId: string,
+): Promise<DeviceCredentialState | null> {
+  return api.get<DeviceCredentialState>(
+    `/inventory/devices/${deviceId}/remote/credential`,
+  );
+}
+
+/** Cadastra/rotaciona a credencial do device (Administer) — senha só no corpo. */
+export function putDeviceCredential(
+  deviceId: string,
+  username: string,
+  password: string,
+): Promise<DeviceCredentialState | null> {
+  return api.put<DeviceCredentialState>(
+    `/inventory/devices/${deviceId}/remote/credential`,
+    { username, password },
+  );
+}
+
+/** Remove a credencial — o acesso volta ao fallback global (Administer). */
+export function deleteDeviceCredential(deviceId: string): Promise<unknown> {
+  return api.delete(`/inventory/devices/${deviceId}/remote/credential`);
+}

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InfraControl.Api.Workers;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
@@ -11,7 +12,6 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace InfraControl.UnitTests.Notifications;
 
@@ -107,7 +107,7 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
 
         var worker = new NotificationWhatsAppWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            Options.Create(channels),
+            new StaticWhatsAppOptionsResolver(channels.WhatsApp),
             NullLogger<NotificationWhatsAppWorker>.Instance);
 
         return (context, worker, dispatcher, delivery.Id);
