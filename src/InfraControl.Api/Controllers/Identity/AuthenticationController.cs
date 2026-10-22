@@ -159,7 +159,7 @@ public sealed class AuthenticationController(
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         var result = await authenticationService.UpdateProfileAsync(
-            new UpdateProfileRequest(userId, model.DisplayName), cancellationToken);
+            new UpdateProfileRequest(userId, model.DisplayName, model.FullName), cancellationToken);
         if (!result.Succeeded)
             return BadRequest(ApiResponse<object>.Fail(result.Errors));
 
@@ -168,18 +168,31 @@ public sealed class AuthenticationController(
         // no reload seguinte. Re-emitimos preservando as claims atuais — em
         // especial SessionIdClaim, que o ActiveSessionMiddleware confere:
         // criar uma sessão nova derrubaria a atual.
+        //
+        // FullName acompanha a MESMA regra do banco: ausente no corpo = não
+        // informado (mantém a claim atual), "" = limpa (claim some).
         var identity = (ClaimsIdentity)User.Identity!;
+        var fullName = model.FullName switch
+        {
+            null => identity.FindFirst("fullName")?.Value,
+            "" => null,
+            _ => model.FullName.Trim()
+        };
+
         var claims = identity.Claims
-            .Where(claim => claim.Type != "displayName")
+            .Where(claim => claim.Type != "displayName" && claim.Type != "fullName")
             .Append(new Claim("displayName", model.DisplayName.Trim()))
             .ToList();
+
+        if (!string.IsNullOrWhiteSpace(fullName))
+            claims.Add(new Claim("fullName", fullName));
 
         await HttpContext.SignInAsync(
             IdentityConstants.ApplicationScheme,
             new ClaimsPrincipal(new ClaimsIdentity(
                 claims, identity.AuthenticationType, identity.NameClaimType, identity.RoleClaimType)));
 
-        return Ok(ApiResponse.Ok(new { displayName = model.DisplayName.Trim() }));
+        return Ok(ApiResponse.Ok(new { displayName = model.DisplayName.Trim(), fullName }));
     }
 
     [Authorize]
@@ -200,6 +213,9 @@ public sealed class AuthenticationController(
             userId = User.GetSessionUserId(),
             email = User.Identity?.Name,
             displayName = User.FindFirst("displayName")?.Value,
+            // F38 — nome completo (coluna nova, nullable). Claim emitida no
+            // CreatePrincipal e re-emisso no PUT /auth/profile.
+            fullName = User.FindFirst("fullName")?.Value,
             roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray()
         }));
     }
@@ -222,6 +238,11 @@ public sealed class AuthenticationController(
         // sendo o e-mail, usado por ICurrentUserContext/auditoria).
         if (!string.IsNullOrWhiteSpace(user.DisplayName))
             claims.Add(new Claim("displayName", user.DisplayName.Trim()));
+
+        // F38 — nome completo (nullable): claim só quando preenchido; o
+        // /auth/me lê daqui, então ela nasce junto com a sessão.
+        if (!string.IsNullOrWhiteSpace(user.FullName))
+            claims.Add(new Claim("fullName", user.FullName.Trim()));
 
         foreach (var role in user.Roles)
         {

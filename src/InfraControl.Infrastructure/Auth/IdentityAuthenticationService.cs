@@ -240,7 +240,10 @@ public sealed class IdentityAuthenticationService(
 
         try
         {
-            domainUser.Update(request.DisplayName, domainUser.Email);
+            // FullName: null = não informado → preserva o gravado; "" = limpa.
+            // Sem esse ?? o default do domínio (null) APAGARIA o nome completo
+            // em toda troca só de nome exibido.
+            domainUser.Update(request.DisplayName, domainUser.Email, request.FullName ?? domainUser.FullName);
         }
         catch (ArgumentException exception)
         {
@@ -484,7 +487,8 @@ public sealed class IdentityAuthenticationService(
                 session.Id,
                 identityUser.Email!,
                 domainUser.DisplayName,
-                domainUser.Roles.Select(role => role.ToString()).ToArray()),
+                domainUser.Roles.Select(role => role.ToString()).ToArray(),
+                domainUser.FullName),
             refreshToken,
             expiresAt);
 

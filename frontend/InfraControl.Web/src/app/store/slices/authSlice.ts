@@ -4,6 +4,13 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  /**
+   * F38 — nome completo (`User.FullName`, opcional). Vem do `/auth/me` como
+   * claim `fullName`; opcional porque (1) o campo é nullable e (2) o cache
+   * persistido de sessões anteriores a este deploy não o tem — a UI trata a
+   * ausência como "em branco", nunca como erro.
+   */
+  fullName?: string | null;
   /** Roles canônicas (ADR-016): "Admin" | "Operator" | "Viewer". */
   roles: string[];
 }

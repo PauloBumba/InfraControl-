@@ -44,8 +44,10 @@ export function AccountPage() {
 
   // ── Perfil (F29-T002) — estado próprio, separado do formulário de senha:
   // os dois enviam para endpoints diferentes e o erro de um não pode aparecer
-  // no card do outro.
+  // no card do outro. F38: `fullName` (nome completo, opcional) viaja junto
+  // com o nome exibido no MESMO PUT /auth/profile.
   const [profileName, setProfileName] = useState(user?.displayName ?? "");
+  const [profileFullName, setProfileFullName] = useState(user?.fullName ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profilePending, setProfilePending] = useState(false);
@@ -62,16 +64,20 @@ export function AccountPage() {
     setProfileSaved(false);
 
     const trimmed = profileName.trim();
+    // "" (em branco) = limpar: o backend grava null. O valor SEMPRE viaja,
+    // nunca `undefined` — ausência no corpo significa "não informado".
+    const trimmedFullName = profileFullName.trim();
 
     setProfilePending(true);
     try {
-      const { displayName } = await updateProfile(trimmed);
-      // O servidor re-emite o cookie com a claim nova; aqui só espelhamos no
+      const { displayName, fullName } = await updateProfile(trimmed, trimmedFullName);
+      // O servidor re-emite o cookie com as claims novas; aqui só espelhamos no
       // estado local o que acabou de mudar, para a sidebar/cabeçalho
       // mostrarem o nome certo sem precisar de F5. Reuso do sessionChecked:
       // é exatamente o mesmo fato ("backend confirmou a sessão").
-      dispatch(sessionChecked({ ...user!, displayName }));
+      dispatch(sessionChecked({ ...user!, displayName, fullName }));
       setProfileName(displayName);
+      setProfileFullName(fullName ?? "");
       setProfileSaved(true);
     } catch (submitError) {
       setProfileError(
@@ -124,8 +130,8 @@ export function AccountPage() {
       <div className="uni-card" style={{ maxWidth: 560, padding: 24 }}>
         <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>Perfil</h2>
         <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-          O nome aparece para toda a equipe. O e-mail é o seu login e não é
-          editável por aqui.
+          O nome de exibição aparece para toda a equipe. O e-mail é o seu
+          login e não é editável por aqui.
         </p>
 
         <form
@@ -133,11 +139,11 @@ export function AccountPage() {
           style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="display-name">Nome completo</label>
+            <label htmlFor="display-name">Nome de exibição</label>
             <input
               id="display-name"
               type="text"
-              autoComplete="name"
+              autoComplete="nickname"
               value={profileName}
               onChange={(event) => {
                 setProfileName(event.target.value);
@@ -145,6 +151,26 @@ export function AccountPage() {
               }}
               required
             />
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              É o nome que aparece em menus, auditoria e notificações.
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label htmlFor="full-name">Nome completo</label>
+            <input
+              id="full-name"
+              type="text"
+              autoComplete="name"
+              value={profileFullName}
+              onChange={(event) => {
+                setProfileFullName(event.target.value);
+                setProfileSaved(false);
+              }}
+            />
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              Opcional — deixe em branco para não registrar um nome completo.
+            </span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

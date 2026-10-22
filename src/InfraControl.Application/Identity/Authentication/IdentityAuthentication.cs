@@ -6,7 +6,14 @@ public sealed record RefreshSessionRequest(string RefreshToken);
 public sealed record ForgotPasswordRequest(string Email, string? BaseUrl = null);
 public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
 public sealed record ChangePasswordRequest(Guid UserId, string CurrentPassword, string NewPassword);
-public sealed record UpdateProfileRequest(Guid UserId, string DisplayName);
+/// <summary>
+/// F38 — autoedição do perfil. <c>DisplayName</c> é o nome exibido (obrigatório);
+/// <c>FullName</c> é o nome completo da pessoa (coluna nova, opcional).
+/// Semântica do terceiro campo: <c>null</c> = NÃO informado (preserva o que já
+/// está gravado), <c>""</c> = limpa. Assim chamadas antigas que mandam só o
+/// nome exibido nunca apagam o FullName por acidente.
+/// </summary>
+public sealed record UpdateProfileRequest(Guid UserId, string DisplayName, string? FullName = null);
 public sealed record GoogleLoginRequest(string IdToken);
 
 /// <summary>
@@ -64,12 +71,18 @@ public interface IGoogleIdentityTokenValidator
     Task<GoogleTokenValidation> ValidateAsync(string idToken, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Quem é o usuário na sessão. <c>FullName</c> (nullable) acompanha desde o
+/// login: o <c>/auth/me</c> lê CLAIM, não o banco — claim que não nascer no
+/// <c>CreatePrincipal</c> nunca chega à UI.
+/// </summary>
 public sealed record AuthenticatedUser(
     Guid UserId,
     Guid SessionId,
     string Email,
     string DisplayName,
-    IReadOnlyCollection<string> Roles);
+    IReadOnlyCollection<string> Roles,
+    string? FullName = null);
 
 public sealed record AuthenticationResult(
     AuthenticatedUser User,

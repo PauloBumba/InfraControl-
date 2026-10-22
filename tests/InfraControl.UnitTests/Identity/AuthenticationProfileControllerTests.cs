@@ -208,4 +208,78 @@ public sealed class AuthenticationProfileControllerTests
         harness.Auth.Verify(service => service.UpdateProfileAsync(
             It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    // ── F38 — nome completo (FullName) ────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateProfile_Should_Forward_The_FullName_To_The_Service()
+    {
+        var userId = Guid.NewGuid();
+        var harness = WithSuccessfulUpdate(userId);
+
+        await harness.Controller.UpdateProfile(
+            new UpdateProfileViewModel("Ana", "Ana Maria da Silva"), CancellationToken.None);
+
+        harness.Auth.Verify(service => service.UpdateProfileAsync(
+            It.Is<UpdateProfileRequest>(request =>
+                request.UserId == userId && request.FullName == "Ana Maria da Silva"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_Should_Reissue_The_Cookie_With_The_New_FullName()
+    {
+        var harness = WithSuccessfulUpdate(
+            Guid.NewGuid(),
+            [new Claim("displayName", "Ana"), new Claim("fullName", "Nome Antigo")]);
+
+        await harness.Controller.UpdateProfile(
+            new UpdateProfileViewModel("Ana", "Ana Maria da Silva"), CancellationToken.None);
+
+        var reissued = (ClaimsIdentity)ReissuedPrincipal(harness.SignIn)!.Identities.First();
+        reissued.FindFirst("fullName")?.Value.Should().Be("Ana Maria da Silva");
+        // A antiga não pode sobreviver: duplicaria e /auth/me leria o valor errado.
+        reissued.FindAll("fullName").Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_Should_Keep_The_FullName_Claim_When_Not_Informed()
+    {
+        // Contrato: ausente no corpo = não informado → o servidor preserva no
+        // banco, então a claim re-emitida também precisa preservar (senão
+        // /auth/me passaria a devolver null para um valor que continua lá).
+        var harness = WithSuccessfulUpdate(
+            Guid.NewGuid(),
+            [new Claim("displayName", "Ana"), new Claim("fullName", "Ana Maria da Silva")]);
+
+        var result = await harness.Controller.UpdateProfile(
+            new UpdateProfileViewModel("Ana Novo"), CancellationToken.None);
+
+        var identity = (ClaimsIdentity)ReissuedPrincipal(harness.SignIn)!.Identities.First();
+        identity.FindFirst("fullName")?.Value.Should().Be("Ana Maria da Silva");
+
+        // e a resposta espelha o que /auth/me vai passar a devolver
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = ok.Value!.GetType().GetProperty("Data")!.GetValue(ok.Value);
+        ((string?)data!.GetType().GetProperty("fullName")!.GetValue(data)).Should()
+            .Be("Ana Maria da Silva");
+    }
+
+    [Fact]
+    public async Task UpdateProfile_Should_Drop_The_FullName_Claim_When_Cleared()
+    {
+        // "" é o pedido explícito de limpar: claim some junto com a coluna.
+        var harness = WithSuccessfulUpdate(
+            Guid.NewGuid(),
+            [new Claim("displayName", "Ana"), new Claim("fullName", "Ana Maria da Silva")]);
+
+        await harness.Controller.UpdateProfile(
+            new UpdateProfileViewModel("Ana", ""), CancellationToken.None);
+
+        var identity = (ClaimsIdentity)ReissuedPrincipal(harness.SignIn)!.Identities.First();
+        identity.FindFirst("fullName").Should().BeNull(
+            "nome completo limpo não pode continuar aparecendo no /auth/me");
+        // o nome exibido segue intacto
+        identity.FindFirst("displayName")?.Value.Should().Be("Ana");
+    }
 }

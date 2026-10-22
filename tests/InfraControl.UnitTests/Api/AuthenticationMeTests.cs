@@ -60,6 +60,14 @@ public sealed class AuthenticationMeTests
         return (string?)data!.GetType().GetProperty("userId")!.GetValue(data);
     }
 
+    private static string? FullNameIn(IActionResult result)
+    {
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var data = ok.Value!.GetType().GetProperty("Data")!.GetValue(ok.Value);
+
+        return (string?)data!.GetType().GetProperty("fullName")!.GetValue(data);
+    }
+
     [Fact]
     public void Me_Should_Return_Roles_From_ClaimTypesRole()
     {
@@ -136,5 +144,30 @@ public sealed class AuthenticationMeTests
         controller.Me();
 
         antiforgery.Verify(antiforgery => antiforgery.GetAndStoreTokens(controller.HttpContext), Times.Once);
+    }
+
+    [Fact]
+    public void Me_Should_Return_The_FullName_From_The_Claim()
+    {
+        // F38 — o nome completo viaja do cookie: /auth/me lê CLAIM, não o
+        // banco. Sem a claim no CreatePrincipal, a UI nunca veria o valor.
+        var controller = ControllerWith(
+            new Claim(ClaimTypes.NameIdentifier, "user-123"),
+            new Claim("displayName", "Ana"),
+            new Claim("fullName", "Ana Maria da Silva"));
+
+        FullNameIn(controller.Me()).Should().Be("Ana Maria da Silva");
+    }
+
+    [Fact]
+    public void Me_Should_Return_Null_FullName_When_The_Claim_Is_Absent()
+    {
+        // Campo opcional: sessão antiga (emitida antes da claim existir) ou
+        // usuário sem nome completo → null, não erro.
+        var controller = ControllerWith(
+            new Claim(ClaimTypes.NameIdentifier, "user-123"),
+            new Claim("displayName", "Ana"));
+
+        FullNameIn(controller.Me()).Should().BeNull();
     }
 }

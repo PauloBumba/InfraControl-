@@ -135,10 +135,12 @@ describe("AccountPage", () => {
  */
 describe("AccountPage — perfil (F29-T002)", () => {
   it("should prefill the profile form with the signed-in display name", async () => {
-    updateProfileMock.mockResolvedValue({ displayName: "Ana" });
+    updateProfileMock.mockResolvedValue({ displayName: "Ana", fullName: null });
     renderPage();
 
-    expect(await screen.findByLabelText("Nome completo")).toHaveValue("Ana");
+    expect(await screen.findByLabelText("Nome de exibição")).toHaveValue("Ana");
+    // Nome completo é o campo SEPARADO (F38) e nasce em branco aqui.
+    expect(screen.getByLabelText("Nome completo")).toHaveValue("");
     // O e-mail está na tela como campo travado, não como texto solto —
     // é ele quem declara a imutabilidade, não uma frase avulsa.
     const email = screen.getByLabelText("E-mail");
@@ -147,11 +149,11 @@ describe("AccountPage — perfil (F29-T002)", () => {
   });
 
   it("should send only the new display name", async () => {
-    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria" });
+    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null });
     renderPage();
 
     const user = userEvent.setup();
-    const field = await screen.findByLabelText("Nome completo");
+    const field = await screen.findByLabelText("Nome de exibição");
     await user.clear(field);
     await user.type(field, "Ana Maria");
     await user.click(screen.getByRole("button", { name: /^salvar$/i }));
@@ -160,10 +162,33 @@ describe("AccountPage — perfil (F29-T002)", () => {
     // mutation — espera o chamado em vez de assumir a microtask.
     await waitFor(() => {
       expect(updateProfileMock).toHaveBeenCalledTimes(1);
-      expect(updateProfileMock).toHaveBeenCalledWith("Ana Maria");
+      // o nome completo viaja junto (F38) — em branco = limpar no servidor.
+      expect(updateProfileMock).toHaveBeenCalledWith("Ana Maria", "");
     });
     // o e-mail não viaja: é somente leitura nesta tela.
-    expect(updateProfileMock).not.toHaveBeenCalledWith("ana@exemplo.com");
+    expect(updateProfileMock).not.toHaveBeenCalledWith("ana@exemplo.com", expect.anything());
+  });
+
+  it("should send the full name alongside the display name (F38)", async () => {
+    updateProfileMock.mockResolvedValue({
+      displayName: "Ana",
+      fullName: "Ana Maria da Silva",
+    });
+    renderPage();
+
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText("Nome completo");
+    await user.type(field, "Ana Maria da Silva");
+    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+
+    await waitFor(() => {
+      expect(updateProfileMock).toHaveBeenCalledWith("Ana", "Ana Maria da Silva");
+    });
+
+    // o nome completo volta para a sessão (o /auth/me lê a claim re-emitida)
+    expect(await screen.findByRole("status")).toHaveTextContent(/nome atualizado/i);
+    expect(store.getState().auth.user?.fullName).toBe("Ana Maria da Silva");
+    expect(store.getState().auth.status).toBe("authenticated");
   });
 
   it("should show the pt-BR envelope message when the name is rejected", async () => {
@@ -173,7 +198,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
     renderPage();
 
     const user = userEvent.setup();
-    const field = await screen.findByLabelText("Nome completo");
+    const field = await screen.findByLabelText("Nome de exibição");
     // Só espaços: passa pelo `required` nativo (o valor NÃO é vazio) e só o
     // servidor recusa — é ele quem manda na regra, não uma guarda local.
     await user.clear(field);
@@ -190,12 +215,12 @@ describe("AccountPage — perfil (F29-T002)", () => {
   });
 
   it("should keep the user signed in after saving the profile", async () => {
-    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria" });
+    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null });
     changePasswordMock.mockReset();
     renderPage();
 
     const user = userEvent.setup();
-    const field = await screen.findByLabelText("Nome completo");
+    const field = await screen.findByLabelText("Nome de exibição");
     await user.clear(field);
     await user.type(field, "Ana Maria");
     await user.click(screen.getByRole("button", { name: /^salvar$/i }));

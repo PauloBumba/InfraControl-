@@ -82,7 +82,10 @@ public sealed class IdentityAdministrationService(AppDbContext dbContext) : IIde
         if (existingUser is not null)
             throw new InvalidOperationException("Já existe um usuário com este e-mail.");
 
-        user.Update(displayName, email);
+        // FullName explícito: o PUT do admin não tem o campo, então o valor
+        // atual é repassado — o default (null) do domínio apagaria o nome
+        // completo a cada edição de admin.
+        user.Update(displayName, email, user.FullName);
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }

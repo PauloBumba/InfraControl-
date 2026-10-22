@@ -18,8 +18,11 @@ public sealed record ChangePasswordViewModel(string CurrentPassword, string NewP
 /// F29-T002 — perfil de autoedição. Só o nome: o e-mail é somente leitura
 /// aqui (trocar e-mail é operação de admin, com verificação de unicidade em
 /// <c>UpdateUserAsync</c>), então não entra no contrato deste endpoint.
+///
+/// F38 — <c>FullName</c> (nome completo, coluna opcional) viaja junto:
+/// ausente no corpo = não informado (preserva o gravado), <c>""</c> = limpa.
 /// </summary>
-public sealed record UpdateProfileViewModel(string DisplayName);
+public sealed record UpdateProfileViewModel(string DisplayName, string? FullName = null);
 
 /// <summary>Confirm do MFA (F1-T016a): um código TOTP de 6 dígitos.</summary>
 public sealed record MfaConfirmViewModel(string Code);
