@@ -82,13 +82,13 @@ describe("AppLayout — grupos do sidebar (F38-T001)", () => {
     expect(within(nav()).getByRole("button", { name: /Administração/ })).toBeInTheDocument();
   });
 
-  it("should open a group dropdown and navigate to an item", async () => {
+  it("should open a group accordion and navigate to an item", async () => {
     const { onNavigate } = renderLayout("/");
     const user = userEvent.setup();
 
     await user.click(within(nav()).getByRole("button", { name: /Infraestrutura/ }));
-    const menu = await screen.findByRole("menu");
-    await user.click(within(menu).getByRole("menuitem", { name: "Dispositivos" }));
+    // Acordeão inline: o filho é um botão DENTRO da nav (sem role=menu).
+    await user.click(within(nav()).getByRole("button", { name: "Dispositivos" }));
     expect(onNavigate).toHaveBeenLastCalledWith("/devices");
   });
 
@@ -102,13 +102,12 @@ describe("AppLayout — grupos do sidebar (F38-T001)", () => {
     const user = userEvent.setup();
 
     await user.click(within(nav()).getByRole("button", { name: /Monitoramento/ }));
-    const menu = await screen.findByRole("menu");
-    // UniFi é um sub-item com filhos — deve estar visível no menu
-    expect(within(menu).getByText("UniFi")).toBeInTheDocument();
+    // UniFi é um sub-item com filhos — aparece no acordeão aberto
+    expect(within(nav()).getByText("UniFi")).toBeInTheDocument();
   });
 });
 
-describe("AppLayout — submenu popup dentro de grupos", () => {
+describe("AppLayout — acordeão inline de sub-itens no sidebar", () => {
   beforeEach(() => {
     store.getState().navigation.recentTabs.forEach((tab) => store.dispatch(removeTab(tab)));
     localStorage.clear();
@@ -133,9 +132,8 @@ describe("AppLayout — submenu popup dentro de grupos", () => {
     const user = userEvent.setup();
 
     await user.click(within(nav()).getByRole("button", { name: /Monitoramento/ }));
-    const menu = await screen.findByRole("menu");
-    expect(within(menu).getByText("UniFi")).toBeInTheDocument();
-    expect(within(menu).getByText("Zabbix")).toBeInTheDocument();
+    expect(within(nav()).getByText("UniFi")).toBeInTheDocument();
+    expect(within(nav()).getByText("Zabbix")).toBeInTheDocument();
   });
 
   it("should navigate to a simple child item", async () => {
@@ -143,8 +141,7 @@ describe("AppLayout — submenu popup dentro de grupos", () => {
     const user = userEvent.setup();
 
     await user.click(within(nav()).getByRole("button", { name: /Infraestrutura/ }));
-    const menu = await screen.findByRole("menu");
-    await user.click(within(menu).getByRole("menuitem", { name: "Servidores" }));
+    await user.click(within(nav()).getByRole("button", { name: "Servidores" }));
     expect(onNavigate).toHaveBeenLastCalledWith("/servers");
   });
 
@@ -274,7 +271,7 @@ describe("AppLayout — card do usuário no sidebar", () => {
     renderLayout("/");
     const user = userEvent.setup();
 
-    await user.click(screen.getByTitle("Opções do usuário"));
+    await user.click(screen.getByTitle(/opções da conta/i));
 
     const menu = await screen.findByRole("menu");
     expect(within(menu).getByRole("menuitem", { name: "Meu perfil" })).toBeInTheDocument();

@@ -91,23 +91,24 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         await context.SaveChangesAsync();
 
         var dispatcher = new FakeDispatcher();
-        var services = new ServiceCollection();
-        services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
-        services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
-        services.AddScoped<IWhatsAppNotificationDispatcher>(_ => dispatcher);
-        if (chartFactory is not null)
-            services.AddScoped<IWhatsAppChartFactory>(_ => chartFactory);
-        var provider = services.BuildServiceProvider();
-
         var channels = new NotificationChannelsOptions
         {
             Default = ["Email", "SignalR", "WhatsApp"],
             WhatsApp = new WhatsAppChannelOptions { Phone = phone, GroupId = groupId },
         };
 
+        var services = new ServiceCollection();
+        services.AddScoped<AppDbContext>(_ => new AppDbContext(_options));
+        services.AddScoped<INotificationDeliveryRepository, NotificationDeliveryRepository>();
+        services.AddScoped<IWhatsAppNotificationDispatcher>(_ => dispatcher);
+        services.AddScoped<IWhatsAppOptionsResolver>(
+            _ => new StaticWhatsAppOptionsResolver(channels.WhatsApp));
+        if (chartFactory is not null)
+            services.AddScoped<IWhatsAppChartFactory>(_ => chartFactory);
+        var provider = services.BuildServiceProvider();
+
         var worker = new NotificationWhatsAppWorker(
             provider.GetRequiredService<IServiceScopeFactory>(),
-            new StaticWhatsAppOptionsResolver(channels.WhatsApp),
             NullLogger<NotificationWhatsAppWorker>.Instance);
 
         return (context, worker, dispatcher, delivery.Id);

@@ -98,6 +98,7 @@ export function WhatsAppSettingsPage() {
     if (!settingsQuery.data) return;
     setBaseUrl(settingsQuery.data.baseUrl);
     setInstanceId(settingsQuery.data.instanceId);
+    setPhone(settingsQuery.data.phone ?? "");
     setSelectedGroupId(settingsQuery.data.groupId ?? null);
   }, [settingsQuery.data]);
 

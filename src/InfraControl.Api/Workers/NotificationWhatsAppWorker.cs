@@ -18,7 +18,6 @@ namespace InfraControl.Api.Workers;
 /// </summary>
 public sealed class NotificationWhatsAppWorker(
     IServiceScopeFactory scopeFactory,
-    IWhatsAppOptionsResolver optionsResolver,
     ILogger<NotificationWhatsAppWorker> logger)
     : NotificationChannelWorkerBase(scopeFactory, logger, NotificationChannel.WhatsApp)
 {
@@ -28,8 +27,10 @@ public sealed class NotificationWhatsAppWorker(
         IServiceProvider services,
         CancellationToken cancellationToken)
     {
-        // ADR-062: options efetivas (banco → env) por dispatch.
-        var whatsapp = await optionsResolver.ResolveAsync(cancellationToken);
+        // ADR-062: options efetivas (banco → env) por dispatch — resolvido no
+        // scope do delivery (o worker é singleton; o resolver é scoped).
+        var whatsapp = await services.GetRequiredService<IWhatsAppOptionsResolver>()
+            .ResolveAsync(cancellationToken);
         var destination = !string.IsNullOrWhiteSpace(whatsapp.GroupId)
             ? whatsapp.GroupId
             : whatsapp.Phone;

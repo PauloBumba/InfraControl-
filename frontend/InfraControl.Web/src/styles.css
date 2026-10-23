@@ -181,10 +181,41 @@ ul, ol { list-style: none; }
 }
 .uni-nav-item.active i { color: var(--uni-accent); }
 
-/* Dropdown do sidebar (2026-10-19): o filho abre num POPUP flutuante do
-   PrimeReact (estilo do menu em styles/prime-overrides.css, `.p-menu`).
-   O inline `.uni-nav-sublist` saiu; com o sidebar recolhido o popup
-   flutua por cima em vez de não abrir. */
+/* Acordeão inline (2026-10-22): os filhos abrem DENTRO da barra — sem
+   popup flutuante (o de 2026-10-19 vazava os ícones dos itens de trás na
+   borda). A seta `.uni-nav-arrow` (cor + rotação) fica em
+   styles/prime-overrides.css. */
+
+.uni-nav-submenu {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 6px;
+  padding: 0 0 0 16px;
+  border-left: 1px solid var(--uni-border);
+  margin-left: 19px;
+}
+.uni-nav-submenu-2 {
+  margin: 1px 0 4px;
+  padding-left: 14px;
+  border-left: 1px dashed var(--uni-border);
+  margin-left: 22px;
+}
+.uni-nav-child {
+  padding: 6px 8px;
+  font-size: 12.5px;
+  gap: 8px;
+}
+.uni-nav-child i { font-size: 13px; width: 16px; }
+.uni-nav-child.active {
+  background: var(--uni-active-bg);
+  color: var(--uni-accent);
+  font-weight: 600;
+}
+/* Recolhido (60px): submenu não cabe — o clique no grupo reabre a barra
+   (AppLayout), então aqui só se garante que nada vaze. */
+.uni-sidebar.collapsed .uni-nav-submenu { display: none; }
 
 .uni-nav-badge {
   margin-left: auto;
@@ -205,8 +236,8 @@ ul, ol { list-style: none; }
 .uni-user-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s;
@@ -221,9 +252,23 @@ ul, ol { list-style: none; }
   font-size: 11px; font-weight: 700;
   flex-shrink: 0;
 }
-.uni-user-info { flex: 1; min-width: 0; }
-.uni-user-name { font-size: 12px; font-weight: 600; display: block; }
-.uni-user-role { font-size: 11px; color: var(--uni-text-muted); display: block; }
+.uni-user-info {
+  flex: 1; min-width: 0; text-align: left;
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; cursor: pointer; padding: 2px;
+  border-radius: 6px;
+}
+.uni-user-info > i { font-size: 11px; color: var(--uni-text-muted); flex-shrink: 0; }
+.uni-user-name {
+  font-size: 12px; font-weight: 600; display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
+.uni-user-role {
+  font-size: 11px; color: var(--uni-text-muted); display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
 .uni-user-logout {
   background: none;
   border: none;
@@ -235,7 +280,12 @@ ul, ol { list-style: none; }
 }
 .uni-user-logout:hover:not(:disabled) { background: var(--uni-hover); color: var(--uni-red); }
 .uni-user-logout:disabled { opacity: 0.6; cursor: not-allowed; }
-.uni-sidebar.collapsed .uni-user-info { display: none; }
+/* Recolhido (60px): esconde o texto, mantém o avatar centralizado como
+   atalho do menu da conta (antes `display:none` no botão inteiro deixava
+   o rodapé VAZIO na barra recolhida). */
+.uni-sidebar.collapsed .uni-user-info { justify-content: center; padding: 2px; }
+.uni-sidebar.collapsed .uni-user-details,
+.uni-sidebar.collapsed .uni-user-info > i { display: none; }
 
 /* ============ MAIN ============ */
 .uni-main {

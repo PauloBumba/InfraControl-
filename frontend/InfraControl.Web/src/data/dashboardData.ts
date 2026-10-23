@@ -9,7 +9,7 @@ export const navigation: NavGroup[] = [
       { label: "Visão Geral", icon: "pi pi-th-large", route: "/dashboard" },
       { label: "Dispositivos", icon: "pi pi-server", route: "/devices" },
       { label: "Switches", icon: "pi pi-credit-card", route: "/switches" },
-      { label: "Roteadores", icon: "pi pi-network", route: "/routers" },
+      { label: "Roteadores", icon: "pi pi-globe", route: "/routers" },
       { label: "Servidores", icon: "pi pi-desktop", route: "/servers" },
       { label: "Virtualização", icon: "pi pi-cloud", route: "/virtualization" },
       { label: "Impressoras", icon: "pi pi-print", route: "/printers" },

@@ -152,17 +152,26 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
   const topbarUserMenuRef = useRef<Menu>(null);
   const [topbarMenuOpen, setTopbarMenuOpen] = useState(false);
 
-  // Dropdown do sidebar — decisão 2026-10-19: REVERTE a de 2026-10-14. O
-  // filho abre num `<Menu>` POPUP, um Menu POR PAI com filho (UniFi/Zabbix):
-  // cada instância mantém o `target` do próprio outside-click vivo (o
-  // `useOverlayListener` só refaz o lookup quando `when` muda — dois
-  // gatilhos numa instância só deixariam o listener velho e o 2º clique
-  // fecharia em vez de abrir o outro). A identidade continua sendo a ROTA
-  // (F29-T005), não o label; `onShow`/`onHide` são a fonte da verdade do
-  // estado aberto, então `aria-expanded` volta ao repouso mesmo após
-  // clique fora ou Escape.
-  const navMenuRefs = useRef<Record<string, Menu | null>>({});
-  const [openNavRoute, setOpenNavRoute] = useState<string | null>(null);
+  // Acordeão inline (2026-10-22): os filhos abrem DENTRO da própria barra
+  // (empurrando os grupos seguintes) — sem popup flutuante. O popup de
+  // 2026-10-19 nascia mais estreito que a barra e deixava os ícones dos
+  // itens de trás vazarem na borda (parecia quebrado); o motivo original
+  // dele (submenu não cabia na barra RECOLHIDA de 60px) morre aqui: com a
+  // barra recolhida, clicar no grupo reabre a barra e mostra o acordeão.
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  // O grupo da rota ativa abre sozinho (item corrente sempre visível).
+  useEffect(() => {
+    const group = [...navigation, ...secondaryNavigation].find(
+      (candidate) =>
+        candidate.items.some(
+          (item) =>
+            item.route === activeRoute ||
+            (item.items?.some((child) => child.route === activeRoute) ?? false),
+        ),
+    );
+    if (group) setOpenGroup(group.label);
+  }, [activeRoute]);
 
   // Real dynamic badges (F18-T008 / F17-T009)
   const [sidebarBadges, setSidebarBadges] = useState<{
@@ -348,25 +357,27 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
     );
 
   /**
-   * Itens de um grupo → `MenuItem` do popup, com o MESMO filtro de role
-   * (`canSee`): exibição apenas — quem autoriza de verdade é o backend.
+   * Item filho (ou neto, em UniFi/Zabbix) do acordeão — botão inline que
+   * navega direto; o rota ativa ganha o mesmo realce `.active` do grupo.
    */
-  const toMenuItems = (items: NavItem[]): MenuItem[] =>
-    items.map((child) => ({
-      label: child.label,
-      icon: child.icon,
-      command: () => navigate(child.route),
-      ...(child.items?.length ? { items: toMenuItems(child.items) } : {}),
-    }));
+  const renderNavItem = (item: NavItem, childClass = "") => (
+    <button
+      className={`uni-nav-item uni-nav-child ${childClass} ${item.route === activeRoute ? "active" : ""}`}
+      onClick={() => navigate(item.route)}
+      title={item.label}
+    >
+      <i className={item.icon} />
+      <span>{item.label}</span>
+    </button>
+  );
 
   /**
-   * Grupo do sidebar — abre um dropdown POPUP flutuante com os itens.
-   * O grupo não tem rota própria: só expande/recolhe.
+   * Grupo do sidebar — acordeão inline: o clique expande os itens DENTRO
+   * da barra (um grupo por vez, identidade = ROTA em F29-T005). Recolhido
+   * (60px), o clique reabre a barra já com o grupo aberto.
    */
   const renderNavGroup = (group: NavGroup) => {
-    const menuKey = `group:${group.label}`;
-    const menuItems = toMenuItems(group.items);
-    const expanded = openNavRoute === menuKey;
+    const expanded = openGroup === group.label;
     const active = groupHasActive(group);
     const badge = getItemBadge(group.label);
 
@@ -374,12 +385,14 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
       <li key={group.label}>
         <button
           className={`uni-nav-item uni-nav-group ${active ? "active" : ""} ${expanded ? "expanded" : ""}`}
-          aria-haspopup="menu"
           aria-expanded={expanded}
-          onClick={(event) => {
-            const menu = navMenuRefs.current[menuKey];
-            if (expanded) menu?.hide(event);
-            else menu?.show(event);
+          onClick={() => {
+            if (sidebarCollapsed) {
+              dispatch(toggleSidebar());
+              setOpenGroup(group.label);
+              return;
+            }
+            setOpenGroup((current) => (current === group.label ? null : group.label));
           }}
           title={group.label}
         >
@@ -388,18 +401,22 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
           <i className="pi pi-angle-down uni-nav-arrow" />
           {badge && <Badge value={badge} className="uni-nav-badge" />}
         </button>
-        <Menu
-          ref={(element) => {
-            navMenuRefs.current[menuKey] = element;
-          }}
-          model={menuItems}
-          popup
-          aria-label={group.label}
-          onShow={() => setOpenNavRoute(menuKey)}
-          onHide={() =>
-            setOpenNavRoute((current) => (current === menuKey ? null : current))
-          }
-        />
+        {expanded && (
+          <ul className="uni-nav-submenu" aria-label={group.label}>
+            {group.items.map((item) => (
+              <li key={item.route}>
+                {renderNavItem(item)}
+                {item.items && item.items.length > 0 && (
+                  <ul className="uni-nav-submenu uni-nav-submenu-2" aria-label={item.label}>
+                    {item.items.map((child) => (
+                      <li key={child.route}>{renderNavItem(child)}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </li>
     );
   };
@@ -460,7 +477,7 @@ export function AppLayout({ children, activeRoute, onNavigate }: AppLayoutProps)
                 }
                 setUserMenuOpen(!userMenuOpen);
               }}
-              title="Opções do usuário"
+              title={`${displayName} — ${roleLabel} (opções da conta)`}
             >
               <div className="uni-user-avatar">{initials}</div>
               <div className="uni-user-details">

@@ -1,11 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.Infrastructure.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Polly;
 using Polly.CircuitBreaker;
 
@@ -296,20 +296,17 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         IIncidentImageRenderer? renderer = null)
     {
         var factory = new SingleClientFactory(handler);
-        var options = Options.Create(new NotificationChannelsOptions
+        var options = new WhatsAppChannelOptions
         {
-            WhatsApp =
-            {
-                GroupId = groupId,
-                Phone = phone,
-                BaseUrl = baseUrl,
-                ApiKey = apiKey,
-                InstanceId = instanceId
-            }
-        });
+            GroupId = groupId,
+            Phone = phone,
+            BaseUrl = baseUrl,
+            ApiKey = apiKey,
+            InstanceId = instanceId
+        };
 
         return new EvolutionApiWhatsAppNotificationDispatcher(
-            factory, options,
+            factory, new StaticWhatsAppOptionsResolver(options),
             renderer ?? new FakeRenderer(),
             NullLogger<EvolutionApiWhatsAppNotificationDispatcher>.Instance);
     }

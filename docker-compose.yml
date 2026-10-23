@@ -685,10 +685,10 @@ services:
       RABBITMQ_ENABLED: "false"
       SQS_ENABLED: "false"
       S3_ENABLED: "false"
-      # F33-T001: DEBUG foi usado no spike para diagnosticar o loop da issue
-      # #1408 (revertido em 2026-10-18). Manter INFO: com instância conectada
-      # a N grupos, DEBUG infla o log do Docker sem controle.
-      LOG_LEVEL: INFO
+      # A Evolution pode registrar payloads de mensagens em INFO. O canal não
+      # precisa desses dados para operar, portanto WARN é o padrão seguro.
+      # Use DEBUG/INFO apenas durante diagnóstico controlado e temporário.
+      LOG_LEVEL: ${EVOLUTION_LOG_LEVEL:-WARN}
       LOG_COLOR: "false"
     volumes:
       - evolution_instances:/evolution/instances

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Domain.Entities;
@@ -25,6 +26,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
             context,
             new InfraControl.Infrastructure.Repositories.InboxStore(context),
             Options.Create(new NotificationChannelsOptions()),
+            new StaticWhatsAppOptionsResolver(new WhatsAppChannelOptions()),
             NullLogger<NotificationEventConsumer>.Instance);
 
     private static async Task<Guid> SeedUserAsync(AppDbContext context, string email)

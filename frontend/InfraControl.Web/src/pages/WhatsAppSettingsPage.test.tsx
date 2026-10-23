@@ -120,10 +120,13 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
   });
 
   it("should keep the selected group and send it on save", async () => {
-    saveMock.mockResolvedValue({ ...baseSettings, groupId: "novo-gupo@g.us" });
+    settingsMock.mockResolvedValue({ ...baseSettings, phone: "5511999990000" });
+    saveMock.mockResolvedValue({ ...baseSettings, groupId: "novo-gupo@g.us", phone: "5511999990000" });
     renderPage();
 
     await screen.findByLabelText(/URL da Evolution API/);
+
+    expect(screen.getByLabelText(/Telefone individual/)).toHaveValue("5511999990000");
 
     fireEvent.change(screen.getByLabelText(/Nome da instância/), {
       target: { value: "Admin" },
@@ -138,7 +141,7 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
       // chave em branco → null = mantém a gravada no servidor.
       apiKey: null,
       groupId: "120363000000000000@g.us",
-      phone: null,
+      phone: "5511999990000",
     });
   });
 

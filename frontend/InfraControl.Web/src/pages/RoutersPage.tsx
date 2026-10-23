@@ -254,7 +254,7 @@ export function RoutersPage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <i className="pi pi-network" style={{ color: "#6366f1" }} />
+              <i className="pi pi-globe" style={{ color: "#6366f1" }} />
               <span style={{ fontWeight: 700 }}>{router.name}</span>
             </div>
             <div style={{ fontSize: 11, color: "#64748b" }}>
@@ -272,7 +272,7 @@ export function RoutersPage() {
           >
             <Column header="Dispositivo" body={(router: DeviceItem) => (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <i className="pi pi-network" style={{ color: "#6366f1" }} />
+                <i className="pi pi-globe" style={{ color: "#6366f1" }} />
                 <span style={{ fontWeight: 600 }}>{router.name}</span>
                 {router.id === selectedId && (
                   <i className="pi pi-angle-right" style={{ color: "#2563eb", fontSize: 12 }} />

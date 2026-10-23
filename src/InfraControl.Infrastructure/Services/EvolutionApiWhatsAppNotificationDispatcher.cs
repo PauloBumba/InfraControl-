@@ -4,7 +4,6 @@ using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.WhatsApp;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
@@ -28,18 +27,6 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     IIncidentImageRenderer imageRenderer,
     ILogger<EvolutionApiWhatsAppNotificationDispatcher> logger) : IWhatsAppNotificationDispatcher
 {
-    public EvolutionApiWhatsAppNotificationDispatcher(
-        IHttpClientFactory httpClientFactory,
-        IOptions<NotificationChannelsOptions> channelsOptions,
-        IIncidentImageRenderer imageRenderer,
-        ILogger<EvolutionApiWhatsAppNotificationDispatcher> logger)
-        : this(
-            httpClientFactory,
-            new StaticWhatsAppOptionsResolver(channelsOptions.Value.WhatsApp),
-            imageRenderer,
-            logger)
-    {
-    }
     /// <summary>Nome do client (policies Polly registradas na DI).</summary>
     public const string HttpClientName = "evolution-api";
 

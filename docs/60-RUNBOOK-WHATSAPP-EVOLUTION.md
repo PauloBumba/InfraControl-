@@ -337,6 +337,10 @@ Sem histórico = fallback automático para texto puro.
 ## Segurança
 
 - `EVOLUTION_API_KEY` é segredo: nunca commitar no repositório (AGENTS.md).
+- Mantenha `EVOLUTION_LOG_LEVEL=WARN` (ou mais restritivo). Em `INFO`/`DEBUG`,
+  a Evolution pode registrar payloads de mensagens e dados de sessão; habilite
+  esses níveis somente temporariamente para diagnóstico controlado e trate os
+  logs gerados como sensíveis.
 - `EVOLUTION_BASE_URL` usa DNS interno no compose (`http://evolution-api:8080`),
   nunca exposto publicamente.
 - Credenciais do banco Evolution só via `.env` (AGENTS.md).
