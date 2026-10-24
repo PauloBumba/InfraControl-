@@ -32,7 +32,8 @@ public sealed class WhatsAppOptionsResolver(
             ApiKey = UnprotectQuietly(setting.ApiKeyEncrypted),
             InstanceId = setting.InstanceId,
             GroupId = setting.GroupId ?? string.Empty,
-            Phone = setting.Phone ?? string.Empty
+            Phone = setting.Phone ?? string.Empty,
+            NotificationsEnabled = setting.NotificationsEnabled
         };
     }
 

@@ -17,6 +17,11 @@ public sealed class WhatsAppCommandsAndQueriesTests
     private readonly Mock<IEvolutionInstanceClient> _client = new();
     private readonly Mock<ICredentialProtector> _protector = new();
 
+    public WhatsAppCommandsAndQueriesTests()
+    {
+        _envAccessor.Setup(e => e.Current).Returns(new WhatsAppChannelOptions());
+    }
+
     [Fact]
     public async Task GetWhatsAppSettings_WhenDbHasRecord_ShouldReturnDatabaseSource()
     {
@@ -25,7 +30,8 @@ public sealed class WhatsAppCommandsAndQueriesTests
             "encrypted-key",
             "Admin",
             "123@g.us",
-            "5511999999999");
+            "5511999999999",
+            notificationsEnabled: true);
         _repository.Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(setting);
 
@@ -36,6 +42,7 @@ public sealed class WhatsAppCommandsAndQueriesTests
         result.BaseUrl.Should().Be("http://db-url:8080");
         result.ApiKeySet.Should().BeTrue();
         result.GroupId.Should().Be("123@g.us");
+        result.NotificationsEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -48,7 +55,8 @@ public sealed class WhatsAppCommandsAndQueriesTests
             BaseUrl = "http://env-url:8080",
             ApiKey = "env-key",
             InstanceId = "EnvAdmin",
-            GroupId = "env@g.us"
+            GroupId = "env@g.us",
+            NotificationsEnabled = true
         });
 
         var handler = new GetWhatsAppSettingsQueryHandler(_repository.Object, _envAccessor.Object);
@@ -57,6 +65,25 @@ public sealed class WhatsAppCommandsAndQueriesTests
         result.Source.Should().Be("environment");
         result.BaseUrl.Should().Be("http://env-url:8080");
         result.ApiKeySet.Should().BeTrue();
+        result.NotificationsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetWhatsAppSettings_WhenPersistedToggleIsUnset_ShouldKeepLegacyEnvironmentValue()
+    {
+        var setting = WhatsAppIntegrationSetting.Create(
+            "http://db-url:8080", "encrypted-key", "Operations");
+        _repository.Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(setting);
+        _envAccessor.Setup(e => e.Current).Returns(new WhatsAppChannelOptions
+        {
+            NotificationsEnabled = true
+        });
+
+        var handler = new GetWhatsAppSettingsQueryHandler(_repository.Object, _envAccessor.Object);
+        var result = await handler.Handle(new GetWhatsAppSettingsQuery(), CancellationToken.None);
+
+        result.NotificationsEnabled.Should().BeTrue();
     }
 
     [Fact]
@@ -65,7 +92,8 @@ public sealed class WhatsAppCommandsAndQueriesTests
         _repository.Setup(r => r.GetAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((WhatsAppIntegrationSetting?)null);
 
-        var handler = new SaveWhatsAppSettingsCommandHandler(_repository.Object, _protector.Object);
+        var handler = new SaveWhatsAppSettingsCommandHandler(
+            _repository.Object, _protector.Object, _envAccessor.Object);
         var cmd = new SaveWhatsAppSettingsCommand(new SaveWhatsAppSettingsRequest(
             "http://url:8080", "Admin", ApiKey: null, GroupId: null, Phone: null));
 
@@ -82,16 +110,20 @@ public sealed class WhatsAppCommandsAndQueriesTests
             .ReturnsAsync((WhatsAppIntegrationSetting?)null);
         _protector.Setup(p => p.Protect("plain-key")).Returns("encrypted-key");
 
-        var handler = new SaveWhatsAppSettingsCommandHandler(_repository.Object, _protector.Object);
+        var handler = new SaveWhatsAppSettingsCommandHandler(
+            _repository.Object, _protector.Object, _envAccessor.Object);
         var cmd = new SaveWhatsAppSettingsCommand(new SaveWhatsAppSettingsRequest(
-            "http://url:8080", "Admin", ApiKey: "plain-key", GroupId: "group@g.us", Phone: null));
+            "http://url:8080", "Admin", ApiKey: "plain-key", GroupId: "group@g.us", Phone: null,
+            NotificationsEnabled: true));
 
         var result = await handler.Handle(cmd, CancellationToken.None);
 
         result.BaseUrl.Should().Be("http://url:8080");
         result.ApiKeySet.Should().BeTrue();
+        result.NotificationsEnabled.Should().BeTrue();
         _repository.Verify(r => r.SaveAsync(
-            It.Is<WhatsAppIntegrationSetting>(s => s.ApiKeyEncrypted == "encrypted-key"),
+            It.Is<WhatsAppIntegrationSetting>(s =>
+                s.ApiKeyEncrypted == "encrypted-key" && s.NotificationsEnabled == true),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

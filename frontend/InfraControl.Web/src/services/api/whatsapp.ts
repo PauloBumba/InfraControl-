@@ -27,6 +27,7 @@ export interface WhatsAppSettings {
   lastTestOk: boolean;
   lastTestError: string | null;
   updatedAtUtc: string | null;
+  notificationsEnabled: boolean;
 }
 
 /** Payload de gravação — `apiKey` vazio/null mantém a chave já gravada. */
@@ -36,6 +37,7 @@ export interface WhatsAppSettingsPayload {
   apiKey: string | null;
   groupId: string | null;
   phone: string | null;
+  notificationsEnabled: boolean;
 }
 
 export interface WhatsAppTestResult {
@@ -51,6 +53,12 @@ export interface WhatsAppQr {
 }
 
 export interface WhatsAppConnectionState {
+  state: string | null;
+}
+
+export interface WhatsAppInstanceCreation {
+  instanceId: string;
+  created: boolean;
   state: string | null;
 }
 
@@ -76,6 +84,7 @@ const EMPTY_SETTINGS: WhatsAppSettings = {
   lastTestOk: false,
   lastTestError: null,
   updatedAtUtc: null,
+  notificationsEnabled: false,
 };
 
 export function getWhatsAppSettings(): Promise<WhatsAppSettings> {
@@ -110,11 +119,11 @@ export function disconnectWhatsAppInstance(): Promise<WhatsAppConnectionState> {
   );
 }
 
-export function createWhatsAppInstance(): Promise<WhatsAppConnectionState> {
-  return required(
-    api.post<WhatsAppConnectionState>("/integrations/whatsapp/instance"),
-    { state: null },
-  );
+export function createWhatsAppInstance(): Promise<WhatsAppInstanceCreation> {
+  return api.post<WhatsAppInstanceCreation>("/integrations/whatsapp/instance").then((data) => {
+    if (!data) throw new Error("Resposta vazia ao criar a instância WhatsApp.");
+    return data;
+  });
 }
 
 export function listWhatsAppGroups(): Promise<WhatsAppGroup[]> {

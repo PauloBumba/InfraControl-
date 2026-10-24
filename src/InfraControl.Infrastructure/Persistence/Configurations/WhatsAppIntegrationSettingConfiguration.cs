@@ -43,6 +43,9 @@ public sealed class WhatsAppIntegrationSettingConfiguration
             .HasColumnName("phone")
             .HasMaxLength(WhatsAppIntegrationSetting.MaxPhoneLength);
 
+        builder.Property(x => x.NotificationsEnabled)
+            .HasColumnName("notifications_enabled");
+
         builder.Property(x => x.ConnectionState)
             .HasColumnName("connection_state")
             .HasMaxLength(WhatsAppIntegrationSetting.MaxStateLength);

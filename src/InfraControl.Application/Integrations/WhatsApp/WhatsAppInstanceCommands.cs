@@ -14,6 +14,9 @@ public sealed record WhatsAppQrDto(byte[]? Png, string? PairingCode, string? Sta
 /// <summary>Estado de conexão da instância (open/connecting/close).</summary>
 public sealed record WhatsAppConnectionStateDto(string? State);
 
+/// <summary>Resultado da operação de criação da instância configurada.</summary>
+public sealed record WhatsAppInstanceDto(string InstanceId, bool Created, string? State);
+
 /// <summary>Grupo do WhatsApp para seleção na UI.</summary>
 public sealed record WhatsAppGroupDto(
     string Id,
@@ -40,7 +43,7 @@ public sealed record DisconnectWhatsAppInstanceCommand
 }
 
 public sealed record CreateWhatsAppInstanceCommand
-    : BaseCommand<WhatsAppConnectionStateDto>, IAuthorizedRequest, IAuditableRequest
+    : BaseCommand<WhatsAppInstanceDto>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
     public string AuditResource => "WhatsAppInstance";
@@ -202,13 +205,13 @@ public sealed class CreateWhatsAppInstanceCommandHandler(
     IWhatsAppOptionsResolver optionsResolver,
     IEvolutionInstanceClient client,
     ILogger<CreateWhatsAppInstanceCommandHandler> logger)
-    : IRequestHandler<CreateWhatsAppInstanceCommand, WhatsAppConnectionStateDto>
+    : IRequestHandler<CreateWhatsAppInstanceCommand, WhatsAppInstanceDto>
 {
-    public async Task<WhatsAppConnectionStateDto> Handle(
+    public async Task<WhatsAppInstanceDto> Handle(
         CreateWhatsAppInstanceCommand request, CancellationToken cancellationToken)
     {
         var options = await optionsResolver.ResolveAsync(cancellationToken);
-        await client.CreateInstanceAsync(options, cancellationToken);
+        var creation = await client.CreateInstanceAsync(options, cancellationToken);
 
         string? state = null;
         try
@@ -220,7 +223,7 @@ public sealed class CreateWhatsAppInstanceCommandHandler(
             logger.LogDebug(ex, "WhatsApp: falha ao ler estado após create.");
         }
 
-        return new WhatsAppConnectionStateDto(state);
+        return new WhatsAppInstanceDto(options.InstanceId, creation.Created, state);
     }
 }
 

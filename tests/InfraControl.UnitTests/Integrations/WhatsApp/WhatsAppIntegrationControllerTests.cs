@@ -77,4 +77,20 @@ public sealed class WhatsAppIntegrationControllerTests
         envelope.IsSuccess.Should().BeTrue();
         envelope.Data.Should().BeSameAs(qrDto);
     }
+
+    [Fact]
+    public async Task CreateInstance_ShouldReturnInstanceIdentityAndCreationOutcome()
+    {
+        var dto = new WhatsAppInstanceDto("Operations", Created: true, State: "close");
+        _sender.Setup(s => s.Send(
+                It.IsAny<CreateWhatsAppInstanceCommand>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await CreateController().CreateInstance(CancellationToken.None);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var envelope = okResult.Value.Should().BeOfType<ApiResponse<WhatsAppInstanceDto>>().Subject;
+        envelope.Data.Should().BeSameAs(dto);
+    }
 }

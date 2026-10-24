@@ -78,7 +78,7 @@ public sealed class EvolutionInstanceClient(
             options.InstanceId, (int)response.StatusCode);
     }
 
-    public async Task CreateInstanceAsync(
+    public async Task<EvolutionInstanceCreationResult> CreateInstanceAsync(
         WhatsAppChannelOptions options, CancellationToken cancellationToken)
     {
         var client = CreateClient(options);
@@ -95,15 +95,20 @@ public sealed class EvolutionInstanceClient(
         ApplyApiKey(request, options);
 
         using var response = await client.SendAsync(request, cancellationToken);
-        // Instância já existente não deve quebrar o fluxo de conexão.
-        if (!response.IsSuccessStatusCode
-            && response.StatusCode != System.Net.HttpStatusCode.Conflict
-            && response.StatusCode != System.Net.HttpStatusCode.BadRequest)
-            response.EnsureSuccessStatusCode();
+        if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            logger.LogInformation(
+                "WhatsApp: instância {InstanceId} já existe na Evolution.",
+                options.InstanceId);
+            return new EvolutionInstanceCreationResult(Created: false);
+        }
+
+        response.EnsureSuccessStatusCode();
 
         logger.LogInformation(
             "WhatsApp: create instância {InstanceId} (HTTP {StatusCode}).",
             options.InstanceId, (int)response.StatusCode);
+        return new EvolutionInstanceCreationResult(Created: true);
     }
 
     public async Task<IReadOnlyList<EvolutionGroupDto>> ListGroupsAsync(

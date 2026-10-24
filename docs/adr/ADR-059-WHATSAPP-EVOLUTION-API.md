@@ -290,12 +290,83 @@ Executado nesta máquina (Docker 29.7.2) contra a Evolution `v2.3.7` real.
 | Rota e método | `POST /message/sendMedia/{InstanceId}` com header `apikey` |
 | Campos do corpo | `number` (grupo `@g.us` ou número), `mediatype=image`, `mimetype=image/png`, `media` (PNG em base64 puro, **sem** prefixo `data:`), `caption` (texto completo da mensagem), `fileName` (ex.: `infracontrol-evento.png`) |
 | Destino de grupo | `number=120363431225988863@g.us` aceito (200/201 como no `sendText`) |
-| Limite de tamanho | ~5MB de mídia (WhatsApp Business) — PNG 800×450 gerado fica ~30–80KB, folga enorme |
-| Fonte da série | API `history` do Zabbix via `IZabbixClient.GetHistoryAsync(itemId, from, to, limit)` — janela 2h, 240 pontos, item preferido `cpu`/`load`/`ping`; host resolvido por nome→contains→IP da interface; **sem host/item/histórico = `null` → canal degrada para texto** |
-| Lib de renderização | **SkiaSharp 4.153.1** + `SkiaSharp.NativeAssets.Linux` (headless, managed, sem binário alienígena; PNG 800×450, 3 cores de acento por kind); exige fonte TTF no container → `fonts-dejavu-core` instalado no Dockerfile (api + workers) |
+| Limite de tamanho | ~5MB de mídia (WhatsApp Business) — o spike original mediu PNG 800×450 em ~30–80KB; F38-T006 mudou para 1024×768 e o tamanho atual ainda não foi medido |
+| Fonte da série | API `history` do Zabbix via `IZabbixClient.GetHistoryAsync(itemId, from, to, limit)` — janela 2h, até 240 pontos; comportamento original de seleção genérica foi substituído pela F38-T006 abaixo |
+| Lib de renderização | **SkiaSharp 4.153.1** + `SkiaSharp.NativeAssets.Linux` (headless, managed); fonte TTF via `fonts-dejavu-core` no Dockerfile multi-stage de API/Workers |
 | Comportamento sem histórico | `IWhatsAppChartFactory.TryCreateAsync` devolve `null` (Zabbix sem config, device sem host, série vazia, ou erro de rede — nunca lança); worker envia `message.Chart = null` → dispatcher `sendText` puro |
 | Fallback obrigatório | Dispatcher: `try RenderPng + sendMedia` → `catch` (não-cancel) loga Warning e reenvia como `sendText`; mídia que falha **nunca** deixa o evento por enviar (decisão 7 + §4) |
 | Integração | `Notification.DeviceId` (migração `AddNotificationDeviceId`, coluna `device_id` nullable) viaja do evento até o worker (`PendingDeliveryItem.DeviceId` → `WhatsAppNotificationMessage.Chart`); DI `AddSingleton<IIncidentImageRenderer, SkiaIncidentImageRenderer>` + `AddScoped<IWhatsAppChartFactory, ZabbixWhatsAppChartFactory>` |
+
+## Ajuste F38-T006 — fidelidade dos cartões WhatsApp (2026-10-23)
+
+As quatro imagens compartilhadas pelo usuário nesta data passam a ser a
+referência visual dos cartões enviados com os alertas. O pipeline de geração e
+envio de PNG da F33-T005 já existe; este ajuste refina apresentação e seleção
+de dados, sem alterar Outbox/RabbitMQ/Evolution nem remover o fallback para
+texto.
+
+### Plano de implementação e critérios de aceite
+
+1. **Cartão no padrão das referências**: fundo escuro; badge de estado colorido
+   (`INCIDENTE`, `AVISO` ou `RESOLVIDO`); data/hora no topo; dispositivo/host;
+   título do alerta; resumo de valor atual, mínimo e máximo; gráfico histórico
+   com eixos/horários legíveis; limite tracejado e legenda quando o limite
+   verdadeiro estiver disponível.
+2. **Cores e estado coerentes**: incidente em vermelho, aviso em âmbar e
+   resolução em verde, seguindo os exemplos. Um mesmo layout deve funcionar
+   para métricas com unidade (°C, %) e métricas sem unidade (uptime/contagem).
+3. **Série correta**: priorizar o item Zabbix relacionado ao alerta e ao
+   título/mensagem, incluindo unidades do item; não escolher silenciosamente
+   uma métrica de CPU/load/ping sem relação apenas por preferência genérica.
+4. **Não inventar dados**: só exibir unidade, limite ou estatística que venha
+   da série/item ou de fonte de threshold comprovada. Sem série utilizável,
+   sem host/item correspondente ou sem Zabbix configurado, preservar o
+   comportamento atual de envio de texto. Sem limite conhecido, não desenhar
+   nem legendar um limite fictício.
+5. **Compatibilidade e qualidade**: PNG continua sendo enviado por
+   `sendMedia` com a mesma caption; falha de renderização/envio de imagem
+   continua tendo fallback para `sendText`; cobrir os quatro estados visuais,
+   unidade, limite presente/ausente, série vazia/um ponto e envio/fallback com
+   testes.
+6. **Configuração de servidor**: confirmar e documentar que API e Workers têm
+   fontes e runtime nativo SkiaSharp necessários; documentar requisitos
+   efetivamente ausentes, se encontrados, sem colocar ApiKey/segredos em
+   documentação nem exigir manager UI da Evolution.
+
+### Limites
+
+Não introduzir editor de layout ou regras de alerta na plataforma nesta tarefa.
+Não alterar a origem do evento nem os critérios do fanout. Campos calculados
+devem vir do Zabbix/alerta; se a fonte não fornecer um limite verdadeiro, o
+cartão o omite. O contrato atual de `ZabbixItemDto` não fornece a expressão
+do trigger nem seu threshold; portanto, não há linha de limite nos cartões
+até uma fonte confiável ser conectada. F38-T006 em `TASKS.md` rastreia o
+trabalho e seus testes.
+
+### Resultado da implementação (2026-10-23)
+
+- O renderer agora produz PNG 1024×768 no layout das referências: badge
+  preenchido por estado, timestamp, dispositivo, título real do alerta,
+  resumo atual/mínimo/máximo e gráfico com grade, eixos e rótulos de hora.
+- A factory usa o título extraído da mensagem da notificação, seleciona item
+  somente quando os termos do alerta correspondem de forma única ao nome/chave
+  do item e transmite `units` do Zabbix. Série sem correspondência inequívoca
+  mantém o envio de texto, evitando gráfico de métrica alheia.
+- Valores não finitos são descartados; unidade `%`, `°C`, outras unidades e
+  `uptime` têm formatação correspondente. A linha tracejada e sua legenda só
+  aparecem quando `LimitValue` existir; nenhuma expressão de trigger é
+  convertida heurísticamente em threshold.
+- API e Workers já incluem `SkiaSharp.NativeAssets.Linux` e as fontes
+  `fonts-dejavu-core` no Dockerfile; nenhuma configuração adicional de servidor
+  foi necessária. API e Workers foram reconstruídos e atualizados em
+  2026-10-23; ambos ficaram healthy. RabbitMQ permanece `unhealthy` no
+  healthcheck do Docker (timeouts durante o build), embora
+  `rabbitmq-diagnostics ping` e `check_port_connectivity` tenham passado e o
+  bus MassTransit tenha iniciado. A Evolution permaneceu sem alteração.
+- Testes direcionados: 62 aprovados, incluindo seleção/ambiguidade de item,
+  unidade, cores, PNG 1024×768 e série de um ponto. Envio Evolution real e
+  revisão visual no grupo continuam pendentes até haver sessão WhatsApp
+  conectada e destino de teste confirmado.
 
 ## Resultados do spike (F33-T001 — 2026-10-18)
 

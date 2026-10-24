@@ -149,7 +149,7 @@ public sealed class ZabbixApiClient : IZabbixClient
 
         var result = await CallListAsync("item.get", new
         {
-            output = new[] { "itemid", "hostid", "name", "key_", "type", "state", "status" },
+            output = new[] { "itemid", "hostid", "name", "key_", "type", "state", "status", "units" },
             hostids = hostId,
             limit = DefaultListLimit
         }, cancellationToken);
@@ -162,7 +162,8 @@ public sealed class ZabbixApiClient : IZabbixClient
                 Read(item, "key_"),
                 ReadInt(item, "type"),
                 Enabled: Read(item, "status") != "1",
-                Unsupported: Read(item, "state") == "1"))
+                Unsupported: Read(item, "state") == "1",
+                Unit: Read(item, "units")))
             .ToList();
     }
 

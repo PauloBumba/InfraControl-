@@ -113,8 +113,33 @@ public sealed class EvolutionInstanceClientTests
             return new HttpResponseMessage(HttpStatusCode.Created);
         });
 
-        await client.CreateInstanceAsync(ValidOptions, CancellationToken.None);
+        var result = await client.CreateInstanceAsync(ValidOptions, CancellationToken.None);
 
+        result.Created.Should().BeTrue();
+        requests.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task CreateInstanceAsync_WhenConflictReturned_ShouldReportExistingInstance()
+    {
+        var (client, requests) = CreateClient(_ =>
+            new HttpResponseMessage(HttpStatusCode.Conflict));
+
+        var result = await client.CreateInstanceAsync(ValidOptions, CancellationToken.None);
+
+        result.Created.Should().BeFalse();
+        requests.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task CreateInstanceAsync_WhenBadRequestReturned_ShouldThrow()
+    {
+        var (client, requests) = CreateClient(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest));
+
+        var act = () => client.CreateInstanceAsync(ValidOptions, CancellationToken.None);
+
+        await act.Should().ThrowAsync<HttpRequestException>();
         requests.Should().ContainSingle();
     }
 

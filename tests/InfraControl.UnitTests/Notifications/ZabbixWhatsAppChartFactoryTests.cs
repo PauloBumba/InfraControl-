@@ -27,7 +27,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         var factory = CreateFactory(out _, out _, device: null);
 
         var chart = await factory.TryCreateAsync(
-            deviceId: null, "Título", "IncidentCreatedDomainEvent", EventAt);
+            deviceId: null, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         chart.Should().BeNull();
     }
@@ -40,7 +40,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         zabbix.IsConfigured = false;
 
         var chart = await factory.TryCreateAsync(
-            device.Id, "Título", "IncidentCreatedDomainEvent", EventAt);
+            device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         chart.Should().BeNull();
     }
@@ -51,7 +51,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         var factory = CreateFactory(out _, out _, device: null);
 
         var chart = await factory.TryCreateAsync(
-            Guid.NewGuid(), "Título", "IncidentCreatedDomainEvent", EventAt);
+            Guid.NewGuid(), "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         chart.Should().BeNull();
     }
@@ -64,7 +64,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         zabbix.Hosts.Add(Host(hostId: "10", name: "outro-switch"));
 
         var chart = await factory.TryCreateAsync(
-            device.Id, "Título", "IncidentCreatedDomainEvent", EventAt);
+            device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         chart.Should().BeNull();
     }
@@ -82,7 +82,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         ];
 
         var chart = await factory.TryCreateAsync(
-            device.Id, "Título", "IncidentCreatedDomainEvent", EventAt);
+            device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         chart.Should().BeNull();
     }
@@ -100,7 +100,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         ];
 
         var chart = await factory.TryCreateAsync(
-            device.Id, "Título", "IncidentCreatedDomainEvent", EventAt);
+            device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         chart.Should().BeNull("série vazia = cartão sem valor → degrada para texto");
     }
@@ -115,8 +115,8 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         [
             new ZabbixItemDto("200", "10", "Ping", "icmpping",
                 Type: 0, Enabled: true, Unsupported: false),
-            new ZabbixItemDto("100", "10", "CPU", "system.cpu.util",
-                Type: 0, Enabled: true, Unsupported: false),
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
         ];
         zabbix.History["100"] =
         [
@@ -126,13 +126,18 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         ];
 
         var chart = await factory.TryCreateAsync(
-            device.Id, "Alerta Critical criado", "IncidentCreatedDomainEvent", EventAt);
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'CPU utilization acima do limite' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent",
+            EventAt);
 
         chart.Should().NotBeNull();
         chart!.Kind.Should().Be(ChartCardKind.Incident);
-        chart.Title.Should().Be("Alerta Critical criado");
+        chart.Title.Should().Be("CPU utilization acima do limite");
         chart.DeviceLabel.Should().Be("sw-01");
         chart.SeverityLabel.Should().Be("Critical");
+        chart.Unit.Should().Be("%");
         chart.Series.Should().HaveCount(3);
         chart.Series.Select(point => point.Value)
             .Should().Equal(92d, 98.5, 99d);
@@ -149,7 +154,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         zabbix.HostsThrow = true;
 
         var act = () => factory.TryCreateAsync(
-            device.Id, "Título", "IncidentCreatedDomainEvent", EventAt);
+            device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
         (await act()).Should().BeNull("erro do Zabbix nunca pode travar o envio");
     }
@@ -175,9 +180,100 @@ public sealed class ZabbixWhatsAppChartFactoryTests
             new ZabbixHistoryValueDto("100", EventAt.AddMinutes(-5), "42"),
         ];
 
-        var chart = await factory.TryCreateAsync(device.Id, "Título", eventType, EventAt);
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU", "", eventType, EventAt);
 
         chart!.Kind.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WhenNoItemMatchesAlert_ShouldReturnNull()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "Alerta de disco cheio", "", "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().BeNull("um gráfico de CPU seria enganoso para alerta de disco");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WhenItemMatchIsAmbiguous_ShouldReturnNull()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false),
+            new ZabbixItemDto("101", "10", "CPU utilization", "cpu.util.other",
+                Type: 0, Enabled: true, Unsupported: false),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "", "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().BeNull("não há informação suficiente para escolher entre séries equivalentes");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WarningSeverity_ShouldUseWarningCard()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "toner level", "printer.toner",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt, "18"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "Alerta Warning criado", "O alerta 'Toner baixo' foi aberto (Warning).",
+            "AlertCreatedDomainEvent", EventAt);
+
+        chart!.Kind.Should().Be(ChartCardKind.Warning);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_ResolvedAlert_ShouldExtractTitleAndMatchItem()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt, "42"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta resolvido",
+            "O alerta 'CPU utilization acima do limite' foi resolvido.",
+            "AlertResolvedDomainEvent",
+            EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.Title.Should().Be("CPU utilization acima do limite");
+        chart.Kind.Should().Be(ChartCardKind.Resolution);
+        chart.Unit.Should().Be("%");
     }
 
     private static Device CreateDevice(string name = "sw-01", string? ip = null)

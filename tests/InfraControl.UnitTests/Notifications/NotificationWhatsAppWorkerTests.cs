@@ -57,12 +57,14 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         public IncidentChartData? Result { get; set; }
         public bool Throw { get; set; }
         public Guid? LastDeviceId { get; private set; }
+        public string? LastMessage { get; private set; }
 
         public Task<IncidentChartData?> TryCreateAsync(
-            Guid? deviceId, string title, string eventType, DateTime eventAtUtc,
+            Guid? deviceId, string title, string message, string eventType, DateTime eventAtUtc,
             CancellationToken cancellationToken = default)
         {
             LastDeviceId = deviceId;
+            LastMessage = message;
             if (Throw)
                 throw new InvalidOperationException("zabbix offline");
             return Task.FromResult(Result);
@@ -224,6 +226,8 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
             "a fábrica devolveu dados → o message carrega o cartão");
         factory.LastDeviceId.Should().Be(deviceId,
             "o DeviceId persistido na Notification viaja até a fábrica");
+        factory.LastMessage.Should().Be("Mensagem.",
+            "a fábrica recebe a descrição real para localizar a métrica do alerta");
     }
 
     [Fact]

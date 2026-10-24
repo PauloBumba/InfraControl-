@@ -241,8 +241,11 @@ Sobe com: `docker compose --profile evolution up -d`
   corpo `{ number: <GroupId|Phone>, text: <mensagem> }` — contrato real validado no spike.
 - **Texto + gráfico** (`sendMedia`, F33-T005 — decisão 7 do ADR-059): `POST /message/sendMedia/{InstanceId}`
   com `mediatype=image`, `mimetype=image/png`, `media=<base64>`, `caption=<texto>`, `fileName`.
-  Fonte da série = API `history` do Zabbix (janela 2h, 240 pontos, item preferido `cpu`/`load`/`ping`);
-  **sem histórico** = fallback automático para `sendText`.
+  Fonte da série = API `history` do Zabbix (janela 2h, até 240 pontos); a
+  fábrica associa o título da notificação a um item por nome/chave e exige
+  correspondência única. Unidade vem do item; **sem correspondência ou
+  histórico** = fallback automático para `sendText`. Threshold só é mostrado
+  quando vier de uma fonte confiável.
 - Resiliência idêntica ao n8n (F19-T007): retry 3× backoff exponencial 1s/2s/4s com jitter +
   circuit breaker (5 falhas em 30s → aberto 60s); 4xx sem retry; erro de rede/5xx → retry.
 - Nenhum SDK da Evolution — só `HttpClient` (padrão do repo).
@@ -275,63 +278,37 @@ do risco. Mitigações:
 
 - Volume mínimo: só 4 tipos de evento, sem alerta Warning, sem spam de polling.
 - Sem loop de disparada: retry/DLQ (5 tentativas) + circuit breaker.
-- Kill switch sem deploy: remover `WhatsApp` de `Notifications:Channels:Default`.
-- Runbook de emergência: desativar canal = remover do fanout; reconexão = novo QR.
+- Kill switch sem deploy: desativar **Ativar envio automático de notificações
+  pelo WhatsApp** em Administração → WhatsApp; configurações antigas sem escolha
+  explícita continuam respeitando `Notifications:Channels:Default`.
+- Runbook de emergência: desativar canal na plataforma; reconexão = gerar novo QR.
 - Migração futura registrada: chip dedicado (número novo) elimina o risco ao usuário.
 
 #### Runbook de operação
 
-**Subir a infraestrutura:**
+**Subir a infraestrutura Evolution:**
 
 ```bash
 docker compose --profile evolution up -d
 ```
 
-**Conectar o WhatsApp (uma vez, manual):**
+**Gerenciar o canal:** em Administração → WhatsApp, informe a URL, a ApiKey
+definida no `.env` da Evolution e um nome de instância; salve, crie a instância,
+conecte pelo QR, carregue os grupos reais, selecione e salve o destino. Ative
+envio automático na mesma tela e confirme com o envio de teste.
 
-1. Acesse `http://localhost:8081/manager` (manager UI da Evolution).
-2. Crie a instância com o nome configurado em `WHATSAPP_INSTANCE` (default: `Admin`).
-3. Escaneie o QR code com o número remetente (número pessoal — decisão do usuário).
-4. Workaround issue #1408 (pairing code quebrado na v2.3.7): se o QR não conectar,
-   faça `create → DELETE /instance/logout/{instance} → connect` (validado no spike).
-5. A sessão persiste restart do container (creds no Postgres, `CACHE_REDIS_SAVE_INSTANCES=false`).
+**Desativar/reativar:** altere a opção de envio automático na tela e salve; não
+é necessário alterar `.env` nem reiniciar API/Workers. Testes manuais continuam
+disponíveis com a instância conectada e um destino salvo.
 
-**Descobrir o JID do grupo:**
+**Legado:** enquanto a configuração não tiver ativação explícita persistida,
+`Notifications:Channels:Default` conserva o comportamento antigo. Os valores
+`EVOLUTION_BASE_URL`, `WHATSAPP_INSTANCE` e `WHATSAPP_GROUP_ID` são fallback de
+configuração, não valores obrigatórios para instalação nova.
 
-```bash
-curl http://localhost:8081/group/fetchAllGroups/Admin?getParticipants=false \
-  -H "apikey: $EVOLUTION_API_KEY"
-```
-
-Encontre o grupo "Estudo Arquitetura" e copie o JID (`<id>@g.us`). Preencha
-`WHATSAPP_GROUP_ID` no `.env`.
-
-**Ativar o canal no InfraControl:**
-
-1. Preencha `EVOLUTION_BASE_URL`, `EVOLUTION_API_KEY`, `WHATSAPP_INSTANCE`,
-   `WHATSAPP_GROUP_ID` no `.env`.
-2. Adicione `WhatsApp` a `NOTIFY_DEFAULT_*` (ex.: `NOTIFY_DEFAULT_2=WhatsApp`).
-3. Reinicie a API e os Workers: `docker compose --profile app restart api workers`.
-
-**Desativar kill switch (sem deploy):**
-
-Remova `WhatsApp` de `NOTIFY_DEFAULT_*` e reinicie API/Workers. O canal volta ao
-adaptador de logging.
-
-**Reconectar após banimento/queda:**
-
-1. Acesse o manager UI (`http://localhost:8081/manager`).
-2. Delete a instância e crie uma nova (mesmo nome).
-3. Escaneie o QR novamente.
-4. A sessão nova é persistente.
-
-**Migrar para chip dedicado (futuro):**
-
-1. Adquira um novo número (chip).
-2. Crie uma nova instância na Evolution (novo nome).
-3. Conecte o QR com o novo número.
-4. Troque `WHATSAPP_INSTANCE` no `.env` para o novo nome.
-5. O canal usa o novo número sem mudar código.
+**Migrar para chip dedicado:** configure e conecte uma instância com o número
+novo na tela; carregue e salve novamente o grupo correspondente. A tela opera
+uma instância por instalação.
 
 ### Versão original (F9-T007 — adaptador de log)
 

@@ -430,6 +430,60 @@ public sealed class NotificationEventConsumerTests : IDisposable
         delivery.Status.Should().Be(DeliveryStatus.Pending);
     }
 
+    [Fact]
+    public async Task Consume_WhenWhatsAppEnabledInResolvedSettings_ShouldAddItToFanout()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email", "SignalR"],
+            WhatsApp = new WhatsAppChannelOptions
+            {
+                GroupId = "120363431225988863@g.us",
+                NotificationsEnabled = true
+            },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        context.DomainUsers.Add(User.Create(userId, "whatsapp-on@exemplo.test", "Ativado"));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Teste",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Consume_WhenWhatsAppDisabledInResolvedSettings_ShouldRemoveItFromFanout()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["WhatsApp"],
+            WhatsApp = new WhatsAppChannelOptions
+            {
+                GroupId = "120363431225988863@g.us",
+                NotificationsEnabled = false
+            },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        var userId = Guid.NewGuid();
+        context.DomainUsers.Add(User.Create(userId, "whatsapp-off@exemplo.test", "Desativado"));
+        await context.SaveChangesAsync();
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Teste",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
+    }
+
     /// <summary>Preferência WhatsApp desligada = sem delivery (regra F9-T003).</summary>
     [Fact]
     public async Task Consume_WithWhatsAppPreferenceDisabled_ShouldNotQueueWhatsAppDelivery()

@@ -254,3 +254,132 @@ Zabbix PROBLEM → POST /api/v1/integrations/zabbix/problems
 - ADR-058 §3 — VCenter espelha UniFi (padrão formalizado)
 - `src/InfraControl.Infrastructure/Integrations/Zabbix/ZabbixOptionsResolver.cs` — fallback banco→env
 - `src/InfraControl.Api/Controllers/Integrations/ZabbixIntegrationController.cs` — controller settings (policy Administer)
+
+## 10. F38-T005 — fechar o fluxo sem valores de negócio pré-cadastrados (2026-10-23)
+
+### Diagnóstico do fluxo existente
+
+O fluxo já permite salvar a configuração, criar uma instância, gerar QR,
+consultar estado, carregar os grupos reais da Evolution, selecionar um grupo e
+enviar um teste. A inspeção ponta a ponta encontrou lacunas que impedem
+considerá-lo gerenciável e confiável:
+
+1. A criação trata HTTP 400 como sucesso e retorna apenas o estado; a UI
+   apresenta a mesma confirmação genérica sem identificar a instância nem
+   distinguir criação de instância já existente.
+2. A UI pode pedir criação/QR antes de salvar os valores que essas operações
+   resolvem no banco/ambiente, causando erro ou usando uma configuração
+   diferente da que está no formulário.
+3. O exemplo de ambiente define `WHATSAPP_INSTANCE=Admin`, preenchendo um nome
+   de negócio no lugar de o administrador escolher a instância.
+4. A tela deixa a seleção de grupo em estado local até o administrador salvar
+   a configuração; o fluxo precisa deixar explícito quando o destino ainda
+   não está persistido.
+
+### Plano de ajuste e critérios de aceite
+
+1. **Configurar sem dados de negócio embutidos**: exigir URL, chave e nome
+   escolhidos pelo administrador; remover o nome `Admin` do `.env.example`.
+   O `.env` legado continua aceito como fallback para não interromper o envio
+   atual durante a transição. A chave permanece write-only e cifrada.
+2. **Salvar antes de operar**: operações que dependem da configuração devem
+   usar exatamente a configuração persistida. A UI deve salvar alterações
+   válidas antes de criar/conectar/carregar grupos, ou impedir essas ações com
+   orientação clara enquanto houver mudanças não salvas.
+3. **Criar e identificar**: a resposta deve identificar o nome da instância e
+   se foi criada ou já existia. HTTP 400 e demais falhas não esperadas devem
+   aparecer como erro, nunca como confirmação de sucesso. Conflito conhecido
+   pode ser tratado como "já existe", seguido de leitura do estado real.
+4. **Conectar e selecionar dinamicamente**: exibir o QR e estado da instância;
+   buscar grupos exclusivamente com `fetchAllGroups` da instância conectada,
+   sem catálogo local/pré-cadastrado. A seleção deve indicar destino salvo ou
+   alteração pendente e persistir `GroupId` no banco ao salvar.
+5. **Validar o resultado**: o teste manual e as notificações permanecem no
+   destino resolvido pela configuração salva, com falhas visíveis e sem expor
+   ApiKey. O envio de eventos permanece exclusivamente em
+   Outbox → RabbitMQ → consumer → worker → dispatcher, conforme ADR-059.
+6. **Ativar o canal pela plataforma**: incluir a ativação de notificações
+   WhatsApp na configuração persistida, para não exigir alterar
+   `Notifications:Channels:Default`/`.env` depois de configurado o destino.
+   O campo no banco será nullable para instalações existentes: `null` mantém
+   o comportamento legado do ambiente; um valor escolhido na UI passa a ser
+   a fonte de verdade. Instalações novas mantêm o canal desativado até o
+   administrador ativá-lo.
+
+### Escopo e limites
+
+- Esta entrega mantém a configuração singleton existente: um nome de
+  instância/número ativo por instalação do InfraControl. O nome não é fixo e
+  o administrador escolhe qual instância configurar.
+- Não inclui cadastro/seleção simultânea de múltiplas instâncias, nem
+  instalação, atualização ou controle de ciclo de vida dos containers Docker
+  Evolution pela UI. A infraestrutura continua implantada pelo profile
+  `evolution` do Compose; a plataforma gerencia a instância e o canal via API.
+- Não remove o fallback de variáveis de ambiente nesta correção; retirar o
+  fallback exige migração operacional separada para instalações que já o usam.
+- A ativação persistida substitui a configuração de fanout somente para
+  WhatsApp quando há uma escolha explícita na UI; os demais canais mantêm
+  `Notifications:Channels:Default`.
+
+### Sequência de uso esperada
+
+```text
+Admin abre Administração → WhatsApp
+  → informa URL, ApiKey e nome escolhido → salva (config persistida)
+  → cria instância → UI confirma nome e resultado real (criada/existente)
+  → gera QR → escaneia → status conectado
+  → carrega grupos da Evolution → escolhe um grupo real
+  → salva a configuração → UI confirma o destino persistido
+  → envia teste → resultado explícito
+  → eventos continuam pelo pipeline Outbox/RabbitMQ até o grupo salvo
+```
+
+**Tarefa rastreável**: `F38-T005` em `TASKS.md`. Implementar e testar os
+critérios acima, atualizar este fluxo com o comportamento efetivamente
+validado e registrar o resultado em `PROJECT_STATE.md`.
+
+## 11. Ajuste — substituição explícita do número ativo (2026-10-23)
+
+### Objetivo
+
+Deixar inequívoco na UI como trocar o número atualmente configurado por outro,
+sem sugerir suporte a vários números simultâneos e sem reutilizar
+acidentalmente o destino anterior.
+
+### Plano e critérios
+
+1. Detectar alteração do nome da instância em relação à configuração persistida
+   e pedir confirmação antes de gravar a substituição.
+2. Explicar na confirmação que a plataforma passará a operar a nova instância,
+   que não apagará a instância antiga da Evolution e que o número novo precisa
+   ser pareado novamente por QR.
+3. Ao editar o nome da instância, limpar grupo e telefone locais, descartar a
+   lista de grupos/QR/resultados antigos e desligar notificações automáticas.
+   A substituição só deve ser salva com destino vazio e fanout desativado;
+   ativação e seleção do novo destino são etapas explícitas posteriores.
+4. Depois da confirmação: salvar → criar ou identificar a instância → gerar QR
+   → parear → carregar grupos do número conectado → selecionar grupo → salvar
+   destino → testar envio; ativação de notificações automáticas é opcional e
+   requer escolha explícita depois da troca.
+5. Cobrir com testes a confirmação/cancelamento e garantir que o payload da
+   substituição não contém o grupo, telefone ou ativação do destino anterior.
+
+### Implementação
+
+- A tela detecta a troca da instância persistida e abre confirmação antes de
+  salvar. Cancelar mantém o formulário editado sem chamar a API.
+- Enquanto o nome novo não estiver salvo, as operações de conexão e a ativação
+  automática ficam bloqueadas; grupo e telefone anteriores são limpos da
+  edição.
+- Confirmar salva a nova configuração com `groupId = null`, `phone = null` e
+  `notificationsEnabled = false`. O restante do fluxo de conectar, selecionar
+  grupo e testar continua sendo o caminho já existente.
+- Testes focados cobrem cancelar e confirmar sem carregar destino/automação
+  anteriores para a nova instância.
+
+### Limites
+
+O modelo permanece singleton. Não remover/desconectar automaticamente a
+instância anterior na Evolution, pois ela é estado externo e a substituição da
+configuração da plataforma não deve apagar nem afetar uma sessão não
+confirmada pelo operador. Não incluir gerenciamento de múltiplos números.

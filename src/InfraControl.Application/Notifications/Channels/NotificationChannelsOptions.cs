@@ -7,6 +7,8 @@ namespace InfraControl.Application.Notifications.Channels;
 /// (default Email + SignalR, o comportamento que antes era fixo em código);
 /// cada canal de destino externo tem sua seção com o endereço vazio =
 /// não configurado (canal na lista sem destino = Warning, sem delivery).
+/// A ativação explícita do WhatsApp na configuração persistida pode
+/// acrescentar/remover apenas esse canal sem alterar os demais.
 /// Fallback de e-mail: se NENHUM canal da lista for enviável, o consumer
 /// enfileira Email — notificação não morre por config incompleta.
 /// </summary>
@@ -41,6 +43,12 @@ public sealed class TelegramChannelOptions
 /// </summary>
 public sealed class WhatsAppChannelOptions
 {
+    /// <summary>
+    /// Null follows the legacy Notifications:Channels:Default setting;
+    /// an explicit value from the platform overrides it.
+    /// </summary>
+    public bool? NotificationsEnabled { get; set; }
+
     public string Phone { get; set; } = string.Empty;
 
     /// <summary>JID do grupo (&lt;id&gt;@g.us) — prioritário sobre Phone.</summary>

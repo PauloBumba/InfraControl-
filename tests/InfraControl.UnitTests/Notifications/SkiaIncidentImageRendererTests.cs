@@ -21,14 +21,15 @@ public sealed class SkiaIncidentImageRendererTests
             Title: "Alerta Critical criado",
             DeviceLabel: "sw-01",
             SeverityLabel: "Critical",
-            EventAtUtc: DateTime.UtcNow,
+            EventAtUtc: new DateTime(2026, 10, 23, 14, 5, 0, DateTimeKind.Utc),
             Series:
             [
-                new ChartSeriesPoint(DateTime.UtcNow.AddMinutes(-30), 92),
-                new ChartSeriesPoint(DateTime.UtcNow.AddMinutes(-10), 98),
-                new ChartSeriesPoint(DateTime.UtcNow, 99),
+                new ChartSeriesPoint(new DateTime(2026, 10, 23, 12, 5, 0, DateTimeKind.Utc), 92),
+                new ChartSeriesPoint(new DateTime(2026, 10, 23, 13, 45, 0, DateTimeKind.Utc), 98),
+                new ChartSeriesPoint(new DateTime(2026, 10, 23, 14, 5, 0, DateTimeKind.Utc), 99),
             ],
-            LimitValue: 95);
+            LimitValue: 95,
+            Unit: "%");
 
         return new SkiaIncidentImageRenderer().RenderPng(data);
     }
@@ -51,8 +52,8 @@ public sealed class SkiaIncidentImageRendererTests
 
         using var bitmap = SKBitmap.Decode(bytes);
         bitmap.Should().NotBeNull("o PNG precisa ser decodificável");
-        bitmap.Width.Should().Be(SkiaIncidentImageRenderer.Width);
-        bitmap.Height.Should().Be(SkiaIncidentImageRenderer.Height);
+        bitmap!.Width.Should().Be(1024);
+        bitmap.Height.Should().Be(768);
     }
 
     [Fact]
@@ -82,5 +83,36 @@ public sealed class SkiaIncidentImageRendererTests
 
         incident.Should().NotEqual(resolution,
             "cada tipo de cartão tem cor de acento própria");
+    }
+
+    [Theory]
+    [InlineData(ChartCardKind.Incident, 0xE5, 0x48, 0x4D)]
+    [InlineData(ChartCardKind.Warning, 0xF5, 0xA5, 0x24)]
+    [InlineData(ChartCardKind.Resolution, 0x30, 0xA4, 0x6C)]
+    public void RenderPng_ShouldUseReferenceStatusColor(
+        ChartCardKind kind, byte red, byte green, byte blue)
+    {
+        using var bitmap = SKBitmap.Decode(Png(kind));
+
+        bitmap.GetPixel(70, 45).Should().Be(new SKColor(red, green, blue));
+    }
+
+    [Fact]
+    public void RenderPng_WithSinglePointAndNoLimit_ShouldEmitDecodableImage()
+    {
+        var data = new IncidentChartData(
+            ChartCardKind.Resolution,
+            Title: "Host reiniciado",
+            DeviceLabel: "vCenter",
+            SeverityLabel: "OK",
+            EventAtUtc: new DateTime(2026, 10, 23, 14, 5, 0, DateTimeKind.Utc),
+            Series: [new ChartSeriesPoint(
+                new DateTime(2026, 10, 23, 14, 5, 0, DateTimeKind.Utc), 8035200)],
+            Unit: "uptime");
+
+        using var bitmap = SKBitmap.Decode(_renderer.RenderPng(data));
+
+        bitmap.Should().NotBeNull();
+        bitmap!.Width.Should().Be(SkiaIncidentImageRenderer.Width);
     }
 }
