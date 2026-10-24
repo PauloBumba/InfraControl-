@@ -270,6 +270,93 @@ public sealed class ZabbixApiClient : IZabbixClient
         }
     }
 
+    public async Task<ZabbixEventContextDto?> GetEventContextAsync(
+        string eventId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventId))
+            throw new ArgumentException(
+                "O eventid é obrigatório para consultar o contexto.", nameof(eventId));
+
+        var events = await CallListAsync("event.get", new
+        {
+            output = new[] { "eventid", "objectid" },
+            eventids = new[] { eventId.Trim() },
+            selectTags = "extend",
+            limit = 1
+        }, cancellationToken);
+
+        var eventElement = events.EnumerateArray().FirstOrDefault();
+        if (eventElement.ValueKind != JsonValueKind.Object)
+            return null;
+
+        var triggerId = ReadOrNull(eventElement, "objectid");
+        var tags = ReadArray(eventElement, "tags")
+            .Select(tag => new ZabbixEventTagDto(
+                Read(tag, "tag"), Read(tag, "value")))
+            .Where(tag => !string.IsNullOrWhiteSpace(tag.Tag))
+            .Distinct()
+            .ToList();
+
+        if (string.IsNullOrWhiteSpace(triggerId))
+            return new ZabbixEventContextDto(null, [], [], tags);
+
+        JsonElement triggers;
+        try
+        {
+            triggers = await CallListAsync("trigger.get", new
+            {
+                output = new[] { "triggerid" },
+                triggerids = new[] { triggerId },
+                selectHosts = new[] { "hostid" },
+                limit = DefaultListLimit
+            }, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "Falha ao resolver hosts do evento Zabbix {EventId}; tags e trigger serão preservados.",
+                eventId);
+            return new ZabbixEventContextDto(triggerId, [], [], tags);
+        }
+
+        var hostIds = triggers.EnumerateArray()
+            .SelectMany(trigger => ReadArray(trigger, "hosts"))
+            .Select(host => Read(host, "hostid"))
+            .Where(hostId => !string.IsNullOrWhiteSpace(hostId))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (hostIds.Count == 0)
+            return new ZabbixEventContextDto(triggerId, hostIds, [], tags);
+
+        try
+        {
+            var hosts = await CallListAsync("host.get", new
+            {
+                output = new[] { "hostid" },
+                hostids = hostIds,
+                selectHostGroups = new[] { "groupid" },
+                limit = DefaultListLimit
+            }, cancellationToken);
+
+            var groupIds = hosts.EnumerateArray()
+                .SelectMany(host => ReadArray(host, "hostgroups"))
+                .Select(group => Read(group, "groupid"))
+                .Where(groupId => !string.IsNullOrWhiteSpace(groupId))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            return new ZabbixEventContextDto(triggerId, hostIds, groupIds, tags);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "Falha ao resolver grupos de hosts do evento Zabbix {EventId}; host IDs e tags serão preservados.",
+                eventId);
+            return new ZabbixEventContextDto(triggerId, hostIds, [], tags);
+        }
+    }
+
     public async Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryAsync(
         string itemId,
         DateTime fromUtc,

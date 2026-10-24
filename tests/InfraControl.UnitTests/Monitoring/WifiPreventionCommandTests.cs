@@ -384,6 +384,10 @@ public sealed class WifiPreventionCommandTests
         public Task<IReadOnlyList<ZabbixProblemDto>> ListProblemsAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ZabbixProblemDto>>([]);
 
+        public Task<ZabbixEventContextDto?> GetEventContextAsync(
+            string eventId, CancellationToken cancellationToken = default)
+            => Task.FromResult<ZabbixEventContextDto?>(null);
+
         public Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryAsync(
             string itemId, DateTime fromUtc, DateTime toUtc, int limit,
             CancellationToken cancellationToken = default)

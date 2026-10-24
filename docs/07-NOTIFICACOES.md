@@ -30,6 +30,16 @@ Domain Event
 - Webhook
 - Slack (F9-T010 — decidido pelo usuário, não existia nesta lista)
 
+### Roteamento configurável (F39)
+
+O fanout está sendo evoluído conforme o escopo F39 aprovado para o
+Administrador configurar canais e templates por tipo de evento, incluindo
+filtros por host/grupo/tag do Zabbix, preservando destinatários, preferências
+e o pipeline de entrega. O contexto Zabbix já é enriquecido na ingestão e
+persistido; políticas, templates e tela ainda não estão implementados. Ver
+[docs/62 — plano de roteamento Zabbix](62-PLANO-ROTEAMENTO-NOTIFICACOES-ZABBIX.md)
+e [ADR-063](adr/ADR-063-CONFIGURABLE-NOTIFICATION-ROUTING.md).
+
 ## Destinatários
 
 Pode ser:

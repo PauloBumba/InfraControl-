@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Integrations.Zabbix;
+using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -41,7 +42,8 @@ public sealed class ZabbixIngestTests : IDisposable
         return context;
     }
 
-    private static IngestZabbixProblemCommandHandler Handler(AppDbContext context)
+    private static IngestZabbixProblemCommandHandler Handler(
+        AppDbContext context, ZabbixEventContextDto? eventContext = null)
         => new(
             new MonitoringEventIngestor(
                 new MonitoringEventRepository(context),
@@ -51,7 +53,16 @@ public sealed class ZabbixIngestTests : IDisposable
                 context,
                 NullLogger<MonitoringEventIngestor>.Instance),
             new DeviceRepository(context),
+            new StubZabbixEventContextReader(eventContext),
             NullLogger<IngestZabbixProblemCommandHandler>.Instance);
+
+    private sealed class StubZabbixEventContextReader(
+        ZabbixEventContextDto? context) : IZabbixEventContextReader
+    {
+        public Task<ZabbixEventContextDto?> GetAsync(
+            string eventId, CancellationToken cancellationToken = default)
+            => Task.FromResult(context);
+    }
 
     // F19-T003: o ingestor delega Alert/Incident ao avaliador (mesma seam
     // usada pelo AlertEvaluatorTests — repos reais em Sqlite).
@@ -156,6 +167,58 @@ public sealed class ZabbixIngestTests : IDisposable
         var link = await context.IncidentAlerts.AsNoTracking().SingleAsync();
         link.IncidentId.Should().Be(incident.Id);
         link.AlertId.Should().Be(alert.Id);
+    }
+
+    [Fact]
+    public async Task Problem_ShouldPersistZabbixEventContextForRouting()
+    {
+        await using var context = await CreateContextAsync();
+        var eventContext = new ZabbixEventContextDto(
+            "200",
+            ["10"],
+            ["4"],
+            [new ZabbixEventTagDto("service", "web")]);
+
+        await Handler(context, eventContext).Handle(
+            Problem("100"), CancellationToken.None);
+
+        var monitoringEvent = await context.MonitoringEvents.AsNoTracking().SingleAsync();
+        monitoringEvent.SourceContextJson.Should().Contain("\"TriggerId\":\"200\"")
+            .And.Contain("\"HostGroupIds\":[\"4\"]")
+            .And.Contain("\"Tag\":\"service\"");
+    }
+
+    [Fact]
+    public async Task DuplicateProblem_ShouldBackfillMissingZabbixContext()
+    {
+        await using var context = await CreateContextAsync();
+        var handlerWithoutContext = Handler(context);
+        await handlerWithoutContext.Handle(Problem("100"), CancellationToken.None);
+
+        var eventContext = new ZabbixEventContextDto("200", ["10"], ["4"], []);
+        var duplicate = await Handler(context, eventContext).Handle(
+            Problem("100"), CancellationToken.None);
+
+        duplicate.Outcome.Should().Be("duplicate");
+        var monitoringEvent = await context.MonitoringEvents.AsNoTracking().SingleAsync();
+        monitoringEvent.SourceContextJson.Should().Contain("\"TriggerId\":\"200\"");
+    }
+
+    [Fact]
+    public async Task ReplayedRecovery_ShouldBackfillMissingProblemContext()
+    {
+        await using var context = await CreateContextAsync();
+        await Handler(context).Handle(Problem("101"), CancellationToken.None);
+        await Handler(context).Handle(Ok("101", "102"), CancellationToken.None);
+
+        var eventContext = new ZabbixEventContextDto("200", ["10"], ["4"], []);
+        var replay = await Handler(context, eventContext).Handle(
+            Ok("101", "102"), CancellationToken.None);
+
+        replay.Outcome.Should().Be("resolved");
+        var problemEvent = await context.MonitoringEvents.AsNoTracking()
+            .SingleAsync(row => row.ExternalEventId == "101");
+        problemEvent.SourceContextJson.Should().Contain("\"TriggerId\":\"200\"");
     }
 
     [Fact]

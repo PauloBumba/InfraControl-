@@ -4,7 +4,8 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-23
+**Última atualização:** 2026-10-24
+**F39 em execução:** política de notificações configurável aprovada em 2026-10-23; F39-T002 concluída (contexto Zabbix enriquecido/persistido). Próxima tarefa: F39-T003 (políticas e resolução de roteamento). Escopo e decisões em [docs/62](docs/62-PLANO-ROTEAMENTO-NOTIFICACOES-ZABBIX.md) e ADR-063. Sem deploy de containers até validação e smoke ao vivo contra o Zabbix 8.0.0.
 
 ## Regra operacional
 

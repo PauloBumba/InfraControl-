@@ -36,7 +36,8 @@ public sealed record ZabbixIngestInput(
     int Severity,
     bool IsRecovery,
     DateTime? OccurredAt,
-    string RawPayload);
+    string RawPayload,
+    string? SourceContextJson = null);
 
 /// <summary>Alert/Incident afetados (nulls quando não havia correspondência).</summary>
 public sealed record MonitoringIngestResult(
@@ -84,7 +85,11 @@ public sealed class MonitoringEventIngestor(
         var existing = await eventRepository.GetBySourceAndExternalEventIdAsync(
             MonitoringSource.Zabbix, eventId, cancellationToken);
         if (existing is not null)
+        {
+            if (EnrichMissingContext(existing, input.SourceContextJson))
+                await unitOfWork.SaveChangesAsync(cancellationToken);
             return await DuplicateOutcomeAsync(eventId, cancellationToken);
+        }
 
         var occurredAt = input.OccurredAt
             ?? AppTimeProvider.Current.GetUtcNow().UtcDateTime;
@@ -97,7 +102,8 @@ public sealed class MonitoringEventIngestor(
             input.Severity,
             occurredAt,
             input.Name,
-            input.RawPayload);
+            input.RawPayload,
+            input.SourceContextJson);
         await eventRepository.AddAsync(monitoringEvent, cancellationToken);
 
         // F19-T003: o avaliador decide Alert (sempre), supressão (BFS) e
@@ -149,7 +155,13 @@ public sealed class MonitoringEventIngestor(
         // Replay de recovery (row do problem já Recovered): idempotente,
         // devolve o estado atual sem reescrever.
         if (problemRow.Status == MonitoringEventStatus.Recovered)
+        {
+            if (EnrichMissingContext(problemRow, input.SourceContextJson))
+                await unitOfWork.SaveChangesAsync(cancellationToken);
             return await ResolvedOutcomeAsync(problemId, cancellationToken);
+        }
+
+        EnrichMissingContext(problemRow, input.SourceContextJson);
 
         if (recoveryId is not null && !string.Equals(recoveryId, problemId, StringComparison.Ordinal))
         {
@@ -165,7 +177,8 @@ public sealed class MonitoringEventIngestor(
                 input.Severity,
                 occurredAt,
                 input.Name,
-                input.RawPayload);
+                input.RawPayload,
+                input.SourceContextJson);
             await eventRepository.AddAsync(recoveryRow, cancellationToken);
             problemRow.MarkRecovered(recoveryId, occurredAt);
         }
@@ -257,7 +270,8 @@ public sealed class MonitoringEventIngestor(
             input.Severity,
             occurredAt,
             input.Name,
-            input.RawPayload);
+            input.RawPayload,
+            input.SourceContextJson);
         await eventRepository.AddAsync(orphan, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -266,6 +280,17 @@ public sealed class MonitoringEventIngestor(
             problemId, recoveryId ?? rowId);
 
         return new(null, null, IngestOutcome.None);
+    }
+
+    private static bool EnrichMissingContext(
+        MonitoringEvent monitoringEvent, string? sourceContextJson)
+    {
+        if (!string.IsNullOrWhiteSpace(monitoringEvent.SourceContextJson)
+            || string.IsNullOrWhiteSpace(sourceContextJson))
+            return false;
+
+        monitoringEvent.SetSourceContextJson(sourceContextJson);
+        return true;
     }
 
     /// <summary>Replay de PROBLEM: row + alert existentes; incidente vinculado.</summary>

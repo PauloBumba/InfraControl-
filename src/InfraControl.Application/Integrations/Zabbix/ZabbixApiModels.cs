@@ -37,6 +37,14 @@ public sealed record ZabbixProblemDto(
     string? ObjectId = null,
     IReadOnlyList<string>? HostNames = null);
 
+public sealed record ZabbixEventContextDto(
+    string? TriggerId,
+    IReadOnlyList<string> HostIds,
+    IReadOnlyList<string> HostGroupIds,
+    IReadOnlyList<ZabbixEventTagDto> Tags);
+
+public sealed record ZabbixEventTagDto(string Tag, string Value);
+
 public sealed record ZabbixItemDto(
     string ItemId,
     string HostId,

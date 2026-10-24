@@ -347,6 +347,51 @@ public sealed class ZabbixApiClientTests
     }
 
     [Fact]
+    public async Task GetEventContextAsync_ShouldResolveTriggerHostsGroupsAndTags()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => MethodIs(r, "user.login"),
+            _ => Rpc($$"""{"jsonrpc":"2.0","result":"{{SessionToken}}","id":1}"""));
+        handler.When(r => MethodIs(r, "apiinfo.version"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":"7.4.15","id":1}"""));
+        handler.When(r => MethodIs(r, "event.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[{
+                  "eventid":"100","objectid":"200",
+                  "tags":[{"tag":"service","value":"web"}]
+                }],"id":1}
+                """));
+        handler.When(r => MethodIs(r, "trigger.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[{
+                  "triggerid":"200","hosts":[{"hostid":"10"}]
+                }],"id":1}
+                """));
+        handler.When(r => MethodIs(r, "host.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[{
+                  "hostid":"10","hostgroups":[{"groupid":"4"}]
+                }],"id":1}
+                """));
+
+        var client = CreateClient(handler);
+
+        var context = await client.GetEventContextAsync("100");
+
+        context.Should().NotBeNull();
+        context!.TriggerId.Should().Be("200");
+        context.HostIds.Should().ContainSingle().Which.Should().Be("10");
+        context.HostGroupIds.Should().ContainSingle().Which.Should().Be("4");
+        context.Tags.Should().ContainSingle()
+            .Which.Should().Be(new ZabbixEventTagDto("service", "web"));
+
+        var eventParameters = ReadBody(handler.Requests.Single(r => MethodIs(r, "event.get")))
+            .GetProperty("params");
+        eventParameters.GetProperty("eventids")[0].GetString().Should().Be("100");
+        eventParameters.GetProperty("selectTags").GetString().Should().Be("extend");
+    }
+
+    [Fact]
     public async Task GetHistoryAsync_ShouldApplyPeriodAndLimit()
     {
         var handler = new ScriptedHandler();

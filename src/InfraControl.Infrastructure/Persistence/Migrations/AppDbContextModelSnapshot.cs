@@ -1458,6 +1458,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("source");
 
+                    b.Property<string>("SourceContextJson")
+                        .HasColumnType("text")
+                        .HasColumnName("source_context_json");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

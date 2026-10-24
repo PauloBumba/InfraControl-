@@ -71,6 +71,9 @@ public sealed class MonitoringEventConfiguration : IEntityTypeConfiguration<Moni
         builder.Property(x => x.RawPayload)
             .HasColumnName("raw_payload");
 
+        builder.Property(x => x.SourceContextJson)
+            .HasColumnName("source_context_json");
+
         // Evidência bruta sobrevive à exclusão do device (SetNull) — ao
         // contrário do Alert, que acompanha o device (cascade).
         builder.HasOne<Device>()
