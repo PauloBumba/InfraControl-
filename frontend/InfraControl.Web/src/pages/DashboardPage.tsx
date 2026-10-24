@@ -3,8 +3,10 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { MetricChart } from "@/components/ui/MetricChart";
 import { Button } from "@/components/ui/Button";
+import { MetricChart } from "@/components/ui/MetricChart";
+import { HealthBar, type HealthItem } from "@/components/dashboard/HealthBar";
+import { DeviceHealthCard } from "@/components/dashboard/DeviceHealthCard";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
@@ -12,6 +14,7 @@ import { listDevices, type DeviceItem } from "@/services/api/inventory";
 import { listTasks, type TaskItem } from "@/services/api/tasks";
 import { listIncidents, type IncidentItem } from "@/services/api/incidents";
 import { listClients, type ClientItem } from "@/services/api/clients";
+import { getZabbixSummary, type ZabbixSummary } from "@/services/api/zabbix";
 import {
   getMyInvitations,
   acceptInvitation,
@@ -36,100 +39,79 @@ const taskStateLabels: Record<string, string> = {
 };
 const TERMINAL_TASK_STATES = ["Resolved", "Cancelled", "Closed"];
 
-const taskStateColors: Record<string, { bg: string; color: string }> = {
-  Open: { bg: "#eff6ff", color: "#2563eb" },
-  InProgress: { bg: "#dcfce7", color: "#16a34a" },
-  Waiting: { bg: "#f1f5f9", color: "#64748b" },
-  Blocked: { bg: "#fef2f2", color: "#dc2626" },
-  Resolved: { bg: "#f0fdf4", color: "#15803d" },
-  Cancelled: { bg: "#f1f5f9", color: "#94a3b8" },
-  Closed: { bg: "#f1f5f9", color: "#64748b" },
+/** Chips dark-safe: fundo/token + texto/token (sem hex fixo — F40-T001). */
+const taskStateChips: Record<string, { bg: string; color: string }> = {
+  Open: { bg: "var(--uni-chip-blue-bg)", color: "var(--uni-accent)" },
+  InProgress: { bg: "var(--uni-chip-green-bg)", color: "var(--uni-green)" },
+  Waiting: { bg: "var(--uni-chip-blue-bg)", color: "var(--uni-text-secondary)" },
+  Blocked: { bg: "var(--uni-chip-red-bg)", color: "var(--uni-red)" },
+  Resolved: { bg: "var(--uni-chip-green-bg)", color: "var(--uni-green)" },
+  Cancelled: { bg: "var(--uni-chip-blue-bg)", color: "var(--uni-text-muted)" },
+  Closed: { bg: "var(--uni-chip-blue-bg)", color: "var(--uni-text-secondary)" },
 };
 
-const incidentSeverityColors: Record<string, { bg: string; color: string }> = {
-  Critical: { bg: "#fef2f2", color: "#dc2626" },
-  High: { bg: "#fff7ed", color: "#ea580c" },
-  Medium: { bg: "#fefce8", color: "#ca8a04" },
-  Low: { bg: "#f0fdf4", color: "#16a34a" },
+const incidentSeverityChips: Record<string, { bg: string; color: string }> = {
+  Critical: { bg: "var(--uni-chip-red-bg)", color: "var(--uni-red)" },
+  High: { bg: "var(--uni-chip-yellow-bg)", color: "#ea580c" },
+  Medium: { bg: "var(--uni-chip-yellow-bg)", color: "var(--uni-yellow)" },
+  Low: { bg: "var(--uni-chip-green-bg)", color: "var(--uni-green)" },
 };
-
-function MiniStat({
-  icon,
-  label,
-  value,
-  color,
-  sub,
-  onClick,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  color: string;
-  sub?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px 16px",
-        background: "white",
-        borderRadius: 8,
-        border: "1px solid #e5e7eb",
-        cursor: onClick ? "pointer" : "default",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-      }}
-      onMouseEnter={(e) => {
-        if (onClick) {
-          e.currentTarget.style.transform = "translateY(-2px)";
-          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.06)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (onClick) {
-          e.currentTarget.style.transform = "none";
-          e.currentTarget.style.boxShadow = "none";
-        }
-      }}
-    >
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 8,
-          background: `${color}12`,
-          color,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 16,
-          flexShrink: 0,
-        }}
-      >
-        <i className={`pi ${icon}`} />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-        <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>{value}</div>
-        {sub && <div style={{ fontSize: 10, color: "#9ca3af" }}>{sub}</div>}
-      </div>
-    </div>
-  );
-}
 
 function ViewAll({ to, label }: { to: string; label: string }) {
   const navigate = useNavigate();
   return (
-    <button
-      onClick={() => navigate(to)}
-      style={{ fontSize: 12, color: "#3b82f6", fontWeight: 500, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-    >
+    <button type="button" className="uni-dash-view-all" onClick={() => navigate(to)}>
       {label}
     </button>
   );
+}
+
+/**
+ * F40-T001 — deriva os dots de saúde (estilo UniFi) dos dados reais já
+ * buscados pelo dashboard. `unknown` = sem dado (zero ≠ erro).
+ */
+function deriveHealth(
+  loading: boolean,
+  openAlerts: AlertItem[],
+  openIncidentTotal: number,
+  openTasksCount: number,
+  deviceTotal: number,
+): HealthItem[] {
+  if (loading) {
+    return [
+      { id: "alerts", label: "Alertas", status: "unknown" },
+      { id: "incidents", label: "Incidentes", status: "unknown" },
+      { id: "tasks", label: "Tarefas", status: "unknown" },
+      { id: "devices", label: "Inventário", status: "unknown" },
+    ];
+  }
+  const criticalAlerts = openAlerts.filter((a) => a.severity === "Critical").length;
+  return [
+    {
+      id: "alerts",
+      label: "Alertas",
+      status: criticalAlerts > 0 ? "critical" : openAlerts.length > 0 ? "warning" : "ok",
+      detail: openAlerts.length > 0 ? `${openAlerts.length} abertos` : "nenhum aberto",
+    },
+    {
+      id: "incidents",
+      label: "Incidentes",
+      status: openIncidentTotal > 0 ? "warning" : "ok",
+      detail: openIncidentTotal > 0 ? `${openIncidentTotal} em aberto` : "nenhum em aberto",
+    },
+    {
+      id: "tasks",
+      label: "Tarefas",
+      status: "ok",
+      detail: `${openTasksCount} abertas`,
+    },
+    {
+      id: "devices",
+      label: "Inventário",
+      status: deviceTotal > 0 ? "ok" : "unknown",
+      detail: deviceTotal > 0 ? `${deviceTotal} devices` : "sem dispositivos",
+    },
+  ];
 }
 
 export function DashboardPage() {
@@ -154,6 +136,24 @@ export function DashboardPage() {
   const [invitationsError, setInvitationsError] = useState<string | null>(null);
   const [invitationsNotice, setInvitationsNotice] = useState<string | null>(null);
   const [invitationBusyId, setInvitationBusyId] = useState<string | null>(null);
+  const [zabbix, setZabbix] = useState<ZabbixSummary | null>(null);
+
+  /**
+   * F40-T003 — summary do Zabbix carregado INDEPENDENTEMENTE do restante:
+   * falha aqui (Zabbix fora do ar / não configurado) não derruba os demais
+   * painéis — mesmo tratamento dos convites e da auditoria.
+   */
+  const loadZabbix = useCallback(async () => {
+    try {
+      setZabbix(await getZabbixSummary());
+    } catch {
+      setZabbix(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadZabbix();
+  }, [loadZabbix]);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -286,9 +286,10 @@ export function DashboardPage() {
   const openTasks = tasks.filter((task) => !TERMINAL_TASK_STATES.includes(task.state));
   const inProgressTasks = openTasks.filter((task) => task.state === "InProgress");
   const criticalOpenAlerts = openAlerts.filter((alert) => alert.severity === "Critical");
+  const healthItems = deriveHealth(loading, openAlerts, openIncidentTotal, openTasks.length, deviceTotal);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="uni-dash-page">
       {error && <ErrorBanner message={error} />}
 
       {/* ============ CONVITES PENDENTES (ações do usuário) ============ */}
@@ -303,17 +304,7 @@ export function DashboardPage() {
             <h2>
               Convites pendentes
               {pendingInvitations.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    fontSize: 11,
-                    padding: "2px 7px",
-                    borderRadius: 10,
-                    background: "#fef3c7",
-                    color: "#d97706",
-                    verticalAlign: "middle",
-                  }}
-                >
+                <span className="uni-dash-invite-count">
                   {pendingInvitations.length}
                 </span>
               )}
@@ -334,32 +325,10 @@ export function DashboardPage() {
               />
             )}
             {pendingInvitations.map((inv) => (
-              <div
-                key={inv.id}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #f3f4f6",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {inv.email}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>
+              <div key={inv.id} className="uni-dash-invite">
+                <div className="uni-dash-row-body">
+                  <div className="uni-dash-row-title">{inv.email}</div>
+                  <div className="uni-dash-row-sub">
                     {inv.projectId ? (
                       <span>
                         Projeto: {inv.projectCode ? `${inv.projectCode} · ` : ""}{inv.projectTitle ?? inv.projectId}
@@ -371,11 +340,11 @@ export function DashboardPage() {
                     <span>expira em {formatDateTime(new Date(inv.expiresAt))}</span>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div className="uni-dash-invite-actions">
                   <StatusChip
                     label="Pendente"
-                    background="#fef3c7"
-                    color="#d97706"
+                    background="var(--uni-chip-yellow-bg)"
+                    color="var(--uni-yellow)"
                     fontSize={9}
                   />
                   <Button
@@ -403,7 +372,7 @@ export function DashboardPage() {
 
       {/* Ação rápida do index: criar projeto — deep-link abre o diálogo na
           própria página de projetos (`?novo=1`). */}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div className="uni-dash-actions">
         <Button
           variant="primary"
           icon="pi pi-plus"
@@ -413,293 +382,323 @@ export function DashboardPage() {
         </Button>
       </div>
 
+      {/* ============ HEALTH BAR (estilo UniFi — F40-T001) ============ */}
+      <HealthBar items={healthItems} />
+
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-        <MiniStat
+      <div className="uni-dash-stats">
+        <DeviceHealthCard
           icon="pi-server"
           label="Dispositivos"
           value={loading ? "…" : String(deviceTotal)}
-          color="#3b82f6"
+          tone="blue"
           sub="no inventário"
           onClick={() => navigate("/devices")}
         />
-        <MiniStat
+        <DeviceHealthCard
           icon="pi-bell"
           label="Alertas"
           value={loading ? "…" : String(openAlertTotal)}
-          color="#f59e0b"
+          tone={criticalOpenAlerts.length > 0 ? "critical" : "warning"}
           sub={criticalOpenAlerts.length > 0 ? `${criticalOpenAlerts.length} críticos abertos` : "abertos"}
           onClick={() => navigate("/alerts")}
         />
-        <MiniStat
+        <DeviceHealthCard
           icon="pi-exclamation-triangle"
           label="Incidentes"
           value={loading ? "…" : String(incidentTotal)}
-          color="#ef4444"
+          tone="critical"
           sub={`${openIncidentTotal} em aberto`}
           onClick={() => navigate("/incidents")}
         />
-        <MiniStat
+        <DeviceHealthCard
           icon="pi-users"
           label="Clientes"
           value={loading ? "…" : String(clientTotal)}
-          color="#8b5cf6"
+          tone="purple"
           sub="descobertos"
           onClick={() => navigate("/clients")}
         />
-        <MiniStat
+        <DeviceHealthCard
           icon="pi-check-square"
           label="Tarefas"
           value={loading ? "…" : String(openTasks.length)}
-          color="#06b6d4"
+          tone="green"
           sub={`${inProgressTasks.length} em progresso`}
           onClick={() => navigate("/tasks")}
         />
       </div>
 
-      {/* ============ VISÃO — Chart (Fase E docs/28) ============ */}
-      {!loading && (
-        <div className="uni-panel">
-          <div className="uni-panel-header">
-            <h2>Distribuição operacional</h2>
-          </div>
-          <div className="uni-panel-body">
-            <MetricChart
-              type="doughnut"
-              labels={["Dispositivos", "Alertas abertos", "Incidentes", "Clientes", "Tarefas abertas"]}
-              values={[deviceTotal, openAlertTotal, incidentTotal, clientTotal, openTasks.length]}
-              ariaLabel="Distribuição operacional do dashboard"
-              height={240}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ============ INCIDENTES + CLIENTES ============ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="uni-panel">
-          <div className="uni-panel-header">
-            <h2>Incidentes Recentes</h2>
-            <ViewAll to="/incidents" label="Ver todos" />
-          </div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {incidents.slice(0, 5).map((inc) => {
-              const sevColor = incidentSeverityColors[inc.severity] ?? { bg: "#f1f5f9", color: "#64748b" };
-              return (
-                <div
-                  key={inc.id}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #f3f4f6",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {inc.title}
+      {/* ============ LAYOUT DUAS COLUNAS (F40-T002 — estilo UniFi) ============
+          Coluna principal: o que o operador precisa ler (incidentes,
+          dispositivos, clientes). Coluna lateral: o que precisa de ação
+          (alertas, tarefas) + auditoria. O doughnut "Distribuição
+          operacional" saiu — o espaço é do gráfico de tráfego real (F40-T003). */}
+      <div className="uni-dash-layout">
+        <div className="uni-dash-main">
+          {/* ---- Incidentes Recentes ---- */}
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Incidentes Recentes</h2>
+              <ViewAll to="/incidents" label="Ver todos" />
+            </div>
+            <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {incidents.slice(0, 5).map((inc) => {
+                const sev = incidentSeverityChips[inc.severity] ?? { bg: "var(--uni-chip-blue-bg)", color: "var(--uni-text-secondary)" };
+                return (
+                  <div key={inc.id} className="uni-dash-row">
+                    <div className="uni-dash-row-body">
+                      <div className="uni-dash-row-title">{inc.title}</div>
+                      <div className="uni-dash-row-sub">
+                        {formatDateTime(new Date(inc.openedAt))} · {inc.status}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                      {formatDateTime(new Date(inc.openedAt))} · {inc.status}
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background: sevColor.bg,
-                      color: sevColor.color,
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {inc.severity}
-                  </span>
-                </div>
-              );
-            })}
-            {!loading && incidents.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum incidente cadastrado</div>
-            )}
-            {loading && incidents.length === 0 && (
-              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
-            )}
-          </div>
-        </div>
-
-        <div className="uni-panel">
-          <div className="uni-panel-header">
-            <h2>Clientes Descobertos</h2>
-            <ViewAll to="/clients" label="Ver todos" />
-          </div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {clients.slice(0, 5).map((cli, idx) => (
-              <div
-                key={cli.mac ?? cli.ip ?? idx}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  background: "#f9fafb",
-                  border: "1px solid #f3f4f6",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <i className="pi pi-desktop" style={{ fontSize: 12, color: "#8b5cf6", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {cli.hostname || cli.ip || "Cliente sem nome"}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>
-                    {cli.ip && <span>IP: {cli.ip} </span>}
-                    {cli.mac && <span>· MAC: {cli.mac} </span>}
-                    {cli.vlan && <span>· VLAN: {cli.vlan}</span>}
-                  </div>
-                </div>
-                <StatusChip label={cli.kind} background="#f1f5f9" color="#475569" fontSize={9} style={{ flexShrink: 0 }} />
-              </div>
-            ))}
-            {!loading && clients.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum cliente descoberto</div>
-            )}
-            {loading && clients.length === 0 && (
-              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ============ DEVICES + ALERTS + TASKS ============ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 12 }}>
-        <div className="uni-panel">
-          <div className="uni-panel-header">
-            <h2>Dispositivos</h2>
-            <ViewAll to="/devices" label="Ver todos" />
-          </div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {devices.slice(0, 6).map((device) => (
-              <div key={device.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 6, background: "#f9fafb", border: "1px solid #f3f4f6" }}>
-                <i className="pi pi-desktop" style={{ fontSize: 11, color: "#3b82f6", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{device.name}</div>
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>{device.model ?? device.ip ?? device.type}</div>
-                </div>
-              </div>
-            ))}
-            {!loading && devices.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum dispositivo</div>
-            )}
-            {loading && devices.length === 0 && (
-              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
-            )}
-          </div>
-        </div>
-
-        <div className="uni-panel">
-          <div className="uni-panel-header">
-            <h2>Alertas Abertos</h2>
-            <ViewAll to="/alerts" label="Ver todos" />
-          </div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {openAlerts.slice(0, 5).map((alert) => {
-              const critical = alert.severity === "Critical";
-              return (
-                <div key={alert.id} style={{ padding: "10px 12px", borderRadius: 6, border: "1px solid #f3f4f6", borderLeft: `3px solid ${critical ? "#ef4444" : "#f59e0b"}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <i className={`pi ${critical ? "pi-exclamation-triangle" : "pi-exclamation-circle"}`} style={{ fontSize: 11, color: critical ? "#ef4444" : "#f59e0b" }} />
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#6b7280" }}>{alert.message}</div>
-                </div>
-              );
-            })}
-            {!loading && openAlerts.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum alerta aberto 🎉</div>
-            )}
-            {loading && openAlerts.length === 0 && (
-              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
-            )}
-          </div>
-        </div>
-
-        <div className="uni-panel">
-          <div className="uni-panel-header">
-            <h2>Tarefas</h2>
-            <ViewAll to="/tasks" label="Ver todas" />
-          </div>
-          <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {openTasks.slice(0, 6).map((task) => {
-              const color = taskStateColors[task.state] ?? { bg: "#f1f5f9", color: "#64748b" };
-              return (
-                <div key={task.id} style={{ padding: "10px 12px", borderRadius: 6, border: "1px solid #f3f4f6" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span>
                     <StatusChip
-                      label={taskStateLabels[task.state] ?? task.state}
-                      background={color.bg}
-                      color={color.color}
+                      label={inc.severity}
+                      background={sev.bg}
+                      color={sev.color}
                       fontSize={9}
-                      title={task.state}
                       style={{ flexShrink: 0 }}
                     />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "#9ca3af" }}>
-                    <span><i className="pi pi-tag" style={{ marginRight: 3 }} />{task.kind}</span>
-                    <span><i className="pi pi-calendar" style={{ marginRight: 3 }} />{formatDateTime(new Date(task.openedAt))}</span>
+                );
+              })}
+              {!loading && incidents.length === 0 && (
+                <div className="uni-dash-empty">Nenhum incidente cadastrado</div>
+              )}
+              {loading && incidents.length === 0 && (
+                <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
+              )}
+            </div>
+          </div>
+
+          {/* ---- Dispositivos ---- */}
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Dispositivos</h2>
+              <ViewAll to="/devices" label="Ver todos" />
+            </div>
+            <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {devices.slice(0, 6).map((device) => (
+                <div key={device.id} className="uni-dash-row">
+                  <i className="pi pi-desktop" style={{ fontSize: 11, color: "var(--uni-accent)", flexShrink: 0 }} />
+                  <div className="uni-dash-row-body">
+                    <div className="uni-dash-row-title">{device.name}</div>
+                    <div className="uni-dash-row-sub">{device.model ?? device.ip ?? device.type}</div>
                   </div>
                 </div>
-              );
-            })}
-            {!loading && openTasks.length === 0 && (
-              <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhuma tarefa aberta</div>
-            )}
-            {loading && openTasks.length === 0 && (
-              <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
-            )}
+              ))}
+              {!loading && devices.length === 0 && (
+                <div className="uni-dash-empty">Nenhum dispositivo</div>
+              )}
+              {loading && devices.length === 0 && (
+                <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
+              )}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* ============ EVENTOS RECENTES (auditoria) ============ */}
-      <div className="uni-panel">
-        <div className="uni-panel-header">
-          <h2>Eventos Recentes</h2>
-          {!eventsForbidden && !eventsError && <ViewAll to="/audit" label="Ver todos" />}
-        </div>
-        <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {eventsForbidden && (
-            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>
-              Acesso à auditoria restrito ao nível de administração.
+          {/* ---- Clientes Descobertos ---- */}
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Clientes Descobertos</h2>
+              <ViewAll to="/clients" label="Ver todos" />
             </div>
-          )}
-          {eventsError && (
-            <ErrorBanner
-              message="Não foi possível carregar os eventos."
-              onRetry={() => void loadEvents()}
-              style={{ fontSize: 12, justifyContent: "center", padding: 8 }}
-            />
-          )}
-          {events === null && !eventsForbidden && !eventsError && (
-            <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
-          )}
-          {events?.map((event, i) => (
-            <div key={event.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 0", borderBottom: i < events.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: event.outcome === AUDIT_OUTCOME_SUCCEEDED ? "#22c55e" : "#ef4444", marginTop: 4, flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12 }}>{event.action}</div>
-                <div style={{ fontSize: 10, color: "#9ca3af" }}>{event.resource}{event.error ? ` · ${event.error}` : ""}</div>
+            <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {clients.slice(0, 5).map((cli, idx) => (
+                <div key={cli.mac ?? cli.ip ?? idx} className="uni-dash-row">
+                  <i className="pi pi-desktop" style={{ fontSize: 12, color: "var(--uni-accent)", flexShrink: 0 }} />
+                  <div className="uni-dash-row-body">
+                    <div className="uni-dash-row-title">
+                      {cli.hostname || cli.ip || "Cliente sem nome"}
+                    </div>
+                    <div className="uni-dash-row-sub">
+                      {cli.ip && <span>IP: {cli.ip} </span>}
+                      {cli.mac && <span>· MAC: {cli.mac} </span>}
+                      {cli.vlan && <span>· VLAN: {cli.vlan}</span>}
+                    </div>
+                  </div>
+                  <StatusChip
+                    label={cli.kind}
+                    background="var(--uni-chip-blue-bg)"
+                    color="var(--uni-text-secondary)"
+                    fontSize={9}
+                    style={{ flexShrink: 0 }}
+                  />
+                </div>
+              ))}
+              {!loading && clients.length === 0 && (
+                <div className="uni-dash-empty">Nenhum cliente descoberto</div>
+              )}
+              {loading && clients.length === 0 && (
+                <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
+              )}
+            </div>
+          </div>
+
+          {/* ---- Monitoramento (Zabbix) — F40-T003 ----
+              Só renderiza quando o summary carregou com sucesso; Zabbix
+              fora do ar / não configurado simplesmente não mostra o painel
+              (o dashboard inteiro continua de pé). */}
+          {zabbix?.isConfigured && (
+            <div className="uni-panel uni-dash-zabbix">
+              <div className="uni-panel-header">
+                <h2>Monitoramento (Zabbix)</h2>
+                <ViewAll to="/zabbix" label="Ver detalhes" />
               </div>
-              <span style={{ fontSize: 10, color: "#9ca3af", whiteSpace: "nowrap" }}>{formatDateTime(new Date(event.occurredAt))}</span>
+              <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="uni-dash-stats">
+                  <DeviceHealthCard
+                    icon="pi-server"
+                    label="Hosts"
+                    value={String(zabbix.totalHosts)}
+                    tone="blue"
+                    sub={`${zabbix.enabledHosts} habilitados`}
+                  />
+                  <DeviceHealthCard
+                    icon="pi-exclamation-circle"
+                    label="Problemas"
+                    value={String(zabbix.problemsTotal)}
+                    tone={zabbix.problemsTotal > 0 ? "warning" : "green"}
+                    sub={`${zabbix.hostsWithProblems} hosts afetados`}
+                  />
+                  <DeviceHealthCard
+                    icon="pi-sync"
+                    label="Versão"
+                    value={zabbix.detectedVersion ?? "—"}
+                    tone="blue"
+                    sub={
+                      zabbix.lastInventorySyncAtUtc
+                        ? `sync ${formatDateTime(new Date(zabbix.lastInventorySyncAtUtc))}`
+                        : "sem sync"
+                    }
+                  />
+                </div>
+                {zabbix.problemsAvailable && zabbix.problemsBySeverity.some((n) => n > 0) && (
+                  <MetricChart
+                    type="bar"
+                    labels={["Infor", "Aviso", "Médio", "Alta", "grave", "Desastre"]}
+                    values={zabbix.problemsBySeverity}
+                    label="Problemas"
+                    ariaLabel="Problemas por severidade (Zabbix)"
+                    height={180}
+                  />
+                )}
+                {!zabbix.problemsAvailable && (
+                  <div className="uni-dash-empty">
+                    Problemas indisponíveis{zabbix.problemsError ? `: ${zabbix.problemsError}` : "."}
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
-          {events && events.length === 0 && (
-            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 12 }}>Nenhum evento registrado</div>
           )}
+        </div>
+
+        <div className="uni-dash-side">
+          {/* ---- Alertas Abertos ---- */}
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Alertas Abertos</h2>
+              <ViewAll to="/alerts" label="Ver todos" />
+            </div>
+            <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {openAlerts.slice(0, 5).map((alert) => {
+                const critical = alert.severity === "Critical";
+                return (
+                  <div key={alert.id} className={`uni-dash-alert${critical ? " is-critical" : ""}`}>
+                    <div className="uni-dash-alert-title">
+                      <i className={`pi ${critical ? "pi-exclamation-triangle" : "pi-exclamation-circle"}`} />
+                      <span>{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</span>
+                    </div>
+                    <div className="uni-dash-alert-message">{alert.message}</div>
+                  </div>
+                );
+              })}
+              {!loading && openAlerts.length === 0 && (
+                <div className="uni-dash-empty">Nenhum alerta aberto 🎉</div>
+              )}
+              {loading && openAlerts.length === 0 && (
+                <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
+              )}
+            </div>
+          </div>
+
+          {/* ---- Tarefas ---- */}
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Tarefas</h2>
+              <ViewAll to="/tasks" label="Ver todas" />
+            </div>
+            <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {openTasks.slice(0, 6).map((task) => {
+                const chip = taskStateChips[task.state] ?? { bg: "var(--uni-chip-blue-bg)", color: "var(--uni-text-secondary)" };
+                return (
+                  <div key={task.id} className="uni-dash-row" style={{ display: "block" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                      <span className="uni-dash-row-title" style={{ fontWeight: 500 }}>{task.title}</span>
+                      <StatusChip
+                        label={taskStateLabels[task.state] ?? task.state}
+                        background={chip.bg}
+                        color={chip.color}
+                        fontSize={9}
+                        title={task.state}
+                        style={{ flexShrink: 0 }}
+                      />
+                    </div>
+                    <div className="uni-dash-row-sub" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span><i className="pi pi-tag" style={{ marginRight: 3 }} />{task.kind}</span>
+                      <span><i className="pi pi-calendar" style={{ marginRight: 3 }} />{formatDateTime(new Date(task.openedAt))}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!loading && openTasks.length === 0 && (
+                <div className="uni-dash-empty">Nenhuma tarefa aberta</div>
+              )}
+              {loading && openTasks.length === 0 && (
+                <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
+              )}
+            </div>
+          </div>
+
+          {/* ---- Eventos Recentes (auditoria) ---- */}
+          <div className="uni-panel">
+            <div className="uni-panel-header">
+              <h2>Eventos Recentes</h2>
+              {!eventsForbidden && !eventsError && <ViewAll to="/audit" label="Ver todos" />}
+            </div>
+            <div className="uni-panel-body" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {eventsForbidden && (
+                <div className="uni-dash-empty">
+                  Acesso à auditoria restrito ao nível de administração.
+                </div>
+              )}
+              {eventsError && (
+                <ErrorBanner
+                  message="Não foi possível carregar os eventos."
+                  onRetry={() => void loadEvents()}
+                  style={{ fontSize: 12, justifyContent: "center", padding: 8 }}
+                />
+              )}
+              {events === null && !eventsForbidden && !eventsError && (
+                <LoadingBlock style={{ fontSize: 12, padding: 12 }} />
+              )}
+              {events?.map((event) => (
+                <div key={event.id} className="uni-dash-event">
+                  <span
+                    className={`uni-dash-event-dot${event.outcome === AUDIT_OUTCOME_SUCCEEDED ? "" : " is-failed"}`}
+                  />
+                  <div className="uni-dash-event-body">
+                    <div>{event.action}</div>
+                    <div className="uni-dash-event-resource">{event.resource}{event.error ? ` · ${event.error}` : ""}</div>
+                  </div>
+                  <span className="uni-dash-event-time">{formatDateTime(new Date(event.occurredAt))}</span>
+                </div>
+              ))}
+              {events && events.length === 0 && (
+                <div className="uni-dash-empty">Nenhum evento registrado</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
