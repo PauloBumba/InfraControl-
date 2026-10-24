@@ -1,4 +1,5 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Can } from "@/components/auth/Can";
@@ -20,6 +21,8 @@ import {
   mutationErrorMessage,
 } from "@/hooks/queries";
 import { useFormErrors } from "@/hooks/useFormErrors";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import {
   acknowledgeIncident,
   changeIncidentStatus,
@@ -113,6 +116,15 @@ export function IncidentsPage() {
       pageSize: PAGE_SIZE,
     }),
   );
+
+  // F44-T002/T003: push operacional + botão global + polling (autoRefresh)
+  // invalidam o prefixo ["incidents"] — mesmo key das mutations.
+  const queryClient = useQueryClient();
+  const refreshIncidents = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["incidents"] });
+  }, [queryClient]);
+  useOperationalRefresh(refreshIncidents);
+  useAutoRefresh(refreshIncidents);
 
   const createMutation = useCreateMutation({
     invalidate: ["incidents"],

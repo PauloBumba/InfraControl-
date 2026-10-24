@@ -19,6 +19,9 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/integrations/zabbix": "administer",
   // ADR-062 — gestão do canal WhatsApp (espelha a policy Administer do controller).
   "/integrations/whatsapp": "administer",
+  // F41-T003 — gestão do canal Email/SMTP (espelha a policy Administer do controller).
+  "/integrations/email": "administer",
+  "/notifications/rules": "administer",
   // FAI-T011b (ADR-057) — cadastro de providers de IA (Administer).
   "/admin/ai-providers": "administer",
   // UniFi ao vivo: consulta (Operate) — Operator + Admin.

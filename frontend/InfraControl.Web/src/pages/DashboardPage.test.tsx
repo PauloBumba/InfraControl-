@@ -9,6 +9,7 @@ import { listAuditEntries } from "@/services/api/audit";
 import { listDevices } from "@/services/api/inventory";
 import { listIncidents } from "@/services/api/incidents";
 import { listTasks } from "@/services/api/tasks";
+import { getZabbixSummary, type ZabbixSummary } from "@/services/api/zabbix";
 import {
   acceptInvitation,
   getMyInvitations,
@@ -20,6 +21,7 @@ vi.mock("@/services/api/clients", () => ({ listClients: vi.fn() }));
 vi.mock("@/services/api/inventory", () => ({ listDevices: vi.fn() }));
 vi.mock("@/services/api/incidents", () => ({ listIncidents: vi.fn() }));
 vi.mock("@/services/api/tasks", () => ({ listTasks: vi.fn() }));
+vi.mock("@/services/api/zabbix", () => ({ getZabbixSummary: vi.fn() }));
 vi.mock("@/services/api/invitations", () => ({
   getMyInvitations: vi.fn(),
   acceptInvitation: vi.fn(),
@@ -35,6 +37,22 @@ vi.mock("@/components/ui/MetricChart", () => ({
 }));
 
 const emptyPage = { items: [], totalCount: 0, page: 1, pageSize: 20 };
+
+const configuredSummary: ZabbixSummary = {
+  totalHosts: 12,
+  enabledHosts: 11,
+  missingHosts: 1,
+  hostsWithAsset: 10,
+  hostsWithoutAsset: 2,
+  problemsTotal: 3,
+  problemsBySeverity: [0, 1, 0, 2, 0, 0],
+  hostsWithProblems: 2,
+  problemsAvailable: true,
+  problemsError: null,
+  isConfigured: true,
+  detectedVersion: "7.0.0",
+  lastInventorySyncAtUtc: "2026-10-23T08:00:00Z",
+};
 
 const invitation: InvitationItem = {
   id: "inv-1",
@@ -79,6 +97,7 @@ describe("DashboardPage — tom de erro e aviso (F29-T004)", () => {
     vi.mocked(listIncidents).mockReset().mockResolvedValue(emptyPage as never);
     vi.mocked(listTasks).mockReset().mockResolvedValue(emptyPage as never);
     vi.mocked(listAuditEntries).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(getZabbixSummary).mockReset().mockResolvedValue(configuredSummary);
     vi.mocked(getMyInvitations).mockReset().mockResolvedValue([]);
     vi.mocked(acceptInvitation).mockReset();
     localStorage.clear();
@@ -166,12 +185,149 @@ describe("DashboardPage — tom de erro e aviso (F29-T004)", () => {
 
     renderPage();
 
-    expect(await screen.findByText("12 em aberto")).toBeInTheDocument();
+    // F40-T001: "N em aberto" aparece no card E no detalhe da HealthBar —
+    // o contrato é o VALOR vindo do servidor, não um nó único na tela.
+    expect((await screen.findAllByText("12 em aberto")).length).toBeGreaterThan(0);
     // O valor principal continua sendo o total geral (40).
     expect(screen.getByText("40")).toBeInTheDocument();
     // A chamada de contagem usa o alias do servidor.
     expect(vi.mocked(listIncidents)).toHaveBeenCalledWith(
       expect.objectContaining({ status: "active" }),
     );
+  });
+});
+
+/**
+ * F40-T002 — layout UniFi: a pilha genérica de painéis vira uma hierarquia
+ * com barra de saúde no topo, KPIs em seguida e o conteúdo em duas colunas
+ * (principal × lateral de alertas). O doughnut "Distribuição operacional"
+ * (que misturava contagens incomparáveis) saiu — o espaço será do gráfico
+ * de tráfego real (F40-T003).
+ */
+describe("DashboardPage — layout UniFi (F40-T002)", () => {
+  beforeEach(() => {
+    vi.mocked(listAlerts).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listClients).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listDevices).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listIncidents).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listTasks).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listAuditEntries).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(getZabbixSummary).mockReset().mockResolvedValue(configuredSummary);
+    vi.mocked(getMyInvitations).mockReset().mockResolvedValue([]);
+    localStorage.clear();
+  });
+
+  it("does not render the old operational-distribution doughnut anymore", async () => {
+    renderPage();
+
+    // O gráfico mockado no topo do arquivo era o doughnut; ele não deve
+    // ser montado. O painel de título também some.
+    expect(await screen.findByText("Incidentes Recentes")).toBeInTheDocument();
+    expect(screen.queryByText("Distribuição operacional")).toBeNull();
+    expect(screen.queryByRole("img", { name: /distribuição operacional/i })).toBeNull();
+  });
+
+  it("keeps the health bar above the KPI cards", async () => {
+    const { container } = renderPage();
+
+    // "Dispositivos" existe 2× (card KPI + painel lateral) — o contrato é
+    // a ORDEM dos nós de classe, não um texto único.
+    await screen.findAllByText("Dispositivos");
+    const health = container.querySelector(".uni-dash-health");
+    const stats = container.querySelector(".uni-dash-stats");
+    expect(health).not.toBeNull();
+    expect(stats).not.toBeNull();
+    // Ordem no DOM: barra de saúde antes dos cards de KPI.
+    expect(
+      health!.compareDocumentPosition(stats!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("lays the content panels in a main column and a sidebar column", async () => {
+    const { container } = renderPage();
+
+    await screen.findByText("Incidentes Recentes");
+    // Duas colunas: conteúdo principal (incidentes/dispositivos/clientes)
+    // × lateral (alertas/tarefas/eventos).
+    expect(container.querySelector(".uni-dash-layout")).not.toBeNull();
+    expect(container.querySelector(".uni-dash-main")).not.toBeNull();
+    expect(container.querySelector(".uni-dash-side")).not.toBeNull();
+  });
+
+  it("still offers the quick 'Novo projeto' action", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    expect(screen.getByText("/projects?novo=1")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F40-T003 — painel Monitoramento (Zabbix) com dado real do summary.
+ * O `getZabbixHistory` exige itemId específico (não genérico p/ dashboard);
+ * o summary traz hosts, problemas por severidade e sync — o gráfico de
+ * barras é alimentado por `problemsBySeverity`.
+ */
+describe("DashboardPage — painel Zabbix (F40-T003)", () => {
+  beforeEach(() => {
+    vi.mocked(listAlerts).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listClients).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listDevices).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listIncidents).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listTasks).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(listAuditEntries).mockReset().mockResolvedValue(emptyPage as never);
+    vi.mocked(getZabbixSummary).mockReset().mockResolvedValue(configuredSummary);
+    vi.mocked(getMyInvitations).mockReset().mockResolvedValue([]);
+    localStorage.clear();
+  });
+
+  it("shows the Zabbix monitoring panel with real summary numbers", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Monitoramento (Zabbix)")).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument(); // totalHosts
+    expect(screen.getByText("11 habilitados")).toBeInTheDocument(); // enabledHosts no sub
+    expect(screen.getByText("3")).toBeInTheDocument(); // problemsTotal
+    expect(screen.getByText("7.0.0")).toBeInTheDocument(); // detectedVersion
+  });
+
+  it("renders a bar chart of problems by severity", async () => {
+    const { container } = renderPage();
+
+    // O MetricChart mockado emite role="img" com o ariaLabel passado.
+    const chart = await screen.findByRole("img", {
+      name: /problemas por severidade/i,
+    });
+    expect(chart).toBeInTheDocument();
+    expect(container.querySelector(".uni-dash-zabbix")).not.toBeNull();
+  });
+
+  it("hides the Zabbix panel entirely when Zabbix is not configured", async () => {
+    vi.mocked(getZabbixSummary).mockResolvedValue({
+      ...configuredSummary,
+      isConfigured: false,
+      totalHosts: 0,
+      problemsTotal: 0,
+      problemsAvailable: false,
+      detectedVersion: null,
+    });
+
+    renderPage();
+
+    // O painel não renderiza quando não configurado — o dashboard fica limpo,
+    // sem um bloco "não configurado" ocupando espaço.
+    expect(await screen.findByText("Incidentes Recentes")).toBeInTheDocument();
+    expect(screen.queryByText("Monitoramento (Zabbix)")).toBeNull();
+  });
+
+  it("does not break the dashboard when the Zabbix summary fails", async () => {
+    vi.mocked(getZabbixSummary).mockRejectedValue(new Error("Zabbix fora do ar."));
+
+    renderPage();
+
+    // Os demais painéis continuam de pé.
+    expect(await screen.findByText("Incidentes Recentes")).toBeInTheDocument();
+    expect(screen.queryByText("Monitoramento (Zabbix)")).toBeNull();
   });
 });

@@ -35,6 +35,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<UniFiIntegrationSetting> UniFiIntegrationSettings => Set<UniFiIntegrationSetting>();
     public DbSet<ZabbixIntegrationSetting> ZabbixIntegrationSettings => Set<ZabbixIntegrationSetting>();
     public DbSet<WhatsAppIntegrationSetting> WhatsAppIntegrationSettings => Set<WhatsAppIntegrationSetting>();
+
+    public DbSet<EmailIntegrationSetting> EmailIntegrationSettings => Set<EmailIntegrationSetting>();
     public DbSet<ZabbixHost> ZabbixHosts => Set<ZabbixHost>();
     public DbSet<UniFiSite> UniFiSites => Set<UniFiSite>();
     public DbSet<AiProvider> AiProviders => Set<AiProvider>();
@@ -76,6 +78,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationRecipient> NotificationRecipients => Set<NotificationRecipient>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    public DbSet<NotificationEventRule> NotificationEventRules => Set<NotificationEventRule>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();

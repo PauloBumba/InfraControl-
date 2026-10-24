@@ -26,6 +26,9 @@ public sealed class NotificationChannelsOptions
     public WebhookChannelOptions Webhook { get; set; } = new();
 
     public SlackChannelOptions Slack { get; set; } = new();
+
+    /// <summary>F41-T001: fallback de env do canal Email (banco → env).</summary>
+    public EmailChannelOptions Email { get; set; } = new();
 }
 
 /// <summary>Destino global do canal Telegram (chat id do bot).</summary>
@@ -80,4 +83,25 @@ public sealed class WebhookChannelOptions
 public sealed class SlackChannelOptions
 {
     public string Channel { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// F41-T001: opções SMTP de env do canal Email (fallback quando não
+/// existe linha no banco). Host vazio = canal no adaptador de logging.
+/// </summary>
+public sealed class EmailChannelOptions
+{
+    public string Host { get; set; } = string.Empty;
+
+    public int Port { get; set; } = 587;
+
+    public string Username { get; set; } = string.Empty;
+
+    public string Password { get; set; } = string.Empty;
+
+    public string From { get; set; } = string.Empty;
+
+    public string? FromName { get; set; }
+
+    public bool UseSsl { get; set; } = true;
 }

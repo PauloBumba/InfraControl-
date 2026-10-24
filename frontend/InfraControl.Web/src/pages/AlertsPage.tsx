@@ -11,6 +11,8 @@ import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectButton } from "primereact/selectbutton";
 import { errorMessage } from "@/hooks/queries";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 /**
  * F17-T011 — AlertsPage conectada ao backend (substitui `alertsData` de
@@ -77,6 +79,10 @@ export function AlertsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // F44-T002/T003: push operacional + botão global + polling (autoRefresh)
+  useOperationalRefresh(load);
+  useAutoRefresh(load);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 

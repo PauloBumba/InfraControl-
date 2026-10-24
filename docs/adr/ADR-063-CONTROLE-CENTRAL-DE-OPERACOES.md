@@ -1,7 +1,10 @@
 # ADR-063: InfraControle — Central de Operações (painel visual + motor de anúncios)
 
-- **Status**: **rascunho** — aguarda aprovação humana antes de qualquer código (mesmo gate do ADR-058/059/060)
-- **Data**: 2026-10-20
+- **Status**: **aceita** — conceito aprovado e executado em partes (F37-T001/T002a/T007
+  entregues 2026-10-20/21); refinada pelo prompt master do usuário em 2026-10-24
+  (diagnóstico: `docs/63-DIAGNOSTICO-CENTRAL-OPERACOES-TV.md`) com as decisões
+  D8/D9 abaixo. A execução continua por fase/task, uma de cada vez.
+- **Data**: 2026-10-20 · **Revisões**: 2026-10-24 (D8/D9)
 - **Contexto**: conceito "InfraControle — Central de Operações" apresentado
   pelo usuário em 2026-10-20 (fonte do texto: planar.com), com 6 módulos de
   painel, Modo Sala de TI (voz/som/rotação), arquitetura em camadas e 6 fases
@@ -104,6 +107,29 @@ Sequência do documento adaptada ao backlog existente; **Fase 1–2 validam a
 experiência inteira antes de multiplicar integrações** (recomendação final
 do próprio documento = decisão do usuário). Próxima fase livre: **F37**
 (F33–F36 ocupadas).
+
+### D8 — Exibição da TV: modos alternáveis (2026-10-24, decisão do usuário)
+
+A tela da central tem **dois modos configuráveis pelo admin**: **fixo**
+(padrão — todos os módulos visíveis ao mesmo tempo, como decidido em
+2026-10-21) **ou rotação** (páginas alternam a cada intervalo configurável,
+com ordem e seleção de páginas definidas pelo admin, indicador da página
+atual). A rotação nunca reinicia o temporizador por atualização de dados,
+não perde estado de incidentes e é suspensa quando a aba fica invisível
+(§5 do prompt master). O teste que travava "somente painel fixo" passa a
+assegurar o modo padrão, não a proibir a rotação.
+
+### D9 — Prioridade de execução: tempo real → áudio/matriz → dados reais (2026-10-24)
+
+Ordem escolhida pelo usuário: (1) **tempo real** — push de transição de
+status de incidente pelo pipeline já existente (outbox → RabbitMQ →
+`NotificationEventConsumer` → SignalR; `IncidentUpdatedDomainEvent` entra no
+catálogo com default SignalR-only e pulando `Resolved` para não duplicar o
+evento de resolução) + refetch nas páginas; (2) **matriz de sons
+persistida** copiando o molde F42 (`NotificationEventRule` entidade +
+migração + endpoint Administer + UI) e a fila de anúncios (F37-T002b);
+(3) **dados reais** na `OperationsCenterPage` (hoje fake, §12 do prompt) +
+API de status de backup. Cada etapa é uma task com checkpoint.
 
 ## Plano de fases (→ TASKS.md F37+)
 

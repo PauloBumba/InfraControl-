@@ -44,6 +44,9 @@ public static class NotificationEventCatalog
             "IncidentResolvedDomainEvent", "Operational",
             "Incidente resolvido (só o InfraControl decide — regra 7 ADR-028)."),
         new(
+            "IncidentUpdatedDomainEvent", "Operational",
+            "Transição de status do incidente (reconhecido, em tratamento, identificado, monitoramento — resolução tem evento próprio)."),
+        new(
             "AlertResolvedDomainEvent", "Operational",
             "Alerta de monitoramento resolvido."),
         new(
@@ -52,6 +55,12 @@ public static class NotificationEventCatalog
         new(
             "PdiUpdatedDomainEvent", "PDI",
             "PDI atualizado (dono ou admin)."),
+        new(
+            "TaskItemCreatedDomainEvent", "Tasks",
+            "Tarefa criada no InfraControl (backlog/kanban)."),
+        new(
+            "TaskAssigneeCreatedDomainEvent", "Tasks",
+            "Usuário atribuído a uma tarefa."),
     ];
 
     /// <summary>Só os EventType (para assertions/switch simplificado).</summary>

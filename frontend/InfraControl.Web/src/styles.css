@@ -13,6 +13,7 @@
 @import './styles/pages/contact.css';
 @import './styles/pages/login.css';
 @import './styles/pages/operations-center.css';
+@import './styles/pages/dashboard.css';
 @import './styles/pages/public-dark.css';
 
 :root {
@@ -244,12 +245,12 @@ ul, ol { list-style: none; }
 }
 .uni-user-card:hover { background: var(--uni-hover); }
 .uni-user-avatar {
-  width: 32px; height: 32px;
+  width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--uni-accent);
   color: white;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700;
+  font-size: 10px; font-weight: 700;
   flex-shrink: 0;
 }
 .uni-user-info {
@@ -260,9 +261,9 @@ ul, ol { list-style: none; }
 }
 .uni-user-info > i { font-size: 11px; color: var(--uni-text-muted); flex-shrink: 0; }
 .uni-user-name {
-  font-size: 12px; font-weight: 600; display: block;
+  font-size: 11.5px; font-weight: 600; display: block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 100%;
+  max-width: 100%; line-height: 1.3;
 }
 .uni-user-role {
   font-size: 11px; color: var(--uni-text-muted); display: block;

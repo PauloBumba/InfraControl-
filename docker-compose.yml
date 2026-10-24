@@ -313,6 +313,16 @@ services:
       Notifications__Channels__WhatsApp__GroupId: ${WHATSAPP_GROUP_ID:-}
       Notifications__Channels__WhatsApp__BaseUrl: ${EVOLUTION_BASE_URL:-}
       Notifications__Channels__WhatsApp__ApiKey: ${EVOLUTION_API_KEY:-}
+      # F41 — SMTP real (Google Workspace; MX do domínio = aspmx.l.google.com).
+      # Host/From/credencial vêm do .env (App Password do Gmail, nunca commitada);
+      # vazio = adaptador de log (dev sem servidor não quebra).
+      Notifications__Channels__Email__Host: ${SMTP_HOST:-}
+      Notifications__Channels__Email__Port: ${SMTP_PORT:-587}
+      Notifications__Channels__Email__Username: ${SMTP_USERNAME:-}
+      Notifications__Channels__Email__Password: ${SMTP_PASSWORD:-}
+      Notifications__Channels__Email__From: ${SMTP_FROM:-}
+      Notifications__Channels__Email__FromName: ${SMTP_FROM_NAME:-InfraControl}
+      Notifications__Channels__Email__UseSsl: ${SMTP_USE_SSL:-true}
       Notifications__Channels__WhatsApp__InstanceId: ${WHATSAPP_INSTANCE:-}
       Notifications__Channels__Webhook__Url: ${WEBHOOK_URL:-}
       Notifications__Channels__Webhook__Secret: ${WEBHOOK_SECRET:-}
