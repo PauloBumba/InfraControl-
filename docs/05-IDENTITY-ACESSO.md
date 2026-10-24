@@ -152,7 +152,7 @@ em `services/api/auth.ts` — trocar a string do controller quebra a tela).
 As recusas do login mandam `anonymousExpected` no client: o 401 da tela de
 login não dispara mais o interceptor global de `signedOut`.
 
-A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email atual é um adaptador de logging; SMTP/provider deve ser conectado por `IIdentityEmailSender` sem alterar Application.
+A área administrativa possui `GET /api/v1/admin/users`, alteração de status e atribuição/remoção de roles. Os endpoints autorizam por role: leitura com `Roles = "Admin,User"`, gestão com `Roles = "Admin"`. O sender de email é `SmtpIdentityEmailSender` (F41, MailKit) — mesmo SMTP configurado em Integrações → Email; sem config, cai no adaptador de logging (`LoggingIdentityEmailSender`). A porta `IIdentityEmailSender` permanece o contrato — Application não muda.
 
 ### Sessões (F1-T016b, ADR-020)
 

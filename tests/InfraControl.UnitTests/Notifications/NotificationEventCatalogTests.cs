@@ -33,6 +33,8 @@ public sealed class NotificationEventCatalogTests
             nameof(AlertResolvedDomainEvent),
             nameof(PdiCreatedDomainEvent),
             nameof(PdiUpdatedDomainEvent),
+            nameof(TaskItemCreatedDomainEvent),
+            nameof(TaskAssigneeCreatedDomainEvent),
         ];
 
         // Ação

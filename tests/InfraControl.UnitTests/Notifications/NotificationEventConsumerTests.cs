@@ -192,6 +192,58 @@ public sealed class NotificationEventConsumerTests : IDisposable
             .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(0);
     }
 
+    /// <summary>
+    /// F42-T002: regra com Enabled=false silencia o evento — nenhuma
+    /// notificação persistida, nenhuma delivery enfileirada.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithRuleDisabled_ShouldSilenceEvent()
+    {
+        var (context, consumer) = await CreateAsync();
+        context.NotificationEventRules.Add(NotificationEventRule.Create(
+            "UserCreatedDomainEvent", enabled: false, channels: string.Empty));
+        await context.SaveChangesAsync();
+
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "silenciado@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.Notifications.AsNoTracking().CountAsync()).Should().Be(0);
+        (await context.NotificationDeliveries.AsNoTracking().CountAsync()).Should().Be(0);
+    }
+
+    /// <summary>
+    /// F42-T002: regra com canais preenchidos substitui o fanout global —
+    /// só Email é enfileirado, mesmo com Default = Email+SignalR.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithRuleChannels_ShouldOverrideFanout()
+    {
+        var (context, consumer) = await CreateAsync();
+        context.NotificationEventRules.Add(NotificationEventRule.Create(
+            "UserCreatedDomainEvent", enabled: true, channels: "Email"));
+        await context.SaveChangesAsync();
+
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "só-email@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(0);
+    }
+
     [Fact]
     public async Task Consume_UserCreated_ShouldQueueEmailDeliveryWithAddress()
     {

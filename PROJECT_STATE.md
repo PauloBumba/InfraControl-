@@ -164,6 +164,24 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] **F40-T003 Painel Monitoramento (Zabbix) com dado real** <!-- 2026-10-23: getZabbixSummary independente, 3 KPI cards + bar chart problemas por severidade, painel oculto se não configurado, falha isolada. vitest 351/351, tsc 0, build ✓. -->
 - [x] **F40-T004 Docs + validação da fase** <!-- 2026-10-23: docs/14-UI-UX.md seção do dashboard; validação final 351/351, tsc 0, build ✓, diff-check ✓. Fase 40 concluída (smoke visual ao vivo pendente antes do commit). -->
 
+## Fase 41 — Email SMTP configurável pelo admin (2026-10-23)
+
+> **Contexto**: fecha a pendência "Provider real de e-mail" (TASKS.md:658). O admin configura SMTP pela UI e todos os gatilhos (convite, reset, notificações) passam a enviar. Padrão espelhado no Zabbix/WhatsApp (ADR-062). Sem config = logging (dev não quebra). Canal Email segue outbox→consumer→delivery→worker→dispatcher (igual SignalR). Identity segue caminho direto (F1-T017).
+
+- [x] **F41-T001 Entidade + migration + repo + resolver + comandos** <!-- 2026-10-24: EmailIntegrationSetting + migration + resolver banco→env + commands (16/16 testes). -->
+- [x] **F41-T002 Dispatchers SMTP (MailKit) + template HTML + DI condicional** <!-- 2026-10-24: EmailTemplate + SmtpEmailNotificationDispatcher + SmtpIdentityEmailSender + SmtpEmailTestClient; DI factory Host vazio→Logging (5/5 template). -->
+- [x] **F41-T003 Página /integrations/email + rota/menu** <!-- 2026-10-24: controller + service + EmailSettingsPage (5/5 testes), rota/access/menu. -->
+- [x] **F41-T004 Docs + fecha TASKS.md:658** <!-- 2026-10-24: docs/07 + docs/05; pendência 658 fechada. Smoke SMTP real pendente. -->
+
+## Fase 42 — Regras de notificação por evento + notificação de Tasks (2026-10-23)
+
+> **Contexto**: hoje fanout é lista global para todos os 13 eventos + preferência por canal/usuário. Usuário quer granularidade por tipo de evento (incidente→email, tarefa→desligado, etc.). Achado: eventos de Tasks existem no domínio mas sem consumer (criar task não notifica ninguém). Reutiliza NotificationEventCatalog.
+
+- [x] **F42-T001 Entidade NotificationEventRule + migration + repo + comandos** <!-- 2026-10-24: NotificationEventRule (EventType único, Enabled, Channels CSV), migration AddNotificationEventRule, repo, Get/Save commands (Administer), controller (7/7 testes). -->
+- [x] **F42-T002 Consumer lê regras + consumer de Tasks** <!-- 2026-10-24: consumer consulta regra (silencia ou troca canais); + TaskItemCreated/TaskAssigneeCreated (catálogo 15 eventos); 2/2 testes consumer. -->
+- [x] **F42-T003 UI de regras por evento** <!-- 2026-10-24: NotificationRulesPage (tabela catálogo, toggle, canais, save lote), rota /notifications/rules + access + menu (2/2 testes). -->
+- [x] **F42-T004 Docs + validação** <!-- 2026-10-24: docs/07 seção "Regras por evento (F42)"; validação: build 0 erros, testes Notification 182/184 (2 Skia pré-existentes), tsc 0, vitest ✓, npm build ✓. -->
+
 ## Fase 37 — Frontend: landing profissional + dark/light + login social (2026-10-19)
 
 > **Contexto**: pedido do usuário (2026-10-19) — "AJUSTO DE FRONT TUDO QUE FOR PUBLICO PRECISA TER MESMO HEADER E FOOTER E AS PAGINAS ESTAO MUITO SIMPLES PRECISA ESTAR MAIS SEÇAO E DAR UMA IMPRESSAO QUE UM SITE OFICIAL E NAO AMADOR, ADD O ICONE DE FACEBOOK E GOOGLE NO LOGIN COMO LOGIN SOCIAL MELHOR ISSO, ADD DARK E LIGHT, DEIXA AS PAGINAS PROFISSIONAIS COM BOM HEADER E FOOTER E RESPONSIVO".

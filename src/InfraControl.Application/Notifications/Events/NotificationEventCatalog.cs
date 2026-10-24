@@ -52,6 +52,12 @@ public static class NotificationEventCatalog
         new(
             "PdiUpdatedDomainEvent", "PDI",
             "PDI atualizado (dono ou admin)."),
+        new(
+            "TaskItemCreatedDomainEvent", "Tasks",
+            "Tarefa criada no InfraControl (backlog/kanban)."),
+        new(
+            "TaskAssigneeCreatedDomainEvent", "Tasks",
+            "Usuário atribuído a uma tarefa."),
     ];
 
     /// <summary>Só os EventType (para assertions/switch simplificado).</summary>

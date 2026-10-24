@@ -21,6 +21,8 @@ using InfraControl.Application.Identity.Administration;
 using InfraControl.Application.Identity.Sessions;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Unifi.Ports;
+using InfraControl.Application.Integrations.Email;
+using InfraControl.Application.Integrations.Email.Ports;
 using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Integrations.Zabbix.Ports;
@@ -51,6 +53,7 @@ using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Integrations.Unifi;
+using InfraControl.Infrastructure.Integrations.Email;
 using InfraControl.Infrastructure.Integrations.WhatsApp;
 using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
@@ -124,8 +127,39 @@ public static class DependencyInjection
         // individual e "sair de todos os outros", com a invalidação do cache
         // compartilhado que derruba o cookie na hora.
         services.AddScoped<ISessionService, SessionService>();
-        services.AddScoped<IIdentityEmailSender, LoggingIdentityEmailSender>();
-        services.AddScoped<IEmailNotificationDispatcher, LoggingEmailNotificationDispatcher>();
+
+        // F41-T002: canal Email REAL via MailKit, condicional — SMTP não
+        // configurado (Host vazio, banco e env) mantém os adaptadores de
+        // log (dev/teste sem servidor de e-mail não quebra); configurado →
+        // transporte real. A escolha acompanha o resolver (banco → env) em
+        // CADA envio, mesmo padrão do WhatsApp (ADR-062). Cobre os dois
+        // gatilhos: notificações (IEmailNotificationDispatcher) e
+        // identity/convite (IIdentityEmailSender) — caminho direto F1-T017.
+        services.AddScoped<LoggingIdentityEmailSender>();
+        services.AddScoped<SmtpIdentityEmailSender>();
+        services.AddScoped<IIdentityEmailSender>(provider =>
+        {
+            var resolver = provider.GetRequiredService<IEmailOptionsResolver>();
+            var email = resolver.ResolveAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return email.IsSmtpConfigured
+                ? provider.GetRequiredService<SmtpIdentityEmailSender>()
+                : provider.GetRequiredService<LoggingIdentityEmailSender>();
+        });
+        services.AddScoped<LoggingEmailNotificationDispatcher>();
+        services.AddScoped<SmtpEmailNotificationDispatcher>();
+        services.AddScoped<IEmailNotificationDispatcher>(provider =>
+        {
+            var resolver = provider.GetRequiredService<IEmailOptionsResolver>();
+            var email = resolver.ResolveAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return email.IsSmtpConfigured
+                ? provider.GetRequiredService<SmtpEmailNotificationDispatcher>()
+                : provider.GetRequiredService<LoggingEmailNotificationDispatcher>();
+        });
+        services.AddScoped<IEmailTestClient, SmtpEmailTestClient>();
 
         // F19-T007/ADR-028 §6: POST real no n8n (substitui o adaptador de
         // log). Resiliência Polly no handler do IHttpClientFactory — retry
@@ -273,6 +307,14 @@ public static class DependencyInjection
         services.AddScoped<IWhatsAppEnvOptionsAccessor, WhatsAppEnvOptionsAccessor>();
         services.AddScoped<IWhatsAppOptionsResolver, WhatsAppOptionsResolver>();
         services.AddScoped<IEvolutionInstanceClient, EvolutionInstanceClient>();
+
+        // F41-T001: config do canal Email/SMTP persistida em banco (linha
+        // única, senha AES-GCM) com fallback para env
+        // (Notifications:Channels:Email). O resolver devolve as options
+        // EFETIVAS por request — igual ao WhatsApp/Zabbix. O transporte
+        // real (MailKit) entra na F41-T002 plugado nestas mesmas options.
+        services.AddScoped<IEmailEnvOptionsAccessor, EmailEnvOptionsAccessor>();
+        services.AddScoped<IEmailOptionsResolver, EmailOptionsResolver>();
 
         // F33-T005/ADR-059 decisão 7: cartão PNG (SkiaSharp) + série
         // histórica do Zabbix; sem dado a mensagem degrada para texto.

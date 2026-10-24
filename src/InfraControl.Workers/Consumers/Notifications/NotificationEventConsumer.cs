@@ -1,6 +1,7 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
+using InfraControl.Application.Notifications.Rules.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
@@ -22,12 +23,16 @@ namespace InfraControl.Workers.Consumers.Notifications;
 /// salva na plataforma substitui a lista de ambiente somente para este canal;
 /// a checagem de destino (GroupId/Phone) usa o
 /// <see cref="IWhatsAppOptionsResolver"/> (banco → env).
+/// F42-T002: antes de criar a notificação, consulta a regra por EventType
+/// (NotificationEventRule): Enabled=false silencia o evento; Channels
+/// preenchido substitui o fanout global. Sem regra = comportamento atual.
 /// </summary>
 public sealed class NotificationEventConsumer(
     AppDbContext dbContext,
     IInboxStore inboxStore,
     IOptions<NotificationChannelsOptions> channelsOptions,
     IWhatsAppOptionsResolver whatsAppOptionsResolver,
+    INotificationEventRuleRepository ruleRepository,
     ILogger<NotificationEventConsumer> logger)
     : IConsumer<UserCreatedDomainEvent>,
       IConsumer<UserDisabledDomainEvent>,
@@ -41,7 +46,9 @@ public sealed class NotificationEventConsumer(
       IConsumer<AlertCreatedDomainEvent>,
       IConsumer<AlertResolvedDomainEvent>,
       IConsumer<PdiCreatedDomainEvent>,
-      IConsumer<PdiUpdatedDomainEvent>
+      IConsumer<PdiUpdatedDomainEvent>,
+      IConsumer<TaskItemCreatedDomainEvent>,
+      IConsumer<TaskAssigneeCreatedDomainEvent>
 {
     public NotificationEventConsumer(
         AppDbContext dbContext,
@@ -53,6 +60,7 @@ public sealed class NotificationEventConsumer(
             inboxStore,
             channelsOptions,
             new StaticWhatsAppOptionsResolver(channelsOptions.Value.WhatsApp),
+            new NotificationEventRuleRepository(dbContext),
             logger)
     {
     }
@@ -156,6 +164,35 @@ public sealed class NotificationEventConsumer(
             context.CancellationToken,
             channels: [NotificationChannel.SignalR]);
     }
+
+    /// <summary>
+    /// F42-T002: tarefa criada (docs/29 §Tasks) → notifica Operator + Admin
+    /// (mesmo público de incidente). Regra por evento pode silenciar ou
+    /// trocar os canais.
+    /// </summary>
+    public Task Consume(ConsumeContext<TaskItemCreatedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Tarefa criada",
+            $"A tarefa '{context.Message.Title}' foi criada ({context.Message.Kind}).",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            context.CancellationToken);
+
+    /// <summary>
+    /// F42-T002: usuário atribuído a tarefa → notifica o PRÓPRIO usuário
+    /// (destinatário direto, como convite aceito).
+    /// </summary>
+    public Task Consume(ConsumeContext<TaskAssigneeCreatedDomainEvent> context)
+        => HandleAsync(
+            context.Message.EventId,
+            context.Message.EventType,
+            "Tarefa atribuída",
+            $"Você foi atribuído à tarefa {context.Message.TaskId}.",
+            recipientUserId: context.Message.UserId,
+            recipientRoles: [],
+            context.CancellationToken);
 
     private static string StatusLabel(PdiStatus status) => status switch
     {
@@ -288,6 +325,28 @@ public sealed class NotificationEventConsumer(
         NotificationChannel[]? channels = null,
         Guid? deviceId = null)
     {
+        // F42-T002: regra por evento — Enabled=false silencia ANTES da
+        // idempotência (nada persistido); Channels preenchido substitui
+        // fanout/param. Sem regra = comportamento atual (zero regressão).
+        var rule = await ruleRepository.GetByEventTypeAsync(
+            eventType, cancellationToken);
+        if (rule is { Enabled: false })
+        {
+            logger.LogInformation(
+                "Regra {EventType} desabilitada — notificação silenciada.",
+                eventType);
+            return;
+        }
+
+        var effectiveChannels = rule is { ChannelNames.Count: > 0 }
+            ? rule.ChannelNames
+                .Where(name => Enum.TryParse<NotificationChannel>(
+                    name, ignoreCase: true, out _))
+                .Select(name => Enum.Parse<NotificationChannel>(name, ignoreCase: true))
+                .Distinct()
+                .ToArray()
+            : channels;
+
         // Valida antes de marcar o inbox — erro de domínio não pode virar
         // mensagem perdida (processed sem notification).
         // F33-T005: DeviceId do evento viaja até o worker de WhatsApp
@@ -340,12 +399,14 @@ public sealed class NotificationEventConsumer(
 
         // Canais por evento (PDI: criação Email+SignalR, edição SignalR) —
         // sem lista explícita, o fanout default de F9-T006 (Default config).
+        // F42-T002: se a regra por evento definiu canais, ela substitui a
+        // lista do fanout/param para ESTE evento.
         // ADR-062: destino WhatsApp (GroupId/Phone) resolvido por request
         // (banco → env) — o Grupo escolhido na UI vale sem restart.
         var whatsapp = await whatsAppOptionsResolver.ResolveAsync(cancellationToken);
-        var fanout = channels is null
+        var fanout = effectiveChannels is null
             ? await ResolveFanoutChannelsAsync(whatsapp, cancellationToken)
-            : channels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList();
+            : effectiveChannels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList();
 
         foreach (var channel in fanout)
             await QueueDeliveriesAsync(notification, channel, whatsapp, cancellationToken);

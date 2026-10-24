@@ -28,6 +28,9 @@ const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m =>
 const ZabbixSettingsPage = lazy(() => import("@/pages/ZabbixSettingsPage").then(m => ({ default: m.ZabbixSettingsPage })));
 // ADR-062 — gestão do canal WhatsApp (Evolution API): conexão/QR, grupos e teste.
 const WhatsAppSettingsPage = lazy(() => import("@/pages/WhatsAppSettingsPage").then(m => ({ default: m.WhatsAppSettingsPage })));
+// F41-T003 — gestão do canal Email/SMTP (convites, reset e notificações).
+const EmailSettingsPage = lazy(() => import("@/pages/EmailSettingsPage").then(m => ({ default: m.EmailSettingsPage })));
+const NotificationRulesPage = lazy(() => import("@/pages/NotificationRulesPage").then(m => ({ default: m.NotificationRulesPage })));
 const ZabbixHostsPage = lazy(() => import("@/pages/ZabbixHostsPage").then(m => ({ default: m.ZabbixHostsPage })));
 const ZabbixOverviewPage = lazy(() => import("@/pages/ZabbixOverviewPage").then(m => ({ default: m.ZabbixOverviewPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
@@ -332,6 +335,18 @@ function AppContent() {
           <Route path="/integrations/whatsapp" element={
             <ProtectedRoute>
               <WhatsAppSettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* F41-T003 — Administração → Integrações → Email/SMTP (Administer). */}
+          <Route path="/integrations/email" element={
+            <ProtectedRoute>
+              <EmailSettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* F42-T003 — Administração → Notificações → Regras por evento (Administer). */}
+          <Route path="/notifications/rules" element={
+            <ProtectedRoute>
+              <NotificationRulesPage />
             </ProtectedRoute>
           } />
           {/* F27 Fase 10.3 — Infraestrutura → Visão geral Zabbix (leitura). */}

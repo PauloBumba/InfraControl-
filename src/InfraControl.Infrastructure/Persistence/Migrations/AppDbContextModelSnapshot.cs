@@ -596,6 +596,80 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("discovery_runs", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.EmailIntegrationSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<string>("From")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("from_address");
+
+                    b.Property<string>("FromName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("from_name");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("host");
+
+                    b.Property<string>("LastTestError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_test_error");
+
+                    b.Property<bool>("LastTestOk")
+                        .HasColumnType("boolean")
+                        .HasColumnName("last_test_ok");
+
+                    b.Property<DateTime?>("LastTestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_tested_at_utc");
+
+                    b.Property<bool?>("NotificationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notifications_enabled");
+
+                    b.Property<string>("PasswordEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("password_encrypted");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("integer")
+                        .HasColumnName("port");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.Property<bool>("UseSsl")
+                        .HasColumnType("boolean")
+                        .HasColumnName("use_ssl");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("username");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("email_integration_settings", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.ExternalDeviceReference", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1605,6 +1679,45 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_notification_deliveries_channel_status");
 
                     b.ToTable("notification_deliveries", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.NotificationEventRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Channels")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("channels");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("event_type");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventType")
+                        .IsUnique();
+
+                    b.ToTable("notification_event_rules", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.NotificationPreference", b =>

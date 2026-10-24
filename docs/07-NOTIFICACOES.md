@@ -133,6 +133,59 @@ do identity (docs/05): um provider SMTP/API troca a implementação sem
 tocar em Application. `PendingDeliveryItem` ganhou `RecipientEmail`
 (join com DomainUsers).
 
+### SMTP real (F41 — configurável pelo admin)
+
+A partir da F41 o canal Email tem transporte **real via MailKit**
+(`SmtpEmailNotificationDispatcher`), configurável pelo admin em
+Administração → Integrações → E-mail (`/integrations/email`):
+
+- **Configuração**: linha única `email_integration_settings` (host, porta,
+  usuário, senha AES-GCM write-only, remetente, TLS, toggle
+  `NotificationsEnabled`). Fallback env `Notifications:Channels:Email`
+  quando não há linha — resolver `IEmailOptionsResolver` lê banco → env
+  **por request** (troca na UI vale sem restart, mesmo padrão do
+  WhatsApp ADR-062).
+- **DI condicional**: Host efetivo vazio → adaptador de log (dev sem
+  servidor não quebra); preenchido → MailKit real. A escolha cobre os
+  DOIS gatilhos: `IEmailNotificationDispatcher` (notificações) e
+  `IIdentityEmailSender` (convite/reset — caminho direto F1-T017).
+- **Template**: `EmailTemplate` — layout HTML único 600px (header
+  InfraControl, saudação opcional, título, descrição, tabela de detalhes
+  opcional, 1 botão CTA com URL-cruda como fallback, rodapé) +
+  plain-text equivalente. Feature nova que precise enviar email só chama
+  a factory com blocos — sem template novo.
+- **Teste**: botão "Testar envio" na UI → `SendEmailTestCommand` →
+  `SmtpEmailTestClient` envia prova ao próprio remetente e grava
+  `LastTestOk`/`LastTestError` na linha (nunca exception opaca).
+- **Toggle**: `NotificationsEnabled` (nullable) — null = segue o fanout
+  legado; valor explícito add/remove SÓ o canal Email do fanout
+  (mesmo mecanismo do WhatsApp).
+
+### Regras por evento (F42 — granularidade por tipo)
+
+Antes da F42 o fanout era uma lista global (`Notifications:Channels:Default`)
+aplicada a TODOS os 15 eventos do catálogo. A partir da F42 o admin pode
+regular **cada EventType** em Administração → Notificações → Regras
+(`/notifications/rules`):
+
+- **Entidade**: `notification_event_rules` — uma linha por `EventType`
+  (índice único). `Enabled` (bool) + `Channels` (CSV de nomes do enum
+  `NotificationChannel`, ex.: `"Email,SignalR"`).
+- **Sem linha** (default): comportamento atual — fanout global, zero
+  regressão. `Enabled=true` + `Channels` vazio = idem fanout global.
+- **`Enabled=false`**: o `NotificationEventConsumer` silencia o evento
+  ANTES do inbox — nenhuma notificação persistida, nenhuma delivery.
+- **`Channels` preenchido**: os canais da regra **substituem** o fanout
+  global (e o parâmetro `channels` do handler, ex.: PDI) para ESTE evento.
+- **UI**: tabela do catálogo (15 eventos: 7 Identity, 4 Operational,
+  2 PDI, 2 Tasks) com toggle por evento, checkboxes por canal e coluna
+  "Modo" (Fanout global / canais / Silenciado). Save em lote (upsert).
+- **API**: `GET/PUT /api/v1/notifications/rules`, policy `Administer`.
+- **Novos eventos (Tasks)**: `TaskItemCreatedDomainEvent` ("Tarefa
+  criada", notifica Operator + Admin) e `TaskAssigneeCreatedDomainEvent`
+  ("Tarefa atribuída", notifica o próprio assignee) — catálogo espelhado
+  em `NotificationEventCatalog` (teste de espelho falha se divergirem).
+
 ## Configuração de canais (F9-T006)
 
 Decisão do usuário: **o admin escolhe por onde as notificações são
