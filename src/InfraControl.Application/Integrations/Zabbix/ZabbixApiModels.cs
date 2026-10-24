@@ -44,7 +44,8 @@ public sealed record ZabbixItemDto(
     string Key,
     int Type,
     bool Enabled,
-    bool Unsupported);
+    bool Unsupported,
+    string Unit = "");
 
 public sealed record ZabbixTriggerDto(
     string TriggerId,

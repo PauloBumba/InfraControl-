@@ -70,7 +70,10 @@ public sealed class WhatsAppIntegrationController(ISender sender) : BaseControll
         return Ok(ApiResponse.Ok(result));
     }
 
-    /// <summary>Cria a instância na Evolution se não existir (best-effort).</summary>
+    /// <summary>
+    /// Cria a instância e retorna seu nome, estado e se ela foi criada ou já
+    /// existia; falhas da Evolution são retornadas explicitamente.
+    /// </summary>
     [HttpPost("instance")]
     public async Task<IActionResult> CreateInstance(CancellationToken cancellationToken)
     {

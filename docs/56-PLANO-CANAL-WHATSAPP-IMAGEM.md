@@ -7,6 +7,34 @@
 > Zabbix → plataforma → SkiaSharp → Evolution API → grupo de WhatsApp,
 > sem IA, sem headless, sem serviço pago de imagem.
 
+## Estado atual (2026-10-23)
+
+O fluxo abaixo foi implementado e implantado nos containers de desenvolvimento:
+
+1. `NotificationEventConsumer` registra evento/notificação no pipeline
+   Outbox/RabbitMQ.
+2. O `NotificationWhatsAppWorker` busca a delivery pendente; para alertas com
+   `DeviceId`, resolve o host e um item Zabbix com correspondência única ao
+   título do alerta, carrega até 240 pontos das duas horas anteriores e obtém
+   a unidade do item.
+3. `SkiaIncidentImageRenderer` produz o cartão PNG 1024×768.
+4. `EvolutionApiWhatsAppNotificationDispatcher` envia imagem + caption via
+   `sendMedia`; sem dados de gráfico ou em falha de mídia, envia texto via
+   `sendText`.
+
+API e Workers foram reconstruídos em 2026-10-23 e estão healthy. O RabbitMQ
+permanece `unhealthy` no healthcheck do Docker (houve timeouts durante o
+build); porém `rabbitmq-diagnostics ping` e `check_port_connectivity`
+passaram, e o log do Worker confirma que o bus MassTransit iniciou. A
+Evolution não foi reconstruída nem alterada. O smoke de mensagem real e a
+revisão visual no grupo permanecem pendentes, pois precisam de uma instância
+conectada e de um destino de teste confirmado. O valor do threshold permanece
+omitido enquanto não houver fonte confiável do limite do trigger.
+
+Este estado atual complementa as notas históricas do plano abaixo; a
+implementação e o aceite técnico estão detalhados em
+`docs/adr/ADR-059-WHATSAPP-EVOLUTION-API.md` e `TASKS.md` F38-T006.
+
 ## 1. O que já existe (não duplicar)
 
 | Peça do pedido | Estado | Onde |
@@ -15,12 +43,12 @@
 | Incidente/Alerta + Outbox + RabbitMQ + inbox idempotente | **Pronto** | docs/06, docs/07 |
 | Fanout → delivery WhatsApp → worker com retry 5× + DLQ | **Pronto** | F9-T007/F9-T009, docs/07 |
 | Infra Evolution (3 containers, profile `evolution`, spike validado) | **Pronto** | ADR-059 §2, F33-T001, compose |
-| Config do canal (GroupId/BaseUrl/ApiKey/InstanceId) | **Planejado** | ADR-059 §3, F33-T002 |
-| Dispatcher real `sendText` (Polly retry+CB, condicional) | **Planejado** | ADR-059 §4, F33-T002 |
-| Destino grupo + dedup por notificação | **Planejado** | ADR-059 §5, F33-T003 |
-| Evento AlertCreated (Critical) no grupo | **Planejado** | ADR-059 decisão 2/3, F33-T004 |
-| **PNG do gráfico + sendMedia + fallback** | **Esta task (F33-T005)** | este documento |
-| Runbook + smoke ponta-a-ponta | **Planejado** | F33-T006 |
+| Config do canal (GroupId/BaseUrl/ApiKey/InstanceId) | **Implementado** | ADR-062, F38-T002/F38-T005 |
+| Dispatcher real `sendText` (Polly retry+CB, condicional) | **Implementado** | ADR-059 §4, F33-T002 |
+| Destino grupo + dedup por notificação | **Implementado** | ADR-059 §5, F33-T003 |
+| Evento AlertCreated (Critical) no grupo | **Implementado** | ADR-059 decisões 2/3, F33-T004 |
+| **PNG do gráfico + sendMedia + fallback** | **Implementado e implantado em dev** | ADR-059/F33-T005/F38-T006 |
+| Runbook + smoke ponta-a-ponta | Runbook implementado; **smoke real pendente** | F33-T006 |
 
 Contrato do `sendMedia` já parcialmente sondado (F33-T001): rota viva na
 v2.3.7 (`POST /message/sendMedia/{instance}`, probe `{}` → 400 "requires
@@ -114,14 +142,14 @@ destinos (vários grupos), é emenda na ADR-059 §3/§5 + ajuste no fanout.
 
 ## 8. Checklist da task
 
-- [ ] Spike: contrato `sendMedia` (corpo, limite, `@g.us`) na v2.3.7
-- [ ] Spike: fonte da série (history Zabbix × banco × sem fonte)
-- [ ] Porta + `SkiaIncidentImageRenderer` + pacotes nativos
-- [ ] Cartões incidente/aviso/resolução com testes unit
-- [ ] Dispatcher: sendMedia + fallback sendText + testes
-- [ ] Worker: mídia para deliveries de incidente/resolução
-- [ ] docs/07: formato da mensagem (caption + gráfico)
-- [ ] Smoke ponta-a-ponta (F33-T006) com evidências
+- [x] Spike: contrato `sendMedia` (corpo, limite, `@g.us`) na v2.3.7
+- [x] Spike: fonte da série via history Zabbix, com fallback sem dado
+- [x] Porta + `SkiaIncidentImageRenderer` + pacotes nativos
+- [x] Cartões incidente/aviso/resolução com testes unit
+- [x] Dispatcher: sendMedia + fallback sendText + testes
+- [x] Worker: mídia para deliveries com device/item/histórico correspondentes
+- [x] docs/07: formato da mensagem (caption + gráfico)
+- [ ] Smoke ponta-a-ponta (F33-T006) com mensagem entregue e evidência visual
 
 ## 9. Referências
 

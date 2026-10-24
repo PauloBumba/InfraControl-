@@ -18,9 +18,10 @@ namespace InfraControl.Workers.Consumers.Notifications;
 /// via ProcessedMessage (EventId + Consumer, docs/06) e cria a
 /// Notification + seus destinatários (F9-T002) no banco. Os canais do
 /// fanout vêm de Notifications:Channels:Default (F9-T006 — o admin escolhe;
-/// antes era fixo SignalR+Email). ADR-062: a checagem de destino do
-/// WhatsApp (GroupId/Phone) usa o <see cref="IWhatsAppOptionsResolver"/>
-/// (banco → env) — o Grupo escolhido na UI é refletido no fanout/dedup.
+/// antes era fixo SignalR+Email). ADR-062: a ativação explícita do WhatsApp
+/// salva na plataforma substitui a lista de ambiente somente para este canal;
+/// a checagem de destino (GroupId/Phone) usa o
+/// <see cref="IWhatsAppOptionsResolver"/> (banco → env).
 /// </summary>
 public sealed class NotificationEventConsumer(
     AppDbContext dbContext,
@@ -374,6 +375,13 @@ public sealed class NotificationEventConsumer(
 
             if (!configured.Contains(channel))
                 configured.Add(channel);
+        }
+
+        if (whatsapp.NotificationsEnabled is bool whatsappEnabled)
+        {
+            configured.Remove(NotificationChannel.WhatsApp);
+            if (whatsappEnabled)
+                configured.Add(NotificationChannel.WhatsApp);
         }
 
         var sendable = configured.Where(c => IsSendable(c, whatsapp)).ToList();

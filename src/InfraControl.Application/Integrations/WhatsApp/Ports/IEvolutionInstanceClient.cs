@@ -28,10 +28,10 @@ public interface IEvolutionInstanceClient
         WhatsAppChannelOptions options, CancellationToken cancellationToken);
 
     /// <summary>
-    /// POST /instance/create (body) — cria a instância se não existir.
-    /// Best-effort: instância já existente não é erro.
+    /// POST /instance/create (body) — cria a instância.
+    /// HTTP 409 indica que ela já existe; outras falhas HTTP são explícitas.
     /// </summary>
-    Task CreateInstanceAsync(
+    Task<EvolutionInstanceCreationResult> CreateInstanceAsync(
         WhatsAppChannelOptions options, CancellationToken cancellationToken);
 
     /// <summary>
@@ -52,6 +52,9 @@ public interface IEvolutionInstanceClient
 
 /// <summary>Resultado da geração de QR (base64 data-URI do PNG + pairing code).</summary>
 public sealed record EvolutionQrResult(string? Base64, string? PairingCode);
+
+/// <summary>Resultado real da criação de instância na Evolution.</summary>
+public sealed record EvolutionInstanceCreationResult(bool Created);
 
 /// <summary>Grupo do WhatsApp exposto pela Evolution (contrato fetchAllGroups).</summary>
 public sealed record EvolutionGroupDto(

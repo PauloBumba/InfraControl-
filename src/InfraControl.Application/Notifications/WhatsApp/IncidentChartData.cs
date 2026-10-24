@@ -16,9 +16,8 @@ public sealed record ChartSeriesPoint(DateTime AtUtc, double Value);
 
 /// <summary>
 /// Dados de entrada do <see cref="IIncidentImageRenderer"/> — o renderer
-/// (SkiaSharp, ADR-059) transforma em PNG; sem série o cartão sai com o
-/// aviso "dados indisponíveis" (nunca bloqueia o envio — fallback texto
-/// obrigatório no dispatcher).
+/// (SkiaSharp, ADR-059) transforma em PNG. A unidade acompanha os valores
+/// históricos do item Zabbix; a ausência de série impede a criação do cartão.
 /// </summary>
 public sealed record IncidentChartData(
     ChartCardKind Kind,
@@ -27,7 +26,8 @@ public sealed record IncidentChartData(
     string SeverityLabel,
     DateTime EventAtUtc,
     IReadOnlyList<ChartSeriesPoint> Series,
-    double? LimitValue = null)
+    double? LimitValue = null,
+    string Unit = "")
 {
     public double? CurrentValue => Series.Count > 0 ? Series[^1].Value : null;
     public double? MinValue => Series.Count > 0 ? Series.Min(point => point.Value) : null;
@@ -44,13 +44,14 @@ public interface IIncidentImageRenderer
 /// Monta o <see cref="IncidentChartData"/> de uma delivery a partir da
 /// série histórica do Zabbix (spike F33-T005: fonte = API history).
 /// Devolve <c>null</c> quando não há dado (Zabbix sem config, device sem
-/// host correspondente, série vazia) — o canal degrada para texto.
+/// host/item correspondente, série vazia) — o canal degrada para texto.
 /// </summary>
 public interface IWhatsAppChartFactory
 {
     Task<IncidentChartData?> TryCreateAsync(
         Guid? deviceId,
         string title,
+        string message,
         string eventType,
         DateTime eventAtUtc,
         CancellationToken cancellationToken = default);

@@ -62,7 +62,7 @@ public sealed class NotificationWhatsAppWorker(
         try
         {
             return await factory.TryCreateAsync(
-                item.DeviceId, item.Title, item.EventType, item.CreatedAt,
+                item.DeviceId, item.Title, item.Message, item.EventType, item.CreatedAt,
                 cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

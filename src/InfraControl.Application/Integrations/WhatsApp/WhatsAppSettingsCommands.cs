@@ -27,7 +27,8 @@ public sealed record WhatsAppSettingsDto(
     DateTime? LastTestedAtUtc,
     bool LastTestOk,
     string? LastTestError,
-    DateTime? UpdatedAtUtc);
+    DateTime? UpdatedAtUtc,
+    bool NotificationsEnabled = false);
 
 /// <summary>Resultado do envio de teste — nunca lança por falha de rede.</summary>
 public sealed record WhatsAppTestResultDto(bool Ok, string? Error);
@@ -44,7 +45,8 @@ public sealed record SaveWhatsAppSettingsRequest(
     string InstanceId,
     string? ApiKey,
     string? GroupId,
-    string? Phone);
+    string? Phone,
+    bool? NotificationsEnabled = null);
 
 public sealed record SaveWhatsAppSettingsCommand(SaveWhatsAppSettingsRequest Request)
     : BaseCommand<WhatsAppSettingsDto>, IAuthorizedRequest, IAuditableRequest
@@ -70,7 +72,10 @@ public sealed class GetWhatsAppSettingsQueryHandler(
     {
         var setting = await repository.GetAsync(cancellationToken);
         if (setting is not null)
-            return ToDto(setting, "database");
+            return ToDto(
+                setting,
+                "database",
+                envAccessor.Current.NotificationsEnabled ?? false);
 
         var env = envAccessor.Current;
         return new WhatsAppSettingsDto(
@@ -84,11 +89,12 @@ public sealed class GetWhatsAppSettingsQueryHandler(
             LastTestedAtUtc: null,
             LastTestOk: false,
             LastTestError: null,
-            UpdatedAtUtc: null);
+            UpdatedAtUtc: null,
+            NotificationsEnabled: env.NotificationsEnabled ?? false);
     }
 
     internal static WhatsAppSettingsDto ToDto(
-        WhatsAppIntegrationSetting setting, string source) =>
+        WhatsAppIntegrationSetting setting, string source, bool legacyNotificationsEnabled = false) =>
         new(
             setting.BaseUrl,
             ApiKeySet: !string.IsNullOrEmpty(setting.ApiKeyEncrypted),
@@ -100,12 +106,14 @@ public sealed class GetWhatsAppSettingsQueryHandler(
             setting.LastTestedAtUtc,
             setting.LastTestOk,
             setting.LastTestError,
-            setting.UpdateDateTime);
+            setting.UpdateDateTime,
+            setting.NotificationsEnabled ?? legacyNotificationsEnabled);
 }
 
 public sealed class SaveWhatsAppSettingsCommandHandler(
     IWhatsAppSettingsRepository repository,
-    ICredentialProtector protector)
+    ICredentialProtector protector,
+    IWhatsAppEnvOptionsAccessor envAccessor)
     : IRequestHandler<SaveWhatsAppSettingsCommand, WhatsAppSettingsDto>
 {
     public async Task<WhatsAppSettingsDto> Handle(
@@ -124,12 +132,19 @@ public sealed class SaveWhatsAppSettingsCommandHandler(
                 "A ApiKey da Evolution é obrigatória na primeira configuração.",
                 nameof(payload));
 
+        var notificationsEnabled =
+            payload.NotificationsEnabled ??
+            existing?.NotificationsEnabled ??
+            envAccessor.Current.NotificationsEnabled ??
+            false;
+
         var setting = existing ?? WhatsAppIntegrationSetting.Create(
             payload.BaseUrl,
             encryptedApiKey,
             payload.InstanceId,
             payload.GroupId,
-            payload.Phone);
+            payload.Phone,
+            notificationsEnabled);
 
         if (existing is not null)
             existing.Update(
@@ -137,11 +152,15 @@ public sealed class SaveWhatsAppSettingsCommandHandler(
                 encryptedApiKey,
                 payload.InstanceId,
                 payload.GroupId,
-                payload.Phone);
+                payload.Phone,
+                notificationsEnabled);
 
         await repository.SaveAsync(setting, cancellationToken);
 
-        return GetWhatsAppSettingsQueryHandler.ToDto(setting, "database");
+        return GetWhatsAppSettingsQueryHandler.ToDto(
+            setting,
+            "database",
+            envAccessor.Current.NotificationsEnabled ?? false);
     }
 }
 

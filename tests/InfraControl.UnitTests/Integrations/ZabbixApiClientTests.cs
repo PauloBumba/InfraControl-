@@ -134,6 +134,34 @@ public sealed class ZabbixApiClientTests
     }
 
     [Fact]
+    public async Task ListItemsAsync_ShouldRequestAndMapUnits()
+    {
+        var handler = new ScriptedHandler();
+        handler.When(r => MethodIs(r, "user.login"),
+            _ => Rpc($$"""{"jsonrpc":"2.0","result":"{{SessionToken}}","id":1}"""));
+        handler.When(r => MethodIs(r, "apiinfo.version"),
+            _ => Rpc("""{"jsonrpc":"2.0","result":"8.0.0","id":1}"""));
+        handler.When(r => MethodIs(r, "item.get"),
+            _ => Rpc("""
+                {"jsonrpc":"2.0","result":[{
+                  "itemid":"100","hostid":"10","name":"CPU utilization",
+                  "key_":"system.cpu.util","type":"0","state":"0","status":"0",
+                  "units":"%"
+                }],"id":1}
+                """));
+
+        var client = CreateClient(handler);
+
+        var items = await client.ListItemsAsync("10");
+
+        items.Should().ContainSingle().Which.Unit.Should().Be("%");
+        var parameters = ReadBody(handler.Requests[^1]).GetProperty("params");
+        parameters.GetProperty("output").EnumerateArray()
+            .Select(value => value.GetString())
+            .Should().Contain("units");
+    }
+
+    [Fact]
     public async Task ListHostsAsync_WhenSessionRejected_ShouldReloginAndRetryOnce()
     {
         var handler = new ScriptedHandler();

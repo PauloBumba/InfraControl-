@@ -1,8 +1,8 @@
 # Estudo — Fluxo de Integração WhatsApp via Evolution API
 
 > **Data**: 2026-10-19
-> **Atualizado**: 2026-10-22
-> **Estado**: ✅ Implementado (backend ADR-062 + tela frontend) — ver §9 "O que mudou desde o estudo"
+> **Atualizado**: 2026-10-23
+> **Estado**: ✅ Fluxo de gestão reforçado pela F38-T005 — configuração, ativação, instância, QR, grupos dinâmicos e teste dentro da plataforma; ver §10
 > **Objetivo**: Mapear o fluxo completo do canal WhatsApp, os endpoints da Evolution API e o desenho de gestão dentro da plataforma
 
 ---
@@ -103,6 +103,7 @@ CREATE TABLE whatsapp_integration_settings (
     last_tested_at_utc TIMESTAMPTZ,
     last_test_ok BOOLEAN NOT NULL,
     last_test_error VARCHAR(1000),
+    notifications_enabled BOOLEAN NULL,             -- NULL = seguir fanout legado do ambiente
     create_date_time TIMESTAMPTZ NOT NULL,
     update_date_time TIMESTAMPTZ NOT NULL
 );
@@ -121,12 +122,13 @@ CREATE TABLE whatsapp_integration_settings (
 | Estado da conexão | `GET` | `/api/v1/integrations/whatsapp/connection-state` | `GetWhatsAppConnectionStateQuery` | `{ state }` |
 | Gerar QR | `POST` | `/api/v1/integrations/whatsapp/connect` | `GenerateWhatsAppQrCommand` | `{ png (base64), pairingCode, state }` |
 | Desconectar | `POST` | `/api/v1/integrations/whatsapp/disconnect` | `DisconnectWhatsAppInstanceCommand` | `{ state }` |
-| Criar instância | `POST` | `/api/v1/integrations/whatsapp/instance` | `CreateWhatsAppInstanceCommand` | `{ state }` |
+| Criar instância | `POST` | `/api/v1/integrations/whatsapp/instance` | `CreateWhatsAppInstanceCommand` | `{ instanceId, created, state }` |
 | Listar grupos | `GET` | `/api/v1/integrations/whatsapp/groups` | `ListWhatsAppGroupsQuery` | `WhatsAppGroupDto[]` |
 | Enviar teste | `POST` | `/api/v1/integrations/whatsapp/test` | `SendWhatsAppTestCommand` | `{ ok, error }` |
 
 Contrato de gravação (`SaveWhatsAppSettingsRequest`): `BaseUrl`, `InstanceId`, `ApiKey?`,
-`GroupId?`, `Phone?` — **`ApiKey` omitida mantém a gravada** (write-only, cifrada no servidor).
+`GroupId?`, `Phone?`, `NotificationsEnabled?` — **`ApiKey` omitida mantém a gravada**
+(write-only, cifrada no servidor); ativação nullable preserva o fanout legado até escolha explícita.
 
 ---
 
@@ -137,7 +139,7 @@ Contrato de gravação (`SaveWhatsAppSettingsRequest`): `BaseUrl`, `InstanceId`,
 | `GET /instance/connectionState/{instance}` | `IEvolutionInstanceClient.GetConnectionStateAsync()` → `EvolutionInstanceClient` | Infrastructure |
 | `GET /instance/connect/{instance}` | `IEvolutionInstanceClient.ConnectAsync()` → `EvolutionQrResult(Base64, PairingCode)` | Infrastructure |
 | `DELETE /instance/logout/{instance}` | `IEvolutionInstanceClient.LogoutAsync()` | Infrastructure |
-| `POST /instance/create/{instance}` | `IEvolutionInstanceClient.CreateInstanceAsync()` | Infrastructure |
+| `POST /instance/create` (body) | `IEvolutionInstanceClient.CreateInstanceAsync()` | Infrastructure |
 | `GET /group/fetchAllGroups/{instance}` | `IEvolutionInstanceClient.ListGroupsAsync()` → `EvolutionGroupDto` | Infrastructure |
 | `POST /message/sendText/{instance}` | `IEvolutionInstanceClient.SendTextAsync()` (dispatcher, ADR-059) | Infrastructure |
 
@@ -172,6 +174,7 @@ Rota `/integrations/whatsapp` (sidebar **Administração → WhatsApp**, nível
 │ Configuração                                    │
 │   URL da Evolution API │ Nome da instância       │
 │   ApiKey (write-only)  │ Telefone (fallback)    │
+│   [ ] Ativar notificações automáticas            │
 │   [Salvar]  [Enviar mensagem de teste]          │
 ├─────────────────────────────────────────────────┤
 │ Grupos do número        [Carregar grupos]       │
@@ -180,16 +183,22 @@ Rota `/integrations/whatsapp` (sidebar **Administração → WhatsApp**, nível
 │   Destino atual: 120363…@g.us — grave a config. │
 ├─────────────────────────────────────────────────┤
 │ Estado                                          │
-│   Fonte (banco/env) · ApiKey configurada ·      │
+│   Fonte (banco/env) · ApiKey · Notificações ·   │
 │   Grupo de destino · Último teste · Atualização │
 └─────────────────────────────────────────────────┘
 ```
 
 Regras da tela (trancadas em `WhatsAppSettingsPage.test.tsx`):
 - ApiKey **nunca** populada a partir do servidor (só o indicador `apiKeySet`);
+- criar/conectar/carregar grupos exige configuração persistida e válida;
+- criação identifica a instância e diferencia criada de já existente; HTTP 400
+  é falha, não confirmação;
 - QR exibido como `data:image/png;base64,${png}` (o `byte[]` do DTO chega
   como string base64 no JSON);
 - grupo selecionado vai no `PUT /config`; chave em branco vira `null` (mantém);
+- grupos não são pré-cadastrados: vêm da Evolution conectada; destino pendente
+  não é tratado como destino salvo;
+- toggle automático é persistido e muda o fanout sem editar `NOTIFY_DEFAULT_*`;
 - falha do teste aparece explícita (`role="status"`), não como sucesso.
 
 ---
@@ -198,18 +207,23 @@ Regras da tela (trancadas em `WhatsAppSettingsPage.test.tsx`):
 
 ```
 1. Admin abre /integrations/whatsapp
-   → GET /config (config efetiva: banco → fallback env)
+   → GET /config (banco → fallback legado env)
    → GET /connection-state (poll de 5s enquanto state ≠ "open")
-2. Clica "Gerar QR" → POST /integrations/whatsapp/connect
+2. Admin informa URL, ApiKey da Evolution e nome escolhido; salva no banco
+   → operações ficam habilitadas somente quando essa configuração está salva
+3. Clica "Criar instância" → POST /integrations/whatsapp/instance
+   → `{ instanceId, created, state }`; erro HTTP é exibido, sem sucesso falso
+4. Clica "Gerar QR" → POST /integrations/whatsapp/connect
    → GenerateWhatsAppQrCommand: logout best-effort + GET /instance/connect/{instance}
      (workaround #1408 do spike F33-T001) → { png (base64), pairingCode }
-3. UI monta data:image/png;base64 e exibe a imagem + pairingCode (se houver)
-4. Admin escaneia com o celular (WhatsApp → Aparelhos conectados → Conectar aparelho)
-5. O poll em /connection-state passa a "open" → chip "Conectado"
-6. "Carregar grupos" → GET /groups → o admin marca o grupo
-   → "Salvar" → PUT /config { baseUrl, instanceId, apiKey?, groupId, phone }
-7. "Enviar mensagem de teste" → POST /test → Grava last_tested_at_utc /
+5. UI monta data:image/png;base64 e exibe a imagem; admin escaneia no celular
+6. O poll em /connection-state passa a "open" → chip "Conectado"
+7. "Carregar grupos" → GET /groups → grupos reais da Evolution; o admin marca
+   o grupo → "Salvar" persiste `groupId` e a ativação de notificações desejada
+8. "Enviar mensagem de teste" → POST /test → Grava last_tested_at_utc /
    last_test_ok / last_test_error na linha de configuração (voltam no /config)
+9. Ativação explícita adiciona/remove WhatsApp no fanout sem restart; valor
+   `NULL` no banco mantém compatibilidade com `Notifications:Channels:Default`.
 ```
 
 ---
@@ -259,5 +273,59 @@ Regras da tela (trancadas em `WhatsAppSettingsPage.test.tsx`):
    edita** o nome completo — o handler apenas preserva o valor existente;
 2. smoke em ambiente real (instância `Admin` + grupo "Estudo Arquitetura")
    depende de Evolution/Zabbix ativos — mesmo pendência do F33-T006;
-3. task formal no `TASKS.md` ainda não foi criada para esta leva
-   (estado vive no `PROJECT_STATE.md` §Fase 38).
+3. A conclusão do fluxo depende ainda de smoke test no ambiente real
+   (instância Evolution conectada e grupo disponível).
+
+## 10. F38-T005 — conclusão do fluxo de gestão (2026-10-23)
+
+- A criação agora retorna `{ instanceId, created, state }`; `409` é
+  reconhecido como instância existente e HTTP 400/erros restantes falham.
+- A tela exige configuração salva antes de criar/conectar/buscar grupos,
+  mostra claramente o nome/resultado da instância e protege a sessão conectada
+  de logout acidental ao gerar QR.
+- A substituição do nome da instância exige confirmação explícita. A confirmação
+  explica que a instância remota antiga não é apagada; o novo cadastro limpa
+  grupo/telefone anteriores e mantém notificações automáticas desligadas até
+  uma ativação posterior pelo administrador.
+- O grupo precisa vir da consulta ao vivo da Evolution e a tela distingue
+  seleção não salva de destino persistido.
+- `notifications_enabled` nullable foi adicionado por migração. A escolha
+  explícita da plataforma controla o fanout WhatsApp sem reiniciar serviços;
+  `NULL` mantém o comportamento legado de ambiente.
+- `.env.example` não fixa mais `WHATSAPP_INSTANCE=Admin`; URL, nome e grupo
+  continuam editáveis na tela. O Compose continua responsável pela instalação
+  dos containers e a ApiKey informada na plataforma deve coincidir com a
+  configurada na Evolution.
+- Escopo: singleton (uma instância/número por instalação). Múltiplas
+  instâncias e gestão do ciclo de vida dos containers não fazem parte da F38-T005.
+
+### Validação no ambiente Docker de desenvolvimento
+
+- Ajuste de substituição documentado na seção 11 da ADR-062: confirmação,
+  limpeza do destino antigo, automação inicialmente desligada, sem apagar a
+  instância anterior da Evolution.
+- Testes frontend focados: 12/12; lint e build concluídos. A imagem e o
+  container Frontend foram atualizados novamente; container saudável e a rota
+  da tela WhatsApp responde HTTP 200.
+- Migration `20261023170132_AddWhatsAppNotificationToggle` aplicada após
+  geração e validação de backup do banco.
+- Imagens e containers `api`, `workers` e `frontend` reconstruídos; os três
+  ficaram saudáveis e `/health/ready` respondeu HTTP 200.
+- `evolution-api` mantida na imagem pinada `evoapicloud/evolution-api:v2.3.7`;
+  endpoint respondeu HTTP 200, porém nenhuma instância está conectada.
+- A configuração persistida mantém notificações automáticas desativadas.
+  Nenhuma mensagem de teste foi enviada. O smoke end-to-end depende de parear
+  o WhatsApp, selecionar/confirmar o grupo e executar o teste pela tela.
+
+### Trocar o número configurado
+
+1. Na configuração, altere o nome da instância e salve. A tela pedirá
+   confirmação da substituição.
+2. Confirmar salva a nova instância sem reutilizar grupo/telefone anteriores e
+   desativa notificações automáticas; cancelar não grava a alteração.
+3. Após confirmar, crie/identifique a instância, gere o QR e pareie o novo
+   número.
+4. Carregue os grupos desse número conectado, selecione o destino, salve e
+   envie o teste. Só então, se desejado, habilite notificações automáticas.
+5. A instância antiga permanece na Evolution; a plataforma não a apaga nem
+   desconecta automaticamente.

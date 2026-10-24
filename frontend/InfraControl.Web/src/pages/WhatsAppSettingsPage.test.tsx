@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WhatsAppSettingsPage } from "./WhatsAppSettingsPage";
 import {
+  createWhatsAppInstance,
   generateWhatsAppQr,
   getWhatsAppConnectionState,
   getWhatsAppSettings,
@@ -27,6 +28,7 @@ const settingsMock = vi.mocked(getWhatsAppSettings);
 const connectionMock = vi.mocked(getWhatsAppConnectionState);
 const saveMock = vi.mocked(saveWhatsAppSettings);
 const qrMock = vi.mocked(generateWhatsAppQr);
+const createInstanceMock = vi.mocked(createWhatsAppInstance);
 const groupsMock = vi.mocked(listWhatsAppGroups);
 const testMock = vi.mocked(sendWhatsAppTest);
 
@@ -42,6 +44,7 @@ const baseSettings: WhatsAppSettings = {
   lastTestOk: false,
   lastTestError: null,
   updatedAtUtc: null,
+  notificationsEnabled: false,
 };
 
 function renderPage() {
@@ -69,10 +72,16 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
     connectionMock.mockReset();
     saveMock.mockReset();
     qrMock.mockReset();
+    createInstanceMock.mockReset();
     groupsMock.mockReset();
     testMock.mockReset();
     settingsMock.mockResolvedValue(baseSettings);
     connectionMock.mockResolvedValue({ state: "open" });
+    createInstanceMock.mockResolvedValue({
+      instanceId: "Admin",
+      created: true,
+      state: "close",
+    });
   });
 
   it("should show apiKeySet as an indicator, never as a value", async () => {
@@ -97,6 +106,7 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
   });
 
   it("should render the QR png (base64) as an image data-URI", async () => {
+    connectionMock.mockResolvedValue({ state: "close" });
     // 1x1 PNG em base64 — o DTO devolve `byte[]` serializado como base64.
     const pngBase64 =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -117,6 +127,38 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
     expect(
       statuses.some((node) => /escaneie/i.test(node.textContent ?? "")),
     ).toBe(true);
+  });
+
+  it("should identify the created instance and its actual state", async () => {
+    settingsMock.mockResolvedValue({ ...baseSettings, instanceId: "EquipeInfra" });
+    createInstanceMock.mockResolvedValue({
+      instanceId: "EquipeInfra",
+      created: true,
+      state: "close",
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Criar instância/ }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /Instância\s*EquipeInfra\s*criada na Evolution\.\s*Estado:\s*close\./,
+    );
+  });
+
+  it("should keep instance operations disabled until the configuration is persisted", async () => {
+    settingsMock.mockResolvedValue({
+      ...baseSettings,
+      baseUrl: "",
+      instanceId: "",
+      apiKeySet: false,
+      groupId: null,
+      source: "environment",
+    });
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: /Criar instância/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Gerar QR Code/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Carregar grupos/ })).toBeDisabled();
   });
 
   it("should keep the selected group and send it on save", async () => {
@@ -142,7 +184,87 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
       apiKey: null,
       groupId: "120363000000000000@g.us",
       phone: "5511999990000",
+      notificationsEnabled: false,
     });
+  });
+
+  it("should ask before replacing the configured number and keep edits on cancel", async () => {
+    settingsMock.mockResolvedValue({
+      ...baseSettings,
+      phone: "5511999990000",
+      notificationsEnabled: true,
+    });
+    renderPage();
+
+    const instanceInput = await screen.findByLabelText(/Nome da instância/);
+    fireEvent.change(instanceInput, { target: { value: "NovoNumero" } });
+
+    expect(screen.getByLabelText(/Telefone individual/)).toHaveValue("");
+    expect(
+      screen.getByRole("checkbox", {
+        name: /Ativar envio automático de notificações/,
+      }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Criar instância/ })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar$/ }));
+    expect(
+      await screen.findByRole("dialog", { name: /Substituir número do WhatsApp/ }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continuar editando/ }));
+    expect(saveMock).not.toHaveBeenCalled();
+    expect(instanceInput).toHaveValue("NovoNumero");
+  });
+
+  it("should replace the number without carrying over the old destination or automation", async () => {
+    settingsMock.mockResolvedValue({
+      ...baseSettings,
+      phone: "5511999990000",
+      notificationsEnabled: true,
+    });
+    saveMock.mockResolvedValue({
+      ...baseSettings,
+      instanceId: "NovoNumero",
+      groupId: null,
+      phone: null,
+      notificationsEnabled: false,
+      connectionState: "close",
+    });
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/Nome da instância/), {
+      target: { value: "NovoNumero" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar$/ }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Substituir configuração/ }),
+    );
+
+    await waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    expect(saveMock).toHaveBeenCalledWith({
+      baseUrl: "http://evolution-api:8080",
+      instanceId: "NovoNumero",
+      apiKey: null,
+      groupId: null,
+      phone: null,
+      notificationsEnabled: false,
+    });
+  });
+
+  it("should persist the WhatsApp notification activation choice", async () => {
+    saveMock.mockResolvedValue({ ...baseSettings, notificationsEnabled: true });
+    renderPage();
+    const enabled = await screen.findByRole("checkbox", {
+      name: /Ativar envio automático de notificações/,
+    });
+    fireEvent.click(enabled);
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar$/ }));
+
+    await waitFor(() => expect(saveMock).toHaveBeenCalledTimes(1));
+    expect(saveMock).toHaveBeenCalledWith(
+      expect.objectContaining({ notificationsEnabled: true }),
+    );
   });
 
   it("should disable save while baseUrl is missing", async () => {

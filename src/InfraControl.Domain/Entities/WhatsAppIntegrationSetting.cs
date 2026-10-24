@@ -9,8 +9,9 @@ namespace InfraControl.Domain.Entities;
 /// resposta. O <see cref="GroupId"/> é o destino escolhido na UI (grupo
 /// @g.us) e é a fonte da verdade do broadcast (ADR-059 §3). Enquanto não
 /// existir linha, o canal usa a config de env (Notifications:Channels:WhatsApp)
-/// — mesmo fallback do Zabbix/UniFi. Campos de estado alimentam a tela de
-/// Integração → WhatsApp (connection_state, último teste).
+/// — mesmo fallback do Zabbix/UniFi. Ativação nullable mantém o fanout de env
+/// nas instalações legadas até escolha explícita na UI. Campos de estado
+/// alimentam a tela de Integração → WhatsApp (connection_state, último teste).
 /// </summary>
 public sealed class WhatsAppIntegrationSetting : Entity
 {
@@ -27,6 +28,7 @@ public sealed class WhatsAppIntegrationSetting : Entity
     public string InstanceId { get; private set; } = string.Empty;
     public string? GroupId { get; private set; }
     public string? Phone { get; private set; }
+    public bool? NotificationsEnabled { get; private set; }
     public string? ConnectionState { get; private set; }
     public DateTime? LastTestedAtUtc { get; private set; }
     public bool LastTestOk { get; private set; }
@@ -39,10 +41,11 @@ public sealed class WhatsAppIntegrationSetting : Entity
         string apiKeyEncrypted,
         string instanceId,
         string? groupId = null,
-        string? phone = null)
+        string? phone = null,
+        bool? notificationsEnabled = null)
     {
         var setting = new WhatsAppIntegrationSetting();
-        setting.Update(baseUrl, apiKeyEncrypted, instanceId, groupId, phone);
+        setting.Update(baseUrl, apiKeyEncrypted, instanceId, groupId, phone, notificationsEnabled);
         return setting;
     }
 
@@ -57,7 +60,8 @@ public sealed class WhatsAppIntegrationSetting : Entity
         string? apiKeyEncrypted,
         string instanceId,
         string? groupId = null,
-        string? phone = null)
+        string? phone = null,
+        bool? notificationsEnabled = null)
     {
         if (!Uri.TryCreate(baseUrl?.Trim(), UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
@@ -89,6 +93,7 @@ public sealed class WhatsAppIntegrationSetting : Entity
 
         GroupId = NormalizeGroupId(groupId);
         Phone = NormalizePhone(phone);
+        NotificationsEnabled = notificationsEnabled;
 
         Touch();
     }

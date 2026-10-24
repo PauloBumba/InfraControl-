@@ -55,26 +55,14 @@ docker compose ps evolution-api evolution-db evolution-redis
 
 Todos devem mostrar `healthy` no status.
 
-### 2. Configurar variáveis de ambiente
+### 2. Configurar a chave da infraestrutura
 
-Edite o `.env` e preencha as variáveis da seção F33:
+A Evolution precisa de uma chave no startup. Defina uma chave forte em `.env`
+e informe **a mesma chave** na tela Administração → WhatsApp:
 
 ```bash
-# API key da Evolution (header `apikey` em toda chamada)
-# Gere uma forte, ex.: openssl rand -hex 32
+# Gere uma chave forte, por exemplo: openssl rand -hex 32
 EVOLUTION_API_KEY=sua_api_key_aqui
-
-# URL da Evolution CONSUMIDA pela API/Workers do InfraControl
-# No compose: http://evolution-api:8080 (DNS interno)
-# Fora do Docker: http://localhost:8081
-EVOLUTION_BASE_URL=http://evolution-api:8080
-
-# Nome da instância WhatsApp criada na Evolution
-WHATSAPP_INSTANCE=Admin
-
-# Destino GRUPO (prioritário sobre WHATSAPP_PHONE)
-# Formato: <id>@g.us, ex.: 120363043123456789@g.us
-WHATSAPP_GROUP_ID=
 
 # Portas (padrões do .env.example)
 EVOLUTION_API_PORT=8081
@@ -87,67 +75,50 @@ EVOLUTION_DB_USER=evolution
 EVOLUTION_DB_PASSWORD=evolution_dev_password_2026
 ```
 
-### 3. Conectar o WhatsApp (uma vez, manual)
+### 3. Configurar, conectar e escolher o grupo na plataforma
 
-1. Acesse o manager UI da Evolution: `http://localhost:8081/manager`
-2. Clique em "Create Instance" e insira o nome configurado em `WHATSAPP_INSTANCE`
-   (default: `Admin`).
-3. Escaneie o QR code com o número remetente (número pessoal — decisão do usuário).
-4. **Workaround issue #1408** (pairing code quebrado na v2.3.7): se o QR não conectar
-   após ~45s, faça:
-   - Delete a instância: `DELETE /instance/logout/{instance}` via manager UI
-   - Crie novamente e escaneie o QR
-   - Isso foi validado no spike F33-T001
-5. A sessão persiste restart do container (creds no Postgres,
-   `CACHE_REDIS_SAVE_INSTANCES=false`).
+1. Entre em **Administração → WhatsApp** com uma conta Admin.
+2. Informe a URL acessível pela API do InfraControl (no Compose:
+   `http://evolution-api:8080`), a ApiKey definida acima e um nome de instância
+   escolhido para esta instalação; salve.
+3. Clique **Criar instância**. A tela confirma o nome, se foi criada ou já
+   existia e o estado retornado. Falhas HTTP aparecem como falhas.
+4. Clique **Gerar QR Code** e escaneie no WhatsApp do número remetente. O estado
+   deve passar para **Conectado**. A sessão persiste no banco da Evolution.
+5. Clique **Carregar grupos**, escolha um grupo retornado da instância conectada
+   e salve a configuração. A tela distingue o destino persistido de uma
+   seleção ainda não salva.
+6. Marque **Ativar envio automático de notificações pelo WhatsApp** e salve.
+   Use **Enviar mensagem de teste**; só considere concluído quando a tela
+   confirmar sucesso e a mensagem chegar ao grupo.
 
-Verificar que a instância está conectada:
+O nome da instância e o grupo são escolhidos na plataforma; não preencha
+`WHATSAPP_INSTANCE` nem `WHATSAPP_GROUP_ID` em uma instalação nova.
+`EVOLUTION_BASE_URL`, `WHATSAPP_INSTANCE`, `WHATSAPP_GROUP_ID` e
+`Notifications:Channels:Default` continuam como fallback legado para
+instalações sem escolha explícita salva. Ao ativar/desativar WhatsApp na tela,
+não é necessário editar o fanout nem reiniciar API/Workers.
 
-```bash
-curl http://localhost:8081/instance/connectionState/Admin \
-  -H "apikey: $EVOLUTION_API_KEY"
-```
+### Substituir o número configurado
 
-Resposta esperada: `{"state":"open"}`
-
-### 4. Descobrir o JID do grupo
-
-O Zabbix envia eventos para o grupo "Estudo Arquitetura". Descubra o JID:
-
-```bash
-curl http://localhost:8081/group/fetchAllGroups/Admin?getParticipants=false \
-  -H "apikey: $EVOLUTION_API_KEY"
-```
-
-Encontre o grupo "Estudo Arquitetura" na resposta e copie o JID
-(`<id>@g.us`, ex.: `120363043123456789@g.us`).
-
-Preencha `WHATSAPP_GROUP_ID` no `.env`.
-
-### 5. Ativar o canal no InfraControl
-
-Adicione `WhatsApp` ao fanout de notificações no `.env`:
-
-```bash
-NOTIFY_DEFAULT_0=Email
-NOTIFY_DEFAULT_1=SignalR
-NOTIFY_DEFAULT_2=WhatsApp
-```
-
-Reinicie a API e os Workers para aplicar a configuração:
-
-```bash
-docker compose --profile app restart api workers
-```
-
-O canal agora está ativo e enviando mensagens para o grupo.
+A instalação gerencia uma instância por vez. Para trocar o número, altere o
+nome da instância e salve. A tela pede confirmação, limpa grupo/telefone
+anteriores e desativa as notificações automáticas antes de operar o destino
+novo. Cancele a confirmação para não gravar a troca. A instância anterior
+permanece cadastrada na Evolution e não é apagada nem desconectada
+automaticamente. Após confirmar, crie/identifique a nova instância, pareie pelo
+QR, carregue os grupos, escolha e salve o destino, teste o envio e, se
+desejado, habilite novamente as notificações automáticas.
 
 ## Operação rotineira
 
 ### Verificar status da instância
 
+O estado atual aparece na tela Administração → WhatsApp. Para diagnóstico,
+consulte a Evolution diretamente:
+
 ```bash
-curl http://localhost:8081/instance/connectionState/Admin \
+curl http://localhost:8081/instance/connectionState/NOME_DA_INSTANCIA \
   -H "apikey: $EVOLUTION_API_KEY"
 ```
 
@@ -157,8 +128,11 @@ curl http://localhost:8081/instance/connectionState/Admin \
 
 ### Verificar grupos disponíveis
 
+Prefira **Carregar grupos** na plataforma. A consulta abaixo é apenas para
+diagnóstico:
+
 ```bash
-curl http://localhost:8081/group/fetchAllGroups/Admin?getParticipants=false \
+curl "http://localhost:8081/group/fetchAllGroups/NOME_DA_INSTANCIA?getParticipants=false" \
   -H "apikey: $EVOLUTION_API_KEY"
 ```
 
@@ -178,19 +152,18 @@ docker compose logs -f workers
 
 ### Mensagens não chegam no grupo
 
-1. Verificar que a instância está conectada (`state: open`).
-2. Verificar que `WHATSAPP_GROUP_ID` está preenchido corretamente no `.env`.
-3. Verificar que `WhatsApp` está em `NOTIFY_DEFAULT_*`.
+1. Verificar na plataforma se a instância está conectada (`state: open`).
+2. Verificar se o grupo desejado está selecionado e salvo.
+3. Verificar se **Ativar envio automático de notificações pelo WhatsApp** está marcado.
 4. Verificar logs do worker: `docker compose logs workers | grep WhatsApp`
 5. Verificar logs da Evolution: `docker compose logs evolution-api`
 
 ### Instância desconectada (`state: close`)
 
-1. Acesse o manager UI: `http://localhost:8081/manager`
-2. Delete a instância
-3. Crie novamente com o mesmo nome
-4. Escaneie o QR code
-5. A sessão nova é persistente
+1. Abra Administração → WhatsApp.
+2. Gere um novo QR e escaneie no celular.
+3. Se a Evolution continuar presa em `close`/`connecting`, use **Desconectar** e
+   gere outro QR (workaround issue #1408 validado no spike F33-T001).
 
 ### Evolution API não responde
 
@@ -210,40 +183,38 @@ Verificar que `EVOLUTION_API_KEY` está correto e consistente entre:
 
 Workaround issue #1408 (pairing code quebrado na v2.3.7):
 
-1. Delete a instância via manager UI
-2. Crie novamente
-3. Escaneie o QR imediatamente
-4. Se falhar, repita o processo
+1. Na plataforma, clique **Desconectar** e depois **Gerar QR Code**.
+2. Escaneie o QR imediatamente.
+3. Se falhar, gere outro QR pela tela e tente novamente.
 
 Isso foi validado no spike F33-T001.
 
 ## Desativação (kill switch sem deploy)
 
-Para desativar o canal sem alterar código:
+Para desativar o envio automático sem alterar código ou reiniciar serviços,
+desmarque na plataforma **Ativar envio automático de notificações pelo
+WhatsApp** e salve. Configurações legadas sem escolha na plataforma continuam
+respeitando `NOTIFY_DEFAULT_*` até serem gerenciadas.
 
-1. Remova `WhatsApp` de `NOTIFY_DEFAULT_*` no `.env`
-2. Reinicie API e Workers: `docker compose --profile app restart api workers`
-
-O canal volta ao adaptador de logging (nenhuma chamada real à Evolution).
+O teste manual do canal continua disponível quando a instância está conectada
+e há um destino salvo; a opção controla somente as notificações automáticas.
 
 ## Reativação
 
-1. Adicione `WhatsApp` de volta a `NOTIFY_DEFAULT_*`
-2. Reinicie API e Workers
-3. Verifique que a instância está conectada (`state: open`)
+Marque novamente a opção **Ativar envio automático de notificações pelo
+WhatsApp**, salve e confirme que a instância está conectada (`state: open`).
 
 ## Migração para chip dedicado (futuro)
 
 Para eliminar o risco de banimento do número pessoal (ADR-059 §6):
 
-1. Adquira um novo número (chip dedicado)
-2. Crie uma nova instância na Evolution (novo nome, ex.: `AdminDedicated`)
-3. Conecte o QR com o novo número
-4. Troque `WHATSAPP_INSTANCE` no `.env` para o novo nome
-5. Reinicie API e Workers
-6. O canal usa o novo número sem mudar código
+1. Adquira um novo número (chip dedicado).
+2. Configure um novo nome de instância em Administração → WhatsApp.
+3. Crie a instância e conecte o QR com o novo número.
+4. Busque e selecione o grupo de destino, salve e envie um teste.
 
-A instância antiga pode ser deletada via manager UI.
+Esta tela gerencia uma instância por instalação; a remoção de uma instância
+antiga ou a gestão simultânea de múltiplas instâncias exige uma tarefa própria.
 
 ## Atualização de versão da Evolution
 
@@ -287,20 +258,22 @@ docker exec infracontrol-zabbix-server zabbix_sender -z 127.0.0.1 \
    - "Alerta resolvido"
    - "Incidente resolvido"
 8. Se houver histórico no Zabbix, a mensagem deve incluir o gráfico da métrica
-   (PNG 800×450 anexado via `sendMedia`).
+   (PNG 1024×768 anexado via `sendMedia`), desde que o título corresponda de
+   forma única a um item do host. Sem correspondência inequívoca, o worker
+   envia somente o texto.
 
 Logs do worker devem mostrar:
 
 ```
 [WhatsApp] Delivering notification {id} to group {groupId}
-[WhatsApp] Chart generated successfully (800x450, {size}KB)
-[WhatsApp] Sent via sendMedia to {groupId} (200)
+WhatsApp {deliveryId} enviado via Evolution (sendMedia, {bytes} bytes PNG)
+para {groupId}: HTTP {statusCode}.
 ```
 
 Logs da Evolution devem mostrar:
 
 ```
-POST /message/sendMedia/Admin - 201
+POST /message/sendMedia/{NOME_DA_INSTANCIA} - 201
 ```
 
 ## Eventos enviados
@@ -324,12 +297,15 @@ aceita para dar mais contexto no grupo.
 🔴 CRITICAL - 21/10/2026 14:32
 Dispositivo: srv-web-01 (192.0.2.71)
 Alerta: Carga de CPU alta
-Métrica: CPU = 92% (threshold: 80%)
+Métrica: CPU = 92%
 ```
 
 ### Texto + gráfico (com histórico)
 
-Caption (texto acima) + imagem PNG do gráfico da métrica (últimas 2h, 240 pontos).
+Caption (texto acima) + cartão PNG 1024×768 do gráfico da métrica (últimas 2h,
+até 240 pontos). O item associado precisa corresponder ao título; unidade é
+obtida do item Zabbix. O limite/threshold é omitido enquanto a integração não
+disponibilizar a expressão ou o valor real do trigger.
 
 Fonte da série: API `history` do Zabbix (`IZabbixClient.GetHistoryAsync`).
 Sem histórico = fallback automático para texto puro.

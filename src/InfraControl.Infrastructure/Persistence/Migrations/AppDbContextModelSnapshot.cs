@@ -4178,6 +4178,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_tested_at_utc");
 
+                    b.Property<bool?>("NotificationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("notifications_enabled");
+
                     b.Property<string>("Phone")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
