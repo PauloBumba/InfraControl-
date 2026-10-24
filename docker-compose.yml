@@ -196,7 +196,7 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 5
     restart: unless-stopped
     networks:
@@ -425,7 +425,7 @@ services:
     environment:
       # Porta HTTPS publicada no HOST — o redirect HTTP→HTTPS do nginx não tem
       # como deduzi-la (80→443, 8080→8443, 8085→8445); entra via envsubst.
-      NGINX_HTTPS_PORT: ${HTTPS_PORT:-443}
+      NGINX_HTTPS_PORT: ${HTTPS_PORT:-8443}
       SEQ_AUTH_USER: ${SEQ_AUTH_USER:-admin}
       SEQ_AUTH_PASSWORD: ${SEQ_AUTH_PASSWORD:-admin}
     healthcheck:

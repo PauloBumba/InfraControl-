@@ -109,7 +109,8 @@ RUN apk add --no-cache openssl apache2-utils \
  && openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/nginx/ssl/server.key \
     -out /etc/nginx/ssl/server.crt \
-    -subj "/CN=infracontrol.local"
+    -subj "/CN=infracontrol.local" \
+    -addext "subjectAltName=DNS:localhost,DNS:infracontrol.local,IP:127.0.0.1"
 
 COPY --from=frontend-build /app/dist /usr/share/nginx/html
 # nginx.conf é TEMPLATE (não config final): o entrypoint do nginx oficial roda

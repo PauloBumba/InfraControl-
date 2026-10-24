@@ -161,7 +161,7 @@ public sealed class SnmpPrinterStatusProviderTests
 
         result.Succeeded.Should().BeTrue();
         result.Values["activeAlertCount"].Should().Be("1");
-        result.Values["worstAlertSeverity"].Should().Be("critical");
+        result.Values!["worstAlertSeverity"].Should().Be("critical");
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class SnmpPrinterStatusProviderTests
     }
 
     [Fact]
-    public async Task AlertSeverityMajorAndMinor_ShouldReportWorstAsMajor()
+    public async Task AlertSeverityWarningAndBinaryWarning_ShouldReportWarning()
     {
         var provider = new SnmpPrinterStatusProvider(new FakeSnmpClient(oid =>
             oid == AlertTableOid
@@ -189,8 +189,35 @@ public sealed class SnmpPrinterStatusProviderTests
 
         result.Succeeded.Should().BeTrue();
         result.Values["activeAlertCount"].Should().Be("2");
-        result.Values["worstAlertSeverity"].Should().Be("major",
-            "major(4) é pior que minor(5) — menor número = pior severidade real");
+        result.Values!["worstAlertSeverity"].Should().Be("warning");
+    }
+
+    [Fact]
+    public async Task UnknownAlertSeverity_ShouldNotOverrideKnownCritical()
+    {
+        var provider = new SnmpPrinterStatusProvider(new FakeSnmpClient(oid =>
+            oid == AlertTableOid
+                ? [.. Alert(code: 500, severity: 7, index: 1),
+                    .. Alert(code: 600, severity: 3, index: 2)]
+                : Healthy(oid)));
+
+        var result = await provider.CheckAsync("192.0.2.70");
+
+        result.Succeeded.Should().BeTrue();
+        result.Values["activeAlertCount"].Should().Be("2");
+        result.Values!["worstAlertSeverity"].Should().Be("critical");
+    }
+
+    [Fact]
+    public async Task NonStandardAlertSeverity_ShouldBeUnknown()
+    {
+        var provider = new SnmpPrinterStatusProvider(new FakeSnmpClient(oid =>
+            oid == AlertTableOid ? Alert(code: 500, severity: 7) : Healthy(oid)));
+
+        var result = await provider.CheckAsync("192.0.2.70");
+
+        result.Succeeded.Should().BeTrue();
+        result.Values!["worstAlertSeverity"].Should().Be("unknown");
     }
 
     [Fact]

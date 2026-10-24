@@ -993,6 +993,304 @@ Hosts no Zabbix: `10818–10839` (switches) + `10084` (Zabbix server) — grupo 
 
 ---
 
+## Próximo checkpoint — reconciliação dos equipamentos já cadastrados
+
+**Escopo solicitado em 2026-10-23.** Antes de avançar para câmeras, telefones
+IP e servidores, conferir e fazer funcionar o que já foi cadastrado para
+impressoras, switches e equipamentos UniFi (APs/switches). Não presumir que o
+inventário e o Zabbix descritos nas auditorias de 2026-10-09/10 continuam
+iguais: a ficha da impressora registra um template `IC Impressora SNMP`
+(`templateid` 10887) e impressoras reais vistos em 2026-10-18, enquanto o
+inventário inicial da F27 não tinha impressoras/APs. O estado vivo precisa ser
+reconsultado.
+
+### Plano de execução
+
+1. **Auditoria somente leitura no Zabbix Web/API**: confirmar versão, estado
+   dos hosts atuais, problemas abertos, modelo/grupo/interface/templates,
+   itens unsupported, protótipos LLD, triggers e ação/webhooks; comparar com
+   IDs e resultados registrados neste documento e na ficha [docs/43](43-FICHA-TECNICA-IMPRESSORA.md).
+2. **Corrigir problemas pela causa**: distinguir alerta real de falha de
+   coleta/configuração. Para problemas do próprio Zabbix/agent, validar a
+   interface e o alcance do agent; não reconhecer/fechar manualmente problema
+   que deve se resolver por recuperação. Confirmar a entrega do webhook ao
+   InfraControl sem enviar teste ao WhatsApp/grupo de produção.
+3. **Impressoras**: conferir o template `IC Impressora SNMP` existente antes
+   de criar/alterar qualquer template; validar host, modelo, versão SNMP,
+   `bulk`, métricas de suprimentos/estado/contadores e thresholds com dados
+   reais. Corrigir apenas lacunas provadas e verificar os mesmos valores na
+   página Impressoras do InfraControl.
+4. **Switches e UniFi/APs**: sincronizar hosts já existentes e confrontar
+   host IDs, IPs, grupos, templates, problemas e vínculo com `Device`/
+   `ExternalDeviceReference`. Manter as responsabilidades da ADR-028 e
+   ADR-048: Zabbix para coleta/triggers/histórico; UniFi API para telemetria
+   própria do controller; InfraControl para inventário/correlação e operação.
+   Distinguir ausência de rota/SNMP de defeito do equipamento.
+5. **Fechamento e documentação**: validar que problemas e dados apresentados
+   na Visão Zabbix, Impressoras, Switches e Wi-Fi/UniFi correspondem às
+   fontes; registrar hosts cobertos, lacunas, mudanças, testes e rollback.
+   Só então avançar a etapa seguinte.
+
+### Limites e critérios de aceite
+
+- Nesta etapa não cadastrar câmeras, telefones IP ou servidores; ficam para
+  fases posteriores com inventário e aprovação próprios.
+- Não criar host, template, trigger, descoberta ou regra de ação duplicada.
+  Alterações na instância ativa ficam restritas ao que a auditoria demonstrar
+  necessário e devem ser documentadas antes da aplicação.
+- Não persistir senhas/tokens no repositório ou na documentação. O acesso
+  interativo deve ser autenticado pelo usuário na sessão do navegador.
+- Não afirmar que um host está operacional apenas por estar sincronizado:
+  confirmar coleta recente, itens suportados e ausência/recuperação de
+  problemas.
+- Aceite requer: hosts reais correlacionados sem Devices duplicados; estado e
+  alertas consultáveis; métricas de impressora verificadas no equipamento e
+  visíveis no InfraControl; coleta de switch/AP identificada corretamente
+  (inclusive limitações de rota/SNMP); PROBLEM e recovery do webhook validados;
+  evidências e pendências registradas. Sem credenciais/sessão ou sem alcance
+  aos dispositivos, registrar o bloqueio em vez de inventar sucesso.
+
+### Evidências iniciais da auditoria ao vivo (2026-10-24)
+
+- O usuário autenticou na sessão integrada do Zabbix. A auditoria ao vivo
+  começou em modo somente leitura. Posteriormente, após documentação do plano
+  e autorização explícita do usuário, foi aplicada a correção específica do
+  template descrita abaixo. Não houve reconhecimento de evento, envio de
+  WhatsApp ou reinício de container Zabbix.
+- O template `IC Impressora SNMP` (`templateid` 10887) existe e está ligado
+  a 36 hosts. A listagem mostra 4 itens e 2 regras de descoberta habilitadas:
+  `printer.alerts.discovery` (5m) e `printer.supplies.discovery` (1h). Cada
+  regra declara 2 protótipos de trigger.
+- Na consulta inicial, a ação global `InfraControl - triggers` (`actionid` 7)
+  estava habilitada e encaminhava eventos do Zabbix ao InfraControl. Ela foi
+  pausada somente durante a correção autorizada do template e, após a
+  alteração, foi restaurada; a listagem de ações foi reaberta e mostrou a ação
+  como **Enabled**. No momento da consulta inicial, o
+  canal WhatsApp estava habilitado (`notifications_enabled=true`), mas não
+  havia entregas WhatsApp em processamento, pendentes ou com retry vencido
+  (0/0).
+- Antes da correção, no host `HSDS_HP_SETOR_1_ENF`, o item descoberto
+  `Alerta 7 - severidade` coletava o valor `7`; a interface SNMP era
+  `192.168.22.175:161`, o OID usado era
+  `1.3.6.1.2.1.43.18.1.1.3.1.1` e o intervalo era 5m. A descrição do item
+  documentava os valores 1–4, mas não explicava o valor 7.
+- Antes da correção, os protótipos de trigger observados eram `Alerta aviso`
+  quando o valor era exatamente `3` e `Alerta fatal` quando era `>=4`. Isso
+  explica por que o valor 7 ativava o protótipo fatal, mas não comprovava uma
+  falha real na impressora: o significado do valor foi então validado contra
+  a RFC/MIB antes de corrigir a condição e a descrição do item.
+- A listagem de `Latest data` mostrou a última coleta há 4m39s no momento da
+  consulta. Isso confirma coleta recente desse item, não o estado geral de
+  todas as impressoras.
+- Na verificação inicial, antes da correção descrita abaixo, a aplicação não
+  pôde ser conferida no navegador. `docker compose ps` indicava frontend e API
+  saudáveis e o frontend publicado em `8080→80` e `8443→443`. A resposta HTTP
+  em `localhost:8080` redirecionava para
+  `https://localhost/` sem a porta publicada. A configuração em
+  `docker-compose.yml` usa `HTTPS_PORT:-443` para `NGINX_HTTPS_PORT`, embora
+  o mapeamento da porta use `HTTPS_PORT:-8443`; o Nginx ativo confirmou o
+  valor 443. O endpoint `https://localhost:8443/` responde 200 quando a
+  verificação TLS é ignorada, mas a validação TLS normal rejeita o
+  certificado local como não confiável. Assim, o navegador integrado não
+  conseguiu abrir a aplicação.
+- Correção aplicada após autorização: o fallback de `NGINX_HTTPS_PORT` foi
+  ajustado para `8443` em `docker-compose.yml` e somente o container frontend
+  foi recriado. O container ficou healthy; `localhost:8080` agora redireciona
+  para `https://localhost:8443/` e o endpoint HTTPS responde 200 com
+  verificação TLS desativada. O navegador integrado confirma que o
+  certificado ainda não é confiável (`ERR_CERT_AUTHORITY_INVALID`), portanto
+  a validação visual da aplicação permanece bloqueada. A confiança do
+  certificado não foi alterada. Nenhum container do Zabbix foi reiniciado ou
+  modificado.
+- O resultado anterior de 107 hosts habilitados e o widget de disponibilidade
+  totalizando 25 continuam divergentes; a cobertura de impressoras, APs e
+  switches ainda não foi reconciliada. A confirmação anterior de entregas
+  `Sent` ao InfraControl não substitui a validação de PROBLEM/recovery nesta
+  etapa.
+
+### Causa raiz confirmada e correção aplicada — impressoras
+
+- A RFC 3805 define `prtAlertSeverityLevel` como a coluna 2 de
+  `prtAlertEntry` (`...43.18.1.1.2`) e `prtAlertTrainingLevel` como a coluna 3
+  (`...43.18.1.1.3`). O item prototype `printer.alert.severity[{#SNMPINDEX}]`
+  do template 10887 usava a coluna 3, portanto o valor 7 que disparou o falso
+  alerta High era dado de treinamento/intervenção, não severidade. Na
+  convenção da RFC, `noInterventionRequired` é valor 7 de training level.
+- O enum padronizado da severidade na RFC contém `other(1)`, `critical(3)`,
+  `warning(4)` e `warningBinaryChangeEvent(5)`. Antes da correção, além da
+  coluna incorreta, os protótipos classificavam `>=4` como High e `=3` como
+  Warning.
+- Correção aplicada no template já existente, sem criar cópia:
+  - item prototype `83315`: OID alterado para
+    `get[1.3.6.1.2.1.43.18.1.1.2.{#SNMPINDEX}]` e descrição ajustada para
+    `prtAlertSeverityLevel`;
+  - trigger prototype `38061`: expressão `last(...)=3`, severidade High e
+    nome `Alerta crítico`;
+  - trigger prototype `38062`: expressão
+    `last(...)<>1 and last(...)<>3`, severidade Warning e nome
+    `Alerta não crítico ou severidade não mapeada`.
+  Os três valores foram reabertos no Zabbix e conferidos após salvar. A ação
+  global `actionid` 7 foi restaurada para Enabled e esse estado foi
+  confirmado na listagem de ações. A alteração alcança os 36 hosts vinculados.
+  Na validação posterior, `Latest data` do host Zabbix `10907`
+  (`HSDS_HP_SETOR_1_ENF`) mostrou o item `Alerta 7 - severidade` com último
+  valor `1` e coleta há cerca de 1 minuto. A listagem de Problems filtrada
+  pelo host/trigger não encontrou problemas ativos. O nome `Alerta 7` é o
+  alerta descoberto na impressora; o último valor `1` é a severidade coletada,
+  agora `other(1)`. É uma amostra validada, não evidência de coleta nos 36
+  hosts. Não houve teste sintético nem envio de WhatsApp.
+- Implementação da aplicação concluída em `SnmpPrinterStatusProvider`: 3 é
+  critical, 4/5 são warning, códigos restantes são unknown; a severidade
+  agregada usa prioridade (critical > warning > unknown), não ordem numérica.
+  Os testes focados passaram 17/17.
+- A alteração propaga-se aos 36 hosts vinculados e pode gerar
+  recuperação/abertura de eventos. Conforme o plano documentado e aprovado,
+  a ação Zabbix `actionid` 7 foi desabilitada temporariamente durante a
+  edição, e restaurada Enabled imediatamente depois; seu estado foi
+  confirmado na listagem. Enquanto pausada, eventos de qualquer host não
+  foram encaminhados ao InfraControl e podem não ser reenviados
+  automaticamente. Não foram feitos testes sintéticos nem envios de
+  WhatsApp.
+
+**Estado:** correção do provider concluída (17/17 testes focados) e correção
+específica do template aplicada e conferida no Zabbix; ação global 7
+restaurada e confirmada Enabled. Uma impressora (host 10907) já coleta
+severidade `1` e não apresenta problema ativo no filtro verificado; verificar
+as demais impressoras e continuar a reconciliação de APs/switches. A
+landing e o formulário de login do InfraControl já foram abertos com TLS
+validado. A inspeção das páginas protegidas depende de uma sessão de usuário
+InfraControl, que não estava disponível; não foram fornecidas nem tentadas
+credenciais. Nenhum container Zabbix foi reiniciado.
+
+### Plano de confiabilidade do broker (2026-10-24)
+
+- Durante a validação do fluxo, o RabbitMQ aparecia `unhealthy` embora
+  `rabbitmq-diagnostics check_running` confirmasse o broker ativo e
+  `check_port_connectivity` passasse. Medição do comando de conectividade:
+  10,71 s; timeout configurado no Compose: 5 s. O broker continha 0 mensagens
+  prontas e 0 não confirmadas nas filas `NotificationEvent` e
+  `AiInferenceWorker`.
+- Mudança proposta: elevar somente o timeout do healthcheck do RabbitMQ para
+  15 s, mantendo o mesmo comando, intervalos e política de retries. Depois,
+  recriar somente o container RabbitMQ quando as filas continuarem vazias e
+  verificar health `healthy`, liveness/readiness da API e estado dos workers.
+  Volume e dados serão preservados. Sem publicação de eventos sintéticos,
+  WhatsApp ou alteração no Zabbix.
+- Aplicada: timeout alterado de 5 s para 15 s; `docker compose config
+  --quiet` válido. Antes da recriação, filas `NotificationEvent` e
+  `AiInferenceWorker` estavam em 0/0; somente o container RabbitMQ foi
+  recriado, preservando seu volume. Resultado: broker `healthy`, API e workers
+  `healthy`, `/health/live` e `/health/ready` HTTP 200, filas seguem em 0/0.
+  O comando de healthcheck passa dentro da janela ampliada. O endpoint
+  agregado `/health` também respondeu HTTP 200 (`Degraded`, 4,7 s):
+  `masstransit-bus`, PostgreSQL e Redis estão `Healthy`; `ai-runtime` está
+  `Degraded`, estado permitido para capacidade opcional de IA sem provider
+  alcançável (ADR-036/§44), sem bloquear o monitoramento.
+
+### Correção do certificado local e validação visual (2026-10-24)
+
+- A inspeção inicial do certificado encontrou `CN=infracontrol.local` sem
+  extensão SAN, embora o endereço publicado seja `localhost`, causando erro
+  de autoridade e incompatibilidade de nome.
+- Aplicada em `docker/Dockerfile`: certificado de desenvolvimento com SAN para
+  `localhost`, `127.0.0.1` e `infracontrol.local`; somente o frontend foi
+  reconstruído e recriado. O SAN foi conferido no container; a porta HTTPS
+  responde 200 com verificação TLS desativada, HTTP redireciona para
+  `https://localhost:8443/` e `/health/ready` responde 200.
+- Com autorização explícita, o certificado público atual foi importado em
+  `Cert:\CurrentUser\Root` somente para o usuário Windows atual; nenhum
+  repositório de máquina foi alterado. HTTPS estrito responde 200 e o browser
+  abriu landing e login. O `/auth/me` anônimo retorna 401, e a página então
+  apresenta o formulário de login após carregar. O usuário informou não ter
+  acesso à conta InfraControl agora; dashboard e páginas protegidas ainda não
+  foram validados. Nenhuma credencial foi solicitada ou usada.
+
+### Plano e resultado da reconciliação Zabbix (2026-10-24)
+
+**Plano documentado para a continuação:** comparar grupos de hosts com os
+templates e interfaces SNMP efetivamente ligados; conferir itens unsupported,
+problemas ativos e a ação de encaminhamento; reconciliar a diferença entre
+hosts cadastrados e hosts com SNMP. Esta verificação é somente leitura. Não
+alterar templates/hosts, reconhecer problemas, gerar eventos sintéticos nem
+enviar mensagens WhatsApp. Qualquer mudança futura em hosts ou templates
+dependerá de evidência de capacidade/configuração do equipamento e será
+documentada antes de ser aplicada.
+
+**Resultado da consulta ao vivo, em transação somente leitura:**
+
+- **Impressoras:** o grupo contém 37 hosts habilitados; 36 estão ligados ao
+  template `IC Impressora SNMP` (10887) e os 36 têm interface SNMP disponível.
+  A diferença é exclusivamente `HSSM_HP_SETOR2` (host 10924, `192.168.50.111`),
+  cadastrado como ping-only e com interface SNMP em estado desconhecido. Isso
+  reconcilia os totais, mas não significa que esse HP esteja coletando Printer-MIB.
+- **APs UniFi:** 43 hosts habilitados, todos com itens ICMP habilitados e
+  suportados. 30 usam `Network Generic Device by SNMP`, com 30/30 interfaces
+  SNMP disponíveis; os 13 restantes estão em ICMP-only. Os itens SNMP
+  consultados não têm estado unsupported, mas o template genérico não comprova
+  métricas específicas do controlador UniFi (rádios/clientes).
+- **Switches:** 25 hosts habilitados: 10 HP com template Comware por SNMP,
+  5 Intelbras com template genérico SNMP, 5 de 6 UniFi com template genérico
+  SNMP e 4 switches de mesa com `ICMP Ping`. As 20 interfaces SNMP configuradas
+  estão disponíveis; os outros 5 hosts estão em ping-only. Os itens
+  unsupported foram reportados como zero naquela consulta, mas essa contagem
+  foi contradita durante a criação do dashboard: no seletor de itens do host
+  `HSDS_HP_SETOR_1_ENF`, `Alerta 7 - severidade`
+  (`printer.alert.severity[1.1]`) apareceu como `Not supported`. A quantidade
+  total e a causa precisam ser reconsultadas por estado; não desabilitar nem
+  remover o item sem investigação.
+- **Problemas e encaminhamento:** a consulta anterior que sustentava
+  `0` problemas ativos filtrava `r_eventid = 0`. Esse filtro não é válido para
+  eventos Zabbix sem recuperação: nesses casos `r_eventid` é `NULL`. Portanto,
+  a afirmação anterior de zero problemas ativos fica invalidada. Os antigos
+  erros `No Such Instance` de `HSDS_HP_PS_TRIAGEM` (10904) e `HSDS_HP_SETOR_3`
+  (10910) não estavam presentes naquela consulta; os itens descobertos
+  consultados estavam `state=0`, sem erro atual naquele momento. A ação global
+  `InfraControl - triggers` (id 7) segue habilitada (`status=0`).
+- Na etapa de reconciliação somente leitura e na criação do dashboard, não
+  foram alterados hosts, interfaces, templates, triggers ou ações (a correção
+  do template 10887 foi uma etapa separada, já registrada acima). O dashboard
+  abaixo é uma criação visual isolada. Não houve teste sintético,
+  reconhecimento de problema ou envio WhatsApp.
+
+### Dashboard operacional de impressoras (2026-10-24)
+
+Dashboard **Impressoras - Operacao** criado e salvo no Zabbix (ID `439`),
+com a página **Visão geral**, privado e sem compartilhamentos de
+usuários/grupos. Os cinco widgets carregam no grupo `Impressoras`:
+
+- problemas recentes;
+- problemas por severidade;
+- disponibilidade SNMP;
+- Top hosts com `printer.status` e `printer.pages.total`, limite de 37 hosts;
+- Item navigator, filtrado pelo grupo, exibindo `100 de 100+` itens.
+
+Na validação visual, a disponibilidade mostrou 36 disponíveis, 0 indisponíveis,
+0 mistos e 1 desconhecido (37 hosts). Problemas por severidade mostrou 12
+`Average` e 19 `Warning`; portanto, há problemas ativos no grupo e a
+reconciliação continua pendente. O widget de problemas recentes mostrou 25 de
+32 entradas e incluiu ao menos uma linha `RESOLVED`. A lista também inclui
+alertas de suprimentos, alertas Printer-MIB e ao menos um alerta de tempo de
+resposta ICMP. Um alerta exibiu
+`Alerta não crítico ou severidade não mapeada: 6`; seu significado deve ser
+investigado separadamente antes de qualquer mudança no template.
+
+Não foram reconhecidos problemas nem modificados hosts, templates, triggers
+ou ações. A ausência de coleta de filas, bandejas/tampas, consumo mensal e
+previsão de troca permanece.
+
+**Pendências objetivas:** há 13 APs e 5 switches sem interface SNMP no Zabbix;
+`HSSM_HP_SETOR2` tem interface SNMP desconhecida, mas continua ping-only. O
+usuário escolheu prosseguir somente pelo Zabbix, sem alterar o controller ou
+os equipamentos. Portanto, manter esses hosts sem SNMP até que uma consulta
+SNMP seja validada por um caminho já autorizado; não adicionar interface ou
+template por tentativa. O controller está na tela de login e não foram
+solicitadas credenciais. Para métricas específicas UniFi, definir uma
+fonte/template compatível com o controlador — o template SNMP genérico atual
+não cobre essa capacidade. Não criar OIDs ou templates específicos sem
+validar modelo, firmware e acesso aos dados.
+
+---
+
 ## Regras obrigatórias de execução
 
 1. Auditar antes de implementar.
