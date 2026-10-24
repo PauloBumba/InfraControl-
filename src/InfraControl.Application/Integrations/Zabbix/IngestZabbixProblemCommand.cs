@@ -1,5 +1,6 @@
 using System.Text.Json;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Monitoring.Events;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
@@ -48,6 +49,7 @@ public sealed record IngestZabbixProblemCommand(
 public sealed class IngestZabbixProblemCommandHandler(
     IMonitoringEventIngestor ingestor,
     IDeviceRepository deviceRepository,
+    IZabbixEventContextReader eventContextReader,
     ILogger<IngestZabbixProblemCommandHandler> logger)
     : IRequestHandler<IngestZabbixProblemCommand, ZabbixProblemResultDto>
 {
@@ -98,6 +100,8 @@ public sealed class IngestZabbixProblemCommandHandler(
         var title = name.Trim();
         var device = await ResolveDeviceAsync(
             request.Ip, request.Host, cancellationToken);
+        var sourceContext = await eventContextReader.GetAsync(
+            eventId, cancellationToken);
 
         var input = new ZabbixIngestInput(
             eventId,
@@ -109,7 +113,8 @@ public sealed class IngestZabbixProblemCommandHandler(
             severity.Value,
             IsRecovery: status == "OK",
             ToUtcDateTime(request.OccurredAt),
-            BuildRawPayload(request));
+            BuildRawPayload(request),
+            sourceContext is null ? null : JsonSerializer.Serialize(sourceContext));
 
         var result = await ingestor.IngestAsync(input, cancellationToken);
 

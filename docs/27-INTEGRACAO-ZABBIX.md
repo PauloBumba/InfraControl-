@@ -14,7 +14,10 @@
   → NotificationEventConsumer → NotificationWhatsAppWorker → Evolution API
   → Grupo WhatsApp (com gráfico da métrica quando há histórico). Ver
   [docs/07-NOTIFICACOES.md](07-NOTIFICACOES.md#canal-whatsapp-f9-t007--f33--evolution-api)
-  para configuração e runbook.
+  para configuração e runbook. A F39 aprovada prevê consultar e persistir o
+  contexto do evento Zabbix (host/grupo/trigger/tags) na ingestão para aplicar
+  filtros sem inferir campos do texto; detalhes e compatibilidade em
+  [docs/62](62-PLANO-ROTEAMENTO-NOTIFICACOES-ZABBIX.md).
 
 ## 1. Endpoint
 
@@ -157,6 +160,20 @@ ponta-a-ponta (PROBLEM → alert → incidente; OK → alert `Resolved`).
 > `user.login` (Admin/zabbix) → session token no header
 > `Authorization: Bearer` (o campo `auth` no corpo é rejeitado; o
 > parâmetro de login no build trunk é `username`, não `user`).
+
+### Contexto de eventos para roteamento (F39-T002)
+
+Durante a ingestão, o InfraControl consulta `event.get` pelo `eventId`,
+segue o `objectid` em `trigger.get` para obter os hosts e consulta
+`host.get` para grupos. Tags do evento, trigger ID, host IDs e group IDs são
+persistidos em `monitoring_events.source_context_json`, sem alterar o payload
+original recebido. Se a API não estiver configurada ou o enriquecimento falhar,
+PROBLEM/OK continuam sendo ingeridos e a falha é registrada; resultados
+parciais preservam os metadados que já foram obtidos.
+
+O ambiente ativo é Zabbix 8.0.0. Os testes automatizados validam o contrato
+JSON-RPC com fixtures; a validação ao vivo dessa consulta deve ocorrer no
+smoke de F39 antes de qualquer deploy.
 >
 > **Gotchas da API 7.4.15** (mantidos como referência para a migração
 > futura quando o 8.0 estabilizar):
@@ -603,4 +620,3 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
   senha `1-7`) e promover; IPs/setores das Zebra 220/503 e
   `HSDS_NIR_CE`; ULTRASSOM_A4 (planilha "164_1" — só há um device no
   .164, Tomografia A3).
-

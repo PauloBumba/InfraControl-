@@ -217,6 +217,7 @@ public static class DependencyInjection
         // client leva a MESMA política Polly do dispatcher n8n.
         services.AddScoped<IZabbixApiOptionsAccessor, ZabbixApiOptionsAccessor>();
         services.AddScoped<IZabbixOptionsResolver, ZabbixOptionsResolver>();
+        services.AddScoped<IZabbixEventContextReader, ZabbixEventContextReader>();
         services.AddScoped<IZabbixClient>(serviceProvider =>
         {
             var resolver = serviceProvider.GetRequiredService<IZabbixOptionsResolver>();

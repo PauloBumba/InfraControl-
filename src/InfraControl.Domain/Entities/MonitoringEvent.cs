@@ -31,6 +31,7 @@ public sealed class MonitoringEvent : AggregateRoot
     public DateTime? RecoveredAt { get; private set; }
     public string Message { get; private set; } = string.Empty;
     public string? RawPayload { get; private set; }
+    public string? SourceContextJson { get; private set; }
 
     private MonitoringEvent() { }
 
@@ -46,7 +47,8 @@ public sealed class MonitoringEvent : AggregateRoot
         int severity,
         DateTime occurredAt,
         string message,
-        string? rawPayload)
+        string? rawPayload,
+        string? sourceContextJson = null)
         => new()
         {
             Source = source,
@@ -58,7 +60,8 @@ public sealed class MonitoringEvent : AggregateRoot
             Status = MonitoringEventStatus.Problem,
             OccurredAt = occurredAt,
             Message = NormalizeMessage(message),
-            RawPayload = rawPayload
+            RawPayload = rawPayload,
+            SourceContextJson = sourceContextJson
         };
 
     /// <summary>
@@ -75,7 +78,8 @@ public sealed class MonitoringEvent : AggregateRoot
         int severity,
         DateTime occurredAt,
         string message,
-        string? rawPayload)
+        string? rawPayload,
+        string? sourceContextJson = null)
     {
         var recoveryId = string.IsNullOrWhiteSpace(externalRecoveryId)
             ? externalEventId
@@ -94,7 +98,8 @@ public sealed class MonitoringEvent : AggregateRoot
             OccurredAt = occurredAt,
             RecoveredAt = occurredAt,
             Message = NormalizeMessage(message),
-            RawPayload = rawPayload
+            RawPayload = rawPayload,
+            SourceContextJson = sourceContextJson
         };
     }
 
@@ -114,6 +119,18 @@ public sealed class MonitoringEvent : AggregateRoot
         Status = MonitoringEventStatus.Recovered;
         ExternalRecoveryId = externalRecoveryId.Trim();
         RecoveredAt = recoveredAt;
+    }
+
+    public void SetSourceContextJson(string? sourceContextJson)
+    {
+        if (Source != MonitoringSource.Zabbix)
+            throw new InvalidOperationException(
+                "Contexto de origem externo só pode ser definido para eventos do Zabbix.");
+
+        if (string.IsNullOrWhiteSpace(sourceContextJson))
+            return;
+
+        SourceContextJson = sourceContextJson;
     }
 
     private static string ValidateExternalId(string value, string paramName)

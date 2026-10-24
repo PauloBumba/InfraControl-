@@ -33,6 +33,9 @@ public interface IZabbixClient
     Task<IReadOnlyList<ZabbixProblemDto>> ListProblemsAsync(
         CancellationToken cancellationToken = default);
 
+    Task<ZabbixEventContextDto?> GetEventContextAsync(
+        string eventId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryAsync(
         string itemId,
         DateTime fromUtc,
