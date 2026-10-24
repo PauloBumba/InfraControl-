@@ -68,6 +68,7 @@ O `NotificationEventConsumer` anexa os destinatários junto da notificação
 | `InvitationAccepted` | usuário resolvido por e-mail (sem correspondência: notificação sem destinatário + log Warning) |
 | `IncidentCreated` (F16-T002) | roles `Operator` e `Admin` — cobre webhook Zabbix (F16-T001), criação manual e auto-abertura (F6) |
 | `IncidentResolved` (F19-T007) | roles `Operator` e `Admin` — levantado por `Incident.ChangeStatus(Resolved)`; só o InfraControl decide a resolução (regra 7 da revisão F19) |
+| `IncidentUpdated` (F44-T001) | roles `Operator` e `Admin`, **só canal SignalR** — transição de status (Investigating/Identified/Monitoring); `Resolved` é **pulado** (o `IncidentResolved` já avisa — dedup §6.3 do prompt master). Alimenta o refetch da central sem F5 |
 | `AlertResolved` (F19-T007) | roles `Operator` e `Admin` — levantado por `Alert.Resolve` (OK do Zabbix, comando da API) |
 
 `GET /api/v1/notifications/{id}/recipients` lista os destinatários;

@@ -27,6 +27,8 @@ import {
   type AuditEntry,
 } from "@/services/api/audit";
 import { formatDateTime } from "@/utils/format";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 const taskStateLabels: Record<string, string> = {
   Open: "Aberta",
@@ -194,13 +196,10 @@ export function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  useEffect(() => {
-    const handleRefresh = () => {
-      fetchDashboardData();
-    };
-    window.addEventListener("infracontrol:refresh", handleRefresh);
-    return () => window.removeEventListener("infracontrol:refresh", handleRefresh);
-  }, [fetchDashboardData]);
+  // F44-T002/T003: push operacional (SignalR) + botão global de refresh +
+  // polling quando o autoRefresh das configurações está ligado.
+  useOperationalRefresh(fetchDashboardData);
+  useAutoRefresh(fetchDashboardData);
 
   /**
    * F29-T004 — era um efeito auto-contido sem nenhuma forma de tentar de

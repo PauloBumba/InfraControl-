@@ -43,6 +43,7 @@ public sealed class NotificationEventConsumer(
       IConsumer<InvitationAcceptedDomainEvent>,
       IConsumer<IncidentCreatedDomainEvent>,
       IConsumer<IncidentResolvedDomainEvent>,
+      IConsumer<IncidentUpdatedDomainEvent>,
       IConsumer<AlertCreatedDomainEvent>,
       IConsumer<AlertResolvedDomainEvent>,
       IConsumer<PdiCreatedDomainEvent>,
@@ -114,6 +115,32 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             deviceId: context.Message.DeviceId);
+
+    /// <summary>
+    /// F44-T001 (prompt master §8): transição de status (ack →
+    /// Investigating, Identified, Monitoring) → notificação SignalR para
+    /// Operator + Admin — a central de operações recebe a mudança sem F5.
+    /// Resolução é PULADA: ChangeStatus(Resolved) levanta também o
+    /// IncidentResolvedDomainEvent e a mensagem duplicada seria ruído
+    /// (dedup do §6.3 do prompt master). Default SignalR-only (polui
+    /// menos; a regra F42 por evento pode adicionar canais).
+    /// </summary>
+    public Task Consume(ConsumeContext<IncidentUpdatedDomainEvent> context)
+    {
+        var message = context.Message;
+        if (message.Status == IncidentStatus.Resolved)
+            return Task.CompletedTask;
+
+        return HandleAsync(
+            message.EventId,
+            message.EventType,
+            "Incidente atualizado",
+            $"O incidente {message.IncidentId} mudou para {IncidentStatusLabel(message.Status)}.",
+            recipientUserId: null,
+            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
+            context.CancellationToken,
+            channels: [NotificationChannel.SignalR]);
+    }
 
     /// <summary>F19-T007: alerta resolvido → Operator + Admin.</summary>
     public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
@@ -205,6 +232,16 @@ public sealed class NotificationEventConsumer(
         PdiStatus.Completed => "Concluído",
         PdiStatus.Replanned => "Replanejado",
         PdiStatus.Cancelled => "Cancelado",
+        _ => status.ToString()
+    };
+
+    private static string IncidentStatusLabel(IncidentStatus status) => status switch
+    {
+        IncidentStatus.Open => "Aberto",
+        IncidentStatus.Investigating => "Em investigação",
+        IncidentStatus.Identified => "Identificado",
+        IncidentStatus.Monitoring => "Em monitoramento",
+        IncidentStatus.Resolved => "Resolvido",
         _ => status.ToString()
     };
 
