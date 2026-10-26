@@ -1,94 +1,63 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OperationsCenterPage } from "./OperationsCenterPage";
 
-/**
- * F37-T007 — Central de Operações (ADR-063, kiosk).
- *
- * Duas frentes tranca aqui:
- *
- * 1. COMPORTAMENTO (F37-T001/T002 + painel fixo 2026-10-21): os dados fake
- *    dos 6 módulos aparecem TODOS ao mesmo tempo (painel fixo — sem rotação
- *    automática e sem abas), e os controles de áudio/tela cheia existem.
- *    É a rede de proteção da refatoração de estilo — nenhum comportamento
- *    pode mudar.
- *
- * 2. ESTILO (F37-T007): a página tinha sido escrita com classes Tailwind que
- *    o projeto NÃO possui (o stack é PrimeFlex + `uni-*` + variáveis
- *    `--uni-*`), então grid, chips, barras de progresso, cantos e sombras
- *    morriam — e no dark ficava ilegível (texto claro sobre boxes brancos).
- *    Os hooks `.uni-ops-*` garantem que o painel usa o CSS próprio
- *    (`styles/pages/operations-center.css`) em vez das classes mortas.
- */
+vi.mock("../services/api/incidents", () => ({
+  listIncidents: vi.fn().mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 100 }),
+}));
+
+vi.mock("../services/api/inventory", () => ({
+  listDevices: vi.fn().mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 1 }),
+}));
+
+vi.mock("../services/api/zabbix", () => ({
+  getZabbixSummary: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("../hooks", () => ({
+  useAudio: () => ({
+    isInitialized: false,
+    isInitializing: false,
+    config: { enabled: false },
+    initialize: vi.fn(),
+    announce: vi.fn(),
+    updateConfig: vi.fn(),
+  }),
+}));
+
 function renderPage() {
-  return render(<OperationsCenterPage />);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <OperationsCenterPage />
+    </QueryClientProvider>
+  );
 }
 
-describe("OperationsCenterPage (F37-T001 + F37-T007 + painel fixo)", () => {
-  it("should present the kiosk header and every module section at once", () => {
+describe("OperationsCenterPage (NOC TV - 5 páginas)", () => {
+  it("should present the NOC header and first page", () => {
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "InfraControle" })).toBeInTheDocument();
-    expect(screen.getByText("Central de Operações")).toBeInTheDocument();
-
-    // painel fixo: os 6 módulos (seções) aparecem simultaneamente
-    // (nomes exatos: regex casaria também com os cards dentro das seções)
-    expect(screen.getByRole("heading", { name: "Servidores" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Switches" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Impressoras" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Rede/Wi-Fi" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Backup" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Câmeras/Telefonia" })).toBeInTheDocument();
-
-    // dados fake de todos os módulos visíveis ao mesmo tempo
-    expect(screen.getByText("SRV-PROD-01")).toBeInTheDocument();
-    const offlineCard = screen.getByText("SRV-APP-02").closest(".uni-ops-card");
-    expect(offlineCard).not.toBeNull();
-    expect(within(offlineCard as HTMLElement).getByText("Offline")).toBeInTheDocument();
-    expect(screen.getByText("SW-CORE-01")).toBeInTheDocument();
-    expect(screen.getByText("HP-LaserJet-02")).toBeInTheDocument();
-    expect(screen.getByText("Toner baixo")).toBeInTheDocument();
-    expect(screen.getByText("Internet Gateway")).toBeInTheDocument();
-    expect(screen.getByText("PostgreSQL Daily")).toBeInTheDocument();
-    expect(screen.getByText("CAM-ENTRADA-01")).toBeInTheDocument();
-
-    const card = screen.getByText("SRV-PROD-01").closest(".uni-ops-card");
-    expect(card).not.toBeNull();
-    expect(within(card as HTMLElement).getByText("45%")).toBeInTheDocument(); // CPU
-    expect(within(card as HTMLElement).getByText("78%")).toBeInTheDocument(); // disco
+    expect(screen.getByText("INFRA CONTROLE")).toBeInTheDocument();
+    expect(screen.getByText("CENTRAL DE OPERAÇÕES")).toBeInTheDocument();
+    expect(screen.getByText(/1 \/ 5/)).toBeInTheDocument();
   });
 
-  it("should NOT rotate or expose tab navigation (fixed panel, 2026-10-21)", () => {
-    const { container } = renderPage();
-
-    // sem barra de abas nem badge de rotação (removidos do painel fixo)
-    expect(container.querySelector(".uni-ops-tab")).toBeNull();
-    expect(container.querySelector(".uni-ops-modules")).toBeNull();
-    expect(container.querySelector(".uni-ops-rotation-badge")).toBeNull();
-    expect(screen.queryByText(/Rotação automática/)).not.toBeInTheDocument();
-  });
-
-  it("should expose audio and fullscreen controls (F37-T002)", () => {
+  it("should expose audio and fullscreen controls", () => {
     renderPage();
 
-    expect(screen.getByRole("button", { name: /Ativar áudio/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Tela cheia/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ATIVAR ÁUDIO/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /TELA CHEIA/i })).toBeInTheDocument();
   });
 
-  it("should render through the project's own uni-ops styles, not dead Tailwind classes", () => {
+  it("should render through NOC styles", () => {
     const { container } = renderPage();
 
-    // raiz + board + seções + grid + cards + chip de status vêm do
-    // operations-center.css
-    expect(container.querySelector(".uni-ops-page")).not.toBeNull();
-    expect(container.querySelector(".uni-ops-board")).not.toBeNull();
-    expect(container.querySelectorAll(".uni-ops-section").length).toBe(6);
-    expect(container.querySelector(".uni-ops-grid")).not.toBeNull();
-    expect(container.querySelectorAll(".uni-ops-card").length).toBeGreaterThan(0);
-    expect(container.querySelectorAll(".uni-ops-chip").length).toBeGreaterThan(0);
-
-    // classes Tailwind mortas não podem voltar (não existem no projeto)
-    expect(container.querySelector(".grid-cols-1")).toBeNull();
-    expect(container.querySelector(".bg-white")).toBeNull();
+    expect(container.querySelector(".noc-page")).not.toBeNull();
+    expect(container.querySelector(".noc-header")).not.toBeNull();
+    expect(container.querySelector(".noc-main")).not.toBeNull();
   });
 });

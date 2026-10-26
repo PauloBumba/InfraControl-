@@ -40,3 +40,11 @@ public sealed record GoogleLoginViewModel(
     [property: StringLength(8192, MinimumLength = 1, ErrorMessage = "A credencial do Google é obrigatória.")]
     [property: Required(ErrorMessage = "A credencial do Google é obrigatória.")]
     string IdToken);
+
+/// <summary>
+/// F43-T003 (rev.) — mensagem do erro do login social. O callback manda só o
+/// código na URL (<c>?error=google&amp;reason=account</c>); a UI chama
+/// <c>GET /auth/google/failure?reason=</c> e exibe o <c>Message</c> — o texto
+/// vive no backend, não no SPA.
+/// </summary>
+public sealed record GoogleLoginFailureViewModel(string Code, string Message);

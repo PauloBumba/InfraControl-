@@ -8,7 +8,10 @@ using InfraControl.Api.ViewModels.Identity;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Enums;
+using InfraControl.Infrastructure.Auth;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -22,7 +25,8 @@ namespace InfraControl.Api.Controllers.Identity;
 public sealed class AuthenticationController(
     IIdentityAuthenticationService authenticationService,
     IAntiforgery antiforgery,
-    IOptions<FrontendOptions> frontendOptions) : BaseController
+    IOptions<FrontendOptions> frontendOptions,
+    IOptions<GoogleAuthOptions> googleAuthOptions) : BaseController
 {
     [AllowAnonymous]
     [HttpPost("register")]
@@ -50,13 +54,164 @@ public sealed class AuthenticationController(
     }
 
     // F1-T016a (ADR-019): os motivos de MFA só existem depois da senha
-    // validada — a mensagem guia a UI ao campo do segundo fator.
+    // validada — a mensagem guia a UI ao segundo fator.
     private static string LoginFailureMessage(LoginFailure? failure) => failure switch
     {
         LoginFailure.MfaRequired => "Código MFA obrigatório.",
         LoginFailure.MfaCodeInvalid => "Código MFA inválido.",
         _ => "Credenciais inválidas."
     };
+
+    // F43: textos do login social — fonte única do POST e do endpoint de
+    // mensagem por código (o callback só transporta `reason=account`).
+    private const string GoogleUnavailableMessage = "Login com Google não está configurado.";
+    private const string GoogleInvalidCredentialMessage = "Credencial do Google inválida.";
+    private const string GoogleAccountUnavailableMessage =
+        "Conta não encontrada ou inativa. Fale com o administrador.";
+    private const string GoogleGenericLoginErrorMessage =
+        "Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.";
+
+    /// <summary>
+    /// F43-T001/ADR-064: start do authorization code flow — emite o
+    /// <c>state</c> CSRF em cookie (HttpOnly, SameSite=Lax, 10 min) e
+    /// redireciona para o consent screen do Google. A troca
+    /// <c>code → token</c> e a validação da conta acontecem inteiramente no
+    /// <c>GET google/callback</c> (T002), no servidor. Sem config completa
+    /// (id+secret+redirect) responde 503 — mesmo contrato do POST google.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.Login)]
+    [HttpGet("google")]
+    public IActionResult GoogleLoginStart()
+    {
+        var options = googleAuthOptions.Value;
+        if (!options.IsCodeFlowConfigured)
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                ApiResponse<object>.Fail([GoogleUnavailableMessage]));
+
+        var state = GoogleOAuthFlow.CreateState();
+        Response.Cookies.Append(
+            GoogleOAuthFlow.StateCookieName,
+            state,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                MaxAge = GoogleOAuthFlow.StateLifetime
+            });
+
+        return Redirect(GoogleOAuthFlow.CreateAuthorizationUrl(options, state));
+    }
+
+    /// <summary>
+    /// F43-T002/ADR-064: callback do authorization code — o servidor confere
+    /// o <c>state</c> (cookie vs query, comparação em tempo fixo e de um só
+    /// uso), troca o <c>code</c> pelo <c>id_token</c> no servidor e reusa
+    /// <c>LoginWithGoogleAsync</c> (validação JWKS + conta ativa +
+    /// anti-enumeração, F1-T013). Falhas operacionais (state/troca/provider/
+    /// credencial) viram o redirect genérico <c>/login?error=google</c>; a
+    /// conta indisponível acrescenta <c>&amp;reason=account</c> para a UI
+    /// buscar a mensagem no backend (rev. 2026-10-24, ver
+    /// <see cref="GoogleLoginFailure"/>). O code/token jamais aparecem em URL
+    /// ou log.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpRateLimit(RateLimitCategory.Login)]
+    [HttpGet("google/callback")]
+    public async Task<IActionResult> GoogleLoginCallback(
+        [FromQuery] string? code,
+        [FromQuery] string? state,
+        [FromServices] IGoogleTokenClient tokenClient,
+        CancellationToken cancellationToken)
+    {
+        var loginError = Redirect(FrontendUrl("/login") + "?error=google");
+
+        // state de um só uso: lido e invalidado ANTES de qualquer
+        // processamento — replay do callback recaiu num cookie já morto.
+        Request.Cookies.TryGetValue(GoogleOAuthFlow.StateCookieName, out var cookieState);
+        if (!string.IsNullOrEmpty(cookieState))
+        {
+            Response.Cookies.Delete(GoogleOAuthFlow.StateCookieName, new CookieOptions
+            {
+                Path = "/",
+                Secure = true,
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax
+            });
+        }
+
+        var options = googleAuthOptions.Value;
+        if (!options.IsCodeFlowConfigured)
+            return loginError;
+
+        if (string.IsNullOrEmpty(cookieState) || string.IsNullOrEmpty(state) || string.IsNullOrEmpty(code))
+            return loginError;
+
+        // Tempo fixo: state não é segredo, mas a comparação não pode vazar
+        // o prefixo por timing (RFC 6749 §10.12).
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(cookieState), Encoding.UTF8.GetBytes(state)))
+            return loginError;
+
+        var idToken = await tokenClient.ExchangeCodeForIdTokenAsync(code, cancellationToken);
+        if (string.IsNullOrEmpty(idToken))
+            return loginError;
+
+        var result = await authenticationService.LoginWithGoogleAsync(
+            new GoogleLoginRequest(idToken), cancellationToken);
+
+        if (result.Failure is not null || result.Result is null)
+            return Redirect(GoogleLoginErrorRedirect(result.Failure));
+
+        await HttpContext.SignInAsync(
+            IdentityConstants.ApplicationScheme, CreatePrincipal(result.Result.User));
+        return Redirect(FrontendUrl("/"));
+    }
+
+    /// <summary>
+    /// F43-T003 (rev. 2026-10-24): falha do login social. Apenas o motivo
+    /// "conta indisponível" ganha código na URL — o usuário já provou aquele
+    /// e-mail no Google, então esconder que a conta não está ativa só o
+    /// deixava sem ação. A mensagem continua sendo do backend (a UI busca em
+    /// <see cref="GoogleLoginFailure"/>) e é única para conta inexistente e
+    /// inativa (anti-enumeração preservada). Os demais motivos seguem
+    /// indistinguíveis.
+    /// </summary>
+    private string GoogleLoginErrorRedirect(ExternalLoginFailure? failure)
+    {
+        var url = FrontendUrl("/login") + "?error=google";
+        return failure == ExternalLoginFailure.AccountUnavailable
+            ? url + "&reason=" + GoogleOAuthFlow.AccountUnavailableReason
+            : url;
+    }
+
+    /// <summary>
+    /// F43-T003 (rev.): mensagem do erro do login social por código — fonte
+    /// única do texto no backend (a UI não mantém catálogo). Código
+    /// desconhecido ou ausente = mensagem genérica. Endpoint público barato,
+    /// sem estado: nunca devolve se o e-mail existe.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("google/failure")]
+    public IActionResult GoogleLoginFailure([FromQuery] string? reason)
+    {
+        var known = reason == GoogleOAuthFlow.AccountUnavailableReason;
+        return Ok(ApiResponse.Ok(new GoogleLoginFailureViewModel(
+            known ? GoogleOAuthFlow.AccountUnavailableReason : "unknown",
+            known ? GoogleAccountUnavailableMessage : GoogleGenericLoginErrorMessage)));
+    }
+
+    /// <summary>URL absoluta do SPA — mesmo fallback do link de reset (F1-T017).</summary>
+    private string FrontendUrl(string path)
+    {
+        var configured = frontendOptions.Value.BaseUrl;
+        var baseUrl = string.IsNullOrWhiteSpace(configured)
+            ? $"{Request.Scheme}://{Request.Host}"
+            : configured.TrimEnd('/');
+        return baseUrl + path;
+    }
 
     [AllowAnonymous]
     [HttpRateLimit(RateLimitCategory.Login)]
@@ -82,14 +237,14 @@ public sealed class AuthenticationController(
         // id_token nunca é ecoado na resposta nem registrado em log.
         if (result.Failure == ExternalLoginFailure.ProviderNotConfigured)
             return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                ApiResponse<object>.Fail(["Login com Google não está configurado."]));
+                ApiResponse<object>.Fail([GoogleUnavailableMessage]));
 
         if (result.Failure == ExternalLoginFailure.InvalidCredential)
-            return Unauthorized(ApiResponse<object>.Fail(["Credencial do Google inválida."]));
+            return Unauthorized(ApiResponse<object>.Fail([GoogleInvalidCredentialMessage]));
 
         if (result.Failure == ExternalLoginFailure.AccountUnavailable)
             return StatusCode(StatusCodes.Status403Forbidden,
-                ApiResponse<object>.Fail(["Conta não encontrada ou inativa. Fale com o administrador."]));
+                ApiResponse<object>.Fail([GoogleAccountUnavailableMessage]));
 
         await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, CreatePrincipal(result.Result!.User));
         return Ok(ApiResponse.Ok(result.Result));

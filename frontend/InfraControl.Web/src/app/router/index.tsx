@@ -260,7 +260,30 @@ function AppContent() {
     );
   }
 
+  const isOps = location.pathname === "/operations-center";
+  useEffect(() => {
+    if (isOps) {
+      document.body.classList.add("noc-route-active");
+    } else {
+      document.body.classList.remove("noc-route-active");
+      document.body.classList.remove("noc-fullscreen-active");
+    }
+    return () => {
+      document.body.classList.remove("noc-route-active");
+      document.body.classList.remove("noc-fullscreen-active");
+    };
+  }, [isOps]);
   return (
+    <>
+      {isOps ? (
+        <Routes>
+          <Route path="/operations-center" element={
+            <ProtectedRoute>
+              <OperationsCenterPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      ) : (
     <AppLayout activeRoute={location.pathname} onNavigate={handleNavigate}>
       <SessionGate>
         <Suspense fallback={<PageLoader />}>
@@ -431,11 +454,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
           {/* F37-T001 — Central de Operações (painel kiosk) */}
-          <Route path="/operations-center" element={
-            <ProtectedRoute>
-              <OperationsCenterPage />
-            </ProtectedRoute>
-          } />
+
           <Route path="/pdi" element={
             <ProtectedRoute>
               <PdiPage />
@@ -522,9 +541,11 @@ function AppContent() {
           } />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </Suspense>
+        </Suspense>
       </SessionGate>
     </AppLayout>
+      )}
+    </>
   );
 }
 

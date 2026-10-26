@@ -126,21 +126,56 @@
 
 .uni-login-password input {
   padding-right: 40px;
+  width: 100%;
 }
 
 .uni-login-password button {
   position: absolute;
-  right: 10px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--uni-text-muted);
   font-size: 14px;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
 }
 
 .uni-login-password button:hover {
-  color: var(--uni-text);
+  color: var(--uni-text-primary);
+}
+
+.uni-login-field-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.uni-login-input-with-toggle {
+  padding-right: 44px;
+  width: 100%;
+}
+
+.uni-login-toggle {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: 0;
+  color: var(--uni-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  width: 34px;
+  border-radius: 6px;
+}
+
+.uni-login-toggle:hover {
+  color: var(--uni-text-primary);
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .uni-login-submit {
@@ -207,12 +242,8 @@
   background: var(--uni-border);
 }
 
-.uni-login-social {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+/* F43-T003: o link social é um <a> para o start no backend — o estilo
+   uni-login-social-btn (antes do wrapper do popup GIS) vira o botão. */
 .uni-login-social-btn {
   display: flex;
   align-items: center;

@@ -1017,6 +1017,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
 
+                    b.Property<string>("ImagePath")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("NextReviewAt")
                         .HasColumnType("timestamp with time zone");
 

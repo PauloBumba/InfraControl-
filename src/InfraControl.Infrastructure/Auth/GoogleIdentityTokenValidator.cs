@@ -6,11 +6,11 @@ using Microsoft.Extensions.Options;
 namespace InfraControl.Infrastructure.Auth;
 
 /// <summary>
-/// F1-T014 — configuração do login social Google. O Client ID é público por
-/// natureza (o Google Identity Services exige que ele fique no browser) e
-/// aparece no bundle como identificador da aplicação, não como segredo. Não
-/// há Client Secret: o fluxo é GSI com `id_token`, sem troca de
-/// authorization code, portanto nada é guardado em secret manager.
+/// F1-T014 (GSI id_token) + F43/ADR-064 (authorization code com callback no
+/// backend). O Client ID é público por natureza (identificador da
+/// aplicação, não segredo). O Client Secret (F43) existe SOMENTE no
+/// servidor — usado na troca <c>code → token</c> no callback; nunca chega
+/// ao browser nem à URL de autorização.
 /// </summary>
 public sealed class GoogleAuthOptions
 {
@@ -18,16 +18,38 @@ public sealed class GoogleAuthOptions
 
     public string ClientId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// F43-T001/ADR-064: segredo do OAuth Client (tipo Web application),
+    /// usado só pelo backend na troca code → token. Nunca em log/URL.
+    /// </summary>
+    public string ClientSecret { get; set; } = string.Empty;
+
+    /// <summary>
+    /// F43-T001: redirect URI CADASTRADA no Console do Google
+    /// (ex.: https://host/api/v1/auth/google/callback). O Google só devolve
+    /// o code para URIs batendo exatamente com o cadastro.
+    /// </summary>
+    public string RedirectUri { get; set; } = string.Empty;
+
     /// <summary>Domínios Google Workspace permitidos (ex.: "empresa.com.br"). Vazio = sem restrição.</summary>
     public string[] AllowedDomains { get; set; } = [];
 
     /// <summary>
-    /// Só o ClientId é necessário: o fluxo é GSI (id_token) e a validação
-    /// confere a audiência do token. Não existe Client Secret no projeto —
-    /// a API nunca troca authorization code por token, então não há nada
-    /// para guardar em secret manager.
+    /// Fluxo GSI (POST /auth/google com id_token): só o ClientId basta —
+    /// é a audiência do token validado por JWKS. Endpoint mantido como
+    /// fallback/rollback do fluxo code (F43).
     /// </summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId);
+
+    /// <summary>
+    /// F43-T001: code flow completo — exige também o secret (troca no
+    /// servidor) e a redirect URI registrada no Console. Sem os três,
+    /// GET /auth/google responde 503 (start desligado).
+    /// </summary>
+    public bool IsCodeFlowConfigured =>
+        IsConfigured
+        && !string.IsNullOrWhiteSpace(ClientSecret)
+        && !string.IsNullOrWhiteSpace(RedirectUri);
 
     /// <summary>
     /// Emissores aceitos para o <c>iss</c> do id_token. A biblioteca do Google

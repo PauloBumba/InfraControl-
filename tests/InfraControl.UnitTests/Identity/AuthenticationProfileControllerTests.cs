@@ -3,6 +3,7 @@ using InfraControl.Api.Controllers.Identity;
 using InfraControl.Api.Middleware;
 using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Identity;
+using InfraControl.Infrastructure.Auth;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Antiforgery;
@@ -63,7 +64,7 @@ public sealed class AuthenticationProfileControllerTests
         var controller = new AuthenticationController(
             auth.Object,
             Mock.Of<IAntiforgery>(),
-            Options.Create(new FrontendOptions()))
+            Options.Create(new FrontendOptions()), Options.Create(new GoogleAuthOptions()))
         {
             ControllerContext = new ControllerContext
             {

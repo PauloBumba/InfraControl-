@@ -26,6 +26,7 @@ using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Discovery;
 using InfraControl.Infrastructure.Integrations.WhatsApp;
+using InfraControl.Infrastructure.Integrations.Zabbix;
 using InfraControl.Infrastructure.Monitoring;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.RemoteAccess;
@@ -115,6 +116,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // ADR-027: pipeline Zabbix → MonitoringEvent → Alert → Incident
         services.AddScoped<IMonitoringEventRepository, MonitoringEventRepository>();
         services.AddScoped<IMonitoringEventIngestor, MonitoringEventIngestor>();
+        services.AddScoped<IZabbixEventContextReader, ZabbixEventContextReader>();
+        services.AddScoped<IZabbixClient, FakeZabbixClient>();
         services.AddScoped<IUpstreamCorrelationRepository, UpstreamCorrelationRepository>();
         services.AddScoped<IRootCauseResolver, RootCauseResolver>();
         services.AddScoped<IAlertEvaluator, AlertEvaluator>();

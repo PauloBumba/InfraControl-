@@ -24,6 +24,8 @@ public sealed class CreateKnowledgeArticleViewModel
     public List<string>? Tags { get; set; }
 
     public Guid? ResponsibleId { get; set; }
+
+    public string? ImagePath { get; set; }
 }
 
 public sealed class UpdateKnowledgeArticleViewModel
@@ -54,6 +56,8 @@ public sealed class UpdateKnowledgeArticleViewModel
     public List<string>? Tags { get; set; }
 
     public Guid? ResponsibleId { get; set; }
+
+    public string? ImagePath { get; set; }
 }
 
 /// <summary>F24-T005/K5 — agenda de revisão periódica (docs/32 §12).</summary>

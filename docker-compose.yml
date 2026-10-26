@@ -213,6 +213,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # F46-T008: encontrado Exited(0) há 26h (sem política) — religado e
+    # com restart para não sumir silenciosamente (monitorado pelo Zabbix).
+    restart: unless-stopped
     networks:
       - infracontrol
 
@@ -275,6 +278,12 @@ services:
       # levanta via AI_GATEWAY_TIMEOUT no .env (padrão preserva 30s).
       Ai__Gateway__Timeout: ${AI_GATEWAY_TIMEOUT:-00:00:30}
       Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
+      # F43/ADR-064 — authorization code com callback no backend: segredo e
+      # redirect URI só no ambiente do container (nunca em bundle, URL ou
+      # log). Sem os três o GET /auth/google responde 503 e o fluxo antigo
+      # POST /auth/google (GSI) segue como fallback.
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Authentication__Google__RedirectUri: ${GOOGLE_REDIRECT_URI:-}
       # Bootstrap Admin (opt-in, idempotente; documentado em .env.example e
       # docs/05). Sem repassar aqui a chave nunca chega na API e o primeiro
       # deploy nasce sem usuário Admin — policy Administer fica 403 para
@@ -283,6 +292,31 @@ services:
       BootstrapAdmin__Email: ${BootstrapAdmin__Email:-admin@example.com}
       BootstrapAdmin__DisplayName: ${BootstrapAdmin__DisplayName:-InfraControl Admin}
       BootstrapAdmin__Password: ${BootstrapAdmin__Password:-}
+      # F46-T001 — dados mock de diagnóstico: Enabled popula idempotente
+      # (marcados [MOCK]/@mock.test); Purge remove só o marcado e não popula
+      # na mesma partida. Desligado por padrão — produção intocada.
+      MockData__Enabled: ${MOCK_DATA_ENABLED:-false}
+      MockData__Purge: ${MOCK_DATA_PURGE:-false}
+      # F46-T006 — saúde dos serviços irmãos: a API sonda os containers pela
+      # rede interna (DNS por nome de serviço, §48) e o Link é o console que
+      # a HealthPage oferece ao usuário final (portas públicas do host).
+      Health__Services__0__Name: frontend
+      Health__Services__0__Url: http://frontend
+      Health__Services__0__Link: https://localhost:8443
+      Health__Services__1__Name: rabbitmq
+      Health__Services__1__Url: http://rabbitmq:15672
+      Health__Services__1__Link: http://localhost:15672
+      Health__Services__2__Name: zabbix-web
+      Health__Services__2__Url: http://zabbix-web
+      Health__Services__2__Link: http://localhost:8086
+      Health__Services__3__Name: evolution
+      Health__Services__3__Url: http://evolution-api:8080
+      Health__Services__3__Link: http://localhost:8081
+      Health__Services__4__Name: guacamole
+      Health__Services__4__Url: http://guacamole:8080/guacamole
+      Health__Services__5__Name: adminer
+      Health__Services__5__Url: http://adminer
+      Health__Services__5__Link: http://localhost:8082
       # Fase 0: repasse de integração/monitoramento/notificação que existiam só
       # no appsettings — sem aqui a action legada do Zabbix cai no 401 (Token
       # vazio) e o SnmpSystem roda com o default "public"/161 da engenharia,
@@ -584,6 +618,15 @@ services:
     environment:
       ZBX_SERVER_HOST: zabbix-server
       ZBX_HOSTNAME: "Zabbix server"
+    volumes:
+      # F46-T007: plugin Docker do agent2 (autodiscovery de containers —
+      # docker.containers.discovery → CPU/mem/IO por serviço da stack).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/zabbix-agent2-plugins-docker.conf:/etc/zabbix/zabbix_agent2.d/plugins.d/docker.conf:ro
+    # gid do grupo docker do host (socket 660 root:docker; padrão 964 —
+    # sobrescrever com DOCKER_GID se o grupo local tiver outro gid).
+    group_add:
+      - "${DOCKER_GID:-964}"
     ports:
       - "${ZABBIX_AGENT_PORT:-10050}:10050"
     depends_on:

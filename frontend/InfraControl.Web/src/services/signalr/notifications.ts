@@ -24,10 +24,29 @@ export interface NotificationPushEvent {
 
 type Listener = (event: NotificationPushEvent) => void;
 
+/** F46-T006 — mudança do status agregado de saúde (HealthStatusNotifier). */
+export interface HealthStatusEvent {
+  status: string;
+  previous: string;
+  changedAt: string;
+  unhealthy: string[];
+}
+
+type HealthListener = (event: HealthStatusEvent) => void;
+
 let connection: HubConnection | null = null;
 let starting = false;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let listeners: Listener[] = [];
+let healthListeners: HealthListener[] = [];
+
+/** Assina mudanças de saúde (HealthPage); retorna unsubscribe. */
+export function onHealthStatusChange(listener: HealthListener): () => void {
+  healthListeners.push(listener);
+  return () => {
+    healthListeners = healthListeners.filter((entry) => entry !== listener);
+  };
+}
 
 /** Assina o barramento; retorna a função de unsubscribe. */
 export function onNotificationPush(listener: Listener): () => void {
@@ -51,6 +70,9 @@ export async function startNotificationsConnection(): Promise<void> {
   const hub = createHubConnection("/hubs/notifications");
   hub.on("notification", (payload: NotificationPushEvent) => {
     listeners.forEach((listener) => listener(payload));
+  });
+  hub.on("health-status", (payload: HealthStatusEvent) => {
+    healthListeners.forEach((listener) => listener(payload));
   });
 
   try {
@@ -80,6 +102,7 @@ export async function stopNotificationsConnection(): Promise<void> {
     retryTimer = null;
   }
   listeners = [];
+  healthListeners = [];
   if (current) {
     try {
       await current.stop();

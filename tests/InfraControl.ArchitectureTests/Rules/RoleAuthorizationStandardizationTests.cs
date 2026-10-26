@@ -107,6 +107,7 @@ public sealed class RoleAuthorizationStandardizationTests : BaseArchitectureTest
             "AuthenticationController.Login",
             "AuthenticationController.GoogleLoginStart",
             "AuthenticationController.GoogleLoginCallback",
+            "AuthenticationController.GoogleLoginFailure",
             "AuthenticationController.Refresh",
             "AuthenticationController.GoogleLogin",
             "AuthenticationController.ForgotPassword",

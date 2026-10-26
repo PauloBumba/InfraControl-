@@ -1,4 +1,5 @@
 using InfraControl.Application;
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Identity;
 using InfraControl.Application.Integrations.Unifi;
 using InfraControl.Application.Integrations.Zabbix;
@@ -21,6 +22,7 @@ using InfraControl.Application.Notifications.SignalR;
 using InfraControl.BuildingBlocks.Application;
 using MediatR;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -51,6 +53,9 @@ builder.Services.AddSingleton(builder.Configuration
     .GetSection(BootstrapAdminOptions.SectionName)
     .Get<BootstrapAdminOptions>() ?? new BootstrapAdminOptions());
 builder.Services.AddScoped<IAdminBootstrapper, AdminBootstrapper>();
+
+// F46-T001: seed de dados mock de diagnóstico (desligado por padrão).
+builder.Services.AddScoped<InfraControl.Infrastructure.Persistence.Seed.MockDataSeeder>();
 
 // ── Controllers ──────────────────────────────────────────────────────────
 // F0-T023: todo corpo de erro — inclusive ModelState do binding — usa o
@@ -89,6 +94,8 @@ builder.Services.AddHostedService<NotificationTelegramWorker>();
 builder.Services.AddHostedService<NotificationWhatsAppWorker>();
 builder.Services.AddHostedService<NotificationWebhookWorker>();
 builder.Services.AddHostedService<NotificationSlackWorker>();
+// F46-T006: aviso SignalR quando o status agregado de saúde muda.
+builder.Services.AddHostedService<InfraControl.Api.Workers.HealthStatusNotifier>();
 // F9-T006: o admin escolhe os canais do fanout e os destinos por canal
 // (Notifications:Channels) — a MESMA seção lida pelo NotificationEventConsumer
 // no host dos Workers; defaults vazios = comportamento Email+SignalR.
@@ -129,6 +136,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
+// ADR-021: a API sobrescreve o NullCurrentCorrelation do AddInfrastructure
+// (última-registração ganha) — sem isto todo OutboxMessage da API nasce com
+// CorrelationId nulo e o rastro morre entre API e workers (F46-T004).
+builder.Services.AddScoped<ICurrentCorrelation, HttpContextCorrelation>();
 builder.Services.AddInfraControlDataProtection(builder.Configuration);
 builder.Services.AddAuthentication(options =>
     {
@@ -213,7 +224,32 @@ builder.Services.AddHealthChecks()
     // FAI-T006/S5 (§44): camada de IA como degradação visível ( Healthy
     // / Degraded — nunca Unhealthy por falta de Ollama; payload com o
     // estado por capacidade/provider).
-    .AddCheck<AiRuntimeHealthCheck>("ai-runtime", tags: ["ai"]);
+    .AddCheck<AiRuntimeHealthCheck>("ai-runtime", tags: ["ai"])
+    // F46-T006: workers saudáveis via backlog do outbox (processo separado,
+    // sem porta própria para checar).
+    .AddCheck<OutboxBacklogHealthCheck>("outbox-backlog", tags: ["workers"]);
+
+// F46-T006: serviços irmãos da stack via HTTP (configurados por ambiente —
+// no compose apontam para os containers da rede docker).
+builder.Services.AddHttpClient("health-probe", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+var healthServiceEndpoints = builder.Configuration
+    .GetSection("Health:Services")
+    .Get<List<HealthServiceEndpoint>>() ?? [];
+foreach (var endpoint in healthServiceEndpoints)
+{
+    // Registration manual (factory): nome/url/link por instância, sem
+    // depender da assinatura params de AddTypeActivatedCheck.
+    builder.Services.AddHealthChecks().Add(new HealthCheckRegistration(
+        $"svc-{endpoint.Name}",
+        provider => new ConfiguredHttpHealthCheck(
+            provider.GetRequiredService<IHttpClientFactory>(),
+            endpoint.Name, endpoint.Url, endpoint.Link),
+        failureStatus: null,
+        tags: ["services"]));
+}
 
 // ── OpenTelemetry ────────────────────────────────────────────────────────
 var otelServiceName = builder.Configuration["OpenTelemetry:ServiceName"] ?? "InfraControl.Api";
@@ -256,6 +292,43 @@ if (builder.Configuration.GetValue<bool>($"{BootstrapAdminOptions.SectionName}:E
     var aiProviderSeeder =
         aiSeedScope.ServiceProvider.GetRequiredService<AiProviderSeeder>();
     await aiProviderSeeder.SeedAsync();
+}
+
+// F46-T001 (diagnóstico de engenharia): dados mock marcados [MOCK]/@mock.test.
+// MockData:Enabled=true popula idempotente; MockData:Purge=true remove SÓ o
+// marcado (na mesma partida purga e não popula). Nada roda com as duas flags
+// desligadas — produção fica intocada.
+{
+    var mockData = builder.Configuration
+        .GetSection(InfraControl.Infrastructure.Persistence.Seed.MockDataOptions.SectionName)
+        .Get<InfraControl.Infrastructure.Persistence.Seed.MockDataOptions>()
+        ?? new InfraControl.Infrastructure.Persistence.Seed.MockDataOptions();
+
+    if (mockData.Purge || mockData.Enabled)
+    {
+        using var mockScope = app.Services.CreateScope();
+        var seeder = mockScope.ServiceProvider
+            .GetRequiredService<InfraControl.Infrastructure.Persistence.Seed.MockDataSeeder>();
+
+        if (mockData.Purge)
+        {
+            var removed = await seeder.PurgeAsync();
+            app.Logger.LogInformation(
+                "MockData:Purge removeu {Count} registros marcados [MOCK]/@mock.test",
+                removed);
+        }
+        else
+        {
+            var result = await seeder.SeedAsync();
+            app.Logger.LogInformation(
+                "MockData:Enabled populou diagnóstico — users {Users}, locations {Locations}, " +
+                "services {Services}, devices {Devices}, incidents {Incidents}, alerts {Alerts}, " +
+                "tasks {Tasks}, audits {Audits}",
+                result.UsersCreated, result.LocationsCreated, result.ServicesCreated,
+                result.DevicesCreated, result.IncidentsCreated, result.AlertsCreated,
+                result.TasksCreated, result.AuditEntriesCreated);
+        }
+    }
 }
 
 // ── Pipeline ─────────────────────────────────────────────────────────────
@@ -311,7 +384,12 @@ app.MapHealthChecks("/health", new HealthCheckOptions
                 name = e.Key,
                 status = e.Value.Status.ToString(),
                 description = e.Value.Description,
-                duration = e.Value.Duration.TotalMilliseconds
+                duration = e.Value.Duration.TotalMilliseconds,
+                // F46-T006: link do console do serviço (quando o check declara
+                // no Data) — a HealthPage renderiza a âncora.
+                link = e.Value.Data.TryGetValue("link", out var link)
+                    ? link?.ToString()
+                    : null
             }),
             totalDuration = report.TotalDuration.TotalMilliseconds
         };

@@ -14,34 +14,125 @@
 .uni-public-card a {
   color: var(--uni-accent);
   font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.uni-public-card a:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
 }
 
 .uni-public-card-link {
   font-size: 13px;
-  margin-top: 4px;
+  margin-top: 8px;
   display: inline-block;
+  color: var(--uni-accent);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
 }
 
-/* Band CTA simples */
-.uni-public-band {
-  max-width: 1080px;
-  margin: 0 auto;
+.uni-public-card-link:hover {
+  color: #1d4ed8;
+  transform: translateX(4px);
+}
+
+/* FAQ melhorado */
+.uni-public-faq-item {
   background: var(--surface-card, #fff);
   border: 1px solid var(--uni-border);
   border-radius: 12px;
-  padding: 32px 24px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.uni-public-faq-item:hover {
+  border-color: var(--uni-accent);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.uni-public-faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--uni-text);
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.uni-public-faq-question:hover {
+  background: var(--uni-bg);
+}
+
+.uni-public-faq-question i {
+  color: var(--uni-text-muted);
+  font-size: 14px;
+  transition: transform 0.3s;
+}
+
+.uni-public-faq-item.open .uni-public-faq-question i {
+  transform: rotate(180deg);
+}
+
+.uni-public-faq-answer {
+  padding: 0 24px 20px;
+  font-size: 14px;
+  color: var(--uni-text-secondary);
+  line-height: 1.7;
+}
+
+/* Band CTA melhorado */
+.uni-public-band {
+  background: linear-gradient(135deg, var(--uni-accent) 0%, #1d4ed8 100%);
+  padding: 56px 20px;
   text-align: center;
+  color: #fff;
+  border-radius: 16px;
+  max-width: 1080px;
+  margin: 0 auto;
 }
 
 .uni-public-band h2 {
-  margin: 0 0 16px;
-  font-size: 20px;
+  margin: 0 0 20px;
+  font-size: 26px;
   font-weight: 700;
-  color: var(--uni-text);
+  color: #fff;
+}
+
+.uni-public-band .uni-public-button {
+  background: #fff;
+  color: var(--uni-accent);
+  border-color: #fff;
+}
+
+.uni-public-band .uni-public-button:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 720px) {
   .uni-public-band {
-    padding: 24px 16px;
+    padding: 40px 16px;
+  }
+
+  .uni-public-band h2 {
+    font-size: 22px;
+  }
+
+  .uni-public-faq-question {
+    padding: 16px 20px;
+  }
+
+  .uni-public-faq-answer {
+    padding: 0 20px 16px;
   }
 }

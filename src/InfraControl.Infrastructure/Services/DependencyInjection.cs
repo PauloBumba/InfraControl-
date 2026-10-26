@@ -66,6 +66,7 @@ using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -100,9 +101,12 @@ public static class DependencyInjection
         AppTimeProvider.Current = saoPauloProvider;
         services.AddSingleton<TimeProvider>(saoPauloProvider);
 
-        // PostgreSQL
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        // PostgreSQL. Interceptors vêm do DI (vazio em produção; os testes
+        // registram o DbCommandCounter para caçar N+1 — F46-T003).
+        services.AddDbContext<AppDbContext>((provider, options) =>
+            options
+                .UseNpgsql(connectionString)
+                .AddInterceptors(provider.GetServices<IInterceptor>()));
 
         // Identity foundation. Authentication schemes and endpoints are separate Tasks.
         services.AddIdentityCore<InfraControlUser>(options =>
@@ -330,6 +334,13 @@ public static class DependencyInjection
         // ClientId a feature simplesmente fica desligada.
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
         services.AddScoped<IGoogleIdentityTokenValidator, GoogleIdentityTokenValidator>();
+
+        // F43-T002 (ADR-064): authorization code → id_token trocado NO
+        // servidor (Client Secret nunca sai do ambiente). Named client com
+        // timeout explícito — o exchange não pode prender o request de login.
+        services.AddScoped<IGoogleTokenClient, GoogleTokenClient>();
+        services.AddHttpClient(GoogleTokenClient.HttpClientName)
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15));
 
         // F1-T016a (ADR-019): tolerância do TOTP é política de configuração,
         // não de código — padrão ±1 período de 30s.

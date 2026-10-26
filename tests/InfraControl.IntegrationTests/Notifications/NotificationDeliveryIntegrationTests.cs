@@ -1,5 +1,4 @@
 using FluentAssertions;
-using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Domain.Entities;
@@ -21,12 +20,13 @@ namespace InfraControl.IntegrationTests.Notifications;
 /// </summary>
 public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
 {
+    // Construtor compacto (WhatsApp resolver + regra por evento resolvidos
+    // dentro) — mesmo formato dos testes unitários do consumer.
     private static NotificationEventConsumer CreateConsumer(AppDbContext context)
         => new(
             context,
             new InfraControl.Infrastructure.Repositories.InboxStore(context),
             Options.Create(new NotificationChannelsOptions()),
-            new StaticWhatsAppOptionsResolver(new WhatsAppChannelOptions()),
             NullLogger<NotificationEventConsumer>.Instance);
 
     private static async Task<Guid> SeedUserAsync(AppDbContext context, string email)

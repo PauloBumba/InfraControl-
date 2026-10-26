@@ -62,7 +62,7 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
         var result = await sender.Send(
             new CreateKnowledgeArticleCommand(
                 model.Title, model.Content, model.CategoryId,
-                model.Type, model.Description, model.Tags, model.ResponsibleId),
+                model.Type, model.Description, model.Tags, model.ResponsibleId, model.ImagePath),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -79,7 +79,7 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
             new UpdateKnowledgeArticleCommand(
                 id, model.Title, model.Content, model.CategoryId,
                 model.Reason,
-                model.Type, model.Description, model.Tags, model.ResponsibleId),
+                model.Type, model.Description, model.Tags, model.ResponsibleId, model.ImagePath),
             cancellationToken);
         return NoContent();
     }

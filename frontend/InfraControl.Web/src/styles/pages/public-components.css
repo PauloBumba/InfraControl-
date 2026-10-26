@@ -72,23 +72,25 @@
 }
 
 .uni-public-social-link {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--uni-border);
   background: var(--surface-card);
   color: var(--uni-text-secondary);
-  font-size: 14px;
-  transition: all 0.15s;
+  font-size: 15px;
+  transition: all 0.3s;
 }
 
 .uni-public-social-link:hover {
-  background: var(--uni-hover);
-  color: var(--uni-accent);
+  background: var(--uni-accent);
+  color: #fff;
   border-color: var(--uni-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* Footer bottom links */
@@ -124,12 +126,13 @@
   background: var(--surface-card);
   border: 1px solid var(--uni-border);
   border-radius: 12px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
 }
 
 .uni-public-stat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+  border-color: var(--uni-accent);
 }
 
 .uni-public-stat-value {

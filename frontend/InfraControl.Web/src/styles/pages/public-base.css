@@ -233,12 +233,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
 }
 
 .uni-public-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
   border-color: var(--uni-accent);
 }
 
@@ -276,6 +276,7 @@
 .uni-public-footer {
   background: var(--surface-card, #fff);
   border-top: 1px solid var(--uni-border);
+  margin-top: auto;
 }
 
 /* Grid do footer com 4 colunas */

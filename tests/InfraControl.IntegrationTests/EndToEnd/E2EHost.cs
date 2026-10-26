@@ -4,10 +4,14 @@ using FluentAssertions;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Auth;
 using InfraControl.Infrastructure.Persistence;
+using InfraControl.IntegrationTests.Common;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
 using DomainUser = InfraControl.Domain.Entities.User;
 
@@ -40,6 +44,16 @@ public sealed class E2EHost : IAsyncLifetime
     private readonly PostgreSqlContainer _postgres =
         new PostgreSqlBuilder("postgres:17-alpine").Build();
 
+    private bool _quietWorkers;
+
+    /// <summary>
+    /// Desliga os hosted services de notificações/saúde antes do boot: o poll
+    /// deles (2s) enche o DbCommandCounter de SQLs de background e polui os
+    /// testes de orçamento de queries (F46-T003). Classes que exercitam tempo
+    /// real mantêm os workers ligados (padrão).
+    /// </summary>
+    public void DisableApiWorkers() => _quietWorkers = true;
+
     private readonly IContainer _redis =
         new ContainerBuilder("redis:7-alpine")
             .WithPortBinding(6379, true)
@@ -49,9 +63,17 @@ public sealed class E2EHost : IAsyncLifetime
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
+    /// <summary>Chave do contador de SQL deste host (porta única do Postgres).</summary>
+    public string SqlCounterKey { get; private set; } = string.Empty;
+
     public async Task InitializeAsync()
     {
         await Task.WhenAll(_postgres.StartAsync(), _redis.StartAsync());
+
+        // F46-T003: contador de SQL por host (classes E2E paralelas); a
+        // porta mapeada do Postgres é única por container.
+        SqlCounterKey = $"Port={_postgres.GetMappedPublicPort(5432)}";
+        DbCommandCounter.Instance.Register(SqlCounterKey);
 
         // Schema ANTES do boot: o startup de Program roda o bootstrap do admin
         // (BootstrapAdmin:Enabled=true por override de configuração do teste).
@@ -78,11 +100,34 @@ public sealed class E2EHost : IAsyncLifetime
 
             // Os testes compartilham o mesmo "IP" do TestServer; sem folga o
             // limite real (5 login/min) derrubaria a própria suíte.
-            builder.UseSetting("RateLimit:Rules:Login:PermitLimit", "1000");
-            builder.UseSetting("RateLimit:Rules:PasswordReset:PermitLimit", "1000");
+            builder.UseSetting("RateLimit:Rules:Login:PermitLimit", "100000");
+            builder.UseSetting("RateLimit:Rules:PasswordReset:PermitLimit", "100000");
+            // F46-T003: o sweep de latência dispara ~300 requisições em menos
+            // de 1 minuto — o Default (120/min) derrubaria o próprio teste com 429.
+            builder.UseSetting("RateLimit:Rules:Default:PermitLimit", "100000");
 
             // Webhook de Zabbix habilitado (token divergente/ausente = 401).
             builder.UseSetting("Integrations:Zabbix:Token", ZabbixToken);
+
+            // F46-T003 — contador de comandos SQL (caça a N+1) por request.
+            // O AddDbContext de produção resolve IInterceptor do DI (vazio em
+            // produção); aqui a instância é adicionada e o contexto a aplica.
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton<IInterceptor>(DbCommandCounter.Instance);
+                if (_quietWorkers)
+                {
+                    foreach (var descriptor in services
+                        .Where(d => d.ServiceType == typeof(IHostedService)
+                                   && d.ImplementationType?.Namespace?
+                                       .StartsWith("InfraControl.Api.Workers",
+                                           StringComparison.Ordinal) == true)
+                        .ToList())
+                    {
+                        services.Remove(descriptor);
+                    }
+                }
+            });
         });
 
         // Boot do host (bootstrap do admin incluído) antes do seed dos demais.
@@ -100,6 +145,9 @@ public sealed class E2EHost : IAsyncLifetime
 
         await _redis.DisposeAsync();
         await _postgres.DisposeAsync();
+
+        if (!string.IsNullOrEmpty(SqlCounterKey))
+            DbCommandCounter.Instance.Unregister(SqlCounterKey);
     }
 
     private async Task SeedUserAsync(string email, string displayName, UserRole? role)

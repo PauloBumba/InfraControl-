@@ -51,6 +51,9 @@ public sealed class KnowledgeArticle : AggregateRoot
     public string Version { get; private set; } = "1.0";
     private int _versionMajorFloor = 1;
 
+    // Campo para caminho da imagem (upload)
+    public string? ImagePath { get; private set; }
+
     private KnowledgeArticle() { }
 
     /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
@@ -93,12 +96,14 @@ public sealed class KnowledgeArticle : AggregateRoot
         KnowledgeArticleType? type,
         string? description,
         IReadOnlyCollection<string>? tags,
-        Guid? responsibleId)
+        Guid? responsibleId,
+        string? imagePath = null)
     {
         Type = type;
         Description = NormalizeDescription(description);
         _tags = NormalizeTags(tags);
         ResponsibleId = responsibleId;
+        ImagePath = imagePath;
     }
 
     private static string? NormalizeDescription(string? description)
