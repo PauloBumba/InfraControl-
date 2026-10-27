@@ -11,7 +11,7 @@
 | 5 | Bug trunk 8.0rc2 (`web.test.*`) | **Sem ação (contornado na T007)** | Reavaliar em upgrade do Zabbix para 8.0 final |
 | 6 | SignalR limitado ao poll de 2s | **Sem ação (informativo)** | Aceitável para notificações |
 | 2 | `json_agg` em `/tasks` | **Não feito (proposital)** | 10 SQLs fixos O(1), sem dor — revisar se volume crescer |
-| 1 | Rate limit `Default` (120/min) produção | **Pendente de decisão humana** | Altera limite de API pública; requer aprovação explícita antes de mudar |
+| 1 | Rate limit `Default` (120 req/min) produção | **Feito (aprovado)** | Elevado para **300/60** (`appsettings.json` + `HttpRateLimitOptions` + docs/08). Login/PasswordReset/Webhook/Ingestion inalterados. |
 
 ## 2. Correções encontradas na execução (fora do §6)
 
@@ -37,10 +37,16 @@
 
 ## 4. Pendências
 
-1. **Rate limit `Default` em produção** — decisão do usuário (120/min pode derrubar rajadas legítimas de dashboard).
+1. ~~Rate limit `Default` em produção~~ — **aprovado e aplicado** (300/60).
 2. **Push dos commits locais** (`451ab7b` F41 SMTP, `f32d5fc` F44) — nunca feito automaticamente.
 3. `OperationsCenterPage.test.tsx` OOM/lento — dívida da sessão F44 (não tocado).
 4. Garbage collection do LLD do Zabbix limpará os ~1166 itens órfãos de containers E2E (automaticamente; reavaliar na próxima checagem).
+
+## 5. Validação do rate limit
+
+- `dotnet build` Api → 0 erros.
+- `DistributedHttpRateLimiterTests` → 9/9 (usa regras próprias nos testes).
+- `HttpRateLimitPipelineTests` → 2/2 (pipeline real, overrides próprios).
 
 ## 5. Relatórios F46
 

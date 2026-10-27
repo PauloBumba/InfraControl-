@@ -5,7 +5,7 @@
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
 **Última atualização:** 2026-10-25
-**F46 concluída:** engenharia de produto ponta-a-ponta (seed mock, varredura E2E, latência/N+1, integridade/SignalR, saúde dos serviços, Zabbix Agent2 + autodiscovery, relatórios e correções). Suíte de integração **229/229**; p95 de todos os endpoints < 50ms; sem N+1 real (falso positivo do poll dos workers resolvido na T008). Relatórios em `docs/reports/F46-*.md`. Pendências: rate limit `Default` de produção (decisão humana), push dos commits locais (F41/F44), dívida F44 em `OperationsCenterPage.test.tsx`.
+**F46 concluída:** engenharia de produto ponta-a-ponta (seed mock, varredura E2E, latência/N+1, integridade/SignalR, saúde dos serviços, Zabbix Agent2 + autodiscovery, relatórios e correções). Suíte de integração **229/229**; p95 de todos os endpoints < 50ms; sem N+1 real (falso positivo do poll dos workers resolvido na T008). Relatórios em `docs/reports/F46-*.md`. Pendências: push dos commits locais (F41/F44), dívida F44 em `OperationsCenterPage.test.tsx`. Rate limit Default elevado para 300/60 (decisão do usuário, 2026-10-25).
 
 ## Regra operacional
 

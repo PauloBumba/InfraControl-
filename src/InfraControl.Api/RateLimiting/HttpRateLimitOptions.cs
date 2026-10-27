@@ -17,7 +17,7 @@ public sealed class HttpRateLimitOptions
 
     public Dictionary<string, HttpRateLimitRule> Rules { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
-        [nameof(RateLimitCategory.Default)] = new HttpRateLimitRule(120, 60),
+        [nameof(RateLimitCategory.Default)] = new HttpRateLimitRule(300, 60),
         [nameof(RateLimitCategory.Login)] = new HttpRateLimitRule(5, 60),
         [nameof(RateLimitCategory.PasswordReset)] = new HttpRateLimitRule(3, 600),
         [nameof(RateLimitCategory.Webhook)] = new HttpRateLimitRule(120, 60),
