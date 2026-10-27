@@ -29,6 +29,8 @@ export interface DeviceItem {
   sipServer?: string | null;
   /** F34-T006 (ADR-060) — SO informado; null = sem "Acesso remoto" na ficha. */
   operatingSystem?: string | null;
+  /** Foto do ativo (`/uploads/devices/...`); null = sem imagem. */
+  imagePath?: string | null;
   monitoringChecks: string[];
   profileIsCustom: boolean;
 }
@@ -209,6 +211,7 @@ export function createDevice(input: {
   vendor?: string;
   description?: string;
   operatingSystem?: string;
+  imagePath?: string | null;
 }): Promise<DeviceItem | null> {
   return api.post<DeviceItem>("/inventory/devices", {
     locationId: input.locationId,
@@ -219,6 +222,7 @@ export function createDevice(input: {
     vendor: input.vendor || undefined,
     description: input.description || undefined,
     operatingSystem: input.operatingSystem || undefined,
+    imagePath: input.imagePath || undefined,
   });
 }
 
@@ -236,6 +240,7 @@ export async function updateDevice(
     vendor?: string;
     description?: string;
     operatingSystem?: string;
+    imagePath?: string | null;
   },
 ): Promise<null> {
   return api.put<null>(`/inventory/devices/${id}`, {
@@ -246,6 +251,7 @@ export async function updateDevice(
     vendor: input.vendor || null,
     description: input.description || null,
     operatingSystem: input.operatingSystem || null,
+    imagePath: input.imagePath || null,
   });
 }
 

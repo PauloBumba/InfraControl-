@@ -413,6 +413,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("hypervisor_device_id");
 
+                    b.Property<string>("ImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_path");
+
                     b.Property<string>("Ip")
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)")

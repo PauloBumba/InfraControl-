@@ -7,6 +7,8 @@ import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { resolveUploadSrc } from "@/components/ui/imageUploadTypes";
 import { Column } from "primereact/column";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 
@@ -34,6 +36,14 @@ import {
   type LocationItem,
   type SwitchPortItem,
 } from "@/services/api/inventory";
+import { uploadImage } from "@/services/api/uploads";
+
+/** Upload reutilizável — foto do ativo no módulo `devices` do store. */
+async function uploadDeviceImage(file: File): Promise<string> {
+  const result = await uploadImage(file, "devices");
+  if (!result?.imagePath) throw new Error("Upload sem path.");
+  return result.imagePath;
+}
 
 /**
  * F17-T007 — DevicesPage conectada ao backend (substitui `allDevices`,
@@ -146,6 +156,7 @@ export function DevicesPage() {
   const [vendor, setVendor] = useState("");
   const [description, setDescription] = useState("");
   const [operatingSystem, setOperatingSystem] = useState("");
+  const [imagePath, setImagePath] = useState<string | null>(null);
   // F29-T001C-2 — as três validações aqui são de TRÊS campos diferentes
   // (nome, tipo, localização), e esta página era a única do recorte sem um
   // sequer `FormField`: os recados saíam todos no mesmo `<div>` no pé do
@@ -233,6 +244,7 @@ export function DevicesPage() {
     setVendor("");
     setDescription("");
     setOperatingSystem("");
+    setImagePath(null);
     resetFormError();
     setCreating(true);
   }
@@ -248,6 +260,7 @@ export function DevicesPage() {
     setVendor(device.vendor ?? "");
     setDescription(device.description ?? "");
     setOperatingSystem(device.operatingSystem ?? "");
+    setImagePath(device.imagePath ?? null);
     resetFormError();
     setCreating(true);
   }
@@ -284,6 +297,7 @@ export function DevicesPage() {
           vendor: vendor.trim() || undefined,
           description: description.trim() || undefined,
           operatingSystem: operatingSystemPayload,
+          imagePath,
         });
       } else {
         await createMutation.mutateAsync({
@@ -295,6 +309,7 @@ export function DevicesPage() {
           vendor: vendor.trim() || undefined,
           description: description.trim() || undefined,
           operatingSystem: operatingSystemPayload,
+          imagePath,
         });
       }
       setCreating(false);
@@ -468,6 +483,13 @@ export function DevicesPage() {
               style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit", width: "100%" }}
             />
           </FormField>
+          <FormField label="Foto do ativo (opcional)" error={null}>
+            <ImageUpload
+              value={imagePath}
+              onChange={setImagePath}
+              upload={uploadDeviceImage}
+            />
+          </FormField>
           <FormError message={field ? "" : (formError ?? "")} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <Button
@@ -557,10 +579,18 @@ export function DevicesPage() {
                   header="Nome"
                   body={(device: DeviceItem) => (
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <i
-                        className={typeIcons[device.type] ?? "pi pi-circle"}
-                        style={{ color: typeColors[device.type] ?? "#94a3b8" }}
-                      />
+                      {resolveUploadSrc(device.imagePath) ? (
+                        <img
+                          src={resolveUploadSrc(device.imagePath)!}
+                          alt=""
+                          style={{ width: 24, height: 24, objectFit: "cover", borderRadius: 4 }}
+                        />
+                      ) : (
+                        <i
+                          className={typeIcons[device.type] ?? "pi pi-circle"}
+                          style={{ color: typeColors[device.type] ?? "#94a3b8" }}
+                        />
+                      )}
                       <span style={{ fontWeight: 500 }}>{device.name}</span>
                     </div>
                   )}
@@ -590,6 +620,13 @@ export function DevicesPage() {
               const color = typeColors[device.type] ?? "#94a3b8";
               return (
                 <div className="uni-device-card" onClick={() => navigate(`/devices/${device.id}`)}>
+                  {resolveUploadSrc(device.imagePath) && (
+                    <img
+                      src={resolveUploadSrc(device.imagePath)!}
+                      alt={`Foto de ${device.name}`}
+                      style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 6, marginBottom: 8 }}
+                    />
+                  )}
                   <div className="uni-device-top">
                     <div className={`uni-device-icon ${device.type}`} style={{ background: `${color}15`, color }}>
                       <i className={typeIcons[device.type] ?? "pi pi-circle"} />

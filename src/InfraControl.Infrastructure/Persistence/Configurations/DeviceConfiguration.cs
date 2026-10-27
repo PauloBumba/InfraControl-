@@ -64,6 +64,10 @@ public sealed class DeviceConfiguration : IEntityTypeConfiguration<Device>
             .HasColumnName("description")
             .HasMaxLength(Device.DescriptionMaxLength);
 
+        builder.Property(x => x.ImagePath)
+            .HasColumnName("image_path")
+            .HasMaxLength(Device.ImagePathMaxLength);
+
         // F30-T006c / docs/47 §A: cadastro SIP do telefone (extensão e PBX).
         builder.Property(x => x.Extension)
             .HasColumnName("extension")

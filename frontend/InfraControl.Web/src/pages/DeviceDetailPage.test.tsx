@@ -363,3 +363,18 @@ describe("DeviceDetailPage — acesso remoto via gateway + credencial (F34-T007/
     );
   });
 });
+
+describe("DeviceDetailPage — foto do ativo", () => {
+  it("should render the photo from imagePath", async () => {
+    getDeviceMock.mockResolvedValue({
+      ...apDevice,
+      imagePath: "/uploads/devices/ap.png",
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByAltText("Foto de ap-sala-01"),
+    ).toHaveAttribute("src", "/uploads/devices/ap.png");
+  });
+});

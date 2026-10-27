@@ -6,7 +6,7 @@ import { api } from "./client";
  */
 export async function uploadImage(
   file: File,
-  module: "knowledge" | "general" = "general",
+  module: "knowledge" | "devices" | "general" = "general",
 ): Promise<{ imagePath: string } | null> {
   const formData = new FormData();
   formData.append("file", file);

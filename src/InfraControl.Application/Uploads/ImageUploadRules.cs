@@ -13,6 +13,7 @@ public static class ImageUploadRules
     public static readonly string[] AllowedModules =
     [
         "knowledge",
+        "devices",
         "general",
     ];
 

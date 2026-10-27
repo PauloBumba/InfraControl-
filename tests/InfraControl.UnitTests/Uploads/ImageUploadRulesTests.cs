@@ -42,6 +42,7 @@ public class ImageUploadRulesTests
 
     [Theory]
     [InlineData("knowledge")]
+    [InlineData("devices")]
     [InlineData("general")]
     [InlineData("Knowledge")]
     public void NormalizeModule_Allowed_ShouldNormalize(string module)

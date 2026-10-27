@@ -45,9 +45,12 @@ RUN apt-get update \
 # Storage de evidências do PDI (ADR-034): o processo roda como $APP_UID
 # (não-root) e o caminho é relativo a /app — mkdir/chown aqui para o named
 # volume do compose herdar a ownership na primeira montagem.
+# F24-T008: uploads de imagem (wwwroot/uploads) precisam da mesma ownership;
+# sem isto o Process não consegue criar a subpasta do módulo (403).
 RUN mkdir -p /app/var/pdi-evidence /app/var/project-evidence \
              /app/var/data-protection-keys \
- && chown -R $APP_UID /app/var \
+             /app/wwwroot/uploads \
+ && chown -R $APP_UID /app/var /app/wwwroot/uploads \
  && chmod 700 /app/var/data-protection-keys
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080

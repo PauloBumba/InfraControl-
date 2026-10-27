@@ -378,6 +378,9 @@ services:
       - pdi-evidence:/app/var/pdi-evidence
       - project-evidence:/app/var/project-evidence
       - api_data_protection:/app/var/data-protection-keys
+      # F24-T008: imagens de Knowledge/Devices — volume nomeado para os
+      # arquivos sobreviverem ao recreate (ownership herdada do Dockerfile).
+      - api_uploads:/app/wwwroot/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -977,6 +980,7 @@ volumes:
   pdi-evidence:
   project-evidence:
   api_data_protection:
+  api_uploads:
   postgres_backups:
   guacamole_db_data:
   guacamole_init:
