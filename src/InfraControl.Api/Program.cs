@@ -346,6 +346,11 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// F24-T008: imagens em wwwroot/uploads/{module} (path web /uploads/…).
+// Antes da auth — o <img> do dashboard não manda cookie em todos os
+// cenários de proxy; o upload em si continua protegido (Operate).
+app.UseStaticFiles();
+
 // Sem UseHttpsRedirection: em produção o TLS termina no nginx (ADR-022) e a
 // API escuta só HTTP dentro da rede Docker — não há porta HTTPS para a qual
 // redirecionar. Em dev o proxy do Vite já encaminha para o perfil https.

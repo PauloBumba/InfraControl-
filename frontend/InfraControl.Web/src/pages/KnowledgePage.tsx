@@ -14,12 +14,16 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectField } from "@/components/ui/SelectField";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { resolveUploadSrc } from "@/components/ui/imageUploadTypes";
 import {
   KNOWLEDGE_TYPE_OPTIONS,
   articleStatusConfig,
   articleStatusLabel,
+  knowledgeCategoryAccent,
   knowledgeNextStatuses,
   knowledgeTypeLabel,
+  type KnowledgeCategoryAccent,
 } from "@/components/knowledge/knowledgeCatalogs";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
@@ -28,6 +32,7 @@ import {
   createCategory,
   deleteArticle,
   deleteCategory,
+  getArticle,
   listArticles,
   listCategories,
   updateArticle,
@@ -36,7 +41,15 @@ import {
   type KnowledgeCategory,
   type Paged,
 } from "@/services/api/knowledge";
+import { uploadImage } from "@/services/api/uploads";
 import { errorMessage } from "@/hooks/queries";
+
+/** Upload reutilizável — Knowledge usa o módulo `knowledge` do store. */
+async function uploadKnowledgeImage(file: File): Promise<string> {
+  const result = await uploadImage(file, "knowledge");
+  if (!result?.imagePath) throw new Error("Upload sem path.");
+  return result.imagePath;
+}
 
 /**
  * F17-T004 — KnowledgePage conectada ao backend. F24 edição + visões
@@ -59,9 +72,18 @@ const originLabels: Record<string, string> = {
   Incident: "Chamado",
 };
 
+/** Data do detalhe (revisão) — ISO do backend → pt-BR; inválida vira "—". */
+function formatDate(value: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("pt-BR");
+}
+
 export function KnowledgePage() {
   const [pageData, setPageData] = useState<Paged<KnowledgeArticle> | null>(null);
   const [categories, setCategories] = useState<KnowledgeCategory[]>([]);
+  // F24-T008 — contagem real por categoria (a página só traz 20 artigos).
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -86,6 +108,7 @@ export function KnowledgePage() {
   const [description, setDescription] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [responsibleId, setResponsibleId] = useState("");
+  const [imagePath, setImagePath] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [saving, setSaving] = useState(false);
   // F29-T001C-2 — um `useFormErrors` por form: a página tem 3 deles (criação,
@@ -111,6 +134,7 @@ export function KnowledgePage() {
   const [editDescription, setEditDescription] = useState("");
   const [editTagsInput, setEditTagsInput] = useState("");
   const [editResponsibleId, setEditResponsibleId] = useState("");
+  const [editImagePath, setEditImagePath] = useState<string | null>(null);
   const [editReason, setEditReason] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const {
@@ -122,6 +146,11 @@ export function KnowledgePage() {
   } = useFormErrors(); // edição — 3 validações de 3 campos diferentes
 
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeArticle | null>(null);
+
+  // F24-T008 — detalhe do artigo ao clicar no card/linha. Abre com o item da
+  // lista na hora e enriquece com GET/{id} (vínculos não vêm no search).
+  const [detail, setDetail] = useState<KnowledgeArticle | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // F24 status — só transições válidas (espelho do ADR-034).
   const [statusTarget, setStatusTarget] = useState<KnowledgeArticle | null>(null);
@@ -173,17 +202,50 @@ export function KnowledgePage() {
     void load();
   }, [load]);
 
+  /**
+   * F24-T008 — total por categoria para os tiles do topo. Uma consulta
+   * `pageSize=1` por categoria (o backend devolve `totalCount`); categorias
+   * são poucas e o custo é 1 request leve cada. Falha individual degrada
+   * para "—" em vez de derrubar a faixa.
+   */
+  const loadCategoryCounts = useCallback(async (list: KnowledgeCategory[]) => {
+    if (list.length === 0) {
+      setCategoryCounts({});
+      return;
+    }
+    const entries = await Promise.all(
+      list.map(async (category) => {
+        try {
+          const result = await listArticles({ categoryId: category.id, page: 1, pageSize: 1 });
+          return [category.id, result.totalCount] as const;
+        } catch {
+          return [category.id, null] as const;
+        }
+      }),
+    );
+    setCategoryCounts(
+      Object.fromEntries(entries.filter(([, total]) => total !== null)) as Record<string, number>,
+    );
+  }, []);
+
   const loadCategories = useCallback(async () => {
     try {
-      setCategories((await listCategories()).items);
+      const list = (await listCategories()).items;
+      setCategories(list);
+      void loadCategoryCounts(list);
     } catch {
       // degrada para "Sem categoria" — a lista de artigos segue.
     }
-  }, []);
+  }, [loadCategoryCounts]);
 
   useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
+
+  /** Recarrega a contagem das categorias já conhecidas (após mutação). */
+  const refreshCategoryCounts = useCallback(() => {
+    void loadCategoryCounts(categories);
+  }, [categories, loadCategoryCounts]);
 
   useEffect(() => {
     listUsers()
@@ -217,6 +279,19 @@ export function KnowledgePage() {
     ...(active
       ? { background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }
       : {}),
+  });
+
+  /** F24-T008 — tile de categoria do topo (ativo = cor da categoria). */
+  const categoryTileStyle = (active: boolean, accent: KnowledgeCategoryAccent) => ({
+    background: active ? accent.bg : "#f8fafc",
+    border: `1px solid ${active ? accent.border : "#e2e8f0"}`,
+    boxShadow: active ? `inset 0 0 0 1px ${accent.border}` : "none",
+    borderRadius: 8,
+    padding: 12,
+    cursor: "pointer",
+    transition: "all 0.2s",
+    textAlign: "left" as const,
+    minWidth: 0,
   });
 
   const categoryNameOf = (id: string | null): string => {
@@ -254,6 +329,7 @@ export function KnowledgePage() {
         description: description.trim() || undefined,
         tags: tags.length ? tags : undefined,
         responsibleId: responsibleId || undefined,
+        imagePath: imagePath || undefined,
       });
       setCreating(false);
       setTitle("");
@@ -263,14 +339,32 @@ export function KnowledgePage() {
       setDescription("");
       setTagsInput("");
       setResponsibleId("");
+      setImagePath(null);
       setNotice("Artigo criado como rascunho — publique pela troca de status.");
       await load();
+      refreshCategoryCounts();
     } catch (caught) {
       // Recusa do servidor sem `field` → nível do formulário. `errorMessage`
       // aceita `unknown` (o `catch` devolve isso) e tem fallback.
       failForm(errorMessage(caught, "Não foi possível criar o artigo."));
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ── F24-T008 detalhe ──────────────────────────────────────────────────
+
+  async function openDetail(article: KnowledgeArticle) {
+    setDetail(article);
+    setDetailLoading(true);
+    try {
+      const enriched = await getArticle(article.id);
+      // Ignora resposta atrasada de um detalhe que já foi trocado/fechado.
+      setDetail((current) => (current?.id === article.id && enriched ? enriched : current));
+    } catch {
+      // Mantém o item da lista — o detalhe essencial já está na tela.
+    } finally {
+      setDetailLoading(false);
     }
   }
 
@@ -285,6 +379,7 @@ export function KnowledgePage() {
     setEditDescription(article.description ?? "");
     setEditTagsInput(article.tags.join(", "));
     setEditResponsibleId(article.responsibleId ?? "");
+    setEditImagePath(article.imagePath);
     setEditReason("");
     resetEditError();
   }
@@ -322,10 +417,12 @@ export function KnowledgePage() {
         description: editDescription.trim() || undefined,
         tags: tags.length ? tags : undefined,
         responsibleId: editResponsibleId || undefined,
+        imagePath: editImagePath,
       });
       setEditing(null);
       setNotice("Artigo atualizado — uma nova versão foi registrada.");
       await load();
+      refreshCategoryCounts();
     } catch (caught) {
       failEdit(errorMessage(caught, "Não foi possível atualizar o artigo."));
     } finally {
@@ -339,6 +436,7 @@ export function KnowledgePage() {
       await deleteArticle(deleteTarget.id);
       setNotice(`Artigo "${deleteTarget.title}" excluído.`);
       await load();
+      refreshCategoryCounts();
     } catch (caught) {
       setError(errorMessage(caught, "Não foi possível excluir o artigo."));
     }
@@ -376,13 +474,6 @@ export function KnowledgePage() {
     setCategoryForm({ mode: "create", target: null });
     setCategoryName("");
     setCategoryDescription("");
-    resetCategoryError();
-  }
-
-  function openCategoryEdit(category: KnowledgeCategory) {
-    setCategoryForm({ mode: "edit", target: category });
-    setCategoryName(category.name);
-    setCategoryDescription(category.description ?? "");
     resetCategoryError();
   }
 
@@ -464,6 +555,14 @@ export function KnowledgePage() {
     ...categories.map((category) => ({ value: category.id, label: category.name })),
   ];
 
+  const detailStatus = detail
+    ? articleStatusConfig[detail.status] ?? {
+        label: String(detail.status),
+        bg: "#f1f5f9",
+        color: "#64748b",
+      }
+    : null;
+
   /** Card de artigo — usado na visão grid E no quadro (kanban). */
   function renderCard(article: KnowledgeArticle) {
     const status = articleStatusConfig[article.status] ?? {
@@ -481,9 +580,26 @@ export function KnowledgePage() {
           padding: 16,
           display: "flex",
           flexDirection: "column",
-          gap: 8,
+          gap: 12,
+          transition: "all 0.2s",
+          cursor: "pointer",
         }}
+        onClick={() => void openDetail(article)}
       >
+        {/* Imagem do artigo (se houver) */}
+        {resolveUploadSrc(article.imagePath) && (
+          <div style={{ width: "100%", height: "160px", borderRadius: 6, overflow: "hidden", background: "#f3f4f6" }}>
+            <img
+              src={resolveUploadSrc(article.imagePath)!}
+              alt={article.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
+
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <StatusChip
@@ -502,9 +618,9 @@ export function KnowledgePage() {
           </div>
           <StatusChip label={status.label} background={status.bg} color={status.color} fontSize={10} fontWeight={600} />
         </div>
-        <div style={{ fontSize: 13, fontWeight: 600 }}>{article.title}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{article.title}</div>
         {article.description && (
-          <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.4 }}>{article.description}</div>
+          <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.4 }}>{article.description}</div>
         )}
         <div
           style={{
@@ -512,7 +628,7 @@ export function KnowledgePage() {
             color: "#6b7280",
             lineHeight: 1.4,
             display: "-webkit-box",
-            WebkitLineClamp: 4,
+            WebkitLineClamp: 3,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
           }}
@@ -525,7 +641,8 @@ export function KnowledgePage() {
               <button
                 key={tag}
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setTagFilter(tag);
                   setPage(1);
                 }}
@@ -536,7 +653,7 @@ export function KnowledgePage() {
                   color: "#475569",
                   border: "1px solid #e2e8f0",
                   borderRadius: 999,
-                  padding: "1px 7px",
+                  padding: "2px 8px",
                   cursor: "pointer",
                 }}
               >
@@ -558,7 +675,7 @@ export function KnowledgePage() {
                   color: "#0f766e",
                   border: "1px solid #ccfbf1",
                   borderRadius: 999,
-                  padding: "1px 7px",
+                  padding: "2px 8px",
                 }}
               >
                 {originLabels[origin.type] ?? origin.type}
@@ -571,7 +688,8 @@ export function KnowledgePage() {
             {article.authorName && article.authorId && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setAuthorFilter(article.authorId as string);
                   setPage(1);
                 }}
@@ -595,15 +713,15 @@ export function KnowledgePage() {
         {/* Ações (Operate) — editar / trocar status / excluir. */}
         <Can level="operate">
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-            <Button variant="ghost" onClick={() => startEdit(article)} style={{ padding: "4px 10px", fontSize: 12 }}>
+            <Button variant="ghost" onClick={(e) => { e.stopPropagation(); startEdit(article); }} style={{ padding: "4px 10px", fontSize: 12 }}>
               Editar
             </Button>
             {knowledgeNextStatuses(article.status).length > 0 && (
-              <Button variant="ghost" onClick={() => openStatus(article)} style={{ padding: "4px 10px", fontSize: 12 }}>
+              <Button variant="ghost" onClick={(e) => { e.stopPropagation(); openStatus(article); }} style={{ padding: "4px 10px", fontSize: 12 }}>
                 Status
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setDeleteTarget(article)} style={{ padding: "4px 10px", fontSize: 12 }}>
+            <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteTarget(article); }} style={{ padding: "4px 10px", fontSize: 12 }}>
               Excluir
             </Button>
           </div>
@@ -617,19 +735,34 @@ export function KnowledgePage() {
     return (
       <Can level="operate">
         <div className="flex gap-1">
-          <Button variant="ghost" onClick={() => startEdit(article)} style={{ padding: "4px 8px", fontSize: 12 }}>
+          <Button variant="ghost" onClick={(event) => { event.stopPropagation(); startEdit(article); }} style={{ padding: "4px 8px", fontSize: 12 }}>
             Editar
           </Button>
           {knowledgeNextStatuses(article.status).length > 0 && (
-            <Button variant="ghost" onClick={() => openStatus(article)} style={{ padding: "4px 8px", fontSize: 12 }}>
+            <Button variant="ghost" onClick={(event) => { event.stopPropagation(); openStatus(article); }} style={{ padding: "4px 8px", fontSize: 12 }}>
               Status
             </Button>
           )}
-          <Button variant="ghost" onClick={() => setDeleteTarget(article)} style={{ padding: "4px 8px", fontSize: 12 }}>
+          <Button variant="ghost" onClick={(event) => { event.stopPropagation(); setDeleteTarget(article); }} style={{ padding: "4px 8px", fontSize: 12 }}>
             Excluir
           </Button>
         </div>
       </Can>
+    );
+  }
+
+  function imageBody(article: KnowledgeArticle) {
+    const src = resolveUploadSrc(article.imagePath);
+    if (!src) return <span style={{ color: "#9ca3af", fontSize: 12 }}>—</span>;
+    return (
+      <img
+        src={src}
+        alt={article.title}
+        style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover" }}
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+      />
     );
   }
 
@@ -721,62 +854,128 @@ export function KnowledgePage() {
       }
     >
 
-      {/* F24 categorias — gerenciamento inline (criar/editar/excluir). */}
-      <Can level="operate">
+      {/* F24-T008 — categorias visuais no topo. O filtro vale para qualquer
+          role (leitura); o gerenciamento segue em "Nova Categoria" (Operate). */}
+      <div
+        style={{
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 8,
+          padding: "16px",
+          marginBottom: 16,
+        }}
+      >
         <div
           style={{
-            background: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            padding: "10px 12px",
             display: "flex",
-            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "space-between",
             gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 12,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#334155" }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#334155" }}>
             Categorias ({categories.length})
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-            {categories.length === 0 && (
-              <span style={{ fontSize: 12, color: "#9ca3af" }}>Nenhuma categoria — crie a primeira acima.</span>
-            )}
-            {categories.map((category) => (
-              <span
-                key={category.id}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 11,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 999,
-                  padding: "2px 4px 2px 9px",
-                }}
-              >
-                {category.name}
-                <button
-                  type="button"
-                  onClick={() => openCategoryEdit(category)}
-                  title="Editar categoria"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "0 2px" }}
-                >
-                  <i className="pi pi-pencil" style={{ fontSize: 11 }} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteCategoryTarget(category)}
-                  title="Excluir categoria"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", padding: "0 4px 0 0" }}
-                >
-                  <i className="pi pi-times" style={{ fontSize: 11 }} />
-                </button>
-              </span>
-            ))}
-          </div>
+          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+            {categoryIdFilter ? "Filtrando por categoria" : "Clique em uma categoria para filtrar"}
+          </span>
         </div>
-      </Can>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: 12,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryIdFilter("");
+              setPage(1);
+            }}
+            aria-pressed={!categoryIdFilter}
+            style={categoryTileStyle(!categoryIdFilter, {
+              bg: "#eff6ff",
+              color: "#1d4ed8",
+              border: "#bfdbfe",
+            })}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: !categoryIdFilter ? "#1d4ed8" : "#334155" }}>
+              Todas as categorias
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+              {totalCount} no total
+            </div>
+          </button>
+          {categories.map((category) => {
+            const accent = knowledgeCategoryAccent(category.name);
+            const active = categoryIdFilter === category.id;
+            const count = categoryCounts[category.id];
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => {
+                  setCategoryIdFilter(category.id);
+                  setPage(1);
+                }}
+                aria-pressed={active}
+                style={categoryTileStyle(active, accent)}
+                title={category.description ?? undefined}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: accent.color,
+                      flex: "0 0 auto",
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: active ? accent.color : "#334155",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {category.name}
+                  </div>
+                </div>
+                {category.description && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#94a3b8",
+                      marginTop: 2,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {category.description}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                  {count === undefined ? "— artigos" : `${count} ${count === 1 ? "artigo" : "artigos"}`}
+                </div>
+              </button>
+            );
+          })}
+          {categories.length === 0 && (
+            <span style={{ fontSize: 13, color: "#9ca3af", gridColumn: "1/-1" }}>
+              Nenhuma categoria — crie a primeira em "Nova Categoria".
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* F24-T007/K7 — busca avançada. */}
       <div
@@ -933,6 +1132,13 @@ export function KnowledgePage() {
               style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
             />
           </FormField>
+          <FormField label="Imagem (opcional)">
+            <ImageUpload
+              value={imagePath}
+              onChange={setImagePath}
+              upload={uploadKnowledgeImage}
+            />
+          </FormField>
           <FormField label="Conteúdo" error={errorFor("content")}>
             <textarea
               value={content}
@@ -992,7 +1198,10 @@ export function KnowledgePage() {
             dataKey="id"
             loading={loading}
             emptyMessage={error ? "—" : "Nenhum artigo encontrado"}
+            onRowClick={(event) => void openDetail(event.data as KnowledgeArticle)}
+            rowClassName={() => "cursor-pointer"}
           >
+            <Column header="Imagem" body={imageBody} style={{ width: 70 }} />
             <Column
               header="Título"
               body={(article: KnowledgeArticle) => (
@@ -1045,6 +1254,173 @@ export function KnowledgePage() {
 
       {/* ── Diálogos ─────────────────────────────────────────────────── */}
 
+      {/* F24-T008 — detalhe ao clicar no card/linha (leitura para todos). */}
+      <Dialog
+        visible={detail !== null}
+        onHide={() => setDetail(null)}
+        header={detail?.title ?? "Artigo"}
+        width={640}
+      >
+        {detail && detailStatus && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {resolveUploadSrc(detail.imagePath) && (
+              <img
+                src={resolveUploadSrc(detail.imagePath)!}
+                alt={detail.title}
+                style={{
+                  width: "100%",
+                  maxHeight: 240,
+                  objectFit: "cover",
+                  borderRadius: 8,
+                  background: "#f3f4f6",
+                }}
+                onError={(event) => {
+                  (event.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+              <StatusChip label={categoryNameOf(detail.categoryId)} background="#eff6ff" color="#3b82f6" fontSize={10} fontWeight={600} />
+              {knowledgeTypeLabel(detail.type) && (
+                <StatusChip label={knowledgeTypeLabel(detail.type)!} background="#f5f3ff" color="#7c3aed" fontSize={10} fontWeight={600} />
+              )}
+              <StatusChip label={detailStatus.label} background={detailStatus.bg} color={detailStatus.color} fontSize={10} fontWeight={600} />
+              <StatusChip label={`v${detail.version}`} background="#f1f5f9" color="#475569" fontSize={10} fontWeight={600} />
+              {detail.pendingReview && (
+                <StatusChip label="Revisar" background="#fef3c7" color="#92400e" fontSize={10} fontWeight={600} />
+              )}
+              {detailLoading && (
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>Atualizando…</span>
+              )}
+            </div>
+
+            {detail.description && (
+              <div style={{ fontSize: 13, color: "#475569" }}>{detail.description}</div>
+            )}
+
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                fontSize: 13,
+                lineHeight: 1.6,
+                color: "#1f2937",
+                maxHeight: "45vh",
+                overflowY: "auto",
+                paddingRight: 4,
+              }}
+            >
+              {detail.content}
+            </div>
+
+            {detail.tags.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {detail.tags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => {
+                      setTagFilter(tag);
+                      setPage(1);
+                      setDetail(null);
+                    }}
+                    title={`Filtrar por #${tag}`}
+                    style={{
+                      fontSize: 10,
+                      background: "#f1f5f9",
+                      color: "#475569",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 999,
+                      padding: "2px 8px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {detail.origins.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                <span style={{ fontSize: 10, color: "#9ca3af" }}>Origem:</span>
+                {detail.origins.map((origin) => (
+                  <span
+                    key={`${origin.type}:${origin.id}`}
+                    title={origin.id}
+                    style={{
+                      fontSize: 10,
+                      background: "#f0fdfa",
+                      color: "#0f766e",
+                      border: "1px solid #ccfbf1",
+                      borderRadius: 999,
+                      padding: "2px 8px",
+                    }}
+                  >
+                    {originLabels[origin.type] ?? origin.type}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {(detail.authorName || detail.responsibleName) && (
+              <div style={{ fontSize: 11, color: "#64748b", display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {detail.authorName && <span>Autor: {detail.authorName}</span>}
+                {detail.responsibleName && <span>Responsável: {detail.responsibleName}</span>}
+              </div>
+            )}
+
+            {detail.nextReviewAt && (
+              <div style={{ fontSize: 11, color: "#92400e" }}>
+                Próxima revisão: {formatDate(detail.nextReviewAt)}
+                {detail.reviewIntervalDays ? ` (a cada ${detail.reviewIntervalDays} dias)` : ""}
+                {detail.reviewResponsibleName ? ` — ${detail.reviewResponsibleName}` : ""}
+              </div>
+            )}
+
+            {detail.deviceIds.length + detail.incidentIds.length + detail.serviceIds.length > 0 && (
+              <div style={{ fontSize: 11, color: "#64748b", display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {detail.deviceIds.length > 0 && <span>Devices: {detail.deviceIds.length}</span>}
+                {detail.incidentIds.length > 0 && <span>Chamados: {detail.incidentIds.length}</span>}
+                {detail.serviceIds.length > 0 && <span>Serviços: {detail.serviceIds.length}</span>}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <Can level="operate">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    startEdit(detail);
+                    setDetail(null);
+                  }}
+                  style={{ padding: "6px 14px" }}
+                >
+                  Editar
+                </Button>
+                {knowledgeNextStatuses(detail.status).length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      openStatus(detail);
+                      setDetail(null);
+                    }}
+                    style={{ padding: "6px 14px" }}
+                  >
+                    Status
+                  </Button>
+                )}
+              </Can>
+              <Button type="button" variant="primary" onClick={() => setDetail(null)} style={{ padding: "6px 14px" }}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
       {/* Edição de artigo — motivo obrigatório (K3: vira versão). */}
       <Dialog
         visible={editing !== null}
@@ -1093,6 +1469,13 @@ export function KnowledgePage() {
               value={editTagsInput}
               onChange={(event) => setEditTagsInput(event.target.value)}
               style={{ width: "100%", padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            />
+          </FormField>
+          <FormField label="Imagem (opcional)">
+            <ImageUpload
+              value={editImagePath}
+              onChange={setEditImagePath}
+              upload={uploadKnowledgeImage}
             />
           </FormField>
           <FormField label="Conteúdo" error={errorForEdit("editContent")}>

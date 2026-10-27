@@ -9,7 +9,7 @@ import {
   ARTICLE_STATUS_OBSOLETE,
   ARTICLE_STATUS_REJECTED,
 } from "@/services/api/knowledge";
-import { knowledgeNextStatuses } from "./knowledgeCatalogs";
+import { knowledgeCategoryAccent, knowledgeNextStatuses } from "./knowledgeCatalogs";
 
 /**
  * F24-K2 (ADR-034, docs/32 §7) — matriz de 16 pares do
@@ -68,5 +68,32 @@ describe("knowledgeNextStatuses", () => {
     ];
     const total = all.reduce((sum, status) => sum + knowledgeNextStatuses(status).length, 0);
     expect(total).toBe(16);
+  });
+});
+
+/**
+ * F24-T008 — categorias visuais: o DTO não tem cor (só id/nome/descrição),
+ * então a UI deriva uma cor estável do nome. Estável = mesmo nome, mesma
+ * cor entre renders/sessões; e nunca uma cor "quebrada" (sempre do palette).
+ */
+describe("knowledgeCategoryAccent", () => {
+  it("should return the same accent for the same name", () => {
+    expect(knowledgeCategoryAccent("Redes")).toEqual(knowledgeCategoryAccent("Redes"));
+  });
+
+  it("should return a well-formed palette entry", () => {
+    const accent = knowledgeCategoryAccent("Servidores");
+    expect(accent.bg).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(accent.color).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(accent.border).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it("should not collapse every category to the same color", () => {
+    const colors = new Set(
+      ["Redes", "Servidores", "Backup", "Impressoras", "Wi-Fi", "Segurança"].map(
+        (name) => knowledgeCategoryAccent(name).color,
+      ),
+    );
+    expect(colors.size).toBeGreaterThan(1);
   });
 });

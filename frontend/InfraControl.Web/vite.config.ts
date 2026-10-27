@@ -43,6 +43,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        // F24-T008 — imagens em wwwroot/uploads (UseStaticFiles na API).
+        "/uploads": {
+          target: env.VITE_DEV_API_TARGET || "https://localhost:7237",
+          changeOrigin: true,
+          secure: false,
+        },
         "/hubs": {
           target: env.VITE_DEV_API_TARGET || "https://localhost:7237",
           changeOrigin: true,

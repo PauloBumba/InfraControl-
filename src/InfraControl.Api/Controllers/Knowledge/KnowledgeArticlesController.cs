@@ -4,14 +4,14 @@ using InfraControl.Api.ViewModels.Knowledge;
 using InfraControl.Application.Knowledge.Articles;
 using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Knowledge.Articles.Queries;
+using InfraControl.Application.Uploads;
+using InfraControl.Application.Uploads.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
-namespace InfraControl.Api.Controllers.Knowledge;
 
 /// <summary>
 /// F10-T002: CRUD de artigos da base de conhecimento (docs/04).
@@ -25,7 +25,9 @@ namespace InfraControl.Api.Controllers.Knowledge;
 /// Falhas embrulhadas pelo GlobalExceptionHandler.
 /// </summary>
 [Route("api/v1/knowledge/articles")]
-public sealed class KnowledgeArticlesController(ISender sender) : BaseController
+public sealed class KnowledgeArticlesController(
+    ISender sender,
+    IImageUploadStore imageUploadStore) : BaseController
 {
     [HttpGet]
     [Authorize]
@@ -262,5 +264,37 @@ public sealed class KnowledgeArticlesController(ISender sender) : BaseController
     {
         await sender.Send(new ConfirmKnowledgeArticleReviewCommand(id), cancellationToken);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Upload de imagem do artigo (Operate) — delega ao store reutilizável
+    /// (<c>module=knowledge</c>). Preferir <c>POST /api/v1/uploads/images</c>
+    /// quando o artigo ainda não existe (create).
+    /// </summary>
+    [HttpPost("{id:guid}/image")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    [RequestSizeLimit(ImageUploadRules.MaxFileSizeBytes)]
+    public async Task<IActionResult> UploadImage(
+        Guid id,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        _ = id; // path ancora o recurso; o path em disco não usa o id.
+        if (file is null || file.Length == 0)
+            return BadRequest(ApiResponse.Fail(["Nenhum arquivo enviado."]));
+
+        try
+        {
+            ImageUploadRules.EnsureAllowed(file.FileName, file.ContentType, file.Length);
+            var extension = ImageUploadRules.NormalizeExtension(file.FileName);
+            await using var stream = file.OpenReadStream();
+            var imagePath = await imageUploadStore.SaveAsync(
+                "knowledge", extension, stream, cancellationToken);
+            return Ok(ApiResponse.Ok(new { imagePath }));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse.Fail([ex.Message]));
+        }
     }
 }

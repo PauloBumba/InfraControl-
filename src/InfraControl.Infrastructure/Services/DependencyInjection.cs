@@ -41,6 +41,7 @@ using InfraControl.Application.Monitoring.Prevention;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.Projects.Ports;
+using InfraControl.Application.Uploads.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
@@ -345,6 +346,10 @@ public static class DependencyInjection
         // F1-T016a (ADR-019): tolerância do TOTP é política de configuração,
         // não de código — padrão ±1 período de 30s.
         services.Configure<MfaOptions>(configuration.GetSection(MfaOptions.SectionName));
+
+        // F24-T008: upload reutilizável de imagens (wwwroot/uploads/{module}).
+        // StorageOptions já é bindada abaixo (evidências de task); só o store.
+        services.AddScoped<IImageUploadStore, PhysicalImageUploadStore>();
 
         // Fase 4 (ADR-034): upload de evidências do PDI em disco local —
         // caminho em PdiEvidence:StoragePath.

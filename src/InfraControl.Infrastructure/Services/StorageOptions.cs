@@ -10,4 +10,10 @@ public sealed class StorageOptions
 
     /// <summary>Pasta das evidências (default: `evidence-files`).</summary>
     public string EvidencePath { get; set; } = "evidence-files";
+
+    /// <summary>
+    /// F24-T008 — pasta das imagens (relativa ao cwd da API; default
+    /// <c>wwwroot/uploads</c>). Subpastas por módulo (knowledge, general…).
+    /// </summary>
+    public string ImageUploadsPath { get; set; } = Path.Combine("wwwroot", "uploads");
 }

@@ -48,6 +48,8 @@ export interface KnowledgeArticle {
   deviceIds: string[];
   incidentIds: string[];
   serviceIds: string[];
+  /** F24-T008 — caminho da imagem armazenada. */
+  imagePath: string | null;
 }
 
 export interface KnowledgeCategory {
@@ -142,6 +144,8 @@ export function createArticle(input: {
   description?: string;
   tags?: string[];
   responsibleId?: string;
+  /** F24-T008 — path retornado por `uploadImage` / POST …/image. */
+  imagePath?: string | null;
 }): Promise<KnowledgeArticle | null> {
   return api.post<KnowledgeArticle>("/knowledge/articles", {
     title: input.title,
@@ -151,6 +155,7 @@ export function createArticle(input: {
     description: input.description || undefined,
     tags: input.tags?.length ? input.tags : undefined,
     responsibleId: input.responsibleId || undefined,
+    imagePath: input.imagePath || undefined,
   });
 }
 
@@ -177,6 +182,7 @@ export function updateArticle(
     description?: string;
     tags?: string[];
     responsibleId?: string;
+    imagePath?: string | null;
   },
 ): Promise<null> {
   return api.put<null>(`/knowledge/articles/${encodeURIComponent(id)}`, {
@@ -188,6 +194,7 @@ export function updateArticle(
     description: input.description || undefined,
     tags: input.tags?.length ? input.tags : undefined,
     responsibleId: input.responsibleId || undefined,
+    imagePath: input.imagePath || undefined,
   });
 }
 
@@ -253,4 +260,23 @@ export function updateCategory(
 /** Exclusão de categoria (204; artigos com a categoria ficam sem). */
 export function deleteCategory(id: string): Promise<null> {
   return api.delete<null>(`/knowledge/categories/${encodeURIComponent(id)}`);
+}
+
+// ── Upload de imagem (F24-T008) ─────────────────────────────────────────────
+
+/**
+ * Upload ancorado no artigo (Operate). Preferir `uploadImage` de
+ * `services/api/uploads` no create (sem id ainda) — mesmo store.
+ */
+export async function uploadArticleImage(
+  id: string,
+  file: File,
+): Promise<{ imagePath: string } | null> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return api.post<{ imagePath: string }>(
+    `/knowledge/articles/${encodeURIComponent(id)}/image`,
+    formData,
+  );
 }
