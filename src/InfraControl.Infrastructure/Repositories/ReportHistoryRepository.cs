@@ -19,8 +19,7 @@ public sealed class ReportHistoryRepository(AppDbContext db) : IReportHistoryRep
         DateOnly? to,
         CancellationToken cancellationToken = default)
     {
-        var lower = from?.ToDateTime(TimeOnly.MinValue);
-        var upper = to?.ToDateTime(TimeOnly.MaxValue);
+        var (lower, upper) = ReportPeriodBounds.Between(from, to);
 
         var tasks = await GroupByMonthAsync(
             db.Tasks.AsNoTracking(), lower, upper, null, cancellationToken);

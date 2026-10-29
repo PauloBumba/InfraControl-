@@ -171,7 +171,7 @@ public sealed class ModuleReportsRepository(AppDbContext db) : IModuleReportsRep
         CancellationToken cancellationToken = default)
     {
         var (lower, upper) = Bounds(from, to);
-        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow.Date).ToDateTime(TimeOnly.MinValue);
+        var todayUtc = ReportPeriodBounds.StartOfDayUtc(DateOnly.FromDateTime(DateTime.UtcNow.Date));
         var scope = Scope(db.KnowledgeArticles.AsNoTracking(), lower, upper);
         var articleIds = scope.Select(a => a.Id);
 
@@ -271,7 +271,7 @@ public sealed class ModuleReportsRepository(AppDbContext db) : IModuleReportsRep
     // ── helpers ───────────────────────────────────────────────────────────
 
     private static (DateTime? Lower, DateTime? Upper) Bounds(DateOnly? from, DateOnly? to)
-        => (from?.ToDateTime(TimeOnly.MinValue), to?.ToDateTime(TimeOnly.MaxValue));
+        => ReportPeriodBounds.Between(from, to);
 
     private static IQueryable<T> Scope<T>(
         IQueryable<T> query, DateTime? lower, DateTime? upper)

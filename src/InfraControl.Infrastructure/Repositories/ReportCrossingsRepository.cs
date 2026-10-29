@@ -22,8 +22,7 @@ public sealed class ReportCrossingsRepository(AppDbContext db) : IReportCrossing
         DateOnly? to,
         CancellationToken cancellationToken = default)
     {
-        var lower = from?.ToDateTime(TimeOnly.MinValue);
-        var upper = to?.ToDateTime(TimeOnly.MaxValue);
+        var (lower, upper) = ReportPeriodBounds.Between(from, to);
 
         var incidentsToTasks = await BuildIncidentsToTasksAsync(lower, upper, cancellationToken);
         var tasksToKnowledge = await BuildTasksToKnowledgeAsync(lower, upper, cancellationToken);

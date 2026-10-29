@@ -213,7 +213,7 @@ public sealed class ReportDashboardsRepository(AppDbContext db) : IReportDashboa
         CancellationToken cancellationToken)
     {
         var scope = db.KnowledgeArticles.AsNoTracking();
-        var todayUtc = today.ToDateTime(TimeOnly.MinValue);
+        var todayUtc = ReportPeriodBounds.StartOfDayUtc(today);
 
         var published = await scope.CountAsync(
             a => a.Status == KnowledgeArticleStatus.Published, cancellationToken);
@@ -301,8 +301,7 @@ public sealed class ReportDashboardsRepository(AppDbContext db) : IReportDashboa
         TaskKindFilter? kind,
         CancellationToken cancellationToken = default)
     {
-        var lower = from?.ToDateTime(TimeOnly.MinValue);
-        var upper = to?.ToDateTime(TimeOnly.MaxValue);
+        var (lower, upper) = ReportPeriodBounds.Between(from, to);
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
 
         var taskQuery = db.Tasks.AsNoTracking();

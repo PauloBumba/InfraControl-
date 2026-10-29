@@ -19,8 +19,7 @@ public sealed class ReportRepository(AppDbContext db) : IReportRepository
         DateOnly? to,
         CancellationToken cancellationToken = default)
     {
-        var lower = from?.ToDateTime(TimeOnly.MinValue);
-        var upper = to?.ToDateTime(TimeOnly.MaxValue);
+        var (lower, upper) = ReportPeriodBounds.Between(from, to);
 
         var pdiQuery = db.IndividualDevelopmentPlans.AsNoTracking();
         var taskQuery = db.Tasks.AsNoTracking();

@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "primereact/badge";
 import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem";
-import { navigation, secondaryNavigation, type NavGroup } from "@/data/dashboardData";
+import { navigation, secondaryNavigation, type NavGroup, type NavItem } from "@/data/dashboardData";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
-import { toggleSidebar } from "@/app/store/slices/uiSlice";
+import { setMobileOpen, toggleSidebar } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs } from "@/app/store/slices/navigationSlice";
 import { logout } from "@/services/api/auth";
 import { listDevices } from "@/services/api/inventory";
@@ -168,7 +168,7 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
     return undefined;
   };
 
-  const renderNavItem = (item: any, childClass = "") => (
+  const renderNavItem = (item: NavItem, childClass = "") => (
     <button
       className={`layout-menu-item ${childClass} ${item.route === activeRoute ? "active" : ""}`}
       onClick={() => navigate(item.route)}
@@ -225,7 +225,7 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
   };
 
   return (
-    <div className={`layout-sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <>
       <div className="layout-sidebar-logo">
         <svg viewBox="0 0 64 64" width="22" height="22">
           <defs>
@@ -253,9 +253,16 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
         >
           <i className={`pi ${sidebarCollapsed ? "pi-angle-right" : "pi-angle-left"}`} />
         </button>
+        <button
+          className="layout-sidebar-close"
+          onClick={() => dispatch(setMobileOpen(false))}
+          aria-label="Fechar menu"
+        >
+          <i className="pi pi-times" />
+        </button>
       </div>
 
-      <nav className="layout-menu">
+      <nav className="layout-menu" aria-label="Navegação principal">
         {visibleNavigation.map(renderNavGroup)}
 
         <div className="layout-menu-divider" />
@@ -297,6 +304,6 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
           />
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { AppLayout } from "./AppLayout";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
 import { removeTab } from "@/app/store/slices/navigationSlice";
+import { setMobileOpen } from "@/app/store/slices/uiSlice";
 import { logout } from "@/services/api/auth";
 
 vi.mock("@/services/api/auth", () => ({ logout: vi.fn() }));
@@ -78,7 +79,7 @@ describe("AppLayout — grupos do sidebar (F38-T001)", () => {
     expect(within(nav()).getByRole("button", { name: /Infraestrutura/ })).toBeInTheDocument();
     expect(within(nav()).getByRole("button", { name: /Rede/ })).toBeInTheDocument();
     expect(within(nav()).getByRole("button", { name: /Monitoramento/ })).toBeInTheDocument();
-    expect(within(nav()).getByRole("button", { name: /Operação/ })).toBeInTheDocument();
+    expect(within(nav()).getByRole("button", { name: "Operação" })).toBeInTheDocument();
     expect(within(nav()).getByRole("button", { name: /Administração/ })).toBeInTheDocument();
   });
 
@@ -94,7 +95,7 @@ describe("AppLayout — grupos do sidebar (F38-T001)", () => {
 
   it("should mark the group as active when a child route is current", () => {
     renderLayout("/devices");
-    expect(document.querySelectorAll(".uni-nav-item.active").length).toBeGreaterThan(0);
+    expect(document.querySelectorAll(".layout-menu-item.active").length).toBeGreaterThan(0);
   });
 
   it("should expand sub-items inside a group (UniFi)", async () => {
@@ -147,7 +148,7 @@ describe("AppLayout — acordeão inline de sub-itens no sidebar", () => {
 
   it("should mark group as active when child route is current", () => {
     renderLayout("/unifi/dashboard");
-    expect(document.querySelectorAll(".uni-nav-item.active").length).toBeGreaterThan(0);
+    expect(document.querySelectorAll(".layout-menu-item.active").length).toBeGreaterThan(0);
   });
 });
 
@@ -278,5 +279,54 @@ describe("AppLayout — card do usuário no sidebar", () => {
     expect(within(menu).getByRole("menuitem", { name: "Alterar senha" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Tema escuro" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Sair" })).toBeInTheDocument();
+  });
+});
+
+describe("AppLayout — gaveta de navegação no mobile", () => {
+  beforeEach(() => {
+    store.getState().navigation.recentTabs.forEach((tab) => store.dispatch(removeTab(tab)));
+    store.dispatch(setMobileOpen(false));
+    localStorage.clear();
+    store.dispatch(
+      sessionChecked({
+        id: "3f1a1111-2222-3333-4444-555566667777",
+        email: "ana@exemplo.com",
+        displayName: "Ana",
+        roles: ["Admin"],
+      }),
+    );
+  });
+
+  it("should open the drawer from the hamburger and close it from the overlay", async () => {
+    renderLayout("/");
+    const user = userEvent.setup();
+
+    const sidebar = document.querySelector(".layout-sidebar");
+    expect(sidebar).not.toHaveClass("mobile-open");
+
+    const openButton = screen.getByRole("button", { name: "Abrir menu" });
+    expect(openButton).toHaveAttribute("aria-expanded", "false");
+    await user.click(openButton);
+
+    expect(sidebar).toHaveClass("mobile-open");
+    expect(openButton).toHaveAttribute("aria-expanded", "true");
+
+    const overlay = document.querySelector(".layout-sidebar-overlay");
+    expect(overlay).not.toBeNull();
+    await user.click(overlay as HTMLElement);
+
+    expect(sidebar).not.toHaveClass("mobile-open");
+    expect(openButton).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("should close the drawer after navigating", async () => {
+    renderLayout("/");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Abrir menu" }));
+    await user.click(within(nav()).getByRole("button", { name: /Infraestrutura/ }));
+    await user.click(within(nav()).getByRole("button", { name: "Dispositivos" }));
+
+    expect(document.querySelector(".layout-sidebar")).not.toHaveClass("mobile-open");
   });
 });
