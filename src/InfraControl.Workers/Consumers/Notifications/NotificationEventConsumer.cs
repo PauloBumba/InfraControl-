@@ -70,15 +70,15 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F16-T002/ADR-023: incidente (webhook Zabbix F16-T001, manual F6 ou
-    /// auto-abertura F6) → destinatários por role Operator e Admin
-    /// (decisão do usuário 2026-09-30).
+    /// auto-abertura F6) → destinatários por role Operator e Admin.
+    /// Mensagens em português para o grupo do WhatsApp.
     /// </summary>
     public Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
             context.Message.EventType,
             "Incidente aberto",
-            $"O incidente '{context.Message.Title}' foi aberto ({context.Message.Severity}).",
+            $"O incidente '{context.Message.Title}' foi aberto ({MapIncidentSeverityPt(context.Message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
@@ -86,35 +86,43 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F19-T007: resolução do incidente (regra 7: só o InfraControl decide)
-    /// → Operator + Admin.
+    /// → Operator + Admin. Mensagens em português para o grupo do WhatsApp.
     /// </summary>
     public Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
             context.Message.EventType,
             "Incidente resolvido",
-            $"O incidente '{context.Message.Title}' foi resolvido ({context.Message.Severity}).",
+            $"O incidente '{context.Message.Title}' foi resolvido ({MapIncidentSeverityPt(context.Message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             deviceId: context.Message.DeviceId);
 
     /// <summary>
-    /// F33-T004/ADR-059 (decisões 2/3): alerta Critical criado → Operator
-    /// + Admin. A segunda mensagem ("Incidente aberto") vem do
-    /// IncidentCreatedDomainEvent do incidente garantido no mesmo fluxo —
-    /// as 2 mensagens da decisão 3, sem duplicar.
+    /// F33-T004/ADR-059: alerta Critical criado → Operator + Admin.
+    /// Quando o alerta já gera um incidente no mesmo fluxo (HasIncident),
+    /// o WhatsApp não recebe esta mensagem para evitar duplicidade com
+    /// "Incidente aberto"; os demais canais seguem normalmente.
     /// </summary>
     public Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
-        => HandleAsync(
-            context.Message.EventId,
-            context.Message.EventType,
+    {
+        var message = context.Message;
+        NotificationChannel[]? channels = message.HasIncident
+            ? [NotificationChannel.SignalR, NotificationChannel.Email]
+            : null;
+
+        return HandleAsync(
+            message.EventId,
+            message.EventType,
             "Alerta Critical criado",
-            $"O alerta '{context.Message.Message}' foi aberto ({context.Message.Severity}).",
+            $"O alerta '{message.Message}' foi aberto ({MapSeverityPt(message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            deviceId: context.Message.DeviceId);
+            deviceId: message.DeviceId,
+            channels: channels);
+    }
 
     /// <summary>
     /// F44-T001 (prompt master §8): transição de status (ack →
@@ -142,7 +150,11 @@ public sealed class NotificationEventConsumer(
             channels: [NotificationChannel.SignalR]);
     }
 
-    /// <summary>F19-T007: alerta resolvido → Operator + Admin.</summary>
+    /// <summary>
+    /// F19-T007: alerta resolvido → Operator + Admin.
+    /// Para evitar ruído no WhatsApp, envio só por canal padrão quando houver
+    /// incidente vinculado não é garantido aqui; o worker aplica filtros.
+    /// </summary>
     public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
@@ -243,6 +255,22 @@ public sealed class NotificationEventConsumer(
         IncidentStatus.Monitoring => "Em monitoramento",
         IncidentStatus.Resolved => "Resolvido",
         _ => status.ToString()
+    };
+
+    private static string MapSeverityPt(InfraControl.Domain.Enums.AlertSeverity severity) => severity switch
+    {
+        InfraControl.Domain.Enums.AlertSeverity.Critical => "CRÍTICO",
+        InfraControl.Domain.Enums.AlertSeverity.Warning => "AVISO",
+        _ => severity.ToString()
+    };
+
+    private static string MapIncidentSeverityPt(InfraControl.Domain.Enums.IncidentSeverity severity) => severity switch
+    {
+        InfraControl.Domain.Enums.IncidentSeverity.Low => "BAIXO",
+        InfraControl.Domain.Enums.IncidentSeverity.Medium => "MÉDIO",
+        InfraControl.Domain.Enums.IncidentSeverity.High => "ALTO",
+        InfraControl.Domain.Enums.IncidentSeverity.Critical => "CRÍTICO",
+        _ => severity.ToString()
     };
 
     public Task Consume(ConsumeContext<UserCreatedDomainEvent> context)

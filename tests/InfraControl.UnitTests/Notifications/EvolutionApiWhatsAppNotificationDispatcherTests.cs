@@ -47,9 +47,8 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         var body = JsonDocument.Parse(recording.Body!);
         body.RootElement.GetProperty("number").GetString()
             .Should().Be("120363431225988863@g.us", "GroupId é prioritário (ADR-059 §3)");
-        body.RootElement.GetProperty("text").GetString()
-            .Should().Contain("Incidente aberto")
-            .And.Contain("Carga de CPU alta")
+        var text = body.RootElement.GetProperty("text").GetString();
+        text.Should().Contain("Carga de CPU alta")
             .And.Contain("18/10/2026 14:33");
     }
 

@@ -6,10 +6,12 @@ using InfraControl.Domain.Events;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using InfraControl.Workers.Consumers.Notifications;
+using MassTransit;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace InfraControl.UnitTests.Notifications;
 
@@ -900,10 +902,9 @@ public sealed class NotificationEventConsumerTests : IDisposable
     // ── F33-T004/ADR-059: AlertCreatedDomainEvent (Critical) ─────────
 
     /// <summary>
-    /// Decisões 2/3: alerta Critical avisa Operator + Admin; no WhatsApp
-    /// com GroupId o fanout deduplica em UMA delivery por notificação
-    /// (a 2ª mensagem "Incidente aberto" vem do
-    /// IncidentCreatedDomainEvent do incidente garantido no mesmo fluxo).
+    /// Decisões 2/3: alerta Critical avisa Operator + Admin; quando
+    /// HasIncident verdadeiro, o AlertCreated não vai ao WhatsApp para
+    /// evitar duplicidade com "Incidente aberto".
     /// </summary>
     [Fact]
     public async Task Consume_AlertCreated_ShouldNotifyOperatorAdminAndQueueSingleWhatsAppDelivery()
@@ -921,26 +922,36 @@ public sealed class NotificationEventConsumerTests : IDisposable
             Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(),
             "Device 'sw-01' está fora do ar (ping falhou).", hasIncident: true);
 
-        await consumer.HandleAsync(
-            domainEvent.EventId, domainEvent.EventType,
-            "Alerta Critical criado",
-            $"O alerta '{domainEvent.Message}' foi aberto ({domainEvent.Severity}).",
-            recipientUserId: null,
-            recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
-            CancellationToken.None);
+        var emptyMock = new Mock<ConsumeContext<AlertCreatedDomainEvent>>();
+        emptyMock.SetupGet(c => c.Message).Returns(new AlertCreatedDomainEvent(
+            Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(), "", hasIncident: true));
+        emptyMock.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
+        await consumer.Consume(emptyMock.Object);
 
-        var notification = await context.Notifications.AsNoTracking().SingleAsync();
-        notification.EventId.Should().Be(domainEvent.EventId);
+        var domainEvent2 = new AlertCreatedDomainEvent(
+            Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(),
+            "Device 'sw-01' está fora do ar (ping falhou).", hasIncident: true);
+        var mock = new Mock<ConsumeContext<AlertCreatedDomainEvent>>();
+        mock.SetupGet(c => c.Message).Returns(domainEvent2);
+        mock.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
+
+        await consumer.Consume(mock.Object);
+
+        var notification = await context.Notifications.AsNoTracking()
+            .Where(n => n.EventId == domainEvent2.EventId)
+            .SingleAsync();
+        notification.EventId.Should().Be(domainEvent2.EventId);
         notification.Title.Should().Be("Alerta Critical criado");
-        notification.Message.Should().Contain("sw-01").And.Contain("(Critical)");
+        notification.Message.Should().Contain("sw-01").And.Contain("CRÍTICO");
 
         var roles = await context.NotificationRecipients.AsNoTracking()
+            .Where(r => r.NotificationId == notification.Id)
             .Select(recipient => recipient.Role).ToListAsync();
         roles.Should().BeEquivalentTo(["Operator", "Admin"]);
 
         (await context.NotificationDeliveries.AsNoTracking()
             .CountAsync(delivery => delivery.Channel == NotificationChannel.WhatsApp))
-            .Should().Be(1, "grupo é destino único — 1 delivery por notificação (T003)");
+            .Should().Be(0, "quando HasIncident verdadeiro, AlertCreated não vai ao WhatsApp");
     }
 
     /// <summary>Inbox ×2 (docs/06): reentrega do RabbitMQ não duplica.</summary>
@@ -954,7 +965,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
         var handle = () => consumer.HandleAsync(
             domainEvent.EventId, domainEvent.EventType,
             "Alerta Critical criado",
-            $"O alerta '{domainEvent.Message}' foi aberto ({domainEvent.Severity}).",
+            $"O alerta '{domainEvent.Message}' foi aberto (CRÍTICO).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             CancellationToken.None);
