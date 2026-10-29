@@ -10,6 +10,7 @@ using MediatR;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ADR-021: o worker entra na MESMA plataforma de log da API. Sem isto, tudo o
 // que roda fora da API (outbox, cleanup, backup, polling, notificações) não

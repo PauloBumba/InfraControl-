@@ -35,6 +35,7 @@ using Serilog;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ── Serilog ──────────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
