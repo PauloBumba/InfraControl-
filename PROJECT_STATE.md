@@ -4,8 +4,9 @@
 
 **Fase:** Fundação técnica e execução incremental
 **Status:** Em execução incremental
-**Última atualização:** 2026-10-25
-**F46 concluída:** engenharia de produto ponta-a-ponta (seed mock, varredura E2E, latência/N+1, integridade/SignalR, saúde dos serviços, Zabbix Agent2 + autodiscovery, relatórios e correções). Suíte de integração **229/229**; p95 de todos os endpoints < 50ms; sem N+1 real (falso positivo do poll dos workers resolvido na T008). Relatórios em `docs/reports/F46-*.md`. Pendências: push dos commits locais (F41/F44), dívida F44 em `OperationsCenterPage.test.tsx`. Rate limit Default elevado para 300/60 (decisão do usuário, 2026-10-25).
+**Última atualização:** 2026-10-29
+**F47 concluída:** IA ao vivo com **modelo único** (ADR-065 — `qwen2.5-coder:1.5b` serve todas as capacidades, com override opcional por capacidade), runtime Ollama no ar (profile `ai`: 3 réplicas + LB) e login/UI no padrão PrimeReact Sakai. **Bug ao vivo corrigido no caminho**: filtros `from/to` dos relatórios quebravam só no Postgres (`DateOnly.ToDateTime` → `Kind=Unspecified` vs `timestamptz`; o SQLite dos testes escondia) — helper `ReportPeriodBounds` em 6 repositórios, 10/10 endpoints com filtro validados a 200. Validação ao vivo: chat e Reporting respondendo com o mesmo modelo via `ollama-lb`; unit **3096/3098** (2 falhas Skia pré-existentes), arch **167/167**. Também em 2026-10-29: atualização dos containers com rollback controlado do Zabbix (`alpine-trunk` passou a 8.0.0rc3 — patch de schema `07050195→07050196` aplicado em standalone porque `ZBX_HANODENAME` bloqueava upgrade em HA; dump pré-upgrade em `temp/opencode/backups/`), tudo healthy.
+**F46 concluída:** engenharia de produto ponta-a-ponta (seed mock, varredura E2E, latência/N+1, integridade/SignalR, saúde dos serviços, Zabbix Agent2 + autodiscovery, relatórios e correções). Suíte de integração **229/229**; p95 de todos os endpoints < 50ms; sem N+1 real (falso positivo do poll dos workers resolvido na T008). Relatórios em `docs/reports/F46-*.md`. Rate limit Default elevado para 300/60 (decisão do usuário, 2026-10-25).
 
 ## Regra operacional
 
@@ -186,6 +187,19 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] **F25-T005 Histórico + export (§13–§14)** <!-- 2026-10-26: GET /reports/history (série mensal on-the-fly, sem snapshot) + /history/export?format=csv|pdf|xlsx (ReportExportFormat + HistoryReportRenderers). Testes 3/3 + Reports 22/22 + arch 167/167 + front (tabela + exports). -->
 - [x] **F25-T006 Relatórios automáticos + IA (§15–§16)** <!-- 2026-10-26: §16 POST /reports/gerencial/ai-interpretation (IAiGateway LEVEL 0); §15 GET /reports/automatic?cadence= (janela do período corrente → §12). Agendamento background pendente de ADR. Testes 7/7 + Reports 29/29 + arch 167/167 + front (§15–§16). -->
 - [x] **Fase 25 concluída (T001→T006)** <!-- 2026-10-26: camada de indicadores/relatórios completa (docs/33) — todos endpoints sem migração (leitura composta, ao vivo). -->
+
+## Fase 47 — IA ao vivo: modelo único + runtime Ollama + UI Sakai (2026-10-27 → 2026-10-29)
+
+> **Contexto:** pedido do usuário — "a IA não funciona, e define um modelo único, não um modelo por função" + "o painel seguiu o PrimeReact Sakai; só falta o login". A IA quebrava em **3 camadas**: LB do profile `ai` parado, cadastro roteando `1.5b` como se fosse única e modelo duplicado em config (×5 blocos) e cadastro DB (×5 linhas). Decisões do usuário: (A) compose `profile ai` (ADR-041) em vez do Ollama do host; (B) modelo único com ADR; (C) Sakai = login + shell; (D) "usa apenas o 1.5".
+
+- [x] **F47-T001 ADR-065 — modelo único com override opcional** <!-- 2026-10-27: docs/adr/ADR-065 (amenda ADR-037 §15 + ADR-057 §3): D1=`Ai:Routing:Default`, D2=override por capacidade opcional, D3=`qwen2.5-coder:1.5b`; cascatа capacidade→Default com merge campo-a-campo (`MergeWith`); capacidade fora do enum não herda (mensagem §44). Router e Seeder leem de UMA fonte; appsettings API+Workers de 5 blocos para `Routing:Default`. Testes `AiRoutingDefaultTests` 9/9 → AI 222/222. -->
+- [x] **F47-T002 Runtime Ollama ao vivo** <!-- 2026-10-27: 3 réplicas + LB healthy; `.env` ganhou `OLLAMA_PORT=11435` (11434 ocupada pelo Ollama do host — decisão: ignorar o host, usar compose); cadastro DB atualizado para `1.5b` (autoridade = cadastro, ADR-057); pull do 7b cancelado a pedido ("usa apenas o 1.5"). -->
+- [x] **F47-T003 UI Sakai: login + shell** <!-- 2026-10-27: login.css no padrão Sakai (grade técnica + halo accent, card 400px); AppSidebar com `aria-label` + tipagem; AppLayout.test corrigido (layout-menu-*). 20/20 testes do layout/login, tsc/eslint/build ✓. -->
+- [x] **F47-T004 Correção: filtros de período em UTC (bug ao vivo)** <!-- 2026-10-27: `ai-interpretation` devolvia 400 (`DateTime Kind=Unspecified` vs `timestamptz`; SQLite escondia). Helper `ReportPeriodBounds` + 6 repositórios; `ReportPeriodBoundsTests` 5/5; ao vivo 10/10 endpoints com `?from&to` = 200. -->
+- [x] **F47-T005 Validação ao vivo da IA** <!-- 2026-10-27: chat 200 em 7,4s (`provider: ollama, model: qwen2.5-coder:1.5b`); Reporting (outra capacidade) com o MESMO modelo → modelo único confirmado; `/admin/ai-providers` mostra todas as capacidades no `1.5b` via `ollama-lb`. -->
+- [x] **Fase 47 concluída (T001→T005)** <!-- 2026-10-29: IA e relatórios validados ao vivo; commits `98594c4`/`0a4c6fa`/`9a2db1d` em origin/main. -->
+
+> **Pendências abertas (F47):** (1) `OperationsCenterPage.test.tsx` (NOC) derruba o worker do Vitest com OOM/SIGABRT no render — dívida F44 pré-existente (import puro passa em 3,9s; vilão é o render em jsdom; mockar `MetricChart` e pool `threads` não resolveram; suíte completa fica 394/397 e o arquivo isolado nunca conclui). (2) Upgrade real do Zabbix para uma versão fixa 8.0 quando sair do RC (hoje `alpine-trunk` flutuante = 8.0.0rc3; dump pré-upgrade preservado). (3) `PROJECT_STATE`/escopo de notificações de conclusão (Task executor+solicitante; Projeto membros; PDI dono; regras ON por padrão) decidido com o usuário mas **fase não aberta** — outra sessão já mexe em `NotificationEventConsumer`/WhatsApp.
 
 ## Fase 46 — Engenharia de produto ponta-a-ponta (2026-10-24 → 2026-10-25)
 
