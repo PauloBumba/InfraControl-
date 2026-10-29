@@ -4,6 +4,15 @@
    Carregado condicionalmente quando data-theme="dark"
    ============================================================ */
 
+/* Hero com gradientes mais impactantes no dark mode */
+[data-theme="dark"] .uni-public-hero::before {
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+}
+
+[data-theme="dark"] .uni-public-hero::after {
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+}
+
 [data-theme="dark"] .uni-public-header {
   background: var(--surface-card);
   border-bottom-color: var(--uni-border);
@@ -33,18 +42,55 @@
   border-color: var(--uni-text-muted);
 }
 
+/* Cards com gradientes no dark mode */
 [data-theme="dark"] .uni-public-card {
-  background: var(--surface-card);
+  background: linear-gradient(135deg, var(--surface-card) 0%, rgba(59, 130, 246, 0.03) 100%);
   border-color: var(--uni-border);
 }
 
 [data-theme="dark"] .uni-public-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
   border-color: var(--uni-accent);
 }
 
+[data-theme="dark"] .uni-public-card-icon {
+  background: linear-gradient(135deg, var(--uni-bg) 0%, rgba(59, 130, 246, 0.08) 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Stats com gradientes no dark mode */
+[data-theme="dark"] .uni-public-stat {
+  background: linear-gradient(135deg, var(--surface-card) 0%, rgba(59, 130, 246, 0.04) 100%);
+}
+
+[data-theme="dark"] .uni-public-stat:hover {
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
+  border-color: var(--uni-accent);
+}
+
+/* Band CTA com gradiente mais forte no dark mode */
 [data-theme="dark"] .uni-public-band {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  border-color: var(--uni-border);
+}
+
+/* FAQ no dark mode */
+[data-theme="dark"] .uni-public-faq-item {
   background: var(--surface-card);
+  border-color: var(--uni-border);
+}
+
+[data-theme="dark"] .uni-public-faq-item:hover {
+  border-color: var(--uni-accent);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.12);
+}
+
+[data-theme="dark"] .uni-public-faq-question:hover {
+  background: var(--uni-hover);
+}
+
+/* Stats hover no dark mode */
+[data-theme="dark"] .uni-public-stat {
   border-color: var(--uni-border);
 }
 

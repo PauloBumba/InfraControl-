@@ -122,7 +122,7 @@ ul, ol { list-style: none; }
   position: fixed;
   top: 0; left: 0; bottom: 0;
   z-index: 100;
-  transition: width 0.2s;
+  transition: width 0.2s, transform 0.2s;
   overflow: hidden;
 }
 .uni-sidebar.collapsed { width: var(--uni-sidebar-collapsed-w); }
@@ -154,6 +154,19 @@ ul, ol { list-style: none; }
 }
 .uni-sidebar-toggle:hover { color: var(--uni-text); }
 .uni-sidebar.collapsed .uni-sidebar-toggle { display: none; }
+
+/* Fechar o drawer no mobile (o toggle acima só recolhe no desktop). */
+.uni-sidebar-close {
+  display: none;
+  margin-left: auto;
+  width: 28px; height: 28px;
+  align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: var(--uni-text-muted);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.uni-sidebar-close:hover { background: var(--uni-hover); color: var(--uni-text); }
 
 /* Nav */
 .uni-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
@@ -408,6 +421,22 @@ ul, ol { list-style: none; }
 
 /* ============ CONTENT ============ */
 .uni-content { flex: 1; padding: 20px; }
+
+/* ============ FOOTER ============ */
+.uni-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--uni-border);
+  background: var(--uni-surface);
+}
+.uni-footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--uni-text-muted);
+}
 
 /* ============ PAGE LOADER ============ */
 .uni-page-loader {
@@ -739,15 +768,40 @@ ul, ol { list-style: none; }
   .uni-grid-2, .uni-grid-3 { grid-template-columns: 1fr; }
   .uni-settings-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 768px) {
-  .uni-sidebar { transform: translateX(-100%); width: var(--uni-sidebar-w); z-index: 200; }
+@media (max-width: 991px) {
+  .uni-sidebar {
+    transform: translateX(-100%);
+    width: var(--uni-sidebar-w);
+    z-index: 200;
+  }
   .uni-sidebar.mobile-open { transform: translateX(0); }
   .uni-sidebar-overlay { display: block; z-index: 199; }
   .uni-main { margin-left: 0 !important; }
   .uni-mobile-menu { display: flex; }
+  .uni-sidebar-toggle { display: none; }
+  .uni-sidebar-close { display: flex; }
+  .uni-topbar { padding: 0 12px; gap: 8px; }
+  .uni-topbar-search { width: 180px; }
+  .uni-content { padding: 16px; }
+
+  /* O drawer mobile sempre abre expandido, mesmo se o desktop estava recolhido. */
+  .uni-sidebar.collapsed { width: var(--uni-sidebar-w); }
+  .uni-sidebar.collapsed .uni-sidebar-logo span { display: inline; }
+  .uni-sidebar.collapsed .uni-nav-submenu { display: flex; }
+  .uni-sidebar.collapsed .uni-nav-item { justify-content: flex-start; padding: 8px 12px; }
+  .uni-sidebar.collapsed .uni-nav-item span:not(.uni-nav-badge) { display: inline; }
+  .uni-sidebar.collapsed .uni-nav-badge { position: static; margin-left: auto; }
+  .uni-sidebar.collapsed .uni-user-info { justify-content: flex-start; padding: 2px; }
+  .uni-sidebar.collapsed .uni-user-details,
+  .uni-sidebar.collapsed .uni-user-info > i { display: block; }
+}
+
+@media (max-width: 768px) {
   .uni-topbar-search { display: none; }
   .uni-devices-grid { grid-template-columns: 1fr; }
   .uni-content { padding: 12px; }
+  .uni-footer { padding: 12px; }
+  .uni-footer-content { justify-content: center; text-align: center; }
 }
 
 /* ============ LOGIN / RECUPERAÇÃO (UniFi-style) ============ */

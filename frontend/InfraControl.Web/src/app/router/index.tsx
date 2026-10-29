@@ -197,6 +197,24 @@ function AppContent() {
    */
   const handleNavigate = (route: string) => navigate(route);
 
+  // O centro de operações ocupa a tela inteira (sem chrome do layout).
+  // Este efeito precisa ficar ANTES de qualquer return condicional: chamar
+  // hook depois de um early return viola as regras dos hooks e derrubava a
+  // árvore com o erro React #310 ao entrar no painel.
+  const isOps = location.pathname === "/operations-center";
+  useEffect(() => {
+    if (isOps) {
+      document.body.classList.add("noc-route-active");
+    } else {
+      document.body.classList.remove("noc-route-active");
+      document.body.classList.remove("noc-fullscreen-active");
+    }
+    return () => {
+      document.body.classList.remove("noc-route-active");
+      document.body.classList.remove("noc-fullscreen-active");
+    };
+  }, [isOps]);
+
   // F26-T002 — landing pública de vendas: header/footer COMPARTILHADOS e
   // conteúdo que muda por rota. A rota raiz `/` é a landing pública (para não autenticados).
   // Rotas públicas não dependem do backend e funcionam mesmo sem authStatus disponível.
@@ -260,19 +278,6 @@ function AppContent() {
     );
   }
 
-  const isOps = location.pathname === "/operations-center";
-  useEffect(() => {
-    if (isOps) {
-      document.body.classList.add("noc-route-active");
-    } else {
-      document.body.classList.remove("noc-route-active");
-      document.body.classList.remove("noc-fullscreen-active");
-    }
-    return () => {
-      document.body.classList.remove("noc-route-active");
-      document.body.classList.remove("noc-fullscreen-active");
-    };
-  }, [isOps]);
   return (
     <>
       {isOps ? (

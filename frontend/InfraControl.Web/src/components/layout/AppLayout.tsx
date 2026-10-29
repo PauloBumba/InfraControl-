@@ -3,6 +3,8 @@ import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { setMobileOpen } from "@/app/store/slices/uiSlice";
 import { removeTab } from "@/app/store/slices/navigationSlice";
 import { labelForRoute } from "@/app/router/routeLabels";
+import { navigation, secondaryNavigation, type NavItem } from "@/data/dashboardData";
+import { canReach, routeLevel } from "@/app/router/access";
 import { LayoutProvider, useLayoutContext } from "./LayoutContext";
 import { AppTopbar, type AppTopbarRef } from "./AppTopbar";
 import { AppSidebar } from "./AppSidebar";
@@ -14,99 +16,145 @@ type AppLayoutProps = {
   onNavigate: (route: string) => void;
 };
 
+function findNavItem(route: string): NavItem | undefined {
+  for (const group of [...navigation, ...secondaryNavigation]) {
+    for (const item of group.items) {
+      if (item.route === route) return item;
+      const child = item.items?.find((candidate) => candidate.route === route);
+      if (child) return child;
+    }
+  }
+  return undefined;
+}
+
 function AppLayoutContent({ children, activeRoute, onNavigate }: AppLayoutProps) {
-  const { layoutConfig, layoutState, setLayoutState } = useLayoutContext();
+  const { layoutConfig } = useLayoutContext();
   const dispatch = useAppDispatch();
   const topbarRef = useRef<AppTopbarRef>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const recentTabs = useAppSelector((s) => s.navigation.recentTabs);
+  const sidebarCollapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
+  const mobileOpen = useAppSelector((s) => s.ui.mobileOpen);
+  const roles = useAppSelector((s) => s.auth.user?.roles);
 
   const handleMenuButtonClick = useCallback(() => {
-    if (layoutConfig.menuMode === "overlay") {
-      setLayoutState((prev) => ({
-        ...prev,
-        overlayMenuActive: !prev.overlayMenuActive,
-      }));
-    } else {
-      dispatch(setMobileOpen(true));
-    }
-  }, [layoutConfig.menuMode, dispatch, setLayoutState]);
+    dispatch(setMobileOpen(true));
+  }, [dispatch]);
 
-  const hideMenu = useCallback(() => {
-    setLayoutState((prev) => ({
-      ...prev,
-      overlayMenuActive: false,
-      staticMenuMobileActive: false,
-    }));
-  }, [setLayoutState]);
+  const closeMobileMenu = useCallback(() => {
+    dispatch(setMobileOpen(false));
+  }, [dispatch]);
 
-  const handleOutsideClick = useCallback((event: MouseEvent) => {
-    const isOutsideClicked = !(
-      sidebarRef.current?.isSameNode(event.target as Node) ||
-      sidebarRef.current?.contains(event.target as Node) ||
-      topbarRef.current?.menubutton?.isSameNode(event.target as Node) ||
-      topbarRef.current?.menubutton?.contains(event.target as Node)
-    );
+  const handleNavigate = useCallback(
+    (route: string) => {
+      onNavigate(route);
+      closeMobileMenu();
+    },
+    [closeMobileMenu, onNavigate],
+  );
 
-    if (isOutsideClicked) {
-      hideMenu();
-    }
-  }, [hideMenu]);
-
+  // Sakai: clique fora fecha o drawer; Escape também. O botão do topbar fica
+  // fora do listener para o mesmo clique que abre não fechar em seguida.
   useEffect(() => {
-    if (layoutState.overlayMenuActive || layoutState.staticMenuMobileActive) {
-      document.addEventListener("click", handleOutsideClick);
-    }
+    if (!mobileOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const isOutsideClicked = !(
+        sidebarRef.current?.isSameNode(event.target as Node) ||
+        sidebarRef.current?.contains(event.target as Node) ||
+        topbarRef.current?.menubutton?.isSameNode(event.target as Node) ||
+        topbarRef.current?.menubutton?.contains(event.target as Node)
+      );
+
+      if (isOutsideClicked) closeMobileMenu();
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMobileMenu();
+    };
+
+    document.addEventListener("click", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
     return () => {
       document.removeEventListener("click", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
     };
-  }, [layoutState.overlayMenuActive, layoutState.staticMenuMobileActive, handleOutsideClick]);
+  }, [closeMobileMenu, mobileOpen]);
+
+  // Trava o scroll do body apenas no mobile, como o `blocked-scroll` do Sakai.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const desktop = window.matchMedia?.("(min-width: 992px)");
+    if (desktop?.matches) return;
+    document.body.classList.add("blocked-scroll");
+    return () => document.body.classList.remove("blocked-scroll");
+  }, [mobileOpen]);
+
+  // Se a viewport crescer para desktop, o drawer não pode ficar "aberto".
+  useEffect(() => {
+    const desktop = window.matchMedia?.("(min-width: 992px)");
+    if (!desktop) return;
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (event.matches) closeMobileMenu();
+    };
+    desktop.addEventListener("change", handleChange);
+    return () => desktop.removeEventListener("change", handleChange);
+  }, [closeMobileMenu]);
+
+  // Navegar por qualquer origem (aba, menu, link) fecha o drawer.
+  useEffect(() => {
+    closeMobileMenu();
+  }, [activeRoute, closeMobileMenu]);
 
   const removeRecentTab = (tab: string) => {
     dispatch(removeTab(tab));
   };
 
-  const canSee = () => {
-    // Simple permission check - can be enhanced
-    return true;
-  };
+  const visibleRecentTabs = recentTabs.filter((route) =>
+    canReach(roles, routeLevel(route)),
+  );
 
-  const visibleRecentTabs = recentTabs.filter(() => canSee());
+  const containerClass = `layout-wrapper ${
+    layoutConfig.menuMode === "overlay" ? "layout-overlay" : "layout-static"
+  } ${mobileOpen ? "layout-mobile-active" : ""}`;
 
-  const getNavItem = (route: string) => {
-    // This is a simplified version - would need proper implementation
-    return { icon: "pi pi-circle", label: labelForRoute(route) };
-  };
-
-  const containerClass = `layout-wrapper ${layoutConfig.menuMode === "overlay" ? "layout-overlay" : "layout-static"} ${
-    layoutState.overlayMenuActive ? "layout-overlay-active" : ""
-  } ${layoutState.staticMenuMobileActive ? "layout-mobile-active" : ""}`;
+  const sidebarClass = `layout-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${
+    mobileOpen ? "mobile-open" : ""
+  }`;
 
   return (
     <div className={containerClass}>
-      <AppTopbar ref={topbarRef} onMenuButtonClick={handleMenuButtonClick} activeRoute={activeRoute} />
-      <div ref={sidebarRef} className="layout-sidebar">
-        <AppSidebar activeRoute={activeRoute} onNavigate={onNavigate} />
+      <AppTopbar
+        ref={topbarRef}
+        onMenuButtonClick={handleMenuButtonClick}
+        activeRoute={activeRoute}
+        mobileMenuOpen={mobileOpen}
+      />
+      <div ref={sidebarRef} id="app-sidebar" className={sidebarClass}>
+        <AppSidebar activeRoute={activeRoute} onNavigate={handleNavigate} />
       </div>
       <div className="layout-main-container">
         <div className="layout-main">
           {visibleRecentTabs.length > 0 && (
             <div className="layout-tabs-bar">
               {visibleRecentTabs.map((route: string) => {
-                const navItem = getNavItem(route);
+                const navItem = findNavItem(route);
                 const tabLabel = labelForRoute(route);
                 return (
                   <button
                     key={route}
                     className={`layout-tab ${activeRoute === route ? "active" : ""}`}
                     aria-current={activeRoute === route ? "page" : undefined}
-                    onClick={() => onNavigate(route)}
+                    onClick={() => handleNavigate(route)}
                   >
                     <i className={navItem?.icon || "pi pi-circle"} />
                     <span>{tabLabel}</span>
                     <button
                       className="layout-tab-close"
-                      onClick={(e) => { e.stopPropagation(); removeRecentTab(route); }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeRecentTab(route);
+                      }}
                       aria-label={`Fechar ${tabLabel}`}
                     >
                       <i className="pi pi-times" />
@@ -120,10 +168,11 @@ function AppLayoutContent({ children, activeRoute, onNavigate }: AppLayoutProps)
         </div>
         <AppFooter />
       </div>
-      {layoutState.staticMenuMobileActive && (
-        <div
+      {mobileOpen && (
+        <button
+          type="button"
           className="layout-sidebar-overlay"
-          onClick={() => dispatch(setMobileOpen(false))}
+          onClick={closeMobileMenu}
           aria-label="Fechar menu"
         />
       )}

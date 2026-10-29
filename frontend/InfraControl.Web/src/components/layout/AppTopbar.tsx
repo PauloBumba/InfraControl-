@@ -22,6 +22,7 @@ export interface AppTopbarRef {
 interface AppTopbarProps {
   onMenuButtonClick: () => void;
   activeRoute: string;
+  mobileMenuOpen: boolean;
 }
 
 const SEARCH_TYPE_LABEL: Record<GlobalSearchItem["type"], string> = {
@@ -34,7 +35,7 @@ const SEARCH_TYPE_LABEL: Record<GlobalSearchItem["type"], string> = {
 };
 
 export const AppTopbar = forwardRef<AppTopbarRef, AppTopbarProps>(
-  ({ onMenuButtonClick, activeRoute }, ref) => {
+  ({ onMenuButtonClick, activeRoute, mobileMenuOpen }, ref) => {
     const dispatch = useAppDispatch();
     const routerNavigate = useNavigate();
     const user = useAppSelector((s) => s.auth.user);
@@ -222,6 +223,8 @@ export const AppTopbar = forwardRef<AppTopbarRef, AppTopbarProps>(
           className="p-link layout-menu-button"
           onClick={onMenuButtonClick}
           aria-label="Abrir menu"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="app-sidebar"
         >
           <i className="pi pi-bars" />
         </button>

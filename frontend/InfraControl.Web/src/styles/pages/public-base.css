@@ -11,42 +11,50 @@
   padding: 0 20px;
 }
 
-/* Header público */
+/* Header público com mais profundidade */
 .uni-public-header {
   background: var(--surface-card, #fff);
   border-bottom: 1px solid var(--uni-border);
   position: sticky;
   top: 0;
   z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(10px);
 }
 
 .uni-public-bar {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 58px;
+  min-height: 64px;
 }
 
 .uni-public-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--uni-text);
   text-decoration: none;
   margin-right: auto;
+  transition: opacity 0.2s ease;
+}
+
+.uni-public-brand:hover {
+  opacity: 0.8;
 }
 
 .uni-public-logo {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Navegação pública */
+/* Navegação pública com mais destaque */
 .uni-public-nav {
   display: flex;
   align-items: center;
@@ -58,12 +66,26 @@
 
 .uni-public-nav-link {
   display: block;
-  padding: 7px 11px;
-  border-radius: 7px;
-  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--uni-text-secondary);
   text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.uni-public-nav-link::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: var(--uni-accent);
+  transition: width 0.2s ease;
 }
 
 .uni-public-nav-link:hover {
@@ -71,10 +93,18 @@
   background: var(--uni-bg);
 }
 
+.uni-public-nav-link:hover::before {
+  width: 60%;
+}
+
 .uni-public-nav-link-active {
   color: var(--uni-accent);
   background: var(--uni-bg);
   font-weight: 600;
+}
+
+.uni-public-nav-link-active::before {
+  width: 60%;
 }
 
 .uni-public-bar-actions {
@@ -88,8 +118,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 56px;
-  padding: 64px 0 72px;
+  gap: 72px;
+  padding: 72px 0 80px;
 }
 
 /* Hero genérico */
@@ -97,6 +127,41 @@
   max-width: 1080px;
   margin: 0 auto;
   text-align: center;
+  z-index: 1;
+  position: relative;
+}
+
+/* Animações de scroll/reveal */
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.uni-reveal {
+  opacity: 0;
+  animation: revealUp 0.6s ease-out forwards;
+}
+
+.uni-reveal-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.uni-reveal-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.uni-reveal-delay-3 {
+  animation-delay: 0.3s;
+}
+
+.uni-reveal-delay-4 {
+  animation-delay: 0.4s;
 }
 
 /* Badge do hero */
@@ -162,8 +227,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
-  border-radius: 8px;
+  padding: 12px 20px;
+  border-radius: 10px;
   border: 1px solid transparent;
   background: var(--uni-accent);
   color: #fff;
@@ -171,11 +236,18 @@
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 .uni-public-button:hover {
   background: var(--uni-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.uni-public-button:active {
+  transform: translateY(0);
 }
 
 .uni-public-button:focus-visible {
@@ -184,7 +256,7 @@
 }
 
 .uni-public-button-small {
-  padding: 7px 14px;
+  padding: 8px 16px;
   font-size: 13px;
 }
 
@@ -192,11 +264,14 @@
   background: transparent;
   color: var(--uni-text);
   border-color: #d1d5db;
+  box-shadow: none;
 }
 
 .uni-public-button-ghost:hover {
   background: var(--surface-card, #fff);
   border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .uni-public-button-ghost:focus-visible {
@@ -207,12 +282,14 @@
 /* Seções */
 .uni-public-section {
   width: 100%;
+  padding: 24px 0;
 }
 
 .uni-public-section > h2 {
-  margin: 0 0 20px;
-  font-size: 22px;
-  font-weight: 700;
+  margin: 0 0 32px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   text-align: center;
   color: var(--uni-text);
 }
@@ -228,48 +305,68 @@
 .uni-public-card {
   background: var(--surface-card, #fff);
   border: 1px solid var(--uni-border);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+  gap: 12px;
+  transition: all 0.3s ease;
 }
 
 .uni-public-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
   border-color: var(--uni-accent);
 }
 
 .uni-public-card-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: var(--uni-bg);
   color: var(--uni-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(59, 130, 246, 0.1);
 }
 
 .uni-public-card-icon i {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .uni-public-card h2,
 .uni-public-card h3 {
   margin: 4px 0 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--uni-text);
 }
 
 .uni-public-card p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.7;
   color: var(--uni-text-secondary);
+}
+
+/* Card link para CTAs dentro de cards */
+.uni-public-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uni-accent);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.uni-public-card-link:hover {
+  transform: translateX(4px);
+  color: var(--uni-accent-hover);
 }
 
 /* Footer público */
@@ -358,16 +455,23 @@
   color: var(--uni-text-muted);
 }
 
-/* Responsividade */
+/* Responsividade melhorada */
 @media (max-width: 720px) {
   .uni-public-bar {
     flex-wrap: wrap;
     padding-top: 12px;
     padding-bottom: 12px;
+    min-height: 56px;
   }
 
   .uni-public-brand {
     margin-right: 0;
+    font-size: 15px;
+  }
+
+  .uni-public-logo {
+    width: 28px;
+    height: 28px;
   }
 
   .uni-public-bar nav {
@@ -392,13 +496,30 @@
     font-size: 28px;
   }
 
+  .uni-public-lead {
+    font-size: 15px;
+  }
+
   .uni-public-actions {
     justify-content: center;
   }
 
   .uni-public-main {
-    gap: 40px;
-    padding: 40px 0 48px;
+    gap: 48px;
+    padding: 48px 0 56px;
+  }
+
+  .uni-public-section {
+    padding: 16px 0;
+  }
+
+  .uni-public-section > h2 {
+    font-size: 24px;
+  }
+
+  .uni-public-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .uni-public-footer-grid {
@@ -423,10 +544,26 @@
   }
 
   .uni-public-section > h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .uni-public-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .uni-public-card {
+    padding: 20px;
+  }
+
+  .uni-public-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .uni-public-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .uni-public-integrations {
     grid-template-columns: 1fr;
   }
 }

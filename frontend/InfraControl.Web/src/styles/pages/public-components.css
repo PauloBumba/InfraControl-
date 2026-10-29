@@ -111,126 +111,252 @@
   color: var(--uni-accent);
 }
 
-/* Seção de estatísticas */
+/* Seção de estatísticas com mais destaque */
 .uni-public-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: 20px;
   max-width: 1080px;
-  margin: 0 auto;
+  margin: 48px auto;
+  position: relative;
+}
+
+.uni-public-stats::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: calc(100% + 60px);
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.02) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .uni-public-stat {
   text-align: center;
-  padding: 24px 16px;
+  padding: 32px 20px;
   background: var(--surface-card);
   border: 1px solid var(--uni-border);
-  border-radius: 12px;
-  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.uni-public-stat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--uni-accent) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .uni-public-stat:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
   border-color: var(--uni-accent);
 }
 
+.uni-public-stat:hover::before {
+  opacity: 1;
+}
+
 .uni-public-stat-value {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--uni-accent);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
 }
 
 .uni-public-stat-label {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--uni-text-secondary);
+  position: relative;
+  z-index: 1;
 }
 
-/* Seção "Como funciona" */
+/* Seção "Como funciona" com mais destaque */
 .uni-public-steps {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
+  gap: 24px;
   max-width: 1080px;
   margin: 0 auto;
+  position: relative;
+}
+
+.uni-public-steps::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.02) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .uni-public-step {
   text-align: center;
-  padding: 24px 16px;
+  padding: 32px 20px;
+  background: var(--surface-card);
+  border: 1px solid var(--uni-border);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.uni-public-step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--uni-accent) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.uni-public-step:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
+  border-color: var(--uni-accent);
+}
+
+.uni-public-step:hover::before {
+  opacity: 1;
 }
 
 .uni-public-step-number {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--uni-accent);
+  background: linear-gradient(135deg, var(--uni-accent) 0%, #1d4ed8 100%);
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .uni-public-step h3 {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--uni-text);
-  margin: 0 0 8px;
+  margin: 0 0 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .uni-public-step p {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--uni-text-secondary);
-  line-height: 1.5;
+  line-height: 1.7;
   margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
-/* Seção de integrações */
+/* Seção de integrações com mais destaque */
 .uni-public-integrations {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  gap: 16px;
   max-width: 1080px;
   margin: 0 auto;
+  position: relative;
+}
+
+.uni-public-integrations::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 80%;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.02) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .uni-public-integration {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 16px 20px;
   background: var(--surface-card);
   border: 1px solid var(--uni-border);
-  border-radius: 10px;
-  transition: all 0.15s;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.uni-public-integration::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--uni-accent) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .uni-public-integration:hover {
   border-color: var(--uni-accent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+  transform: translateY(-4px);
+}
+
+.uni-public-integration:hover::before {
+  opacity: 1;
 }
 
 .uni-public-integration-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--uni-bg);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--uni-bg) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--uni-accent);
-  font-size: 16px;
+  font-size: 18px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .uni-public-integration-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--uni-text);
+  position: relative;
+  z-index: 1;
 }
 
 /* Seção FAQ */
@@ -239,14 +365,20 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .uni-public-faq-item {
   background: var(--surface-card);
   border: 1px solid var(--uni-border);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.uni-public-faq-item:hover {
+  border-color: var(--uni-accent);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
 }
 
 .uni-public-faq-question {
@@ -254,31 +386,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 20px 24px;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--uni-text);
   text-align: left;
+  transition: background 0.2s ease;
+}
+
+.uni-public-faq-question:hover {
+  background: var(--uni-hover);
 }
 
 .uni-public-faq-question i {
   color: var(--uni-text-muted);
-  font-size: 12px;
-  transition: transform 0.2s;
+  font-size: 14px;
+  transition: transform 0.3s ease;
 }
 
 .uni-public-faq-item.open .uni-public-faq-question i {
   transform: rotate(180deg);
+  color: var(--uni-accent);
 }
 
 .uni-public-faq-answer {
-  padding: 0 20px 16px;
-  font-size: 13px;
+  padding: 0 24px 24px;
+  font-size: 14px;
   color: var(--uni-text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 /* Seção de CTA expandida */

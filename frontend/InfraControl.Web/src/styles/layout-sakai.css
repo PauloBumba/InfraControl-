@@ -10,17 +10,21 @@
   background: var(--uni-bg);
 }
 
+body.blocked-scroll {
+  overflow: hidden;
+}
+
 /* Sidebar */
 .layout-sidebar {
   width: 260px;
+  height: calc(100vh - 60px);
   background: var(--uni-surface);
   border-right: 1px solid var(--uni-border);
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0;
+  top: 60px;
   left: 0;
-  bottom: 0;
   z-index: 100;
   transition: width 0.2s, transform 0.2s;
   overflow: hidden;
@@ -84,6 +88,25 @@
 
 .layout-sidebar.collapsed .layout-sidebar-toggle {
   display: none;
+}
+
+/* Fechar o drawer no mobile (o toggle acima só recolhe no desktop). */
+.layout-sidebar-close {
+  display: none;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--uni-text-muted);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.layout-sidebar-close:hover {
+  background: var(--uni-hover);
+  color: var(--uni-text);
 }
 
 /* Menu */
@@ -314,7 +337,9 @@
 /* Main Container */
 .layout-main-container {
   flex: 1;
+  min-width: 0;
   margin-left: 260px;
+  padding-top: 60px;
   display: flex;
   flex-direction: column;
   transition: margin-left 0.2s;
@@ -331,10 +356,12 @@
   gap: 16px;
   padding: 0 20px;
   height: 60px;
+  width: 100%;
   background: var(--uni-surface);
   border-bottom: 1px solid var(--uni-border);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   z-index: 90;
 }
 
@@ -467,6 +494,7 @@
 /* Main Content */
 .layout-main {
   flex: 1;
+  min-width: 0;
   padding: 24px;
 }
 
@@ -550,6 +578,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   font-size: 12px;
   color: var(--uni-text-muted);
 }
@@ -557,7 +587,11 @@
 /* Responsive */
 @media (max-width: 991px) {
   .layout-sidebar {
+    width: 260px;
+    height: 100vh;
+    top: 0;
     transform: translateX(-100%);
+    z-index: 200;
   }
 
   .layout-sidebar.mobile-open {
@@ -566,6 +600,7 @@
 
   .layout-sidebar-overlay {
     display: block;
+    z-index: 199;
   }
 
   .layout-main-container {
@@ -576,8 +611,62 @@
     display: flex;
   }
 
+  .layout-sidebar-toggle {
+    display: none;
+  }
+
+  .layout-sidebar-close {
+    display: flex;
+  }
+
+  .layout-topbar {
+    gap: 12px;
+    padding: 0 16px;
+  }
+
   .layout-topbar-search {
     width: 180px;
+  }
+
+  /* O drawer mobile abre sempre expandido, mesmo se estava recolhido no
+     desktop. Sem estes resets o `collapsed` virava uma faixa de 60px. */
+  .layout-sidebar.collapsed {
+    width: 260px;
+  }
+
+  .layout-sidebar.collapsed .layout-sidebar-logo span {
+    display: inline;
+  }
+
+  .layout-sidebar.collapsed .layout-menu-submenu {
+    display: flex;
+  }
+
+  .layout-sidebar.collapsed .layout-menu-item {
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+
+  .layout-sidebar.collapsed .layout-menu-item span:not(.layout-menu-badge) {
+    display: inline;
+  }
+
+  .layout-sidebar.collapsed .layout-menu-badge {
+    position: static;
+    margin-left: auto;
+  }
+
+  .layout-sidebar.collapsed .layout-user-info {
+    justify-content: flex-start;
+    padding: 4px;
+  }
+
+  .layout-sidebar.collapsed .layout-user-details {
+    display: flex;
+  }
+
+  .layout-sidebar.collapsed .layout-user-info > i {
+    display: block;
   }
 }
 
@@ -588,5 +677,14 @@
 
   .layout-main {
     padding: 16px;
+  }
+
+  .layout-footer {
+    padding: 16px;
+  }
+
+  .layout-footer-content {
+    justify-content: center;
+    text-align: center;
   }
 }
