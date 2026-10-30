@@ -49,7 +49,9 @@ public sealed class NotificationEventConsumer(
       IConsumer<PdiCreatedDomainEvent>,
       IConsumer<PdiUpdatedDomainEvent>,
       IConsumer<TaskItemCreatedDomainEvent>,
-      IConsumer<TaskAssigneeCreatedDomainEvent>
+      IConsumer<TaskAssigneeCreatedDomainEvent>,
+      IConsumer<TaskResolvedDomainEvent>,
+      IConsumer<ProjectStatusChangedDomainEvent>
 {
     public NotificationEventConsumer(
         AppDbContext dbContext,
@@ -191,13 +193,21 @@ public sealed class NotificationEventConsumer(
         var message = context.Message;
         var editedOwn = message.ActorId == message.UserId;
 
+        // F48-T003: conclusão muda a sinalização para "PDI concluído"
+        // (destinatário segue o dono do plano / Admin quando o próprio dono).
+        var completed = message.Status == PdiStatus.Completed;
+        var title = completed ? "PDI concluído" : "PDI atualizado";
+        var body = completed
+            ? $"O PDI de {message.OwnerEmail} foi concluído (prazo {message.TargetDate:dd/MM/yyyy})."
+            : editedOwn
+                ? $"O PDI de {message.OwnerEmail} foi atualizado pelo próprio dono — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)})."
+                : $"O PDI de {message.OwnerEmail} foi atualizado — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)}).";
+
         return HandleAsync(
             message.EventId,
             message.EventType,
-            "PDI atualizado",
-            editedOwn
-                ? $"O PDI de {message.OwnerEmail} foi atualizado pelo próprio dono — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)})."
-                : $"O PDI de {message.OwnerEmail} foi atualizado — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)}).",
+            title,
+            body,
             recipientUserId: editedOwn ? null : message.UserId,
             recipientRoles: editedOwn ? [UserRole.Admin.ToString()] : [],
             context.CancellationToken,
@@ -232,6 +242,72 @@ public sealed class NotificationEventConsumer(
             recipientUserId: context.Message.UserId,
             recipientRoles: [],
             context.CancellationToken);
+
+    /// <summary>
+    /// F48-T001: task concluída (Resolved/Closed) sinaliza de volta —
+    /// executor (quem resolveu) + solicitante (CreatedById) + responsável
+    /// (ResponsibleId), deduplicados. A regra do evento (Enabled/canais)
+    /// fica a cargo do admin via NotificationEventRule (F48-T004 semeia ON).
+    /// </summary>
+    public async Task Consume(ConsumeContext<TaskResolvedDomainEvent> context)
+    {
+        var message = context.Message;
+        var task = await dbContext.Tasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == message.TaskId, context.CancellationToken);
+
+        var users = new List<Guid>();
+        if (message.ChangedByUserId is { } executor)
+            users.Add(executor);
+        if (task?.CreatedById is { } creator)
+            users.Add(creator);
+        if (task?.ResponsibleId is { } responsible)
+            users.Add(responsible);
+
+        var stateLabel = message.State == TaskState.Closed ? "fechada" : "concluída";
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
+            "Task concluída",
+            $"A task '{message.Title}' foi {stateLabel}.",
+            recipientUserId: null,
+            recipientRoles: [],
+            cancellationToken: context.CancellationToken,
+            recipientUserIds: users.Distinct().ToArray());
+    }
+
+    /// <summary>
+    /// F48-T002: projeto concluído (NewStatus=Completed) notifica os
+    /// membros do projeto + líder — silencioso nas demais transições
+    /// (regra do evento via NotificationEventRule vem em F48-T004).
+    /// </summary>
+    public async Task Consume(ConsumeContext<ProjectStatusChangedDomainEvent> context)
+    {
+        var message = context.Message;
+        if (message.NewStatus != ProjectStatus.Completed)
+            return;
+
+        var project = await dbContext.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == message.ProjectId, context.CancellationToken);
+        if (project is null)
+            return;
+
+        var memberIds = await dbContext.ProjectMembers.AsNoTracking()
+            .Where(m => m.ProjectId == message.ProjectId)
+            .Select(m => m.UserId)
+            .ToListAsync(context.CancellationToken);
+
+        var users = new HashSet<Guid>(memberIds) { project.LeaderId };
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
+            "Projeto concluído",
+            $"O projeto '{project.Title}' foi concluído.",
+            recipientUserId: null,
+            recipientRoles: [],
+            cancellationToken: context.CancellationToken,
+            recipientUserIds: users.ToArray());
+    }
 
     private static string StatusLabel(PdiStatus status) => status switch
     {
@@ -388,7 +464,8 @@ public sealed class NotificationEventConsumer(
         string[] recipientRoles,
         CancellationToken cancellationToken,
         NotificationChannel[]? channels = null,
-        Guid? deviceId = null)
+        Guid? deviceId = null,
+        IReadOnlyCollection<Guid>? recipientUserIds = null)
     {
         // F42-T002: regra por evento — Enabled=false silencia ANTES da
         // idempotência (nada persistido); Channels preenchido substitui
@@ -432,16 +509,26 @@ public sealed class NotificationEventConsumer(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         // usuário OU roles (1..N, dedup) — vazio apenas quando a resolução
-        // falhou (ex.: convite sem usuário).
-        if (recipientUserId is { } userId)
-        {
-            var recipient = NotificationRecipient.CreateForUser(notification.Id, userId);
-            dbContext.NotificationRecipients.Add(recipient);
-            await dbContext.SaveChangesAsync(cancellationToken);
+        // falhou (ex.: convite sem usuário). F48-T001: vários usuários
+        // (executor + solicitante + responsável) na mesma notificação.
+        var users = new HashSet<Guid>();
+        if (recipientUserId is { } single)
+            users.Add(single);
+        if (recipientUserIds is { Count: > 0 } many)
+            users.UnionWith(many);
 
-            logger.LogInformation(
-                "Destinatário {NotificationRecipientId} (usuário {UserId}) anexado à notificação {NotificationId}.",
-                recipient.Id, userId, notification.Id);
+        if (users.Count > 0)
+        {
+            foreach (var userId in users)
+            {
+                var recipient = NotificationRecipient.CreateForUser(notification.Id, userId);
+                dbContext.NotificationRecipients.Add(recipient);
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                logger.LogInformation(
+                    "Destinatário {NotificationRecipientId} (usuário {UserId}) anexado à notificação {NotificationId}.",
+                    recipient.Id, userId, notification.Id);
+            }
         }
         else if (recipientRoles.Length > 0)
         {

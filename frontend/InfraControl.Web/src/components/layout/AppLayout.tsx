@@ -168,12 +168,12 @@ function AppLayoutContent({ children, activeRoute, onNavigate }: AppLayoutProps)
         </div>
         <AppFooter />
       </div>
+      <div className="layout-mask" onClick={closeMobileMenu} aria-hidden="true" />
       {mobileOpen && (
-        <button
-          type="button"
+        <div
           className="layout-sidebar-overlay"
           onClick={closeMobileMenu}
-          aria-label="Fechar menu"
+          aria-hidden="true"
         />
       )}
     </div>

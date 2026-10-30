@@ -25,7 +25,7 @@ body.blocked-scroll {
   position: fixed;
   top: 60px;
   left: 0;
-  z-index: 100;
+  z-index: 1000;
   transition: width 0.2s, transform 0.2s;
   overflow: hidden;
 }
@@ -34,12 +34,13 @@ body.blocked-scroll {
   width: 60px;
 }
 
+/* Mask/Overlay igual ao Sakai */
 .layout-sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 99;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
 }
 
 /* Sidebar Logo */
@@ -349,6 +350,25 @@ body.blocked-scroll {
   margin-left: 60px;
 }
 
+/* Mask igual ao Sakai */
+.layout-mask {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1090;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  animation-duration: 0.2s;
+  animation-timing-function: cubic-bezier(0.05, 0.74, 0.2, 0.99);
+  animation-fill-mode: forwards;
+}
+
+.layout-wrapper.layout-mobile-active .layout-mask {
+  display: block;
+}
+
 /* Topbar */
 .layout-topbar {
   display: flex;
@@ -362,16 +382,22 @@ body.blocked-scroll {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 90;
+  z-index: 1080;
 }
 
 .layout-menu-button {
   display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   color: var(--uni-text);
-  font-size: 20px;
-  padding: 8px;
-  border-radius: 6px;
+  font-size: 18px;
   transition: background 0.15s;
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
 .layout-menu-button:hover {
@@ -590,17 +616,18 @@ body.blocked-scroll {
     width: 260px;
     height: 100vh;
     top: 0;
+    left: 0;
     transform: translateX(-100%);
-    z-index: 200;
+    z-index: 1100;
   }
 
   .layout-sidebar.mobile-open {
     transform: translateX(0);
   }
 
-  .layout-sidebar-overlay {
+  .layout-wrapper.layout-mobile-active .layout-sidebar-overlay {
     display: block;
-    z-index: 199;
+    z-index: 1090;
   }
 
   .layout-main-container {
@@ -620,8 +647,13 @@ body.blocked-scroll {
   }
 
   .layout-topbar {
+    z-index: 1080;
     gap: 12px;
     padding: 0 16px;
+  }
+
+  .layout-wrapper.layout-mobile-active .layout-mask {
+    z-index: 1090;
   }
 
   .layout-topbar-search {

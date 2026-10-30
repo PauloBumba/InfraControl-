@@ -295,6 +295,16 @@ if (builder.Configuration.GetValue<bool>($"{BootstrapAdminOptions.SectionName}:E
     await aiProviderSeeder.SeedAsync();
 }
 
+// F48-T004: seed idempotente das regras de notificação dos eventos novos
+// de conclusão (Task/Project) — ON com Email,SignalR por padrão; linha
+// existente nunca é sobrescrita (admin pode desligar na UI).
+{
+    using var ruleSeedScope = app.Services.CreateScope();
+    var ruleSeeder = ruleSeedScope.ServiceProvider
+        .GetRequiredService<InfraControl.Infrastructure.Notifications.NotificationEventRuleSeeder>();
+    await ruleSeeder.SeedAsync();
+}
+
 // F46-T001 (diagnóstico de engenharia): dados mock marcados [MOCK]/@mock.test.
 // MockData:Enabled=true popula idempotente; MockData:Purge=true remove SÓ o
 // marcado (na mesma partida purga e não popula). Nada roda com as duas flags

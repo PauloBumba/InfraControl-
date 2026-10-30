@@ -36,6 +36,8 @@ public sealed class NotificationEventCatalogTests
             nameof(PdiUpdatedDomainEvent),
             nameof(TaskItemCreatedDomainEvent),
             nameof(TaskAssigneeCreatedDomainEvent),
+            nameof(TaskResolvedDomainEvent),
+            nameof(ProjectStatusChangedDomainEvent),
         ];
 
         // Ação

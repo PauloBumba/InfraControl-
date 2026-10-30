@@ -655,6 +655,11 @@ public static class DependencyInjection
         // Program.cs após o build do app).
         services.AddScoped<AiProviderSeeder>();
 
+        // F48-T004: seed idempotente das regras dos eventos de conclusão
+        // (Task/Project) — ON por padrão; linha existente é autoridade do
+        // operador (gatilho no Program.cs).
+        services.AddScoped<InfraControl.Infrastructure.Notifications.NotificationEventRuleSeeder>();
+
         // FAI-T005 (S4): liga o gateway (S3) ao registro/router/providers
         // acima + hook de auditoria de log (ADR-036/§41 — a persistência
         // da ação AI.* na auditoria de domínio é do S6/ADR-040). Limites

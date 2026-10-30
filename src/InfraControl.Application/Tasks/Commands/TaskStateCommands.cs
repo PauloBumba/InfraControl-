@@ -43,7 +43,7 @@ public sealed class ChangeTaskStateCommandHandler(
                 nameof(request.State));
 
         var previous = task.State;
-        task.ChangeState(target); // domínio: 409 se fora do mapa (ou no-op se igual)
+        task.ChangeState(target, currentUser.UserId); // domínio: 409 se fora do mapa (ou no-op se igual); F48-T001: executor na conclusão
 
         if (previous == task.State)
             return await BuildDtoAsync(task, cancellationToken); // mesmo estado: sem histórico
