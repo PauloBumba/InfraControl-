@@ -28,7 +28,8 @@ public sealed record CreateDeviceCommand(
     string? Description = null,
     string? Extension = null,
     string? SipServer = null,
-    string? OperatingSystem = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
+    string? OperatingSystem = null,
+    string? ImagePath = null) : BaseCommand<DeviceDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -58,7 +59,8 @@ public sealed class CreateDeviceCommandHandler(
             request.Description,
             request.Extension,
             request.SipServer,
-            ParseOperatingSystem(request.OperatingSystem));
+            ParseOperatingSystem(request.OperatingSystem),
+            request.ImagePath);
 
         var locationExists = await locationRepository.GetByIdAsync(device.LocationId, cancellationToken);
         if (locationExists is null)
@@ -133,7 +135,8 @@ public sealed class CreateDeviceCommandHandler(
             device.ProfileIsCustom,
             device.Extension,
             device.SipServer,
-            device.OperatingSystem?.ToString());
+            device.OperatingSystem?.ToString(),
+            device.ImagePath);
 }
 
 public sealed record UpdateDeviceCommand(
@@ -150,7 +153,8 @@ public sealed record UpdateDeviceCommand(
     string? Description = null,
     string? Extension = null,
     string? SipServer = null,
-    string? OperatingSystem = null) : BaseCommand, IAuthorizedRequest
+    string? OperatingSystem = null,
+    string? ImagePath = null) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -181,7 +185,8 @@ public sealed class UpdateDeviceCommandHandler(
             request.Description,
             request.Extension,
             request.SipServer,
-            CreateDeviceCommandHandler.ParseOperatingSystem(request.OperatingSystem));
+            CreateDeviceCommandHandler.ParseOperatingSystem(request.OperatingSystem),
+            request.ImagePath);
 
         _ = await locationRepository.GetByIdAsync(device.LocationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Local '{device.LocationId}' não encontrado.");

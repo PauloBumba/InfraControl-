@@ -41,21 +41,20 @@ public sealed class AiProviderSeeder(
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        await SeedCapabilityRouteAsync(
-            AiCapability.Copilot, ollama, routing.Copilot?.Provider,
-            routing.Copilot?.DefaultModel, cancellationToken);
-        await SeedCapabilityRouteAsync(
-            AiCapability.IncidentAnalysis, ollama, routing.IncidentAnalysis?.Provider,
-            routing.IncidentAnalysis?.DefaultModel, cancellationToken);
-        await SeedCapabilityRouteAsync(
-            AiCapability.KnowledgeGeneration, ollama, routing.KnowledgeGeneration?.Provider,
-            routing.KnowledgeGeneration?.DefaultModel, cancellationToken);
-        await SeedCapabilityRouteAsync(
-            AiCapability.Reporting, ollama, routing.Reporting?.Provider,
-            routing.Reporting?.DefaultModel, cancellationToken);
-        await SeedCapabilityRouteAsync(
-            AiCapability.Automation, ollama, routing.Automation?.Provider,
-            routing.Automation?.DefaultModel, cancellationToken);
+        // ADR-065: uma fonte — todas as capacidades saem do modelo único
+        // (`Routing:Default`) com override opcional por capacidade.
+        foreach (var capability in Enum.GetValues<AiCapability>())
+        {
+            var options = routing.EffectiveFor(capability);
+            if (options is null)
+            {
+                continue;
+            }
+
+            await SeedCapabilityRouteAsync(
+                capability, ollama, options.Provider, options.DefaultModel,
+                cancellationToken);
+        }
     }
 
     private async Task SeedCapabilityRouteAsync(

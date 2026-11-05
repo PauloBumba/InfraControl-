@@ -41,6 +41,7 @@ using InfraControl.Application.Monitoring.Prevention;
 using InfraControl.Application.Monitoring.Results.Ports;
 using InfraControl.Application.Pdi.Ports;
 using InfraControl.Application.Projects.Ports;
+using InfraControl.Application.Uploads.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Application.RemoteAccess.Sessions.Ports;
 using InfraControl.Application.Network.SwitchPorts.Ports;
@@ -66,6 +67,7 @@ using MassTransit;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -100,9 +102,12 @@ public static class DependencyInjection
         AppTimeProvider.Current = saoPauloProvider;
         services.AddSingleton<TimeProvider>(saoPauloProvider);
 
-        // PostgreSQL
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        // PostgreSQL. Interceptors vêm do DI (vazio em produção; os testes
+        // registram o DbCommandCounter para caçar N+1 — F46-T003).
+        services.AddDbContext<AppDbContext>((provider, options) =>
+            options
+                .UseNpgsql(connectionString)
+                .AddInterceptors(provider.GetServices<IInterceptor>()));
 
         // Identity foundation. Authentication schemes and endpoints are separate Tasks.
         services.AddIdentityCore<InfraControlUser>(options =>
@@ -331,9 +336,20 @@ public static class DependencyInjection
         services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
         services.AddScoped<IGoogleIdentityTokenValidator, GoogleIdentityTokenValidator>();
 
+        // F43-T002 (ADR-064): authorization code → id_token trocado NO
+        // servidor (Client Secret nunca sai do ambiente). Named client com
+        // timeout explícito — o exchange não pode prender o request de login.
+        services.AddScoped<IGoogleTokenClient, GoogleTokenClient>();
+        services.AddHttpClient(GoogleTokenClient.HttpClientName)
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15));
+
         // F1-T016a (ADR-019): tolerância do TOTP é política de configuração,
         // não de código — padrão ±1 período de 30s.
         services.Configure<MfaOptions>(configuration.GetSection(MfaOptions.SectionName));
+
+        // F24-T008: upload reutilizável de imagens (wwwroot/uploads/{module}).
+        // StorageOptions já é bindada abaixo (evidências de task); só o store.
+        services.AddScoped<IImageUploadStore, PhysicalImageUploadStore>();
 
         // Fase 4 (ADR-034): upload de evidências do PDI em disco local —
         // caminho em PdiEvidence:StoragePath.
@@ -638,6 +654,11 @@ public static class DependencyInjection
         // ADR-057 (FAI-T011a): seed idempotente do cadastro (gatilho no
         // Program.cs após o build do app).
         services.AddScoped<AiProviderSeeder>();
+
+        // F48-T004: seed idempotente das regras dos eventos de conclusão
+        // (Task/Project) — ON por padrão; linha existente é autoridade do
+        // operador (gatilho no Program.cs).
+        services.AddScoped<InfraControl.Infrastructure.Notifications.NotificationEventRuleSeeder>();
 
         // FAI-T005 (S4): liga o gateway (S3) ao registro/router/providers
         // acima + hook de auditoria de log (ADR-036/§41 — a persistência

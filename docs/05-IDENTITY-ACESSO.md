@@ -86,7 +86,10 @@ O backend expõe os fluxos de Identity inspirados no Sentinel:
 | `POST /api/v1/auth/forgot-password` | Gera reset sem revelar existência do email | Anônimo |
 | `POST /api/v1/auth/reset-password` | Redefine senha com token Redis single-use | Anônimo |
 | `POST /api/v1/auth/change-password` | Troca senha e revoga sessões | Autenticado |
-| `POST /api/v1/auth/google` | Valida `id_token` do Google e cria sessão para conta já ativa | Anônimo |
+| `POST /api/v1/auth/google` | Valida `id_token` do Google e cria sessão para conta já ativa (fallback GSI, F1-T014) | Anônimo |
+| `GET /api/v1/auth/google` | Start do authorization code: state CSRF em cookie + 302 ao consent screen (F43) | Anônimo |
+| `GET /api/v1/auth/google/callback` | Troca `code` por token no servidor + sessão; falha = 302 `/login?error=google`; conta indisponível = 302 `/login?error=google&reason=account` (F43) | Anônimo |
+| `GET /api/v1/auth/google/failure?reason=` | Mensagem de erro do login social (texto do backend pela razão); anônimo (F43) | Anônimo |
 | `GET /api/v1/auth/me` | Retorna usuário, nome de exibição, roles e permissões | Autenticado |
 | `GET /api/v1/auth/mfa/status` | Estado do MFA da conta (configurado/ativo/desde quando) | Autenticado |
 | `POST /api/v1/auth/mfa/setup` | Emite secret TOTP novo (pendente) + URI otpauth p/ QR | Autenticado |
@@ -278,7 +281,12 @@ Convite Pending ─► Accept ─► provisiona conta INATIVA ─► set-passwor
 
 ### F1-T014 — Login social Google implementado
 
-Fluxo escolhido: **Google Identity Services (GSI)** no browser, com o `id_token`
+> **Desde a F43 (ADR-064)** o fluxo PRINCIPAL é authorization code com
+> callback no backend — ver a próxima seção. O Google Identity Services (GSI)
+> com `id_token` continua registrado no `POST /api/v1/auth/google` como
+> **fallback/rollback** do fluxo novo.
+
+Fluxo original (GSI): **Google Identity Services** no browser, com o `id_token`
 enviado ao backend. Não há redirect de authorization code para a API, portanto
 também não existe callback de sessão: o "callback" é o próprio `POST /api/v1/auth/google`,
 que só cria sessão depois de validar a credencial no servidor.
@@ -313,10 +321,9 @@ Regras de segurança aplicadas:
 - **Anti-enumeração**: e-mail desconhecido e conta inativa produzem a mesma falha
   (`AccountUnavailable`) e a mesma mensagem; nada de token, e-mail ou motivo é
   registrado em log.
-- **Não existe Client Secret no projeto**: o fluxo é GSI com `id_token` e a API
-  nunca troca authorization code por token, logo não há handler `AddGoogle`
-  registrado nem segredo em secret manager — a única configuração é o ClientId
-  público, usado como `aud`. Superfície de segredo: zero.
+- **Client Secret**: o fluxo GSI em si não usa (superfície de segredo zero no
+  caminho antigo). Desde a F43 o `Authentication:Google:ClientSecret` existe,
+  mas **só** na troca `code → token` dentro do servidor (ver seção F43).
 - **Frontend nunca é fonte de verdade**: roles e `email_verified` do token não
   autorizam nada; quem autoriza é o backend (claims emitidas na sessão + policies).
 - **Entrada não confiável**: `GoogleLoginViewModel` limita o `id_token` a 8192
@@ -329,7 +336,6 @@ Configuração (ver `.env.example` e `src/InfraControl.Api/appsettings.json`):
 
 ```bash
 Authentication__Google__ClientId=...            # público, igual ao VITE_GOOGLE_CLIENT_ID
-# (sem ClientSecret: fluxo GSI, sem authorization code)
 # Authentication__Google__AllowedDomains__0=empresa.com.br   # opcional
 ```
 
@@ -339,11 +345,80 @@ sem provisionamento, conta inativa, conta ativa, normalização de e-mail,
 mapeamento HTTP sem enumeração, cookie/envelope de sucesso, allow-list de
 domínio (incluindo entrada vazia) e limite de tamanho da credencial.
 
+### F43 — Login Google via authorization code com callback no backend (ADR-064)
+
+Fluxo principal desde a F43 (pedido do usuário em 2026-10-24: trocar o
+callback para o backend). A troca de credenciais acontece **inteiramente no
+servidor**; o browser só navega.
+
+```text
+GET /api/v1/auth/google                      (start, rate limit Login)
+   → state: 32 bytes aleatórios em base64url
+   → cookie .InfraControl.GoogleState (HttpOnly, Secure, SameSite=Lax, 10 min)
+   → 302 consent screen (response_type=code, scope openid email profile)
+
+GET /api/v1/auth/google/callback?code&state  (atrás do nginx location /api)
+   → state conferido com o cookie (FixedTimeEquals) e DELETADO (one-time)
+   → GoogleTokenClient: POST form-urlencoded no TokenEndpoint do Google
+        · code + client_id + client_secret + redirect_uri + grant_type
+        · extrai só o `id_token` (corpo/log: apenas status HTTP)
+   → LoginWithGoogleAsync — MESMA porta do fluxo GSI:
+        · GoogleIdentityTokenValidator (JWKS/aud/iss/exp/email_verified/AllowedDomains)
+        · conta já existe e está ativa (sem provisionamento, F1-T013)
+   → sucesso: SignIn cookie Application → 302 {Frontend:BaseUrl}/
+   → falha operacional (state/troca/provider/credencial):
+        302 {Frontend:BaseUrl}/login?error=google
+        · genérico de propósito: browser não distingue o motivo
+          (anti-enumeração) e não vê code/token
+   → conta indisponível (inexistente OU inativa):
+        302 {Frontend:BaseUrl}/login?error=google&reason=account
+        · na URL vai só o CÓDIGO — texto livre seria injetável
+        · a tela chama GET /api/v1/auth/google/failure?reason=account e
+          exibe a mensagem do backend:
+          "Conta não encontrada ou inativa. Fale com o administrador."
+        · mensagem única para os dois casos: não revela se a conta existe
+```
+
+`GET /api/v1/auth/google/failure?reason=` (anônimo) é a **fonte única** dos
+textos de falha do login social: `account` → mensagem de conta indisponível;
+qualquer outro/ausente → mensagem genérica. A UI não mantém catálogo de
+texto (só fallback para falha de transporte).
+
+Regras de segurança:
+
+- **State CSRF (RFC 6749 §10.12)**: cookie `SameSite=Lax` de propósito — o
+  Google volta num redirect top-level cross-site e `Strict` NÃO seria enviado;
+  comparação em tempo fixo; `state` é de um só uso (deletado no callback).
+- **Client Secret nunca sai do servidor**: não aparece em URL, resposta ou
+  bundle (`VITE_*` é público; o segredo só em `.env`/env do container).
+- **Sessão continua sendo do backend**: o id_token trocado passa pela MESMA
+  validação JWKS e pela regra de conta ativa do F1-T013 — nada de confiar no
+  redirect do Google.
+- `GET /auth/google` e `GET /auth/google/callback` respondem redirect (não
+  envelope `ApiResponse`): são navegações de browser, não chamadas de API.
+- Sem configuração completa (`ClientId`+`ClientSecret`+`RedirectUri`) o start
+  responde `503` (mesmo contrato do POST) e o POST GSI continua disponível.
+
+Configuração:
+
+```bash
+VITE_GOOGLE_CLIENT_ID=...        # público (flag de visibilidade do link + ClientId da API)
+GOOGLE_CLIENT_SECRET=...         # SOMENTE ambiente — nunca commitar
+GOOGLE_REDIRECT_URI=https://<host>/api/v1/auth/google/callback   # idêntica no Console do Google
+# vira: Authentication__Google__ClientSecret / Authentication__Google__RedirectUri (compose)
+```
+
+Testes: `tests/InfraControl.UnitTests/Identity/GoogleCodeFlowTests.cs`
+(14 casos — options, URL de autorização, state, 503 sem config, redirect +
+cookie do start; callback: state divergente/ausente, sem code, sem config,
+troca falhando, 3 falhas de login indistinguíveis, sucesso com sessão).
+
 ### F14-T008 — Autenticação do dashboard implementada
 
 - Tela de Login no estilo UniFi com alternância **Senha** / **Google**
-  (`LoginPage.tsx`): o botão só aparece quando `VITE_GOOGLE_CLIENT_ID` está
-  definido, e o provedor do Google é montado por página (`useOneTap={false}`).
+  (`LoginPage.tsx`): o link só aparece quando `VITE_GOOGLE_CLIENT_ID` está
+  definido. Desde a F43 é um `<a href="/api/v1/auth/google">` (o fluxo é do
+  backend — ver seção F43); o popup GSI saiu da tela.
 - `ForgotPasswordPage.tsx` para recuperação de senha, exibindo sempre a mesma
   resposta (anti-enumeração) e pedindo o e-mail, sem dizer se existe conta.
 - `authSlice` (`app/store/slices/authSlice.ts`) com `status`
@@ -370,10 +445,12 @@ A autenticação HTTP atual usa cookie `HttpOnly`, `Secure` e `SameSite=Strict`,
 
 ## Social login
 
-Google implementado na F1-T014 (ver seção acima): GSI + validação de `id_token`
-no servidor, somente para conta já ativa. Microsoft fica como adaptador futuro
-seguindo a mesma porta (`IGoogleIdentityTokenValidator` → equivalente), sem
-alterar a camada Application.
+Google implementado na F1-T014 e migrado ao fluxo **authorization code com
+callback no backend** na F43 (ADR-064, ver seções acima): troca `code → token`
+somente no servidor + validação de `id_token` no servidor, somente para conta
+já ativa; o GSI com `id_token` permanece como fallback. Microsoft fica como
+adaptador futuro seguindo a mesma porta (`IGoogleIdentityTokenValidator` →
+equivalente), sem alterar a camada Application.
 
 ## Segurança
 

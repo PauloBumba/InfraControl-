@@ -71,7 +71,8 @@ public sealed class DevicesController(ISender sender) : BaseController
                 model.Description,
                 model.Extension,
                 model.SipServer,
-                model.OperatingSystem),
+                model.OperatingSystem,
+                model.ImagePath),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -99,7 +100,8 @@ public sealed class DevicesController(ISender sender) : BaseController
                 model.Description,
                 model.Extension,
                 model.SipServer,
-                model.OperatingSystem),
+                model.OperatingSystem,
+                model.ImagePath),
             cancellationToken);
         return NoContent();
     }

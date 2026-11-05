@@ -118,24 +118,85 @@ export function HomePage() {
             </div>
           </div>
           <div className="uni-public-hero-visual">
-            <svg viewBox="0 0 200 200" className="uni-public-hero-icon" role="img" aria-label="Ilustração de server rack com LEDs de status">
+            <svg viewBox="0 0 280 280" className="uni-public-hero-icon" role="img" aria-label="Ilustração de infraestrutura com server rack, rede e dashboard">
               <defs>
-                <linearGradient id="infraHeroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:0.2}} />
-                  <stop offset="100%" style={{stopColor:'#2563eb',stopOpacity:0.1}} />
+                <linearGradient id="heroBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor:'#60a5fa',stopOpacity:0.15}} />
+                  <stop offset="100%" style={{stopColor:'#3b82f6',stopOpacity:0.05}} />
+                </linearGradient>
+                <linearGradient id="heroPrimaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:1}} />
+                  <stop offset="50%" style={{stopColor:'#2563eb',stopOpacity:1}} />
+                  <stop offset="100%" style={{stopColor:'#1d4ed8',stopOpacity:1}} />
+                </linearGradient>
+                <linearGradient id="heroGreenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor:'#4ade80',stopOpacity:1}} />
+                  <stop offset="100%" style={{stopColor:'#22c55e',stopOpacity:1}} />
+                </linearGradient>
+                <linearGradient id="heroAmberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor:'#fbbf24',stopOpacity:1}} />
+                  <stop offset="100%" style={{stopColor:'#eab308',stopOpacity:1}} />
                 </linearGradient>
               </defs>
-              <circle cx="100" cy="100" r="80" fill="url(#infraHeroGrad)" />
-              <g stroke="#3b82f6" strokeWidth="2" fill="none">
-                <rect x="60" y="50" width="80" height="100" rx="8" />
-                <rect x="70" y="65" width="60" height="12" rx="4" fill="#3b82f6" fillOpacity="0.2" />
-                <rect x="70" y="85" width="60" height="12" rx="4" fill="#3b82f6" fillOpacity="0.2" />
-                <rect x="70" y="105" width="60" height="12" rx="4" fill="#3b82f6" fillOpacity="0.2" />
-                <rect x="70" y="125" width="60" height="12" rx="4" fill="#3b82f6" fillOpacity="0.2" />
-                <circle cx="115" cy="71" r="3" fill="#22c55e" />
-                <circle cx="115" cy="91" r="3" fill="#22c55e" />
-                <circle cx="115" cy="111" r="3" fill="#eab308" />
-                <circle cx="115" cy="131" r="3" fill="#22c55e" />
+
+              {/* Background glow */}
+              <circle cx="140" cy="140" r="120" fill="url(#heroBgGrad)" />
+
+              {/* Server rack principal */}
+              <g>
+                <rect x="85" y="50" width="110" height="140" rx="12" fill="none" stroke="url(#heroPrimaryGrad)" strokeWidth="3" />
+                <line x1="85" y1="80" x2="195" y2="80" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
+                <line x1="85" y1="110" x2="195" y2="110" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
+                <line x1="85" y1="140" x2="195" y2="140" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
+                <line x1="85" y1="170" x2="195" y2="170" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
+
+                <rect x="95" y="60" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.9" />
+                <rect x="95" y="90" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.8" />
+                <rect x="95" y="120" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.7" />
+                <rect x="95" y="150" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.6" />
+
+                <circle cx="165" cy="67" r="2.5" fill="url(#heroGreenGrad)" />
+                <circle cx="165" cy="97" r="2.5" fill="url(#heroGreenGrad)" />
+                <circle cx="165" cy="127" r="2.5" fill="url(#heroAmberGrad)" />
+                <circle cx="165" cy="157" r="2.5" fill="url(#heroGreenGrad)" />
+              </g>
+
+              {/* Network connections */}
+              <g stroke="url(#heroPrimaryGrad)" strokeWidth="2" fill="none" opacity="0.5">
+                <path d="M 50 90 Q 70 90, 85 90" />
+                <circle cx="50" cy="90" r="4" fill="url(#heroPrimaryGrad)" />
+
+                <path d="M 50 150 Q 70 150, 85 150" />
+                <circle cx="50" cy="150" r="4" fill="url(#heroPrimaryGrad)" />
+
+                <path d="M 195 120 Q 220 120, 230 120" />
+                <circle cx="230" cy="120" r="4" fill="url(#heroPrimaryGrad)" />
+              </g>
+
+              {/* Small dashboard card */}
+              <g transform="translate(180, 180)">
+                <rect x="0" y="0" width="80" height="60" rx="8" fill="none" stroke="url(#heroPrimaryGrad)" strokeWidth="2" opacity="0.6" />
+                <rect x="8" y="8" width="20" height="4" rx="2" fill="url(#heroPrimaryGrad)" opacity="0.5" />
+                <rect x="8" y="18" width="40" height="3" rx="1.5" fill="url(#heroPrimaryGrad)" opacity="0.3" />
+                <rect x="8" y="26" width="30" height="3" rx="1.5" fill="url(#heroPrimaryGrad)" opacity="0.3" />
+                <circle cx="65" cy="45" r="12" fill="none" stroke="url(#heroGreenGrad)" strokeWidth="2" opacity="0.6" />
+                <path d="M 65 38 L 65 45 L 70 48" stroke="url(#heroGreenGrad)" strokeWidth="2" fill="none" opacity="0.6" />
+              </g>
+
+              {/* Decorative dots */}
+              <g fill="url(#heroPrimaryGrad)" opacity="0.3">
+                <circle cx="105" cy="67" r="1.5" />
+                <circle cx="115" cy="67" r="1.5" />
+                <circle cx="125" cy="67" r="1.5" />
+                <circle cx="105" cy="97" r="1.5" />
+                <circle cx="115" cy="97" r="1.5" />
+                <circle cx="125" cy="97" r="1.5" />
+                <circle cx="105" cy="127" r="1.5" />
+                <circle cx="115" cy="127" r="1.5" />
+                <circle cx="125" cy="127" r="1.5" />
+                <circle cx="105" cy="157" r="1.5" />
+                <circle cx="115" cy="157" r="1.5" />
+                <circle cx="125" cy="157" r="1.5" />
               </g>
             </svg>
           </div>

@@ -289,6 +289,17 @@ describe("DevicesPage — casca da lista (C-3: ListPageShell)", () => {
     expect(screen.queryByText(/mostrando/)).toBeNull();
   });
 
+  it("should show the device photo when imagePath is set", async () => {
+    listDevicesMock.mockResolvedValue(
+      paged([{ ...umDevice, imagePath: "/uploads/devices/foto.png" }]),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByAltText("Foto de AP-sala-reuniao"),
+    ).toHaveAttribute("src", "/uploads/devices/foto.png");
+  });
+
   it("should append the truncation note with the shell's '·' separator", async () => {
     listDevicesMock.mockResolvedValue({
       ...paged([umDevice, { ...umDevice, id: "dev-2", name: "SW-corredor" }]),

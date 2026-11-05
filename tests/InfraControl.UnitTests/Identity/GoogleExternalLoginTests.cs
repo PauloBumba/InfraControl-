@@ -218,8 +218,9 @@ public sealed class GoogleExternalLoginTests
     [Fact]
     public void GoogleAuthOptions_ShouldBeConfiguredWithClientIdAlone()
     {
-        // Fluxo GSI: o ClientId público basta (é a audiência do id_token).
-        // ClientSecret deixou de existir — a API não troca authorization code.
+        // Fluxo GSI (fallback F43/ADR-064): o ClientId público basta (é a
+        // audiência do id_token). O code flow exige IsCodeFlowConfigured
+        // (ClientId + ClientSecret + RedirectUri) — coberto em GoogleCodeFlowTests.
         new GoogleAuthOptions().IsConfigured.Should().BeFalse();
         new GoogleAuthOptions { ClientId = "" }.IsConfigured.Should().BeFalse();
         new GoogleAuthOptions { ClientId = "   " }.IsConfigured.Should().BeFalse();
@@ -294,7 +295,7 @@ public sealed class GoogleExternalLoginTests
             .BuildServiceProvider();
 
         var httpContext = new DefaultHttpContext { RequestServices = authServices };
-        var controller = new AuthenticationController(service, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()))
+        var controller = new AuthenticationController(service, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()), Options.Create(new GoogleAuthOptions()))
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

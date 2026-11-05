@@ -156,7 +156,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
     const field = await screen.findByLabelText("Nome de exibição");
     await user.clear(field);
     await user.type(field, "Ana Maria");
-    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+    await user.click(screen.getByRole("button", { name: /salvar/i }));
 
     // Sob contenção o clique devolve antes da cadeia do handler invocar a
     // mutation — espera o chamado em vez de assumir a microtask.
@@ -179,14 +179,14 @@ describe("AccountPage — perfil (F29-T002)", () => {
     const user = userEvent.setup();
     const field = await screen.findByLabelText("Nome completo");
     await user.type(field, "Ana Maria da Silva");
-    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+    await user.click(screen.getByRole("button", { name: /salvar/i }));
 
     await waitFor(() => {
       expect(updateProfileMock).toHaveBeenCalledWith("Ana", "Ana Maria da Silva");
     });
 
     // o nome completo volta para a sessão (o /auth/me lê a claim re-emitida)
-    expect(await screen.findByRole("status")).toHaveTextContent(/nome atualizado/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/perfil atualizado/i);
     expect(store.getState().auth.user?.fullName).toBe("Ana Maria da Silva");
     expect(store.getState().auth.status).toBe("authenticated");
   });
@@ -203,7 +203,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
     // servidor recusa — é ele quem manda na regra, não uma guarda local.
     await user.clear(field);
     await user.type(field, "   ");
-    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+    await user.click(screen.getByRole("button", { name: /salvar/i }));
 
     expect(
       await screen.findByText("O nome de exibição é obrigatório."),
@@ -223,9 +223,9 @@ describe("AccountPage — perfil (F29-T002)", () => {
     const field = await screen.findByLabelText("Nome de exibição");
     await user.clear(field);
     await user.type(field, "Ana Maria");
-    await user.click(screen.getByRole("button", { name: /^salvar$/i }));
+    await user.click(screen.getByRole("button", { name: /salvar/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/nome atualizado/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/perfil atualizado/i);
     expect(changePasswordMock).not.toHaveBeenCalled();
 
     // O nome novo tem que valer já na MESMA sessão (sidebar/cabeçalho): o

@@ -22,4 +22,5 @@ public sealed record DeviceDto(
     bool ProfileIsCustom,
     string? Extension = null,
     string? SipServer = null,
-    string? OperatingSystem = null);
+    string? OperatingSystem = null,
+    string? ImagePath = null);

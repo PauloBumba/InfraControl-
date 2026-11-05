@@ -180,7 +180,12 @@ public sealed class TaskItem : AggregateRoot
     /// <see cref="TaskStateWorkflow"/> lança InvalidOperationException
     /// (GlobalExceptionHandler → 409 pt-BR).
     /// </summary>
-    public void ChangeState(TaskState state)
+    /// <summary>
+    /// F48-T001: <paramref name="changedByUserId"/> identifica o executor da
+    /// transição — em conclusões (Resolved/Closed) vira notificação de volta
+    /// para ele e para os interessados (solicitante/responsável).
+    /// </summary>
+    public void ChangeState(TaskState state, Guid? changedByUserId = null)
     {
         if (State == state)
             return;
@@ -191,5 +196,8 @@ public sealed class TaskItem : AggregateRoot
 
         State = state;
         RaiseDomainEvent(new TaskItemUpdatedDomainEvent(Id, Title, State));
+
+        if (state is TaskState.Resolved or TaskState.Closed)
+            RaiseDomainEvent(new TaskResolvedDomainEvent(Id, Title, state, changedByUserId));
     }
 }

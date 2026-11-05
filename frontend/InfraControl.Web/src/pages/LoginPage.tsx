@@ -1,26 +1,25 @@
-import { useState, type FormEvent } from "react";
-import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import { useEffect, useState, type FormEvent } from "react";
 import { InputOtp } from "primereact/inputotp";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { loginFailed, loginStarted, loginSucceeded, clearAuthError } from "@/app/store/slices/authSlice";
 import {
   AuthApiError,
+  fetchGoogleLoginFailure,
   isMfaRequired,
-  loginWithGoogle,
   loginWithPassword,
   MFA_INVALID_MESSAGE,
   MFA_REQUIRED_MESSAGE,
 } from "@/services/api/auth";
 
 /**
- * Client ID público do Google (Google Identity Services). Vazio = botão do
- * Google não é renderizado e o login por senha continua funcionando.
- * NUNCA coloque aqui um Client Secret: `VITE_*` é embutido no bundle.
+ * F43-T003 (rev.) — falha do authorization code flow. O backend devolve
+ * `/login?error=google` e, quando a conta não está disponível,
+ * `&reason=account`; o TEXTO vem de `GET /auth/google/failure` (fonte única
+ * no backend). Esta constante é só o fallback para falha de transporte.
  */
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
-
-const GENERIC_ERROR = "Não foi possível entrar. Verifique suas credenciais e tente novamente.";
+const GOOGLE_LOGIN_ERROR_FALLBACK =
+  "Não foi possível entrar com Google. Tente novamente ou use e-mail e senha.";
 
 function messageFor(error: unknown, fallback: string): string {
   if (error instanceof AuthApiError) {
@@ -36,9 +35,45 @@ export function LoginPage() {
   const navigate = useNavigate();
   const pending = useAppSelector((state) => state.auth.pending);
   const authError = useAppSelector((state) => state.auth.error);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Client ID público do Google — só decide VISIBILIDADE do link (o fluxo
+  // inteiro roda no backend). Lido em runtime (mesmo padrão de
+  // VITE_SUPPORT_EMAIL na ContactPage) para ser testável com stubEnv.
+  // Vazio = link some e o login por senha continua funcionando.
+  // NUNCA aqui um Client Secret: `VITE_*` é embutido no bundle.
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "").trim();
+
+  // O redirect do callback traz /login?error=google[&reason=...] — a
+  // mensagem exibida é a do backend (`GET /auth/google/failure`), que
+  // distingue "conta não ativa" sem dizer se a conta existe (anti-
+  // enumeração). A query é removida (replace) para um refresh não repetir.
+  useEffect(() => {
+    if (searchParams.get("error") !== "google") return;
+    const reason = searchParams.get("reason");
+    setSearchParams({}, { replace: true });
+
+    let active = true;
+    void (async () => {
+      let message = GOOGLE_LOGIN_ERROR_FALLBACK;
+      try {
+        message = (await fetchGoogleLoginFailure(reason)) || message;
+      } catch {
+        // Rede/5xx: mantém o fallback local — o motivo da falha já foi
+        // decidido no backend, isto é só indisponibilidade do endpoint.
+      }
+      if (active) dispatch(loginFailed(message));
+    })();
+
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- montagem única: o erro chega uma vez no redirect
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   // F1-T016d (ADR-019): 2º passo do login. A senha fica no estado local do
   // componente porque o retry envia email+senha+código de uma vez — nada é
   // persistido (some com a navegação, como sempre foi a regra desta tela).
@@ -88,18 +123,6 @@ export function LoginPage() {
     setMfaCode("");
     setUsingRecoveryCode(false);
     dispatch(clearAuthError());
-  };
-
-  const handleGoogle = async (credential: string) => {
-    dispatch(loginStarted());
-
-    try {
-      const user = await loginWithGoogle(credential);
-      dispatch(loginSucceeded(user));
-      navigate("/dashboard", { replace: true });
-    } catch (error) {
-      dispatch(loginFailed(messageFor(error, GENERIC_ERROR)));
-    }
   };
 
   return (
@@ -171,7 +194,7 @@ export function LoginPage() {
                 <input
                   id="login-password"
                   className="uni-login-input"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   autoComplete="current-password"
                   placeholder="••••••••"
@@ -182,12 +205,8 @@ export function LoginPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => {
-                    const field = document.getElementById("login-password") as HTMLInputElement | null;
-                    if (field) field.type = field.type === "password" ? "text" : "password";
-                  }}
-                  aria-label="Mostrar ou ocultar a senha"
-                  tabIndex={-1}
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   <i className="pi pi-eye" />
                 </button>
@@ -235,23 +254,17 @@ export function LoginPage() {
         {!mfaStep && googleClientId && (
           <>
             <div className="uni-login-divider"><span>ou continue com</span></div>
-            <div className="uni-login-social">
-              <div className="uni-login-social-btn">
-                <GoogleOAuthProvider clientId={googleClientId}>
-                  <GoogleLogin
-                    onSuccess={(response) => {
-                      if (response.credential) void handleGoogle(response.credential);
-                    }}
-                    onError={() => dispatch(loginFailed("Login com Google cancelado ou indisponível."))}
-                    useOneTap={false}
-                    theme="outline"
-                    size="large"
-                    shape="rectangular"
-                    width="100%"
-                    text="continue_with"
-                  />
-                </GoogleOAuthProvider>
-              </div>
+            <div className="uni-login-google">
+              {/* F43-T003/ADR-064: sem popup nem id_token no browser — o
+                  link navega para o start no backend (GET /auth/google),
+                  que emite o state, troca o code e cria a sessão. */}
+              <a
+                className="uni-login-social-btn"
+                href="/api/v1/auth/google"
+              >
+                <i className="pi pi-google" aria-hidden="true" />
+                <span>Continuar com Google</span>
+              </a>
             </div>
           </>
         )}

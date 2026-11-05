@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Infrastructure.Auth;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Api.Controllers.Identity;
 using InfraControl.Api.Services;
@@ -19,7 +20,7 @@ public sealed class AuthenticationControllerTests
     {
         // Arrange
         var authServiceMock = new Mock<IIdentityAuthenticationService>();
-        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()));
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()), Options.Create(new GoogleAuthOptions()));
 
         var user = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, "123"),
@@ -71,7 +72,7 @@ public sealed class AuthenticationControllerTests
             .Setup(provider => provider.GetService(typeof(Microsoft.AspNetCore.Authentication.IAuthenticationService)))
             .Returns(signOutMock.Object);
 
-        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()))
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()), Options.Create(new GoogleAuthOptions()))
         {
             ControllerContext = new ControllerContext
             {
@@ -97,7 +98,7 @@ public sealed class AuthenticationControllerTests
     {
         // Arrange
         var authServiceMock = new Mock<IIdentityAuthenticationService>();
-        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()));
+        var controller = new AuthenticationController(authServiceMock.Object, Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(), Options.Create(new FrontendOptions()), Options.Create(new GoogleAuthOptions()));
 
         var user = new ClaimsPrincipal(new ClaimsIdentity([
             new Claim(ClaimTypes.NameIdentifier, "123"),
@@ -143,7 +144,7 @@ public sealed class AuthenticationControllerTests
         var controller = new AuthenticationController(
             authServiceMock.Object,
             Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(),
-            Options.Create(new FrontendOptions { BaseUrl = "http://localhost:3000/" }));
+            Options.Create(new FrontendOptions { BaseUrl = "http://localhost:3000/" }), Options.Create(new GoogleAuthOptions()));
 
         await controller.ForgotPassword(new ForgotPasswordViewModel("alvo@exemplo.test"), CancellationToken.None);
 
@@ -171,7 +172,7 @@ public sealed class AuthenticationControllerTests
         var controller = new AuthenticationController(
             authServiceMock.Object,
             Mock.Of<Microsoft.AspNetCore.Antiforgery.IAntiforgery>(),
-            Options.Create(new FrontendOptions { BaseUrl = "   " }))
+            Options.Create(new FrontendOptions { BaseUrl = "   " }), Options.Create(new GoogleAuthOptions()))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

@@ -49,7 +49,9 @@ public sealed class NotificationEventConsumer(
       IConsumer<PdiCreatedDomainEvent>,
       IConsumer<PdiUpdatedDomainEvent>,
       IConsumer<TaskItemCreatedDomainEvent>,
-      IConsumer<TaskAssigneeCreatedDomainEvent>
+      IConsumer<TaskAssigneeCreatedDomainEvent>,
+      IConsumer<TaskResolvedDomainEvent>,
+      IConsumer<ProjectStatusChangedDomainEvent>
 {
     public NotificationEventConsumer(
         AppDbContext dbContext,
@@ -70,15 +72,15 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F16-T002/ADR-023: incidente (webhook Zabbix F16-T001, manual F6 ou
-    /// auto-abertura F6) → destinatários por role Operator e Admin
-    /// (decisão do usuário 2026-09-30).
+    /// auto-abertura F6) → destinatários por role Operator e Admin.
+    /// Mensagens em português para o grupo do WhatsApp.
     /// </summary>
     public Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
             context.Message.EventType,
             "Incidente aberto",
-            $"O incidente '{context.Message.Title}' foi aberto ({context.Message.Severity}).",
+            $"O incidente '{context.Message.Title}' foi aberto ({MapIncidentSeverityPt(context.Message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
@@ -86,35 +88,43 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F19-T007: resolução do incidente (regra 7: só o InfraControl decide)
-    /// → Operator + Admin.
+    /// → Operator + Admin. Mensagens em português para o grupo do WhatsApp.
     /// </summary>
     public Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
             context.Message.EventType,
             "Incidente resolvido",
-            $"O incidente '{context.Message.Title}' foi resolvido ({context.Message.Severity}).",
+            $"O incidente '{context.Message.Title}' foi resolvido ({MapIncidentSeverityPt(context.Message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             deviceId: context.Message.DeviceId);
 
     /// <summary>
-    /// F33-T004/ADR-059 (decisões 2/3): alerta Critical criado → Operator
-    /// + Admin. A segunda mensagem ("Incidente aberto") vem do
-    /// IncidentCreatedDomainEvent do incidente garantido no mesmo fluxo —
-    /// as 2 mensagens da decisão 3, sem duplicar.
+    /// F33-T004/ADR-059: alerta Critical criado → Operator + Admin.
+    /// Quando o alerta já gera um incidente no mesmo fluxo (HasIncident),
+    /// o WhatsApp não recebe esta mensagem para evitar duplicidade com
+    /// "Incidente aberto"; os demais canais seguem normalmente.
     /// </summary>
     public Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
-        => HandleAsync(
-            context.Message.EventId,
-            context.Message.EventType,
+    {
+        var message = context.Message;
+        NotificationChannel[]? channels = message.HasIncident
+            ? [NotificationChannel.SignalR, NotificationChannel.Email]
+            : null;
+
+        return HandleAsync(
+            message.EventId,
+            message.EventType,
             "Alerta Critical criado",
-            $"O alerta '{context.Message.Message}' foi aberto ({context.Message.Severity}).",
+            $"O alerta '{message.Message}' foi aberto ({MapSeverityPt(message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            deviceId: context.Message.DeviceId);
+            deviceId: message.DeviceId,
+            channels: channels);
+    }
 
     /// <summary>
     /// F44-T001 (prompt master §8): transição de status (ack →
@@ -142,7 +152,11 @@ public sealed class NotificationEventConsumer(
             channels: [NotificationChannel.SignalR]);
     }
 
-    /// <summary>F19-T007: alerta resolvido → Operator + Admin.</summary>
+    /// <summary>
+    /// F19-T007: alerta resolvido → Operator + Admin.
+    /// Para evitar ruído no WhatsApp, envio só por canal padrão quando houver
+    /// incidente vinculado não é garantido aqui; o worker aplica filtros.
+    /// </summary>
     public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
         => HandleAsync(
             context.Message.EventId,
@@ -179,13 +193,21 @@ public sealed class NotificationEventConsumer(
         var message = context.Message;
         var editedOwn = message.ActorId == message.UserId;
 
+        // F48-T003: conclusão muda a sinalização para "PDI concluído"
+        // (destinatário segue o dono do plano / Admin quando o próprio dono).
+        var completed = message.Status == PdiStatus.Completed;
+        var title = completed ? "PDI concluído" : "PDI atualizado";
+        var body = completed
+            ? $"O PDI de {message.OwnerEmail} foi concluído (prazo {message.TargetDate:dd/MM/yyyy})."
+            : editedOwn
+                ? $"O PDI de {message.OwnerEmail} foi atualizado pelo próprio dono — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)})."
+                : $"O PDI de {message.OwnerEmail} foi atualizado — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)}).";
+
         return HandleAsync(
             message.EventId,
             message.EventType,
-            "PDI atualizado",
-            editedOwn
-                ? $"O PDI de {message.OwnerEmail} foi atualizado pelo próprio dono — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)})."
-                : $"O PDI de {message.OwnerEmail} foi atualizado — prazo {message.TargetDate:dd/MM/yyyy} ({StatusLabel(message.Status)}).",
+            title,
+            body,
             recipientUserId: editedOwn ? null : message.UserId,
             recipientRoles: editedOwn ? [UserRole.Admin.ToString()] : [],
             context.CancellationToken,
@@ -221,6 +243,72 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [],
             context.CancellationToken);
 
+    /// <summary>
+    /// F48-T001: task concluída (Resolved/Closed) sinaliza de volta —
+    /// executor (quem resolveu) + solicitante (CreatedById) + responsável
+    /// (ResponsibleId), deduplicados. A regra do evento (Enabled/canais)
+    /// fica a cargo do admin via NotificationEventRule (F48-T004 semeia ON).
+    /// </summary>
+    public async Task Consume(ConsumeContext<TaskResolvedDomainEvent> context)
+    {
+        var message = context.Message;
+        var task = await dbContext.Tasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == message.TaskId, context.CancellationToken);
+
+        var users = new List<Guid>();
+        if (message.ChangedByUserId is { } executor)
+            users.Add(executor);
+        if (task?.CreatedById is { } creator)
+            users.Add(creator);
+        if (task?.ResponsibleId is { } responsible)
+            users.Add(responsible);
+
+        var stateLabel = message.State == TaskState.Closed ? "fechada" : "concluída";
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
+            "Task concluída",
+            $"A task '{message.Title}' foi {stateLabel}.",
+            recipientUserId: null,
+            recipientRoles: [],
+            cancellationToken: context.CancellationToken,
+            recipientUserIds: users.Distinct().ToArray());
+    }
+
+    /// <summary>
+    /// F48-T002: projeto concluído (NewStatus=Completed) notifica os
+    /// membros do projeto + líder — silencioso nas demais transições
+    /// (regra do evento via NotificationEventRule vem em F48-T004).
+    /// </summary>
+    public async Task Consume(ConsumeContext<ProjectStatusChangedDomainEvent> context)
+    {
+        var message = context.Message;
+        if (message.NewStatus != ProjectStatus.Completed)
+            return;
+
+        var project = await dbContext.Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == message.ProjectId, context.CancellationToken);
+        if (project is null)
+            return;
+
+        var memberIds = await dbContext.ProjectMembers.AsNoTracking()
+            .Where(m => m.ProjectId == message.ProjectId)
+            .Select(m => m.UserId)
+            .ToListAsync(context.CancellationToken);
+
+        var users = new HashSet<Guid>(memberIds) { project.LeaderId };
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
+            "Projeto concluído",
+            $"O projeto '{project.Title}' foi concluído.",
+            recipientUserId: null,
+            recipientRoles: [],
+            cancellationToken: context.CancellationToken,
+            recipientUserIds: users.ToArray());
+    }
+
     private static string StatusLabel(PdiStatus status) => status switch
     {
         PdiStatus.Draft => "Rascunho",
@@ -243,6 +331,22 @@ public sealed class NotificationEventConsumer(
         IncidentStatus.Monitoring => "Em monitoramento",
         IncidentStatus.Resolved => "Resolvido",
         _ => status.ToString()
+    };
+
+    private static string MapSeverityPt(InfraControl.Domain.Enums.AlertSeverity severity) => severity switch
+    {
+        InfraControl.Domain.Enums.AlertSeverity.Critical => "CRÍTICO",
+        InfraControl.Domain.Enums.AlertSeverity.Warning => "AVISO",
+        _ => severity.ToString()
+    };
+
+    private static string MapIncidentSeverityPt(InfraControl.Domain.Enums.IncidentSeverity severity) => severity switch
+    {
+        InfraControl.Domain.Enums.IncidentSeverity.Low => "BAIXO",
+        InfraControl.Domain.Enums.IncidentSeverity.Medium => "MÉDIO",
+        InfraControl.Domain.Enums.IncidentSeverity.High => "ALTO",
+        InfraControl.Domain.Enums.IncidentSeverity.Critical => "CRÍTICO",
+        _ => severity.ToString()
     };
 
     public Task Consume(ConsumeContext<UserCreatedDomainEvent> context)
@@ -360,7 +464,8 @@ public sealed class NotificationEventConsumer(
         string[] recipientRoles,
         CancellationToken cancellationToken,
         NotificationChannel[]? channels = null,
-        Guid? deviceId = null)
+        Guid? deviceId = null,
+        IReadOnlyCollection<Guid>? recipientUserIds = null)
     {
         // F42-T002: regra por evento — Enabled=false silencia ANTES da
         // idempotência (nada persistido); Channels preenchido substitui
@@ -404,16 +509,26 @@ public sealed class NotificationEventConsumer(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         // usuário OU roles (1..N, dedup) — vazio apenas quando a resolução
-        // falhou (ex.: convite sem usuário).
-        if (recipientUserId is { } userId)
-        {
-            var recipient = NotificationRecipient.CreateForUser(notification.Id, userId);
-            dbContext.NotificationRecipients.Add(recipient);
-            await dbContext.SaveChangesAsync(cancellationToken);
+        // falhou (ex.: convite sem usuário). F48-T001: vários usuários
+        // (executor + solicitante + responsável) na mesma notificação.
+        var users = new HashSet<Guid>();
+        if (recipientUserId is { } single)
+            users.Add(single);
+        if (recipientUserIds is { Count: > 0 } many)
+            users.UnionWith(many);
 
-            logger.LogInformation(
-                "Destinatário {NotificationRecipientId} (usuário {UserId}) anexado à notificação {NotificationId}.",
-                recipient.Id, userId, notification.Id);
+        if (users.Count > 0)
+        {
+            foreach (var userId in users)
+            {
+                var recipient = NotificationRecipient.CreateForUser(notification.Id, userId);
+                dbContext.NotificationRecipients.Add(recipient);
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                logger.LogInformation(
+                    "Destinatário {NotificationRecipientId} (usuário {UserId}) anexado à notificação {NotificationId}.",
+                    recipient.Id, userId, notification.Id);
+            }
         }
         else if (recipientRoles.Length > 0)
         {

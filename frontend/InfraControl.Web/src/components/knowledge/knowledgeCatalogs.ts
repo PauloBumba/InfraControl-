@@ -102,3 +102,39 @@ export const articleStatusConfig: Record<number, { label: string; bg: string; co
 export function articleStatusLabel(status: number): string {
   return articleStatusConfig[status]?.label ?? String(status);
 }
+
+/**
+ * F24-T008 — categorias visuais no topo da página. O `KnowledgeCategoryDto`
+ * só tem id/nome/descrição (sem cor — campo novo exigiria migration/ADR),
+ * então a UI deriva uma cor ESTÁVEL do nome: mesmo nome = mesma cor em
+ * qualquer render/sessão, o que basta para reconhecer a categoria de longe.
+ */
+const CATEGORY_ACCENTS = [
+  { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
+  { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
+  { bg: "#fef3c7", color: "#b45309", border: "#fde68a" },
+  { bg: "#fdf2f8", color: "#be185d", border: "#fbcfe8" },
+  { bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" },
+  { bg: "#ecfeff", color: "#0e7490", border: "#a5f3fc" },
+] as const;
+
+export interface KnowledgeCategoryAccent {
+  bg: string;
+  color: string;
+  border: string;
+}
+
+/** Hash determinístico simples (djb2-like) → palette fixa. */
+export function knowledgeCategoryAccent(name: string): KnowledgeCategoryAccent {
+  let hash = 5381;
+  for (let index = 0; index < name.length; index += 1) {
+    hash = ((hash * 33) ^ name.charCodeAt(index)) >>> 0;
+  }
+  return (
+    CATEGORY_ACCENTS[hash % CATEGORY_ACCENTS.length] ?? {
+      bg: "#eff6ff",
+      color: "#1d4ed8",
+      border: "#bfdbfe",
+    }
+  );
+}

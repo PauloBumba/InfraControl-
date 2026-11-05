@@ -96,16 +96,11 @@ public sealed class AiProviderRouter : IAiProviderRouter
     /// <summary>Fallback ADR-037 §15 (config) — D3-A do ADR-057.</summary>
     private AiProviderSelection ResolveFromConfiguration(AiCapability capability)
     {
-        var options = capability switch
-        {
-            AiCapability.Copilot => _configuration.Copilot,
-            AiCapability.IncidentAnalysis => _configuration.IncidentAnalysis,
-            AiCapability.KnowledgeGeneration => _configuration.KnowledgeGeneration,
-            AiCapability.Reporting => _configuration.Reporting,
-            AiCapability.Automation => _configuration.Automation,
-            _ => throw new AiProviderNotConfiguredException(
-                $"Capacidade '{capability}' não está configurada.")
-        };
+        // ADR-065: modelo único (`Routing:Default`) + override opcional por
+        // capacidade — a cascatada resolve o par efetivo da capacidade.
+        var options = _configuration.EffectiveFor(capability)
+            ?? throw new AiProviderNotConfiguredException(
+                $"Capacidade '{capability}' não está configurada.");
 
         if (string.IsNullOrWhiteSpace(options.DefaultModel))
         {

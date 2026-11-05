@@ -101,3 +101,24 @@ internal sealed class FakeAuditSink : IAiAuditSink
         return Task.CompletedTask;
     }
 }
+
+/// <summary>
+/// F49-T001: handler HTTP determinístico para o validador de conexão —
+/// o responder decide status/corpo ou lança a exceção de rede simulada.
+/// </summary>
+internal sealed class StubHttpMessageHandler(
+    Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Task.FromResult(responder(request));
+        }
+        catch (Exception ex)
+        {
+            return Task.FromException<HttpResponseMessage>(ex);
+        }
+    }
+}

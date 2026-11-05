@@ -3,6 +3,7 @@ using FluentAssertions;
 using InfraControl.Api.Controllers.Identity;
 using InfraControl.Api.Services;
 using InfraControl.Api.ViewModels.Identity;
+using InfraControl.Infrastructure.Auth;
 using InfraControl.Application.Identity.Authentication;
 using InfraControl.Domain.Enums;
 using Microsoft.AspNetCore.Antiforgery;
@@ -27,7 +28,7 @@ public sealed class AuthenticationMeTests
     private static AuthenticationController ControllerWithAntiforgery(
         IAntiforgery antiforgery, params Claim[] claims)
     {
-        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>(), antiforgery, Options.Create(new FrontendOptions()))
+        var controller = new AuthenticationController(Mock.Of<IIdentityAuthenticationService>(), antiforgery, Options.Create(new FrontendOptions()), Options.Create(new GoogleAuthOptions()))
         {
             ControllerContext = new ControllerContext
             {

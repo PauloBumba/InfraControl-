@@ -1,0 +1,65 @@
+.image-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-upload-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 2px dashed var(--uni-border);
+  border-radius: 8px;
+  background: var(--uni-hover);
+  color: var(--uni-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.image-upload-trigger:hover:not(:disabled) {
+  border-color: var(--uni-accent);
+  color: var(--uni-accent);
+  background: var(--uni-active-bg);
+}
+
+.image-upload-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.image-upload-preview {
+  position: relative;
+  display: inline-block;
+}
+
+.image-upload-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.image-upload-remove:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.image-upload-error {
+  font-size: 12px;
+  color: var(--uni-red);
+  padding: 4px 8px;
+  background: var(--uni-chip-red-bg);
+  border-radius: 4px;
+}

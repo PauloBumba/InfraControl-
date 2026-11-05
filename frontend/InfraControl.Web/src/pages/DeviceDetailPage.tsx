@@ -5,6 +5,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { resolveUploadSrc } from "@/components/ui/imageUploadTypes";
 import { useNavigate, useParams } from "react-router-dom";
 import { BreadCrumb } from "primereact/breadcrumb";
 import { ApiError } from "@/services/api/client";
@@ -464,9 +465,17 @@ export function DeviceDetailPage() {
         <button onClick={() => navigate("/devices")} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", background: "white", cursor: "pointer" }}>
           <i className="pi pi-arrow-left" style={{ fontSize: 12 }} />
         </button>
-        <div style={{ width: 40, height: 40, borderRadius: 8, background: `${color}15`, color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <i className={icon} />
-        </div>
+        {resolveUploadSrc(device.imagePath) ? (
+          <img
+            src={resolveUploadSrc(device.imagePath)!}
+            alt={`Foto de ${device.name}`}
+            style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }}
+          />
+        ) : (
+          <div style={{ width: 40, height: 40, borderRadius: 8, background: `${color}15`, color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i className={icon} />
+          </div>
+        )}
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 700 }}>{device.name}</h1>
           <p style={{ fontSize: 12, color: "#6b7280" }}>

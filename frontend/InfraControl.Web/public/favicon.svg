@@ -1,21 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="logoPrimaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="logoBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.1" />
+    </linearGradient>
+    <linearGradient id="ledGreenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ade80;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="ledAmberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#eab308;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="12" fill="url(#grad1)"/>
-  <g fill="white">
-    <!-- Server rack icon -->
-    <rect x="16" y="12" width="32" height="40" rx="4" fill="none" stroke="white" stroke-width="2.5"/>
-    <!-- Server units -->
-    <rect x="20" y="18" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-    <rect x="20" y="28" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-    <rect x="20" y="38" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-    <!-- Status lights -->
-    <circle cx="38" cy="21" r="1.5" fill="#22c55e"/>
-    <circle cx="38" cy="31" r="1.5" fill="#22c55e"/>
-    <circle cx="38" cy="41" r="1.5" fill="#eab308"/>
+  <circle cx="32" cy="32" r="30" fill="url(#logoBgGrad)" />
+  <g>
+    <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="url(#logoPrimaryGrad)" stroke-width="2.5"/>
+    <line x1="14" y1="20" x2="50" y2="20" stroke="url(#logoPrimaryGrad)" stroke-width="1" opacity="0.3" />
+    <line x1="14" y1="32" x2="50" y2="32" stroke="url(#logoPrimaryGrad)" stroke-width="1" opacity="0.3" />
+    <line x1="14" y1="44" x2="50" y2="44" stroke="url(#logoPrimaryGrad)" stroke-width="1" opacity="0.3" />
+    <rect x="18" y="12" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.9" />
+    <rect x="18" y="22" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.8" />
+    <rect x="18" y="32" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.7" />
+    <rect x="18" y="42" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.6" />
+    <circle cx="42" cy="15" r="1.8" fill="url(#ledGreenGrad)" />
+    <circle cx="42" cy="25" r="1.8" fill="url(#ledGreenGrad)" />
+    <circle cx="42" cy="35" r="1.8" fill="url(#ledAmberGrad)" />
+    <circle cx="42" cy="45" r="1.8" fill="url(#ledGreenGrad)" />
+  </g>
+  <g stroke="url(#logoPrimaryGrad)" stroke-width="1.5" fill="none" opacity="0.6">
+    <path d="M 8 20 Q 10 20, 14 20" />
+    <circle cx="8" cy="20" r="2" fill="url(#logoPrimaryGrad)" />
+    <path d="M 8 44 Q 10 44, 14 44" />
+    <circle cx="8" cy="44" r="2" fill="url(#logoPrimaryGrad)" />
+    <path d="M 50 32 Q 54 32, 56 32" />
+    <circle cx="56" cy="32" r="2" fill="url(#logoPrimaryGrad)" />
+  </g>
+  <g fill="url(#logoPrimaryGrad)" opacity="0.4">
+    <circle cx="24" cy="15" r="1" />
+    <circle cx="28" cy="15" r="1" />
+    <circle cx="24" cy="25" r="1" />
+    <circle cx="28" cy="25" r="1" />
+    <circle cx="24" cy="35" r="1" />
+    <circle cx="28" cy="35" r="1" />
+    <circle cx="24" cy="45" r="1" />
+    <circle cx="28" cy="45" r="1" />
   </g>
 </svg>

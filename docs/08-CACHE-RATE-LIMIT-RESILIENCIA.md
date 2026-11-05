@@ -123,7 +123,8 @@ Application
 - Partição: `user:{sub}` quando autenticado, senão `ip:{endereço}`.
 - Categorias via `[HttpRateLimit(RateLimitCategory.X)]` no endpoint
   (Default sem marcação): regras na seção `RateLimit` da configuração —
-  Default 120/60, Login 5/60, PasswordReset 3/600, Webhook 120/60,
+  Default 300/60 (F46-T008: era 120/60 e derrubava rajadas legítimas de
+  dashboard/polling), Login 5/60, PasswordReset 3/600, Webhook 120/60,
   Ingestion 1000/60.
 - Cobertura: `HybridCacheServiceTests` (7), `DistributedHttpRateLimiterTests`
   (6), `HttpRateLimitPipelineTests` (2 — pipeline Kestrel real com

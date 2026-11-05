@@ -30,11 +30,14 @@ public sealed class NotificationEventCatalogTests
             nameof(IncidentCreatedDomainEvent),
             nameof(AlertCreatedDomainEvent),
             nameof(IncidentResolvedDomainEvent),
+            nameof(IncidentUpdatedDomainEvent),
             nameof(AlertResolvedDomainEvent),
             nameof(PdiCreatedDomainEvent),
             nameof(PdiUpdatedDomainEvent),
             nameof(TaskItemCreatedDomainEvent),
             nameof(TaskAssigneeCreatedDomainEvent),
+            nameof(TaskResolvedDomainEvent),
+            nameof(ProjectStatusChangedDomainEvent),
         ];
 
         // Ação
@@ -69,6 +72,7 @@ public sealed class NotificationEventCatalogTests
             nameof(IncidentCreatedDomainEvent),
             nameof(AlertCreatedDomainEvent),
             nameof(IncidentResolvedDomainEvent),
+            nameof(IncidentUpdatedDomainEvent),
             nameof(AlertResolvedDomainEvent),
         ]);
         identity.Select(e => e.EventType).Should().Contain(

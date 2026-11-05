@@ -27,6 +27,7 @@ vi.mock("@/services/api/knowledge", async (importOriginal) => {
     ...actual,
     listArticles: vi.fn(),
     listCategories: vi.fn(),
+    getArticle: vi.fn(),
     createArticle: vi.fn(),
     updateArticle: vi.fn(),
     deleteArticle: vi.fn(),
@@ -74,6 +75,7 @@ import {
   createArticle,
   createCategory,
   deleteArticle,
+  getArticle,
   listArticles,
   listCategories,
   updateArticle,
@@ -84,6 +86,7 @@ import {
 
 const listArticlesMock = vi.mocked(listArticles);
 const listCategoriesMock = vi.mocked(listCategories);
+const getArticleMock = vi.mocked(getArticle);
 const createArticleMock = vi.mocked(createArticle);
 const updateArticleMock = vi.mocked(updateArticle);
 const deleteArticleMock = vi.mocked(deleteArticle);
@@ -114,6 +117,7 @@ function makeArticle(overrides: Partial<KnowledgeArticle> = {}): KnowledgeArticl
     deviceIds: [],
     incidentIds: [],
     serviceIds: [],
+    imagePath: null,
     ...overrides,
   };
 }
@@ -136,6 +140,19 @@ function renderPage() {
   );
 }
 
+/** O bloco do `PageHeader` (título + subtítulo + ações), fora do conteúdo. */
+function headerRegion(): HTMLElement {
+  const heading = screen.getByRole("heading", { name: "Base de Conhecimento" });
+  const region = heading.closest("div")?.parentElement;
+  if (!region) throw new Error("cabecalho da pagina nao encontrado");
+  return region as HTMLElement;
+}
+
+async function headerRegionAsync(): Promise<HTMLElement> {
+  await screen.findByRole("heading", { name: "Base de Conhecimento" });
+  return headerRegion();
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   // a preferência de visão vive no localStorage — zera p/ default determinístico
@@ -152,6 +169,7 @@ beforeEach(() => {
   listCategoriesMock.mockResolvedValue(
     pagedCategories([{ id: "cat-1", name: "Redes", description: null }]),
   );
+  getArticleMock.mockResolvedValue(makeArticle());
   updateArticleMock.mockResolvedValue(null);
   deleteArticleMock.mockResolvedValue(null);
   changeArticleStatusMock.mockResolvedValue(makeArticle());
@@ -281,8 +299,11 @@ describe("KnowledgePage", () => {
       await screen.findByRole("heading", { name: "Base de Conhecimento" }),
     ).toBeInTheDocument();
     // Singular: `countLabel(1, "artigo", "artigos")` → "1 artigo".
-    expect(await screen.findByText("1 artigo")).toBeInTheDocument();
-    expect(screen.queryByText("1 artigos")).toBeNull();
+    // Escopo no cabeçalho: os tiles de categoria também mostram contagem.
+    expect(
+      within(headerRegion()).getByText("1 artigo"),
+    ).toBeInTheDocument();
+    expect(within(headerRegion()).queryByText("1 artigos")).toBeNull();
   });
 
   it("should pluralize the header count (C-3)", async () => {
@@ -291,8 +312,86 @@ describe("KnowledgePage", () => {
     );
     renderPage();
 
-    expect(await screen.findByText("2 artigos")).toBeInTheDocument();
-    expect(screen.queryByText("2 artigo")).toBeNull();
+    expect(within(await headerRegionAsync()).getByText("2 artigos")).toBeInTheDocument();
+    expect(within(headerRegion()).queryByText("2 artigo")).toBeNull();
+  });
+
+  // ── F24-T008 — detalhe ao clicar no card / linha ─────────────────────
+
+  it("should open the article detail dialog when a grid card is clicked", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByText("Procedimento de troca de switch"));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Procedimento de troca de switch",
+    });
+    expect(
+      within(dialog).getByText("Passo 1: desligar a energia do rack."),
+    ).toBeInTheDocument();
+    // O detalhe enriquece com os vínculos que a busca não devolve.
+    expect(getArticleMock).toHaveBeenCalledWith("art-1");
+  });
+
+  it("should open the article detail dialog when a table row is clicked", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("tab", { name: "Tabela" }),
+    );
+    const table = await screen.findByRole("table");
+    await user.click(within(table).getByText("Procedimento de troca de switch"));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Procedimento de troca de switch" }),
+    ).toBeInTheDocument();
+  });
+
+  // ── F24-T008 — categorias visuais no topo ────────────────────────────
+
+  it("should show the categories strip to read-only users (Viewer)", async () => {
+    store.dispatch(
+      sessionChecked({
+        id: "5a1b1111-2222-3333-4444-555566667777",
+        email: "viewer@exemplo.com",
+        displayName: "Viewer",
+        roles: ["Viewer"],
+      }),
+    );
+    renderPage();
+
+    expect(await screen.findByText("Categorias (1)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Redes/ })).toBeInTheDocument();
+    // Gerenciamento continua restrito a quem opera.
+    expect(screen.queryByRole("button", { name: /nova categoria/i })).toBeNull();
+  });
+
+  it("should filter by category when a visual category tile is clicked", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    // O bloco "Categorias" tem o único tile "Redes" da página (o select
+    // avançado é um <option>, não botão).
+    await user.click(await screen.findByRole("button", { name: /Redes/ }));
+
+    expect(listArticlesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryId: "cat-1", pageSize: 20 }),
+    );
+  });
+
+  it("should clear the category filter when the 'Todas' tile is clicked", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Redes/ }));
+    await user.click(screen.getByRole("button", { name: /Todas/ }));
+
+    const calls = listArticlesMock.mock.calls;
+    const lastCall = calls[calls.length - 1]?.[0];
+    expect(lastCall?.categoryId).toBeUndefined();
+    expect(lastCall?.pageSize).toBe(20);
   });
 });
 

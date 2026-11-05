@@ -197,6 +197,24 @@ function AppContent() {
    */
   const handleNavigate = (route: string) => navigate(route);
 
+  // O centro de operações ocupa a tela inteira (sem chrome do layout).
+  // Este efeito precisa ficar ANTES de qualquer return condicional: chamar
+  // hook depois de um early return viola as regras dos hooks e derrubava a
+  // árvore com o erro React #310 ao entrar no painel.
+  const isOps = location.pathname === "/operations-center";
+  useEffect(() => {
+    if (isOps) {
+      document.body.classList.add("noc-route-active");
+    } else {
+      document.body.classList.remove("noc-route-active");
+      document.body.classList.remove("noc-fullscreen-active");
+    }
+    return () => {
+      document.body.classList.remove("noc-route-active");
+      document.body.classList.remove("noc-fullscreen-active");
+    };
+  }, [isOps]);
+
   // F26-T002 — landing pública de vendas: header/footer COMPARTILHADOS e
   // conteúdo que muda por rota. A rota raiz `/` é a landing pública (para não autenticados).
   // Rotas públicas não dependem do backend e funcionam mesmo sem authStatus disponível.
@@ -261,6 +279,16 @@ function AppContent() {
   }
 
   return (
+    <>
+      {isOps ? (
+        <Routes>
+          <Route path="/operations-center" element={
+            <ProtectedRoute>
+              <OperationsCenterPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      ) : (
     <AppLayout activeRoute={location.pathname} onNavigate={handleNavigate}>
       <SessionGate>
         <Suspense fallback={<PageLoader />}>
@@ -431,11 +459,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
           {/* F37-T001 — Central de Operações (painel kiosk) */}
-          <Route path="/operations-center" element={
-            <ProtectedRoute>
-              <OperationsCenterPage />
-            </ProtectedRoute>
-          } />
+
           <Route path="/pdi" element={
             <ProtectedRoute>
               <PdiPage />
@@ -522,9 +546,11 @@ function AppContent() {
           } />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </Suspense>
+        </Suspense>
       </SessionGate>
     </AppLayout>
+      )}
+    </>
   );
 }
 

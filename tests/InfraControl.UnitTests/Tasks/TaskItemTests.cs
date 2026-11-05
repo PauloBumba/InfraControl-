@@ -174,4 +174,66 @@ public sealed class TaskItemTests
 
         task.DueDate.Should().Be(new DateOnly(2020, 1, 1));
     }
+
+    // ── F48-T001 — sinalização de conclusão ────────────────────────────────
+
+    [Theory]
+    [InlineData(TaskState.Resolved)]
+    [InlineData(TaskState.Closed)]
+    public void ChangeState_ParaEstadoConclusivo_LevantaTaskResolvedDomainEvent(TaskState target)
+    {
+        var task = TaskItem.Create("resolver o switch", TaskKind.Manual);
+        task.ChangeState(TaskState.InProgress); // Open → InProgress (workflow)
+        if (target == TaskState.Closed)
+        {
+            task.ChangeState(TaskState.Resolved); // Closed só sai de Resolved
+            task.ClearDomainEvents();             // descarta o evento do passo intermediário
+        }
+        var executor = Guid.NewGuid();
+
+        task.ChangeState(target, executor);
+
+        var evt = task.DomainEvents.OfType<InfraControl.Domain.Events.TaskResolvedDomainEvent>()
+            .Single();
+        evt.TaskId.Should().Be(task.Id);
+        evt.Title.Should().Be("resolver o switch");
+        evt.State.Should().Be(target);
+        evt.ChangedByUserId.Should().Be(executor);
+    }
+
+    [Fact]
+    public void ChangeState_ParaEstadoNaoConclusivo_NaoLevantaTaskResolved()
+    {
+        var task = TaskItem.Create("t", TaskKind.Manual);
+
+        task.ChangeState(TaskState.InProgress, Guid.NewGuid());
+
+        task.DomainEvents.OfType<InfraControl.Domain.Events.TaskResolvedDomainEvent>()
+            .Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ChangeState_SemExecutor_LevantaEventoComChangedByNulo()
+    {
+        var task = TaskItem.Create("t", TaskKind.Manual);
+        task.ChangeState(TaskState.InProgress);
+
+        task.ChangeState(TaskState.Resolved);
+
+        task.DomainEvents.OfType<InfraControl.Domain.Events.TaskResolvedDomainEvent>()
+            .Single().ChangedByUserId.Should().BeNull();
+    }
+
+    [Fact]
+    public void ChangeState_MesmoEstado_NaoLevantaNada()
+    {
+        var task = TaskItem.Create("t", TaskKind.Manual);
+        task.ChangeState(TaskState.InProgress);
+        task.ChangeState(TaskState.Resolved, Guid.NewGuid());
+
+        task.ClearDomainEvents();
+        task.ChangeState(TaskState.Resolved, Guid.NewGuid());
+
+        task.DomainEvents.Should().BeEmpty();
+    }
 }

@@ -196,6 +196,53 @@ public sealed class DeviceCommandTests : IDisposable
         stored.Ip.Should().Be("192.0.2.11");
     }
 
+    // ── Foto do ativo (F24-T008 pattern) ─────────────────────────────────
+
+    [Fact]
+    public async Task Create_ShouldPersistImagePath()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+
+        var result = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "sw-img", "Switch",
+                ImagePath: "/uploads/devices/foto.png"),
+            CancellationToken.None);
+
+        result.ImagePath.Should().Be("/uploads/devices/foto.png");
+        context.Devices.Single(device => device.Id == result.Id)
+            .ImagePath.Should().Be("/uploads/devices/foto.png");
+    }
+
+    [Fact]
+    public async Task Update_ShouldReplaceAndClearImagePath()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "sw-img", "Switch",
+                ImagePath: "/uploads/devices/antiga.png"),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateDeviceCommand(
+                created.Id, "sw-img", "Switch",
+                ImagePath: "/uploads/devices/nova.png"),
+            CancellationToken.None);
+
+        context.Devices.Single(device => device.Id == created.Id)
+            .ImagePath.Should().Be("/uploads/devices/nova.png");
+
+        await UpdateHandler(context).Handle(
+            new UpdateDeviceCommand(created.Id, "sw-img", "Switch"),
+            CancellationToken.None);
+
+        context.Devices.Single(device => device.Id == created.Id)
+            .ImagePath.Should().BeNull();
+    }
+
     [Fact]
     public async Task Update_ToAnotherDeviceName_ShouldThrowConflictPtBrMessage()
     {

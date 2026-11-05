@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { readStoredTheme, toggleTheme, type Theme } from "@/services/theme";
+import { Logo } from "@/components/ui/Logo";
 
 const NAV = [
   { to: "/", label: "Home" },
@@ -30,29 +31,6 @@ function navLinkClass(active: boolean): string {
   return active ? "uni-public-nav-link uni-public-nav-link-active" : "uni-public-nav-link";
 }
 
-function InfraLogo({ size = 28 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 64 64" width={size} height={size} role="img" aria-label="Logo do InfraControl">
-      <defs>
-        <linearGradient id="infraHeaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:1}} />
-          <stop offset="100%" style={{stopColor:'#2563eb',stopOpacity:1}} />
-        </linearGradient>
-      </defs>
-      <rect width="64" height="64" rx="12" fill="url(#infraHeaderGrad)" />
-      <g fill="white">
-        <rect x="16" y="12" width="32" height="40" rx="4" fill="none" stroke="white" strokeWidth="2.5"/>
-        <rect x="20" y="18" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-        <rect x="20" y="28" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-        <rect x="20" y="38" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-        <circle cx="38" cy="21" r="1.5" fill="#22c55e"/>
-        <circle cx="38" cy="31" r="1.5" fill="#22c55e"/>
-        <circle cx="38" cy="41" r="1.5" fill="#eab308"/>
-      </g>
-    </svg>
-  );
-}
-
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const [theme, setTheme] = useState<Theme>(readStoredTheme);
@@ -75,7 +53,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <div className="uni-public-container uni-public-bar">
           <Link to="/" className="uni-public-brand" onClick={handleNavClick}>
             <span className="uni-public-logo">
-              <InfraLogo size={28} />
+              <Logo size={28} />
             </span>
             <span>InfraControl</span>
           </Link>
@@ -161,7 +139,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <div className="uni-public-container uni-public-footer-grid">
           <div className="uni-public-footer-brand">
             <div className="uni-public-footer-logo">
-              <InfraLogo size={32} />
+              <Logo size={32} />
               <span className="uni-public-footer-brand-text">InfraControl</span>
             </div>
             <p className="uni-public-footer-description">
@@ -249,7 +227,7 @@ export function PublicHeaderFooterLayout({ children }: { children: ReactNode }) 
         <div className="uni-public-container uni-public-bar">
           <Link to="/" className="uni-public-brand">
             <span className="uni-public-logo">
-              <InfraLogo size={28} />
+              <Logo size={28} />
             </span>
             <span>InfraControl</span>
           </Link>
@@ -276,7 +254,7 @@ export function PublicHeaderFooterLayout({ children }: { children: ReactNode }) 
         <div className="uni-public-container uni-public-footer-grid">
           <div className="uni-public-footer-brand">
             <div className="uni-public-footer-logo">
-              <InfraLogo size={32} />
+              <Logo size={32} />
               <span className="uni-public-footer-brand-text">InfraControl</span>
             </div>
             <p className="uni-public-footer-description">

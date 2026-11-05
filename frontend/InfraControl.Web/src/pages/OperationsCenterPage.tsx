@@ -1,505 +1,650 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { listIncidents, type IncidentItem } from "../services/api/incidents";
+import { listDevices } from "../services/api/inventory";
+import { getZabbixSummary } from "../services/api/zabbix";
 import { useAudio } from "../hooks";
+import { useOperationalRefresh } from "../hooks/useOperationalRefresh";
+import { MetricChart } from "@/components/ui/MetricChart";
 
-/**
- * Painel central kiosk — Central de Operações (ADR-063 F37-T001)
- * Layout legível à distância com cartões de disponibilidade e tela cheia.
- * Dados fakes para validar UX/visual antes de conectar backend real.
- *
- * F37-T002: Alertas sonoros e por voz (validação com dados fakes)
- *
- * F37-T007: estilos passam a ser o CSS próprio do projeto
- * (`styles/pages/operations-center.css`, classes `uni-ops-*` + tokens
- * `--uni-*`).
- *
- * 2026-10-21 — Painel fixo (sem rotação): o painel de TV/NOC passa a exibir
- * TODOS os módulos simultaneamente em colunas (uma seção por módulo), sem
- * troca automática de tela nem abas. O usuário especificou tela fixa de
- * exibição contínua mostrando o estado de cada coisa — a rotação automática
- * de 30s por módulo (F37-T001) foi removida por decisão explícita. Os
- * controles de áudio (F37-T002) e tela cheia permanecem.
- */
+type OpsView = "overview" | "incidents" | "network" | "servers" | "cameras";
 
-type Module = "servers" | "switches" | "printers" | "network" | "backup" | "cameras";
+type NocTheme = "dark" | "light";
 
-interface ServerStatus {
-  name: string;
-  status: "online" | "offline" | "warning";
-  cpu: number;
-  memory: number;
-  disk: number;
+const VIEWS: { id: OpsView; label: string }[] = [
+  { id: "overview", label: "Visão Geral" },
+  { id: "incidents", label: "Incidentes" },
+  { id: "network", label: "Rede" },
+  { id: "servers", label: "Servidores e Serviços" },
+  { id: "cameras", label: "Câmeras e Operações" },
+];
+
+const ROTATION_MS = 60000;
+
+function getDurationLabel(iso: string) {
+  const start = new Date(iso).getTime();
+  const now = Date.now();
+  const diffMs = Math.max(0, now - start);
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `há ${diffH}h ${diffMin % 60}min`;
+  const diffD = Math.floor(diffH / 24);
+  return `há ${diffD}d ${diffH % 24}h`;
 }
 
-interface SwitchStatus {
-  name: string;
-  status: "online" | "offline" | "warning";
-  uptime: string;
-  ports: { total: number; up: number; down: number };
+function SeverityDot({ severity }: { severity: string }) {
+  const sev = severity?.toLowerCase() ?? "low";
+  if (sev === "critical") return <span className="noc-sev-dot noc-sev-dot--crit" />;
+  if (sev === "high") return <span className="noc-sev-dot noc-sev-dot--warn" />;
+  if (sev === "medium") return <span className="noc-sev-dot noc-sev-dot--info" />;
+  return <span className="noc-sev-dot noc-sev-dot--ok" />;
 }
 
-interface PrinterStatus {
-  name: string;
-  status: "online" | "offline" | "warning";
-  toner: number | null; // null = modelo sem % aproximado
-  drum: number | null;
-  error: string | null;
+function CriticalTicker({ items }: { items: IncidentItem[] }) {
+  if (items.length === 0) return null;
+  const text = items
+    .map((item) => `[${item.severity.toUpperCase()}] ${item.title} • ${getDurationLabel(item.openedAt)}`)
+    .join("   •   ");
+  return (
+    <div className="noc-ticker">
+      <div className="noc-ticker__label">
+        <span className="noc-ticker__dot" />
+        <span>CRÍTICO</span>
+      </div>
+      <div className="noc-ticker__item">
+        <span>{text}</span>
+        <span className="noc-ticker__sep">•</span>
+        <span>{text}</span>
+      </div>
+    </div>
+  );
 }
 
-interface NetworkStatus {
-  name: string;
-  status: "online" | "offline" | "warning";
-  bandwidth: { down: number; up: number };
-  latency: number;
+function ViewOverview({
+  incidents,
+  servers,
+  networkCount,
+  printers,
+  cameras,
+  zabbixOk,
+}: {
+  incidents: IncidentItem[];
+  servers: number;
+  networkCount: number;
+  printers: number;
+  cameras: number;
+  zabbixOk: boolean;
+}) {
+  const open = incidents.filter((i) => i.status !== "Resolved");
+  const critical = open.filter((i) => i.severity?.toLowerCase() === "critical");
+  const high = open.filter((i) => i.severity?.toLowerCase() === "high");
+  const top = [...open].sort((a, b) => {
+    const order = (s: string) => (s === "Critical" ? 0 : s === "High" ? 1 : s === "Medium" ? 2 : 3);
+    return order(a.severity) - order(b.severity);
+  }).slice(0, 6);
+
+  return (
+    <>
+      <div className="noc-kpi-row">
+        <div className={`noc-kpi ${critical.length > 0 ? "is-crit" : ""}`}>
+          <span className="noc-kpi__value">{critical.length.toString().padStart(2, "0")}</span>
+          <span className="noc-kpi__label">Críticos abertos</span>
+          <span className="noc-kpi__sub">Prioridade máxima</span>
+        </div>
+        <div className={`noc-kpi ${high.length > 0 ? "is-warn" : ""}`}>
+          <span className="noc-kpi__value">{open.length.toString().padStart(2, "0")}</span>
+          <span className="noc-kpi__label">Incidentes abertos</span>
+          <span className="noc-kpi__sub">Aguardando ação</span>
+        </div>
+        <div className="noc-kpi">
+          <span className="noc-kpi__value">{servers.toString().padStart(2, "0")}</span>
+          <span className="noc-kpi__label">Servidores</span>
+          <span className="noc-kpi__sub">Inventariados</span>
+        </div>
+        <div className="noc-kpi">
+          <span className="noc-kpi__value">{networkCount.toString().padStart(2, "0")}</span>
+          <span className="noc-kpi__label">Rede</span>
+          <span className="noc-kpi__sub">Switch/Router/Firewall/AP</span>
+        </div>
+        <div className="noc-kpi">
+          <span className="noc-kpi__value">{zabbixOk ? "OK" : "N/D"}</span>
+          <span className="noc-kpi__label">Monitoramento</span>
+          <span className="noc-kpi__sub">{cameras} câmeras • {printers} impressoras</span>
+        </div>
+      </div>
+      <div className="noc-grid">
+        <section className="noc-panel noc-panel--wide">
+          <header className="noc-panel__head">
+            <div className="noc-panel__title">
+              <span>Incidentes prioritários</span>
+            </div>
+            <span className="noc-text-muted">Ordenado por severidade</span>
+          </header>
+          <div className="noc-panel__body">
+            {top.length === 0 ? (
+              <div className="noc-empty">Sem incidentes abertos</div>
+            ) : (
+              <table className="noc-table">
+                <thead>
+                  <tr>
+                    <th>Severidade</th>
+                    <th>Ocorrência</th>
+                    <th>Status</th>
+                    <th>Duração</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {top.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="noc-sev">
+                          <SeverityDot severity={item.severity} />
+                          <span className="noc-text-strong">{item.severity}</span>
+                        </div>
+                      </td>
+                      <td className="noc-text-strong">{item.title}</td>
+                      <td className="noc-text-sub">{item.status}</td>
+                      <td className="noc-text-muted">{getDurationLabel(item.openedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+        <section className="noc-panel">
+          <header className="noc-panel__head">
+            <div className="noc-panel__title">
+              <span>Rede</span>
+            </div>
+            <span className="noc-text-muted">Visão rápida</span>
+          </header>
+          <div className="noc-panel__body">
+            <div className="noc-list">
+              <div className="noc-list-item">
+                <span className="noc-text-strong">Dispositivos de rede</span>
+                <span className="noc-text-sub">{networkCount} inventariados</span>
+                <span className="noc-pill is-ok">Monitoração ativa</span>
+              </div>
+              <div className="noc-list-item">
+                <span className="noc-text-strong">Zabbix</span>
+                <span className="noc-text-sub">{zabbixOk ? "Conectado" : "Indisponível"}</span>
+                <span className={`noc-pill ${zabbixOk ? "is-ok" : "is-warn"}`}>{zabbixOk ? "OK" : "VERIFICAR"}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="noc-panel">
+          <header className="noc-panel__head">
+            <div className="noc-panel__title">
+              <span>Câmeras e Operações</span>
+            </div>
+            <span className="noc-text-muted">Inventário</span>
+          </header>
+          <div className="noc-panel__body">
+            <div className="noc-list">
+              <div className="noc-list-item">
+                <span className="noc-text-strong">Câmeras</span>
+                <span className="noc-text-sub">{cameras} registradas</span>
+                <span className="noc-pill is-ok">Inventário</span>
+              </div>
+              <div className="noc-list-item">
+                <span className="noc-text-strong">Impressoras</span>
+                <span className="noc-text-sub">{printers} registradas</span>
+                <span className="noc-pill is-ok">Inventário</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </>
+  );
 }
 
-interface BackupStatus {
-  name: string;
-  status: "success" | "warning" | "error";
-  lastBackup: string;
-  size: string;
+function ViewIncidents({ incidents }: { incidents: IncidentItem[] }) {
+  const open = [...incidents].filter((i) => i.status !== "Resolved").sort((a, b) => {
+    const order = (s: string) => (s === "Critical" ? 0 : s === "High" ? 1 : s === "Medium" ? 2 : 3);
+    return order(a.severity) - order(b.severity);
+  });
+  return (
+    <div className="noc-grid noc-grid--full">
+      <section className="noc-panel">
+        <header className="noc-panel__head">
+          <div className="noc-panel__title">
+            <span>Central de Incidentes</span>
+          </div>
+          <span className="noc-text-muted">{open.length} abertos</span>
+        </header>
+        <div className="noc-panel__body">
+          {open.length === 0 ? (
+            <div className="noc-empty">Sem incidentes abertos</div>
+          ) : (
+            <table className="noc-table">
+              <thead>
+                <tr>
+                  <th>Severidade</th>
+                  <th>Título</th>
+                  <th>Status</th>
+                  <th>Aberto</th>
+                  <th>Duração</th>
+                </tr>
+              </thead>
+              <tbody>
+                {open.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <div className="noc-sev">
+                        <SeverityDot severity={item.severity} />
+                        <span className="noc-text-strong">{item.severity}</span>
+                      </div>
+                    </td>
+                    <td className="noc-text-strong">{item.title}</td>
+                    <td className="noc-text-sub">{item.status}</td>
+                    <td className="noc-text-muted">{new Date(item.openedAt).toLocaleTimeString("pt-BR")}</td>
+                    <td className="noc-text-muted">{getDurationLabel(item.openedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+    </div>
+  );
 }
 
-interface CameraStatus {
-  name: string;
-  status: "online" | "offline" | "warning";
-  recording: boolean;
+function ViewNetwork({ switches }: { switches: number }) {
+  return (
+    <div className="noc-grid noc-grid--full">
+      <section className="noc-panel">
+        <header className="noc-panel__head">
+          <div className="noc-panel__title">
+            <span>Rede / Conectividade</span>
+          </div>
+          <span className="noc-text-muted">Switches, roteadores, firewall e access points</span>
+        </header>
+        <div className="noc-panel__body">
+          <div className="noc-list">
+            <div className="noc-list-item">
+              <span className="noc-text-strong">Dispositivos de rede</span>
+              <span className="noc-text-sub">{switches} inventariados</span>
+              <span className="noc-pill is-ok">Monitoração ativa</span>
+            </div>
+            <div className="noc-list-item">
+              <span className="noc-text-strong">UniFi / SNMP</span>
+              <span className="noc-text-sub">Integrações disponíveis no módulo de rede</span>
+              <span className="noc-pill is-ok">Configurável</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
-const MODULES: { id: Module; label: string; icon: string }[] = [
-  { id: "servers", label: "Servidores", icon: "pi-server" },
-  { id: "switches", label: "Switches", icon: "pi-sitemap" },
-  { id: "printers", label: "Impressoras", icon: "pi-print" },
-  { id: "network", label: "Rede/Wi-Fi", icon: "pi-wifi" },
-  { id: "backup", label: "Backup", icon: "pi-database" },
-  { id: "cameras", label: "Câmeras/Telefonia", icon: "pi-video" },
-];
+function ViewServers({ servers }: { servers: number }) {
+  return (
+    <div className="noc-grid noc-grid--full">
+      <section className="noc-panel">
+        <header className="noc-panel__head">
+          <div className="noc-panel__title">
+            <span>Servidores e Serviços</span>
+          </div>
+          <span className="noc-text-muted">{servers} servidores inventariados</span>
+        </header>
+        <div className="noc-panel__body">
+          <div className="noc-list">
+            <div className="noc-list-item">
+              <span className="noc-text-strong">Servidores</span>
+              <span className="noc-text-sub">{servers} registrados no inventário</span>
+              <span className="noc-pill is-ok">Ativo</span>
+            </div>
+            <div className="noc-list-item">
+              <span className="noc-text-strong">Serviços críticos</span>
+              <span className="noc-text-sub">PostgreSQL • Redis • MassTransit</span>
+              <span className="noc-pill is-ok">Ver /health</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
 
-// Dados fakes para validação visual
-const FAKE_SERVERS: ServerStatus[] = [
-  { name: "SRV-PROD-01", status: "online", cpu: 45, memory: 62, disk: 78 },
-  { name: "SRV-PROD-02", status: "online", cpu: 32, memory: 58, disk: 65 },
-  { name: "SRV-DB-01", status: "warning", cpu: 78, memory: 85, disk: 82 },
-  { name: "SRV-DB-02", status: "online", cpu: 55, memory: 71, disk: 58 },
-  { name: "SRV-APP-01", status: "online", cpu: 28, memory: 45, disk: 42 },
-  { name: "SRV-APP-02", status: "offline", cpu: 0, memory: 0, disk: 0 },
-];
-
-const FAKE_SWITCHES: SwitchStatus[] = [
-  { name: "SW-CORE-01", status: "online", uptime: "45d 12h", ports: { total: 48, up: 46, down: 2 } },
-  { name: "SW-CORE-02", status: "online", uptime: "45d 12h", ports: { total: 48, up: 48, down: 0 } },
-  { name: "SW-ACC-01", status: "online", uptime: "30d 8h", ports: { total: 24, up: 22, down: 2 } },
-  { name: "SW-ACC-02", status: "warning", uptime: "12d 4h", ports: { total: 24, up: 20, down: 4 } },
-];
-
-const FAKE_PRINTERS: PrinterStatus[] = [
-  { name: "HP-LaserJet-01", status: "online", toner: 65, drum: 80, error: null },
-  { name: "HP-LaserJet-02", status: "warning", toner: 15, drum: 45, error: "Toner baixo" },
-  { name: "Brother-01", status: "online", toner: 78, drum: 92, error: null },
-  { name: "Canon-01", status: "offline", toner: null, drum: null, error: "Sem comunicação" },
-];
-
-const FAKE_NETWORK: NetworkStatus[] = [
-  { name: "Internet Gateway", status: "online", bandwidth: { down: 950, up: 850 }, latency: 12 },
-  { name: "Wi-Fi Controller", status: "online", bandwidth: { down: 450, up: 320 }, latency: 8 },
-  { name: "VPN Gateway", status: "warning", bandwidth: { down: 120, up: 95 }, latency: 45 },
-];
-
-const FAKE_BACKUP: BackupStatus[] = [
-  { name: "PostgreSQL Daily", status: "success", lastBackup: "2026-10-20 02:00", size: "12.5 GB" },
-  { name: "PostgreSQL Weekly", status: "success", lastBackup: "2026-10-19 03:00", size: "85.2 GB" },
-  { name: "Config Backup", status: "warning", lastBackup: "2026-10-18 05:00", size: "245 MB" },
-];
-
-const FAKE_CAMERAS: CameraStatus[] = [
-  { name: "CAM-ENTRADA-01", status: "online", recording: true },
-  { name: "CAM-ENTRADA-02", status: "online", recording: true },
-  { name: "CAM-ESTACIONAMENTO", status: "online", recording: true },
-  { name: "CAM-CORREDOR-01", status: "warning", recording: false },
-  { name: "CAM-CORREDOR-02", status: "offline", recording: false },
-];
-
-function StatusChip({ status }: { status: string }) {
-  // Cor por estado vem do CSS (`.uni-ops-chip--{status}`) com tokens --uni-*
-  // e variáveis locais --ops-*-fg: contraste garantido nos dois temas.
-  const labels: Record<string, string> = {
-    online: "Online",
-    offline: "Offline",
-    warning: "Alerta",
-    success: "OK",
-    error: "Erro",
-  };
-
-  return <span className={`uni-ops-chip uni-ops-chip--${status}`}>{labels[status] || status}</span>;
+function ViewCamerasOps({ cameras, printers, phones }: { cameras: number; printers: number; phones: number }) {
+  return (
+    <div className="noc-grid noc-grid--full">
+      <section className="noc-panel">
+        <header className="noc-panel__head">
+          <div className="noc-panel__title">
+            <span>Câmeras e Operações</span>
+          </div>
+          <span className="noc-text-muted">Câmeras • Impressoras • Telefonia</span>
+        </header>
+        <div className="noc-panel__body">
+          <div className="noc-list">
+            <div className="noc-list-item">
+              <span className="noc-text-strong">Câmeras</span>
+              <span className="noc-text-sub">{cameras} registradas</span>
+              <span className="noc-pill is-ok">Inventário</span>
+            </div>
+            <div className="noc-list-item">
+              <span className="noc-text-strong">Impressoras</span>
+              <span className="noc-text-sub">{printers} registradas</span>
+              <span className="noc-pill is-ok">Inventário</span>
+            </div>
+            <div className="noc-list-item">
+              <span className="noc-text-strong">Telefones</span>
+              <span className="noc-text-sub">{phones} registrados</span>
+              <span className="noc-pill is-ok">Inventário</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export function OperationsCenterPage() {
+  const [idx, setIdx] = useState(0);
+  const [now, setNow] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Relógio do painel: numa tela fixa de exibição contínua o "Última
-  // atualização" não pode ficar congelado — atualiza a cada 30s.
-  const [now, setNow] = useState(() => new Date());
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [theme, setTheme] = useState<NocTheme>(() => {
+    if (typeof window === "undefined") return "dark";
+    const stored = localStorage.getItem("noc-theme");
+    return stored === "light" || stored === "dark" ? stored : "dark";
+  });
+  const queryClient = useQueryClient();
+  const announcedRef = useRef<Set<string>>(new Set());
 
-  // Integração de áudio (F37-T002)
   const {
     isInitialized: audioInitialized,
     isInitializing: audioInitializing,
-    initError: audioInitError,
     config: audioConfig,
-    isSpeaking,
     initialize: initAudio,
     announce,
     updateConfig: updateAudioConfig,
   } = useAudio();
 
+  const view = VIEWS[idx] || VIEWS[0];
+
+  const { data: incidents = [] } = useQuery({
+    queryKey: ["ops-incidents"],
+    queryFn: () => listIncidents({ page: 1, pageSize: 100 }),
+    select: (data) => data.items ?? [],
+    refetchInterval: 30000,
+  });
+
+  const { data: servers = 0 } = useQuery({
+    queryKey: ["ops-servers"],
+    queryFn: () => listDevices({ type: "Server", page: 1, pageSize: 1 }),
+    select: (data) => data.totalCount ?? 0,
+    refetchInterval: 60000,
+  });
+
+  const { data: networkCount = 0 } = useQuery({
+    queryKey: ["ops-network-count"],
+    queryFn: async () => {
+      const [sw, rt, fw, ap] = await Promise.all([
+        listDevices({ type: "Switch", page: 1, pageSize: 1 }),
+        listDevices({ type: "Router", page: 1, pageSize: 1 }),
+        listDevices({ type: "Firewall", page: 1, pageSize: 1 }),
+        listDevices({ type: "AccessPoint", page: 1, pageSize: 1 }),
+      ]);
+      return (sw.totalCount ?? 0) + (rt.totalCount ?? 0) + (fw.totalCount ?? 0) + (ap.totalCount ?? 0);
+    },
+    refetchInterval: 60000,
+  });
+
+  const { data: printers = 0 } = useQuery({
+    queryKey: ["ops-printers"],
+    queryFn: () => listDevices({ type: "Printer", page: 1, pageSize: 1 }),
+    select: (data) => data.totalCount ?? 0,
+    refetchInterval: 60000,
+  });
+
+  const { data: cameras = 0 } = useQuery({
+    queryKey: ["ops-cameras"],
+    queryFn: () => listDevices({ type: "Camera", page: 1, pageSize: 1 }),
+    select: (data) => data.totalCount ?? 0,
+    refetchInterval: 60000,
+  });
+
+  const { data: phones = 0 } = useQuery({
+    queryKey: ["ops-phones"],
+    queryFn: () => listDevices({ type: "Phone", page: 1, pageSize: 1 }),
+    select: (data) => data.totalCount ?? 0,
+    refetchInterval: 60000,
+  });
+
+  const { data: zabbixSummary } = useQuery({
+    queryKey: ["ops-zabbix"],
+    queryFn: getZabbixSummary,
+    refetchInterval: 60000,
+  });
+
+  useOperationalRefresh(() => {
+    queryClient.invalidateQueries({ queryKey: ["ops-incidents"] });
+  });
+
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(id);
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  // Simular anúncios de alertas críticos (F37-T002 - validação com dados fakes)
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      setIdx((i) => (i + 1) % VIEWS.length);
+    }, ROTATION_MS);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    setLastUpdate(new Date());
+  }, [incidents, zabbixSummary]);
+
+  useEffect(() => {
+    const handler = () => {
+      const fs = !!document.fullscreenElement;
+      setIsFullscreen(fs);
+      if (fs) {
+        document.body.classList.add("noc-fullscreen-active");
+      } else {
+        document.body.classList.remove("noc-fullscreen-active");
+      }
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => {
+      document.removeEventListener("fullscreenchange", handler);
+      document.body.classList.remove("noc-fullscreen-active");
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("noc-theme", theme);
+  }, [theme]);
+
+  const open = useMemo(() => incidents.filter((i) => i.status !== "Resolved"), [incidents]);
+  const critical = useMemo(() => open.filter((i) => i.severity?.toLowerCase() === "critical"), [open]);
+  const high = useMemo(() => open.filter((i) => i.severity?.toLowerCase() === "high"), [open]);
+
   useEffect(() => {
     if (!audioInitialized) return;
+    const newCritical = critical.filter((c) => !announcedRef.current.has(c.id));
+    for (const item of newCritical) {
+      announcedRef.current.add(item.id);
+      announce(`Alerta crítico: ${item.title}`, "critical");
+    }
+  }, [critical, audioInitialized, announce]);
 
-    const interval = setInterval(() => {
-      // Simular alerta crítico aleatório
-      const criticalAlerts = [
-        "Servidor SRV-DB-01 com CPU acima de 80%",
-        "Switch SW-ACC-02 com 4 portas down",
-        "Impressora HP-LaserJet-02 com toner baixo",
-        "Latência VPN Gateway acima de 40ms",
-      ];
-      const randomAlert = criticalAlerts[Math.floor(Math.random() * criticalAlerts.length)];
-      if (randomAlert) {
-        announce(randomAlert, "critical");
-      }
-    }, 60000); // A cada 60 segundos
+  const overallState = critical.length > 0 ? "crit" : high.length > 0 ? "warn" : "ok";
 
-    return () => clearInterval(interval);
-  }, [audioInitialized, announce]);
-
-  // Tela cheia
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true));
+      document.documentElement
+        .requestFullscreen()
+        .catch(() => {
+          // ignore
+        });
     } else {
-      document.exitFullscreen().then(() => setIsFullscreen(false));
+      document.exitFullscreen().catch(() => {
+        // ignore
+      });
     }
   }, []);
 
-  // Inicializar áudio ao clicar no botão
+  const toggleTheme = useCallback(() => {
+    setTheme((t) => (t === "dark" ? "light" : "dark"));
+  }, []);
+
   const handleInitAudio = useCallback(async () => {
     await initAudio();
   }, [initAudio]);
 
-  // Testar áudio
-  const handleTestAudio = useCallback(async () => {
-    if (audioInitialized) {
-      await announce("Teste de áudio - InfraControle Central de Operações", "info");
-    }
-  }, [audioInitialized, announce]);
-
-  // Alternar áudio
   const toggleAudio = useCallback(() => {
     updateAudioConfig({ enabled: !audioConfig.enabled });
   }, [audioConfig.enabled, updateAudioConfig]);
 
-  // Detectar mudança de fullscreen via ESC
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, []);
-
-  const renderModule = (module: Module) => {
-    switch (module) {
-      case "servers":
-        return (
-          <div className="uni-ops-grid">
-            {FAKE_SERVERS.map((server) => (
-              <div key={server.name} className="uni-ops-card">
-                <div className="uni-ops-card-head">
-                  <h3 className="uni-ops-card-title">{server.name}</h3>
-                  <StatusChip status={server.status} />
-                </div>
-                <div>
-                  <div className="uni-ops-metric">
-                    <div className="uni-ops-metric-head">
-                      <span>CPU</span>
-                      <span>{server.cpu}%</span>
-                    </div>
-                    <div className="uni-ops-bar">
-                      <div
-                        className={`uni-ops-bar-fill ${server.cpu > 80 ? "is-crit" : server.cpu > 60 ? "is-warn" : ""}`}
-                        style={{ width: `${server.cpu}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="uni-ops-metric">
-                    <div className="uni-ops-metric-head">
-                      <span>Memória</span>
-                      <span>{server.memory}%</span>
-                    </div>
-                    <div className="uni-ops-bar">
-                      <div
-                        className={`uni-ops-bar-fill ${server.memory > 80 ? "is-crit" : server.memory > 60 ? "is-warn" : ""}`}
-                        style={{ width: `${server.memory}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="uni-ops-metric">
-                    <div className="uni-ops-metric-head">
-                      <span>Disco</span>
-                      <span>{server.disk}%</span>
-                    </div>
-                    <div className="uni-ops-bar">
-                      <div
-                        className={`uni-ops-bar-fill ${server.disk > 80 ? "is-crit" : server.disk > 60 ? "is-warn" : ""}`}
-                        style={{ width: `${server.disk}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "switches":
-        return (
-          <div className="uni-ops-grid">
-            {FAKE_SWITCHES.map((sw) => (
-              <div key={sw.name} className="uni-ops-card">
-                <div className="uni-ops-card-head">
-                  <h3 className="uni-ops-card-title">{sw.name}</h3>
-                  <StatusChip status={sw.status} />
-                </div>
-                <div className="uni-ops-uptime">Uptime: {sw.uptime}</div>
-                <div className="uni-ops-stat-row">
-                  <div className="uni-ops-stat">
-                    <div className="uni-ops-stat-value">{sw.ports.total}</div>
-                    <div className="uni-ops-stat-label">Total</div>
-                  </div>
-                  <div className="uni-ops-stat is-green">
-                    <div className="uni-ops-stat-value">{sw.ports.up}</div>
-                    <div className="uni-ops-stat-label">Up</div>
-                  </div>
-                  <div className="uni-ops-stat is-red">
-                    <div className="uni-ops-stat-value">{sw.ports.down}</div>
-                    <div className="uni-ops-stat-label">Down</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "printers":
-        return (
-          <div className="uni-ops-grid">
-            {FAKE_PRINTERS.map((printer) => (
-              <div key={printer.name} className="uni-ops-card">
-                <div className="uni-ops-card-head">
-                  <h3 className="uni-ops-card-title">{printer.name}</h3>
-                  <StatusChip status={printer.status} />
-                </div>
-                {printer.error && <div className="uni-ops-error">{printer.error}</div>}
-                <div>
-                  {printer.toner !== null && (
-                    <div className="uni-ops-metric">
-                      <div className="uni-ops-metric-head">
-                        <span>Toner</span>
-                        <span>{printer.toner}%</span>
-                      </div>
-                      <div className="uni-ops-bar">
-                        <div
-                          className={`uni-ops-bar-fill ${printer.toner < 20 ? "is-crit" : printer.toner < 40 ? "is-warn" : ""}`}
-                          style={{ width: `${printer.toner}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {printer.drum !== null && (
-                    <div className="uni-ops-metric">
-                      <div className="uni-ops-metric-head">
-                        <span>Cilindro</span>
-                        <span>{printer.drum}%</span>
-                      </div>
-                      <div className="uni-ops-bar">
-                        <div
-                          className={`uni-ops-bar-fill ${printer.drum < 20 ? "is-crit" : printer.drum < 40 ? "is-warn" : ""}`}
-                          style={{ width: `${printer.drum}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {printer.toner === null && printer.drum === null && (
-                    <div className="uni-ops-note">Estado aproximado não disponível neste modelo</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "network":
-        return (
-          <div className="uni-ops-grid">
-            {FAKE_NETWORK.map((net) => (
-              <div key={net.name} className="uni-ops-card">
-                <div className="uni-ops-card-head">
-                  <h3 className="uni-ops-card-title">{net.name}</h3>
-                  <StatusChip status={net.status} />
-                </div>
-                <div>
-                  <div className="uni-ops-field">
-                    <div className="uni-ops-field-label">Download</div>
-                    <div className="uni-ops-field-value">{net.bandwidth.down} Mbps</div>
-                  </div>
-                  <div className="uni-ops-field">
-                    <div className="uni-ops-field-label">Upload</div>
-                    <div className="uni-ops-field-value is-green">{net.bandwidth.up} Mbps</div>
-                  </div>
-                  <div className="uni-ops-field">
-                    <div className="uni-ops-field-label">Latência</div>
-                    <div
-                      className={`uni-ops-field-value ${net.latency > 50 ? "is-crit" : net.latency > 30 ? "is-warn" : "is-green"}`}
-                    >
-                      {net.latency} ms
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "backup":
-        return (
-          <div className="uni-ops-grid">
-            {FAKE_BACKUP.map((backup) => (
-              <div key={backup.name} className="uni-ops-card">
-                <div className="uni-ops-card-head">
-                  <h3 className="uni-ops-card-title">{backup.name}</h3>
-                  <StatusChip status={backup.status} />
-                </div>
-                <div>
-                  <div className="uni-ops-field">
-                    <div className="uni-ops-field-label">Último backup</div>
-                    <div className="uni-ops-field-value is-text">{backup.lastBackup}</div>
-                  </div>
-                  <div className="uni-ops-field">
-                    <div className="uni-ops-field-label">Tamanho</div>
-                    <div className="uni-ops-field-value is-text">{backup.size}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "cameras":
-        return (
-          <div className="uni-ops-grid">
-            {FAKE_CAMERAS.map((cam) => (
-              <div key={cam.name} className="uni-ops-card">
-                <div className="uni-ops-card-head">
-                  <h3 className="uni-ops-card-title">{cam.name}</h3>
-                  <StatusChip status={cam.status} />
-                </div>
-                <div className="uni-ops-rec">
-                  <div className={`uni-ops-rec-dot ${cam.recording ? "is-recording" : ""}`} />
-                  <span>{cam.recording ? "Gravando" : "Parada"}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-
-      default:
-        return null;
+  const handleTestAudio = useCallback(async () => {
+    if (audioInitialized) {
+      await announce("Teste de áudio - Central de Operações", "info");
     }
-  };
+  }, [audioInitialized, announce]);
+
+  const severityChartData = useMemo(() => {
+    const crit = open.filter((i) => i.severity?.toLowerCase() === "critical").length;
+    const high = open.filter((i) => i.severity?.toLowerCase() === "high").length;
+    const med = open.filter((i) => i.severity?.toLowerCase() === "medium").length;
+    const low = open.filter((i) => i.severity?.toLowerCase() === "low").length;
+    return {
+      labels: ["Crítico", "Alto", "Médio", "Baixo"],
+      datasets: [
+        {
+          label: "Incidentes",
+          data: [crit, high, med, low],
+          backgroundColor: ["rgba(239,68,68,0.9)", "rgba(245,158,11,0.9)", "rgba(56,189,248,0.9)", "rgba(148,163,184,0.8)"],
+        },
+      ],
+    };
+  }, [open]);
+
+  const capacityChartData = useMemo(() => {
+    const total = servers + networkCount + printers + cameras;
+    const safe = Math.max(total - critical.length - Math.floor(high.length / 2), 1);
+    const warn = Math.max(critical.length + high.length, 0);
+    const down = critical.length;
+    return {
+      labels: ["Operacional", "Atenção", "Crítico"],
+      datasets: [
+        {
+          label: "Capacidade",
+          data: [safe, warn, down],
+          backgroundColor: ["rgba(34,197,94,0.9)", "rgba(245,158,11,0.9)", "rgba(239,68,68,0.9)"],
+        },
+      ],
+    };
+  }, [servers, networkCount, printers, cameras, critical.length, high.length]);
+
+  // Chart options handled by MetricChart defaults for TV legibility.
 
   return (
-    <div className="uni-ops-page">
-      {/* Header simplificado do painel */}
-      <header className="uni-ops-header">
-        <div className="uni-ops-header-row">
-          <div className="uni-ops-brand">
-            <h1 className="uni-ops-title">InfraControle</h1>
-            <span className="uni-ops-subtitle">Central de Operações</span>
-          </div>
-          <div className="uni-ops-tools">
-            {/* Controles de áudio (F37-T002) */}
-            <div className="uni-ops-audio">
-              {!audioInitialized ? (
-                <button
-                  onClick={handleInitAudio}
-                  disabled={audioInitializing}
-                  className="uni-ops-btn is-purple"
-                >
-                  <i className={`pi ${audioInitializing ? "pi-spinner pi-spin" : "pi-volume-up"}`} />
-                  <span>{audioInitializing ? "Inicializando..." : "Ativar áudio"}</span>
+    <div className={`noc-page noc-page--${theme}`}>
+      <header className="noc-header">
+        <div className="noc-brand">
+          <span className="noc-logo">INFRA CONTROLE</span>
+          <span className="noc-sep">|</span>
+          <span className="noc-title">CENTRAL DE OPERAÇÕES</span>
+        </div>
+        <div className="noc-meta">
+          <span className={`noc-state noc-state--${overallState}`}>ESTADO: {overallState === "crit" ? "CRÍTICO" : overallState === "warn" ? "ATENÇÃO" : "OK"}</span>
+          <span className="noc-meta-item">{now.toLocaleString("pt-BR")}</span>
+          <span className="noc-meta-item">CONEXÃO: ONLINE</span>
+          <span className="noc-meta-item">ÚLTIMA ATUALIZAÇÃO: {lastUpdate.toLocaleTimeString("pt-BR")}</span>
+          <span className="noc-pager">{idx + 1} / {VIEWS.length} • {view?.label}</span>
+          <div className="noc-tools">
+            <button onClick={toggleTheme} className="noc-btn">
+              <i className={`pi ${theme === "dark" ? "pi-sun" : "pi-moon"}`} />
+              <span>{theme === "dark" ? "CLARO" : "ESCURO"}</span>
+            </button>
+            {!audioInitialized ? (
+              <button onClick={handleInitAudio} disabled={audioInitializing} className="noc-btn">
+                <i className={`pi ${audioInitializing ? "pi-spinner pi-spin" : "pi-volume-up"}`} />
+                <span>{audioInitializing ? "INICIALIZANDO" : "ATIVAR ÁUDIO"}</span>
+              </button>
+            ) : (
+              <>
+                <button onClick={handleTestAudio} className="noc-btn">
+                  <i className="pi pi-volume-up" />
+                  <span>TESTAR</span>
                 </button>
-              ) : (
-                <>
-                  <button
-                    onClick={handleTestAudio}
-                    disabled={isSpeaking}
-                    className="uni-ops-btn is-blue"
-                  >
-                    <i className="pi pi-volume-up" />
-                    <span>Testar</span>
-                  </button>
-                  <button
-                    onClick={toggleAudio}
-                    className={`uni-ops-btn ${audioConfig.enabled ? "is-green" : ""}`}
-                  >
-                    <i className={`pi ${audioConfig.enabled ? "pi-volume-up" : "pi-volume-off"}`} />
-                    <span>{audioConfig.enabled ? "Áudio on" : "Áudio off"}</span>
-                  </button>
-                  {isSpeaking && (
-                    <div className="uni-ops-speaking">
-                      <div className="uni-ops-speaking-dot" />
-                      <span>Falando</span>
-                    </div>
-                  )}
-                </>
-              )}
-              {audioInitError && (
-                <span className="uni-ops-audio-error" title={audioInitError}>
-                  Erro
-                </span>
-              )}
-            </div>
-
-            <div className="uni-ops-updated">
-              Última atualização: {now.toLocaleTimeString("pt-BR")}
-            </div>
-            <button onClick={toggleFullscreen} className="uni-ops-btn is-primary">
+                <button onClick={toggleAudio} className={`noc-btn ${audioConfig.enabled ? "is-active" : ""}`}>
+                  <i className={`pi ${audioConfig.enabled ? "pi-volume-up" : "pi-volume-off"}`} />
+                  <span>{audioConfig.enabled ? "ÁUDIO ON" : "ÁUDIO OFF"}</span>
+                </button>
+              </>
+            )}
+            <button onClick={toggleFullscreen} className="noc-btn is-primary">
               <i className={`pi ${isFullscreen ? "pi-window-minimize" : "pi-window-maximize"}`} />
-              <span>{isFullscreen ? "Sair de tela cheia" : "Tela cheia"}</span>
+              <span>{isFullscreen ? "SAIR TELA CHEIA" : "TELA CHEIA"}</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Painel fixo: todos os módulos visíveis ao mesmo tempo (sem rotação) */}
-      <main className="uni-ops-main">
-        <div className="uni-ops-board">
-          {MODULES.map((moduleInfo) => (
-            <section key={moduleInfo.id} className="uni-ops-section">
-              <div className="uni-ops-section-head">
-                <h2 className="uni-ops-section-title">
-                  <i className={`pi ${moduleInfo.icon}`} />
-                  {moduleInfo.label}
-                </h2>
-              </div>
-              {renderModule(moduleInfo.id)}
-            </section>
-          ))}
-        </div>
+      <CriticalTicker items={critical} />
+
+      <main className="noc-main">
+        {view?.id === "overview" && (
+          <>
+            <ViewOverview
+              incidents={incidents}
+              servers={servers}
+              networkCount={networkCount}
+              printers={printers}
+              cameras={cameras}
+              zabbixOk={!!zabbixSummary}
+            />
+            <div className="noc-charts">
+              <section className="noc-panel">
+                <header className="noc-panel__head">
+                  <div className="noc-panel__title">
+                    <span>Incidentes por severidade</span>
+                  </div>
+                  <span className="noc-text-muted">Tempo real</span>
+                </header>
+                <div className="noc-panel__body noc-panel__body--chart">
+                  <MetricChart
+                    type="bar"
+                    labels={severityChartData.labels}
+                    datasets={severityChartData.datasets}
+                  />
+                </div>
+              </section>
+              <section className="noc-panel">
+                <header className="noc-panel__head">
+                  <div className="noc-panel__title">
+                    <span>Saúde da infraestrutura</span>
+                  </div>
+                  <span className="noc-text-muted">Baseado em inventário + incidentes</span>
+                </header>
+                <div className="noc-panel__body noc-panel__body--chart">
+                  <MetricChart
+                    type="doughnut"
+                    labels={capacityChartData.labels}
+                    datasets={capacityChartData.datasets}
+                  />
+                </div>
+              </section>
+            </div>
+          </>
+        )}
+        {view?.id === "incidents" && <ViewIncidents incidents={incidents} />}
+        {view?.id === "network" && <ViewNetwork switches={networkCount} />}
+        {view?.id === "servers" && <ViewServers servers={servers} />}
+        {view?.id === "cameras" && <ViewCamerasOps cameras={cameras} printers={printers} phones={phones} />}
       </main>
     </div>
   );

@@ -55,6 +55,9 @@ export function AccountPage() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -120,7 +123,7 @@ export function AccountPage() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 720 }}>
       <PageHeader
         title="Minha Conta"
         subtitle="Edite seu perfil e troque sua senha de acesso ao InfraControl."
@@ -189,95 +192,117 @@ export function AccountPage() {
           </div>
 
           {profileError && (
-            <div className="uni-login-alert" role="alert">
+            <div className="uni-alert uni-alert-error" role="alert" style={{ gridColumn: "1 / -1" }}>
               <i className="pi pi-exclamation-triangle" />
               <span>{profileError}</span>
             </div>
           )}
 
           {profileSaved && (
-            <div className="uni-login-alert" role="status" style={{ color: "#15803d" }}>
+            <div className="uni-alert uni-alert-success" role="status" style={{ gridColumn: "1 / -1" }}>
               <i className="pi pi-check-circle" />
-              <span>Nome atualizado. Já vale para toda a equipe.</span>
+              <span>Perfil atualizado com sucesso.</span>
             </div>
           )}
 
-          <button className="uni-login-submit" type="submit" disabled={profilePending}>
-            <i className={`pi ${profilePending ? "pi-spin pi-spinner" : "pi-save"}`} />
-            <span>Salvar</span>
-          </button>
+          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+            <button className="uni-btn uni-btn-primary" type="submit" disabled={profilePending}>
+              <i className={`pi ${profilePending ? "pi-spin pi-spinner" : "pi-save"}`} />
+              <span>Salvar alterações</span>
+            </button>
+          </div>
         </form>
       </div>
 
       {/* ── Senha (F26-T001) ──────────────────────────────────────────── */}
-      <div className="uni-card" style={{ maxWidth: 560, padding: 24 }}>
-        <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>Segurança</h2>
+      <section className="uni-card" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
+        <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--uni-text-primary)" }}>Segurança</h2>
+          <p style={{ fontSize: 13, color: "var(--uni-text-muted)", margin: 0 }}>
+            Altere sua senha. Ao trocar, todas as sessões ativas serão encerradas.
+          </p>
+        </header>
 
-        <div
-          className="uni-login-alert"
-          role="note"
-          style={{ marginBottom: 16, alignItems: "flex-start" }}
-        >
+        <div className="uni-alert uni-alert-info" role="note">
           <i className="pi pi-info-circle" />
           <span>
-            Por segurança, trocar a senha encerra <strong>todas</strong> as suas
-            sessões ativas — inclusive esta. Você fará login novamente em seguida.
+            Por segurança, trocar a senha encerra <strong>todas</strong> as suas sessões ativas — inclusive esta. Você fará login novamente em seguida.
           </span>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="current-password">Senha atual</label>
-            <input
-              id="current-password"
-              type="password"
-              autoComplete="current-password"
-              value={current}
-              onChange={(event) => setCurrent(event.target.value)}
-              required
-            />
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="current-password" style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>Senha atual</label>
+            <div className="uni-input-group">
+              <input
+                id="current-password"
+                className="uni-input uni-input-with-icon"
+                type={showCurrent ? "text" : "password"}
+                autoComplete="current-password"
+                value={current}
+                onChange={(event) => setCurrent(event.target.value)}
+                required
+              />
+              <button type="button" className="uni-input-action" onClick={() => setShowCurrent((v) => !v)} aria-label={showCurrent ? "Ocultar senha" : "Mostrar senha"}>
+                <i className={showCurrent ? "pi pi-eye-slash" : "pi pi-eye"} />
+              </button>
+            </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="new-password">Nova senha</label>
-            <input
-              id="new-password"
-              type="password"
-              autoComplete="new-password"
-              value={next}
-              onChange={(event) => setNext(event.target.value)}
-              required
-            />
-            <span style={{ fontSize: 12, color: "#64748b" }}>
-              Mínimo de 12 caracteres, com dígito, maiúscula, minúscula e especial.
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="new-password" style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>Nova senha</label>
+            <div className="uni-input-group">
+              <input
+                id="new-password"
+                className="uni-input uni-input-with-icon"
+                type={showNext ? "text" : "password"}
+                autoComplete="new-password"
+                value={next}
+                onChange={(event) => setNext(event.target.value)}
+                required
+              />
+              <button type="button" className="uni-input-action" onClick={() => setShowNext((v) => !v)} aria-label={showNext ? "Ocultar senha" : "Mostrar senha"}>
+                <i className={showNext ? "pi pi-eye-slash" : "pi pi-eye"} />
+              </button>
+            </div>
+            <span style={{ fontSize: 12, color: "var(--uni-text-muted)" }}>
+              Mínimo de 12 caracteres, com dígito, maiúscula, minúscula e caractere especial.
             </span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="confirm-password">Confirmar nova senha</label>
-            <input
-              id="confirm-password"
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
-              required
-            />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="confirm-password" style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>Confirmar nova senha</label>
+            <div className="uni-input-group">
+              <input
+                id="confirm-password"
+                className="uni-input uni-input-with-icon"
+                type={showConfirm ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(event) => setConfirm(event.target.value)}
+                required
+              />
+              <button type="button" className="uni-input-action" onClick={() => setShowConfirm((v) => !v)} aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}>
+                <i className={showConfirm ? "pi pi-eye-slash" : "pi pi-eye"} />
+              </button>
+            </div>
           </div>
 
           {error && (
-            <div className="uni-login-alert" role="alert">
+            <div className="uni-alert uni-alert-error" role="alert">
               <i className="pi pi-exclamation-triangle" />
               <span>{error}</span>
             </div>
           )}
 
-          <button className="uni-login-submit" type="submit" disabled={pending}>
-            <i className={`pi ${pending ? "pi-spin pi-spinner" : "pi-key"}`} />
-            <span>Trocar senha</span>
-          </button>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button className="uni-btn uni-btn-primary" type="submit" disabled={pending}>
+              <i className={`pi ${pending ? "pi-spin pi-spinner" : "pi-key"}`} />
+              <span>Trocar senha</span>
+            </button>
+          </div>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

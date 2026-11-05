@@ -413,6 +413,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("hypervisor_device_id");
 
+                    b.Property<string>("ImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_path");
+
                     b.Property<string>("Ip")
                         .HasMaxLength(45)
                         .HasColumnType("character varying(45)")
@@ -1016,6 +1021,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("description");
+
+                    b.Property<string>("ImagePath")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("NextReviewAt")
                         .HasColumnType("timestamp with time zone");

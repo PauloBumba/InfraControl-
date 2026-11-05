@@ -23,7 +23,8 @@ public sealed record CreateKnowledgeArticleCommand(
     string? Type = null,
     string? Description = null,
     IReadOnlyCollection<string>? Tags = null,
-    Guid? ResponsibleId = null) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
+    Guid? ResponsibleId = null,
+    string? ImagePath = null) : BaseCommand<KnowledgeArticleDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -51,6 +52,8 @@ public sealed class CreateKnowledgeArticleCommandHandler(
             request.Title, request.Content, request.CategoryId,
             type, request.Description, request.Tags, request.ResponsibleId,
             currentUser.UserId);
+        
+        article.SetIdentification(type, request.Description, request.Tags, request.ResponsibleId, request.ImagePath);
 
         await repository.AddAsync(article, cancellationToken);
 
@@ -142,7 +145,8 @@ public sealed record UpdateKnowledgeArticleCommand(
     string? Type = null,
     string? Description = null,
     IReadOnlyCollection<string>? Tags = null,
-    Guid? ResponsibleId = null) : BaseCommand, IAuthorizedRequest
+    Guid? ResponsibleId = null,
+    string? ImagePath = null) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -173,7 +177,7 @@ public sealed class UpdateKnowledgeArticleCommandHandler(
         article.Update(request.Title, request.Content, request.CategoryId);
         // Autor imutável (K1): SetIdentification não toca AuthorId.
         article.SetIdentification(
-            type, request.Description, request.Tags, request.ResponsibleId);
+            type, request.Description, request.Tags, request.ResponsibleId, request.ImagePath);
 
         // F24-T005/K5 (docs/32 §12): "atualizar" satisfaz a revisão →
         // reagenda a próxima (no-op quando não há intervalo).

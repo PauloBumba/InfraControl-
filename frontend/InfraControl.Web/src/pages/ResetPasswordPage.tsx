@@ -25,6 +25,8 @@ export function ResetPasswordPage() {
   const [phase, setPhase] = useState<Phase>("form");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -125,32 +127,54 @@ export function ResetPasswordPage() {
 
       <form className="uni-login-form" onSubmit={handleSubmit}>
         <label className="uni-login-label" htmlFor="reset-password">Nova senha</label>
-        <input
-          id="reset-password"
-          className="uni-login-input"
-          type="password"
-          name="password"
-          autoComplete="new-password"
-          placeholder="Sua nova senha"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={pending}
-          required
-        />
+        <div className="uni-login-field-group">
+          <input
+            id="reset-password"
+            className="uni-login-input uni-login-input-with-toggle"
+            type={showPassword ? "text" : "password"}
+            name="password"
+            autoComplete="new-password"
+            placeholder="Sua nova senha"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={pending}
+            required
+          />
+          <button
+            type="button"
+            className="uni-login-toggle"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            tabIndex={-1}
+          >
+            <i className={showPassword ? "pi pi-eye-slash" : "pi pi-eye"} />
+          </button>
+        </div>
 
         <label className="uni-login-label" htmlFor="reset-confirm">Confirmar senha</label>
-        <input
-          id="reset-confirm"
-          className="uni-login-input"
-          type="password"
-          name="confirm"
-          autoComplete="new-password"
-          placeholder="Repita a nova senha"
-          value={confirm}
-          onChange={(event) => setConfirm(event.target.value)}
-          disabled={pending}
-          required
-        />
+        <div className="uni-login-field-group">
+          <input
+            id="reset-confirm"
+            className="uni-login-input uni-login-input-with-toggle"
+            type={showConfirm ? "text" : "password"}
+            name="confirm"
+            autoComplete="new-password"
+            placeholder="Repita a nova senha"
+            value={confirm}
+            onChange={(event) => setConfirm(event.target.value)}
+            disabled={pending}
+            required
+          />
+          <button
+            type="button"
+            className="uni-login-toggle"
+            onClick={() => setShowConfirm((v) => !v)}
+            aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+            tabIndex={-1}
+          >
+            <i className={showConfirm ? "pi pi-eye-slash" : "pi pi-eye"} />
+          </button>
+        </div>
 
         <button className="uni-login-submit" type="submit" disabled={pending}>
           {pending ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-key" />}

@@ -49,9 +49,10 @@ public sealed class AlertCreatedNotificationTests : IDisposable
     }
 
     private static AlertCreatedDomainEvent AlertCreatedEvent(
-        string message = "Device 'sw-01' está fora do ar (ping falhou).")
+        string message = "Device 'sw-01' está fora do ar (ping falhou).",
+        bool hasIncident = true)
         => new(Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(), message,
-            hasIncident: true);
+            hasIncident);
 
     private static Mock<ConsumeContext<AlertCreatedDomainEvent>> ContextFor(
         AlertCreatedDomainEvent domainEvent)
@@ -67,13 +68,13 @@ public sealed class AlertCreatedNotificationTests : IDisposable
     {
         var (context, consumer) = await CreateAsync();
 
-        await consumer.Consume(ContextFor(AlertCreatedEvent()).Object);
+        await consumer.Consume(ContextFor(AlertCreatedEvent(hasIncident: false)).Object);
 
         var notification = await context.Notifications.AsNoTracking().SingleAsync();
         notification.EventType.Should().Be(nameof(AlertCreatedDomainEvent));
         notification.Title.Should().Be("Alerta Critical criado");
         notification.Message.Should().Contain("sw-01")
-            .And.Contain(nameof(AlertSeverity.Critical));
+            .And.Contain("CRÍTICO");
 
         var recipients = await context.NotificationRecipients.AsNoTracking().ToListAsync();
         recipients.Select(r => r.Role)

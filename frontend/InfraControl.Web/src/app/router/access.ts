@@ -12,6 +12,7 @@ import { type AccessLevel, roleGrants } from "@/types/roles";
  */
 export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/users": "administer",
+  "/invitations": "administer",
   "/audit": "administer",
   "/settings": "administer",
   "/integrations": "administer",

@@ -10,7 +10,8 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
 
         optionsBuilder.UseNpgsql(
-            "Host=localhost;Port=5432;Database=infracontrol;Username=infracontrol;Password=infracontrol_dev_2026");
+            Environment.GetEnvironmentVariable("INFRA_DESIGN_CONNECTION")
+            ?? "Host=localhost;Port=5432;Database=infracontrol;Username=infracontrol;Password=infracontrol_dev_2026");
 
         return new AppDbContext(optionsBuilder.Options);
     }

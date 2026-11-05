@@ -39,6 +39,7 @@ public sealed record KnowledgeArticleDto(
     public string? AuthorName { get; init; }
     public Guid? ResponsibleId { get; init; }
     public string? ResponsibleName { get; init; }
+    public string? ImagePath { get; init; }
 
     // F24-T003/K3 — versão corrente do artigo ("1.0" na criação;
     // docs/32 §8). O histórico completo fica em GET {id}/versions.
@@ -90,6 +91,7 @@ public sealed record KnowledgeArticleDto(
             ReviewResponsibleName = NameOf(userNames, article.ReviewResponsibleId),
             PendingReview = article.NextReviewAt is { } due
                 && due <= AppTimeProvider.Current.GetUtcNow().UtcDateTime,
+            ImagePath = article.ImagePath,
         };
     }
 

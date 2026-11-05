@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 export function getSupportEmail(): string {
@@ -22,6 +23,19 @@ const FAQ = [
     answer: "Sendo self-hosted, o suporte é fornecido pelo administrador da sua instância. Para dúvidas sobre o projeto, use a página de contato.",
   },
 ] as const;
+
+function FaqItem({ question, answer }: { question: string; answer: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`uni-public-faq-item ${open ? "open" : ""}`}>
+      <button className="uni-public-faq-question" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span>{question}</span>
+        <i className="pi pi-angle-down" />
+      </button>
+      {open && <div className="uni-public-faq-answer">{answer}</div>}
+    </div>
+  );
+}
 
 export function ContactPage() {
   const supportEmail = getSupportEmail();
@@ -87,12 +101,7 @@ export function ContactPage() {
         <h2 id="faq-contato">Dúvidas comuns</h2>
         <div className="uni-public-faq">
           {FAQ.map((item) => (
-            <div key={item.question} className="uni-public-faq-item">
-              <div className="uni-public-faq-question">
-                <span>{item.question}</span>
-              </div>
-              <div className="uni-public-faq-answer">{item.answer}</div>
-            </div>
+            <FaqItem key={item.question} question={item.question} answer={item.answer} />
           ))}
         </div>
       </section>

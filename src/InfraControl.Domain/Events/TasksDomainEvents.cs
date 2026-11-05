@@ -429,3 +429,24 @@ public sealed class TaskSlaPauseUpdatedDomainEvent : DomainEvent
     public DateTime? EndAt { get; }
     public override string EventType => nameof(TaskSlaPauseUpdatedDomainEvent);
 }
+
+/// <summary>
+/// F48-T001: task concluída (Resolved/Closed) — sinaliza o executor e os
+/// interessados (solicitante/responsável) pelo fluxo de notificações.
+/// </summary>
+public sealed class TaskResolvedDomainEvent : DomainEvent
+{
+    public TaskResolvedDomainEvent(Guid taskId, string title, TaskState state, Guid? changedByUserId)
+    {
+        TaskId = taskId;
+        Title = title;
+        State = state;
+        ChangedByUserId = changedByUserId;
+    }
+
+    public Guid TaskId { get; }
+    public string Title { get; }
+    public TaskState State { get; }
+    public Guid? ChangedByUserId { get; }
+    public override string EventType => nameof(TaskResolvedDomainEvent);
+}

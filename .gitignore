@@ -275,6 +275,9 @@ node_modules/
 .env.*
 !.env.example
 
+# Configuração local não versionada (SMTP/senhas de cada máquina)
+**/appsettings.Local.json
+
 # Docker
 docker-compose.override.yml
 

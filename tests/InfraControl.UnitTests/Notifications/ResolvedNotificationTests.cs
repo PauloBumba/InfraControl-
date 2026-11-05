@@ -85,7 +85,7 @@ public sealed class ResolvedNotificationTests : IDisposable
         notification.EventType.Should().Be(nameof(IncidentResolvedDomainEvent));
         notification.Title.Should().Be("Incidente resolvido");
         notification.Message.Should().Contain("Carga de CPU alta")
-            .And.Contain(nameof(IncidentSeverity.Critical));
+            .And.Contain("CRÍTICO"); // severidade em pt-BR (WhatsApp, 2026-10-29)
 
         var recipients = await context.NotificationRecipients.AsNoTracking().ToListAsync();
         recipients.Select(r => r.Role)

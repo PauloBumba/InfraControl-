@@ -83,9 +83,32 @@ export function loginWithPassword(email: string, password: string, mfaCode?: str
   return establishSession("/auth/login", body, true);
 }
 
-/** F1-T014: o backend valida assinatura/audience/issuer/expiração do id_token. */
+/**
+ * F1-T014 (GSI id_token) — contrato do `POST /auth/google`, mantido no
+ * backend como fallback/rollback do fluxo principal de F43/ADR-064
+ * (authorization code com callback no backend, via link de navegação).
+ */
 export function loginWithGoogle(idToken: string): Promise<AuthUser> {
   return establishSession("/auth/google", { idToken }, true);
+}
+
+/**
+ * F43-T003 (rev.) — a falha do callback devolve só o CÓDIGO do motivo em
+ * `/login?error=google&reason=<código>`; o TEXTO exibido vem daqui (backend),
+ * nunca de um catálogo no SPA. Sem `reason` a API responde a mensagem
+ * genérica. Falha de rede fica com o fallback da tela.
+ */
+export interface GoogleLoginFailure {
+  code: string;
+  message: string;
+}
+
+export async function fetchGoogleLoginFailure(reason?: string | null): Promise<string> {
+  const query = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+  const data = await api.get<GoogleLoginFailure>(`/auth/google/failure${query}`, {
+    anonymousExpected: true,
+  });
+  return data?.message ?? "";
 }
 
 export async function logout(): Promise<void> {

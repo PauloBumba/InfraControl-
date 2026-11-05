@@ -61,6 +61,12 @@ public static class NotificationEventCatalog
         new(
             "TaskAssigneeCreatedDomainEvent", "Tasks",
             "Usuário atribuído a uma tarefa."),
+        new(
+            "TaskResolvedDomainEvent", "Tasks",
+            "Task concluída (Resolved/Closed) — executor, solicitante e responsável."),
+        new(
+            "ProjectStatusChangedDomainEvent", "Projects",
+            "Projeto concluído — membros do projeto."),
     ];
 
     /// <summary>Só os EventType (para assertions/switch simplificado).</summary>

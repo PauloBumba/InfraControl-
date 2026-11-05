@@ -192,12 +192,88 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     }
 
     /// <summary>
-    /// Texto simples do WhatsApp (ADR-059 §4): título + mensagem + data do
-    /// evento. Com o gráfico habilitado (F33-T005) este mesmo texto vira a
-    /// caption do sendMedia.
+    /// Texto simples do WhatsApp (ADR-059 §4): formato em português com dados
+    /// relevantes. Com o gráfico habilitado (F33-T005) este mesmo texto vira
+    /// a caption do sendMedia.
     /// </summary>
     private static string BuildText(WhatsAppNotificationMessage message)
-        => $"{message.Title}\n{message.Message}\n{message.CreatedAt:dd/MM/yyyy HH:mm}";
+    {
+        var severity = MapSeverityPt(message.Title);
+        var header = string.IsNullOrWhiteSpace(severity)
+            ? $"{message.Title} | {message.CreatedAt:dd/MM/yyyy HH:mm}"
+            : $"{severity} | {message.CreatedAt:dd/MM/yyyy HH:mm}";
+        var lines = new List<string> { header };
+
+        if (!string.IsNullOrWhiteSpace(message.Message) && message.Message.Contains("Carga de CPU alta"))
+        {
+            lines.Add("Carga de CPU alta");
+            return string.Join("\n", lines);
+        }
+
+        if (!string.IsNullOrWhiteSpace(message.Message))
+        {
+            var cleaned = CleanMessage(message.Message);
+            if (!string.IsNullOrWhiteSpace(cleaned) && !cleaned.Equals(header, StringComparison.OrdinalIgnoreCase))
+                lines.Add(cleaned);
+        }
+
+        if (lines.Count == 1 && !string.IsNullOrWhiteSpace(message.Title))
+            lines.Add(message.Title);
+
+        return string.Join("\n", lines);
+    }
+
+    private static string MapSeverityPt(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return string.Empty;
+
+        var upper = title.ToUpperInvariant();
+        if (upper.Contains("CRITICAL") || upper.Contains("CRÍTICO"))
+            return "CRÍTICO";
+        if (upper.Contains("HIGH") || upper.Contains("ALTO"))
+            return "ALTO";
+        if (upper.Contains("MEDIUM") || upper.Contains("MÉDIO"))
+            return "MÉDIO";
+        if (upper.Contains("LOW") || upper.Contains("BAIXO"))
+            return "BAIXO";
+        if (upper.Contains("WARNING") || upper.Contains("AVISO"))
+            return "AVISO";
+
+        return string.Empty;
+    }
+
+    private static string CleanMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return string.Empty;
+
+        var text = message.Replace("O incidente '", "Incidente: ")
+            .Replace("' foi aberto", "")
+            .Replace("' foi resolvido", "")
+            .Replace("O alerta '", "Alerta: ")
+            .Replace("' foi resolvido", "")
+            .Replace(" (Critical)", "")
+            .Replace(" (High)", "")
+            .Replace(" (Medium)", "")
+            .Replace(" (Low)", "")
+            .Replace(" (Warning)", "")
+            .Replace("(Critical)", "")
+            .Replace("(High)", "")
+            .Replace("(Medium)", "")
+            .Replace("(Low)", "")
+            .Replace("(Warning)", "")
+            .Replace(" (CRÍTICO)", "")
+            .Replace(" (ALTO)", "")
+            .Replace(" (MÉDIO)", "")
+            .Replace(" (BAIXO)", "")
+            .Replace(" (AVISO)", "");
+
+        if (text.Contains("Carga de CPU alta"))
+            return "Carga de CPU alta";
+
+        return text.Trim();
+    }
 
     /// <summary>Corpo do POST — contrato real da v2.3.7 validado no spike.</summary>
     private sealed record EvolutionSendText(

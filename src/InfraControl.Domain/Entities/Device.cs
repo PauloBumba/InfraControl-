@@ -23,6 +23,7 @@ public sealed class Device : AggregateRoot
     public const int ModelMaxLength = 100;
     public const int VendorMaxLength = 100;
     public const int DescriptionMaxLength = 500;
+    public const int ImagePathMaxLength = 500;
 
     /// <summary>F30-T006c (docs/47 §A): extensão SIP do telefone.</summary>
     public const int ExtensionMaxLength = 20;
@@ -43,6 +44,9 @@ public sealed class Device : AggregateRoot
     public string? Vendor { get; private set; }
     public Guid? VlanId { get; private set; }
     public string? Description { get; private set; }
+
+    /// <summary>Foto do ativo (F24-T008 pattern): path servido por /uploads.</summary>
+    public string? ImagePath { get; private set; }
 
     /// <summary>
     /// F30-T006c (docs/47 §A): extensão SIP do telefone — opcional, metadado
@@ -90,7 +94,8 @@ public sealed class Device : AggregateRoot
         string? description = null,
         string? extension = null,
         string? sipServer = null,
-        DeviceOperatingSystem? operatingSystem = null)
+        DeviceOperatingSystem? operatingSystem = null,
+        string? imagePath = null)
     {
         if (locationId == Guid.Empty)
             throw new ArgumentException("O id do local é obrigatório.", nameof(locationId));
@@ -99,7 +104,7 @@ public sealed class Device : AggregateRoot
         device.LocationId = locationId;
         device.Update(
             name, type, rackId, ip, mac, serial, model, vendor, vlanId, description,
-            extension, sipServer, operatingSystem);
+            extension, sipServer, operatingSystem, imagePath);
         device._monitoringChecks = [.. DeviceProfileDefaults.For(type)];
         device.ProfileIsCustom = false;
 
@@ -127,7 +132,8 @@ public sealed class Device : AggregateRoot
         string? description = null,
         string? extension = null,
         string? sipServer = null,
-        DeviceOperatingSystem? operatingSystem = null)
+        DeviceOperatingSystem? operatingSystem = null,
+        string? imagePath = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("O nome do device é obrigatório.", nameof(name));
@@ -155,6 +161,8 @@ public sealed class Device : AggregateRoot
             extension, ExtensionMaxLength, "A extensão do device", nameof(extension));
         var normalizedSipServer = NormalizeOptional(
             sipServer, SipServerMaxLength, "O servidor SIP do device", nameof(sipServer));
+        var normalizedImagePath = NormalizeOptional(
+            imagePath, ImagePathMaxLength, "O caminho da imagem do device", nameof(imagePath));
 
         if (description?.Length > DescriptionMaxLength)
             throw new ArgumentException(
@@ -179,6 +187,7 @@ public sealed class Device : AggregateRoot
         Extension = normalizedExtension;
         SipServer = normalizedSipServer;
         OperatingSystem = operatingSystem;
+        ImagePath = normalizedImagePath;
         // ADR-014: tipo pode mudar, mas override explícito do operador é preservado.
 
         RaiseDomainEvent(new DeviceUpdatedDomainEvent(Id, Name, Type));
