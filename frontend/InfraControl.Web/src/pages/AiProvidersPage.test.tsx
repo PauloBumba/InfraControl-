@@ -12,6 +12,7 @@ import {
   listAiProviderModels,
   setAiProviderActive,
   testAiProviderConnection,
+  validateAiProvider,
   type AiProviderList,
 } from "@/services/api/aiProviders";
 
@@ -31,12 +32,14 @@ vi.mock("@/services/api/aiProviders", () => ({
   deleteAiProviderCapability: vi.fn(),
   testAiProviderConnection: vi.fn(),
   listAiProviderModels: vi.fn(),
+  validateAiProvider: vi.fn(),
 }));
 
 const getAiProvidersMock = vi.mocked(getAiProviders);
 const createAiProviderMock = vi.mocked(createAiProvider);
 const setAiProviderActiveMock = vi.mocked(setAiProviderActive);
 const testAiProviderConnectionMock = vi.mocked(testAiProviderConnection);
+const validateAiProviderMock = vi.mocked(validateAiProvider);
 
 function makeList(overrides: Partial<AiProviderList> = {}): AiProviderList {
   return {
@@ -124,6 +127,15 @@ beforeEach(() => {
     models: ["llama3.2", "qwen"],
   });
   testAiProviderConnectionMock.mockResolvedValue({ ok: true, error: null });
+  validateAiProviderMock.mockResolvedValue({
+    ok: true,
+    connectivity: { phase: "conectividade", status: "Success", error: null },
+    authentication: { phase: "autenticação", status: "Success", error: null },
+    models: { phase: "modelos", status: "Success", error: null },
+    modelsFound: ["deepseek-chat"],
+    detectedCapabilities: [],
+    modelCheck: null,
+  });
 });
 
 describe("AiProvidersPage", () => {
@@ -195,6 +207,24 @@ describe("AiProvidersPage", () => {
     expect(await screen.findByText("Conexão OK (§13).")).toBeInTheDocument();
     expect(testAiProviderConnectionMock).toHaveBeenCalledWith(
       "11111111-1111-1111-1111-111111111111",
+    );
+  });
+
+  it("valida conexão em fases (dry-run) sem persistir nada", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Validar conexão" }));
+    const panel = await screen.findByTestId("validate-panel");
+    await user.type(within(panel).getByPlaceholderText("https://api.exemplo.com/v1"), "https://api.deepseek.com/v1");
+    await user.click(within(panel).getByRole("button", { name: "Validar" }));
+
+    expect(await screen.findByText("conectividade")).toBeInTheDocument();
+    expect(screen.getByText("autenticação")).toBeInTheDocument();
+    expect(screen.getByText(/deepseek-chat/)).toBeInTheDocument();
+    expect(screen.getByText(/não expostas pelo fornecedor/)).toBeInTheDocument();
+    expect(validateAiProviderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "https://api.deepseek.com/v1", protocol: "OpenAiCompatible" }),
     );
   });
 

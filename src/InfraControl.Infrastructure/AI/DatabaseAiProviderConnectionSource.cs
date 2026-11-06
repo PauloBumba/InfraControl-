@@ -34,7 +34,8 @@ public sealed class DatabaseAiProviderConnectionSource(
             BaseUrl: provider.BaseUrl,
             ApiKeyPlain: UnprotectQuietly(provider.ApiKeyEncrypted),
             Models: provider.Models,
-            IsActive: provider.IsActive);
+            IsActive: provider.IsActive,
+            Protocol: provider.Protocol);
     }
 
     private string? UnprotectQuietly(string? apiKeyEncrypted)

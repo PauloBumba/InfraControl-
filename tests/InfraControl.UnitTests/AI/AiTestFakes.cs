@@ -122,3 +122,15 @@ internal sealed class StubHttpMessageHandler(
         }
     }
 }
+
+/// <summary>
+/// F49-T003: variante async do stub (testes que leem o corpo da request
+/// dentro do responder).
+/// </summary>
+internal sealed class AsyncStubHttpMessageHandler(
+    Func<HttpRequestMessage, Task<HttpResponseMessage>> responder) : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+        => responder(request);
+}

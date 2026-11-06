@@ -621,10 +621,13 @@ public static class DependencyInjection
         var aiHttpClientTimeout = aiGatewayOptions.EffectiveTimeout + TimeSpan.FromSeconds(15);
         services.AddHttpClient("ollama", client => client.Timeout = aiHttpClientTimeout);
 
-        // Registry de providers v1 (configuração) — multi-provider desde
-        // o ADR-050 §1: resolve qualquer IAiProvider registrado abaixo
-        // pelo Name (case-insensitive).
-        services.AddScoped<IAiProviderRegistry, ConfigurationProviderRegistry>();
+        // F49-T002: registry por PROTOCOLO do cadastro — o operador
+        // cadastra fornecedor (URL+key+protocolo) e o adaptador certo é
+        // instanciado sem deploy (DeepSeek/Mistral/Groq = openai-compatible).
+        // Fallback: adaptadores DI fixos abaixo (D3-A sem cadastro).
+        services.AddScoped<IAiProviderRegistry, ProtocolAwareAiProviderRegistry>();
+        services.AddScoped<IAiProviderRegistryCache>(sp =>
+            (ProtocolAwareAiProviderRegistry)sp.GetRequiredService<IAiProviderRegistry>());
 
         // Provider Ollama
         services.AddScoped<IAiProvider, OllamaProvider>();
@@ -642,6 +645,13 @@ public static class DependencyInjection
         services.AddScoped<IAiProvider, OpenAiCompatibleProvider>();
         services.AddScoped<IAiProvider, GeminiProvider>();
 
+        // F49-T003: Anthropic (protocolo próprio Messages API) —
+        // adaptador genérico; fornecedor = config no cadastro/protocolo.
+        services.Configure<AiAnthropicOptions>(
+            configuration.GetSection("Ai:Anthropic"));
+        services.AddHttpClient("anthropic", client => client.Timeout = aiHttpClientTimeout);
+        services.AddScoped<IAiProvider, AnthropicProvider>();
+
         // Router de capacidade
         services.AddScoped<IAiProviderRouter, AiProviderRouter>();
 
@@ -654,6 +664,11 @@ public static class DependencyInjection
         // ADR-057 (FAI-T011a): seed idempotente do cadastro (gatilho no
         // Program.cs após o build do app).
         services.AddScoped<AiProviderSeeder>();
+
+        // F49-T001: validação de conexão em fases (dry-run sem cadastro;
+        // HttpClient próprio com timeout curto de probe).
+        services.AddScoped<Application.AI.Validation.IAiConnectionValidator>(
+            _ => new Application.AI.Validation.AiConnectionValidator());
 
         // F48-T004: seed idempotente das regras dos eventos de conclusão
         // (Task/Project) — ON por padrão; linha existente é autoridade do

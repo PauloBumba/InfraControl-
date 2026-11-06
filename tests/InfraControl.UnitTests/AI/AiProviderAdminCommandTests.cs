@@ -74,16 +74,25 @@ public sealed class AiProviderAdminCommandTests : IDisposable
                 : protectedText["enc(".Length..^1];
     }
 
+    /// <summary>F49-T002: cache do registry por protocolo — no-op nos testes.</summary>
+    private sealed class StubRegistryCache : InfraControl.Application.AI.IAiProviderRegistryCache
+    {
+        public static readonly StubRegistryCache Instance = new();
+
+        public void Invalidate(string? providerName = null)
+        {
+        }
+    }
+
     [Fact]
     public async Task Create_Deve_Registrar_Provider_Cifrado_E_Dto_Mascarado()
     {
         var (context, repo) = await CreateAsync();
-        var handler = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama")], new StubProtector());
+        var handler = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
 
         var dto = await handler.Handle(
             new CreateAiProviderCommand(
-                "Ollama", "http://localhost:11434", "sk-secret", ["llama3.2", "qwen"]),
+                "ollama", "http://localhost:11434", "sk-secret", ["llama3.2", "qwen"]),
             CancellationToken.None);
 
         await repo.SaveChangesAsync();
@@ -99,26 +108,28 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Create_Sem_Adaptador_Registrado_Deve_Falhar_PtBr_Com_Disponiveis()
+    public async Task Create_Sem_Adaptador_Em_Codigo_Deve_Criar_Por_Protocolo()
     {
+        // F49-T002: fornecedor novo (sem adaptador em código) = config no
+        // admin; o protocolo decide o adaptador no registry (sem deploy).
         var (context, repo) = await CreateAsync();
-        var handler = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama"), Adapter("gemini")], new StubProtector());
+        var handler = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
 
-        var act = () => handler.Handle(
-            new CreateAiProviderCommand("grok", "https://api.grok.dev", null, null),
+        var dto = await handler.Handle(
+            new CreateAiProviderCommand(
+                "deepseek", "https://api.deepseek.com/v1", "sk-deepseek", ["deepseek-chat"]),
             CancellationToken.None);
 
-        (await act.Should().ThrowAsync<ArgumentException>())
-            .Which.Message.Should().Contain("ollama").And.Contain("gemini");
+        dto.Name.Should().Be("deepseek");
+        dto.Protocol.Should().Be(Domain.Enums.AiProviderProtocol.OpenAiCompatible);
+        (await repo.GetByNameAsync("deepseek")).Should().NotBeNull();
     }
 
     [Fact]
     public async Task Create_Nome_Duplicado_Deve_Falhar()
     {
         var (context, repo) = await CreateAsync();
-        var handler = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama")], new StubProtector());
+        var handler = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
         await handler.Handle(
             new CreateAiProviderCommand("ollama", "http://a", null, null), default);
         await repo.SaveChangesAsync();
@@ -134,13 +145,12 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     public async Task Update_Com_Chave_Vazia_Deve_Preservar_E_Com_Chave_Nova_Deve_Trocar()
     {
         var (context, repo) = await CreateAsync();
-        var create = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama")], new StubProtector());
+        var create = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
         var created = await create.Handle(
             new CreateAiProviderCommand("ollama", "http://old", "sk-old", ["m1"]), default);
         await repo.SaveChangesAsync();
 
-        var update = new UpdateAiProviderCommandHandler(repo, new StubProtector());
+        var update = new UpdateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
         var semChave = await update.Handle(
             new UpdateAiProviderCommand(created.Id, "http://new", ApiKey: null, ["m2"]),
             default);
@@ -162,7 +172,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     public async Task Update_Provider_Inexistente_Deve_Falhar()
     {
         var (context, repo) = await CreateAsync();
-        var handler = new UpdateAiProviderCommandHandler(repo, new StubProtector());
+        var handler = new UpdateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
 
         var act = () => handler.Handle(
             new UpdateAiProviderCommand(Guid.NewGuid(), "http://x", null, null), default);
@@ -174,8 +184,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     public async Task SetActive_Deve_Desativar_E_Rativar()
     {
         var (context, repo) = await CreateAsync();
-        var create = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama")], new StubProtector());
+        var create = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
         var created = await create.Handle(
             new CreateAiProviderCommand("ollama", "http://a", null, null), default);
         await repo.SaveChangesAsync();
@@ -272,8 +281,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     public async Task Search_Deve_Listar_Providers_Mascarados_Adaptadores_E_Capacidades()
     {
         var (context, repo) = await CreateAsync();
-        var create = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama"), Adapter("gemini")], new StubProtector());
+        var create = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
         var ollama = await create.Handle(
             new CreateAiProviderCommand("ollama", "http://a", "sk-123456", null), default);
         await create.Handle(
@@ -320,8 +328,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     public async Task TestConnection_Deve_Cobrir_Ok_Falha_E_Sem_Adaptador()
     {
         var (context, repo) = await CreateAsync();
-        var create = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama"), Adapter("gemini")], new StubProtector());
+        var create = new CreateAiProviderCommandHandler(repo, new StubProtector(), StubRegistryCache.Instance);
         var ok = await create.Handle(
             new CreateAiProviderCommand("ollama", "http://a", null, null), default);
         var quebra = await create.Handle(
@@ -350,7 +357,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
     {
         var (context, repo) = await CreateAsync();
         var create = new CreateAiProviderCommandHandler(
-            repo, [Adapter("ollama", models: ["a", "b"])], new StubProtector());
+            repo, new StubProtector(), StubRegistryCache.Instance);
         var ok = await create.Handle(
             new CreateAiProviderCommand("ollama", "http://a", null, null), default);
         await repo.AddAsync(AiProvider.Create("legado", "http://c"));

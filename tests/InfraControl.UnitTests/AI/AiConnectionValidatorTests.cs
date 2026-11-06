@@ -228,4 +228,55 @@ public sealed class AiConnectionValidatorTests
         result.ModelCheck!.Status.Should().Be(AiPhaseStatus.Failed);
         result.ModelCheck.Error.Should().Contain("gpt-4o");
     }
+
+    [Fact]
+    public async Task Validate_Gemini_DetectaCapabilitiesDoFornecedor()
+    {
+        var handler = new StubHttpMessageHandler(_ => Json(200,
+            """{"models":[{"name":"models/gemini-2.5-flash","supportedGenerationMethods":["generateContent","streamGenerateContent"]}]}"""));
+        var validator = new AiConnectionValidator(handler);
+
+        var result = await validator.ValidateAsync(new AiConnectionValidationRequest(
+            AiProtocol.Gemini,
+            "https://generativelanguage.googleapis.com/v1beta",
+            "AIza-secret"));
+
+        result.DetectedCapabilities.Should().Equal("streaming", "text");
+    }
+
+    [Fact]
+    public async Task Validate_GoogleQuarentaComApiKeyInvalid_ReportaAutenticaNaoModelos()
+    {
+        // Formato oficial do Google (ai.google.dev .../api-errors):
+        // key inválida = 400 INVALID_ARGUMENT + reason API_KEY_INVALID.
+        var handler = new StubHttpMessageHandler(_ => Json(400,
+            """{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_INVALID","domain":"googleapis.com"}]}}"""));
+        var validator = new AiConnectionValidator(handler);
+
+        var result = await validator.ValidateAsync(new AiConnectionValidationRequest(
+            AiProtocol.Gemini,
+            "https://generativelanguage.googleapis.com/v1beta",
+            "AIza-chave-invalida"));
+
+        result.Ok.Should().BeFalse();
+        result.Authentication.Status.Should().Be(AiPhaseStatus.Failed);
+        result.Authentication.Error.Should().Contain("API_KEY_INVALID");
+        result.Models.Status.Should().Be(AiPhaseStatus.Skipped);
+    }
+
+    [Fact]
+    public async Task Validate_OpenAiCompatible_NaoInventaCapabilities()
+    {
+        var handler = new StubHttpMessageHandler(_ => Json(200,
+            """{"data":[{"id":"deepseek-chat"}]}"""));
+        var validator = new AiConnectionValidator(handler);
+
+        var result = await validator.ValidateAsync(new AiConnectionValidationRequest(
+            AiProtocol.OpenAiCompatible,
+            "https://api.deepseek.com/v1",
+            "sk-test"));
+
+        result.DetectedCapabilities.Should().BeEmpty();
+        result.ModelsFound.Should().Equal("deepseek-chat");
+    }
 }

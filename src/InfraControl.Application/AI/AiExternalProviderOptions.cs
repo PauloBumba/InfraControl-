@@ -33,3 +33,18 @@ public sealed class AiGeminiOptions
     public string? ApiKey { get; set; }
     public List<string> Models { get; set; } = [];
 }
+
+/// <summary>
+/// F49-T003: opções do provider Anthropic (protocolo próprio Messages
+/// API): seção <c>Ai:Anthropic</c> + chave por env
+/// (<c>Ai__Anthropic__ApiKey</c>). Adaptador genérico — serve qualquer
+/// endpoint que fale o protocolo Anthropic (api.anthropic.com ou
+/// proxies compatíveis). ApiKey obrigatória (header x-api-key).
+/// </summary>
+public sealed class AiAnthropicOptions
+{
+    public string Name { get; set; } = "anthropic";
+    public string BaseUrl { get; set; } = "https://api.anthropic.com";
+    public string? ApiKey { get; set; }
+    public List<string> Models { get; set; } = [];
+}

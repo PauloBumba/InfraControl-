@@ -211,6 +211,18 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] **F48-T004 Seed idempotente de regras ON** <!-- 2026-10-29: `NotificationEventRuleSeeder` (Infrastructure/Notifications) semeia `TaskResolvedDomainEvent` e `ProjectStatusChangedDomainEvent` com Enabled=true + canais "Email,SignalR"; linha existente nunca é sobrescrita (autoridade do operador — admin pode desligar); registrado no DI + gatilho no Program.cs junto ao AiProviderSeeder. TDD: `NotificationEventRuleSeederTests` 3/3 (cria, idempotente, preserva desligada). -->
 - [x] **Fase 48 concluída (T001→T004)** <!-- 2026-10-29: unit 3115/3117 (as 2 falhas = Skia pré-existentes, fora do changeset) · arch 167/167. -->
 
+## Fase 49 — Integração/validação universal de modelos de IA (2026-11-05)
+
+> **Contexto:** bug "não consigo conectar Google" + pedido de sistema universal de integração/validação. Decisões do usuário: dry-run + cadastrado; Anthropic adaptador próprio e DeepSeek/Mistral via OpenAI-compatible; **protocolo como configuração** ("o admin que tudo sabe… evitar codificar") — fornecedor novo = config no admin, zero deploy. Causa raiz do bug: cadastro corrompido no banco (corrigido via API admin). Pesquisa web oficial (ai.google.dev): Google devolve 400 API_KEY_INVALID (não 401) — validador ajustado.
+
+- [x] **F49-T001 Validador em fases + command dry-run** <!-- 2026-11-05: `AiConnectionValidator` — fases conectividade/autenticação/modelos/modelo com mensagens pt-BR, timeout 10s, key nunca em vazada; `ValidateAiConnectionCommand` (Administer, write-only). TDD: validator 13/13 + command 5/5. -->
+- [x] **F49-T002 Campo Protocol + registry por protocolo** <!-- 2026-11-05: `AiProviderProtocol` enum + coluna `protocol` (migração 20261031001847_AiProviderProtocol) + `ProtocolAwareAiProviderRegistry` (resolve por connection→protocolo, cache lazy, fallback D3-A, §44); Create/Update com Protocol; Create sem exigir adaptador em código. TDD: registry 6/6, AI suite 237/237. -->
+- [x] **F49-T003 Adaptador Anthropic genérico** <!-- 2026-11-05: `AnthropicProvider` HTTP puro (/v1/messages + x-api-key + anthropic-version; TestConnection/ListModels via /v1/models), `AiAnthropicOptions` + DI + case no factory. TDD: AnthropicProviderTests 9/9. -->
+- [x] **F49-T004 Endpoint validate + capability detection + UI** <!-- 2026-11-05: `POST /admin/ai-providers/validate`; `DetectedCapabilities` só do que o fornecedor expõe (Gemini supportedGenerationMethods; demais = vazio, nunca inferido); painel "Validar conexão (dry-run)" na AiProvidersPage com chips das fases. TDD: validator +2, page 8/8, tsc/eslint ok. -->
+- [x] **F49-T005 Validação ao vivo + correção Google + guia** <!-- 2026-11-05: Google 400 API_KEY_INVALID → fase autenticação (fonte ai.google.dev); evidências ao vivo: C1 dry-run key inválida ✗ autenticação, C2 gemini real ok, C3 ollama real ok (modelos+modelCheck); migração aplicada no banco dev; guia `docs/ai/03-integracao-fornecedores.md`. -->
+- [x] **Fase 49 concluída (T001→T005)** <!-- 2026-11-05: unit 3148/3150 (2 Skia pré-existentes) · arch 167/167 · front 395/398 (OOM NOC dívida F44) · build front ok. -->
+
+
 ## Fase 46 — Engenharia de produto ponta-a-ponta (2026-10-24 → 2026-10-25)
 
 > **Contexto:** pedido do usuário — "faz tudo, me manda um relatório de cada (monta md)". Diagnóstico primeiro, depois correções aprovadas; relatório por task em `docs/reports/F46-*.md`.
