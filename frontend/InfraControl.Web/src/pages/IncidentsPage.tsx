@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+
 import {
   useCreateMutation,
   usePagedQuery,
@@ -109,9 +110,10 @@ export function IncidentsPage() {
   const [investigation, setInvestigation] = useState<InvestigationResult | null>(null);
   const [investigationError, setInvestigationError] = useState<string | null>(null);
 
-  const incidents = usePagedQuery<IncidentItem>(["incidents", page, statusFilter], () =>
+  const effectiveStatusFilter = statusFilter === "Resolved" ? "" : statusFilter;
+  const incidents = usePagedQuery<IncidentItem>(["incidents", page, effectiveStatusFilter], () =>
     listIncidents({
-      status: statusFilter || undefined,
+      status: effectiveStatusFilter || undefined,
       page,
       pageSize: PAGE_SIZE,
     }),

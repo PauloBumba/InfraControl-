@@ -324,6 +324,18 @@ export function updateTaskResult(
   });
 }
 
+/** Finaliza tarefa definindo estado e registrando "O que foi feito". */
+export async function completeTask(
+  id: string,
+  result: string,
+  state: "Resolved" | "Closed" = "Resolved",
+): Promise<TaskItem | null> {
+  if (result?.trim()) {
+    await updateTaskResult(id, result.trim());
+  }
+  return changeTaskState(id, state);
+}
+
 /**
  * `POST /tasks/{id}/replan` (Operate) — início/fim/prazo + motivo
  * obrigatório (400 se vazio ou sem mudança real).

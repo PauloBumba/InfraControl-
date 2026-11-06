@@ -201,6 +201,8 @@ export function TaskDetailPage() {
   const [replanReason, setReplanReason] = useState("");
   const [resultOpen, setResultOpen] = useState(false);
   const [resultText, setResultText] = useState("");
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [finishNotes, setFinishNotes] = useState("");
   const [criterionText, setCriterionText] = useState("");
   const [pendingCriterion, setPendingCriterion] = useState<TaskCriterion | null>(null);
 
@@ -594,7 +596,34 @@ export function TaskDetailPage() {
 
   async function move(target: string) {
     if (!task || target === task.state) return;
+    if ((target === "Resolved" || target === "Closed") && task.state !== target) {
+      setFinishNotes(task.result ?? "");
+      setFinishOpen(true);
+      return;
+    }
+    if (target === "InProgress" && task.state === "Open") {
+      await run(() => changeTaskState(task.id, target), "Tarefa iniciada.");
+      return;
+    }
     await run(() => changeTaskState(task.id, target), `Estado alterado para ${stateVisual(target).label}.`);
+  }
+
+  async function submitFinish() {
+    if (!task) return;
+    const notes = finishNotes.trim();
+    if (!notes) {
+      setError("Informe o que foi feito para finalizar a tarefa.");
+      return;
+    }
+    // run() já recarrega via load() após a ação.
+    await run(
+      async () => {
+        await updateTaskResult(task.id, notes);
+        await changeTaskState(task.id, "Resolved");
+      },
+      "Tarefa finalizada com 'O que foi feito'.",
+      () => setFinishOpen(false),
+    );
   }
 
   function openDataDialog() {
@@ -708,6 +737,18 @@ export function TaskDetailPage() {
         }
         actions={
           <div style={{ display: "flex", gap: 8 }}>
+            <Can level="operate">
+              {task.state === "Open" && (
+                <Button onClick={() => void move("InProgress")} style={{ padding: "6px 14px" }}>
+                  <i className="pi pi-play" style={{ fontSize: 11 }} /> Iniciar
+                </Button>
+              )}
+              {(task.state === "Open" || task.state === "InProgress" || task.state === "Waiting" || task.state === "Blocked") && (
+                <Button onClick={() => void move("Resolved")} style={{ padding: "6px 14px" }}>
+                  <i className="pi pi-check" style={{ fontSize: 11 }} /> Finalizar
+                </Button>
+              )}
+            </Can>
             {/* F24-T006/K6 (docs/32 §3, ADR-035): "Gerar Knowledge"
                 só quando a task concluiu (Resolved/Closed) — rascunho
                 montado dos registros, sempre Draft → revisão. */}
@@ -2421,6 +2462,44 @@ export function TaskDetailPage() {
         message={`Excluir "${task.title}"? Comentários, histórico e vínculos serão removidos.`}
         confirmLabel="Excluir"
       />
+      <Dialog
+        header="Finalizar tarefa"
+        visible={finishOpen}
+        style={{ width: "min(520px, 95vw)" }}
+        onHide={() => setFinishOpen(false)}
+        footer={
+          <div className="flex justify-content-end gap-2">
+            <Button variant="ghost" onClick={() => setFinishOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" onClick={submitFinish}>
+              Finalizar
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div>Informe o que foi feito para concluir esta tarefa.</div>
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>O que foi feito</div>
+            <textarea
+              value={finishNotes}
+              onChange={(e) => setFinishNotes(e.target.value)}
+              rows={6}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid var(--surface-border, #d1d5db)",
+                borderRadius: 10,
+                fontSize: 13,
+                resize: "vertical",
+                fontFamily: "inherit",
+              }}
+              placeholder="Descreva a solução, ações realizadas, resultado..."
+            />
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

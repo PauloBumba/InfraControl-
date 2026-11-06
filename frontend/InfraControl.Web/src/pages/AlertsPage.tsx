@@ -13,6 +13,7 @@ import { SelectButton } from "primereact/selectbutton";
 import { errorMessage } from "@/hooks/queries";
 import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { TabView, TabPanel } from "primereact/tabview";
 
 /**
  * F17-T011 — AlertsPage conectada ao backend (substitui `alertsData` de
@@ -57,13 +58,15 @@ export function AlertsPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const effectiveStatus = activeTab === 1 ? "resolved" : status === "resolved" ? "" : status;
       const result = await listAlerts({
-        status: status || undefined,
+        status: effectiveStatus || undefined,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -74,7 +77,7 @@ export function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [status, page]);
+  }, [status, page, activeTab]);
 
   useEffect(() => {
     void load();
@@ -96,7 +99,20 @@ export function AlertsPage() {
       error={error}
       onRetry={() => void load()}
       actions={
-        <SelectButton className="uni-select-button" value={status} options={filters} optionLabel="label" optionValue="key" allowEmpty={false} onChange={(event) => { setStatus(event.value); setPage(1); }} />
+        activeTab === 0 ? (
+          <SelectButton
+            className="uni-select-button"
+            value={status}
+            options={filters.filter((f) => f.key !== "resolved")}
+            optionLabel="label"
+            optionValue="key"
+            allowEmpty={false}
+            onChange={(event) => {
+              setStatus(event.value);
+              setPage(1);
+            }}
+          />
+        ) : undefined
       }
       footer={
         totalCount > PAGE_SIZE ? (
@@ -104,43 +120,86 @@ export function AlertsPage() {
         ) : undefined
       }
     >
-      <div className="uni-panel">
-        <div className="uni-alerts-list">
-          {items.map((alert) => {
-            const severity = severityConfig[alert.severity] ?? {
-              label: alert.severity, bg: "#f1f5f9", color: "#64748b", icon: "pi pi-info-circle",
-            };
-            const statusStyle = statusConfig[alert.status] ?? {
-              label: alert.status, bg: "#f1f5f9", color: "#64748b",
-            };
-            return (
-              <div className="uni-alert-row" key={alert.id}>
-                <div className={`uni-alert-icon ${alert.severity === "Critical" ? "critical" : "warning"}`}>
-                  <i className={severity.icon} />
+      <TabView activeIndex={activeTab} onTabChange={(e) => { setActiveTab(e.index); setPage(1); setStatus(""); }}>
+        <TabPanel header="Abertos">
+          <div className="uni-panel">
+            <div className="uni-alerts-list">
+              {items.map((alert) => {
+                const severity = severityConfig[alert.severity] ?? {
+                  label: alert.severity, bg: "#f1f5f9", color: "#64748b", icon: "pi pi-info-circle",
+                };
+                const statusStyle = statusConfig[alert.status] ?? {
+                  label: alert.status, bg: "#f1f5f9", color: "#64748b",
+                };
+                return (
+                  <div className="uni-alert-row" key={alert.id}>
+                    <div className={`uni-alert-icon ${alert.severity === "Critical" ? "critical" : "warning"}`}>
+                      <i className={severity.icon} />
+                    </div>
+                    <div className="uni-alert-body">
+                      <div className="uni-alert-title">{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</div>
+                      <div className="uni-alert-detail">{alert.message}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <StatusChip label={severity.label} background={severity.bg} color={severity.color} fontWeight={600} />
+                      <StatusChip label={statusStyle.label} background={statusStyle.bg} color={statusStyle.color} />
+                      <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                        {formatDateTime(new Date(alert.openedAt))}
+                        {alert.resolvedAt ? ` → ${formatDateTime(new Date(alert.resolvedAt))}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!loading && items.length === 0 && (
+                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                  {error ? "—" : "Nenhum alerta neste filtro"}
                 </div>
-                <div className="uni-alert-body">
-                  <div className="uni-alert-title">{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</div>
-                  <div className="uni-alert-detail">{alert.message}</div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                  <StatusChip label={severity.label} background={severity.bg} color={severity.color} fontWeight={600} />
-                  <StatusChip label={statusStyle.label} background={statusStyle.bg} color={statusStyle.color} />
-                  <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                    {formatDateTime(new Date(alert.openedAt))}
-                    {alert.resolvedAt ? ` → ${formatDateTime(new Date(alert.resolvedAt))}` : ""}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-          {!loading && items.length === 0 && (
-            <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-              {error ? "—" : "Nenhum alerta neste filtro"}
+              )}
+              {loading && items.length === 0 && <LoadingBlock />}
             </div>
-          )}
-          {loading && items.length === 0 && <LoadingBlock />}
-        </div>
-      </div>
+          </div>
+        </TabPanel>
+        <TabPanel header="Resolvidos">
+          <div className="uni-panel">
+            <div className="uni-alerts-list">
+              {items.map((alert) => {
+                const severity = severityConfig[alert.severity] ?? {
+                  label: alert.severity, bg: "#f1f5f9", color: "#64748b", icon: "pi pi-info-circle",
+                };
+                const statusStyle = statusConfig[alert.status] ?? {
+                  label: alert.status, bg: "#f1f5f9", color: "#64748b",
+                };
+                return (
+                  <div className="uni-alert-row" key={alert.id}>
+                    <div className={`uni-alert-icon ${alert.severity === "Critical" ? "critical" : "warning"}`}>
+                      <i className={severity.icon} />
+                    </div>
+                    <div className="uni-alert-body">
+                      <div className="uni-alert-title">{alert.deviceName ?? "Sem device"} · {alert.check ?? alert.source}</div>
+                      <div className="uni-alert-detail">{alert.message}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <StatusChip label={severity.label} background={severity.bg} color={severity.color} fontWeight={600} />
+                      <StatusChip label={statusStyle.label} background={statusStyle.bg} color={statusStyle.color} />
+                      <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                        {formatDateTime(new Date(alert.openedAt))}
+                        {alert.resolvedAt ? ` → ${formatDateTime(new Date(alert.resolvedAt))}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!loading && items.length === 0 && (
+                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+                  {error ? "—" : "Nenhum alerta resolvido"}
+                </div>
+              )}
+              {loading && items.length === 0 && <LoadingBlock />}
+            </div>
+          </div>
+        </TabPanel>
+      </TabView>
     </ListPageShell>
   );
 }
