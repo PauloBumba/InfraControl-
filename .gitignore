@@ -274,6 +274,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Configuração local não versionada (SMTP/senhas de cada máquina)
 **/appsettings.Local.json
