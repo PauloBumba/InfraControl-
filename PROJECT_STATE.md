@@ -226,6 +226,14 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [x] **Fase 49 concluída (T001→T005)** <!-- 2026-11-05: unit 3148/3150 (2 Skia pré-existentes) · arch 167/167 · front 395/398 (OOM NOC dívida F44) · build front ok. -->
 
 
+## Fase 39 — Roteamento configurável de notificações Zabbix (em execução 2026-11-06)
+
+> **Contexto:** ADR-063 aceito (2026-10-23) + docs/62 — administrador ajusta canais/textos por evento pela plataforma. Decisões aprovadas: filtros host/grupo/tag na v1; grupo WhatsApp global (ADR-059 intacto); precedência substitutiva; regra vazia desliga canais externos sem fallback Email; sem política persistida = legado. Contexto Zabbix enriquecido na ingestão (F39-T002).
+
+- [x] **F39-T002 Persistir contexto de eventos do Zabbix** <!-- Implementada: consulta event.get → trigger.get → host.get na ingestão; persiste trigger/host/group IDs e tags em source_context_json sem alterar RawPayload. Falhas/parcialidade são registradas e não bloqueiam PROBLEM/OK; replay duplicado de PROBLEM/OK preenche contexto ausente. Testes focados Zabbix: 48/48. Fixtures cobrem JSON-RPC compatível com Zabbix 8.0; smoke ao vivo fica para F39-T006 antes do deploy. -->
+- [x] **F39-T003 Criar políticas e resolução de roteamento** <!-- 2026-11-06: domínio `NotificationRoutingPolicy` (singleton, defaults CSV, Version monotônica) + `NotificationRoutingRule` (filtros severidade 0–5, host IDs, grupo IDs, trigger ID, tags JSON; IsConditional; canais substitutivos — lista vazia = nenhum canal, sem fallback Email); `NotificationRoutingResolver` puro com precedência NoPolicy→união dedup das condicionais que casarem→regra do tipo→defaults (AND entre dimensões, OR na lista, tags OrdinalIgnoreCase, contexto ausente não casa); CQRS Administer `GET/PUT api/v1/notifications/routing` (BaseQuery+CacheTags, BaseCommand+ICacheInvalidatingRequest+IAuditableRequest, validação pt-BR); repo `INotificationRoutingRepository` (auto-reg F0-T024, sync add/update/remove por Id); migração `20261106222159_AddNotificationRouting` (2 tabelas) aplicada no dev. Pegadinha EF: `GetTagFilters()` virou método (propriedade get-only de coleção era lida como navegação e exigia PK). TDD: resolver 17 + commands 16 = **33/33**; E2E sweep novo 1/1; validação completa: unit 3181/3183 (2 Skia pré-existentes) · arch 169/169 · integração 230/230 · script da migração ok. -->
+
+
 ## Fase 46 — Engenharia de produto ponta-a-ponta (2026-10-24 → 2026-10-25)
 
 > **Contexto:** pedido do usuário — "faz tudo, me manda um relatório de cada (monta md)". Diagnóstico primeiro, depois correções aprovadas; relatório por task em `docs/reports/F46-*.md`.

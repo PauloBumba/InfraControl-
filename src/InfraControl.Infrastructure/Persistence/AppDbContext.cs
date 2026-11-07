@@ -80,6 +80,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     public DbSet<NotificationEventRule> NotificationEventRules => Set<NotificationEventRule>();
+    public DbSet<NotificationRoutingPolicy> NotificationRoutingPolicies => Set<NotificationRoutingPolicy>();
+    public DbSet<NotificationRoutingRule> NotificationRoutingRules => Set<NotificationRoutingRule>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();

@@ -348,6 +348,62 @@ public sealed class EndpointSweepE2ETests(E2EHost host) : IClassFixture<E2EHost>
             .Should().BeFalse("a leitura volta o estado persistido");
     }
 
+    // ── Notification routing policy (F39-T003: política versionada) ─────────
+
+    [Fact]
+    public async Task NotificationRouting_GetSave_ShouldPersistWithVersion()
+    {
+        var client = await LoginAsync(E2EHost.AdminEmail);
+        var xsrf = await XsrfAsync(client);
+
+        var initial = await client.GetAsync("/api/v1/notifications/routing");
+        initial.StatusCode.Should().Be(HttpStatusCode.OK);
+        var before = await DataAsync(initial);
+        before.GetProperty("version").GetInt32().Should().Be(0,
+            "sem linha persistida a política é legada (Version=0)");
+
+        var save = await WriteAsync(client, HttpMethod.Put,
+            "/api/v1/notifications/routing",
+            new
+            {
+                enabled = true,
+                defaults = new[] { "Email", "SignalR" },
+                rules = new[]
+                {
+                    new
+                    {
+                        eventType = "IncidentCreatedDomainEvent",
+                        enabled = true,
+                        minSeverity = 4,
+                        hostIds = new[] { "10" },
+                        channels = new[] { "WhatsApp" },
+                    }
+                }
+            }, xsrf);
+        save.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using (var scope = NewScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var policy = await db.NotificationRoutingPolicies.SingleAsync();
+            policy.Enabled.Should().BeTrue();
+            policy.Version.Should().Be(1);
+            var rule = await db.NotificationRoutingRules.SingleAsync();
+            rule.EventType.Should().Be("IncidentCreatedDomainEvent");
+            rule.MinSeverity.Should().Be(4);
+            rule.ChannelNames.Should().Equal("WhatsApp");
+        }
+
+        var reload = await client.GetAsync("/api/v1/notifications/routing");
+        var after = await DataAsync(reload);
+        after.GetProperty("version").GetInt32().Should().Be(1);
+        after.GetProperty("defaults").EnumerateArray()
+            .Select(v => v.GetString()).Should().Equal("Email", "SignalR");
+        after.GetProperty("rules").EnumerateArray()
+            .Single().GetProperty("channels").EnumerateArray()
+            .Select(v => v.GetString()).Should().Equal("WhatsApp");
+    }
+
     // ── Knowledge (artigo → banco com author do usuário logado) ───────────
 
     [Fact]
