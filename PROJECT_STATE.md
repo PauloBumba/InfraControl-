@@ -141,6 +141,7 @@ Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorizaç�
 - [ ] **F34-T000 Inventário/políticas do hospital** <!-- pendências fora do repo: Windows/Linux por setor, IP/MAC, chave SSH, LGPD gravação, operador. -->
 - [x] **F34-T002 Gateway em containers + rede + HTTPS** <!-- 2026-10-18: profile `remote` (init→db→guacd→guacamole), DMZ 2 redes, nginx `/guacamole/` WS upstream variável; REST token + HTTPS 200 e2e no ar. -->
 - [x] **F34-T003 Banco do gateway + MFA + kill switch** <!-- 2026-10-18: backup multi-alvo (prefixo guacamole) + correção do carrier (pg_dump 17 na imagem — nunca tinha funcionado em Docker) + restore round-trip testado ao vivo (marker destruído e restaurado = 42) + kill switch executado (504 → religar → 200) + rotação do guacadmin (senha só em .env). Enforcement do TOTP = F34-T007. -->
+- [x] **F34-T006 SO no inventário** <!-- 2026-11-06: enum DeviceOperatingSystem + coluna operating_system (migração 20261019015134) + guard de tipo no domínio (pt-BR) + ParseOperatingSystem nos handlers + select no form (condicionado a OS_ELIGIBLE_TYPES) + InfoRow e botão "Acesso remoto" na ficha só com SO registrado. Cobertura fechada aqui: +4 testes DeviceCommandTests (36/36) — persist/inválido/inelegível/clear; front 20/20; unit 3185/3187; baseline 98/98. -->
 - [ ] **F34-T004..T009** — ver TASKS.md Fase 34 (pilotos Linux/Windows → integração ficha → Zabbix/governança → operação/expansão)
 
 ## Fase 35 — Lote de correções da caça-bugs backend (arquitetura; 2026-10-18)

@@ -243,6 +243,86 @@ public sealed class DeviceCommandTests : IDisposable
             .ImagePath.Should().BeNull();
     }
 
+    // ── Sistema operacional (F34-T006 / ADR-060) ────────────────────────
+
+    [Fact]
+    public async Task Create_WithOperatingSystem_ShouldPersist()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+
+        var result = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "ws-01", "Workstation",
+                OperatingSystem: "Windows"),
+            CancellationToken.None);
+
+        result.OperatingSystem.Should().Be("Windows");
+        context.Devices.Single(device => device.Id == result.Id)
+            .OperatingSystem.Should().Be(DeviceOperatingSystem.Windows);
+    }
+
+    [Fact]
+    public async Task Create_WithInvalidOperatingSystem_ShouldThrowPtBrMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+
+        var action = () => CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "ws-bad", "Workstation",
+                OperatingSystem: "Solaris"),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage(
+                "Sistema operacional inválido: 'Solaris'. Use Windows, Linux ou Other.*");
+    }
+
+    [Fact]
+    public async Task Create_WithOperatingSystemOnIneligibleType_ShouldThrowPtBrMessage()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+
+        var action = () => CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "sw-os", "Switch",
+                OperatingSystem: "Linux"),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("O sistema operacional só pode ser informado para*");
+    }
+
+    [Fact]
+    public async Task Update_ShouldReplaceAndClearOperatingSystem()
+    {
+        await using var context = await CreateContextAsync();
+        var locationId = await SeedLocationAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateDeviceCommand(
+                locationId, "srv-os", "Server",
+                OperatingSystem: "Linux"),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateDeviceCommand(
+                created.Id, "srv-os", "Server",
+                OperatingSystem: "Windows"),
+            CancellationToken.None);
+
+        context.Devices.Single(device => device.Id == created.Id)
+            .OperatingSystem.Should().Be(DeviceOperatingSystem.Windows);
+
+        await UpdateHandler(context).Handle(
+            new UpdateDeviceCommand(created.Id, "srv-os", "Server"),
+            CancellationToken.None);
+
+        context.Devices.Single(device => device.Id == created.Id)
+            .OperatingSystem.Should().BeNull();
+    }
+
     [Fact]
     public async Task Update_ToAnotherDeviceName_ShouldThrowConflictPtBrMessage()
     {
