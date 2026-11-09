@@ -114,7 +114,10 @@ conjunto. Para dimensionar pools, considere
 `réplicas API × POSTGRES_MAX_POOL_SIZE + réplicas Workers ×
 POSTGRES_MAX_POOL_SIZE` e reserve conexões para migrations/administração. O
 default de produção é pool máximo 20 por processo; reduza se a configuração do
-PostgreSQL ou a escala exigir.
+PostgreSQL ou a escala exigir. O `max_connections` do servidor é controlado por
+`POSTGRES_MAX_CONNECTIONS` (compose aplica `command: -c max_connections=…`,
+default 200) — valide a desigualdade acima antes de escalar réplicas
+(`tests/scripts/test-db-connection-budget.sh`; D1 do `docs/66`).
 
 O Compose reinicia processos que terminam (`unless-stopped`), mas não reinicia
 um container apenas por estar `unhealthy`; readiness, logs e alertas continuam

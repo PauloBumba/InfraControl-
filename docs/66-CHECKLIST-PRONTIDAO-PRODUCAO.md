@@ -20,7 +20,7 @@
 | Boot da API | ~3 s do start do container até `Application started` |
 | Carga dentro do rate limit (ab, c=5, n=100) | **427 req/s**, p95 17 ms, 0 falhas |
 | Carga estourando o rate limit | 429 em **5–7 ms** (rejeição barata) — limite Default **300 req/60 s** |
-| Carga com concorrência alta (c=100+) | **colapso de throughput** em endpoints que precisam de conexão nova no Postgres (§4.1) |
+| Carga com concorrência alta (c=100+) | **colapso corrigido (D1)** — pós-fix: p95 211–251 ms em c=100 (§2.1) |
 | IA ao vivo | chat, automation, validate e test-connection **todos 200** (§5) |
 | `/health` agregado | **503** — 1 check central com defeito real + checks de serviços não implantados (§4.2) |
 
@@ -28,9 +28,9 @@
 
 ## 2. Defeitos encontrados (corrigir antes do go-live)
 
-### [!] D1 — Orçamento de conexões do Postgres (ALTO)
+### [x] D1 — Orçamento de conexões do Postgres (ALTO) — **CORRIGIDO 2026-11-08**
 
-- **Evidência:** `max_connections = 100` (default do image) **iguais** ao
+- **Evidência (original):** `max_connections = 100` (default do image) **iguais** ao
   `Max Pool Size` default do Npgsql (**100**). Sob carga c=100 a API tomou as
   100 conexões (todas `idle`, todas do container da API) e:
   - `psql`/migrações/health passam a falhar com `FATAL: sorry, too many clients`;
@@ -38,13 +38,26 @@
   - requisições que precisam de conexão **esperam 24–28 s** (p90) mesmo com
     CPU da API em 2 % — o handler em si é rápido (p50 4 ms), o tempo todo é
     fila de pool.
-- **Repro:** subir API, `ab`/Node a c=100 por ~1 min e observar
+- **Repro (original):** subir API, `ab`/Node a c=100 por ~1 min e observar
   `pg_stat_activity` (0 queries ativas + 100 conexões idle da API).
-- **Correção sugerida:**
-  1. `max_connections` do Postgres ≥ `pool_por_instância × nº_instâncias + folga`
-     (folga p/ workers, migrations, psql, backups, monitoring) — ex.: 200–300;
-  2. fixar `Max Pool Size` explícito na connection string (ex.: `Maximum Pool Size=50`);
-  3. documentar a fórmula no runbook `docs/64-RUNBOOK-DEPLOY-PRODUCAO.md`.
+- **Correção aplicada:**
+  1. compose base: `postgres` com
+     `command: -c max_connections=${POSTGRES_MAX_CONNECTIONS:-200}`;
+  2. connection string do anchor `&app-env` (api **e** workers) com
+     `Maximum Pool Size=${POSTGRES_MAX_POOL_SIZE:-20}` — o overlay de produção
+     já exigia a variável; o dev ficou descoberto;
+  3. `appsettings.json` da API e dos Workers com `Maximum Pool Size=20`
+     (roda-fora-do-compose);
+  4. `.env`/`.env.example`/`.env.production.example` com as duas variáveis;
+     preflight valida `POSTGRES_MAX_CONNECTIONS` (warn se ausente);
+  5. teste `tests/scripts/test-db-connection-budget.sh` (**13/13**) cobre
+     wiring + matemática (`max_connections ≥ 2×pool + folga`).
+- **Revalidação ao vivo (2026-11-08):** `SHOW max_connections = 200`
+  (source=command line), pool=20 em api+workers; carga Node c=100 n=1000 em
+  `/auth/mfa/status` (endpoint que colapsava): **100% 200, p50 63–67 ms,
+  p95 211–251 ms, 1001–1176 rps** (antes: p95 24–28 s); `psql` conecta
+  durante a carga (antes: `too many clients`); 22 conexões idle estáveis
+  (≈ pool 20 + workers), zero estouro.
 
 ### [!] D2 — `/health` sempre 503: probe do frontend erra a porta (MÉDIO)
 
@@ -131,7 +144,9 @@
 - [x] Migrações = código (`__EFMigrationsHistory` 97/97; baseline AI-ENV-003,
       `scripts/db/check-migration-baseline.sh`)
 - [x] CRUD validado contra o banco dev real (54 PASS)
-- [!] **D1** — orçamento de conexões (corrigir)
+- [x] **D1** — orçamento de conexões (corrigido 2026-11-08: pool=20/processo +
+      `max_connections=200`; `tests/scripts/test-db-connection-budget.sh` 13/13;
+      carga c=100 p95 211–251 ms, `psql` OK durante a carga — §2.1)
 - [ ] Definir política de backup/restore testada (BackupSettings + BackupWorker
       existem — falta **executar um restore de verdade** e cronometrar RTO)
 
@@ -194,12 +209,14 @@
 | GET pós-create | overhead p95 +4 ms | **sem lentidão pós-criação** |
 | ab c=5 n=100 | 427 req/s, p95 17 ms, 0 falhas | — |
 | Estouro do rate limit | 429 em 5–7 ms | **300 req/60 s** (Default) |
-| Node c=100 (endpoint com conexão nova) | p95 24–28 s | **D1** — orçamento de pool |
+| Node c=100 (endpoint com conexão nova) **antes do fix D1** | p95 24–28 s | **D1** — orçamento de pool |
 | Node c=100 (endpoint com conexão do pool quente) | rps 1079, p95 127 ms | OK |
+| Node c=100 pós-fix D1 (`/auth/mfa/status`, pool quente) | 1000×200, p50 63–67 ms, **p95 211–251 ms**, 1001–1176 rps | **D1 corrigido** (§2.1) |
 | Boot | ~3 s | — |
 
-- [ ] Repetir a bateria de carga **após corrigir D1** e registrar novos números
-      aqui (mesmos scripts)
+- [x] Repetir a bateria de carga **após corrigir D1** e registrar novos números
+      aqui (2026-11-08 — ver linha acima; teste de regressão:
+      `bash tests/scripts/test-db-connection-budget.sh`)
 - [ ] Definir SLO de latência por endpoint (hoje: p95 < 50 ms em regime é a
       referência usada desde a F46)
 
@@ -234,6 +251,9 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/validation/post-create-latency.mjs
 # 4) carga (ab é do sistema; respeta/estoura o rate limit por design)
 ab -k -n 100 -c 5 -H "Cookie: $COOKIE" \
    'https://localhost:8445/api/v1/inventory/locations?take=20'
+
+# 5) regressão do orçamento de conexões (D1)
+bash tests/scripts/test-db-connection-budget.sh
 ```
 
 Notas:
@@ -251,7 +271,7 @@ Notas:
 
 ## 9. Go/no-go — mínimo antes de produção
 
-1. **[!] D1** (orçamento de conexões) — corrigir e revalidar carga.
+1. **[x] D1** (orçamento de conexões) — corrigido e revalidado 2026-11-08 (§2.1).
 2. **[!] D2** (`/health` do frontend) — corrigir; sem isso o orquestrador
    considera o stack doente.
 3. **[!] D4** (500 em nome duplicado) — corrigir; é erro de usuário comum.

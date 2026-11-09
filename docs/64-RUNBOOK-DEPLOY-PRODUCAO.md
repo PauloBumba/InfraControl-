@@ -60,6 +60,13 @@ sudo chmod 600 /etc/ssl/infracontrol/server.key
    - **`TLS_CERT_FILE`** e **`TLS_KEY_FILE`**: Caminhos absolutos para os arquivos do passo 2.
    - **`API_IMAGE`**, **`WORKERS_IMAGE`**, **`FRONTEND_IMAGE`**: Tags versionadas (ex.: `:v1.0.0`).
    - **`PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD`**: Senha inicial do primeiro superadmin.
+   - **`POSTGRES_MAX_POOL_SIZE`** (ex.: `20`): conexões máximas **por processo**
+     da aplicação (api/workers). **`POSTGRES_MAX_CONNECTIONS`** (ex.: `200`):
+     `max_connections` do servidor — o compose aplica via `command` do Postgres.
+     Mantenha `réplicas × POSTGRES_MAX_POOL_SIZE + folga (migrations, backup,
+     adminer, psql) ≤ POSTGRES_MAX_CONNECTIONS` — fórmula em
+     `docs/40-SCALE-HORIZONTAL-OPERATIONS.md`; o pré-voo valida as variáveis e
+     `tests/scripts/test-db-connection-budget.sh` cobre o wiring do compose.
    - **`MOCK_DATA_ENABLED=false`** e **`MOCK_DATA_PURGE=false`**: Obrigatório em produção.
 
 ---

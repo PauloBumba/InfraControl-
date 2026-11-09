@@ -218,6 +218,18 @@ else
     log_fail "POSTGRES_MAX_POOL_SIZE não configurado."
 fi
 
+# D1 (docs/66): max_connections do servidor deve existir e cobrir o pool.
+# Ausente = o compose usa o default 200 (ok para 1 api + 1 workers com pool 20);
+# presente precisa ser válido e maior que o pool por processo.
+PG_MAXCONN=$(get_env_val "POSTGRES_MAX_CONNECTIONS")
+if [ -z "${PG_MAXCONN}" ]; then
+    log_warn "POSTGRES_MAX_CONNECTIONS não configurado — compose usará o default 200. Recomendado declarar explicitamente."
+elif [[ "${PG_MAXCONN}" =~ ^[0-9]+$ ]] && [ "${PG_MAXCONN}" -gt "${PG_POOL:-0}" ]; then
+    log_pass "POSTGRES_MAX_CONNECTIONS configurado (${PG_MAXCONN}) > pool por processo."
+else
+    log_fail "POSTGRES_MAX_CONNECTIONS inválido (${PG_MAXCONN}). Deve ser inteiro > POSTGRES_MAX_POOL_SIZE."
+fi
+
 # Redis (ADR-045: Sentinel URL-safe)
 if check_required_var "REDIS_PASSWORD"; then
     REDIS_PASS=$(get_env_val "REDIS_PASSWORD")
