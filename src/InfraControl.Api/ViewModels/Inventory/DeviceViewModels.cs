@@ -37,3 +37,11 @@ public sealed record UpdateDeviceViewModel(
 public sealed record UpdateDeviceProfileViewModel(
     string[]? Checks = null,
     bool UseDefault = false);
+
+/// <summary>
+/// F50-T008: importação em massa — CSV em texto (colunas padronizadas,
+/// separador `;` ou `,`) com o local de destino único da importação.
+/// </summary>
+public sealed record ImportDevicesViewModel(
+    Guid LocationId,
+    string Csv);

@@ -56,9 +56,26 @@ public sealed class AiProvidersController(ISender sender) : BaseController
         Guid id,
         [FromBody] UpdateAiProviderViewModel model,
         CancellationToken cancellationToken)
-        => Ok(ApiResponse.Ok(await sender.Send(
-            new UpdateAiProviderCommand(id, model.BaseUrl, model.ApiKey, model.Models),
+    {
+        InfraControl.Domain.Enums.AiProviderProtocol? protocol = null;
+        if (!string.IsNullOrWhiteSpace(model.Protocol))
+        {
+            if (!Enum.TryParse<InfraControl.Domain.Enums.AiProviderProtocol>(
+                    model.Protocol, ignoreCase: true, out var parsed)
+                || !Enum.IsDefined(parsed))
+            {
+                throw new ArgumentException(
+                    $"Protocolo desconhecido '{model.Protocol}' — use openai-compatible, ollama, gemini ou anthropic.",
+                    nameof(model));
+            }
+            protocol = parsed;
+        }
+
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new UpdateAiProviderCommand(
+                id, model.BaseUrl, model.ApiKey, model.Models, protocol),
             cancellationToken)));
+    }
 
     [HttpPut("{id:guid}/active")]
     [Authorize(Policy = AuthorizationPolicies.Administer)]

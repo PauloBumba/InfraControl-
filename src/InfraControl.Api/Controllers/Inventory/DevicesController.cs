@@ -78,6 +78,23 @@ public sealed class DevicesController(ISender sender) : BaseController
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
     }
 
+    /// <summary>
+    /// F50-T008: importação em massa por CSV — sucesso parcial linha a linha
+    /// (cria/pula/falha); o relatório volta no envelope com as contagens.
+    /// </summary>
+    [HttpPost("import")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> Import(
+        [FromBody] ImportDevicesViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ImportDevicesCommand(model.LocationId, model.Csv),
+            cancellationToken);
+
+        return Ok(ApiResponse.Ok(result));
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
     public async Task<IActionResult> Update(
