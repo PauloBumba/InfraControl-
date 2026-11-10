@@ -114,14 +114,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section
-      style={{
-        background: "white",
-        border: "1px solid #e5e7eb",
-        borderRadius: 8,
-        padding: 14,
-      }}
-    >
+    <section className="uni-panel" style={{ padding: 14 }}>
       <div
         style={{
           display: "flex",
