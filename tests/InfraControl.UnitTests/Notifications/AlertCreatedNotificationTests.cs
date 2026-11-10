@@ -72,7 +72,7 @@ public sealed class AlertCreatedNotificationTests : IDisposable
 
         var notification = await context.Notifications.AsNoTracking().SingleAsync();
         notification.EventType.Should().Be(nameof(AlertCreatedDomainEvent));
-        notification.Title.Should().Be("Alerta Critical criado");
+        notification.Title.Should().Be("Alerta crítico criado");
         notification.Message.Should().Contain("sw-01")
             .And.Contain("CRÍTICO");
 

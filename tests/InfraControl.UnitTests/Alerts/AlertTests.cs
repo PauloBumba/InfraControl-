@@ -173,13 +173,16 @@ public sealed class AlertTests
     }
 
     [Fact]
-    public void Create_Warning_ShouldNotRaiseAlertCreatedDomainEvent()
+    public void Create_Warning_ShouldRaiseAlertCreatedDomainEventWithoutIncident()
     {
         var alert = Alert.Create(
             Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Warning, "latência alta");
 
-        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
-            "só Critical notifica (decisão 2 do ADR-059: eventos = Critical)");
+        // Decisão do usuário (2026-11-10): Warning também notifica como
+        // alerta simples — HasIncident=false (não vira incidente).
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.Severity.Should().Be(AlertSeverity.Warning);
+        created.HasIncident.Should().BeFalse();
     }
 
     [Fact]
@@ -198,13 +201,15 @@ public sealed class AlertTests
     }
 
     [Fact]
-    public void CreateExternal_Warning_ShouldNotRaiseAlertCreatedDomainEvent()
+    public void CreateExternal_Warning_ShouldRaiseAlertCreatedDomainEventWithoutIncident()
     {
         var alert = Alert.CreateExternal(
             Guid.NewGuid(), "10452", Guid.NewGuid(), kind: null,
             AlertSeverity.Warning, "disco em 85%", MonitoringSource.Zabbix);
 
-        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty();
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.Severity.Should().Be(AlertSeverity.Warning);
+        created.HasIncident.Should().BeFalse();
     }
 
     [Fact]

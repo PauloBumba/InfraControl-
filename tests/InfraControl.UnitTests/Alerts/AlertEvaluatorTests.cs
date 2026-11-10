@@ -1967,7 +1967,7 @@ public sealed class AlertEvaluatorTests : IDisposable
     }
 
     [Fact]
-    public async Task EvaluateVerdict_Warning_ShouldNotRaiseAlertCreated()
+    public async Task EvaluateVerdict_Warning_ShouldRaiseAlertCreatedWithoutIncident()
     {
         await using var context = await CreateContextAsync();
         var device = await SeedDeviceAsync(context);
@@ -1978,9 +1978,12 @@ public sealed class AlertEvaluatorTests : IDisposable
             CancellationToken.None);
         await context.SaveChangesAsync();
 
+        // Decisão do usuário (2026-11-10): Warning notifica como alerta
+        // simples — HasIncident=false, sem incidente.
         var alert = await context.Alerts.SingleAsync(a => a.DeviceId == device.Id);
-        alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
-            "Warning não vira notificação (ADR-059 §6)");
+        var created = alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Single();
+        created.Severity.Should().Be(AlertSeverity.Warning);
+        created.HasIncident.Should().BeFalse();
     }
 
     /// <summary>

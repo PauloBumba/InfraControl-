@@ -941,7 +941,7 @@ public sealed class NotificationEventConsumerTests : IDisposable
             .Where(n => n.EventId == domainEvent2.EventId)
             .SingleAsync();
         notification.EventId.Should().Be(domainEvent2.EventId);
-        notification.Title.Should().Be("Alerta Critical criado");
+        notification.Title.Should().Be("Alerta crítico criado");
         notification.Message.Should().Contain("sw-01").And.Contain("CRÍTICO");
 
         var roles = await context.NotificationRecipients.AsNoTracking()

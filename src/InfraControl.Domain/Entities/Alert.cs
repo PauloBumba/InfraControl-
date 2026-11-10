@@ -62,14 +62,14 @@ public sealed class Alert : AggregateRoot
             Message = message.Trim()
         };
 
-        // F33-T004/ADR-059: Critical avisa (decisões 2/3). HasIncident
-        // nasce true porque Critical sempre garante incidente no MESMO
-        // fluxo (F6-T003 — EnsureIncidentAsync); Suppressed no nascer
+        // F33-T004/ADR-059 + decisão do usuário (2026-11-10): todo alerta
+        // avisa — Critical com HasIncident=true (incidente garantido no
+        // mesmo fluxo, F6-T003), Warning com HasIncident=false (vai ao
+        // fanout como "alerta", sem incidente). Suppressed no nascer
         // remove o evento em Suppress().
-        if (severity == AlertSeverity.Critical)
-            alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
-                alert.Id, severity, alert.DeviceId, alert.Message,
-                hasIncident: true));
+        alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
+            alert.Id, severity, alert.DeviceId, alert.Message,
+            hasIncident: severity == AlertSeverity.Critical));
 
         return alert;
     }
@@ -111,13 +111,14 @@ public sealed class Alert : AggregateRoot
             Message = message.Trim()
         };
 
-        // F33-T004/ADR-059: Critical externo (Zabbix) avisa — o incidente
-        // é garantido no mesmo fluxo (ADR-027 §3, "Incident SOMENTE se
-        // Critical"); Suppressed no nascer remove o evento em Suppress().
-        if (severity == AlertSeverity.Critical)
-            alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
-                alert.Id, severity, alert.DeviceId, alert.Message,
-                hasIncident: true));
+        // F33-T004/ADR-059 + decisão do usuário (2026-11-10): externo
+        // também avisa nos dois níveis — Critical garante incidente no
+        // mesmo fluxo (ADR-027 §3, "Incident SOMENTE se Critical") e
+        // Warning segue só como alerta; Suppressed no nascer remove o
+        // evento em Suppress().
+        alert.RaiseDomainEvent(new AlertCreatedDomainEvent(
+            alert.Id, severity, alert.DeviceId, alert.Message,
+            hasIncident: severity == AlertSeverity.Critical));
 
         return alert;
     }

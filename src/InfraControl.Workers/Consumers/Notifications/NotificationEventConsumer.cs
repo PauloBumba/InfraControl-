@@ -116,10 +116,12 @@ public sealed class NotificationEventConsumer(
             deviceId: context.Message.DeviceId);
 
     /// <summary>
-    /// F33-T004/ADR-059: alerta Critical criado → Operator + Admin.
-    /// Quando o alerta já gera um incidente no mesmo fluxo (HasIncident),
-    /// o WhatsApp não recebe esta mensagem para evitar duplicidade com
-    /// "Incidente aberto"; os demais canais seguem normalmente.
+    /// F33-T004/ADR-059 + decisão do usuário (2026-11-10): alerta criado
+    /// (Critical ou Warning) → Operator + Admin. Quando o alerta já gera
+    /// um incidente no mesmo fluxo (HasIncident), o WhatsApp não recebe
+    /// esta mensagem para evitar duplicidade com "Incidente aberto"; os
+    /// demais canais seguem normalmente. Warning (sem incidente) segue
+    /// pelo fanout — inclui WhatsApp quando ativo.
     /// </summary>
     public Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
     {
@@ -131,7 +133,9 @@ public sealed class NotificationEventConsumer(
         return HandleAsync(
             message.EventId,
             message.EventType,
-            "Alerta Critical criado",
+            message.Severity == AlertSeverity.Critical
+                ? "Alerta crítico criado"
+                : "Alerta criado",
             $"O alerta '{message.Message}' foi aberto ({MapSeverityPt(message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
