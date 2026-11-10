@@ -38,9 +38,12 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS api
 WORKDIR /app
 COPY --from=api-build /out/api ./
 # F33-T005: SkiaSharp (cartão de imagem do WhatsApp) precisa de fonte TTF
-# no runtime — a imagem aspnet vem sem /usr/share/fonts.
+# no runtime — a imagem aspnet vem sem /usr/share/fonts. libfontconfig1 é
+# dependência nativa da libSkiaSharp.so: sem ela o DllImport falha e todo
+# cartão caía no fallback de texto (descoberto na homologação Zabbix,
+# 2026-11-10 — deliveries logavam "falha no envio do gráfico").
 RUN apt-get update \
- && apt-get install -y --no-install-recommends fonts-dejavu-core \
+ && apt-get install -y --no-install-recommends fonts-dejavu-core libfontconfig1 \
  && rm -rf /var/lib/apt/lists/*
 # Storage de evidências do PDI (ADR-034): o processo roda como $APP_UID
 # (não-root) e o caminho é relativo a /app — mkdir/chown aqui para o named
@@ -69,7 +72,7 @@ WORKDIR /app
 # PG 17 no archive da Ubuntu e o buildkit não alcança registry.1.docker.io
 # (não dá pra copiar binários da imagem postgres:17, ver linha 1).
 RUN apt-get update && apt-get install -y iputils-ping curl ca-certificates gnupg \
-    fonts-dejavu-core \
+    fonts-dejavu-core libfontconfig1 \
  && install -d /usr/share/postgresql-common/pgdg \
  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
     | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \

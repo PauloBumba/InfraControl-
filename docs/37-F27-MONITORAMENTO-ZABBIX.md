@@ -845,6 +845,76 @@ Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as c�
 > tags `managed-by=InfraControl` + `type=telefone-ip`, upgrade SNMP se o probe
 > do container confirmar MIB-II.
 
+#### §7.0.2 — Cadastro no Zabbix (2026-11-10, F27-T014)
+
+> **Decisões do usuário (2026-11-10):** monitoramento por **ICMP ping por
+> telefone**; notificação **via WhatsApp** (pipeline existente); **corrigir o
+> typo óbvio e cadastrar tudo que tem IP** (pendências listadas abaixo).
+> **As triggers nasceram DESABILITADAS** — ativação manual (`-Enable`) para não
+> disparar alerta em massa no grupo de WhatsApp da empresa.
+
+**Artefatos versionados:**
+
+- `scripts/zabbix/telefones-hsds.json` — inventário normalizado (**59
+  aparelhos**: 28 no 1º andar, 12 no 2º, 11 no 3º, 8 no Pronto-Socorro);
+- `scripts/zabbix/provision-telefones.ps1` — provisionamento **idempotente**
+  (sobrescreve por env `ZBX_API_URL`/`ZBX_USER`/`ZBX_PASSWORD`); `-Enable` e
+  `-Disable` alternam o status das triggers.
+
+**Criado (Zabbix 8.0.0, API `localhost:8086`):**
+
+| O que | Detalhe |
+|---|---|
+| Grupo | `Telefonia HSDS` (**groupid 39**) |
+| Hosts | **59** `tel-<ip-normalizado>`, nome `TEL <ramal> - <setor> (<local>)` — ex.: `TEL 1518 - NIR (1º andar)` |
+| Itens | **177** (`icmpping`, `icmppingloss`, `icmppingsec` — *simple check*, 1m, 7d/30d) |
+| Triggers | **59** `… fora do ar` (**40447–40505**), expr. `max(/tel-…/icmpping,#3)=0`, severidade **High (4)**, **status=1 (desabilitada)** |
+| Tags | `type=telefone-ip`, `managed-by=InfraControl`, `ramal`, `local`, `mac`, `setor` |
+| Macros | `{$SETOR}`, `{$RAMAL}`, `{$MAC}`, `{$LOCAL}` |
+
+**Por que NÃO linkamos o template `ICMP Ping` (10564):** ele já traz 3 triggers
+**habilitadas** (ex.: `ICMP Ping: Indisponivel por ICMP ping`, severidade 4) e
+trigger herdada **não pode ser desabilitada por host**; alterar o template
+afetaria os **59 hosts** que já o usam (câmeras/APs/switches). Os itens foram
+então espelhados no script e a trigger por aparelho nasce desabilitada e com
+nome específico (ramal + setor + local).
+
+**Notificação (Ação + WhatsApp):** **nenhuma action nova** — a action **7**
+(`InfraControl - triggers`) é global (`filter.conditions: []`) e já envia
+PROBLEM/OK às media types **105/106** → `POST /api/v1/integrations/zabbix/problems`
+→ `NotificationWhatsAppWorker` → grupo de WhatsApp (docs/27 §4). Uma action
+própria de telefonia **duplicaria** a mensagem. A severidade **High** é exigida
+pelo filtro do `NotificationEventConsumer` (só High/Critical vai ao WhatsApp).
+
+**Correções aplicadas à planilha:** Consultorio 2 `193.168.21.133` →
+`192.168.21.133`; Tomografia MAC `00268B9D663D4]` → `00268B9D663D`.
+
+**Validação (2026-11-10):**
+
+- itens **177/177 `supported`**; `icmpping` com valor em **59/59**
+  (59 vivos / 0 em falha no momento da checagem);
+- triggers **59/59 desabilitadas** (0 habilitadas, 0 em problema);
+- reexecução do script = **0 hosts / 0 itens / 0 triggers novos e 0
+  atualizações** (idempotente — a comparação da expressão usa
+  `expandExpression=true`, senão a API devolve o formato legado `{itemid}=0`
+  e o update reexecutaria à toa);
+- `scripts/zabbix/smoke-test.ps1` **6/6** (ação 7 e media types 105/106
+  habilitados, `queue=0`, pinger ICMP max busy 45,5%).
+
+**Pendências:**
+
+- [ ] Ativar as triggers quando o responsável decidir lote/horário:
+  `.\scripts\zabbix\provision-telefones.ps1 -Enable` (reversível com `-Disable`);
+- [ ] `Marketing` (1º andar) e `Lavanderia` (2º andar): planilha com "X" — sem
+  IP/MAC, não cadastrados;
+- [ ] Ramal ausente em 8 aparelhos (identificação pelo texto: `FARMA COMERCIAL`,
+  `Sup Compras`, `SUPERVISAO CC`, `Agenda CC`, `Obstetríca`, `Sanificação`,
+  `Manutenção`, `Supervisão Enfermagem Setor 1`);
+- [ ] SNMP/credencial web não testados (§7.0.1) → serial, firmware e registro SIP
+  continuam fora do escopo; central/PABX não identificada;
+- [ ] Export versionado em `zabbix-config/` após a ativação (backup diário 02:00
+  já cobre o restante).
+
 ### 7.1. Telefonia
 
 - [ ] Identificar telefones IP, centrais telefônicas e gateways existentes.

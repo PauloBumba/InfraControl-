@@ -3607,7 +3607,7 @@
                       "inventory_mode":  "AUTOMATIC",
                       "inventory":  {
                                         "name":  "a3cc2fa1e1aa",
-                                        "os":  "Linux version 6.18.54.1-microsoft-standard-WSL2 (root@9b80f41eb17c) (gcc (GCC) 13.2.0, GNU ld (GNU Binutils) 2.41) #1 SMP PREEMP",
+                                        "os":  "Linux version 6.18.58.1-microsoft-standard-WSL2 (root@6869314ecc53) (gcc (GCC) 13.2.0, GNU ld (GNU Binutils) 2.41) #1 SMP PREEMP",
                                         "location_lat":  "56.97612",
                                         "location_lon":  "24.16553"
                                     }

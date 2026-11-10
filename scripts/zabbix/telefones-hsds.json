@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "fonte": "Planilha de telefones IP do usuário (recebida em 2026-11-10)",
+    "documento": "docs/37-F27-MONITORAMENTO-ZABBIX.md §7.0.1/§7.0.2 (F27-T014)",
+    "grupo": "Telefonia HSDS",
+    "correcoes_aplicadas": [
+      "Consultorio 2: 193.168.21.133 -> 192.168.21.133 (typo de classe)",
+      "Tomografia Sala de Comando: MAC '00268B9D663D4]' -> '00268B9D663D' (lixo de coluna)"
+    ],
+    "pendencias": [
+      "Marketing (1º andar): planilha traz 'X' em ramal/IP/MAC — não cadastrado",
+      "Lavanderia (2º andar): planilha traz 'X' em ramal/IP/MAC — não cadastrado",
+      "Sem ramal informado: Supervisao Enfermagem Setor 1, Manutencao, Sanificacao, Supervisao Farmacia Comercial (FARMA COMERCIAL), Obstetrica (Obstetrica), Coordenacao Centro Cirurgico (SUPERVISAO CC), Conforto Medico (Agenda CC), Compras (Sup Compras)",
+      "SNMP dos telefones nao confirmado (UDP 161 bloqueado da workstation — docs/37 §7.0.1); serial/firmware/registro SIP pendentes de credencial web"
+    ]
+  },
+  "telefones": [
+    { "setor": "Farmacia Comercial", "ramal": "1570", "ip": "192.168.10.217", "mac": "00268B9D8AC1", "local": "1º andar" },
+    { "setor": "Supervisão Farmácia Comercial", "ramal": "FARMA COMERCIAL", "ip": "192.168.21.26", "mac": "00268B9D61B5", "local": "1º andar" },
+    { "setor": "NIR", "ramal": "1518", "ip": "192.168.21.140", "mac": "00268B9D654D", "local": "1º andar" },
+    { "setor": "Recursos Humanos", "ramal": "1562", "ip": "192.168.21.161", "mac": "00268B9D6134", "local": "1º andar" },
+    { "setor": "Segurança do Trabalho", "ramal": "1533", "ip": "192.168.21.136", "mac": "00268B9D61B0", "local": "1º andar" },
+    { "setor": "Departamento Pessoal", "ramal": "1535", "ip": "192.168.21.30", "mac": "00268B9D61B3", "local": "1º andar" },
+    { "setor": "Financeiro", "ramal": "1526", "ip": "192.168.21.117", "mac": "00268B9D6545", "local": "1º andar" },
+    { "setor": "Financeiro", "ramal": "1527", "ip": "192.168.21.115", "mac": "00268B9D685D", "local": "1º andar" },
+    { "setor": "Pastoral", "ramal": "1572", "ip": "192.168.21.61", "mac": "00268B9D6182", "local": "1º andar" },
+    { "setor": "Faturamento", "ramal": "1576", "ip": "192.168.21.25", "mac": "00268B9D617C", "local": "1º andar" },
+    { "setor": "Qualidade/Marketing", "ramal": "1534", "ip": "192.168.21.168", "mac": "00268B9D61B1", "local": "1º andar" },
+    { "setor": "Comercial", "ramal": "1525", "ip": "192.168.21.20", "mac": "00268B9D6546", "local": "1º andar" },
+    { "setor": "Secretaría Jurídica Administrativa", "ramal": "1566", "ip": "192.168.21.164", "mac": "00268B9D617F", "local": "1º andar" },
+    { "setor": "Gestão de Unidade de Saúde", "ramal": "1530", "ip": "192.168.21.58", "mac": "00268B9D61AE", "local": "1º andar" },
+    { "setor": "Sala de Reunião", "ramal": "1548", "ip": "192.168.21.54", "mac": "00268B9D6863", "local": "1º andar" },
+    { "setor": "Psicologia Clínica", "ramal": "1536", "ip": "192.168.21.118", "mac": "00268B9D61B2", "local": "1º andar" },
+    { "setor": "Contabilidade", "ramal": "1557", "ip": "192.168.21.162", "mac": "00268B9D6138", "local": "1º andar" },
+    { "setor": "Compras", "ramal": "Sup Compras", "ip": "192.168.10.151", "mac": "00268B9D5B10", "local": "1º andar" },
+    { "setor": "Compras", "ramal": "1538", "ip": "192.168.21.127", "mac": "00268B9D61AC", "local": "1º andar" },
+    { "setor": "TI", "ramal": "1565", "ip": "192.168.21.183", "mac": "00268B9D617A", "local": "1º andar" },
+    { "setor": "Recepção", "ramal": "1522", "ip": "192.168.21.179", "mac": "00268B9D6547", "local": "1º andar" },
+    { "setor": "Recepção", "ramal": "1580", "ip": "192.168.21.15", "mac": "00268B9D663B", "local": "1º andar" },
+    { "setor": "Recepção", "ramal": "1500", "ip": "192.168.21.21", "mac": "00268B9D2CC2", "local": "1º andar" },
+    { "setor": "Cozinha", "ramal": "1553", "ip": "192.168.21.143", "mac": "00268B9D613B", "local": "1º andar" },
+    { "setor": "UTI 1", "ramal": "1563", "ip": "192.168.21.165", "mac": "00268B9D617D", "local": "1º andar" },
+    { "setor": "Sala de Revelação", "ramal": "1561", "ip": "192.168.21.128", "mac": "00268B9D62B4", "local": "1º andar" },
+    { "setor": "Sala de Digitação", "ramal": "1560", "ip": "192.168.21.139", "mac": "00268B9D6135", "local": "1º andar" },
+    { "setor": "Tomografia Sala de Comando", "ramal": "1573", "ip": "192.168.21.172", "mac": "00268B9D663D", "local": "1º andar" },
+
+    { "setor": "Supervisão Enfermagem Setor 1", "ramal": "", "ip": "192.168.11.183", "mac": "", "local": "2º andar" },
+    { "setor": "Posto de Enfermagem Setor 1", "ramal": "1507", "ip": "192.168.21.156", "mac": "00268B9D62B2", "local": "2º andar" },
+    { "setor": "Sala dos Medicos Setor 1", "ramal": "1508", "ip": "192.168.21.155", "mac": "00268B9D62B3", "local": "2º andar" },
+    { "setor": "Copa", "ramal": "1552", "ip": "192.168.21.154", "mac": "00268B9D613C", "local": "2º andar" },
+    { "setor": "Nutrição", "ramal": "1559", "ip": "192.168.21.153", "mac": "00268B9D6136", "local": "2º andar" },
+    { "setor": "Posto de Enfermagem Setor 2", "ramal": "1596", "ip": "192.168.21.157", "mac": "00268B9D6634", "local": "2º andar" },
+    { "setor": "Posto Enfermagem Setor 4", "ramal": "1512", "ip": "192.168.21.188", "mac": "00268B9D6549", "local": "2º andar" },
+    { "setor": "Laboratório", "ramal": "1528", "ip": "192.168.21.167", "mac": "00268B9D61B4", "local": "2º andar" },
+    { "setor": "Farmácia Central", "ramal": "1554", "ip": "192.168.21.152", "mac": "00268B9D613A", "local": "2º andar" },
+    { "setor": "Estoque", "ramal": "1539", "ip": "192.168.21.175", "mac": "00268B9D6862", "local": "2º andar" },
+    { "setor": "Manutenção", "ramal": "", "ip": "192.168.21.150", "mac": "", "local": "2º andar" },
+    { "setor": "Sanificação", "ramal": "Sanificação", "ip": "192.168.21.135", "mac": "00268B9D6548", "local": "2º andar" },
+
+    { "setor": "Posto de Enfermagem Setor 3", "ramal": "1514", "ip": "192.168.21.142", "mac": "00268B9D654B", "local": "3º andar" },
+    { "setor": "Comissões", "ramal": "1513", "ip": "192.168.21.200", "mac": "00268B9D654A", "local": "3º andar" },
+    { "setor": "Obstetrícia", "ramal": "Obstetríca", "ip": "192.168.10.199", "mac": "00268B9D2CBF", "local": "3º andar" },
+    { "setor": "Endoscopia", "ramal": "1588", "ip": "192.168.21.134", "mac": "00268B9D6635", "local": "3º andar" },
+    { "setor": "UTI 2", "ramal": "1555", "ip": "192.168.21.141", "mac": "00268B9D6139", "local": "3º andar" },
+    { "setor": "OPME", "ramal": "1556", "ip": "192.168.21.126", "mac": "00268B9D613D", "local": "3º andar" },
+    { "setor": "Quartos Plantonistas UTI 2", "ramal": "1549", "ip": "192.168.21.105", "mac": "00268B9D685F", "local": "3º andar" },
+    { "setor": "Agência Transfusional", "ramal": "1503", "ip": "192.168.21.129", "mac": "00268B9D62B9", "local": "3º andar" },
+    { "setor": "Recuperação Anestésica", "ramal": "1551", "ip": "192.168.21.137", "mac": "00268B9D6861", "local": "3º andar" },
+    { "setor": "Coordenação Centro Cirúrgico", "ramal": "SUPERVISAO CC", "ip": "192.168.21.199", "mac": "00268B9D2CC0", "local": "3º andar" },
+    { "setor": "Conforto Médico", "ramal": "Agenda CC", "ip": "192.168.10.184", "mac": "00268B9D6639", "local": "3º andar" },
+
+    { "setor": "Posto de Enfermagem PS", "ramal": "1584", "ip": "192.168.21.147", "mac": "00268B9D663A", "local": "Pronto-Socorro" },
+    { "setor": "Supervisão Enfermagem PS", "ramal": "1564", "ip": "192.168.21.121", "mac": "00268B9D617E", "local": "Pronto-Socorro" },
+    { "setor": "Recepção PS", "ramal": "1550", "ip": "192.168.21.182", "mac": "00268B9D685A", "local": "Pronto-Socorro" },
+    { "setor": "Recepção PS", "ramal": "1506", "ip": "192.168.21.181", "mac": "00268B9D62B1", "local": "Pronto-Socorro" },
+    { "setor": "Consultorio 1", "ramal": "1586", "ip": "192.168.21.144", "mac": "00268B9D6637", "local": "Pronto-Socorro" },
+    { "setor": "Consultorio 2", "ramal": "1574", "ip": "192.168.21.133", "mac": "00268B9D6183", "local": "Pronto-Socorro" },
+    { "setor": "Consultorio 3", "ramal": "1542", "ip": "192.168.21.14", "mac": "00268B9D685E", "local": "Pronto-Socorro" },
+    { "setor": "Farmácia Satélite", "ramal": "1502", "ip": "192.168.21.149", "mac": "00268B9D62B8", "local": "Pronto-Socorro" }
+  ],
+  "nao_cadastrados": [
+    { "setor": "Marketing", "local": "1º andar", "motivo": "planilha com X em ramal/IP/MAC" },
+    { "setor": "Lavanderia", "local": "2º andar", "motivo": "planilha com X em ramal/IP/MAC" }
+  ]
+}
