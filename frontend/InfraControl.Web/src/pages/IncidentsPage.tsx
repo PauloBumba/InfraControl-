@@ -9,10 +9,12 @@ import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
+import { TextArea } from "@/components/ui/TextArea";
 import { Button } from "@/components/ui/Button";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+
 import {
   useCreateMutation,
   usePagedQuery,
@@ -102,6 +104,8 @@ export function IncidentsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editSeverity, setEditSeverity] = useState("Medium");
   const [editDescription, setEditDescription] = useState("");
+  // F50-T003 — causa raiz: null preserva no backend, "" limpa, texto grava.
+  const [editRootCause, setEditRootCause] = useState("");
 
   // AI Investigation (ADR-053 · Fase C) — painel de análise LEVEL 0
   // aberto por incidente; resultado não é persistido no incidente.
@@ -109,9 +113,10 @@ export function IncidentsPage() {
   const [investigation, setInvestigation] = useState<InvestigationResult | null>(null);
   const [investigationError, setInvestigationError] = useState<string | null>(null);
 
-  const incidents = usePagedQuery<IncidentItem>(["incidents", page, statusFilter], () =>
+  const effectiveStatusFilter = statusFilter === "Resolved" ? "" : statusFilter;
+  const incidents = usePagedQuery<IncidentItem>(["incidents", page, effectiveStatusFilter], () =>
     listIncidents({
-      status: statusFilter || undefined,
+      status: effectiveStatusFilter || undefined,
       page,
       pageSize: PAGE_SIZE,
     }),
@@ -153,11 +158,18 @@ export function IncidentsPage() {
   });
   const updateMutation = useUpdateMutation({
     invalidate: ["incidents"],
-    mutationFn: (input: { id: string; title: string; description?: string | null; severity: string }) =>
+    mutationFn: (input: {
+      id: string;
+      title: string;
+      description?: string | null;
+      severity: string;
+      rootCause?: string | null;
+    }) =>
       updateIncident(input.id, {
         title: input.title,
         description: input.description,
         severity: input.severity,
+        rootCause: input.rootCause,
       }),
     onSuccess: () => {
       setActionError(null);
@@ -216,6 +228,7 @@ export function IncidentsPage() {
     setEditTitle(incident.title);
     setEditSeverity(incident.severity);
     setEditDescription(incident.description ?? "");
+    setEditRootCause(incident.rootCause ?? "");
     resetFormError();
   }
 
@@ -234,6 +247,7 @@ export function IncidentsPage() {
         title: trimmed,
         description: editDescription.trim() || null,
         severity: editSeverity,
+        rootCause: editRootCause,
       });
     } catch (caught) {
       failForm(errorMessage(caught));
@@ -355,12 +369,11 @@ export function IncidentsPage() {
             </FormField>
           </div>
           <FormField label="Descrição (opcional)">
-            <textarea
+            <TextArea
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={setDescription}
               placeholder="Descrição (opcional)"
               rows={3}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
             />
           </FormField>
           {/* Erro de campo já aparece embaixo do campo; aqui só o do formulário
@@ -413,12 +426,20 @@ export function IncidentsPage() {
             </FormField>
           </div>
           <FormField label="Descrição (opcional)">
-            <textarea
+            <TextArea
               value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
+              onChange={setEditDescription}
               placeholder="Descrição (opcional)"
               rows={3}
-              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </FormField>
+          <FormField label="Causa raiz (opcional — máx. 500)">
+            <TextArea
+              value={editRootCause}
+              onChange={setEditRootCause}
+              placeholder="O que causou o incidente (deixe vazio para limpar)…"
+              rows={3}
+              maxLength={500}
             />
           </FormField>
           <div style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -645,6 +666,9 @@ function IncidentSummary({ incident }: { incident: IncidentItem }) {
         <div style={{ fontWeight: 500, fontSize: 13 }}>{incident.title}</div>
         {incident.description && (
           <div style={{ fontSize: 11, color: "#94a3b8" }}>{incident.description}</div>
+        )}
+        {incident.rootCause && (
+          <div style={{ fontSize: 11, color: "#b45309" }}>Causa: {incident.rootCause}</div>
         )}
         {meta.length > 0 && (
           <div style={{ fontSize: 11, color: "#94a3b8" }}>{meta.join(" · ")}</div>

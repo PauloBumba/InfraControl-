@@ -19,6 +19,23 @@ public sealed class NotificationChannelsOptions
     /// <summary>Canais do fanout, na ordem. Valores = nomes do enum <c>NotificationChannel</c>.</summary>
     public List<string> Default { get; set; } = ["Email", "SignalR"];
 
+    /// <summary>
+    /// D5 (docs/66): <c>ConfigurationBinder</c> ACRESCENTA em <see cref="List{T}"/>
+    /// já populada — o inicializador + env <c>Default__0..2</c> viravam
+    /// [Email, SignalR, Email, SignalR, WhatsApp]. Deduplica preservando a
+    /// ordem e descarta vazios (<c>NOTIFY_DEFAULT_2=</c> em branco). Chamar
+    /// via <c>PostConfigure</c> nos hosts (Api e Workers) após o Bind.
+    /// </summary>
+    public void NormalizeDefaultChannels()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Default = Default
+            .Where(channel => !string.IsNullOrWhiteSpace(channel))
+            .Select(channel => channel.Trim())
+            .Where(seen.Add)
+            .ToList();
+    }
+
     public TelegramChannelOptions Telegram { get; set; } = new();
 
     public WhatsAppChannelOptions WhatsApp { get; set; } = new();

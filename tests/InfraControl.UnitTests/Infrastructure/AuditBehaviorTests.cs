@@ -4,7 +4,9 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace InfraControl.UnitTests.Infrastructure;
 
@@ -74,6 +76,35 @@ public sealed class AuditBehaviorTests
         entry.Error.Should().Be(nameof(InvalidOperationException));
     }
 
+    [Fact]
+    public async Task Handle_WhenAuditSaveFails_ShouldPreserveOriginalDomainException()
+    {
+        // D4/docs/66: SaveChanges do caminho de erro pode falhar com 23505
+        // (rename pendente no tracker). O DbUpdateException da auditoria não
+        // pode mascarar a InvalidOperationException de domínio.
+        var writer = new FakeAuditWriter();
+        var unitOfWork = new ThrowingUnitOfWork(new DbUpdateException(
+            "Failed",
+            new Exception("23505: duplicate key value violates unique constraint")));
+        var behavior = new AuditBehavior<TestRemoteRequest, string>(
+            writer,
+            unitOfWork,
+            new FakeCurrentUser(),
+            NullLogger<AuditBehavior<TestRemoteRequest, string>>.Instance);
+
+        var action = () => behavior.Handle(
+            new TestRemoteRequest(),
+            () => Task.FromException<string>(
+                new InvalidOperationException("Já existe um local com este nome.")),
+            CancellationToken.None);
+
+        var ex = await action.Should().ThrowAsync<InvalidOperationException>();
+        ex.Which.Message.Should().Be(
+            "Já existe um local com este nome.",
+            "o erro de auditoria/subsequente não pode sobrescrever a exceção original");
+        writer.Entries.Should().ContainSingle().Subject.Outcome.Should().Be("Failed");
+    }
+
     private static AuditBehavior<TRequest, string> CreateBehavior<TRequest>(
         IAuditWriter writer)
         where TRequest : notnull
@@ -105,6 +136,14 @@ public sealed class AuditBehaviorTests
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
+
+        public void Dispose() { }
+    }
+
+    private sealed class ThrowingUnitOfWork(Exception exception) : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+            => Task.FromException<int>(exception);
 
         public void Dispose() { }
     }

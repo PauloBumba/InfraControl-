@@ -58,6 +58,11 @@ public sealed class AlertConfiguration : IEntityTypeConfiguration<Alert>
         builder.Property(x => x.ResolvedAt)
             .HasColumnName("resolved_at");
 
+        // F50-T003: anotação do operador (único campo humano do alerta).
+        builder.Property(x => x.OperatorNote)
+            .HasColumnName("operator_note")
+            .HasMaxLength(Alert.OperatorNoteMaxLength);
+
         builder.HasOne<Device>()
             .WithMany()
             .HasForeignKey(x => x.DeviceId)

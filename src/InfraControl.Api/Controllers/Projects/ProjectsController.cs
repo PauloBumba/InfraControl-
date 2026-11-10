@@ -232,6 +232,7 @@ public sealed class ProjectsController(
             new GenerateProjectKnowledgeCommand(id),
             cancellationToken)));
 
+    /// <summary>Aprovação direta (fluxo legado) — preferir o fluxo de conclusão.</summary>
     [HttpPost("{id:guid}/approve")]
     [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> Approve(
@@ -243,6 +244,69 @@ public sealed class ProjectsController(
 
         return Ok(ApiResponse.Ok(await sender.Send(
             new ApproveProjectCommand(id, model.ApprovalNotes),
+            cancellationToken)));
+    }
+
+    // ---- Conclusão e aprovação formal (spec evolução 2026-11-07 §6) ----
+
+    [HttpGet("{id:guid}/conclusions")]
+    [Authorize]
+    public async Task<IActionResult> GetConclusions(
+        Guid id,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetProjectConclusionsQuery(id),
+            cancellationToken)));
+
+    [HttpPost("{id:guid}/conclusion")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SubmitConclusion(
+        Guid id,
+        [FromBody] SubmitProjectConclusionViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model ??= new SubmitProjectConclusionViewModel();
+
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new SubmitProjectConclusionCommand(
+                id,
+                model.Description,
+                model.ActivitiesPerformed,
+                model.ResultsAchieved,
+                model.ProblemsEncountered,
+                model.SolutionsImplemented,
+                model.EvidenceSummary,
+                model.CompletedAt),
+            cancellationToken)));
+    }
+
+    [HttpPost("{id:guid}/conclusion/approve")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> ApproveConclusion(
+        Guid id,
+        [FromBody] ApproveProjectViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model ??= new ApproveProjectViewModel();
+
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new ApproveProjectConclusionCommand(id, model.ApprovalNotes),
+            cancellationToken)));
+    }
+
+    /// <summary>Reprova ("reject") ou solicita ajustes ("requestchanges").</summary>
+    [HttpPost("{id:guid}/conclusion/return")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> ReturnConclusion(
+        Guid id,
+        [FromBody] ReturnProjectConclusionViewModel model,
+        CancellationToken cancellationToken)
+    {
+        model ??= new ReturnProjectConclusionViewModel();
+
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new ReturnProjectConclusionCommand(
+                id, model.Decision, model.Justification),
             cancellationToken)));
     }
 

@@ -226,6 +226,42 @@ export function createDevice(input: {
   });
 }
 
+/** Status de uma linha do relatório de importação (F50-T008). */
+export type ImportRowStatus = "created" | "skipped" | "error";
+
+export interface ImportDeviceRow {
+  /** Número da linha no arquivo (1-based, cabeçalho inclusive). */
+  line: number;
+  name: string;
+  status: ImportRowStatus;
+  message: string;
+}
+
+export interface ImportDevicesResult {
+  rows: ImportDeviceRow[];
+  created: number;
+  skipped: number;
+  failed: number;
+}
+
+/**
+ * F50-T008 — importação em massa por CSV (Operate + antiforgery). Colunas
+ * padronizadas `nome;ip;tipo;vendor;modelo;mac;serial;descricao` (ordem
+ * livre, `nome`/`tipo` obrigatórias; separador `;` ou `,`). Sucesso parcial
+ * linha a linha: existente é pulado, inválido vira erro sem abortar o resto.
+ */
+export async function importDevices(input: {
+  locationId: string;
+  csv: string;
+}): Promise<ImportDevicesResult> {
+  const data = await api.post<ImportDevicesResult>("/inventory/devices/import", {
+    locationId: input.locationId,
+    csv: input.csv,
+  });
+  if (!data) throw new Error("Resposta vazia na importação.");
+  return data;
+}
+
 /**
  * Atualiza device (PUT /inventory/devices/{id}). `locationId` não muda
  * (o UpdateDeviceViewModel não o expõe — troca de local é outro fluxo).

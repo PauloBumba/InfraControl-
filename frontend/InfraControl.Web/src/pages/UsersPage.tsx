@@ -8,6 +8,7 @@ import { FormField, FormError } from "@/components/ui/FormField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
+import { SwitchField } from "@/components/ui/SwitchField";
 import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
@@ -399,13 +400,33 @@ export function UsersPage() {
             <Column
               header="Status"
               body={(user: AdminUser) => (
-                <StatusChip
-                  label={user.isActive ? "Ativo" : "Inativo"}
-                  background={user.isActive ? "#dcfce7" : "#f1f5f9"}
-                  color={user.isActive ? "#16a34a" : "#64748b"}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Can level="administer">
+                    {/* F50-T001 — habilitar/desabilitar direto na listagem.
+                        O clique só ABRIR o ConfirmDialog (desativar revoga
+                        sessões ativas); o estado exibido é o do servidor. */}
+                    <SwitchField
+                      checked={user.isActive}
+                      disabled={busyUserId === user.userId}
+                      aria-label={`${user.displayName}: ${user.isActive ? "ativo" : "inativo"}`}
+                      title={
+                        busyUserId === user.userId
+                          ? "Salvando…"
+                          : user.isActive
+                            ? "Clique para desativar"
+                            : "Clique para ativar"
+                      }
+                      onChange={() => openStatusConfirm(user)}
+                    />
+                  </Can>
+                  <StatusChip
+                    label={user.isActive ? "Ativo" : "Inativo"}
+                    background={user.isActive ? "#dcfce7" : "#f1f5f9"}
+                    color={user.isActive ? "#16a34a" : "#64748b"}
+                  />
+                </div>
               )}
-              style={{ width: 90 }}
+              style={{ width: 150 }}
             />
             <Column
               header="Atualizado em"
@@ -416,14 +437,12 @@ export function UsersPage() {
               header="Ações"
               body={(user: AdminUser) => (
                 <UserActionsCell
-                  user={user}
                   busy={busyUserId === user.userId}
                   onEdit={() => openEditDialog(user)}
                   onDelete={() => openDeleteDialog(user)}
-                  onStatusConfirm={() => openStatusConfirm(user)}
                 />
               )}
-              style={{ width: 110 }}
+              style={{ width: 80 }}
             />
           </DataTable>
         </div>
@@ -549,17 +568,13 @@ function UserRolesCell({
 }
 
 function UserActionsCell({
-  user,
   busy,
   onEdit,
   onDelete,
-  onStatusConfirm,
 }: {
-  user: AdminUser;
   busy: boolean;
   onEdit: () => void;
   onDelete: () => void;
-  onStatusConfirm: () => void;
 }) {
   return (
     <Can level="administer">
@@ -576,19 +591,6 @@ function UserActionsCell({
           }}
         >
           <i className="pi pi-pencil" />
-        </button>
-        <button
-          type="button"
-          title={user.isActive ? "Desativar" : "Ativar"}
-          disabled={busy}
-          onClick={onStatusConfirm}
-          style={{
-            width: 28, height: 28, borderRadius: 6, border: "1px solid #e2e8f0",
-            background: "white", color: user.isActive ? "#dc2626" : "#16a34a",
-            cursor: busy ? "default" : "pointer", fontSize: 12, opacity: busy ? 0.5 : 1,
-          }}
-        >
-          <i className="pi pi-power-off" />
         </button>
         <button
           type="button"

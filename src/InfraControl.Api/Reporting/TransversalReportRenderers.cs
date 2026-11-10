@@ -17,7 +17,8 @@ public static class TransversalReportRenderers
     static TransversalReportRenderers()
         => QuestPDF.Settings.License = LicenseType.Community;
 
-    public static byte[] RenderTransversalPdf(TransversalReportDto report)
+    public static byte[] RenderTransversalPdf(
+        TransversalReportDto report, string? companyName = null)
         => Document.Create(document =>
         {
             document.Page(page =>
@@ -27,6 +28,9 @@ public static class TransversalReportRenderers
                 page.DefaultTextStyle(text => text.FontSize(10));
                 page.Header().Column(column =>
                 {
+                    column.Item().Text(text =>
+                        text.Span(companyName ?? "InfraControl")
+                            .FontSize(9).Bold());
                     column.Item().Text(text =>
                         text.Span("Relatório Transversal").FontSize(16).Bold());
                     column.Item().Text(text => text.Span(Period(report.From, report.To))
@@ -65,7 +69,7 @@ public static class TransversalReportRenderers
                 });
                 page.Footer().AlignCenter().Text(text =>
                 {
-                    text.Span("InfraControl · Relatórios · página ");
+                    text.Span($"{companyName ?? "InfraControl"} · Relatórios · página ");
                     text.CurrentPageNumber();
                     text.Span(" de ");
                     text.TotalPages();
@@ -73,18 +77,20 @@ public static class TransversalReportRenderers
             });
         }).GeneratePdf();
 
-    public static byte[] RenderTransversalXlsx(TransversalReportDto report)
+    public static byte[] RenderTransversalXlsx(
+        TransversalReportDto report, string? companyName = null)
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Transversal");
 
-        sheet.Cell(1, 1).Value = "Relatório Transversal";
-        sheet.Cell(2, 1).Value = Period(report.From, report.To);
-        sheet.Cell(4, 1).Value = "Módulo";
-        sheet.Cell(4, 2).Value = "Métrica";
-        sheet.Cell(4, 3).Value = "Valor";
+        sheet.Cell(1, 1).Value = companyName ?? "InfraControl";
+        sheet.Cell(2, 1).Value = "Relatório Transversal";
+        sheet.Cell(3, 1).Value = Period(report.From, report.To);
+        sheet.Cell(5, 1).Value = "Módulo";
+        sheet.Cell(5, 2).Value = "Métrica";
+        sheet.Cell(5, 3).Value = "Valor";
         foreach (var column in new[] { 1, 2, 3 })
-            sheet.Cell(4, column).Style.Font.Bold = true;
+            sheet.Cell(5, column).Style.Font.Bold = true;
 
         var rows = new List<(string Modulo, string Metrica, string Valor)>
         {
@@ -106,7 +112,7 @@ public static class TransversalReportRenderers
                 report.Incidents.AverageResolutionHours?.ToString("F1") ?? "—"),
         };
 
-        var row = 5;
+        var row = 6;
         foreach (var (modulo, metrica, valor) in rows)
         {
             sheet.Cell(row, 1).Value = modulo;

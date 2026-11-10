@@ -15,6 +15,10 @@ vi.mock("../services/api/zabbix", () => ({
   getZabbixSummary: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/components/ui/MetricChart", () => ({
+  MetricChart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} />,
+}));
+
 vi.mock("../hooks", () => ({
   useAudio: () => ({
     isInitialized: false,

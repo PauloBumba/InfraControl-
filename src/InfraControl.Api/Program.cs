@@ -38,11 +38,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ── Serilog ──────────────────────────────────────────────────────────────
+// D6 (docs/66): SEM .WriteTo.Console() explícito — ReadFrom.Configuration
+// já monta o sink Console do appsettings Serilog; o extra logava 2× a linha.
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "InfraControl.Api")
-    .WriteTo.Console()
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -97,12 +98,17 @@ builder.Services.AddHostedService<NotificationWebhookWorker>();
 builder.Services.AddHostedService<NotificationSlackWorker>();
 // F46-T006: aviso SignalR quando o status agregado de saúde muda.
 builder.Services.AddHostedService<InfraControl.Api.Workers.HealthStatusNotifier>();
+// Tráfego interno: drena o RequestMetricsRecorder para o Postgres a cada 30s.
+builder.Services.AddHostedService<InfraControl.Infrastructure.Services.RequestMetricsFlushService>();
 // F9-T006: o admin escolhe os canais do fanout e os destinos por canal
 // (Notifications:Channels) — a MESMA seção lida pelo NotificationEventConsumer
 // no host dos Workers; defaults vazios = comportamento Email+SignalR.
+// D5 (docs/66): PostConfigure normaliza — o binder append no inicializador
+// e duplicava [Email,SignalR] com o env Default__0..2.
 builder.Services
     .AddOptions<NotificationChannelsOptions>()
-    .Bind(builder.Configuration.GetSection(NotificationChannelsOptions.SectionName));
+    .Bind(builder.Configuration.GetSection(NotificationChannelsOptions.SectionName))
+    .PostConfigure(options => options.NormalizeDefaultChannels());
 
 // F16-T001/ADR-023: token do webhook de entrada do Zabbix (Integrations:
 // Zabbix) — vazio = integração desligada (404 no endpoint), não valida no
@@ -166,6 +172,9 @@ builder.Services.AddAuthentication(options =>
 // hierarquia é aplicada na camada MediatR por IAuthorizedRequest.RequiredRoles.
 builder.Services.AddAuthorization(options =>
     options.AddRolePolicies());
+
+// ADR-066: handler das policies dinâmicas role×módulo (Operate/Administer).
+builder.Services.AddScoped<IAuthorizationHandler, DynamicAccessHandler>();
 
 // F1-T015/ADR-017: double-submit de CSRF. A configuração fica em
 // AntiforgeryCookieSetup para que os testes validem exatamente a mesma
@@ -375,6 +384,9 @@ app.UseAuthentication();
 // antes de qualquer tratamento de erro. Se a requisição que estourou não tem
 // correlation id na linha, o log de rastro não serve para nada.
 app.UseMiddleware<RequestLoggingMiddleware>();
+// Métricas de tráfego interno (volume/erros/latência por rota) — alimenta
+// o RequestMetricsRecorder; persistência assíncrona via flush service.
+app.UseMiddleware<RequestMetricsMiddleware>();
 
 app.UseMiddleware<AntiforgeryCookieMiddleware>();
 
@@ -384,6 +396,8 @@ app.UseMiddleware<AntiforgeryCookieMiddleware>();
 // qualquer decisão de endpoint.
 app.UseMiddleware<ActiveSessionMiddleware>();
 app.UseAuthorization();
+// ADR-066: nível Read da matriz role×módulo para [Authorize] simples.
+app.UseMiddleware<AccessPolicyMiddleware>();
 app.UseRateLimiter();
 
 // Health Checks
@@ -405,7 +419,13 @@ app.MapHealthChecks("/health", new HealthCheckOptions
                 // no Data) — a HealthPage renderiza a âncora.
                 link = e.Value.Data.TryGetValue("link", out var link)
                     ? link?.ToString()
-                    : null
+                    : null,
+                // O detalhe por componente (ex.: ai-runtime §44) ia no
+                // payload por desenho mas o writer o descartava — expõe
+                // como dicionário plano para diagnóstico.
+                data = e.Value.Data
+                    .Where(kv => kv.Key != "link")
+                    .ToDictionary(kv => kv.Key, kv => kv.Value?.ToString())
             }),
             totalDuration = report.TotalDuration.TotalMilliseconds
         };

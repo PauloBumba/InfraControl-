@@ -20,6 +20,11 @@ export interface AuditEntry {
   correlationId: string | null;
   error: string | null;
   occurredAt: string;
+  /**
+   * F50-T004 — descrição detalhada montada no backend: quem executou o quê,
+   * em qual recurso e com qual resultado (a falha carrega o erro).
+   */
+  description: string;
 }
 
 /** `PagedResult<AuditEntrySummary>` — o campo `data` do envelope. */
@@ -33,6 +38,13 @@ export interface PagedAudit {
 export interface AuditFilters {
   action?: string;
   outcome?: string;
+  /**
+   * F50-T004 — filtro por ator em texto livre: casa no backend com o
+   * e-mail gravado (username), o sobrenome ou o nome do operador
+   * (`DisplayName`/`FullName`), case-insensitive. Linha de sistema nunca
+   * entra.
+   */
+  actor?: string;
   /** `datetime-local` no fuso do usuário ("2026-10-01T09:00"). */
   from?: string;
   /** Mesmo formato de `from`; o filtro é inclusivo até o fim do minuto. */
@@ -64,6 +76,7 @@ export async function listAuditEntries(
   const params = new URLSearchParams();
   if (filters.action) params.set("action", filters.action);
   if (filters.outcome) params.set("outcome", filters.outcome);
+  if (filters.actor) params.set("actor", filters.actor);
   const from = filters.from ? toInstant(filters.from, false) : null;
   if (from) params.set("from", from);
   const to = filters.to ? toInstant(filters.to, true) : null;

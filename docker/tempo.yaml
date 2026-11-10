@@ -1,0 +1,28 @@
+# Grafana Tempo — backend de traces do compose (profile `obs`).
+# Recebe OTLP/HTTP do otel-collector (:4318) e persiste em disco local
+# (volume tempo_data). Retenção de blocos: 24h (suficiente para dev;
+# produção pode apontar para S3/GCS via backend object storage).
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/traces

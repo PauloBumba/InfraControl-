@@ -1,3 +1,4 @@
+using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Projects.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
@@ -52,6 +53,7 @@ public sealed record ApproveProjectCommand(Guid ProjectId, string? ApprovalNotes
 public sealed class ApproveProjectCommandHandler(
     IProjectRepository projectRepository,
     ICurrentUserContext currentUser,
+    ISender sender,
     ILogger<ApproveProjectCommandHandler> logger)
     : IRequestHandler<ApproveProjectCommand, ProjectDto>
 {
@@ -66,6 +68,14 @@ public sealed class ApproveProjectCommandHandler(
             throw new UnauthorizedAccessException("Usuário autenticado não identificado para aprovação.");
 
         project.Approve(currentUser.UserId.Value, request.ApprovalNotes, DateTimeOffset.UtcNow);
+
+        // Evento de negócio (spec evolução 2026-11-07 §10): aprovação gera
+        // o registro na base de conhecimento de forma atômica e
+        // idempotente (o gerador devolve o artigo existente se já houver).
+        await sender.Send(
+            new GenerateProjectKnowledgeCommand(project.Id),
+            cancellationToken);
+
         await projectRepository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(

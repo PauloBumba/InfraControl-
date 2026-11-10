@@ -31,5 +31,15 @@ public interface IKnowledgeArticleOriginRepository
         Guid originId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Busca reversa por origem (qualquer artigo gerado a partir de
+    /// (originType, originId)) — idempotência da geração automática
+    /// (spec evolução 2026-11-07: aprovação não pode duplicar KB).
+    /// </summary>
+    Task<KnowledgeArticleOrigin?> FindByOriginAsync(
+        KnowledgeOriginType originType,
+        Guid originId,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

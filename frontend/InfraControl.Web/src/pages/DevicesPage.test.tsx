@@ -9,6 +9,7 @@ import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
 import {
   createDevice,
+  importDevices,
   listDevices,
   listLocations,
   listSwitchPorts,
@@ -44,6 +45,7 @@ vi.mock("@/services/api/inventory", () => ({
   createDevice: vi.fn(),
   updateDevice: vi.fn(),
   deleteDevice: vi.fn(),
+  importDevices: vi.fn(),
 }));
 
 /**
@@ -77,6 +79,7 @@ const listDevicesMock = vi.mocked(listDevices);
 const listLocationsMock = vi.mocked(listLocations);
 const createDeviceMock = vi.mocked(createDevice);
 const listSwitchPortsMock = vi.mocked(listSwitchPorts);
+const importDevicesMock = vi.mocked(importDevices);
 
 const umaLocalizacao = { id: "loc-1", name: "Sala Rack A", description: null };
 
@@ -409,5 +412,85 @@ describe("DevicesPage — SO do equipamento (F34-T006)", () => {
         expect.objectContaining({ operatingSystem: undefined }),
       ),
     );
+  });
+});
+
+/**
+ * F50-T008 — importação em massa por CSV. O botão "Importar" abre um dialog
+ * que MOSTRA o formato padronizado (cabeçalho + exemplo), aceita o conteúdo
+ * colado, exige a localização de destino e devolve o relatório linha a linha
+ * (criado/pulado/falha). O "Adicionar" manual continua onde estava.
+ */
+describe("DevicesPage — importação em massa (F50-T008)", () => {
+  /** O dialog, escopado — a página tem botões/labels com "Importar" também. */
+  async function openImportDialog(): Promise<HTMLElement> {
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Importar" }));
+    return screen.findByRole("dialog", { name: "Importar devices (CSV)" });
+  }
+
+  it("should open the dialog showing the standardized CSV format", async () => {
+    const dialog = await openImportDialog();
+
+    expect(
+      within(dialog).getByText(/nome;ip;tipo;vendor;modelo;mac;serial;descricao/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText(/Baixar modelo/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByPlaceholderText(/cole o conteúdo csv/i),
+    ).toBeInTheDocument();
+  });
+
+  it("should send the pasted CSV with the chosen location and show the report", async () => {
+    importDevicesMock.mockResolvedValue({
+      rows: [
+        { line: 2, name: "Servidor Web-01", status: "created", message: "Device criado." },
+        { line: 3, name: "sw-core-01", status: "skipped", message: "Já existe um device com o nome 'sw-core-01'." },
+      ],
+      created: 1,
+      skipped: 1,
+      failed: 0,
+    });
+
+    const dialog = await openImportDialog();
+
+    fireEvent.change(
+      within(dialog).getByPlaceholderText(/cole o conteúdo csv/i),
+      { target: { value: "nome;ip;tipo\nServidor Web-01;10.0.0.10;Server\nsw-core-01;192.0.2.10;Switch" } },
+    );
+    fireEvent.change(within(dialog).getByRole("combobox"), {
+      target: { value: "loc-1" },
+    });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Importar arquivo" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(importDevicesMock).toHaveBeenCalledWith({
+        locationId: "loc-1",
+        csv: expect.stringContaining("Servidor Web-01"),
+      }),
+    );
+    expect(await within(dialog).findByText("1 criado(s)")).toBeInTheDocument();
+    expect(within(dialog).getByText("1 pulado(s)")).toBeInTheDocument();
+    expect(within(dialog).getByText("Device criado.")).toBeInTheDocument();
+  });
+
+  it("should refuse without a destination location, without calling the API", async () => {
+    const dialog = await openImportDialog();
+
+    fireEvent.change(
+      within(dialog).getByPlaceholderText(/cole o conteúdo csv/i),
+      { target: { value: "nome;ip;tipo\nWeb;10.0.0.10;Server" } },
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Importar arquivo" }),
+    );
+
+    expect(
+      await within(dialog).findByText(/localização de destino/i),
+    ).toBeInTheDocument();
+    expect(importDevicesMock).not.toHaveBeenCalled();
   });
 });

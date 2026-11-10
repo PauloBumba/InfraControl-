@@ -18,7 +18,10 @@ import {
   deleteAiProviderCapability,
   testAiProviderConnection,
   listAiProviderModels,
+  validateAiProvider,
   type AiProviderDto,
+  type AiConnectionValidationDto,
+  type ValidateAiProviderPayload,
 } from "@/services/api/aiProviders";
 
 const inputStyle: React.CSSProperties = {
@@ -65,6 +68,15 @@ export function AiProvidersPage() {
   const [editBaseUrl, setEditBaseUrl] = useState("");
   const [editApiKey, setEditApiKey] = useState("");
   const [editModels, setEditModels] = useState("");
+
+  // F49-T004: dry-run de validação em fases (nunca persiste).
+  const [showValidate, setShowValidate] = useState(false);
+  const [vProtocol, setVProtocol] = useState<ValidateAiProviderPayload["protocol"]>("OpenAiCompatible");
+  const [vBaseUrl, setVBaseUrl] = useState("");
+  const [vApiKey, setVApiKey] = useState("");
+  const [vModel, setVModel] = useState("");
+  const [validateResult, setValidateResult] = useState<AiConnectionValidationDto | null>(null);
+  const [validateError, setValidateError] = useState<string | null>(null);
 
   const [routeDrafts, setRouteDrafts] = useState<
     Record<string, { providerId: string; defaultModel: string; fallbackProviderId: string; fallbackModel: string }>
@@ -175,6 +187,18 @@ export function AiProvidersPage() {
     },
   });
 
+  const validate = useMutation({
+    mutationFn: (payload: ValidateAiProviderPayload) => validateAiProvider(payload),
+    onSuccess: (result) => {
+      setValidateResult(result);
+      setValidateError(null);
+    },
+    onError: (error) => {
+      setValidateResult(null);
+      setValidateError(mutationErrorMessage(error as Error));
+    },
+  });
+
   const models = useMutation({
     mutationFn: (id: string) => listAiProviderModels(id),
     onSuccess: (result, id) => {
@@ -215,14 +239,24 @@ export function AiProvidersPage() {
         subtitle="Administração → IA · Cadastro-first (ADR-057): o resolve usa a linha do banco; sem linha cai no config"
         actions={
           <Can level="administer">
-            <Button
-              type="button"
-              variant="primary"
-              style={{ padding: "6px 14px" }}
-              onClick={() => setShowCreate((value) => !value)}
-            >
-              {showCreate ? "Cancelar" : "Cadastrar provider"}
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button
+                type="button"
+                variant="info"
+                style={{ padding: "6px 14px" }}
+                onClick={() => setShowValidate((value) => !value)}
+              >
+                {showValidate ? "Fechar validação" : "Validar conexão"}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                style={{ padding: "6px 14px" }}
+                onClick={() => setShowCreate((value) => !value)}
+              >
+                {showCreate ? "Cancelar" : "Cadastrar provider"}
+              </Button>
+            </div>
           </Can>
         }
       />
@@ -318,6 +352,156 @@ export function AiProvidersPage() {
                 />
               )}
             </form>
+          </div>
+        </Can>
+      )}
+
+      {showValidate && (
+        <Can level="administer">
+          <div className="uni-panel" style={{ padding: 16 }} data-testid="validate-panel">
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              Validar conexão (dry-run — nada é gravado; a key não volta na resposta)
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+              Testa endpoint+chave arbitrários em fases independentes: conectividade →
+              autenticação → modelos → modelo pedido.
+            </div>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setValidateResult(null);
+                setValidateError(null);
+                validate.mutate({
+                  protocol: vProtocol,
+                  baseUrl: vBaseUrl.trim(),
+                  apiKey: vApiKey.trim() === "" ? null : vApiKey.trim(),
+                  model: vModel.trim() === "" ? null : vModel.trim(),
+                });
+              }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <FormField label="Protocolo">
+                <select
+                  value={vProtocol}
+                  onChange={(event) =>
+                    setVProtocol(event.target.value as ValidateAiProviderPayload["protocol"])
+                  }
+                  style={inputStyle}
+                >
+                  <option value="OpenAiCompatible">OpenAI-compatible</option>
+                  <option value="Ollama">Ollama</option>
+                  <option value="Gemini">Gemini</option>
+                  <option value="Anthropic">Anthropic</option>
+                </select>
+              </FormField>
+              <FormField label="URL base do endpoint">
+                <input
+                  value={vBaseUrl}
+                  onChange={(event) => setVBaseUrl(event.target.value)}
+                  placeholder="https://api.exemplo.com/v1"
+                  style={inputStyle}
+                  autoComplete="off"
+                />
+              </FormField>
+              <FormField label="Chave da API (write-only)">
+                <input
+                  type="password"
+                  value={vApiKey}
+                  onChange={(event) => setVApiKey(event.target.value)}
+                  style={inputStyle}
+                  autoComplete="new-password"
+                />
+              </FormField>
+              <FormField label="Modelo (opcional — confere se existe)">
+                <input
+                  value={vModel}
+                  onChange={(event) => setVModel(event.target.value)}
+                  placeholder="deepseek-chat"
+                  style={inputStyle}
+                  autoComplete="off"
+                />
+              </FormField>
+              <div className="flex align-items-center gap-2 flex-wrap">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={validate.isPending || vBaseUrl.trim() === ""}
+                  style={{ padding: "6px 14px" }}
+                >
+                  {validate.isPending ? "Validando…" : "Validar"}
+                </Button>
+              </div>
+            </form>
+            {validateError && (
+              <div style={{ marginTop: 10 }}>
+                <ErrorBanner
+                  message={validateError}
+                  onRetry={() => setValidateError(null)}
+                />
+              </div>
+            )}
+            {validateResult && (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }} role="status">
+                {(
+                  [
+                    validateResult.connectivity,
+                    validateResult.authentication,
+                    validateResult.models,
+                    ...(validateResult.modelCheck ? [validateResult.modelCheck] : []),
+                  ] as const
+                ).map((phase) => (
+                  <div
+                    key={phase.phase}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      fontSize: 13,
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background:
+                        phase.status === "Success"
+                          ? "#f0fdf4"
+                          : phase.status === "Failed"
+                            ? "#fef2f2"
+                            : "#f8fafc",
+                      color:
+                        phase.status === "Success"
+                          ? "#15803d"
+                          : phase.status === "Failed"
+                            ? "#b91c1c"
+                            : "#64748b",
+                    }}
+                  >
+                    <strong style={{ minWidth: 110 }}>{phase.phase}</strong>
+                    <span>
+                      {phase.status === "Success"
+                        ? "OK"
+                        : phase.status === "Failed"
+                          ? "Falha"
+                          : "Ignorado"}
+                    </span>
+                    {phase.error && <span>— {phase.error}</span>}
+                  </div>
+                ))}
+                <div style={{ fontSize: 12, color: "#475569" }}>
+                  Modelos descobertos:{" "}
+                  {validateResult.modelsFound.length > 0
+                    ? validateResult.modelsFound.join(", ")
+                    : "nenhum"}
+                </div>
+                <div style={{ fontSize: 12, color: "#475569" }}>
+                  Capabilities detectadas (só o que o fornecedor expõe):{" "}
+                  {validateResult.detectedCapabilities.length > 0
+                    ? validateResult.detectedCapabilities.join(", ")
+                    : "não expostas pelo fornecedor"}
+                </div>
+              </div>
+            )}
           </div>
         </Can>
       )}

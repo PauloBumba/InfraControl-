@@ -42,6 +42,15 @@ public sealed class AiProviderConfiguration : IEntityTypeConfiguration<AiProvide
             .HasColumnName("is_active")
             .IsRequired();
 
+        // F49-T002: protocolo escolhido no cadastro (string legível no
+        // banco; default 'OpenAiCompatible' para linhas pré-existentes).
+        builder.Property(x => x.Protocol)
+            .HasColumnName("protocol")
+            .HasConversion<string>()
+            .HasMaxLength(32)
+            .HasDefaultValue(InfraControl.Domain.Enums.AiProviderProtocol.OpenAiCompatible)
+            .IsRequired();
+
         builder.Property(x => x.Models)
             .HasColumnName("models")
             .HasField("_models");

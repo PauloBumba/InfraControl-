@@ -152,6 +152,32 @@ describe("AppLayout — acordeão inline de sub-itens no sidebar", () => {
   });
 });
 
+describe("AppLayout — logo unificado no sidebar (F50-T005)", () => {
+  beforeEach(() => {
+    store.getState().navigation.recentTabs.forEach((tab) => store.dispatch(removeTab(tab)));
+    localStorage.clear();
+    store.dispatch(
+      sessionChecked({
+        id: "3f1a1111-2222-3333-4444-555566667777",
+        email: "ana@exemplo.com",
+        displayName: "Ana",
+        roles: ["Admin"],
+      }),
+    );
+  });
+
+  it("should render the official shared Logo instead of the inline badge", () => {
+    renderLayout("/");
+
+    const logo = screen.getByRole("img", { name: "Logo do InfraControl" });
+    expect(logo.tagName.toLowerCase()).toBe("svg");
+    // Desenho oficial (fonte única `components/ui/Logo`); o badge quadrado
+    // inline com `infraSidebarGrad` foi removido.
+    expect(logo.innerHTML).toContain("logoPrimaryGrad");
+    expect(logo.innerHTML).not.toContain("infraSidebarGrad");
+  });
+});
+
 describe("AppLayout — avatar do header abre as opções da conta", () => {
   beforeEach(() => {
     store.getState().navigation.recentTabs.forEach((tab) => store.dispatch(removeTab(tab)));

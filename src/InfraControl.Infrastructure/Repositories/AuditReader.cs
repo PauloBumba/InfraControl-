@@ -11,6 +11,7 @@ public sealed class AuditReader(AppDbContext dbContext) : IAuditReader
         string? outcome,
         DateTime? from,
         DateTime? to,
+        string? actor,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -28,6 +29,25 @@ public sealed class AuditReader(AppDbContext dbContext) : IAuditReader
 
         if (to.HasValue)
             query = query.Where(entry => entry.OccurredAt <= to.Value);
+
+        // F50-T004 — filtro por ator em texto livre (o "username" do filtro do
+        // front casa com: o e-mail gravado em `ActorId` OU o nome do operador
+        // exibido na auditoria = `DisplayName`/`FullName` do usuário, cobrindo
+        // também o sobrenome). Tudo case-insensitive; fragmento serve.
+        // `ActorId` null (linha de sistema) jamais casa — as duas ramificações
+        // exigem `ActorId` não-nulo, e `lower(NULL)` não compara verdadeiro.
+        if (!string.IsNullOrWhiteSpace(actor))
+        {
+            var term = actor.Trim().ToLower();
+            query = query.Where(entry =>
+                entry.ActorId != null &&
+                (entry.ActorId.ToLower().Contains(term) ||
+                 dbContext.DomainUsers.Any(user =>
+                     user.Email == entry.ActorId.ToLower() &&
+                     (user.DisplayName.ToLower().Contains(term) ||
+                      (user.FullName != null &&
+                       user.FullName.ToLower().Contains(term))))));
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
 

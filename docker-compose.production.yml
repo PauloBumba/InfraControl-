@@ -83,6 +83,12 @@ services:
       BootstrapAdmin__Enabled: ${PRODUCTION_BOOTSTRAP_ADMIN_ENABLED:-false}
       BootstrapAdmin__Email: ${PRODUCTION_BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
       BootstrapAdmin__Password: ${PRODUCTION_BOOTSTRAP_ADMIN_PASSWORD:-}
+      # F43/ADR-064 — login Google (authorization code). Sem os 3 valores o
+      # GET /auth/google responde 503 e o botão não aparece (GSI segue como
+      # fallback enquanto houver ClientId).
+      Authentication__Google__ClientId: ${VITE_GOOGLE_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Authentication__Google__RedirectUri: ${GOOGLE_REDIRECT_URI:-}
     deploy:
       resources:
         limits:
@@ -128,7 +134,19 @@ services:
   otel-collector:
     ports: !reset []
 
-  ollama:
+  # Nomes reais do base (a chave `ollama:` não existia e invalidava o
+  # merge base+produção com "service has neither an image nor build").
+  # Os serviços base já não publicam portas; !reset garante isso.
+  ollama-1:
+    ports: !reset []
+
+  ollama-2:
+    ports: !reset []
+
+  ollama-3:
+    ports: !reset []
+
+  ollama-lb:
     ports: !reset []
 
   zabbix-db:

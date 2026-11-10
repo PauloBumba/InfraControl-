@@ -26,6 +26,8 @@ export interface AlertItem {
   message: string;
   openedAt: string;
   resolvedAt: string | null;
+  /** F50-T003 — anotação do operador (null = sem nota; ver `setAlertNote`). */
+  operatorNote: string | null;
 }
 
 /** `PagedResult<T>` — o campo `data` do envelope. */
@@ -53,4 +55,13 @@ export async function listAlerts(filters: {
 
   const data = await api.get<Paged<AlertItem>>(`/monitoring/alerts?${params}`);
   return data ?? { items: [], totalCount: 0, page: 1, pageSize: 20 };
+}
+
+/**
+ * F50-T003 — `PUT /monitoring/alerts/{id}/note` (Operate): única mutação
+ * humana num alerta que nasce do sistema. PUT de substituição integral —
+ * texto grava, branco/null limpa (ver `Alert.SetOperatorNote`).
+ */
+export async function setAlertNote(id: string, note: string): Promise<AlertItem | null> {
+  return api.put<AlertItem>(`/monitoring/alerts/${id}/note`, { note: note || null });
 }

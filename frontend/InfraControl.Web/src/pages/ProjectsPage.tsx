@@ -18,6 +18,7 @@ import {
   updateProject,
   type ProjectItem,
 } from "@/services/api/projects";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 
 const PAGE_SIZE = 20;
 
@@ -77,6 +78,7 @@ interface ProjectForm {
   justification: string;
   plannedStartDate: string;
   plannedEndDate: string;
+  leaderId: string;
 }
 
 const EMPTY_FORM: ProjectForm = {
@@ -87,6 +89,7 @@ const EMPTY_FORM: ProjectForm = {
   justification: "",
   plannedStartDate: "",
   plannedEndDate: "",
+  leaderId: "",
 };
 
 const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"] as const;
@@ -100,6 +103,7 @@ function formOf(project: ProjectItem): ProjectForm {
     justification: project.justification ?? "",
     plannedStartDate: project.plannedStartDate ?? "",
     plannedEndDate: project.plannedEndDate ?? "",
+    leaderId: project.leaderId ?? "",
   };
 }
 
@@ -121,6 +125,7 @@ export function ProjectsPage() {
   const [view, setView] = useEntityViewMode("projects", "table");
 
   const currentUserId = useAppSelector((state) => state.auth.user?.id) ?? "";
+  const [users, setUsers] = useState<AdminUser[]>([]);
 
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
@@ -136,7 +141,7 @@ export function ProjectsPage() {
 
   function openCreate() {
     setEditingProject(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, leaderId: currentUserId });
     setActionError(null);
     setDialogMode("create");
   }
@@ -162,32 +167,39 @@ export function ProjectsPage() {
     setActionError(null);
     try {
       if (dialogMode === "create") {
-        if (!currentUserId) throw new Error("Não foi possível identificar o usuário atual.");
+        const leaderId = form.leaderId || currentUserId;
+        if (!leaderId) throw new Error("Não foi possível identificar o responsável.");
         await createProject({
           code: form.code.trim(),
           title: form.title.trim(),
           description: form.description.trim(),
-          leaderId: currentUserId,
+          leaderId,
           priority: form.priority,
           justification: form.justification.trim() || null,
           plannedStartDate: form.plannedStartDate || null,
           plannedEndDate: form.plannedEndDate || null,
         });
         setNotice("Projeto criado.");
+        // Garante que o novo projeto apareça: volta à página 1 sem filtros.
+        setPage(1);
+        setTerm("");
+        setStatusFilter("All");
+        setPriorityFilter("All");
       } else if (dialogMode === "edit" && editingProject) {
         await updateProject(editingProject.id, {
           title: form.title.trim(),
           description: form.description.trim(),
           priority: form.priority,
           justification: form.justification.trim() || null,
+          leaderId: form.leaderId || undefined,
           plannedStartDate: form.plannedStartDate || null,
           plannedEndDate: form.plannedEndDate || null,
         });
         setNotice("Projeto atualizado.");
+        await loadProjects();
       }
       setDialogMode(null);
       setEditingProject(null);
-      await loadProjects();
     } catch (caught) {
       setActionError(caught instanceof Error ? caught.message : "Não foi possível salvar o projeto.");
     } finally {
@@ -234,6 +246,12 @@ export function ProjectsPage() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    listUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, []);
 
   // Deep-link do dashboard (`/projects?novo=1`): abre o diálogo de criação
   // uma única vez e limpa o parâmetro para não reabrir em navegações futuras.
@@ -548,6 +566,10 @@ export function ProjectsPage() {
             body={(project: ProjectItem) => `${formatDate(project.plannedStartDate)} → ${formatDate(project.plannedEndDate)}`}
           />
           <Column
+            header="Líder"
+            body={(project: ProjectItem) => project.leaderName ?? "—"}
+          />
+          <Column
             header="Equipe"
             body={(project: ProjectItem) => {
               const memberCount = project.members?.length ?? 0;
@@ -689,11 +711,21 @@ export function ProjectsPage() {
               />
             </label>
           </div>
-          {dialogMode === "create" && (
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>
-              Líder: você (usuário autenticado).
-            </div>
-          )}
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "#475569" }}>Responsável (líder) *</span>
+            <select
+              value={form.leaderId}
+              onChange={(event) => setField("leaderId", event.target.value)}
+              style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+            >
+              <option value="">Selecione um usuário…</option>
+              {users.map((user) => (
+                <option key={user.userId} value={user.userId}>
+                  {user.displayName || user.email}
+                </option>
+              ))}
+            </select>
+          </label>
           {actionError && (
             <div style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
               {actionError}

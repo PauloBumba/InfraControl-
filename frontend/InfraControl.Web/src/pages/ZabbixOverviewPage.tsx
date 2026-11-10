@@ -256,14 +256,7 @@ export function ZabbixOverviewPage() {
 
 function Card({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 10,
-        padding: 14,
-      }}
-    >
+    <div className="uni-panel" style={{ padding: 14 }}>
       <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase" }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>
         {value}

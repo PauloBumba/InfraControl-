@@ -342,4 +342,61 @@ public sealed class IncidentCommandTests : IDisposable
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Incidente '{unknown}' não encontrado.");
     }
+
+    // ── RootCause na edição (F50-T003) ────────────────────────────────────
+    // Semântica do campo opcional: null = NÃO altera (compat com chamadas
+    // antigas), branco = limpa, texto = grava (SetRootCause do domínio).
+
+    [Fact]
+    public async Task Update_WithRootCause_ShouldPersistIt()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+
+        await UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(
+                id, "Título original", null, "Low", "Cabo de fibra danificado"),
+            CancellationToken.None);
+
+        var saved = await context.Incidents.AsNoTracking().SingleAsync();
+        saved.RootCause.Should().Be("Cabo de fibra danificado");
+    }
+
+    [Fact]
+    public async Task Update_WithNullRootCause_ShouldPreserveExisting()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+        await UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(
+                id, "Título original", null, "Low", "Causa registrada"),
+            CancellationToken.None);
+
+        // Segunda edição sem mencionar a causa (null) → não pode apagar.
+        await UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(id, "Novo título", null, "Low"),
+            CancellationToken.None);
+
+        var saved = await context.Incidents.AsNoTracking().SingleAsync();
+        saved.Title.Should().Be("Novo título");
+        saved.RootCause.Should().Be("Causa registrada");
+    }
+
+    [Fact]
+    public async Task Update_WithBlankRootCause_ShouldClearIt()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+        await UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(
+                id, "Título original", null, "Low", "Causa temporária"),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateIncidentCommand(id, "Título original", null, "Low", "   "),
+            CancellationToken.None);
+
+        var saved = await context.Incidents.AsNoTracking().SingleAsync();
+        saved.RootCause.Should().BeNull();
+    }
 }

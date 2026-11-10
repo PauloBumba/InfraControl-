@@ -1,4 +1,5 @@
 using InfraControl.Domain.Common.Entities;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Domain.Entities;
 
@@ -25,6 +26,15 @@ public sealed class AiProvider : Entity
     public string BaseUrl { get; private set; } = string.Empty;
     public string? ApiKeyEncrypted { get; private set; }
     public bool IsActive { get; private set; } = true;
+
+    /// <summary>
+    /// F49-T002: protocolo escolhido no cadastro (padrão universal
+    /// OpenAI-compatible) — o registry instancia o adaptador certo por
+    /// protocolo; fornecedor novo OpenAI-compat = config, sem deploy.
+    /// </summary>
+    public AiProviderProtocol Protocol { get; private set; } =
+        AiProviderProtocol.OpenAiCompatible;
+
     public IReadOnlyList<string> Models => _models ?? [];
 
     private AiProvider() { }
@@ -34,10 +44,11 @@ public sealed class AiProvider : Entity
         string baseUrl,
         string? apiKeyEncrypted = null,
         IEnumerable<string>? models = null,
-        bool isActive = true)
+        bool isActive = true,
+        AiProviderProtocol protocol = AiProviderProtocol.OpenAiCompatible)
     {
         var provider = new AiProvider();
-        provider.Update(name, baseUrl, apiKeyEncrypted, models, isActive);
+        provider.Update(name, baseUrl, apiKeyEncrypted, models, isActive, protocol);
         return provider;
     }
 
@@ -46,7 +57,8 @@ public sealed class AiProvider : Entity
         string baseUrl,
         string? apiKeyEncrypted,
         IEnumerable<string>? models,
-        bool isActive)
+        bool isActive,
+        AiProviderProtocol protocol = AiProviderProtocol.OpenAiCompatible)
     {
         var trimmedName = name?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(trimmedName))
@@ -76,6 +88,7 @@ public sealed class AiProvider : Entity
         ApiKeyEncrypted = trimmedKey;
         _models = NormalizeModels(models) ?? [];
         IsActive = isActive;
+        Protocol = protocol;
         Touch();
     }
 
@@ -94,9 +107,11 @@ public sealed class AiProvider : Entity
         Touch();
     }
 
-    public void Activate() => Update(Name, BaseUrl, ApiKeyEncrypted, _models, isActive: true);
+    public void Activate() =>
+        Update(Name, BaseUrl, ApiKeyEncrypted, _models, isActive: true, Protocol);
 
-    public void Deactivate() => Update(Name, BaseUrl, ApiKeyEncrypted, _models, isActive: false);
+    public void Deactivate() =>
+        Update(Name, BaseUrl, ApiKeyEncrypted, _models, isActive: false, Protocol);
 
     private static List<string>? NormalizeModels(IEnumerable<string>? models)
     {

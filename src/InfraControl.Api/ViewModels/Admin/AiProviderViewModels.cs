@@ -10,7 +10,11 @@ public sealed record CreateAiProviderViewModel(
 public sealed record UpdateAiProviderViewModel(
     string BaseUrl,
     string? ApiKey,
-    IReadOnlyList<string>? Models);
+    IReadOnlyList<string>? Models,
+    // F49-T011b+: protocolo do adaptador (openai-compatible|ollama|
+    // gemini|anthropic) — null preserva o atual. Sem ele não havia como
+    // trocar um provider OpenAiCompatible para o adaptador nativo.
+    string? Protocol = null);
 
 public sealed record SetAiProviderActiveViewModel(bool Active);
 

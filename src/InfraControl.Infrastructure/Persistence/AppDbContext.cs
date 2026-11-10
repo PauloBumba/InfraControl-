@@ -80,6 +80,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     public DbSet<NotificationEventRule> NotificationEventRules => Set<NotificationEventRule>();
+    public DbSet<NotificationRoutingPolicy> NotificationRoutingPolicies => Set<NotificationRoutingPolicy>();
+    public DbSet<NotificationRoutingRule> NotificationRoutingRules => Set<NotificationRoutingRule>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
@@ -119,7 +121,17 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<ProjectImpediment> ProjectImpediments => Set<ProjectImpediment>();
     public DbSet<ProjectEvidence> ProjectEvidences => Set<ProjectEvidence>();
     public DbSet<ProjectHistoryEntry> ProjectHistoryEntries => Set<ProjectHistoryEntry>();
+    public DbSet<ProjectConclusion> ProjectConclusions => Set<ProjectConclusion>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<CompanySettings> CompanySettings => Set<CompanySettings>();
+    public DbSet<CompanyDepartment> CompanyDepartments => Set<CompanyDepartment>();
+    public DbSet<AccessPolicyRule> AccessPolicyRules => Set<AccessPolicyRule>();
+    public DbSet<BackupSettings> BackupSettings => Set<BackupSettings>();
+    public DbSet<AccessRole> AccessRoles => Set<AccessRole>();
+    public DbSet<UserAccessRole> UserAccessRoles => Set<UserAccessRole>();
+    public DbSet<ServiceInstance> ServiceInstances => Set<ServiceInstance>();
+    public DbSet<RequestMetricBucket> RequestMetricBuckets => Set<RequestMetricBucket>();
+    public DbSet<AiVectorDocument> AiVectorDocuments => Set<AiVectorDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

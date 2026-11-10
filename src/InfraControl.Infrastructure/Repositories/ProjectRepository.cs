@@ -50,6 +50,7 @@ public sealed class ProjectRepository(AppDbContext dbContext) : IProjectReposito
         Guid? leaderId,
         int page,
         int pageSize,
+        Guid? visibleToUserId = null,
         CancellationToken cancellationToken = default)
     {
         page = Math.Max(1, page);
@@ -61,6 +62,10 @@ public sealed class ProjectRepository(AppDbContext dbContext) : IProjectReposito
                 (status == null || p.Status == status)
                 && (priority == null || p.Priority == priority)
                 && (leaderId == null || p.LeaderId == leaderId)
+                && (visibleToUserId == null
+                    || p.LeaderId == visibleToUserId
+                    || p.CreatedById == visibleToUserId
+                    || p.Members.Any(m => m.UserId == visibleToUserId))
                 && (term == null
                     || p.Code.Contains(term)
                     || p.Title.Contains(term)
@@ -82,6 +87,26 @@ public sealed class ProjectRepository(AppDbContext dbContext) : IProjectReposito
             .Include(p => p.Members)
             .OrderByDescending(p => p.CreateDateTime)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = userIds.Where(id => id != Guid.Empty).Distinct().ToArray();
+        if (ids.Length == 0)
+            return new Dictionary<Guid, string>();
+
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => ids.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName, user.Email })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(
+            user => user.Id,
+            user => string.IsNullOrWhiteSpace(user.DisplayName)
+                ? user.Email
+                : user.DisplayName);
+    }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         dbContext.SaveChangesAsync(cancellationToken);

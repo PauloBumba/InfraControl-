@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Entities;
@@ -29,6 +30,8 @@ public sealed class OutboxDispatcherWorker(
         {
             try
             {
+                using var activity = WorkerTracing.Source.StartActivity(
+                    "worker outbox-dispatcher", ActivityKind.Internal);
                 await DispatchBatchAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

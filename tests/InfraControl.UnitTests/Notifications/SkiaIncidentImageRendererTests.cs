@@ -94,7 +94,11 @@ public sealed class SkiaIncidentImageRendererTests
     {
         using var bitmap = SKBitmap.Decode(Png(kind));
 
-        bitmap.GetPixel(70, 45).Should().Be(new SKColor(red, green, blue));
+        // (54,38) = canto superior esquerdo do badge (48,32)–(…,70),
+        // fora da caixa de texto do rótulo (x≥62, baseline 57) — o ponto
+        // antigo (70,45) caía na borda antialias do glifo e misturava
+        // Background com o acento.
+        bitmap.GetPixel(54, 38).Should().Be(new SKColor(red, green, blue));
     }
 
     [Fact]

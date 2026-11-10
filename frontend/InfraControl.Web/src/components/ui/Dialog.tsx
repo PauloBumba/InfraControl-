@@ -87,7 +87,7 @@ interface ConfirmDialogProps {
   onHide: () => void;
   onConfirm: () => void;
   header: string;
-  message: string;
+  message: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   severity?: "danger" | "warning" | "info";

@@ -1,3 +1,5 @@
+using InfraControl.Domain.Enums;
+
 namespace InfraControl.Application.AI.Providers.Ports;
 
 /// <summary>
@@ -10,7 +12,8 @@ public sealed record AiProviderConnection(
     string BaseUrl,
     string? ApiKeyPlain,
     IReadOnlyList<string> Models,
-    bool IsActive);
+    bool IsActive,
+    AiProviderProtocol Protocol = AiProviderProtocol.OpenAiCompatible);
 
 /// <summary>
 /// Porta de resolução de conexão usada pelos adaptadores por requisição

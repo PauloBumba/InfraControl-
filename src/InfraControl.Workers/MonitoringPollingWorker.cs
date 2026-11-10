@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using InfraControl.Application.Monitoring.Polling;
 using InfraControl.Infrastructure.Caching;
 using Microsoft.Extensions.Hosting;
@@ -34,6 +35,8 @@ public sealed class MonitoringPollingWorker(
         {
             try
             {
+                using var activity = WorkerTracing.Source.StartActivity(
+                    "worker monitoring-polling", ActivityKind.Internal);
                 await RunOnceAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

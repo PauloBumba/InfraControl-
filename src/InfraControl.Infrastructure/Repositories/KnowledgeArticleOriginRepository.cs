@@ -65,6 +65,17 @@ public sealed class KnowledgeArticleOriginRepository(AppDbContext dbContext)
             && origin.OriginId == originId,
             cancellationToken);
 
+    public Task<KnowledgeArticleOrigin?> FindByOriginAsync(
+        KnowledgeOriginType originType,
+        Guid originId,
+        CancellationToken cancellationToken = default)
+        => dbContext.KnowledgeArticleOrigins
+            .OrderBy(origin => origin.ArticleId)
+            .FirstOrDefaultAsync(origin =>
+                origin.OriginType == originType
+                && origin.OriginId == originId,
+                cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

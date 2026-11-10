@@ -26,16 +26,20 @@ public sealed class OllamaProvider : IAiProvider
     private readonly string _configBaseUrl;
     private readonly IAiProviderConnectionSource _connectionSource;
 
-    public string Name => "ollama";
+    public string Name { get; }
 
     public OllamaProvider(
         IHttpClientFactory httpClientFactory,
         IOptions<AiOllamaOptions> options,
-        IAiProviderConnectionSource connectionSource)
+        IAiProviderConnectionSource connectionSource,
+        string? name = null)
     {
         _httpClient = httpClientFactory.CreateClient("ollama");
         _configBaseUrl = options.Value.BaseUrl.TrimEnd('/');
         _connectionSource = connectionSource;
+        // F49-T002: nome custom quando o registry bound instancia o
+        // protocolo Ollama para um cadastro com nome próprio.
+        Name = string.IsNullOrWhiteSpace(name) ? "ollama" : name.Trim();
     }
 
     /// <summary>

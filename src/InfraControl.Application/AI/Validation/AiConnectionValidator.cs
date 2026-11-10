@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace InfraControl.Application.AI.Validation;
 
@@ -13,6 +14,9 @@ public enum AiProtocol
 }
 
 /// <summary>F49-T001: estado de cada fase — nunca confundir 401 com "sem rede".</summary>
+// Serializa como texto ("Success"/"Failed"/"Skipped") — contrato estável
+// para o front (F49-T004) e leitura humana nos logs.
+[JsonConverter(typeof(JsonStringEnumConverter<AiPhaseStatus>))]
 public enum AiPhaseStatus
 {
     Success,
@@ -52,6 +56,7 @@ public sealed record AiConnectionValidationResult(
     AiConnectionPhase Authentication,
     AiConnectionPhase Models,
     IReadOnlyList<string> ModelsFound,
+    IReadOnlyList<string> DetectedCapabilities,
     AiConnectionPhase? ModelCheck);
 
 /// <summary>
@@ -104,12 +109,13 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                 Authentication: AiConnectionPhase.Skipped("autenticação"),
                 Models: AiConnectionPhase.Skipped("modelos"),
                 ModelsFound: [],
+                DetectedCapabilities: [],
                 ModelCheck: null);
         }
 
         // Fase 2+3 — probe de modelos do protocolo distingue key recusada
         // (401/403) de endpoint errado (404) e de falha do fornecedor (5xx).
-        var (authentication, models, modelsFound) =
+        var (authentication, models, modelsFound, capabilities) =
             await ProbeModelsAsync(request, baseUrl, cancellationToken);
 
         AiConnectionPhase? modelCheck = null;
@@ -133,6 +139,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
             Authentication: authentication,
             Models: models,
             ModelsFound: modelsFound,
+            DetectedCapabilities: capabilities,
             ModelCheck: modelCheck);
     }
 
@@ -168,7 +175,8 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
     private async Task<(
         AiConnectionPhase Authentication,
         AiConnectionPhase Models,
-        IReadOnlyList<string> ModelsFound)> ProbeModelsAsync(
+        IReadOnlyList<string> ModelsFound,
+        IReadOnlyList<string> Capabilities)> ProbeModelsAsync(
             AiConnectionValidationRequest request,
             string baseUrl,
             CancellationToken cancellationToken)
@@ -181,7 +189,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                     "autenticação",
                     $"A API key é obrigatória para o protocolo {request.Protocol}."),
                 AiConnectionPhase.Skipped("modelos"),
-                Array.Empty<string>());
+                Array.Empty<string>(), Array.Empty<string>());
         }
 
         using var probe = BuildModelsProbe(request, baseUrl);
@@ -197,7 +205,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                 AiConnectionPhase.Failed(
                     "modelos",
                     $"Esgotou o tempo ({ProbeTimeout.TotalSeconds:0}s) ao consultar a lista de modelos."),
-                Array.Empty<string>());
+                Array.Empty<string>(), Array.Empty<string>());
         }
         catch (HttpRequestException ex)
         {
@@ -206,7 +214,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                 AiConnectionPhase.Failed(
                     "modelos",
                     $"Falha de rede ao consultar a lista de modelos: {DescribeNetworkError(ex)}."),
-                Array.Empty<string>());
+                Array.Empty<string>(), Array.Empty<string>());
         }
 
         using (response)
@@ -220,7 +228,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                         "autenticação",
                         $"API key recusada pelo fornecedor (401){ExtractProviderMessage(body)}."),
                     AiConnectionPhase.Skipped("modelos"),
-                    Array.Empty<string>());
+                    Array.Empty<string>(), Array.Empty<string>());
             }
 
             if (response.StatusCode is HttpStatusCode.Forbidden)
@@ -230,7 +238,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                         "autenticação",
                         $"A key foi aceita, mas não tem permissão para listar modelos (403){ExtractProviderMessage(body)}."),
                     AiConnectionPhase.Skipped("modelos"),
-                    Array.Empty<string>());
+                    Array.Empty<string>(), Array.Empty<string>());
             }
 
             if (response.StatusCode is HttpStatusCode.NotFound)
@@ -240,7 +248,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                     AiConnectionPhase.Failed(
                         "modelos",
                         "Endpoint de modelos não encontrado (404) — o base URL ou o protocolo está errado."),
-                    Array.Empty<string>());
+                    Array.Empty<string>(), Array.Empty<string>());
             }
 
             if ((int)response.StatusCode == 429)
@@ -250,7 +258,22 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                     AiConnectionPhase.Failed(
                         "modelos",
                         "O fornecedor limitou a requisição (429 — rate limit); tente novamente em instantes."),
-                    Array.Empty<string>());
+                    Array.Empty<string>(), Array.Empty<string>());
+            }
+
+            // Google oficial (ai.google.dev gemini-api/docs/
+            // generate-content/api-errors): key inválida volta 400
+            // INVALID_ARGUMENT + reason API_KEY_INVALID — NÃO 401.
+            // A semântica é de autenticação, então a falha é reportada
+            // na fase de autenticação, não em "modelos".
+            if (IndicatesInvalidApiKey(body))
+            {
+                return (
+                    AiConnectionPhase.Failed(
+                        "autenticação",
+                        $"A API key foi recusada pelo fornecedor ({(int)response.StatusCode} API_KEY_INVALID){ExtractProviderMessage(body)}."),
+                    AiConnectionPhase.Skipped("modelos"),
+                    Array.Empty<string>(), Array.Empty<string>());
             }
 
             if (!response.IsSuccessStatusCode)
@@ -260,12 +283,16 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                     AiConnectionPhase.Failed(
                         "modelos",
                         $"O fornecedor devolveu {(int)response.StatusCode} ao listar modelos{ExtractProviderMessage(body)}."),
-                    Array.Empty<string>());
+                    Array.Empty<string>(), Array.Empty<string>());
             }
 
             try
             {
                 var models = ParseModels(request.Protocol, body);
+                // F49-T004 §7: só o que o fornecedor EXPÕE — Gemini tem
+                // supportedGenerationMethods; OpenAI/Anthropic/Ollama não
+                // trazem capabilities na lista → vazio (nunca inventado).
+                var capabilities = ParseCapabilities(request.Protocol, body);
                 return (
                     AiConnectionPhase.Success("autenticação"),
                     models.Count > 0
@@ -273,7 +300,8 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                         : AiConnectionPhase.Failed(
                             "modelos",
                             "A autenticação funcionou, mas a lista de modelos veio vazia — confira as permissões da key."),
-                    models);
+                    models,
+                    capabilities);
             }
             catch (JsonException)
             {
@@ -282,7 +310,7 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
                     AiConnectionPhase.Failed(
                         "modelos",
                         "Resposta inválida ao listar modelos — o endpoint não parece ser a API esperada para este protocolo."),
-                    Array.Empty<string>());
+                    Array.Empty<string>(), Array.Empty<string>());
             }
         }
     }
@@ -343,9 +371,50 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
         };
     }
 
-    private static IReadOnlyList<string> ReadIds(
-        JsonElement root, string arrayName, string idProperty)
+    /// <summary>
+    /// F49-T004 §7: capabilities detectadas SÓ do que o fornecedor
+    /// expõe. Gemini lista <c>supportedGenerationMethods</c> por modelo
+    /// (generateContent→text, streamGenerateContent→streaming);
+    /// OpenAI/Anthropic/Ollama não expõem capabilities na lista → vazio
+    /// ("desconhecido" documentado no guia — nunca inventado).
+    /// </summary>
+    private static IReadOnlyList<string> ParseCapabilities(AiProtocol protocol, string body)
     {
+        if (protocol is not AiProtocol.Gemini)
+            return Array.Empty<string>();
+
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("models", out var models)
+            || models.ValueKind != JsonValueKind.Array)
+            return Array.Empty<string>();
+
+        var detected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var model in models.EnumerateArray())
+        {
+            if (!model.TryGetProperty("supportedGenerationMethods", out var methods)
+                || methods.ValueKind != JsonValueKind.Array)
+                continue;
+
+            foreach (var method in methods.EnumerateArray())
+            {
+                switch (method.GetString())
+                {
+                    case "generateContent":
+                        detected.Add("text");
+                        break;
+                    case "streamGenerateContent":
+                        detected.Add("streaming");
+                        break;
+                }
+            }
+        }
+
+        return detected.Order(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static IReadOnlyList<string> ReadIds(
+        JsonElement root, string arrayName, string idProperty)    {
         if (!root.TryGetProperty(arrayName, out var array)
             || array.ValueKind != JsonValueKind.Array)
             throw new JsonException($"'{arrayName}' ausente.");
@@ -360,6 +429,15 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
 
         return ids;
     }
+
+    /// <summary>
+    /// Key recusada segundo o formato oficial do Google (reason
+    /// <c>API_KEY_INVALID</c> / mensagem "API key not valid") — devolvido
+    /// como 400 INVALID_ARGUMENT, não 401.
+    /// </summary>
+    private static bool IndicatesInvalidApiKey(string body) =>
+        body.Contains("API_KEY_INVALID", StringComparison.OrdinalIgnoreCase)
+        || body.Contains("API key not valid", StringComparison.OrdinalIgnoreCase);
 
     private static string ExtractProviderMessage(string body)
     {

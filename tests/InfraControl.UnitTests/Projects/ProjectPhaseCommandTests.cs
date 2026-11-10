@@ -2,6 +2,7 @@ using FluentAssertions;
 using InfraControl.Application.Projects;
 using InfraControl.Application.Projects.Commands;
 using InfraControl.Application.Projects.Queries;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -52,7 +53,10 @@ public sealed class ProjectPhaseCommandTests : IDisposable
         new(Phases(context), NullLogger<SetPhaseStatusCommandHandler>.Instance);
 
     private static GetProjectPhasesQueryHandler QueryHandler(AppDbContext context) =>
-        new(Projects(context), Phases(context));
+        new(Projects(context), Phases(context), AdminUser());
+
+    private static ICurrentUserContext AdminUser() =>
+        new FakeCurrentUser(Guid.NewGuid(), UserRole.Admin.ToString());
 
     private static async Task<Guid> SeedProjectAsync(AppDbContext context)
     {
@@ -325,5 +329,14 @@ public sealed class ProjectPhaseCommandTests : IDisposable
 
         (await action.Should().ThrowAsync<KeyNotFoundException>())
             .WithMessage($"Projeto '{unknown}' não encontrado.");
+    }
+
+    private sealed class FakeCurrentUser(Guid userId, params string[] roles)
+        : ICurrentUserContext
+    {
+        public Guid? UserId => userId;
+        public string? UserName => "admin@example.test";
+        public bool IsAuthenticated => true;
+        public IReadOnlyCollection<string> Roles => roles;
     }
 }

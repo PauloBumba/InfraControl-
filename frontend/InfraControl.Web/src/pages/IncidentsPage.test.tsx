@@ -162,6 +162,68 @@ describe("IncidentsPage — edição de campos", () => {
 });
 
 /**
+ * F50-T003 — causa raiz no PUT do incidente: o campo abre no formulário de
+ * edição já preenchido com o valor atual e o salvar devolve ele junto.
+ * Sem causa raiz gravada, o campo aparece vazio (PUT sem RootCause nulo
+ * preserva o valor no backend).
+ */
+describe("IncidentsPage — causa raiz (F50-T003)", () => {
+  it("should show the root cause on the row and in the edit form, sending it back on save", async () => {
+    listIncidentsMock.mockResolvedValue({
+      items: [{ ...seedIncident().items[0]!, rootCause: "Cabo danificado no rack 3" }],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    updateIncidentMock.mockResolvedValue(null);
+
+    renderPage();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/Causa: Cabo danificado no rack 3/)).toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole("button", { name: /editar campos do incidente/i }),
+    );
+    const cause = screen.getByDisplayValue("Cabo danificado no rack 3");
+    expect(cause.tagName).toBe("TEXTAREA");
+
+    await user.click(screen.getByRole("button", { name: /salvar alterações/i }));
+
+    await screen.findByText("Incidente atualizado.");
+    expect(updateIncidentMock).toHaveBeenCalledWith(
+      "11111111-2222-3333-4444-555566667777",
+      expect.objectContaining({ rootCause: "Cabo danificado no rack 3" }),
+    );
+  });
+
+  it("should send an empty root cause when the operator clears the field", async () => {
+    listIncidentsMock.mockResolvedValue({
+      items: [{ ...seedIncident().items[0]!, rootCause: "Cabo danificado" }],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    updateIncidentMock.mockResolvedValue(null);
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: /editar campos do incidente/i }),
+    );
+    await user.clear(screen.getByDisplayValue("Cabo danificado"));
+    await user.click(screen.getByRole("button", { name: /salvar alterações/i }));
+
+    await screen.findByText("Incidente atualizado.");
+    expect(updateIncidentMock).toHaveBeenCalledWith(
+      "11111111-2222-3333-4444-555566667777",
+      expect.objectContaining({ rootCause: "" }),
+    );
+  });
+});
+
+/**
  * AI Investigation (ADR-053 · Fase C) — `POST /incidents/{id}/investigate`
  * (Operate). O painel abre com o estado pendente, exibe a análise + as
  * evidências + provider/modelo; falha (ex.: 503 sem provider) fica DENTRO

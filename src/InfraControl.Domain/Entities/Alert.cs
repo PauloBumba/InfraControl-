@@ -20,6 +20,9 @@ public sealed class Alert : AggregateRoot
     /// <summary>Id externo do problem (Zabbix eventid) — máx. 64.</summary>
     public const int ExternalIdMaxLength = 64;
 
+    /// <summary>Anotação do operador (F50-T003) — máx. 500.</summary>
+    public const int OperatorNoteMaxLength = 500;
+
     public Guid? DeviceId { get; private set; }
     public CheckKind? Kind { get; private set; }
     public MonitoringSource Source { get; private set; }
@@ -29,6 +32,12 @@ public sealed class Alert : AggregateRoot
     public AlertStatus Status { get; private set; }
     public string Message { get; private set; } = string.Empty;
     public DateTime? ResolvedAt { get; private set; }
+
+    /// <summary>
+    /// F50-T003: anotação humana sobre o alerta (o alerta nasce do
+    /// sistema — este é o único campo editável pelo operador).
+    /// </summary>
+    public string? OperatorNote { get; private set; }
 
     private Alert() { }
 
@@ -147,5 +156,27 @@ public sealed class Alert : AggregateRoot
     {
         if (Status == AlertStatus.Suppressed)
             Status = AlertStatus.Open;
+    }
+
+    /// <summary>
+    /// F50-T003: anotação do operador — null/branco limpa; acima do
+    /// limite → 400 pt-BR; redefinir o mesmo valor é no-op.
+    /// </summary>
+    public void SetOperatorNote(string? note)
+    {
+        var trimmed = note?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            OperatorNote = null;
+            return;
+        }
+
+        if (trimmed.Length > OperatorNoteMaxLength)
+            throw new ArgumentException(
+                $"A anotação deve ter no máximo {OperatorNoteMaxLength} caracteres.",
+                nameof(note));
+
+        if (OperatorNote != trimmed)
+            OperatorNote = trimmed;
     }
 }

@@ -50,3 +50,16 @@ export function formatUptime(seconds: number | null | undefined): string {
   if (total >= 60) return `${Math.floor(total / 60)}m`;
   return `${total}s`;
 }
+
+/** Bytes → "512 MB" / "1.2 GB"; null/negativo ⇒ "—". */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value >= 100 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}

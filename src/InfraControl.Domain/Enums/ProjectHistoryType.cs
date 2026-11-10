@@ -21,5 +21,9 @@ public enum ProjectHistoryType
     Approved = 14,
     Cancelled = 15,
     OnHold = 16,
-    Resumed = 17
+    Resumed = 17,
+    ConclusionSubmitted = 18,
+    ConclusionApproved = 19,
+    ConclusionRejected = 20,
+    ConclusionChangesRequested = 21
 }

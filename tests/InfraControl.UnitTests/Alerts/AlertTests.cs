@@ -220,4 +220,34 @@ public sealed class AlertTests
         alert.DomainEvents.OfType<AlertCreatedDomainEvent>().Should().BeEmpty(
             "o grupo já recebe o Incidente aberto do incidente raiz — sem duplicar");
     }
+
+    // ── Anotação do operador (F50-T003) ──────────────────────────────────
+
+    [Fact]
+    public void SetOperatorNote_ShouldTrimAndAllowClearing()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Critical, "down");
+
+        alert.SetOperatorNote("  verificado com o cliente  ");
+        alert.OperatorNote.Should().Be("verificado com o cliente");
+
+        alert.SetOperatorNote(null);
+        alert.OperatorNote.Should().BeNull();
+
+        alert.SetOperatorNote("   ");
+        alert.OperatorNote.Should().BeNull("branco limpa a anotação");
+    }
+
+    [Fact]
+    public void SetOperatorNote_AboveMax_ShouldThrowArgumentPtBr()
+    {
+        var alert = Alert.Create(
+            Guid.NewGuid(), CheckKind.Ping, AlertSeverity.Warning, "cpu 91%");
+
+        var action = () => alert.SetOperatorNote(new string('x', 501));
+
+        action.Should().Throw<ArgumentException>()
+            .WithMessage($"*{Alert.OperatorNoteMaxLength}*");
+    }
 }

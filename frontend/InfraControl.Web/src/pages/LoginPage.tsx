@@ -11,6 +11,7 @@ import {
   MFA_INVALID_MESSAGE,
   MFA_REQUIRED_MESSAGE,
 } from "@/services/api/auth";
+import { Logo } from "@/components/ui/Logo";
 
 /**
  * F43-T003 (rev.) — falha do authorization code flow. O backend devolve
@@ -130,24 +131,7 @@ export function LoginPage() {
       <div className="uni-login-card">
         <div className="uni-login-brand">
           <div className="uni-login-logo">
-            <svg viewBox="0 0 64 64" width="32" height="32">
-              <defs>
-                <linearGradient id="infraLoginGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:1}} />
-                  <stop offset="100%" style={{stopColor:'#2563eb',stopOpacity:1}} />
-                </linearGradient>
-              </defs>
-              <rect width="64" height="64" rx="12" fill="url(#infraLoginGrad)" />
-              <g fill="white">
-                <rect x="16" y="12" width="32" height="40" rx="4" fill="none" stroke="white" strokeWidth="2.5"/>
-                <rect x="20" y="18" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-                <rect x="20" y="28" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-                <rect x="20" y="38" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-                <circle cx="38" cy="21" r="1.5" fill="#22c55e"/>
-                <circle cx="38" cy="31" r="1.5" fill="#22c55e"/>
-                <circle cx="38" cy="41" r="1.5" fill="#eab308"/>
-              </g>
-            </svg>
+            <Logo size={32} />
           </div>
           <h1>InfraControl</h1>
           <p>Operações de TI · central de infraestrutura</p>
@@ -259,10 +243,37 @@ export function LoginPage() {
                   link navega para o start no backend (GET /auth/google),
                   que emite o state, troca o code e cria a sessão. */}
               <a
-                className="uni-login-social-btn"
+                className="uni-login-social-btn uni-login-social-btn--google"
                 href="/api/v1/auth/google"
               >
-                <i className="pi pi-google" aria-hidden="true" />
+                {/* F50-T002 — logo "G" oficial do Google (4 cores de
+                    branding: blue/red/yellow/green) no lugar do ícone
+                    genérico do PrimeIcons. O fluxo continua o mesmo
+                    ADR-064: navegação para o start no backend. */}
+                <svg
+                  viewBox="0 0 48 48"
+                  width="18"
+                  height="18"
+                  role="img"
+                  aria-label="Google"
+                >
+                  <path
+                    fill="#EA4335"
+                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+                  />
+                </svg>
                 <span>Continuar com Google</span>
               </a>
             </div>

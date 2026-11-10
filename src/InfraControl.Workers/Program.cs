@@ -7,6 +7,9 @@ using InfraControl.Workers.Consumers.Notifications;
 using InfraControl.Workers.Tracing;
 using MassTransit;
 using MediatR;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -19,7 +22,6 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "InfraControl.Workers")
-    .WriteTo.Console()
     .CreateLogger();
 
 // HostApplicationBuilder nao tem .Host: o Serilog entra pelo ILoggerFactory.
@@ -51,11 +53,16 @@ builder.Services.AddMediatR(configuration =>
 builder.Services.AddApplicationMediatR();
 
 // F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —
-// a MESMA seção que o host da Api lê para os workers de canal.
+// a MESMA seção que a API lê para os workers de canal.
+// D5 (docs/66): PostConfigure normaliza (binder append → duplicatas).
 builder.Services.Configure<InfraControl.Application.Notifications.Channels.NotificationChannelsOptions>(
-    options => builder.Configuration
-        .GetSection(InfraControl.Application.Notifications.Channels.NotificationChannelsOptions.SectionName)
-        .Bind(options));
+    options =>
+    {
+        builder.Configuration
+            .GetSection(InfraControl.Application.Notifications.Channels.NotificationChannelsOptions.SectionName)
+            .Bind(options);
+        options.NormalizeDefaultChannels();
+    });
 
 // F12-T003: backup periódico do PostgreSQL — senha só via ConnectionString
 // (env ConnectionStrings__DefaultConnection), nunca em config nova.
@@ -75,6 +82,32 @@ builder.Services.AddHostedService<CleanupWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.Backup.BackupWorker>();
 builder.Services.AddHostedService<MonitoringPollingWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.UnifiSyncWorker>();
+
+// Observabilidade (profile obs): MESMO pipeline OTLP da API — traces dos
+// commands MediatR (ObservabilityBehavior), spans de consumers MassTransit
+// e métricas InfraControl.* (db commands, request.duration dos handlers
+// executados aqui). Sem OpenTelemetry:Endpoint configurado o host sobe
+// normal sem telemetria (mesmo comportamento da API).
+var otelEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
+if (!string.IsNullOrWhiteSpace(otelEndpoint))
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService("InfraControl.Workers")
+            .AddAttributes(new Dictionary<string, object>
+            {
+                ["deployment.environment"] = builder.Environment.EnvironmentName
+            }))
+        .WithTracing(tracing => tracing
+            .AddHttpClientInstrumentation()
+            .AddSource("InfraControl.*")
+            .AddSource("MassTransit")
+            .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)))
+        .WithMetrics(metrics => metrics
+            .AddHttpClientInstrumentation()
+            .AddMeter("InfraControl.*")
+            .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)));
+}
 
 var host = builder.Build();
 host.Run();

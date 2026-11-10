@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InfraControl.Application.AI.Context;
 using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Knowledge.Articles.Queries;
 using InfraControl.BuildingBlocks.Application;
@@ -48,12 +49,20 @@ public sealed class KnowledgeArticleStatusCommandTests : IDisposable
         public IReadOnlyCollection<string> Roles => roles;
     }
 
+    private sealed class NoopAiIngestion : IAiKnowledgeIngestion
+    {
+        public Task<int> IngestArticleAsync(
+            Guid articleId, CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+    }
+
     private static ChangeKnowledgeArticleStatusCommandHandler ChangeStatusHandler(AppDbContext context)
         => new(
             new KnowledgeArticleRepository(context),
             new KnowledgeArticleVersionRepository(context),
             new FakeCurrentUser(["Operator"]),
-            NullLogger<ChangeKnowledgeArticleStatusCommandHandler>.Instance);
+            NullLogger<ChangeKnowledgeArticleStatusCommandHandler>.Instance,
+            new NoopAiIngestion());
 
     private static SearchKnowledgeArticlesQueryHandler SearchHandler(AppDbContext context, string[] roles)
         => new(

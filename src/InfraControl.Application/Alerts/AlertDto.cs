@@ -18,4 +18,5 @@ public sealed record AlertDto(
     string Source,
     string Message,
     DateTime OpenedAt,
-    DateTime? ResolvedAt);
+    DateTime? ResolvedAt,
+    string? OperatorNote = null);

@@ -45,7 +45,7 @@ public sealed class ProjectCrudCommandTests : IDisposable
         new(Repository(context), NullLogger<UpdateProjectCommandHandler>.Instance);
 
     private static SearchProjectsQueryHandler SearchHandler(AppDbContext context) =>
-        new(Repository(context));
+        new(Repository(context), new FakeCurrentUser(Guid.NewGuid(), UserRole.Admin.ToString()));
 
     [Fact]
     public async Task Create_ShouldGenerateNextCodeAndPersistProject()
@@ -137,11 +137,11 @@ public sealed class ProjectCrudCommandTests : IDisposable
         updated.Status.Should().Be(nameof(ProjectStatus.Draft));
     }
 
-    private sealed class FakeCurrentUser(Guid userId) : ICurrentUserContext
+    private sealed class FakeCurrentUser(Guid userId, params string[] roles) : ICurrentUserContext
     {
         public Guid? UserId => userId;
         public string? UserName => "creator@example.test";
         public bool IsAuthenticated => true;
-        public IReadOnlyCollection<string> Roles => [];
+        public IReadOnlyCollection<string> Roles => roles;
     }
 }

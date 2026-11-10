@@ -1,6 +1,7 @@
 using InfraControl.Application.AI.Providers.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.Application.AI.Providers;
 
@@ -9,6 +10,8 @@ namespace InfraControl.Application.AI.Providers;
 /// A chave nunca sai plaintext — só <see cref="AiProviderDto.ApiKeySet"/>
 /// e o sufixo mascarado <c>••••XXXX</c> (decifra só em memória; falha de
 /// unprotect degrada para máscara sem sufixo).
+/// F49-T002: <see cref="Protocol"/> expõe o protocolo escolhido no
+/// cadastro (o admin decide; fornecedor novo = config, sem deploy).
 /// </summary>
 public sealed record AiProviderDto(
     Guid Id,
@@ -17,7 +20,8 @@ public sealed record AiProviderDto(
     bool Active,
     bool ApiKeySet,
     string? ApiKeyMasked,
-    IReadOnlyList<string> Models);
+    IReadOnlyList<string> Models,
+    AiProviderProtocol Protocol);
 
 /// <summary>Rota capacidade → provider (sem linha = capacidade cai no config, D3-A).</summary>
 public sealed record AiProviderCapabilityRouteDto(
@@ -52,7 +56,8 @@ internal static class AiProviderAdminMapper
             provider.IsActive,
             apiKeySet,
             mask,
-            provider.Models);
+            provider.Models,
+            provider.Protocol);
     }
 
     internal static AiProviderCapabilityRouteDto ToRouteDto(

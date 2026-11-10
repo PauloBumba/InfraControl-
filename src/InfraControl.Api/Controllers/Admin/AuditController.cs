@@ -18,12 +18,13 @@ public sealed class AuditController(ISender sender) : BaseController
         [FromQuery] string? outcome,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
+        [FromQuery] string? actor,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
         var result = await sender.Send(
-            new SearchAuditEntriesQuery(action, outcome, from, to, page, pageSize),
+            new SearchAuditEntriesQuery(action, outcome, from, to, actor, page, pageSize),
             cancellationToken);
 
         return Ok(ApiResponse.Ok(result));

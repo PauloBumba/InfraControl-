@@ -1,0 +1,431 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "InfraControl — Topologia Cloud (Docker Compose)",
+    "subtitle": "Stack completa no host Docker: app, dados, observabilidade, integrações e IA — derivada do docker-compose.yml real",
+    "output": "infracontrol-cloud-topology.html",
+    "quality_profile": "standard",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Caminho da requisição",
+        "focus": [
+          "users",
+          "frontend",
+          "api",
+          "postgres"
+        ],
+        "note": "Usuário → nginx → API → banco."
+      },
+      {
+        "id": "data-plane",
+        "label": "Plano de dados",
+        "focus": [
+          "api",
+          "workers",
+          "postgres",
+          "redis",
+          "rabbitmq"
+        ],
+        "note": "Postgres, Redis Sentinel e RabbitMQ sustentam API e workers."
+      },
+      {
+        "id": "integrations",
+        "label": "Integrações e IA",
+        "focus": [
+          "api",
+          "integrations",
+          "observability",
+          "ollama-lb",
+          "ollama"
+        ],
+        "note": "Profiles opcionais: WhatsApp, acesso remoto, monitoramento, logs e LLM local."
+      },
+      {
+        "id": "control-plane",
+        "label": "Controle Docker",
+        "focus": [
+          "api",
+          "docker-sock",
+          "containers"
+        ],
+        "note": "A API administra containers reais via Docker socket."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "label": "Usuários",
+      "sublabel": "Browser HTTPS :8443/:8445",
+      "pos": [
+        30,
+        340
+      ],
+      "size": [
+        140,
+        62
+      ]
+    },
+    {
+      "id": "frontend",
+      "type": "cloud",
+      "label": "frontend",
+      "sublabel": "nginx SPA + proxy :80/:443",
+      "pos": [
+        260,
+        340
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "tag": "profile: app"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "api",
+      "sublabel": "ASP.NET Core :8080",
+      "pos": [
+        500,
+        340
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "tag": "profile: app"
+    },
+    {
+      "id": "workers",
+      "type": "backend",
+      "label": "workers",
+      "sublabel": "backup, sync, outbox",
+      "pos": [
+        740,
+        520
+      ],
+      "size": [
+        150,
+        62
+      ],
+      "tag": "profile: app"
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "postgres",
+      "sublabel": "PostgreSQL :5432",
+      "pos": [
+        760,
+        340
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "redis",
+      "sublabel": "master+slave+3 sentinels",
+      "pos": [
+        260,
+        520
+      ],
+      "size": [
+        160,
+        62
+      ]
+    },
+    {
+      "id": "rabbitmq",
+      "type": "messagebus",
+      "label": "rabbitmq",
+      "sublabel": "AMQP :5672 + mgmt",
+      "pos": [
+        30,
+        140
+      ],
+      "size": [
+        160,
+        62
+      ]
+    },
+    {
+      "id": "integrations",
+      "type": "backend",
+      "label": "integrações",
+      "sublabel": "evolution · guacamole · zabbix",
+      "pos": [
+        500,
+        700
+      ],
+      "size": [
+        190,
+        62
+      ],
+      "tag": "profiles opcionais"
+    },
+    {
+      "id": "observability",
+      "type": "backend",
+      "label": "observabilidade",
+      "sublabel": "adminer · seq · otel-collector",
+      "pos": [
+        960,
+        60
+      ],
+      "size": [
+        200,
+        60
+      ],
+      "tag": "profile: obs"
+    },
+    {
+      "id": "ollama-lb",
+      "type": "cloud",
+      "label": "ollama-lb",
+      "sublabel": "nginx LLM :11434",
+      "pos": [
+        1010,
+        180
+      ],
+      "size": [
+        140,
+        62
+      ],
+      "tag": "profile: ai"
+    },
+    {
+      "id": "ollama",
+      "type": "backend",
+      "label": "ollama ×3",
+      "sublabel": "LLM nodes",
+      "pos": [
+        1210,
+        180
+      ],
+      "size": [
+        140,
+        62
+      ],
+      "tag": "profile: ai"
+    },
+    {
+      "id": "docker-sock",
+      "type": "security",
+      "label": "/var/run/docker.sock",
+      "sublabel": "Engine API rw",
+      "pos": [
+        700,
+        160
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "tag": "admin only"
+    },
+    {
+      "id": "containers",
+      "type": "cloud",
+      "label": "Host Docker",
+      "sublabel": "todos os containers",
+      "pos": [
+        960,
+        320
+      ],
+      "size": [
+        150,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Host Docker — rede 'infracontrol'",
+      "wraps": [
+        "frontend",
+        "api",
+        "workers",
+        "postgres",
+        "redis",
+        "rabbitmq",
+        "integrations",
+        "observability",
+        "ollama-lb",
+        "ollama",
+        "docker-sock",
+        "containers"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "profile: app (núcleo)",
+      "wraps": [
+        "frontend",
+        "api",
+        "workers"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "profile: ai",
+      "wraps": [
+        "ollama-lb",
+        "ollama"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "profiles: obs / evolution / remote / zabbix",
+      "wraps": [
+        "integrations",
+        "observability"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "users-frontend",
+      "from": "users",
+      "to": "frontend",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-api",
+      "from": "frontend",
+      "to": "api",
+      "label": "/api/* proxy"
+    },
+    {
+      "id": "api-postgres",
+      "from": "api",
+      "to": "postgres",
+      "label": "EF Core",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-redis",
+      "from": "api",
+      "to": "redis",
+      "label": "cache+session",
+      "variant": "dashed"
+    },
+    {
+      "id": "api-rabbit",
+      "from": "api",
+      "to": "rabbitmq",
+      "label": "publish",
+      "variant": "dashed"
+    },
+    {
+      "id": "rabbit-workers",
+      "from": "rabbitmq",
+      "to": "workers",
+      "label": "consume",
+      "variant": "dashed"
+    },
+    {
+      "id": "workers-postgres",
+      "from": "workers",
+      "to": "postgres",
+      "label": "backup/retention",
+      "variant": "dashed"
+    },
+    {
+      "id": "api-integrations",
+      "from": "api",
+      "to": "integrations",
+      "label": "WhatsApp · RD · Zabbix",
+      "variant": "dashed"
+    },
+    {
+      "id": "api-observability",
+      "from": "api",
+      "to": "observability",
+      "label": "logs · traces · DB UI",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "api-ollama-lb",
+      "from": "api",
+      "to": "ollama-lb",
+      "label": "AiGateway",
+      "variant": "emphasis"
+    },
+    {
+      "id": "lb-ollama",
+      "from": "ollama-lb",
+      "to": "ollama",
+      "label": "round-robin"
+    },
+    {
+      "id": "api-docker-sock",
+      "from": "api",
+      "to": "docker-sock",
+      "label": "IDockerControl",
+      "variant": "security"
+    },
+    {
+      "id": "sock-containers",
+      "from": "docker-sock",
+      "to": "containers",
+      "label": "Engine API"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Núcleo (profile app)",
+      "items": [
+        "frontend nginx serve SPA + proxy reverso para api",
+        "api ASP.NET Core — único caminho de escrita no Postgres",
+        "workers consomem RabbitMQ: backup, retenção, sync UniFi, outbox"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Dados",
+      "items": [
+        "Postgres é o sistema de registro único (EF Core + migrations)",
+        "Redis Sentinel: cache, sessões e locks distribuídos (master+slave+3 sentinels)",
+        "RabbitMQ: eventos e filas entre api e workers"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Observabilidade",
+      "items": [
+        "adminer: DB UI :8082 · seq: logs :5341 · otel-collector: traces OTLP :4317",
+        "Zabbix (profile próprio): server+web+db+agent — agent lê docker.sock em modo ro para métricas por container"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Controle privilegiado",
+      "items": [
+        "api monta /var/run/docker.sock rw — único componente com poder sobre containers",
+        "Ações limitadas a start/stop/restart + leitura de logs/stats",
+        "toda ação é Administer + auditada em AuditEntry"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "IA e integrações",
+      "items": [
+        "ollama-lb faz round-robin em 3 nós Ollama locais (:11434)",
+        "AiGateway roteia por capability (chat, reporting, embeddings)",
+        "integrações = evolution (WhatsApp), guacamole+guacd (acesso remoto) e zabbix — profiles opcionais do compose"
+      ]
+    }
+  ]
+}

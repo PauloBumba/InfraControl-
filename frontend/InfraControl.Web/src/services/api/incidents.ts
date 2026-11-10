@@ -97,15 +97,24 @@ export async function acknowledgeIncident(id: string): Promise<IncidentItem | nu
  * descrição, severidade). O status NÃO muda aqui (ciclo por estado via
  * `changeIncidentStatus`, ADR-030) e a exclusão não existe por decisão de
  * arquitetura.
+ *
+ * F50-T003 — `rootCause` (opcional): null preserva o valor no backend,
+ * string grava ("" limpa). Quem não manda a chave cai no mesmo caso null.
  */
 export function updateIncident(
   id: string,
-  input: { title: string; description?: string | null; severity: string },
+  input: {
+    title: string;
+    description?: string | null;
+    severity: string;
+    rootCause?: string | null;
+  },
 ): Promise<IncidentItem | null> {
   return api.put<IncidentItem>(`/incidents/${id}`, {
     title: input.title,
     description: input.description ?? null,
     severity: input.severity,
+    rootCause: input.rootCause ?? null,
   });
 }
 

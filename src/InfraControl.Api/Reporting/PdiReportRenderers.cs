@@ -19,10 +19,12 @@ public static class PdiReportRenderers
 
     // ---- Relatório individual (§22) ---------------------------------
 
-    public static byte[] RenderIndividualPdf(PdiIndividualReportDto report)
+    public static byte[] RenderIndividualPdf(
+        PdiIndividualReportDto report, string? companyName = null)
         => Pdf(
             "Relatório Individual do PDI",
             $"{report.OwnerName} · {report.ManagerName ?? "Sem gestor"}",
+            companyName,
             container => container.Column(column =>
             {
                 Kv(column.Item(), "Dados", [
@@ -85,7 +87,8 @@ public static class PdiReportRenderers
                 ]);
             }));
 
-    public static byte[] RenderIndividualXlsx(PdiIndividualReportDto report)
+    public static byte[] RenderIndividualXlsx(
+        PdiIndividualReportDto report, string? companyName = null)
     {
         using var workbook = new XLWorkbook();
 
@@ -93,6 +96,7 @@ public static class PdiReportRenderers
         var row = 1;
         foreach (var (label, value) in new[]
         {
+            ("Empresa", companyName ?? "InfraControl"),
             ("Relatório individual do PDI", (string?)null),
             ("Colaborador", report.OwnerName),
             ("E-mail", report.OwnerEmail),
@@ -158,10 +162,12 @@ public static class PdiReportRenderers
 
     // ---- Relatório semestral (§22) ----------------------------------
 
-    public static byte[] RenderSemesterPdf(PdiSemesterReportDto report)
+    public static byte[] RenderSemesterPdf(
+        PdiSemesterReportDto report, string? companyName = null)
         => Pdf(
             "Relatório Semestral do PDI",
             $"{report.Label} · {Period(report.From, report.To)}",
+            companyName,
             container => container.Column(column =>
             {
                 Kv(column.Item(), "Consolidado", [
@@ -244,7 +250,8 @@ public static class PdiReportRenderers
                         $"{share.Type}: {share.Count} ({share.Percent}%)");
             }));
 
-    public static byte[] RenderSemesterXlsx(PdiSemesterReportDto report)
+    public static byte[] RenderSemesterXlsx(
+        PdiSemesterReportDto report, string? companyName = null)
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Resumo");
@@ -257,6 +264,7 @@ public static class PdiReportRenderers
             row++;
         }
 
+        Put("Empresa", companyName ?? "InfraControl");
         Put("Relatório semestral", report.Label);
         Put("Período", Period(report.From, report.To));
         Put("Planos no período", report.PlansInPeriod.ToString());
@@ -298,10 +306,11 @@ public static class PdiReportRenderers
     // ---- Relatório de dificuldades (§22) -----------------------------
 
     public static byte[] RenderDifficultiesPdf(
-        PdiDifficultiesReportDto report)
+        PdiDifficultiesReportDto report, string? companyName = null)
         => Pdf(
             "Relatório de Dificuldades do PDI",
             Period(report.From, report.To),
+            companyName,
             container => container.Column(column =>
             {
                 Kv(column.Item(), "Consolidado", [
@@ -338,17 +347,19 @@ public static class PdiReportRenderers
             }));
 
     public static byte[] RenderDifficultiesXlsx(
-        PdiDifficultiesReportDto report)
+        PdiDifficultiesReportDto report, string? companyName = null)
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Dificuldades");
 
-        sheet.Cell(1, 1).Value = "Tipo";
-        sheet.Cell(1, 2).Value = "Quantidade";
-        sheet.Cell(1, 3).Value = "Percentual";
-        sheet.Row(1).Style.Font.Bold = true;
+        sheet.Cell(1, 1).Value = "Empresa";
+        sheet.Cell(1, 2).Value = companyName ?? "InfraControl";
+        sheet.Cell(3, 1).Value = "Tipo";
+        sheet.Cell(3, 2).Value = "Quantidade";
+        sheet.Cell(3, 3).Value = "Percentual";
+        sheet.Row(3).Style.Font.Bold = true;
 
-        var row = 2;
+        var row = 4;
         foreach (var share in report.ByType)
         {
             sheet.Cell(row, 1).Value = share.Type;
@@ -374,6 +385,7 @@ public static class PdiReportRenderers
     private static byte[] Pdf(
         string title,
         string subtitle,
+        string? companyName,
         Action<IContainer> body)
         => Document.Create(document =>
         {
@@ -385,6 +397,9 @@ public static class PdiReportRenderers
                 page.Header().Column(column =>
                 {
                     column.Item().Text(text =>
+                        text.Span(companyName ?? "InfraControl")
+                            .FontSize(9).Bold());
+                    column.Item().Text(text =>
                         text.Span(title).FontSize(16).Bold());
                     column.Item().Text(text => text.Span(subtitle)
                         .FontSize(9)
@@ -393,7 +408,7 @@ public static class PdiReportRenderers
                 page.Content().PaddingTop(16).Element(body);
                 page.Footer().AlignCenter().Text(text =>
                 {
-                    text.Span("InfraControl · PDI · página ");
+                    text.Span($"{companyName ?? "InfraControl"} · PDI · página ");
                     text.CurrentPageNumber();
                     text.Span(" de ");
                     text.TotalPages();

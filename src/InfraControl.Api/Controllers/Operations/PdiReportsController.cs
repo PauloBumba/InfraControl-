@@ -51,9 +51,10 @@ public sealed class PdiReportsController(ISender sender) : BaseController
         var exportFormat = PdiExportFormat.Parse(format);
         var report = await sender.Send(
             new GetPdiIndividualReportQuery(userId), cancellationToken);
+        var companyName = await CompanyNameAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? PdiReportRenderers.RenderIndividualXlsx(report)
-            : PdiReportRenderers.RenderIndividualPdf(report);
+            ? PdiReportRenderers.RenderIndividualXlsx(report, companyName)
+            : PdiReportRenderers.RenderIndividualPdf(report, companyName);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-individual", exportFormat));
     }
@@ -84,9 +85,10 @@ public sealed class PdiReportsController(ISender sender) : BaseController
             new GetPdiSemesterReportQuery(
                 ParseDate(from, nameof(from)), ParseDate(to, nameof(to))),
             cancellationToken);
+        var companyName = await CompanyNameAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? PdiReportRenderers.RenderSemesterXlsx(report)
-            : PdiReportRenderers.RenderSemesterPdf(report);
+            ? PdiReportRenderers.RenderSemesterXlsx(report, companyName)
+            : PdiReportRenderers.RenderSemesterPdf(report, companyName);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-semestral", exportFormat));
     }
@@ -117,9 +119,10 @@ public sealed class PdiReportsController(ISender sender) : BaseController
             new GetPdiDifficultiesReportQuery(
                 ParseDate(from, nameof(from)), ParseDate(to, nameof(to))),
             cancellationToken);
+        var companyName = await CompanyNameAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? PdiReportRenderers.RenderDifficultiesXlsx(report)
-            : PdiReportRenderers.RenderDifficultiesPdf(report);
+            ? PdiReportRenderers.RenderDifficultiesXlsx(report, companyName)
+            : PdiReportRenderers.RenderDifficultiesPdf(report, companyName);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-dificuldades", exportFormat));
     }
@@ -138,6 +141,12 @@ public sealed class PdiReportsController(ISender sender) : BaseController
         throw new ArgumentException(
             $"Data '{name}' inválida — use o formato AAAA-MM-DD.");
     }
+
+    /// <summary>Nome institucional configurado (spec §3); null = fallback nos renderers.</summary>
+    private async Task<string?> CompanyNameAsync(CancellationToken cancellationToken)
+        => (await sender.Send(
+            new InfraControl.Application.Company.GetCompanySettingsQuery(),
+            cancellationToken))?.Name;
 
     private static string FileName(string slug, PdiExportFormat format)
         => $"pdi-{slug}-{DateTime.UtcNow:yyyyMMdd}.{format.Extension}";

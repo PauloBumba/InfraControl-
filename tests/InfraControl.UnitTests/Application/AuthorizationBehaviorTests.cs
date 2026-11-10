@@ -4,6 +4,7 @@ using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Enums;
 using InfraControl.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
+using InfraControl.UnitTests.Support;
 
 namespace InfraControl.UnitTests.Authorization;
 
@@ -20,7 +21,7 @@ public sealed class AuthorizationBehaviorTests
 
     private static AuthorizationBehavior<Request, string> Behavior(
         bool authenticated, params string[] roles)
-        => new(new StubUser(authenticated, roles));
+        => new(new StubUser(authenticated, roles), StubAccessPolicyService.Instance);
 
     private sealed class StubUser(bool authenticated, IReadOnlyCollection<string> roles)
         : ICurrentUserContext
@@ -115,7 +116,7 @@ public sealed class AuthorizationBehaviorTests
     public async Task Not_An_Authorized_Request_Should_Not_Be_Blocked()
     {
         var behavior = new AuthorizationBehavior<NotAuthorized, string>(
-            new StubUser(authenticated: false, []));
+            new StubUser(authenticated: false, []), StubAccessPolicyService.Instance);
 
         var result = await behavior.Handle(
             new NotAuthorized(), () => Task.FromResult("ok"), CancellationToken.None);

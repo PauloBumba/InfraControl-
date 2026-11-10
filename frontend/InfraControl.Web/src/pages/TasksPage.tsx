@@ -16,6 +16,7 @@ import { formatDateTime } from "@/utils/format";
 import { ProgressBar } from "primereact/progressbar";
 import {
   changeTaskState,
+  completeTask,
   createTask,
   deleteTask,
   listTasks,
@@ -106,6 +107,9 @@ export function TasksPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
+  const [completing, setCompleting] = useState<TaskItem | null>(null);
+  const [completionNotes, setCompletionNotes] = useState("");
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   // Filtros: o input é aplicado no submit (mesmo padrão da ClientsPage) e os
   // valores aplicados é que disparam a recarga.
@@ -163,6 +167,21 @@ export function TasksPage() {
     // 409/400 pt-BR do mapa de transições do domínio vira banner.
     onError: (error) => setActionError(mutationErrorMessage(error)),
   });
+  const completeMutation = useUpdateMutation({
+    invalidate: ["tasks"],
+    mutationFn: (input: { id: string; result: string; state?: "Resolved" | "Closed" }) =>
+      completeTask(input.id, input.result, input.state ?? "Resolved"),
+    onSuccess: () => {
+      setActionError(null);
+      setNotice("Tarefa finalizada.");
+      setCompleting(null);
+      setCompletionNotes("");
+      setCompletionError(null);
+    },
+    onError: (error) => {
+      setCompletionError(mutationErrorMessage(error));
+    },
+  });
   const deleteMutation = useDeleteMutation({
     invalidate: ["tasks"],
     mutationFn: (id: string) => deleteTask(id),
@@ -190,6 +209,21 @@ export function TasksPage() {
   const move = useCallback(
     (task: TaskItem, target: string) => {
       setNotice(null);
+      setActionError(null);
+      if (target === "Resolved" || target === "Closed") {
+        setCompleting(task);
+        setCompletionNotes(task.result ?? "");
+        setCompletionError(null);
+        return;
+      }
+      if (target === "InProgress") {
+        setMoving(task.id);
+        stateMutation.mutate(
+          { id: task.id, state: target },
+          { onSettled: () => setMoving(null) },
+        );
+        return;
+      }
       setMoving(task.id);
       stateMutation.mutate(
         { id: task.id, state: target },
@@ -198,6 +232,17 @@ export function TasksPage() {
     },
     [stateMutation],
   );
+
+  function submitCompletion() {
+    if (!completing) return;
+    const notes = completionNotes.trim();
+    if (!notes) {
+      setCompletionError("Informe o que foi feito para finalizar a tarefa.");
+      return;
+    }
+    setCompletionError(null);
+    completeMutation.mutate({ id: completing.id, result: notes, state: "Resolved" });
+  }
 
   function resetForm() {
     setTitle("");
@@ -677,6 +722,47 @@ export function TasksPage() {
         }
         confirmLabel="Excluir"
       />
+      {completing && (
+        <ConfirmDialog
+          visible={true}
+          header="Finalizar tarefa"
+          message={(
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>Informe o que foi feito para concluir esta tarefa.</div>
+              <div>
+                <div style={{ fontSize: 12, marginBottom: 4 }}>O que foi feito</div>
+                <textarea
+                  value={completionNotes}
+                  onChange={(e) => {
+                    setCompletionNotes(e.target.value);
+                    setCompletionError(null);
+                  }}
+                  rows={5}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    border: "1px solid var(--surface-border, #d1d5db)",
+                    borderRadius: 10,
+                    fontSize: 13,
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                  placeholder="Descreva a solução, ações realizadas, resultado..."
+                />
+                {completionError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{completionError}</div>}
+              </div>
+            </div>
+          )}
+          confirmLabel={completeMutation.isPending ? "Finalizando..." : "Finalizar"}
+          onConfirm={submitCompletion}
+          onHide={() => {
+            if (completeMutation.isPending) return;
+            setCompleting(null);
+            setCompletionNotes("");
+            setCompletionError(null);
+          }}
+        />
+      )}
     </ListPageShell>
   );
 }
@@ -801,6 +887,26 @@ function TaskCard({
       )}
       <Can level="operate">
         <div style={{ marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {task.state === "Open" && (
+            <Button
+              variant="ghost"
+              onClick={() => onMove(task, "InProgress")}
+              title="Iniciar tarefa"
+              style={{ padding: "4px 8px", fontSize: 11, whiteSpace: "nowrap" }}
+            >
+              <i className="pi pi-play" style={{ fontSize: 10 }} /> Iniciar
+            </Button>
+          )}
+          {(task.state === "Open" || task.state === "InProgress" || task.state === "Waiting" || task.state === "Blocked") && (
+            <Button
+              variant="ghost"
+              onClick={() => onMove(task, "Resolved")}
+              title="Finalizar tarefa"
+              style={{ padding: "4px 8px", fontSize: 11, whiteSpace: "nowrap" }}
+            >
+              <i className="pi pi-check" style={{ fontSize: 10 }} /> Finalizar
+            </Button>
+          )}
           {/* F23-T001 — abre o formulário de identificação no topo. */}
           <Button
             variant="ghost"

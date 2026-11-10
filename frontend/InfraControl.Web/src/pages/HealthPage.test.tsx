@@ -60,6 +60,7 @@ function makeAlert(overrides: Partial<AlertItem> = {}): AlertItem {
     message: "Host sem resposta",
     openedAt: "2026-10-12T01:00:00Z",
     resolvedAt: null,
+    operatorNote: null,
     ...overrides,
   };
 }

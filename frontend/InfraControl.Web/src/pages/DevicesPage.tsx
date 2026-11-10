@@ -1,11 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { ListPageShell } from "@/components/ui/ListPageShell";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
-import { ConfirmDialog } from "@/components/ui/Dialog";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { resolveUploadSrc } from "@/components/ui/imageUploadTypes";
@@ -28,11 +28,13 @@ import {
   INVENTORY_PAGE_SIZE,
   createDevice,
   deleteDevice,
+  importDevices,
   listDevices,
   listLocations,
   listSwitchPorts,
   updateDevice,
   type DeviceItem,
+  type ImportDevicesResult,
   type LocationItem,
   type SwitchPortItem,
 } from "@/services/api/inventory";
@@ -126,6 +128,13 @@ const OS_ELIGIBLE_TYPES = new Set([
   "Firewall",
 ]);
 
+/** Rótulos do relatório da importação (F50-T008). */
+const IMPORT_STATUS_NAMES: Record<string, string> = {
+  created: "Criado",
+  skipped: "Pulado",
+  error: "Erro",
+};
+
 export function DevicesPage() {
   const navigate = useNavigate();
   const [view, setView] = useEntityViewMode("devices", "grid");
@@ -157,6 +166,13 @@ export function DevicesPage() {
   const [description, setDescription] = useState("");
   const [operatingSystem, setOperatingSystem] = useState("");
   const [imagePath, setImagePath] = useState<string | null>(null);
+  // F50-T008 — importação em massa por CSV (dialog com o formato visível).
+  const [importOpen, setImportOpen] = useState(false);
+  const [importCsv, setImportCsv] = useState("");
+  const [importLocationId, setImportLocationId] = useState("");
+  const [importReport, setImportReport] = useState<ImportDevicesResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   // F29-T001C-2 — as três validações aqui são de TRÊS campos diferentes
   // (nome, tipo, localização), e esta página era a única do recorte sem um
   // sequer `FormField`: os recados saíam todos no mesmo `<div>` no pé do
@@ -333,6 +349,76 @@ export function DevicesPage() {
     }
   }
 
+  // ── F50-T008 — importação em massa por CSV ─────────────────────────────
+
+  function openImport() {
+    setImportCsv("");
+    setImportLocationId("");
+    setImportReport(null);
+    setImportError(null);
+    setImporting(false);
+    setImportOpen(true);
+  }
+
+  /** Arquivo .csv → textarea (mesmo texto que vai para o backend). */
+  function onImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImportCsv(String(reader.result ?? ""));
+      setImportReport(null);
+      setImportError(null);
+    };
+    reader.onerror = () => setImportError("Não foi possível ler o arquivo.");
+    reader.readAsText(file, "utf-8");
+    // Permite escolher o mesmo arquivo de novo após um ajuste.
+    event.target.value = "";
+  }
+
+  /** Modelo pronto para o Excel (BOM p/ acentos + `;` do Excel pt-BR). */
+  function downloadImportTemplate() {
+    const content = [
+      "nome;ip;tipo;vendor;modelo;mac;serial;descricao",
+      "Servidor Web-01;10.0.0.10;Server;Dell;PowerEdge R640;aa:bb:cc:dd:ee:01;SRV001;Servidor de aplicação",
+      "Impressora RH;10.0.0.50;Printer;HP;LaserJet Pro;;IMP001;Toner 78%",
+      "Câmera Portaria;10.0.0.80;Camera;Intelbras;ICIP-V2126-X24D;;CAM001;POE",
+    ].join("\n");
+    const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "modelo-importacao-devices.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function submitImport() {
+    if (!importLocationId) {
+      setImportError("Selecione a localização de destino.");
+      return;
+    }
+    if (!importCsv.trim()) {
+      setImportError("Cole o conteúdo CSV ou escolha um arquivo .csv.");
+      return;
+    }
+    setImporting(true);
+    setImportError(null);
+    setImportReport(null);
+    try {
+      const report = await importDevices({
+        locationId: importLocationId,
+        csv: importCsv,
+      });
+      setImportReport(report);
+      if (report.created > 0) void devices.refetch();
+    } catch (caught) {
+      setImportError(errorMessage(caught));
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const items = devices.items;
   const totalCount = devices.totalCount;
   const locationName = (id: string): string =>
@@ -381,6 +467,13 @@ export function DevicesPage() {
               style={{ padding: "6px 14px" }}
             >
               <i className="pi pi-plus" style={{ fontSize: 11 }} /> Adicionar
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={openImport}
+              style={{ padding: "6px 14px" }}
+            >
+              <i className="pi pi-upload" style={{ fontSize: 11 }} /> Importar
             </Button>
           </Can>
         </div>
@@ -795,6 +888,191 @@ export function DevicesPage() {
           Exibindo até {INVENTORY_PAGE_SIZE} dispositivos por página (o endpoint não expõe navegação além disso — use os filtros por tipo).
         </div>
       )}
+
+      <Dialog
+        visible={importOpen}
+        onHide={() => setImportOpen(false)}
+        header="Importar devices (CSV)"
+        width={680}
+        footer={
+          <div
+            className="flex gap-2"
+            style={{ justifyContent: "flex-end", width: "100%" }}
+          >
+            <Button variant="ghost" onClick={() => setImportOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => void submitImport()}
+              disabled={importing}
+            >
+              {importing ? "Importando…" : "Importar arquivo"}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontSize: 13, color: "#475569", margin: 0 }}>
+            Cole o CSV abaixo ou escolha um arquivo. A primeira linha é o
+            cabeçalho — <strong>nome</strong> e <strong>tipo</strong> são
+            obrigatórios; as demais colunas são opcionais e podem aparecer em
+            qualquer ordem. Use <code>;</code> como separador (padrão do Excel
+            em português) e não repita o separador dentro dos campos.
+          </p>
+          <pre
+            style={{
+              margin: 0,
+              padding: 10,
+              background: "#0f172a",
+              color: "#e2e8f0",
+              borderRadius: 8,
+              fontSize: 11,
+              lineHeight: 1.6,
+              overflowX: "auto",
+            }}
+          >
+{`nome;ip;tipo;vendor;modelo;mac;serial;descricao
+Servidor Web-01;10.0.0.10;Server;Dell;PowerEdge R640;aa:bb:cc:dd:ee:01;SRV001;Servidor de aplicação
+Impressora RH;10.0.0.50;Printer;HP;LaserJet Pro;;IMP001;Toner 78%`}
+          </pre>
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            Tipos válidos: Server, Workstation, Switch, Router, Firewall,
+            AccessPoint, Printer, Camera, Phone, UPS, Other. Nome já existente
+            é pulado (re-importar o mesmo arquivo é seguro); o device novo
+            nasce com os checks padrão do tipo.
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="ghost" onClick={downloadImportTemplate}>
+              <i className="pi pi-download" style={{ fontSize: 11 }} /> Baixar
+              modelo
+            </Button>
+            <label
+              className="uni-btn uni-btn-ghost"
+              style={{ cursor: "pointer" }}
+            >
+              <i className="pi pi-file" style={{ fontSize: 11 }} /> Escolher
+              arquivo .csv
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={onImportFile}
+                style={{ display: "none" }}
+              />
+            </label>
+          </div>
+          <FormField label="Conteúdo CSV">
+            <textarea
+              value={importCsv}
+              onChange={(event) => {
+                setImportCsv(event.target.value);
+                setImportReport(null);
+                setImportError(null);
+              }}
+              placeholder="Cole o conteúdo CSV aqui…"
+              rows={5}
+              style={{
+                width: "100%",
+                fontFamily: "monospace",
+                fontSize: 12,
+                padding: 8,
+                border: "1px solid #e5e7eb",
+                borderRadius: 6,
+                resize: "vertical",
+              }}
+            />
+          </FormField>
+          <FormField label="Localização">
+            <SelectField
+              value={importLocationId}
+              onChange={setImportLocationId}
+              placeholder="Localização *"
+              style={{ width: "100%" }}
+              options={[
+                { value: "", label: "Localização *" },
+                ...locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                })),
+              ]}
+            />
+          </FormField>
+          {importError && <FormError message={importError} />}
+          {importReport && (
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                padding: 10,
+                background: "#f8fafc",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <div style={{ fontSize: 13 }}>
+                <strong>{importReport.created} criado(s)</strong>
+                {" · "}
+                <span>{importReport.skipped} pulado(s)</span>
+                {" · "}
+                <span>{importReport.failed} falha(s)</span>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    fontSize: 12,
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      {["Linha", "Nome", "Status", "Mensagem"].map((label) => (
+                        <th
+                          key={label}
+                          style={{
+                            textAlign: "left",
+                            padding: "4px 6px",
+                            borderBottom: "1px solid #e5e7eb",
+                            color: "#64748b",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importReport.rows.map((row) => (
+                      <tr key={`${row.line}-${row.name}`}>
+                        <td style={{ padding: "4px 6px", borderBottom: "1px solid #f1f5f9" }}>
+                          {row.line}
+                        </td>
+                        <td style={{ padding: "4px 6px", borderBottom: "1px solid #f1f5f9" }}>
+                          {row.name || "—"}
+                        </td>
+                        <td style={{ padding: "4px 6px", borderBottom: "1px solid #f1f5f9" }}>
+                          {IMPORT_STATUS_NAMES[row.status] ?? row.status}
+                        </td>
+                        <td
+                          style={{
+                            padding: "4px 6px",
+                            borderBottom: "1px solid #f1f5f9",
+                            color: "#64748b",
+                          }}
+                        >
+                          {row.message}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </Dialog>
 
       <ConfirmDialog
         visible={deleteTarget !== null}

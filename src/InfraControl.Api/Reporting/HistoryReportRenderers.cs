@@ -39,7 +39,8 @@ public static class HistoryReportRenderers
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    public static byte[] RenderPdf(ReportHistoryDto history)
+    public static byte[] RenderPdf(
+        ReportHistoryDto history, string? companyName = null)
         => Document.Create(document =>
         {
             document.Page(page =>
@@ -49,6 +50,9 @@ public static class HistoryReportRenderers
                 page.DefaultTextStyle(text => text.FontSize(10));
                 page.Header().Column(column =>
                 {
+                    column.Item().Text(text =>
+                        text.Span(companyName ?? "InfraControl")
+                            .FontSize(9).Bold());
                     column.Item().Text(text =>
                         text.Span("Histórico de Indicadores").FontSize(16).Bold());
                     column.Item().Text(text => text.Span(Period(history.From, history.To))
@@ -85,7 +89,7 @@ public static class HistoryReportRenderers
                 });
                 page.Footer().AlignCenter().Text(text =>
                 {
-                    text.Span("InfraControl · Histórico · página ");
+                    text.Span($"{companyName ?? "InfraControl"} · Histórico · página ");
                     text.CurrentPageNumber();
                     text.Span(" de ");
                     text.TotalPages();
@@ -93,20 +97,22 @@ public static class HistoryReportRenderers
             });
         }).GeneratePdf();
 
-    public static byte[] RenderXlsx(ReportHistoryDto history)
+    public static byte[] RenderXlsx(
+        ReportHistoryDto history, string? companyName = null)
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Histórico");
 
-        sheet.Cell(1, 1).Value = "Histórico de Indicadores";
-        sheet.Cell(2, 1).Value = Period(history.From, history.To);
+        sheet.Cell(1, 1).Value = companyName ?? "InfraControl";
+        sheet.Cell(2, 1).Value = "Histórico de Indicadores";
+        sheet.Cell(3, 1).Value = Period(history.From, history.To);
         for (var c = 0; c < Headers.Length; c++)
         {
-            sheet.Cell(4, c + 1).Value = Headers[c];
-            sheet.Cell(4, c + 1).Style.Font.Bold = true;
+            sheet.Cell(5, c + 1).Value = Headers[c];
+            sheet.Cell(5, c + 1).Style.Font.Bold = true;
         }
 
-        var row = 5;
+        var row = 6;
         foreach (var m in history.Months)
         {
             sheet.Cell(row, 1).Value = m.Month;

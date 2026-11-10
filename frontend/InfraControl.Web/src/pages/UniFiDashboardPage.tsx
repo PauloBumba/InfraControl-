@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
-import { StatusChip } from "@/components/ui/StatusChip";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { getUniFiDashboard } from "@/services/api/unifi";
 
 /**
@@ -31,7 +31,7 @@ export function UniFiDashboardPage() {
   if (!d) return <LoadingBlock />;
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
         title="Dashboard UniFi"
         subtitle="Indicadores reais — persistido × ao vivo rotulados por origem."
@@ -44,14 +44,15 @@ export function UniFiDashboardPage() {
         />
       )}
       {d.stale && (
-        <StatusChip
-          label={
+        <NoticeBanner
+          message={
             d.lastSyncAtUtc
               ? `Dados possivelmente desatualizados — última sincronização em ${new Date(d.lastSyncAtUtc).toLocaleString("pt-BR")}`
               : "Nenhuma sincronização registrada ainda"
           }
           background="#fef9c3"
           color="#854d0e"
+          onDismiss={undefined}
         />
       )}
 
@@ -60,7 +61,6 @@ export function UniFiDashboardPage() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
           gap: 12,
-          marginTop: 16,
         }}
       >
         <Card label="Sites (persistido)" value={d.sites} sub={d.sitesMissing > 0 ? `${d.sitesMissing} ausente(s) no controller` : undefined} />
@@ -99,7 +99,7 @@ export function UniFiDashboardPage() {
         />
       </div>
 
-      <section className="uni-settings-section" style={{ marginTop: 16 }}>
+      <section className="uni-settings-section">
         <h3>Dispositivos por estado (controlador)</h3>
         {!d.controllerReachable ? (
           <p style={{ fontSize: 13, color: "#991b1b" }}>
@@ -125,22 +125,10 @@ export function UniFiDashboardPage() {
 
 function Card({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 10,
-        padding: 14,
-        display: "flex",
-        gap: 12,
-        alignItems: "center",
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase" }}>{label}</div>
-        <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{value}</div>
-        {sub && <div style={{ fontSize: 10, color: "#9ca3af" }}>{sub}</div>}
-      </div>
+    <div className="uni-panel" style={{ padding: 14 }}>
+      <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, wordBreak: "break-word" }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: "#9ca3af" }}>{sub}</div>}
     </div>
   );
 }

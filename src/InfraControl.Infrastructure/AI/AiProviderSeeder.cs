@@ -36,8 +36,22 @@ public sealed class AiProviderSeeder(
         var ollama = await repository.GetByNameAsync(OllamaName, cancellationToken);
         if (ollama is null)
         {
-            ollama = AiProvider.Create(OllamaName, ollamaBaseUrl);
+            ollama = AiProvider.Create(
+                OllamaName,
+                ollamaBaseUrl,
+                protocol: InfraControl.Domain.Enums.AiProviderProtocol.Ollama);
             await repository.AddAsync(ollama, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        else if (ollama.Protocol != InfraControl.Domain.Enums.AiProviderProtocol.Ollama)
+        {
+            ollama.Update(
+                ollama.Name,
+                ollama.BaseUrl,
+                ollama.ApiKeyEncrypted,
+                ollama.Models,
+                ollama.IsActive,
+                InfraControl.Domain.Enums.AiProviderProtocol.Ollama);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 

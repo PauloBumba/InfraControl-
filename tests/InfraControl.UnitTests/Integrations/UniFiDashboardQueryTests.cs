@@ -42,15 +42,15 @@ public sealed class UniFiDashboardQueryTests
             .ReturnsAsync(new UniFiCorrelationDto(
                 new List<UniFiAssetLinkDto>(), new List<UniFiUnlinkedDeviceDto>(), new List<UniFiAssetLinkDto>()));
         _audit.Setup(a => a.SearchAsync("SyncUnifiInventoryCommand", "Succeeded",
-                null, null, 1, 1, default))
+                null, null, null, 1, 1, default))
             .ReturnsAsync(new PagedResult<AuditEntrySummary>(
                 new List<AuditEntrySummary>(), 0, 1, 1));
         _audit.Setup(a => a.SearchAsync("SyncUnifiInventoryCommand", "Failed",
-                null, null, 1, 1, default))
+                null, null, null, 1, 1, default))
             .ReturnsAsync(new PagedResult<AuditEntrySummary>(
                 new List<AuditEntrySummary>(), 0, 1, 1));
         _audit.Setup(a => a.SearchAsync("SyncUnifiInventoryCommand", "Failed",
-                It.IsAny<DateTime?>(), null, 1, 100, default))
+                It.IsAny<DateTime?>(), null, null, 1, 100, default))
             .ReturnsAsync(new PagedResult<AuditEntrySummary>(
                 new List<AuditEntrySummary>(), 0, 1, 1));
         _unifi.Setup(u => u.ListDevicesAsync(default))
@@ -111,14 +111,14 @@ public sealed class UniFiDashboardQueryTests
         ArrangeBaseline();
         var now = DateTime.UtcNow;
         _audit.Setup(a => a.SearchAsync("SyncUnifiInventoryCommand", "Succeeded",
-                null, null, 1, 1, default))
+                null, null, null, 1, 1, default))
             .ReturnsAsync(new PagedResult<AuditEntrySummary>(new List<AuditEntrySummary>
             {
                 new(Guid.NewGuid(), "SyncUnifiInventoryCommand", "UniFiSync", "Succeeded",
                     null, null, null, null, now.AddHours(-3)),
             }, 1, 1, 1));
         _audit.Setup(a => a.SearchAsync("SyncUnifiInventoryCommand", "Failed",
-                null, null, 1, 1, default))
+                null, null, null, 1, 1, default))
             .ReturnsAsync(new PagedResult<AuditEntrySummary>(new List<AuditEntrySummary>
             {
                 new(Guid.NewGuid(), "SyncUnifiInventoryCommand", "UniFiSync", "Failed",

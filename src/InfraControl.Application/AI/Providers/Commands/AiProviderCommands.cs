@@ -17,7 +17,8 @@ public sealed record CreateAiProviderCommand(
     string Name,
     string BaseUrl,
     string? ApiKey,
-    IReadOnlyList<string>? Models)
+    IReadOnlyList<string>? Models,
+    AiProviderProtocol Protocol = AiProviderProtocol.OpenAiCompatible)
     : BaseCommand<AiProviderDto>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
@@ -30,7 +31,8 @@ public sealed record UpdateAiProviderCommand(
     Guid Id,
     string BaseUrl,
     string? ApiKey,
-    IReadOnlyList<string>? Models)
+    IReadOnlyList<string>? Models,
+    AiProviderProtocol? Protocol = null)
     : BaseCommand<AiProviderDto>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
@@ -117,27 +119,35 @@ internal static class AiProviderAdminValidation
 
 public sealed class CreateAiProviderCommandHandler(
     IAiProviderRepository repository,
-    IEnumerable<IAiProvider> adapters,
-    ICredentialProtector protector)
+    ICredentialProtector protector,
+    IAiProviderRegistryCache registryCache)
     : IRequestHandler<CreateAiProviderCommand, AiProviderDto>
 {
     public async Task<AiProviderDto> Handle(
         CreateAiProviderCommand request, CancellationToken cancellationToken)
     {
-        var adapter = AiProviderAdminValidation.ResolveAdapter(request.Name, adapters);
-        var existing = await repository.GetByNameAsync(adapter.Name, cancellationToken);
+        // F49-T002: o nome NÃO precisa de adaptador em código — o
+        // protocolo escolhido instancia o adaptador certo no registry
+        // (fornecedor novo OpenAI-compatible = config, sem deploy).
+        var name = request.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Nome do provider é obrigatório.", nameof(request));
+
+        var existing = await repository.GetByNameAsync(name, cancellationToken);
         if (existing is not null)
-            throw new ArgumentException(
-                $"Provider '{adapter.Name}' já está cadastrado.", nameof(request));
+            throw new ArgumentException($"Provider '{name}' já está cadastrado.", nameof(request));
 
         var provider = AiProvider.Create(
-            adapter.Name,
+            name,
             request.BaseUrl,
             Protect(request.ApiKey),
-            request.Models);
+            request.Models,
+            isActive: true,
+            protocol: request.Protocol);
 
         await repository.AddAsync(provider, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
+        registryCache.Invalidate(name);
 
         return provider.ToDto(protector);
     }
@@ -148,7 +158,8 @@ public sealed class CreateAiProviderCommandHandler(
 
 public sealed class UpdateAiProviderCommandHandler(
     IAiProviderRepository repository,
-    ICredentialProtector protector)
+    ICredentialProtector protector,
+    IAiProviderRegistryCache registryCache)
     : IRequestHandler<UpdateAiProviderCommand, AiProviderDto>
 {
     public async Task<AiProviderDto> Handle(
@@ -157,18 +168,23 @@ public sealed class UpdateAiProviderCommandHandler(
         var provider = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Provider '{request.Id}' não encontrado.");
 
+        // F49-T002: protocolo nulo = preserva o atual (write-only, molde ApiKey).
+        var protocol = request.Protocol ?? provider.Protocol;
+
         provider.Update(
             provider.Name,
             request.BaseUrl,
             provider.ApiKeyEncrypted,
             request.Models,
-            provider.IsActive);
+            provider.IsActive,
+            protocol);
 
         // campo vazio = preserva a chave já cifrada (write-only)
         if (!string.IsNullOrWhiteSpace(request.ApiKey))
             provider.UpdateApiKey(protector.Protect(request.ApiKey.Trim()));
 
         await repository.SaveChangesAsync(cancellationToken);
+        registryCache.Invalidate(provider.Name);
 
         return provider.ToDto(protector);
     }
@@ -197,7 +213,8 @@ public sealed class SetAiProviderActiveCommandHandler(IAiProviderRepository repo
             provider.IsActive,
             !string.IsNullOrEmpty(provider.ApiKeyEncrypted),
             null,
-            provider.Models);
+            provider.Models,
+            provider.Protocol);
     }
 }
 
@@ -263,7 +280,7 @@ public sealed class DeleteAiProviderCapabilityRouteCommandHandler(
 
 public sealed class TestAiProviderConnectionCommandHandler(
     IAiProviderRepository repository,
-    IEnumerable<IAiProvider> adapters)
+    IAiProviderRegistry registry)
     : IRequestHandler<TestAiProviderConnectionCommand, AiProviderConnectionTestDto>
 {
     public async Task<AiProviderConnectionTestDto> Handle(
@@ -272,12 +289,21 @@ public sealed class TestAiProviderConnectionCommandHandler(
         var provider = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Provider '{request.Id}' não encontrado.");
 
-        var adapter = adapters.FirstOrDefault(item => string.Equals(
-            item.Name, provider.Name, StringComparison.OrdinalIgnoreCase));
-        if (adapter is null)
+        // Registry (não IEnumerable<IAiProvider>): resolve o adaptador
+        // bound ao cadastro (protocolo + conexão fresca, F49-T002/D3) —
+        // testar o adaptador fixo de config daria falso negativo para
+        // providers cuja chave só existe no cadastro.
+        IAiProvider adapter;
+        try
+        {
+            adapter = registry.Get(provider.Name);
+        }
+        catch (AiProviderNotConfiguredException)
+        {
             return new AiProviderConnectionTestDto(
                 Ok: false,
                 Error: $"Adaptador '{provider.Name}' não está registrado nesta build — teste indisponível.");
+        }
 
         try
         {
@@ -295,7 +321,7 @@ public sealed class TestAiProviderConnectionCommandHandler(
 
 public sealed class ListAiProviderModelsCommandHandler(
     IAiProviderRepository repository,
-    IEnumerable<IAiProvider> adapters)
+    IAiProviderRegistry registry)
     : IRequestHandler<ListAiProviderModelsCommand, AiProviderModelsDto>
 {
     public async Task<AiProviderModelsDto> Handle(
@@ -304,12 +330,17 @@ public sealed class ListAiProviderModelsCommandHandler(
         var provider = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Provider '{request.Id}' não encontrado.");
 
-        var adapter = adapters.FirstOrDefault(item => string.Equals(
-            item.Name, provider.Name, StringComparison.OrdinalIgnoreCase));
-        if (adapter is null)
+        IAiProvider adapter;
+        try
+        {
+            adapter = registry.Get(provider.Name);
+        }
+        catch (AiProviderNotConfiguredException)
+        {
             return new AiProviderModelsDto(
                 Models: [],
                 Error: $"Adaptador '{provider.Name}' não está registrado nesta build — listagem indisponível.");
+        }
 
         try
         {

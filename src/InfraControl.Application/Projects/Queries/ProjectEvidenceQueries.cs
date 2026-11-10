@@ -18,12 +18,19 @@ public sealed record GetProjectEvidenceQuery(Guid ProjectId)
 }
 
 public sealed class GetProjectEvidenceQueryHandler(
-    IProjectEvidenceRepository evidenceRepository)
+    IProjectEvidenceRepository evidenceRepository,
+    IProjectRepository projectRepository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<GetProjectEvidenceQuery, ProjectEvidenceDto[]>
 {
     public async Task<ProjectEvidenceDto[]> Handle(
         GetProjectEvidenceQuery request, CancellationToken cancellationToken)
     {
+        _ = ProjectAccess.EnsureVisible(
+            await projectRepository.GetByIdAsync(request.ProjectId, cancellationToken),
+            currentUser,
+            request.ProjectId);
+
         var evidences = await evidenceRepository.ListByProjectIdAsync(
             request.ProjectId, cancellationToken);
 

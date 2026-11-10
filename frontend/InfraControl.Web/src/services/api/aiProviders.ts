@@ -158,3 +158,56 @@ export function listAiProviderModels(
     { models: [], error: "Resposta vazia do servidor." }
   );
 }
+
+// ─── F49-T004: validação em fases (dry-run) ─────────────────────────
+/** `Success`/`Failed`/`Skipped` — enum do backend serializado como texto. */
+export type AiConnectionPhaseStatus = "Success" | "Failed" | "Skipped";
+
+export interface AiConnectionPhaseDto {
+  phase: string;
+  status: AiConnectionPhaseStatus;
+  error: string | null;
+}
+
+export interface AiConnectionValidationDto {
+  ok: boolean;
+  connectivity: AiConnectionPhaseDto;
+  authentication: AiConnectionPhaseDto;
+  models: AiConnectionPhaseDto;
+  modelsFound: string[];
+  /** Capabilities só quando o fornecedor EXPÕE (§7) — nunca inventadas. */
+  detectedCapabilities: string[];
+  modelCheck: AiConnectionPhaseDto | null;
+}
+
+export interface ValidateAiProviderPayload {
+  protocol: "OpenAiCompatible" | "Ollama" | "Gemini" | "Anthropic";
+  baseUrl: string;
+  /** Write-only: passa pelo servidor em memória e nunca é persistida. */
+  apiKey?: string | null;
+  model?: string | null;
+}
+
+/**
+ * Dry-run Administer: valida endpoint+key arbitrários em fases sem tocar
+ * no cadastro (não persiste nada; a key nunca volta na resposta).
+ */
+export function validateAiProvider(
+  payload: ValidateAiProviderPayload,
+): Promise<AiConnectionValidationDto> {
+  return required(
+    api.post<AiConnectionValidationDto>(
+      "/admin/ai-providers/validate",
+      payload,
+    ),
+    {
+      ok: false,
+      connectivity: { phase: "conectividade", status: "Failed", error: "Resposta vazia do servidor." },
+      authentication: { phase: "autenticação", status: "Skipped", error: null },
+      models: { phase: "modelos", status: "Skipped", error: null },
+      modelsFound: [],
+      detectedCapabilities: [],
+      modelCheck: null,
+    },
+  );
+}

@@ -136,6 +136,20 @@ public sealed class GenerateProjectKnowledgeCommandHandler(
             throw new InvalidOperationException(
                 "O projeto precisa estar homologado para gerar Knowledge.");
 
+        // Idempotência (spec evolução 2026-11-07 §10): se já existe artigo
+        // com origem (Project, projectId), devolve o existente — a
+        // aprovação automática e o endpoint manual não podem duplicar.
+        var existingOrigin = await originRepository.FindByOriginAsync(
+            KnowledgeOriginType.Project, project.Id, cancellationToken);
+        if (existingOrigin is not null)
+        {
+            var existing = await articleRepository.GetByIdAsync(
+                existingOrigin.ArticleId, cancellationToken);
+            if (existing is not null)
+                return await KnowledgeArticleDto.FromAsync(
+                    existing, articleRepository, cancellationToken);
+        }
+
         var phases = await phaseRepository.GetByProjectIdAsync(project.Id, cancellationToken);
         var progress = await progressRepository.ListByProjectIdAsync(project.Id, cancellationToken);
         var impediments = await impedimentRepository.ListByProjectIdAsync(project.Id, cancellationToken);

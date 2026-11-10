@@ -16,12 +16,19 @@ public sealed record GetProjectImpedimentsQuery(Guid ProjectId)
 }
 
 public sealed class GetProjectImpedimentsQueryHandler(
-    IProjectImpedimentRepository impedimentRepository)
+    IProjectImpedimentRepository impedimentRepository,
+    IProjectRepository projectRepository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<GetProjectImpedimentsQuery, ProjectImpedimentDto[]>
 {
     public async Task<ProjectImpedimentDto[]> Handle(
         GetProjectImpedimentsQuery request, CancellationToken cancellationToken)
     {
+        _ = ProjectAccess.EnsureVisible(
+            await projectRepository.GetByIdAsync(request.ProjectId, cancellationToken),
+            currentUser,
+            request.ProjectId);
+
         var impediments = await impedimentRepository.ListByProjectIdAsync(
             request.ProjectId, cancellationToken);
 

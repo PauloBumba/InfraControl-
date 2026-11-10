@@ -127,7 +127,7 @@ public sealed class IdentityAuthenticationService(
         var refreshToken = GenerateToken();
         session.Refresh(Hash(refreshToken), SlidingLifetime);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToResult(identityUser, domainUser, session, refreshToken, session.ExpiresAt);
+        return await ToResultAsync(identityUser, domainUser, session, refreshToken, session.ExpiresAt, cancellationToken);
     }
 
     public async Task LogoutAsync(Guid userId, string? refreshToken, CancellationToken cancellationToken = default)
@@ -443,7 +443,7 @@ public sealed class IdentityAuthenticationService(
             domainUser.Id, Hash(refreshToken), SlidingLifetime, AbsoluteLifetimeFor(domainUser));
         dbContext.UserSessions.Add(session);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToResult(identityUser, domainUser, session, refreshToken, session.ExpiresAt);
+        return await ToResultAsync(identityUser, domainUser, session, refreshToken, session.ExpiresAt, cancellationToken);
     }
 
     private async Task RevokeAllSessionsAsync(Guid userId, CancellationToken cancellationToken)
@@ -480,17 +480,32 @@ public sealed class IdentityAuthenticationService(
             EnsureSucceeded(await roleManager.CreateAsync(new IdentityRole<Guid>(role)), "criação de função");
     }
 
-    private static AuthenticationResult ToResult(InfraControlUser identityUser, User domainUser, UserSession session, string refreshToken, DateTime expiresAt)
-        => new(
+    private async Task<AuthenticationResult> ToResultAsync(InfraControlUser identityUser, User domainUser, UserSession session, string refreshToken, DateTime expiresAt, CancellationToken cancellationToken)
+    {
+        // Perfis customizados do admin (spec evolução) viajam como claims
+        // ClaimTypes.Role junto dos papéis embutidos — a matriz ADR-066
+        // resolve os dois mundos sem bifurcação.
+        var customRoles = await dbContext.UserAccessRoles.AsNoTracking()
+            .Where(r => r.UserId == domainUser.Id)
+            .Select(r => r.RoleKey)
+            .ToListAsync(cancellationToken);
+
+        var roles = domainUser.Roles.Select(role => role.ToString())
+            .Concat(customRoles)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new AuthenticationResult(
             new AuthenticatedUser(
                 identityUser.Id,
                 session.Id,
                 identityUser.Email!,
                 domainUser.DisplayName,
-                domainUser.Roles.Select(role => role.ToString()).ToArray(),
+                roles,
                 domainUser.FullName),
             refreshToken,
             expiresAt);
+    }
 
     private static string NormalizeEmail(string email) => string.IsNullOrWhiteSpace(email) ? throw new ArgumentException("O e-mail é obrigatório.", nameof(email)) : email.Trim().ToLowerInvariant();
     private static string GenerateToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
