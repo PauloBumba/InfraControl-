@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
-import { InputNumber } from "primereact/inputnumber";
-import { Message } from "primereact/message";
-import { ProgressSpinner } from "primereact/progressspinner";
-import { Tag } from "primereact/tag";
+import { ListPageShell } from "@/components/ui/ListPageShell";
+import { Button } from "@/components/ui/Button";
+import { StatusChip } from "@/components/ui/StatusChip";
 import {
   deleteRetentionPolicy,
   getRetentionPolicies,
@@ -30,13 +27,24 @@ function dataTypeLabel(dataType: string): string {
   return DATA_TYPE_LABELS[dataType] ?? dataType;
 }
 
+const inputStyle: React.CSSProperties = {
+  padding: "7px 10px",
+  fontSize: 13,
+  border: "1px solid #d1d5db",
+  borderRadius: 6,
+  width: 128,
+  boxSizing: "border-box" as const,
+};
+
 /**
  * Retenção de dados por tipo (F12-T002): o admin define quantos dias o
  * cleanup mantém cada tipo de dado. "Padrão" = default de Retention:*
  * do appsettings; "Política" = override gravado no banco.
+ *
+ * Layout no padrão da casa: ListPageShell + StatusChip + banners ui/.
  */
 export function RetentionPage() {
-  const [policies, setPolicies] = useState<RetentionPolicyItem[] | null>(null);
+  const [policies, setPolicies] = useState<RetentionPolicyItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -96,107 +104,128 @@ export function RetentionPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-16">
-        <ProgressSpinner />
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <i className="pi pi-database text-primary" />
-            Retenção de dados
-          </h1>
-          <p className="text-sm text-gray-500">
-            Quantos dias o cleanup mantém cada tipo de dado antes de apagar.
-            "Padrão" segue a configuração do servidor; "Política" é um override
-            definido aqui e auditado.
-          </p>
-        </div>
+    <ListPageShell
+      title="Retenção de dados"
+      singular="política"
+      plural="políticas"
+      total={policies.length}
+      loading={loading}
+      note={
+        saved
+          ? "Política atualizada."
+          : "Quantos dias o cleanup mantém cada tipo de dado antes de apagar."
+      }
+      error={error}
+      onRetry={() => void load()}
+      actions={
         <Button
+          variant="ghost"
           icon="pi pi-refresh"
-          outlined
-          loading={loading}
-          onClick={() => void load()}
           title="Atualizar"
+          aria-label="Atualizar"
+          disabled={loading}
+          onClick={() => void load()}
         />
-      </div>
-
-      {error && <Message severity="error" text={error} />}
-      {saved && <Message severity="success" text="Política atualizada." />}
-
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 pr-3 font-medium">
-                  <i className="pi pi-table mr-1" /> Tipo de dado
-                </th>
-                <th className="py-2 pr-3 font-medium">Origem</th>
-                <th className="py-2 pr-3 font-medium">Dias</th>
-                <th className="py-2 font-medium text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(policies ?? []).map((p) => (
-                <tr key={p.dataType} className="border-b last:border-0">
-                  <td className="py-2 pr-3">{dataTypeLabel(p.dataType)}</td>
-                  <td className="py-2 pr-3">
-                    {p.source === "Policy" ? (
-                      <Tag severity="info" value="Política" />
-                    ) : (
-                      <Tag severity="secondary" value="Padrão" />
-                    )}
-                  </td>
-                  <td className="py-2 pr-3">
-                    <InputNumber
-                      value={drafts[p.dataType] ?? null}
-                      onValueChange={(e) =>
-                        setDrafts((d) => ({ ...d, [p.dataType]: e.value ?? null }))
-                      }
-                      min={1}
-                      max={36500}
-                      className="w-32"
-                    />
-                  </td>
-                  <td className="py-2 text-right whitespace-nowrap">
-                    <Button
-                      icon="pi pi-save"
-                      className="p-button-text p-button-sm"
-                      title="Salvar política"
-                      loading={saving === p.dataType}
-                      disabled={drafts[p.dataType] == null}
-                      onClick={() => void save(p.dataType)}
-                    />
-                    {p.source === "Policy" && (
-                      <Button
-                        icon="pi pi-undo"
-                        className="p-button-text p-button-sm"
-                        title="Restaurar padrão do servidor"
-                        loading={saving === p.dataType}
-                        onClick={() => void reset(p.dataType)}
+      }
+    >
+      {!loading && (
+        <div className="uni-panel" style={{ padding: 16 }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
+                  <th style={{ padding: "8px 12px 8px 0", fontWeight: 600 }}>
+                    <i className="pi pi-table" style={{ marginRight: 4 }} /> Tipo de dado
+                  </th>
+                  <th style={{ padding: "8px 12px 8px 0", fontWeight: 600 }}>Origem</th>
+                  <th style={{ padding: "8px 12px 8px 0", fontWeight: 600 }}>Dias</th>
+                  <th style={{ padding: "8px 0 8px 8px", fontWeight: 600, textAlign: "right" }}>
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {policies.map((p) => (
+                  <tr key={p.dataType} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "8px 12px 8px 0" }}>
+                      {dataTypeLabel(p.dataType)}
+                    </td>
+                    <td style={{ padding: "8px 12px 8px 0" }}>
+                      {p.source === "Policy" ? (
+                        <StatusChip label="Política" background="#eff6ff" color="#2563eb" />
+                      ) : (
+                        <StatusChip
+                          label="Padrão"
+                          background="#f3f4f6"
+                          color="#6b7280"
+                        />
+                      )}
+                    </td>
+                    <td style={{ padding: "8px 12px 8px 0" }}>
+                      <input
+                        type="number"
+                        value={drafts[p.dataType] ?? ""}
+                        onChange={(e) =>
+                          setDrafts((d) => ({
+                            ...d,
+                            [p.dataType]:
+                              e.target.value === "" ? null : Number(e.target.value),
+                          }))
+                        }
+                        min={1}
+                        max={36500}
+                        style={inputStyle}
+                        aria-label={`Dias — ${dataTypeLabel(p.dataType)}`}
                       />
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {(policies ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-gray-400">
-                    Nenhuma política de retenção encontrada.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 0 8px 8px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <Button
+                        variant="ghost"
+                        icon="pi pi-save"
+                        title="Salvar política"
+                        aria-label={`Salvar ${dataTypeLabel(p.dataType)}`}
+                        disabled={drafts[p.dataType] == null || saving === p.dataType}
+                        onClick={() => void save(p.dataType)}
+                      />
+                      {p.source === "Policy" && (
+                        <Button
+                          variant="ghost"
+                          icon="pi pi-undo"
+                          title="Restaurar padrão do servidor"
+                          aria-label={`Restaurar ${dataTypeLabel(p.dataType)}`}
+                          disabled={saving === p.dataType}
+                          onClick={() => void reset(p.dataType)}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {policies.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      style={{
+                        padding: 24,
+                        textAlign: "center",
+                        color: "#9ca3af",
+                      }}
+                    >
+                      Nenhuma política de retenção encontrada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </Card>
-    </div>
+      )}
+    </ListPageShell>
   );
 }

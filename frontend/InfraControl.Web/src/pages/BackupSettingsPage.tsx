@@ -1,21 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
-import { InputNumber } from "primereact/inputnumber";
-import { InputText } from "primereact/inputtext";
-import { InputSwitch } from "primereact/inputswitch";
-import { Message } from "primereact/message";
-import { ProgressSpinner } from "primereact/progressspinner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { Button } from "@/components/ui/Button";
+import { FormField } from "@/components/ui/FormField";
+import { SwitchField } from "@/components/ui/SwitchField";
 import {
   getBackupSettings,
   updateBackupSettings,
   type BackupSettings,
 } from "@/services/api/accessPolicies";
 
+const inputStyle: React.CSSProperties = {
+  padding: "7px 10px",
+  fontSize: 13,
+  border: "1px solid #d1d5db",
+  borderRadius: 6,
+  width: "100%",
+  boxSizing: "border-box" as const,
+};
+
 /**
  * Configuração de backup editável pela plataforma: override do singleton
  * `backup_settings` sobre `Backup:*` do appsettings. O BackupWorker relê a
  * cada ciclo — não precisa reiniciar container.
+ *
+ * Layout no padrão da casa: PageHeader + uni-panel + FormField/SwitchField.
  */
 export function BackupSettingsPage() {
   const [form, setForm] = useState<BackupSettings | null>(null);
@@ -57,124 +68,145 @@ export function BackupSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <ProgressSpinner />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader title="Backup do banco de dados" />
+        <LoadingBlock />
       </div>
     );
   }
 
   if (!form) {
     return (
-      <div className="p-4 md:p-6">
-        <Message severity="error" text={error ?? "Configurações indisponíveis."} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader title="Backup do banco de dados" />
+        <ErrorBanner
+          message={error ?? "Configurações indisponíveis."}
+          onRetry={() => void load()}
+        />
       </div>
     );
   }
 
-  const field = (label: string, control: React.ReactNode) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium">{label}</label>
-      {control}
-    </div>
-  );
-
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-semibold">Backup do banco de dados</h1>
-        <p className="text-sm text-gray-500">
-          Estas configurações sobrepõem o <code>appsettings.json</code> do
-          worker. O worker relê a cada ciclo — alterações valem sem restart.
-        </p>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 720 }}>
+      <PageHeader
+        title="Backup do banco de dados"
+        subtitle="Estas configurações sobrepõem o appsettings.json do worker. O worker relê a cada ciclo — alterações valem sem restart."
+      />
 
-      <Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 md:col-span-2">
-            <InputSwitch
+      {saved && (
+        <NoticeBanner
+          message="Configurações salvas."
+          onDismiss={() => setSaved(false)}
+        />
+      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              gridColumn: "1 / -1",
+            }}
+          >
+            <SwitchField
               checked={form.enabled}
-              onChange={(e) => setForm({ ...form, enabled: e.value })}
+              onChange={(checked) => setForm({ ...form, enabled: checked })}
+              aria-label="Backup habilitado"
             />
-            <label className="text-sm font-medium">
-              Backup habilitado
-            </label>
+            <span style={{ fontSize: 13, fontWeight: 500 }}>Backup habilitado</span>
           </div>
 
-          {field(
-                        "Intervalo entre backups (horas)",
-            <InputNumber
+          <FormField label="Intervalo entre backups (horas)">
+            <input
+              type="number"
               value={form.intervalHours}
-              onValueChange={(e) =>
-                setForm({ ...form, intervalHours: e.value ?? 24 })
+              onChange={(e) =>
+                setForm({ ...form, intervalHours: Number(e.target.value) || 24 })
               }
               min={1}
               max={720}
-              className="w-full"
-            />,
-          )}
-          {field(
-                        "Retenção de arquivos (dias)",
-            <InputNumber
+              style={inputStyle}
+            />
+          </FormField>
+          <FormField label="Retenção de arquivos (dias)">
+            <input
+              type="number"
               value={form.retentionDays}
-              onValueChange={(e) =>
-                setForm({ ...form, retentionDays: e.value ?? 7 })
+              onChange={(e) =>
+                setForm({ ...form, retentionDays: Number(e.target.value) || 7 })
               }
               min={1}
               max={3650}
-              className="w-full"
-            />,
-          )}
-          {field(
-                        "Diretório de destino",
-            <InputText
+              style={inputStyle}
+            />
+          </FormField>
+          <FormField label="Diretório de destino">
+            <input
               value={form.path}
               onChange={(e) => setForm({ ...form, path: e.target.value })}
-              className="w-full"
-            />,
-          )}
-          {field(
-                        "Prefixo do arquivo",
-            <InputText
+              style={inputStyle}
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Prefixo do arquivo">
+            <input
               value={form.fileNamePrefix}
               onChange={(e) =>
                 setForm({ ...form, fileNamePrefix: e.target.value })
               }
-              className="w-full"
-            />,
-          )}
-          {field(
-                        "Timeout do dump (segundos)",
-            <InputNumber
+              style={inputStyle}
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Timeout do dump (segundos)">
+            <input
+              type="number"
               value={form.timeoutSeconds}
-              onValueChange={(e) =>
-                setForm({ ...form, timeoutSeconds: e.value ?? 3600 })
+              onChange={(e) =>
+                setForm({ ...form, timeoutSeconds: Number(e.target.value) || 3600 })
               }
               min={60}
               max={86400}
-              className="w-full"
-            />,
-          )}
+              style={inputStyle}
+            />
+          </FormField>
         </div>
 
-        <div className="flex items-center gap-3 mt-6">
-          {saved && <Message severity="success" text="Configurações salvas." />}
-          {error && <Message severity="error" text={error} />}
-          <Button
-            label="Salvar"
-            icon="pi pi-save"
-            loading={saving}
-            onClick={() => void save()}
-          />
+        <div style={{ marginTop: 16 }}>
+          <Button icon="pi pi-save" disabled={saving} onClick={() => void save()}>
+            {saving ? "Salvando…" : "Salvar"}
+          </Button>
         </div>
-      </Card>
+      </div>
 
-      <Card title="Observações">
-        <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Observações</div>
+        <ul
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            margin: 0,
+            paddingLeft: 18,
+            display: "grid",
+            gap: 4,
+            listStyle: "disc",
+          }}
+        >
           <li>Connection string e alvos adicionais continuam no appsettings do worker.</li>
           <li>Desabilitar aqui pausa o backup no próximo ciclo, sem parar o container.</li>
           <li>A retenção de dados da aplicação é gerenciada em Operação → Retenção.</li>
         </ul>
-      </Card>
+      </div>
     </div>
   );
 }

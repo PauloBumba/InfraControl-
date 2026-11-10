@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
-import { Dropdown } from "primereact/dropdown";
-import { Message } from "primereact/message";
-import { ProgressSpinner } from "primereact/progressspinner";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { Button } from "@/components/ui/Button";
+import { SelectField } from "@/components/ui/SelectField";
 import {
   getAccessPolicyMatrix,
   updateAccessPolicyGrants,
@@ -15,15 +16,26 @@ import {
  * ADR-066 — matriz role×módulo editável pelo admin. Cada célula escolhe o
  * nível efetivo da role no módulo; "Padrão" remove o override e volta ao
  * default do ADR-016 (Viewer→Ler, Operator→Operar, Admin→Administrar).
+ *
+ * Layout no padrão da casa: PageHeader + uni-panel + banners/LoadingBlock
+ * (F50 — páginas F50 antigas usavam Card/Message/ProgressSpinner soltos).
  */
 
+/** SelectField da casa só aceita string — "" = sem override (null na API). */
 const LEVEL_OPTIONS = [
-  { label: "Padrão (ADR-016)", value: null as number | null },
-  { label: "Revogar", value: 0 },
-  { label: "Ler", value: 1 },
-  { label: "Operar", value: 2 },
-  { label: "Administrar", value: 3 },
+  { label: "Padrão (ADR-016)", value: "" },
+  { label: "Revogar", value: "0" },
+  { label: "Ler", value: "1" },
+  { label: "Operar", value: "2" },
+  { label: "Administrar", value: "3" },
 ];
+
+const LEVEL_BY_VALUE: Record<string, string> = {
+  "0": "Revogar",
+  "1": "Ler",
+  "2": "Operar",
+  "3": "Administrar",
+};
 
 const ROLE_ORDER = ["Viewer", "Operator", "Admin"];
 const ROLE_LABEL: Record<string, string> = {
@@ -32,7 +44,7 @@ const ROLE_LABEL: Record<string, string> = {
   Admin: "Administrador",
 };
 
-type CellValue = number | null; // null = segue o default
+type CellValue = string; // "" = segue o default
 
 export function AccessPoliciesPage() {
   const [matrix, setMatrix] = useState<AccessPolicyMatrix | null>(null);
@@ -51,7 +63,7 @@ export function AccessPoliciesPage() {
       const next: Record<string, CellValue> = {};
       for (const mod of data.modules) {
         for (const grant of mod.roles) {
-          next[`${mod.key}:${grant.role}`] = grant.isOverride ? grant.level : null;
+          next[`${mod.key}:${grant.role}`] = grant.isOverride ? String(grant.level) : "";
         }
       }
       setCells(next);
@@ -92,7 +104,7 @@ export function AccessPoliciesPage() {
     if (!matrix) return false;
     for (const mod of matrix.modules) {
       for (const grant of mod.roles) {
-        const baseline = grant.isOverride ? grant.level : null;
+        const baseline = grant.isOverride ? String(grant.level) : "";
         if (cells[`${mod.key}:${grant.role}`] !== baseline) return true;
       }
     }
@@ -105,20 +117,23 @@ export function AccessPoliciesPage() {
     setError(null);
     setSaved(false);
     try {
-      // PUT = replace: envia TODAS as células; null = remove override.
+      // PUT = replace: envia TODAS as células; "" = remove override.
       const grants: AccessPolicyGrantInput[] = matrix.modules.flatMap((mod) =>
-        mod.roles.map((grant) => ({
-          role: grant.role,
-          moduleKey: mod.key,
-          level: cells[`${mod.key}:${grant.role}`] ?? null,
-        })),
+        mod.roles.map((grant) => {
+          const raw = cells[`${mod.key}:${grant.role}`] ?? "";
+          return {
+            role: grant.role,
+            moduleKey: mod.key,
+            level: raw === "" ? null : Number(raw),
+          };
+        }),
       );
       const updated = await updateAccessPolicyGrants(grants);
       setMatrix(updated);
       const next: Record<string, CellValue> = {};
       for (const mod of updated.modules) {
         for (const grant of mod.roles) {
-          next[`${mod.key}:${grant.role}`] = grant.isOverride ? grant.level : null;
+          next[`${mod.key}:${grant.role}`] = grant.isOverride ? String(grant.level) : "";
         }
       }
       setCells(next);
@@ -132,43 +147,55 @@ export function AccessPoliciesPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <ProgressSpinner />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <PageHeader title="Políticas de acesso" />
+        <LoadingBlock />
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Políticas de acesso</h1>
-          <p className="text-sm text-gray-500">
-            Defina o nível de cada perfil por módulo. "Padrão" segue a regra
-            original (Leitor lê, Operador opera, Admin administra).
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {saved && <Message severity="success" text="Políticas salvas." />}
-          {error && <Message severity="error" text={error} />}
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <PageHeader
+        title="Políticas de acesso"
+        subtitle="Defina o nível de cada perfil por módulo. Padrao segue a regra original (Leitor le, Operador opera, Admin administra)."
+        actions={
           <Button
-            label="Salvar"
             icon="pi pi-save"
-            loading={saving}
-            disabled={!dirty}
+            disabled={!dirty || saving}
             onClick={() => void save()}
-          />
-        </div>
-      </div>
+          >
+            {saving ? "Salvando…" : "Salvar"}
+          </Button>
+        }
+      />
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+      {saved && (
+        <NoticeBanner message="Políticas salvas." onDismiss={() => setSaved(false)} />
+      )}
+      {error && <ErrorBanner message={error} onRetry={() => void load()} />}
+
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              width: "100%",
+              fontSize: 13,
+              borderCollapse: "collapse",
+            }}
+          >
             <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 pr-4 font-medium">Módulo</th>
+              <tr style={{ borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
+                <th style={{ padding: "8px 16px 8px 0", fontWeight: 600 }}>Módulo</th>
                 {roles.map((role) => (
-                  <th key={role.role} className="py-2 px-2 font-medium text-center">
+                  <th
+                    key={role.role}
+                    style={{
+                      padding: "8px 8px",
+                      fontWeight: 600,
+                      textAlign: "center",
+                    }}
+                  >
                     {role.label}
                   </th>
                 ))}
@@ -176,28 +203,26 @@ export function AccessPoliciesPage() {
             </thead>
             <tbody>
               {(matrix?.modules ?? []).map((mod) => (
-                <tr key={mod.key} className="border-b last:border-0">
-                  <td className="py-2 pr-4">
-                    <div className="font-medium">{mod.label}</div>
-                    <div className="text-xs text-gray-400">{mod.key}</div>
+                <tr key={mod.key} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                  <td style={{ padding: "8px 16px 8px 0" }}>
+                    <div style={{ fontWeight: 600 }}>{mod.label}</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{mod.key}</div>
                   </td>
                   {roles.map((role) => {
-                    const value = cells[`${mod.key}:${role.role}`] ?? null;
+                    const value = cells[`${mod.key}:${role.role}`] ?? "";
                     const grant = mod.roles.find((r) => r.role === role.role);
                     return (
-                      <td key={role.role} className="py-2 px-2 text-center">
-                        <Dropdown
+                      <td key={role.role} style={{ padding: "8px 8px", textAlign: "center" }}>
+                        <SelectField
                           value={value}
                           options={LEVEL_OPTIONS}
-                          onChange={(e) =>
-                            setCell(mod.key, role.role, e.value as CellValue)
-                          }
-                          className="w-44"
-                          appendTo="self"
+                          onChange={(v) => setCell(mod.key, role.role, v)}
+                          aria-label={`${mod.label} — ${role.label}`}
+                          style={{ minWidth: 176 }}
                         />
-                        {grant && !grant.isOverride && value === null && (
-                          <div className="text-[10px] text-gray-400 mt-1">
-                            padrão: {LEVEL_OPTIONS.find((o) => o.value === grant.level)?.label ?? grant.level}
+                        {grant && !grant.isOverride && value === "" && (
+                          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+                            padrão: {LEVEL_BY_VALUE[String(grant.level)] ?? grant.level}
                           </div>
                         )}
                       </td>
@@ -208,16 +233,27 @@ export function AccessPoliciesPage() {
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
-      <Card title="Como funciona">
-        <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Como funciona</div>
+        <ul
+          style={{
+            fontSize: 13,
+            color: "#6b7280",
+            margin: 0,
+            paddingLeft: 18,
+            display: "grid",
+            gap: 4,
+            listStyle: "disc",
+          }}
+        >
           <li>As alterações valem para as próximas requisições (cache de ~10 min pode atrasar a propagação).</li>
           <li>Revogar (nível 0) bloqueia até a leitura do módulo.</li>
           <li>O Administrador nunca pode ser rebaixado abaixo de "Administrar" no módulo Administração.</li>
           <li>Módulos não listados aqui continuam usando a regra fixa de papéis.</li>
         </ul>
-      </Card>
+      </div>
     </div>
   );
 }

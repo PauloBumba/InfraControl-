@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
-import { Dialog } from "primereact/dialog";
-import { Dropdown } from "primereact/dropdown";
-import { InputText } from "primereact/inputtext";
-import { Message } from "primereact/message";
-import { MultiSelect } from "primereact/multiselect";
-import { ProgressSpinner } from "primereact/progressspinner";
+import { ListPageShell } from "@/components/ui/ListPageShell";
+import { Button } from "@/components/ui/Button";
+import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
+import { SelectField } from "@/components/ui/SelectField";
 import {
   createAccessRole,
   deleteAccessRole,
@@ -18,11 +15,22 @@ import {
 } from "@/services/api/accessPolicies";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 
+const inputStyle: React.CSSProperties = {
+  padding: "7px 10px",
+  fontSize: 13,
+  border: "1px solid #d1d5db",
+  borderRadius: 6,
+  width: "100%",
+  boxSizing: "border-box" as const,
+};
+
 /**
  * Perfis de acesso customizados: o admin cria papéis nomeados, define o
  * que cada um pode ver/fazer na matriz `/admin/access-policies` e atribui
  * aos usuários aqui. Perfis embutidos (Leitor/Operador/Admin) não são
  * editáveis — vêm do ADR-016.
+ *
+ * Layout no padrão da casa: ListPageShell + Dialog/FormField/SelectField.
  */
 export function AccessRolesPage() {
   const [roles, setRoles] = useState<AccessRoleItem[]>([]);
@@ -37,10 +45,11 @@ export function AccessRolesPage() {
   const [saving, setSaving] = useState(false);
 
   // Atribuição a usuário
-  const [assignUser, setAssignUser] = useState<AdminUser | null>(null);
+  const [assignUserId, setAssignUserId] = useState("");
   const [assignKeys, setAssignKeys] = useState<string[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignSaving, setAssignSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<AccessRoleItem | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,7 +108,6 @@ export function AccessRolesPage() {
   };
 
   const removeRole = async (role: AccessRoleItem) => {
-    if (!window.confirm(`Remover o perfil "${role.label}"? Atribuições e permissões dele serão apagadas.`)) return;
     try {
       await deleteAccessRole(role.id);
       await load();
@@ -108,12 +116,12 @@ export function AccessRolesPage() {
     }
   };
 
-  const openAssign = async (user: AdminUser) => {
-    setAssignUser(user);
+  const openAssign = async (userId: string) => {
+    setAssignUserId(userId);
     setAssignKeys([]);
     setAssignLoading(true);
     try {
-      const assigned = await getUserAccessRoles(user.userId);
+      const assigned = await getUserAccessRoles(userId);
       setAssignKeys(assigned.map((a) => a.key));
     } catch {
       setAssignKeys([]);
@@ -123,12 +131,12 @@ export function AccessRolesPage() {
   };
 
   const saveAssign = async () => {
-    if (!assignUser) return;
+    if (!assignUserId) return;
     setAssignSaving(true);
     setError(null);
     try {
-      await setUserAccessRoles(assignUser.userId, assignKeys);
-      setAssignUser(null);
+      await setUserAccessRoles(assignUserId, assignKeys);
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao atribuir perfis.");
     } finally {
@@ -136,168 +144,253 @@ export function AccessRolesPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-16">
-        <ProgressSpinner />
-      </div>
-    );
-  }
-
   const roleOptions = roles.map((r) => ({ label: r.label, value: r.key }));
+  const assignUser = users.find((u) => u.userId === assignUserId) ?? null;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Perfis de acesso</h1>
-          <p className="text-sm text-gray-500">
-            Crie perfis personalizados e defina o que cada um pode ver ou fazer
-            na tela "Políticas de acesso". Depois atribua aos usuários.
-          </p>
-        </div>
-        <Button label="Novo perfil" icon="pi pi-plus" onClick={openCreate} />
-      </div>
-
-      {error && <Message severity="error" text={error} />}
-
-      <Card>
-        {roles.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4">
-            Nenhum perfil customizado ainda. Os perfis embutidos (Leitor,
-            Operador, Administrador) já existem e são gerenciados na matriz de
-            políticas.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="py-2 pr-4 font-medium">Perfil</th>
-                  <th className="py-2 pr-4 font-medium">Chave</th>
-                  <th className="py-2 pr-4 font-medium">Descrição</th>
-                  <th className="py-2 pr-4 font-medium text-center">Usuários</th>
-                  <th className="py-2 font-medium text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {roles.map((role) => (
-                  <tr key={role.id} className="border-b last:border-0">
-                    <td className="py-2 pr-4 font-medium">{role.label}</td>
-                    <td className="py-2 pr-4 font-mono text-xs">{role.key}</td>
-                    <td className="py-2 pr-4 text-gray-500">{role.description ?? "—"}</td>
-                    <td className="py-2 pr-4 text-center">{role.userCount}</td>
-                    <td className="py-2 text-right whitespace-nowrap">
-                      <Button
-                        icon="pi pi-pencil"
-                        className="p-button-text p-button-sm"
-                        onClick={() => openEdit(role)}
-                      />
-                      <Button
-                        icon="pi pi-trash"
-                        className="p-button-text p-button-danger p-button-sm"
-                        onClick={() => void removeRole(role)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <ListPageShell
+      title="Perfis de acesso"
+      singular="perfil"
+      plural="perfis"
+      total={roles.length}
+      loading={loading}
+      error={error}
+      onRetry={() => void load()}
+      actions={
+        <Button icon="pi pi-plus" onClick={openCreate}>
+          Novo perfil
+        </Button>
+      }
+    >
+      {!loading && (
+        <>
+          <div className="uni-panel" style={{ padding: 16 }}>
+            {roles.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
+                Nenhum perfil customizado ainda. Os perfis embutidos (Leitor,
+                Operador, Administrador) já existem e são gerenciados na matriz de
+                políticas.
+              </p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #e5e7eb", textAlign: "left" }}>
+                      <th style={{ padding: "8px 16px 8px 0", fontWeight: 600 }}>Perfil</th>
+                      <th style={{ padding: "8px 16px 8px 0", fontWeight: 600 }}>Chave</th>
+                      <th style={{ padding: "8px 16px 8px 0", fontWeight: 600 }}>Descrição</th>
+                      <th style={{ padding: "8px 8px", fontWeight: 600, textAlign: "center" }}>
+                        Usuários
+                      </th>
+                      <th style={{ padding: "8px 0 8px 8px", fontWeight: 600, textAlign: "right" }}>
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roles.map((role) => (
+                      <tr key={role.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                        <td style={{ padding: "8px 16px 8px 0", fontWeight: 600 }}>
+                          {role.label}
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px 16px 8px 0",
+                            fontFamily: "ui-monospace, monospace",
+                            fontSize: 12,
+                          }}
+                        >
+                          {role.key}
+                        </td>
+                        <td style={{ padding: "8px 16px 8px 0", color: "#6b7280" }}>
+                          {role.description ?? "—"}
+                        </td>
+                        <td style={{ padding: "8px 8px", textAlign: "center" }}>
+                          {role.userCount}
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px 0 8px 8px",
+                            textAlign: "right",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <Button
+                            variant="ghost"
+                            icon="pi pi-pencil"
+                            title="Editar perfil"
+                            aria-label={`Editar ${role.label}`}
+                            onClick={() => openEdit(role)}
+                          />
+                          <Button
+                            variant="danger"
+                            icon="pi pi-trash"
+                            title="Remover perfil"
+                            aria-label={`Remover ${role.label}`}
+                            onClick={() => setConfirmDelete(role)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </Card>
 
-      <Card title="Atribuir perfis a um usuário">
-        <div className="flex flex-col md:flex-row gap-3 items-start md:items-end">
-          <div className="flex flex-col gap-1 flex-1 min-w-56">
-            <label className="text-sm font-medium">Usuário</label>
-            <Dropdown
-              value={assignUser}
-              options={users}
-              optionLabel="displayName"
-              onChange={(e) => {
-                const u = e.value as AdminUser;
-                setAssignUser(u);
-                void openAssign(u);
-              }}
-              placeholder="Selecione um usuário"
-              className="w-full"
-              filter
-              showClear
-            />
-          </div>
-          <div className="flex flex-col gap-1 flex-1 min-w-56">
-            <label className="text-sm font-medium">Perfis customizados</label>
-            <MultiSelect
-              value={assignKeys}
-              options={roleOptions}
-              onChange={(e) => setAssignKeys(e.value as string[])}
-              placeholder={assignLoading ? "Carregando…" : "Selecione os perfis"}
-              className="w-full"
-              disabled={!assignUser || assignLoading}
-            />
-          </div>
-          <Button
-            label="Salvar atribuição"
-            icon="pi pi-save"
-            loading={assignSaving}
-            disabled={!assignUser || assignLoading}
-            onClick={() => void saveAssign()}
-          />
-        </div>
-        <p className="text-xs text-gray-400 mt-3">
-          Perfis embutidos (Leitor/Operador/Admin) continuam sendo gerenciados
-          em Usuários. O novo perfil passa a valer no próximo login do usuário.
-        </p>
-      </Card>
-
-      <Dialog
-        header={editing ? "Editar perfil" : "Novo perfil"}
-        visible={dialogOpen}
-        onHide={() => setDialogOpen(false)}
-        className="w-full max-w-lg"
-      >
-        <div className="flex flex-col gap-4">
-          {!editing && (
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Chave (imutável)</label>
-              <InputText
-                value={form.key}
-                onChange={(e) => setForm({ ...form, key: e.target.value })}
-                placeholder="ex.: auditor, gestorpdi"
-              />
-              <small className="text-gray-400">
-                Slug minúsculo com hífens; usado internamente e não muda depois.
-              </small>
+          <div className="uni-panel" style={{ padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+              Atribuir perfis a um usuário
             </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Nome de exibição</label>
-            <InputText
-              value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })}
-              placeholder="ex.: Auditor, Gestor de PDI"
-            />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: 12,
+                alignItems: "end",
+              }}
+            >
+              <FormField label="Usuário">
+                <SelectField
+                  value={assignUserId}
+                  options={users.map((u) => ({
+                    label: u.displayName || u.email,
+                    value: u.userId,
+                  }))}
+                  onChange={(v) => void openAssign(v)}
+                  placeholder="Selecione um usuário"
+                  aria-label="Usuário"
+                />
+              </FormField>
+              <FormField label="Perfis customizados">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {roleOptions.length === 0 ? (
+                    <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                      {assignLoading ? "Carregando…" : "Sem perfis customizados"}
+                    </span>
+                  ) : (
+                    roleOptions.map((opt) => (
+                      <label
+                        key={opt.value}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 13,
+                          cursor: assignUser ? "pointer" : "not-allowed",
+                          opacity: assignUser ? 1 : 0.5,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!assignUser || assignLoading}
+                          checked={assignKeys.includes(opt.value)}
+                          onChange={(e) =>
+                            setAssignKeys((prev) =>
+                              e.target.checked
+                                ? [...prev, opt.value]
+                                : prev.filter((k) => k !== opt.value),
+                            )
+                          }
+                        />
+                        {opt.label}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </FormField>
+              <div>
+                <Button
+                  icon="pi pi-save"
+                  disabled={!assignUser || assignLoading || assignSaving}
+                  onClick={() => void saveAssign()}
+                >
+                  {assignSaving ? "Salvando…" : "Salvar atribuição"}
+                </Button>
+              </div>
+            </div>
+            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 12, marginBottom: 0 }}>
+              Perfis embutidos (Leitor/Operador/Admin) continuam sendo gerenciados
+              em Usuários. O novo perfil passa a valer no próximo login do usuário.
+            </p>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Descrição</label>
-            <InputText
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button label="Cancelar" className="p-button-text" onClick={() => setDialogOpen(false)} />
-            <Button
-              label="Salvar"
-              icon="pi pi-save"
-              loading={saving}
-              disabled={!form.label.trim() || (!editing && !form.key.trim())}
-              onClick={() => void saveRole()}
-            />
-          </div>
-        </div>
-      </Dialog>
-    </div>
+
+          <Dialog
+            visible={dialogOpen}
+            onHide={() => setDialogOpen(false)}
+            header={editing ? "Editar perfil" : "Novo perfil"}
+            width={480}
+            footer={
+              <div className="uni-modal-actions">
+                <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={
+                    !form.label.trim() || (!editing && !form.key.trim()) || saving
+                  }
+                  onClick={() => void saveRole()}
+                >
+                  {saving ? "Salvando…" : "Salvar"}
+                </Button>
+              </div>
+            }
+          >
+            <div style={{ display: "grid", gap: 12 }}>
+              {!editing && (
+                <FormField
+                  label="Chave (imutável)"
+                  error={
+                    form.key !== "" && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(form.key)
+                      ? "Slug minúsculo com hífens."
+                      : null
+                  }
+                >
+                  <input
+                    value={form.key}
+                    onChange={(e) => setForm({ ...form, key: e.target.value })}
+                    placeholder="ex.: auditor, gestorpdi"
+                    style={inputStyle}
+                    autoComplete="off"
+                  />
+                </FormField>
+              )}
+              <FormField label="Nome de exibição">
+                <input
+                  value={form.label}
+                  onChange={(e) => setForm({ ...form, label: e.target.value })}
+                  placeholder="ex.: Auditor, Gestor de PDI"
+                  style={inputStyle}
+                  autoComplete="off"
+                />
+              </FormField>
+              <FormField label="Descrição">
+                <input
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  style={inputStyle}
+                  autoComplete="off"
+                />
+              </FormField>
+            </div>
+          </Dialog>
+
+          <ConfirmDialog
+            visible={confirmDelete != null}
+            onHide={() => setConfirmDelete(null)}
+            onConfirm={() => {
+              if (confirmDelete) void removeRole(confirmDelete);
+            }}
+            header="Remover perfil"
+            message={
+              confirmDelete
+                ? `Remover o perfil "${confirmDelete.label}"? Atribuições e permissões dele serão apagadas.`
+                : ""
+            }
+            confirmLabel="Remover"
+          />
+        </>
+      )}
+    </ListPageShell>
   );
 }
