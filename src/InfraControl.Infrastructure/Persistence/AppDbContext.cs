@@ -51,6 +51,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Alert> Alerts => Set<Alert>();
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<IncidentAlert> IncidentAlerts => Set<IncidentAlert>();
+    public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskAssignee> TaskAssignees => Set<TaskAssignee>();
     public DbSet<TaskDevice> TaskDevices => Set<TaskDevice>();

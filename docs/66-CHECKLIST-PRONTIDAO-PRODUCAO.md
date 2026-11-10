@@ -138,8 +138,10 @@
 | --- | --- |
 | Login social (Google) habilitado | `[x]` F43-T004 no repo (env no overlay de produção + smoke 302/`error=google`); Fase 50 T002 cuida do botão oficial na tela. **Falta:** smoke do fluxo completo no ambiente de produção real (§7) |
 | Melhor layout das páginas públicas/estáticas | `[x]` **Fase 50–F6** (escopo por página `.uni-public-page--*` + base compartilhada, F50-T006) |
-| Melhor logo | `[ ]` **Fase 50–F5** (upload de logo já existe em `/settings/company` na Fase 50) |
-| Auditoria com descrição que facilite a compreensão | `[ ]` **Fase 50–F4** (Alert + Incident.RootCause + TextArea compartilhado) |
+| Melhor logo | `[x]` **Fase 50–F5** (fonte única `components/ui/Logo` — rack circular oficial no sidebar e no login, F50-T005) |
+| Auditoria com descrição que facilite a compreensão | `[x]` **Fase 50–F4** (descrição "{ator} executou {ação} em {recurso}" montada no handler + filtro por usuário/ator, F50-T004) |
+| Descrições detalhadas (causa raiz do incidente, anotação no alerta) | `[x]` **Fase 50–F3** (`Incident.RootCause` + `Alert.operatorNote` + componente `TextArea` compartilhado, F50-T003) |
+| Checklist genérico por dono (device/local/incidente/projeto) | `[x]` **Fase 50–F7** (entidade `ChecklistItem` sem FK + API `api/v1/checklists/{ownerType}/{ownerId}`, F50-T007, ADR-067) |
 
 > As frentes F1–F7 da Fase 50 estão descritas em `PROJECT_STATE.md`
 > (working tree desta sessão — não commitadas por este checklist).
