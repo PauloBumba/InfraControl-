@@ -57,9 +57,9 @@ public sealed class GetUnifiDashboardQueryHandler(
         var unlinked = correlation.Unlinked.Count;
 
         var succeeded = await auditReader.SearchAsync(
-            "SyncUnifiInventoryCommand", "Succeeded", null, null, 1, 1, cancellationToken);
+            "SyncUnifiInventoryCommand", "Succeeded", null, null, null, 1, 1, cancellationToken);
         var failed = await auditReader.SearchAsync(
-            "SyncUnifiInventoryCommand", "Failed", null, null, 1, 1, cancellationToken);
+            "SyncUnifiInventoryCommand", "Failed", null, null, null, 1, 1, cancellationToken);
         var lastSucceeded = succeeded.Items.FirstOrDefault();
         var lastFailed = failed.Items.FirstOrDefault();
         var lastSync = lastFailed is not null &&
@@ -70,7 +70,7 @@ public sealed class GetUnifiDashboardQueryHandler(
 
         var errors = await auditReader.SearchAsync(
             "SyncUnifiInventoryCommand", "Failed",
-            DateTime.UtcNow.AddDays(-7), null, 1, 100, cancellationToken);
+            DateTime.UtcNow.AddDays(-7), null, null, 1, 100, cancellationToken);
 
         string? controllerError = null;
         IReadOnlyDictionary<string, int> states = new Dictionary<string, int>();

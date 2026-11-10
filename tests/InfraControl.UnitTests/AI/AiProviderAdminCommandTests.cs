@@ -338,7 +338,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
         var legado = (await repo.GetByNameAsync("legado"))!;
 
         var handler = new TestAiProviderConnectionCommandHandler(
-            repo, [Adapter("ollama"), Adapter("gemini", throws: true)]);
+            repo, new FakeAiRegistry(Adapter("ollama"), Adapter("gemini", throws: true)));
 
         (await handler.Handle(new TestAiProviderConnectionCommand(ok.Id), default))
             .Should().Be(new AiProviderConnectionTestDto(Ok: true, Error: null));
@@ -365,7 +365,7 @@ public sealed class AiProviderAdminCommandTests : IDisposable
         var legado = (await repo.GetByNameAsync("legado"))!;
 
         var handler = new ListAiProviderModelsCommandHandler(
-            repo, [Adapter("ollama", models: ["a", "b"])]);
+            repo, new FakeAiRegistry(Adapter("ollama", models: ["a", "b"])));
 
         (await handler.Handle(new ListAiProviderModelsCommand(ok.Id), default)).Models
             .Should().Equal("a", "b");

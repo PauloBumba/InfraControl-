@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Provider } from "react-redux";
+import { store } from "@/app/store";
+import { sessionChecked } from "@/app/store/slices/authSlice";
 import { AuditPage } from "./AuditPage";
 import { listAuditEntries, type AuditEntry, type PagedAudit } from "@/services/api/audit";
 
@@ -15,6 +18,9 @@ import { listAuditEntries, type AuditEntry, type PagedAudit } from "@/services/a
  *    lista). Com os dois erros simultâneos ela mostrava a mesma frase
  *    "Não foi possível…" DUAS vezes. A casca tem UM slot de erro — os dois
  *    passam a se fundir, com o do formulário na frente.
+ *
+ * F50-T004 — o filtro por ator lê o e-mail logado do Redux (default do
+ * campo), por isso os testes agora montam o `Provider` + `sessionChecked`.
  */
 vi.mock("@/services/api/audit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/services/api/audit")>()),
@@ -33,6 +39,7 @@ const UMA_ENTRADA: AuditEntry = {
   correlationId: null,
   error: null,
   occurredAt: "2026-01-02T10:00:00Z",
+  description: "Ana executou Login With Mfa em Auth — sucesso",
 };
 
 /** Mock que aplica o filtro de ação igualdade, como o servidor. */
@@ -46,11 +53,23 @@ function mockFiltrando(items: AuditEntry[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  store.dispatch(
+    sessionChecked({
+      id: "3f1a1111-2222-3333-4444-555566667777",
+      email: "ana@exemplo.com",
+      displayName: "Ana",
+      roles: ["Admin"],
+    }),
+  );
   mockFiltrando([UMA_ENTRADA]);
 });
 
 function renderPage() {
-  return render(<AuditPage />);
+  return render(
+    <Provider store={store}>
+      <AuditPage />
+    </Provider>,
+  );
 }
 
 function paged(items: AuditEntry[], totalCount = items.length): PagedAudit {
@@ -103,5 +122,50 @@ describe("AuditPage — casca da lista (C-3: ListPageShell)", () => {
     ).toBeInTheDocument();
     // Uma frase, um alerta — não dois.
     expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+});
+
+/**
+ * F50-T004 — filtro por usuário (ator) + descrição detalhada por evento.
+ *
+ * O campo "Usuário" nasce com o username (e-mail) de quem está logado — cada
+ * usuário pode trocar — e casa no backend também com sobrenome e com o nome
+ * do operador exibido na auditoria. A descrição vem pronta do backend.
+ */
+describe("AuditPage — filtro por usuário (F50-T004)", () => {
+  it("should default the actor filter to the logged username and send it to the API", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "Auditoria" });
+
+    expect(listAuditEntriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: "ana@exemplo.com" }),
+    );
+    // O campo nasce preenchido com o username logado.
+    expect(screen.getByPlaceholderText(/Usuário/)).toHaveValue("ana@exemplo.com");
+  });
+
+  it("should allow changing the actor filter", async () => {
+    renderPage();
+    const user = userEvent.setup();
+    listAuditEntriesMock.mockClear();
+
+    const campo = screen.getByPlaceholderText(/Usuário/);
+    await user.clear(campo);
+    await user.type(campo, "silva");
+    await user.type(campo, "{Enter}");
+
+    expect(await screen.findByText("1 evento")).toBeInTheDocument();
+    expect(listAuditEntriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: "silva" }),
+    );
+  });
+
+  it("should render the detailed description of the event", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByText("Ana executou Login With Mfa em Auth — sucesso"),
+    ).toBeInTheDocument();
   });
 });

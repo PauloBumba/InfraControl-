@@ -18,6 +18,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { Button } from "@/components/ui/Button";
 import { errorMessage } from "@/hooks/queries";
 import { useFormErrors } from "@/hooks/useFormErrors";
+import { useAppSelector } from "@/app/store/hooks";
 
 /**
  * F17-T002 — AuditPage conectada ao backend (substitui o mock de
@@ -78,6 +79,12 @@ export function AuditPage() {
   const [outcome, setOutcome] = useState("");
   const [action, setAction] = useState("");
   const [actionInput, setActionInput] = useState("");
+  // F50-T004 — filtro por usuário: nasce com o username (e-mail) de quem está
+  // logado; cada usuário pode trocar. Casa no backend também com sobrenome e
+  // com o nome do operador exibido na auditoria (texto livre, não igualdade).
+  const username = useAppSelector((state) => state.auth.user?.email) ?? "";
+  const [actor, setActor] = useState(username);
+  const [actorInput, setActorInput] = useState(username);
   // Filtro de período (params `from`/`to` da API) — aplicado no submit, como
   // o campo de ação; a conversão para UTC acontece no serviço.
   const [fromInput, setFromInput] = useState("");
@@ -98,6 +105,7 @@ export function AuditPage() {
         await listAuditEntries({
           action: action || undefined,
           outcome: outcome || undefined,
+          actor: actor || undefined,
           from: from || undefined,
           to: to || undefined,
           page,
@@ -109,7 +117,7 @@ export function AuditPage() {
     } finally {
       setLoading(false);
     }
-  }, [action, outcome, from, to, page]);
+  }, [action, outcome, actor, from, to, page]);
 
   useEffect(() => {
     void load();
@@ -125,12 +133,15 @@ export function AuditPage() {
     setFrom(fromInput);
     setTo(toInput);
     setAction(actionInput.trim());
+    setActor(actorInput.trim());
     setPage(1);
   }
 
   function clearFilters() {
     setActionInput("");
     setAction("");
+    setActorInput("");
+    setActor("");
     setOutcome("");
     setFromInput("");
     setToInput("");
@@ -143,7 +154,7 @@ export function AuditPage() {
   const entries = pageData?.items ?? [];
   const totalCount = pageData?.totalCount ?? 0;
   const hasFilters =
-    action !== "" || outcome !== "" || from !== "" || to !== "";
+    action !== "" || actor !== "" || outcome !== "" || from !== "" || to !== "";
 
   // Paginator do DataTable é controlado: o evento `first` vira a página
   // server-side (mesma semântica do bloco manual "Anterior/Próxima").
@@ -166,6 +177,14 @@ export function AuditPage() {
       onRetry={() => void load()}
       actions={
         <FilterBar><form onSubmit={applyAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <SearchInput
+            value={actorInput}
+            onChange={setActorInput}
+            placeholder="Usuário — e-mail, nome ou sobrenome"
+            title="Filtro por usuário: username (e-mail), sobrenome ou nome do operador. O padrão é o seu username."
+            variant="muted"
+            onEnter={() => { setActor(actorInput.trim()); setPage(1); }}
+          />
           <SearchInput
             value={actionInput}
             onChange={setActionInput}
@@ -225,6 +244,20 @@ export function AuditPage() {
             header="Data/Hora"
             body={(row: AuditEntry) => formatDateTime(new Date(row.occurredAt))}
             style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b", width: 150 }}
+          />
+          {/* F50-T004 — descrição detalhada vinda do backend (quem · o quê ·
+              onde · resultado), sem largura fixa: ocupa o resto da linha. */}
+          <Column
+            header="Descrição"
+            body={(row: AuditEntry) => (
+              <span
+                style={{ fontSize: 12, color: "#475569" }}
+                title={row.description}
+              >
+                {row.description}
+              </span>
+            )}
+            style={{ minWidth: 260 }}
           />
           <Column
             header="Ação"

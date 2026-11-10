@@ -687,8 +687,11 @@ export function DashboardPage() {
                     className={`uni-dash-event-dot${event.outcome === AUDIT_OUTCOME_SUCCEEDED ? "" : " is-failed"}`}
                   />
                   <div className="uni-dash-event-body">
-                    <div>{event.action}</div>
-                    <div className="uni-dash-event-resource">{event.resource}{event.error ? ` · ${event.error}` : ""}</div>
+                    {/* F50-T004 — descrição detalhada do backend: quem
+                        executou o quê, em qual recurso e com qual resultado
+                        (a falha carrega o erro). Substitui a linha
+                        `action` + `resource · error`, que ela detalha. */}
+                    <div>{event.description}</div>
                   </div>
                   <span className="uni-dash-event-time">{formatDateTime(new Date(event.occurredAt))}</span>
                 </div>

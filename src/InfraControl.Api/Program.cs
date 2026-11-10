@@ -419,7 +419,13 @@ app.MapHealthChecks("/health", new HealthCheckOptions
                 // no Data) — a HealthPage renderiza a âncora.
                 link = e.Value.Data.TryGetValue("link", out var link)
                     ? link?.ToString()
-                    : null
+                    : null,
+                // O detalhe por componente (ex.: ai-runtime §44) ia no
+                // payload por desenho mas o writer o descartava — expõe
+                // como dicionário plano para diagnóstico.
+                data = e.Value.Data
+                    .Where(kv => kv.Key != "link")
+                    .ToDictionary(kv => kv.Key, kv => kv.Value?.ToString())
             }),
             totalDuration = report.TotalDuration.TotalMilliseconds
         };

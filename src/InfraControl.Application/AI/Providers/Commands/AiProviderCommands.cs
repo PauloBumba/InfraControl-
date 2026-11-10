@@ -280,7 +280,7 @@ public sealed class DeleteAiProviderCapabilityRouteCommandHandler(
 
 public sealed class TestAiProviderConnectionCommandHandler(
     IAiProviderRepository repository,
-    IEnumerable<IAiProvider> adapters)
+    IAiProviderRegistry registry)
     : IRequestHandler<TestAiProviderConnectionCommand, AiProviderConnectionTestDto>
 {
     public async Task<AiProviderConnectionTestDto> Handle(
@@ -289,12 +289,21 @@ public sealed class TestAiProviderConnectionCommandHandler(
         var provider = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Provider '{request.Id}' não encontrado.");
 
-        var adapter = adapters.FirstOrDefault(item => string.Equals(
-            item.Name, provider.Name, StringComparison.OrdinalIgnoreCase));
-        if (adapter is null)
+        // Registry (não IEnumerable<IAiProvider>): resolve o adaptador
+        // bound ao cadastro (protocolo + conexão fresca, F49-T002/D3) —
+        // testar o adaptador fixo de config daria falso negativo para
+        // providers cuja chave só existe no cadastro.
+        IAiProvider adapter;
+        try
+        {
+            adapter = registry.Get(provider.Name);
+        }
+        catch (AiProviderNotConfiguredException)
+        {
             return new AiProviderConnectionTestDto(
                 Ok: false,
                 Error: $"Adaptador '{provider.Name}' não está registrado nesta build — teste indisponível.");
+        }
 
         try
         {
@@ -312,7 +321,7 @@ public sealed class TestAiProviderConnectionCommandHandler(
 
 public sealed class ListAiProviderModelsCommandHandler(
     IAiProviderRepository repository,
-    IEnumerable<IAiProvider> adapters)
+    IAiProviderRegistry registry)
     : IRequestHandler<ListAiProviderModelsCommand, AiProviderModelsDto>
 {
     public async Task<AiProviderModelsDto> Handle(
@@ -321,12 +330,17 @@ public sealed class ListAiProviderModelsCommandHandler(
         var provider = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Provider '{request.Id}' não encontrado.");
 
-        var adapter = adapters.FirstOrDefault(item => string.Equals(
-            item.Name, provider.Name, StringComparison.OrdinalIgnoreCase));
-        if (adapter is null)
+        IAiProvider adapter;
+        try
+        {
+            adapter = registry.Get(provider.Name);
+        }
+        catch (AiProviderNotConfiguredException)
+        {
             return new AiProviderModelsDto(
                 Models: [],
                 Error: $"Adaptador '{provider.Name}' não está registrado nesta build — listagem indisponível.");
+        }
 
         try
         {
