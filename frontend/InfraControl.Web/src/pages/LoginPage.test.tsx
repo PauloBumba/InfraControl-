@@ -135,3 +135,20 @@ describe("LoginPage (F43-T003 — Google code flow)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+/**
+ * F50-T005 (F5) — logo unificado: o brand do login passa a renderizar o
+ * componente compartilhado `components/ui/Logo` (o mesmo desenho oficial
+ * do favicon e das páginas públicas) no lugar do badge quadrado inline.
+ */
+describe("LoginPage — logo unificado (F50-T005)", () => {
+  it("should render the official shared Logo instead of the inline badge", () => {
+    renderPage();
+
+    const logo = screen.getByRole("img", { name: "Logo do InfraControl" });
+    expect(logo.tagName.toLowerCase()).toBe("svg");
+    expect(logo.innerHTML).toContain("logoPrimaryGrad");
+    // O badge quadrado inline (gradiente antigo do login) não pode voltar.
+    expect(logo.innerHTML).not.toContain("infraLoginGrad");
+  });
+});

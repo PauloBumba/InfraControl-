@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { setMobileOpen, toggleSidebar } from "@/app/store/slices/uiSlice";
 import { addToRecentTabs } from "@/app/store/slices/navigationSlice";
 import { logout } from "@/services/api/auth";
+import { Logo } from "@/components/ui/Logo";
 import { listDevices } from "@/services/api/inventory";
 import { listAlerts } from "@/services/api/alerts";
 import { listIncidents } from "@/services/api/incidents";
@@ -227,24 +228,7 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
   return (
     <>
       <div className="layout-sidebar-logo">
-        <svg viewBox="0 0 64 64" width="22" height="22">
-          <defs>
-            <linearGradient id="infraSidebarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:1}} />
-              <stop offset="100%" style={{stopColor:'#2563eb',stopOpacity:1}} />
-            </linearGradient>
-          </defs>
-          <rect width="64" height="64" rx="12" fill="url(#infraSidebarGrad)" />
-          <g fill="white">
-            <rect x="16" y="12" width="32" height="40" rx="4" fill="none" stroke="white" strokeWidth="2.5"/>
-            <rect x="20" y="18" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-            <rect x="20" y="28" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-            <rect x="20" y="38" width="24" height="6" rx="2" fill="white" opacity="0.9"/>
-            <circle cx="38" cy="21" r="1.5" fill="#22c55e"/>
-            <circle cx="38" cy="31" r="1.5" fill="#22c55e"/>
-            <circle cx="38" cy="41" r="1.5" fill="#eab308"/>
-          </g>
-        </svg>
+        <Logo size={22} />
         <span>InfraControl</span>
         <button
           className="layout-sidebar-toggle"
