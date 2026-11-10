@@ -309,22 +309,22 @@ services:
       # rede interna (DNS por nome de serviço, §48) e o Link é o console que
       # a HealthPage oferece ao usuário final (portas públicas do host).
       Health__Services__0__Name: frontend
-      Health__Services__0__Url: http://frontend
+      # D2 (docs/66): /healthz no :80 do nginx — http://frontend puro seguia
+      # o 301 para https://frontend:8445 (porta do host) e recusava dentro
+      # da rede. healthz responde 200 sem redirect.
+      Health__Services__0__Url: http://frontend/healthz
       Health__Services__0__Link: https://localhost:8443
       Health__Services__1__Name: rabbitmq
       Health__Services__1__Url: http://rabbitmq:15672
       Health__Services__1__Link: http://localhost:15672
-      Health__Services__2__Name: zabbix-web
-      Health__Services__2__Url: http://zabbix-web
-      Health__Services__2__Link: http://localhost:8086
-      Health__Services__3__Name: evolution
-      Health__Services__3__Url: http://evolution-api:8080
-      Health__Services__3__Link: http://localhost:8081
-      Health__Services__4__Name: guacamole
-      Health__Services__4__Url: http://guacamole:8080/guacamole
+      # D3 (docs/66): Adminer escuta 8080 (8082 é o mapeamento do host).
       Health__Services__5__Name: adminer
-      Health__Services__5__Url: http://adminer
+      Health__Services__5__Url: http://adminer:8080
       Health__Services__5__Link: http://localhost:8082
+      # D7 (docs/66): zabbix-web/evolution/guacamole são de profiles
+      # opcionais (zabbix/evolution/remote) — fora do profile `app` os probes
+      # ficavam Unhealthy e derrubavam /health. Ao habilitar o profile,
+      # readicione a entrada via env Health__Services__N__* neste compose.
       # Fase 0: repasse de integração/monitoramento/notificação que existiam só
       # no appsettings — sem aqui a action legada do Zabbix cai no 401 (Token
       # vazio) e o SnmpSystem roda com o default "public"/161 da engenharia,

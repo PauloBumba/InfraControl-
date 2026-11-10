@@ -38,11 +38,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ── Serilog ──────────────────────────────────────────────────────────────
+// D6 (docs/66): SEM .WriteTo.Console() explícito — ReadFrom.Configuration
+// já monta o sink Console do appsettings Serilog; o extra logava 2× a linha.
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "InfraControl.Api")
-    .WriteTo.Console()
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -100,9 +101,12 @@ builder.Services.AddHostedService<InfraControl.Api.Workers.HealthStatusNotifier>
 // F9-T006: o admin escolhe os canais do fanout e os destinos por canal
 // (Notifications:Channels) — a MESMA seção lida pelo NotificationEventConsumer
 // no host dos Workers; defaults vazios = comportamento Email+SignalR.
+// D5 (docs/66): PostConfigure normaliza — o binder append no inicializador
+// e duplicava [Email,SignalR] com o env Default__0..2.
 builder.Services
     .AddOptions<NotificationChannelsOptions>()
-    .Bind(builder.Configuration.GetSection(NotificationChannelsOptions.SectionName));
+    .Bind(builder.Configuration.GetSection(NotificationChannelsOptions.SectionName))
+    .PostConfigure(options => options.NormalizeDefaultChannels());
 
 // F16-T001/ADR-023: token do webhook de entrada do Zabbix (Integrations:
 // Zabbix) — vazio = integração desligada (404 no endpoint), não valida no

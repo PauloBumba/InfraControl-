@@ -59,67 +59,76 @@
   durante a carga (antes: `too many clients`); 22 conexões idle estáveis
   (≈ pool 20 + workers), zero estouro.
 
-### [!] D2 — `/health` sempre 503: probe do frontend erra a porta (MÉDIO)
+### [x] D2 — `/health` sempre 503: probe do frontend erra a porta (MÉDIO) — **CORRIGIDO 2026-11-08**
 
-- **Evidência:** `svc-frontend Unhealthy: Connection refused (frontend:8445)`.
-  O probe usa `http://frontend` (porta 80) → nginx responde
-  `301 Location: https://$host:8445/` (o `https_port_suffix` é o mapeado do
-  **host**) → o HttpClient do probe segue o redirect para
+- **Evidência original:** `svc-frontend Unhealthy: Connection refused (frontend:8445)`.
+  O probe usava `http://frontend` (porta 80) → nginx respondia
+  `301 Location: https://$host:8445/` → o HttpClient seguia o redirect para
   `https://frontend:8445` **dentro da rede**, onde nada escuta (nginx interno
   é 443).
-- **Correção sugerida (escolher uma):** (a) probe direto em `https://frontend`
-  com `DangerousAcceptAnyServerCertificate`; (b) `AllowAutoRedirect=false` no
-  client `health-probe` e tratar 3xx como Healthy; (c) `location /healthz { return 200; }`
-  no :80 do nginx do front e apontar o probe para lá.
+- **Correção aplicada:** `location = /healthz { return 200 "ok"; }` no :80 do
+  `docker/nginx.conf` (build na imagem do frontend) +
+  `Health__Services__0__Url: http://frontend/healthz` no compose.
+  `return` de redirect fica em `location /` (server-level roda antes do match).
+- **Validação ao vivo:** `GET /healthz` via host e via rede interna = **200**;
+  `/health` → `Degraded` com `svc-frontend: Healthy` (HTTP 200, não 503).
 
-### [!] D3 — `svc-adminer` erra a porta (BAIXO)
+### [x] D3 — `svc-adminer` erra a porta (BAIXO) — **CORRIGIDO 2026-11-08**
 
-- Probe `http://adminer` (porta 80), container do Adminer escuta **8080**
-  (mapeado 8082 no host). Corrigir URL para `http://adminer:8080`.
+- Probe `http://adminer` (porta 80) vs container na **8080**. Corrigido para
+  `Health__Services__5__Url: http://adminer:8080`.
+- **Validação ao vivo:** `svc-adminer: Healthy` no agregado `/health`.
 
-### [!] D4 — `PUT /inventory/locations/{id}` com nome duplicado → 500 (MÉDIO)
+### [x] D4 — `PUT /inventory/locations/{id}` com nome duplicado → 500 (MÉDIO) — **CORRIGIDO 2026-11-08**
 
-- **Evidência (repro):** criar `DUP-TEST-1` e `DUP-TEST-2`; renomear o 2º para
-  `DUP-TEST-1` → **500** `Ocorreu um erro inesperado`. Log:
-  `DbUpdateException … 23505: duplicate key … ux_locations_name` (a mensagem
-  de domínio `Já existe um local com este nome` não sobe para o envelope).
-- **Esperado:** 409/400 com a mensagem de domínio (como os demais erros
-  pt-BR). Corrigir no handler de Update/ou mapear `DbUpdateException` de
-  unique violation para conflicto.
+- **Evidência original:** criar `DUP-TEST-1`/`DUP-TEST-2`; renomear o 2º →
+  **500**; log `DbUpdateException … 23505 … ux_locations_name`.
+- **Causa raiz (reproduzida):** o pré-check do handler jogava
+  `InvalidOperationException("Já existe um local com este nome.")`, mas o
+  `AuditBehavior` no caminho de erro chamava `SaveChangesAsync` (flush do
+  rename pendente) → o `DbUpdateException` **mascarava** a exceção de domínio
+  antes do `throw`. (Backstop do `GlobalExceptionHandler` já devolvia 409
+  genérico; a mensagem de domínio não subia.)
+- **Correção (3 camadas):** (1) `AuditBehavior` isola o erro da auditoria e
+  **re-throw original**; (2) pré-check do `UpdateLocationCommandHandler`
+  movido para **antes** da mutação (sem rename pendente no tracker); (3)
+  backstop `DbUpdateException`+`23505` → 409 no `GlobalExceptionHandler`.
+- **Testes:** `AuditBehaviorTests.Handle_WhenAuditSaveFails_ShouldPreserveOriginalDomainException`
+  + 2 facts de `DbUpdateException` em `GlobalExceptionHandlerTests`.
+- **Validação ao vivo:** rename duplicado → **409**
+  `["Já existe um local com este nome."]`; rename p/ nome próprio → 204;
+  create duplicado → 409 com a mesma mensagem de domínio.
 
-### [!] D5 — Defaults de canais duplicados no caminho legado (MÉDIO)
+### [x] D5 — Defaults de canais duplicados no caminho legado (MÉDIO) — **CORRIGIDO 2026-11-08**
 
-- **Evidência:** sem linha em `notification_routing_policies`,
-  `GET /notifications/routing` devolve
+- **Evidência original:** sem linha em `notification_routing_policies`,
+  `GET /notifications/routing` devolvia
   `["Email","SignalR","Email","SignalR","WhatsApp"]`.
-- **Causa raiz (reproduzida em console isolado):** o inicializador da
-  propriedade `NotificationChannelsOptions.Default = ["Email","SignalR"]` +
-  comportamento do `ConfigurationBinder` (**acrescenta** os valores da seção
-  em vez de substituir) → lista inicial (2) + config mesclada
-  `[Email,SignalR,WhatsApp]` (3, vem do `.env` `NOTIFY_DEFAULT_2=WhatsApp`) = 5.
-- **Impacto:** UI mostra canais repetidos; se o admin salvar esse estado, a
-  string persistida os guarda. O fanout do consumer deduplica
-  (`configured.Contains`) — **não há envio duplo hoje**.
-- **Correção sugerida:** remover o inicializador (deixar `[]`) **ou** limpar a
-  lista no `PostConfigure`; validar `DefaultChannelNames` com `Distinct()`.
+- **Causa raiz:** inicializador `Default = ["Email","SignalR"]` +
+  `ConfigurationBinder` que **acrescenta** (não substitui) → lista inicial +
+  config mesclada = 5 itens.
+- **Correção:** `NotificationChannelsOptions.NormalizeDefaultChannels()`
+  (dedupe case-insensitive + trim + filtra vazios) via `PostConfigure` na Api
+  e no `Configure` dos Workers.
+- **Testes:** `NotificationChannelsOptionsTests` (4 facts).
 
-### [!] D6 — Logs duplicados (cada linha 2× no console) (BAIXO)
+### [x] D6 — Logs duplicados (cada linha 2× no console) (BAIXO) — **CORRIGIDO 2026-11-08**
 
-- **Causa:** `Program.cs` monta o bootstrap com
-  `.ReadFrom.Configuration()` (que **já** inclui o sink Console do appsettings)
-  **e** `.WriteTo.Console()` → dois sinks Console. `docker logs` mostra tudo
-  em dobro (e o dobro duplica I/O do sink).
-- **Correção:** remover o `.WriteTo.Console()` extra do bootstrap.
+- **Causa:** bootstrap Serilog com `.ReadFrom.Configuration()` (já inclui
+  sink Console do appsettings) **e** `.WriteTo.Console()` → dois sinks.
+- **Correção:** removido `.WriteTo.Console()` em
+  `src/InfraControl.Api/Program.cs` e `src/InfraControl.Workers/Program.cs`.
+- **Validação ao vivo:** `docker logs` da API = 1× `Application started`.
 
-### [ ] D7 — Checks de serviços não implantados derrubam o `/health` (DECISÃO)
+### [x] D7 — Checks de serviços não implantados derrubam o `/health` (DECISÃO) — **CORRIGIDO 2026-11-08**
 
-- `svc-zabbix-web`, `svc-evolution`, `svc-guacamole` (quando fora do profile)
-  e `ai-runtime` (Degradado sem IA configurada) marcam o agregado como 503.
-- Os checks **centrais** (postgresql, redis, masstransit, outbox) estão
-  Healthy; `/health/ready` = 200.
-- **Decisão:** em produção com todos os profiles no ar, os checks passam a
-  fazer sentido; considerar severidade "Degraded" ≠ 503 para serviços
-  opcionais, ou ligar checks por profile.
+- **Decisão registrada:** remover do agregado os checks de
+  `svc-zabbix-web`, `svc-evolution`, `svc-guacamole` (profiles opcionais,
+  nem sempre no ar); comentário no compose explica o porquê. `ai-runtime`
+  permanece como **Degraded** esperado sem IA configurada — não derruba o
+  agregado (HTTP 200 com status Degraded).
+- **Validação ao vivo:** `/health` = **200 Degraded** com centrais Healthy
+  (frontend/adminer/rabbitmq) e `ai-runtime: Degraded` opcional.
 
 ---
 
@@ -152,9 +161,11 @@
 
 ### 4.2 Saúde e monitoramento
 
-- [!] **D2/D3** — probes do `/health` (corrigir)
+- [x] **D2/D3** — probes do `/health` (corrigido 2026-11-08: healthz no :80
+      + adminer:8080; agregado 200/Degraded)
 - [x] `/health/ready` = 200 (checks centrais)
-- [ ] Decidir severidade de serviços opcionais (**D7**)
+- [x] **D7** — severidade de serviços opcionais (checks de zabbix/evolution/
+      guacamole removidos do agregado; `ai-runtime` = Degraded esperado)
 - [ ] Alertas de infra (fora do escopo do `/health`) — definir canais via
       política de roteamento (F39)
 
@@ -272,11 +283,13 @@ Notas:
 ## 9. Go/no-go — mínimo antes de produção
 
 1. **[x] D1** (orçamento de conexões) — corrigido e revalidado 2026-11-08 (§2.1).
-2. **[!] D2** (`/health` do frontend) — corrigir; sem isso o orquestrador
-   considera o stack doente.
-3. **[!] D4** (500 em nome duplicado) — corrigir; é erro de usuário comum.
-4. Segredos de produção gerados (§4.3) + grep de segredos.
-5. Smoke do Google login no ambiente real (§3/§7).
-6. Backup + restore executados uma vez de ponta a ponta (§4.1).
-7. Itens de produto do usuário (Fase 50 F4/F5/F6 + F2 smoke) concluídos ou
+2. **[x] D2** (`/health` do frontend) — corrigido e revalidado 2026-11-08
+   (healthz 200; agregado 200/Degraded).
+3. **[x] D4** (500 em nome duplicado) — corrigido e revalidado 2026-11-08
+   (409 com mensagem de domínio; causa raiz no `AuditBehavior`).
+4. **[x] D3/D5/D6/D7** — corrigidos e revalidados 2026-11-08 (§2).
+5. Segredos de produção gerados (§4.3) + grep de segredos.
+6. Smoke do Google login no ambiente real (§3/§7).
+7. Backup + restore executados uma vez de ponta a ponta (§4.1).
+8. Itens de produto do usuário (Fase 50 F4/F5/F6 + F2 smoke) concluídos ou
    explicitamente adiados pelo dono.

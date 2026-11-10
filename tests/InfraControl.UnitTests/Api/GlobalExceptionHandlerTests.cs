@@ -5,6 +5,7 @@ using InfraControl.Api.Middleware;
 using InfraControl.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InfraControl.UnitTests.Api;
@@ -157,5 +158,33 @@ public sealed class GlobalExceptionHandlerTests
         body.Position = 0;
         var json = await JsonSerializer.DeserializeAsync<JsonElement>(body, JsonOptions);
         return (context.Response.StatusCode, json);
+    }
+
+    // D4 (docs/66): violação de unique no banco (race/pre-check) precisa
+    // virar 409 com mensagem exibível — nunca 500 "erro inesperado".
+    [Fact]
+    public async Task DbUpdateException_UniqueViolation_ShouldReturn409_Not500()
+    {
+        var inner = new Exception(
+            "23505: duplicate key value violates unique constraint \"ux_locations_name\"");
+        var (status, json) = await HandleAsync(
+            new DbUpdateException("Failed to save changes.", inner));
+
+        status.Should().Be(StatusCodes.Status409Conflict);
+        json.GetProperty("isSuccess").GetBoolean().Should().BeFalse();
+        var error = json.GetProperty("errors")[0].GetString();
+        error.Should().NotBeNullOrWhiteSpace();
+        error.Should().NotContain("23505").And.NotContain("ux_locations_name");
+    }
+
+    [Fact]
+    public async Task DbUpdateException_OtherConstraint_ShouldStillReturn500()
+    {
+        var inner = new Exception("23503: foreign key violation");
+        var (status, _) = await HandleAsync(
+            new DbUpdateException("Failed to save changes.", inner));
+
+        status.Should().Be(StatusCodes.Status500InternalServerError,
+            "só unique violation vira 409; o resto continua 500");
     }
 }

@@ -36,7 +36,21 @@ public sealed class AuditBehavior<TRequest, TResponse>(
         }
         catch (Exception exception)
         {
-            await WriteAsync(requestName, resource, "Failed", actorId, correlationId, exception.GetType().Name, cancellationToken);
+            try
+            {
+                await WriteAsync(requestName, resource, "Failed", actorId, correlationId, exception.GetType().Name, cancellationToken);
+            }
+            catch (Exception auditException)
+            {
+                // O SaveChanges da auditoria pode falhar (ex.: rename duplicado ainda
+                // pendente no tracker → DbUpdateException 23505). Nunca deixar esse
+                // erro mascarar a exceção original de domínio (D4/docs/66).
+                logger.LogError(
+                    auditException,
+                    "Failed to record failed audit for {RequestName}",
+                    requestName);
+            }
+
             throw;
         }
     }

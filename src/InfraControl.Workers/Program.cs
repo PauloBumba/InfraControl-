@@ -19,7 +19,6 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "InfraControl.Workers")
-    .WriteTo.Console()
     .CreateLogger();
 
 // HostApplicationBuilder nao tem .Host: o Serilog entra pelo ILoggerFactory.
@@ -51,11 +50,16 @@ builder.Services.AddMediatR(configuration =>
 builder.Services.AddApplicationMediatR();
 
 // F9-T006: canais do fanout + destinos por canal (Notifications:Channels) —
-// a MESMA seção que o host da Api lê para os workers de canal.
+// a MESMA seção que a API lê para os workers de canal.
+// D5 (docs/66): PostConfigure normaliza (binder append → duplicatas).
 builder.Services.Configure<InfraControl.Application.Notifications.Channels.NotificationChannelsOptions>(
-    options => builder.Configuration
-        .GetSection(InfraControl.Application.Notifications.Channels.NotificationChannelsOptions.SectionName)
-        .Bind(options));
+    options =>
+    {
+        builder.Configuration
+            .GetSection(InfraControl.Application.Notifications.Channels.NotificationChannelsOptions.SectionName)
+            .Bind(options);
+        options.NormalizeDefaultChannels();
+    });
 
 // F12-T003: backup periódico do PostgreSQL — senha só via ConnectionString
 // (env ConnectionStrings__DefaultConnection), nunca em config nova.

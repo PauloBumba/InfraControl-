@@ -4,6 +4,7 @@ using InfraControl.BuildingBlocks.Application;
 using InfraControl.BuildingBlocks.Application.Response;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace InfraControl.Api.Middleware;
 
@@ -92,6 +93,14 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
                 StatusCodes.Status409Conflict, [UserMessage(exception)]),
             InvalidOperationException => (
                 StatusCodes.Status409Conflict, [UserMessage(exception)]),
+            // D4 (docs/66): unique violation (race / pré-check não pegou) →
+            // 409 com mensagem exibível — nunca 500 "erro inesperado".
+            // Só 23505/duplicate key; FK e o resto continuam no catch-all.
+            DbUpdateException { InnerException: { Message: var inner } }
+                when inner.Contains("23505", StringComparison.Ordinal)
+                    || inner.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) => (
+                StatusCodes.Status409Conflict,
+                ["Já existe um registro com este valor. Verifique os dados informados."]),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 ["Ocorreu um erro inesperado. Tente novamente ou contate o suporte."])

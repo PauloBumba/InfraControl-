@@ -58,11 +58,14 @@ public sealed class UpdateLocationCommandHandler(
         var location = await repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Local '{request.Id}' não encontrado.");
 
-        location.Update(request.Name, request.Description);
-
-        var existing = await repository.GetByNameAsync(location.Name, cancellationToken);
+        // Pré-check ANTES da mutação: assim uma violação não deixa rename
+        // pendente no ChangeTracker (senão o SaveChanges do caminho de erro do
+        // AuditBehavior dispara o unique index e mascara a mensagem de domínio).
+        var existing = await repository.GetByNameAsync(request.Name, cancellationToken);
         if (existing is not null && existing.Id != location.Id)
             throw new InvalidOperationException("Já existe um local com este nome.");
+
+        location.Update(request.Name, request.Description);
 
         await repository.SaveChangesAsync(cancellationToken);
 
