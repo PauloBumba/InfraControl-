@@ -102,8 +102,11 @@ public static class DependencyInjection
         AppTimeProvider.Current = saoPauloProvider;
         services.AddSingleton<TimeProvider>(saoPauloProvider);
 
-        // PostgreSQL. Interceptors vêm do DI (vazio em produção; os testes
-        // registram o DbCommandCounter para caçar N+1 — F46-T003).
+        // PostgreSQL. Interceptors vêm do DI (os testes registram o
+        // DbCommandCounter para caçar N+1 — F46-T003; o
+        // DbCommandMetricsInterceptor alimenta as métricas de query no
+        // pipeline OTel → Prometheus/Grafana).
+        services.AddSingleton<IInterceptor, DbCommandMetricsInterceptor>();
         services.AddDbContext<AppDbContext>((provider, options) =>
             options
                 .UseNpgsql(connectionString)
@@ -367,6 +370,49 @@ public static class DependencyInjection
         services.AddScoped<IProjectImpedimentRepository, ProjectImpedimentRepository>();
         services.AddScoped<IProjectEvidenceRepository, ProjectEvidenceRepository>();
         services.AddScoped<IProjectHistoryRepository, ProjectHistoryRepository>();
+
+        // ADR-066: matriz de acesso dinâmico role×módulo.
+        services.AddScoped<Application.Common.Security.Ports.IAccessPolicyRepository, AccessPolicyRepository>();
+        services.AddScoped<Application.Common.Security.IAccessPolicyService, Application.Common.Security.AccessPolicyService>();
+        services.AddScoped<Application.Operations.Backup.Ports.IBackupSettingsRepository, BackupSettingsRepository>();
+        services.AddScoped<Application.Common.Security.Ports.IAccessRoleRepository, AccessRoleRepository>();
+        services.AddScoped<Application.Common.Security.Ports.IUserAccessRoleRepository, UserAccessRoleRepository>();
+        services.AddScoped<Application.Operations.Cluster.Ports.IServiceInstanceRepository, ServiceInstanceRepository>();
+        services.AddScoped<Application.Operations.Cluster.Ports.IServiceHealthProbe, ServiceHealthProbe>();
+        services.AddScoped<Application.Operations.Cluster.Ports.IDockerControl, DockerControlService>();
+        services.AddScoped<Application.Operations.Cluster.Ports.IRequestMetricRepository, RequestMetricRepository>();
+        services.AddScoped<Application.Operations.Cluster.Ports.IComposeAgent, ComposeAgentClient>();
+        services.AddSingleton<RequestMetricsRecorder>();
+        // Compose-agent (docs/65 Fase 3): HTTP interno na rede do compose.
+        // Timeout longo — `compose up --scale` pode levar dezenas de segundos.
+        services.AddHttpClient(ComposeAgentClient.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["ComposeAgent:BaseUrl"] ?? "http://compose-agent:8080");
+            client.Timeout = TimeSpan.FromSeconds(260);
+            var token = configuration["ComposeAgent:Token"];
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("X-Agent-Token", token);
+        });
+        // Docker Engine API sobre socket unix — timeout curto; o container
+        // 'api' monta /var/run/docker.sock (compose) e entra no grupo docker.
+        services.AddHttpClient(DockerControlService.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri("http://docker.local");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                var socket = new System.Net.Sockets.Socket(
+                    System.Net.Sockets.AddressFamily.Unix,
+                    System.Net.Sockets.SocketType.Stream,
+                    System.Net.Sockets.ProtocolType.Unspecified);
+                var endpoint = new System.Net.Sockets.UnixDomainSocketEndPoint("/var/run/docker.sock");
+                await socket.ConnectAsync(endpoint, cancellationToken);
+                return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+            },
+        });
 
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
@@ -712,11 +758,36 @@ public static class DependencyInjection
 
         // FAI-T009 (S8): Context Engine + RAG foundation (ADR-038) —
         // contratos + v1 heurística (rerank por score/recência, chunker
-        // por artigo, ingesta de Knowledge publicado). IVectorStore NÃO
-        // é registrado até o pgvector existir no ambiente (avaliação de
-        // imagem pendente de Docker, §46): a híbrida degrada para
-        // keyword (§44) e a ingesta fica inacessível — sem invenção.
-        services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
+        // por artigo, ingesta de Knowledge publicado). IVectorStore =
+        // PgVectorStore (pgvector/pgvector:pg17 + CREATE EXTENSION vector,
+        // ADR-038 §1/§46 — evidência: imagem trocada e extensão criada).
+        // As fábricas seguem com GetService<IVectorStore>: se o banco não
+        // tiver a extensão, a ingestão/busca degradam (§44) sem derrubar
+        // o host.
+        services.AddScoped<IEmbeddingProvider>(provider =>
+        {
+            var embeddings = provider.GetRequiredService<IOptions<AiEmbeddingsOptions>>().Value;
+            var useExternal = string.Equals(
+                embeddings.Provider, "openai-compatible", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(embeddings.BaseUrl)
+                && !string.IsNullOrWhiteSpace(embeddings.Model);
+            return useExternal
+                ? (IEmbeddingProvider)new AI.OpenAiCompatibleEmbeddingProvider(
+                    provider.GetRequiredService<IHttpClientFactory>(),
+                    provider.GetRequiredService<IOptions<AiEmbeddingsOptions>>())
+                : new AI.OllamaEmbeddingProvider(
+                    provider.GetRequiredService<IHttpClientFactory>(),
+                    provider.GetRequiredService<IOptions<AiOllamaOptions>>());
+        });
+        // ADR-038 §2: embeddings alternativos — Ai:Embeddings:Provider =
+        // "openai-compatible" troca o Ollama por qualquer endpoint
+        // /embeddings compatível (OpenAI, OpenRouter, Groq, Gemini-compat,
+        // vLLM, LM Studio). Sem BaseUrl/Model configurados degrada para
+        // Ollama — nunca vetor inventado (§44).
+        services.Configure<AiEmbeddingsOptions>(configuration.GetSection("Ai:Embeddings"));
+        services.AddHttpClient("openai-compatible-embeddings",
+            client => client.Timeout = aiHttpClientTimeout);
+        services.AddScoped<IVectorStore, AI.PgVectorStore>();
         services.AddScoped<IKeywordSearch, KnowledgeKeywordSearch>();
         services.AddScoped<IReranker, HeuristicReranker>();
         services.AddScoped<IContextBuilder, EvidenceSetContextBuilder>();

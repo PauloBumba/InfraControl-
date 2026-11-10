@@ -22,7 +22,10 @@
 
 services:
   postgres:
-    image: postgres:17-alpine
+    # ADR-038 §1/§46: pgvector no Postgres existente (RAG vetorial).
+    # pgvector/pgvector:pg17 é postgres:17 + extensão vector — a imagem
+    # alpine oficial não embute a extensão e o pacote Alpine aponta p/ PG18.
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:pg17}
     container_name: infracontrol-postgres
     # D1 (docs/66): orçamento de conexões — max_connections elevado acima do
     # default 100 do image para caber pool×réplicas (api+workers) + folga de
@@ -273,6 +276,13 @@ services:
       # normalmente com o runtime "não configurado" (§44) — o serviço é
       # opcional, por isso não há depends_on aqui.
       Ai__Ollama__BaseUrl: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      # RAG (ADR-038 §2): provider de embeddings — "ollama" (default) ou
+      # "openai-compatible" (OpenAI/OpenRouter/Groq/Gemini-compat/vLLM/
+      # LM Studio). Sem BaseUrl/Model configurados degrada p/ Ollama.
+      Ai__Embeddings__Provider: ${AI_EMBEDDINGS_PROVIDER:-ollama}
+      Ai__Embeddings__BaseUrl: ${AI_EMBEDDINGS_BASE_URL:-}
+      Ai__Embeddings__ApiKey: ${AI_EMBEDDINGS_API_KEY:-}
+      Ai__Embeddings__Model: ${AI_EMBEDDINGS_MODEL:-}
       # Fase A (ADR-050): providers externos — chave só via .env do
       # operador (AGENTS.md: nunca credencial real no repositório);
       # vazio = provider "não configurado" (§44) e a API sobe normal.
@@ -369,6 +379,12 @@ services:
       Notifications__Channels__Webhook__Url: ${WEBHOOK_URL:-}
       Notifications__Channels__Webhook__Secret: ${WEBHOOK_SECRET:-}
       Notifications__Channels__Slack__Channel: ${SLACK_CHANNEL:-}
+      # Fase 3 docs/65 — agente privilegiado de escala Compose: a API
+      # fala HTTP interno (compose-agent:8080, rede infracontrol, sem
+      # porta publicada) com token compartilhado; vazio = sem auth
+      # (rede interna é a barreira — mesmo default do agente).
+      ComposeAgent__BaseUrl: http://compose-agent:8080
+      ComposeAgent__Token: ${COMPOSE_AGENT_TOKEN:-}
     # Imagem aspnet não traz curl/wget e /bin/sh é o dash (sem /dev/tcp):
     # healthcheck HTTP real passa por `bash -c` (bate em GET /health/ready e espera
     # 200) — porta aberta sozinha não prova boot. /health/ready filtra apenas
@@ -389,6 +405,13 @@ services:
       # F24-T008: imagens de Knowledge/Devices — volume nomeado para os
       # arquivos sobreviverem ao recreate (ownership herdada do Dockerfile).
       - api_uploads:/app/wwwroot/uploads
+      # Controle de containers pela plataforma (spec evolução — admin gerencia
+      # o cluster de dentro do app). RW: start/stop/restart exigem escrita;
+      # endpoints são Administer + auditados. group_add = gid do grupo docker
+      # do host (socket 660 root:docker; padrão 964 — DOCKER_GID sobrescreve).
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-964}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -497,6 +520,44 @@ services:
     networks:
       - infracontrol
 
+  # ---------------- profile: app — compose-agent (docs/65 Fase 3) ----------------
+  # Agente privilegiado de escala Compose (Decisão C): container dedicado
+  # que executa `docker compose up -d --no-deps --scale svc=N svc` — a API
+  # não tem docker-cli/compose e não pode rodar isso no próprio processo.
+  # Socket RW + diretório do projeto read-only (compose file + .env para
+  # interpolação). SEM porta publicada: só a rede interna o alcança, e o
+  # endpoint de escala na API exige Administer + auditoria.
+  # COMPOSE_PROJECT_NAME default = basename do diretório checkout
+  # ("InfraControl-" → "infracontrol-"); sobrescrever no .env se o
+  # diretório de deploy tiver outro nome.
+  compose-agent:
+    build:
+      context: ./docker/compose-agent
+    image: infracontrol-compose-agent:dev
+    profiles: ["app"]
+    environment:
+      AGENT_TOKEN: ${COMPOSE_AGENT_TOKEN:-}
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-infracontrol-}
+      COMPOSE_FILE: ${COMPOSE_FILE:-docker-compose.yml}
+      COMPOSE_PROFILES: ${COMPOSE_PROFILES:-}
+      AGENT_PORT: "8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project:ro
+    working_dir: /project
+    group_add:
+      - "${DOCKER_GID:-964}"
+    healthcheck:
+      # /health não exige token de propósito (só diz que o processo sobe).
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
   # ---------------- profile: obs ----------------
   seq:
     image: datalust/seq:latest
@@ -520,10 +581,109 @@ services:
     image: otel/opentelemetry-collector-contrib:latest
     profiles: ["obs"]
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      # Credenciais dos exporters que o collector faz scrape (ver
+      # docker/otel-collector.yaml — ${env:...} no scrape config).
+      RABBITMQ_USER: ${RABBITMQ_USER:-infracontrol}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-infracontrol_dev_2026}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
       - ./docker/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
       - "${OTLP_PORT:-4317}:4317"
+      - "${OTEL_METRICS_PORT:-8889}:8889"
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  # Prometheus + Grafana (profile obs): o collector já agrega OTLP da app
+  # e o scrape dos exporters — o Prometheus tem um único alvo (:8889).
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["obs"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    profiles: ["obs"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # Servido pelo nginx em /grafana/ (mesma origem da plataforma).
+      # root_url PRECISA incluir o subpath — serve_from_sub_path só serve
+      # o caminho declarado aqui; sem ele o Grafana redireciona para
+      # /login (raiz) e os assets/links quebram atrás do proxy.
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://localhost:8443/grafana/}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  # Exporters de infra — o otel-collector faz o scrape (não precisam de
+  # porta publicada; só rede interna).
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    profiles: ["obs"]
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-infracontrol}:${POSTGRES_PASSWORD:-infracontrol_dev_2026}@postgres:5432/${POSTGRES_DB:-infracontrol}?sslmode=disable"
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    profiles: ["obs"]
+    environment:
+      REDIS_ADDR: redis://redis-master:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.2
+    profiles: ["obs"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    restart: unless-stopped
+    networks:
+      - infracontrol
+
+  # Backend de traces: recebe OTLP/HTTP do otel-collector (:4318) e
+  # persiste blocos em tempo_data (retenção 24h — docker/tempo.yaml).
+  # Sem porta publicada: o Grafana consulta pela rede interna.
+  tempo:
+    image: grafana/tempo:2.6.1
+    profiles: ["obs"]
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./docker/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
     restart: unless-stopped
     networks:
       - infracontrol
@@ -992,6 +1152,9 @@ volumes:
   postgres_backups:
   guacamole_db_data:
   guacamole_init:
+  prometheus_data:
+  grafana_data:
+  tempo_data:
 
 networks:
   infracontrol:

@@ -3,6 +3,7 @@ using InfraControl.Application.Common.Behaviors;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.BuildingBlocks.Application;
 using Microsoft.Extensions.Logging.Abstractions;
+using InfraControl.UnitTests.Support;
 
 namespace InfraControl.UnitTests.Infrastructure;
 
@@ -12,7 +13,7 @@ public sealed class MissingBehaviorTests
     public async Task AuthorizationBehavior_ShouldRejectMissingPermission()
     {
         var behavior = new AuthorizationBehavior<AuthorizedRequest, string>(
-            new FakeCurrentUser(true));
+            new FakeCurrentUser(true), StubAccessPolicyService.Instance);
 
         var action = () => behavior.Handle(
             new AuthorizedRequest(["InventoryManage"]),

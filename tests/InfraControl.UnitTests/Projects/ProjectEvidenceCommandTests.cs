@@ -86,7 +86,7 @@ public sealed class ProjectEvidenceCommandTests : IDisposable
             NullLogger<DeleteProjectEvidenceCommandHandler>.Instance);
 
     private static GetProjectEvidenceQueryHandler ListHandler(AppDbContext context)
-        => new(Evidence(context));
+        => new(Evidence(context), Projects(context), User());
 
     private static DownloadProjectEvidenceQueryHandler DownloadHandler(
         AppDbContext context, IProjectEvidenceFileStore store)

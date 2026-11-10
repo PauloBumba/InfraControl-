@@ -3,6 +3,7 @@ import { api } from "./client";
 export interface ProjectMemberItem {
   userId: string;
   role: string;
+  displayName?: string | null;
 }
 
 export interface ProjectItem {
@@ -14,8 +15,11 @@ export interface ProjectItem {
   priority: string;
   status: string;
   leaderId: string;
+  leaderName?: string | null;
   managerId: string | null;
+  managerName?: string | null;
   adminApproverId: string | null;
+  adminApproverName?: string | null;
   approvalNotes: string | null;
   approvedAt: string | null;
   plannedStartDate: string | null;
@@ -24,6 +28,7 @@ export interface ProjectItem {
   actualEndDate: string | null;
   members: ProjectMemberItem[];
   createdById: string | null;
+  createdByName?: string | null;
 }
 
 export interface ProjectPhaseItem {
@@ -160,6 +165,83 @@ export async function createProjectInvitation(
 
 export async function generateProjectKnowledge(projectId: string): Promise<unknown> {
   return api.post<unknown>(`/projects/${projectId}/generate-knowledge`);
+}
+
+// ------------------------------------------------------------------
+// Conclusão e aprovação formal (spec evolução 2026-11-07 §6)
+// ------------------------------------------------------------------
+
+export interface ProjectConclusionItem {
+  id: string;
+  projectId: string;
+  status: string;
+  description: string;
+  activitiesPerformed: string | null;
+  resultsAchieved: string | null;
+  problemsEncountered: string | null;
+  solutionsImplemented: string | null;
+  evidenceSummary: string | null;
+  completedAt: string;
+  submittedById: string;
+  decidedById: string | null;
+  decisionNotes: string | null;
+  decidedAt: string | null;
+  knowledgeArticleId: string | null;
+  createdAt: string;
+}
+
+export interface ProjectConclusionInput {
+  description: string;
+  activitiesPerformed?: string | null;
+  resultsAchieved?: string | null;
+  problemsEncountered?: string | null;
+  solutionsImplemented?: string | null;
+  evidenceSummary?: string | null;
+  completedAt: string;
+}
+
+export async function listProjectConclusions(
+  projectId: string,
+): Promise<ProjectConclusionItem[]> {
+  const data = await api.get<ProjectConclusionItem[]>(
+    `/projects/${projectId}/conclusions`);
+  return data ?? [];
+}
+
+export async function submitProjectConclusion(
+  projectId: string,
+  input: ProjectConclusionInput,
+): Promise<ProjectConclusionItem | null> {
+  return api.post<ProjectConclusionItem>(
+    `/projects/${projectId}/conclusion`, {
+      description: input.description,
+      activitiesPerformed: input.activitiesPerformed ?? null,
+      resultsAchieved: input.resultsAchieved ?? null,
+      problemsEncountered: input.problemsEncountered ?? null,
+      solutionsImplemented: input.solutionsImplemented ?? null,
+      evidenceSummary: input.evidenceSummary ?? null,
+      completedAt: input.completedAt,
+    });
+}
+
+export async function approveProjectConclusion(
+  projectId: string,
+  approvalNotes?: string | null,
+): Promise<ProjectConclusionItem | null> {
+  return api.post<ProjectConclusionItem>(
+    `/projects/${projectId}/conclusion/approve`,
+    { approvalNotes: approvalNotes ?? null });
+}
+
+/** decision: "reject" | "requestchanges" — justificativa obrigatória. */
+export async function returnProjectConclusion(
+  projectId: string,
+  decision: "reject" | "requestchanges",
+  justification: string,
+): Promise<ProjectConclusionItem | null> {
+  return api.post<ProjectConclusionItem>(
+    `/projects/${projectId}/conclusion/return`,
+    { decision, justification });
 }
 
 // ------------------------------------------------------------------

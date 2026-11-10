@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Domain.Common;
 using InfraControl.Infrastructure.Caching;
@@ -29,6 +30,8 @@ public sealed class CleanupWorker(
         {
             try
             {
+                using var activity = WorkerTracing.Source.StartActivity(
+                    "worker cleanup", ActivityKind.Internal);
                 await RunOnceAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

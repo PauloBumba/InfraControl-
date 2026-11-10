@@ -1,3 +1,4 @@
+using InfraControl.Application.Alerts.Commands;
 using InfraControl.Application.Alerts.Queries;
 using InfraControl.Application.Monitoring.Checks;
 using InfraControl.Application.Monitoring.Prevention;
@@ -129,5 +130,19 @@ public sealed class MonitoringController(ISender sender) : BaseController
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(await sender.Send(
             new SearchAlertsQuery(deviceId, status, page, pageSize),
+            cancellationToken)));
+
+    /// <summary>
+    /// F50-T003 — anotação do operador no alerta (única mutação humana
+    /// num alerta que nasce do sistema): PUT de substituição.
+    /// </summary>
+    [HttpPut("alerts/{id:guid}/note")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> SetAlertNote(
+        Guid id,
+        [FromBody] SetAlertNoteViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SetAlertOperatorNoteCommand(id, model.Note),
             cancellationToken)));
 }

@@ -7,6 +7,9 @@ using InfraControl.Workers.Consumers.Notifications;
 using InfraControl.Workers.Tracing;
 using MassTransit;
 using MediatR;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -79,6 +82,32 @@ builder.Services.AddHostedService<CleanupWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.Backup.BackupWorker>();
 builder.Services.AddHostedService<MonitoringPollingWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.UnifiSyncWorker>();
+
+// Observabilidade (profile obs): MESMO pipeline OTLP da API — traces dos
+// commands MediatR (ObservabilityBehavior), spans de consumers MassTransit
+// e métricas InfraControl.* (db commands, request.duration dos handlers
+// executados aqui). Sem OpenTelemetry:Endpoint configurado o host sobe
+// normal sem telemetria (mesmo comportamento da API).
+var otelEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
+if (!string.IsNullOrWhiteSpace(otelEndpoint))
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService("InfraControl.Workers")
+            .AddAttributes(new Dictionary<string, object>
+            {
+                ["deployment.environment"] = builder.Environment.EnvironmentName
+            }))
+        .WithTracing(tracing => tracing
+            .AddHttpClientInstrumentation()
+            .AddSource("InfraControl.*")
+            .AddSource("MassTransit")
+            .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)))
+        .WithMetrics(metrics => metrics
+            .AddHttpClientInstrumentation()
+            .AddMeter("InfraControl.*")
+            .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)));
+}
 
 var host = builder.Build();
 host.Run();

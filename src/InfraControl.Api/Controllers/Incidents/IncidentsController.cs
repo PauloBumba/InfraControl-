@@ -81,7 +81,8 @@ public sealed class IncidentsController(ISender sender) : BaseController
         [FromBody] UpdateIncidentViewModel model,
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new UpdateIncidentCommand(id, model.Title, model.Description, model.Severity),
+            new UpdateIncidentCommand(
+                id, model.Title, model.Description, model.Severity, model.RootCause),
             cancellationToken)));
 
     private static IncidentSeverity ParseSeverity(string? severity)

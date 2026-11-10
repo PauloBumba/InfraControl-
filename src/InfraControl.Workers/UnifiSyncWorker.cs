@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using InfraControl.Application.Integrations.Unifi;
 using MediatR;
 
@@ -65,6 +66,8 @@ public sealed class UnifiSyncWorker(
 
             try
             {
+                using var activity = WorkerTracing.Source.StartActivity(
+                    "worker unifi-sync", ActivityKind.Internal);
                 await RunOnceAsync(stoppingToken);
             }
             finally

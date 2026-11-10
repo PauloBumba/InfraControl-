@@ -19,6 +19,9 @@ public sealed class AuthorizationPolicyTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<Application.Common.Security.IAccessPolicyService>(
+            UnitTests.Support.StubAccessPolicyService.Instance);
+        services.AddScoped<IAuthorizationHandler, DynamicAccessHandler>();
         services.AddAuthorization(options => options.AddRolePolicies());
         return services.BuildServiceProvider();
     }

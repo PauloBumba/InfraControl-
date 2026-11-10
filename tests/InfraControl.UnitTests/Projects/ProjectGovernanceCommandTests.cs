@@ -6,6 +6,7 @@ using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
+using MediatR;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -44,7 +45,48 @@ public sealed class ProjectGovernanceCommandTests : IDisposable
     private static ApproveProjectCommandHandler ApproveHandler(
         AppDbContext context,
         ICurrentUserContext currentUser) =>
-        new(Projects(context), currentUser, NullLogger<ApproveProjectCommandHandler>.Instance);
+        new(Projects(context), currentUser, new FakeSender(),
+            NullLogger<ApproveProjectCommandHandler>.Instance);
+
+    /// <summary>ISender fake: a geração de Knowledge é coberta pela integração.</summary>
+    private sealed class FakeSender : ISender
+    {
+        public Task<TResponse> Send<TResponse>(
+            IRequest<TResponse> request, CancellationToken cancellationToken = default)
+            => Task.FromResult(default(TResponse)!);
+
+        public Task<TResponse> Send<TRequest, TResponse>(
+            TRequest request, CancellationToken cancellationToken = default)
+            where TRequest : IRequest<TResponse>
+            => Task.FromResult(default(TResponse)!);
+
+        public Task<object?> Send(
+            IRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult<object?>(null);
+
+        public Task<object?> Send(
+            object request, CancellationToken cancellationToken = default)
+            => Task.FromResult<object?>(null);
+
+        public Task Send<TRequest>(
+            TRequest request, CancellationToken cancellationToken = default)
+            where TRequest : IRequest
+            => Task.CompletedTask;
+
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(
+            IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
+            => Empty<TResponse>();
+
+        public IAsyncEnumerable<object?> CreateStream(
+            object request, CancellationToken cancellationToken = default)
+            => Empty<object?>();
+
+        private static async IAsyncEnumerable<T> Empty<T>()
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+    }
 
     private static async Task<Guid> SeedProjectAsync(AppDbContext context)
     {

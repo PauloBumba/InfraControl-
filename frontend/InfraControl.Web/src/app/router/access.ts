@@ -25,6 +25,12 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/notifications/rules": "administer",
   // FAI-T011b (ADR-057) — cadastro de providers de IA (Administer).
   "/admin/ai-providers": "administer",
+  // ADR-066 — matriz de acesso dinâmico e backup da plataforma (Administer).
+  "/admin/access-policies": "administer",
+  "/admin/access-roles": "administer",
+  "/admin/cluster": "administer",
+  "/settings/backup": "administer",
+  "/settings/retention": "administer",
   // UniFi ao vivo: consulta (Operate) — Operator + Admin.
   "/unifi": "operate",
   "/unifi/dashboard": "operate",

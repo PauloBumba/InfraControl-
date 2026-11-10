@@ -6,6 +6,7 @@ import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { ProjectConclusionSection } from "@/components/projects/ProjectConclusionSection";
 import {
   approveProject,
   createProjectInvitation,
@@ -655,7 +656,7 @@ export function ProjectDetailPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             {project.members.map((member) => (
               <div key={member.userId} style={{ padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, background: "#f8fafc" }}>
-                <div style={{ fontWeight: 700 }}>{member.userId}</div>
+                <div style={{ fontWeight: 700 }}>{member.displayName ?? member.userId}</div>
                 <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
                   {PROJECT_MEMBER_ROLE_LABEL[member.role] ?? member.role}
                 </div>
@@ -720,6 +721,14 @@ export function ProjectDetailPage() {
           />
         </div>
       )}
+
+      <ProjectConclusionSection
+        projectId={project.id}
+        projectStatus={project.status}
+        canOperate={canOperate}
+        isAdmin={isAdmin}
+        onChanged={() => void refresh()}
+      />
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

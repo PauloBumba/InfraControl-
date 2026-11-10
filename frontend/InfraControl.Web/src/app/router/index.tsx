@@ -34,6 +34,12 @@ const NotificationRulesPage = lazy(() => import("@/pages/NotificationRulesPage")
 const ZabbixHostsPage = lazy(() => import("@/pages/ZabbixHostsPage").then(m => ({ default: m.ZabbixHostsPage })));
 const ZabbixOverviewPage = lazy(() => import("@/pages/ZabbixOverviewPage").then(m => ({ default: m.ZabbixOverviewPage })));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const CompanySettingsPage = lazy(() => import("@/pages/CompanySettingsPage").then(m => ({ default: m.CompanySettingsPage })));
+const AccessPoliciesPage = lazy(() => import("@/pages/AccessPoliciesPage").then(m => ({ default: m.AccessPoliciesPage })));
+const BackupSettingsPage = lazy(() => import("@/pages/BackupSettingsPage").then(m => ({ default: m.BackupSettingsPage })));
+const RetentionPage = lazy(() => import("@/pages/RetentionPage").then(m => ({ default: m.RetentionPage })));
+const AccessRolesPage = lazy(() => import("@/pages/AccessRolesPage").then(m => ({ default: m.AccessRolesPage })));
+const ClusterPage = lazy(() => import("@/pages/ClusterPage").then(m => ({ default: m.ClusterPage })));
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
 const LogsPage = lazy(() => import("@/pages/LogsPage").then(m => ({ default: m.LogsPage })));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
@@ -392,6 +398,42 @@ function AppContent() {
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* Spec evolução 2026-11-07 §3 — configuração institucional (leitura ampla, escrita Admin). */}
+          <Route path="/settings/company" element={
+            <ProtectedRoute>
+              <CompanySettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* ADR-066 — matriz de acesso dinâmico role×módulo (Administer). */}
+          <Route path="/admin/access-policies" element={
+            <ProtectedRoute>
+              <AccessPoliciesPage />
+            </ProtectedRoute>
+          } />
+          {/* Backup do banco editável pela plataforma (Administer). */}
+          <Route path="/settings/backup" element={
+            <ProtectedRoute>
+              <BackupSettingsPage />
+            </ProtectedRoute>
+          } />
+          {/* Retenção de dados por tipo — cleanup (Administer, F12-T002). */}
+          <Route path="/settings/retention" element={
+            <ProtectedRoute>
+              <RetentionPage />
+            </ProtectedRoute>
+          } />
+          {/* Perfis de acesso customizados do admin. */}
+          <Route path="/admin/access-roles" element={
+            <ProtectedRoute>
+              <AccessRolesPage />
+            </ProtectedRoute>
+          } />
+          {/* Cluster: instâncias, réplicas e análise IA. */}
+          <Route path="/admin/cluster" element={
+            <ProtectedRoute>
+              <ClusterPage />
             </ProtectedRoute>
           } />
           <Route path="/status" element={

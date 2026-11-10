@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
@@ -39,6 +40,9 @@ public abstract class NotificationChannelWorkerBase(
         {
             try
             {
+                using var activity = ApiWorkerTracing.Source.StartActivity(
+                    $"worker notify-{channel.ToString().ToLowerInvariant()}",
+                    ActivityKind.Internal);
                 await ProcessPendingAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

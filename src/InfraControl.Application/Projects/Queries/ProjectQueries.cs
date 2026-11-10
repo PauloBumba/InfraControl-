@@ -2,6 +2,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Projects.Commands;
 using InfraControl.Application.Projects.Ports;
 using InfraControl.BuildingBlocks.Application;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using MediatR;
 
@@ -19,7 +20,8 @@ public sealed record SearchProjectsQuery(
 }
 
 public sealed class SearchProjectsQueryHandler(
-    IProjectRepository projectRepository)
+    IProjectRepository projectRepository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<SearchProjectsQuery, PagedResult<ProjectDto>>
 {
     public async Task<PagedResult<ProjectDto>> Handle(
@@ -31,6 +33,12 @@ public sealed class SearchProjectsQueryHandler(
         var status = ParseStatus(request.Status);
         var priority = ParsePriority(request.Priority);
 
+        // Spec §5: Admin vê todos; demais papéis só os projetos atribuídos
+        // (líder, gestor, criador ou membro).
+        var visibleTo = ProjectAccess.IsAdmin(currentUser)
+            ? (Guid?)null
+            : currentUser.UserId;
+
         var result = await projectRepository.SearchAsync(
             string.IsNullOrWhiteSpace(request.Term) ? null : request.Term.Trim(),
             status,
@@ -38,13 +46,28 @@ public sealed class SearchProjectsQueryHandler(
             request.LeaderId,
             page,
             pageSize,
+            visibleTo,
+            cancellationToken);
+
+        var names = await projectRepository.GetUserNamesAsync(
+            result.Items.SelectMany(ProjectUserIds).ToArray(),
             cancellationToken);
 
         return new PagedResult<ProjectDto>(
-            result.Items.Select(ProjectDto.From).ToArray(),
+            result.Items.Select(p => ProjectDto.From(p, names)).ToArray(),
             result.TotalCount,
             result.Page,
             result.PageSize);
+    }
+
+    internal static IEnumerable<Guid> ProjectUserIds(Project project)
+    {
+        yield return project.LeaderId;
+        if (project.ManagerId.HasValue) yield return project.ManagerId.Value;
+        if (project.AdminApproverId.HasValue) yield return project.AdminApproverId.Value;
+        if (project.CreatedById.HasValue) yield return project.CreatedById.Value;
+        foreach (var member in project.Members)
+            yield return member.UserId;
     }
 
     internal static ProjectStatus? ParseStatus(string? status)
@@ -83,15 +106,22 @@ public sealed record GetProjectQuery(Guid Id)
 }
 
 public sealed class GetProjectQueryHandler(
-    IProjectRepository projectRepository)
+    IProjectRepository projectRepository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<GetProjectQuery, ProjectDto>
 {
     public async Task<ProjectDto> Handle(
         GetProjectQuery request, CancellationToken cancellationToken)
     {
-        var project = await projectRepository.GetByIdAsync(request.Id, cancellationToken)
-            ?? throw new KeyNotFoundException($"Projeto '{request.Id}' não encontrado.");
+        var project = ProjectAccess.EnsureVisible(
+            await projectRepository.GetByIdAsync(request.Id, cancellationToken),
+            currentUser,
+            request.Id);
 
-        return ProjectDto.From(project);
+        var names = await projectRepository.GetUserNamesAsync(
+            SearchProjectsQueryHandler.ProjectUserIds(project).ToArray(),
+            cancellationToken);
+
+        return ProjectDto.From(project, names);
     }
 }

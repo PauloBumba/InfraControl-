@@ -197,6 +197,25 @@
   color: var(--uni-accent-hover);
 }
 
+/* F50-T002 — variante dark do botão oficial do Google (par do Google
+   Identity: fundo #1f1f1f, borda #3c4043, texto #e8eaed). O G mantém
+   as 4 cores oficiais — as cores da marca nunca são trocadas. */
+[data-theme="dark"] .uni-login-social-btn--google {
+  background: #1f1f1f;
+  border-color: #3c4043;
+  color: #e8eaed;
+}
+
+[data-theme="dark"] .uni-login-social-btn--google:hover:not(:disabled) {
+  background: #2a2a2c;
+  border-color: #5f6368;
+  color: #e8eaed;
+}
+
+[data-theme="dark"] .uni-login-social-btn--google:active:not(:disabled) {
+  background: #303134;
+}
+
 [data-theme="dark"] .uni-login-brand p {
   color: var(--uni-text-secondary);
 }

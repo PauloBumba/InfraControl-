@@ -112,13 +112,16 @@ public sealed class UpdateIncidentStatusCommandHandler(
 /// CRUD-Incidentes (2026-10-12): edição dos campos descritivos (título,
 /// descrição, severidade). O status NÃO muda aqui — é o ciclo por estado
 /// via <c>UpdateIncidentStatusCommand</c> (ADR-030); a exclusão não existe
-/// por decisão de arquitetura.
+/// por decisão de arquitetura. F50-T003: <c>RootCause</c> é opcional com
+/// semântica de 3 estados — <c>null</c> = não altera (compat com chamadas
+/// antigas), branco = limpa, texto = grava.
 /// </summary>
 public sealed record UpdateIncidentCommand(
     Guid Id,
     string Title,
     string? Description,
-    string Severity) : BaseCommand<IncidentDto>, IAuthorizedRequest
+    string Severity,
+    string? RootCause = null) : BaseCommand<IncidentDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -138,6 +141,9 @@ public sealed class UpdateIncidentCommandHandler(
                 $"Incidente '{request.Id}' não encontrado.");
 
         incident.UpdateDetails(request.Title, request.Description, severity);
+        // null = preserva (o form antigo não mandava o campo); branco limpa.
+        if (request.RootCause is not null)
+            incident.SetRootCause(request.RootCause);
         await repository.SaveChangesAsync(cancellationToken);
 
         return IncidentDto.From(incident);

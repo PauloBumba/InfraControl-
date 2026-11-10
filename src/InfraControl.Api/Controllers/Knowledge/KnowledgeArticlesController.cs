@@ -1,6 +1,7 @@
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.ViewModels.Knowledge;
+using InfraControl.Application.AI.Context;
 using InfraControl.Application.Knowledge.Articles;
 using InfraControl.Application.Knowledge.Articles.Commands;
 using InfraControl.Application.Knowledge.Articles.Queries;
@@ -129,6 +130,21 @@ public sealed class KnowledgeArticlesController(
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new ChangeKnowledgeArticleStatusCommand(id, model.Status), cancellationToken)));
+
+    /// <summary>
+    /// Reindexa o artigo no vector store do RAG (ADR-038 §3) — para
+    /// artigos já publicados antes da ingesta automática e reprocessamento
+    /// sob demanda. Só aceita Published; devolve o nº de chunks indexados
+    /// (0 = vector store degradado, §44/§46).
+    /// </summary>
+    [HttpPost("{id:guid}/ingest-ai")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> IngestForAi(Guid id, CancellationToken cancellationToken)
+    {
+        var chunks = await sender.Send(
+            new IngestKnowledgeArticleForAiCommand(id), cancellationToken);
+        return Ok(ApiResponse.Ok(new { articleId = id, chunksIndexed = chunks }));
+    }
 
     // F10-T004: vínculos N:N (Device/Incident/Service) — 204 nos dois
     // sentidos e estado atual embutido no dto do GET (deviceIds,

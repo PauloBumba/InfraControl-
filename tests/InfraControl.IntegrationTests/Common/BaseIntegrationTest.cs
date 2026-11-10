@@ -293,7 +293,9 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<InfraControl.Application.AI.IAiProvider, InfraControl.Infrastructure.AI.OpenAiCompatibleProvider>();
         services.AddScoped<InfraControl.Application.AI.IAiProvider, InfraControl.Infrastructure.AI.GeminiProvider>();
         services.AddScoped<InfraControl.Application.AI.IAiProviderRegistry,
-            InfraControl.Application.AI.ConfigurationProviderRegistry>();
+            InfraControl.Infrastructure.AI.ProtocolAwareAiProviderRegistry>();
+        services.AddScoped<InfraControl.Application.AI.IAiProviderRegistryCache>(sp =>
+            (InfraControl.Infrastructure.AI.ProtocolAwareAiProviderRegistry)sp.GetRequiredService<InfraControl.Application.AI.IAiProviderRegistry>());
         services.AddScoped<InfraControl.Application.AI.IAiProviderRouter,
             InfraControl.Application.AI.AiProviderRouter>();
         services.AddScoped<InfraControl.Application.AI.Providers.Ports.IAiProviderRepository,

@@ -242,7 +242,8 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
     IKnowledgeArticleRepository repository,
     IKnowledgeArticleVersionRepository versionRepository,
     ICurrentUserContext currentUser,
-    ILogger<ChangeKnowledgeArticleStatusCommandHandler> logger)
+    ILogger<ChangeKnowledgeArticleStatusCommandHandler> logger,
+    AI.Context.IAiKnowledgeIngestion aiIngestion)
     : IRequestHandler<ChangeKnowledgeArticleStatusCommand, KnowledgeArticleDto>
 {
     public async Task<KnowledgeArticleDto> Handle(
@@ -274,6 +275,22 @@ public sealed class ChangeKnowledgeArticleStatusCommandHandler(
         }
 
         await repository.SaveChangesAsync(cancellationToken);
+
+        // ADR-038 §3: publicar dispara a ingesta no vector store para o RAG.
+        // Best-effort — falha de embedding/store não derruba a transição.
+        if (target == KnowledgeArticleStatus.Published)
+        {
+            try
+            {
+                await aiIngestion.IngestArticleAsync(article.Id, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Ingesta de IA do artigo {ArticleId} falhou — artigo publicado mesmo assim.",
+                    article.Id);
+            }
+        }
 
         logger.LogInformation(
             "KnowledgeArticle {ArticleId} status changed to {Status}.",

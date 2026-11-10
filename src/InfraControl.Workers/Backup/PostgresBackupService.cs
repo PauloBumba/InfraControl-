@@ -25,10 +25,13 @@ public sealed class PostgresBackupService(
     IOptions<BackupOptions> options,
     ILogger<PostgresBackupService> logger)
 {
-    public async Task<BackupResult> RunOnceAsync(CancellationToken cancellationToken)
-    {
-        var settings = options.Value;
+    public Task<BackupResult> RunOnceAsync(CancellationToken cancellationToken) =>
+        RunOnceAsync(options.Value, cancellationToken);
 
+    /// <summary>Execução com settings efetivas (override do banco, spec §9).</summary>
+    public async Task<BackupResult> RunOnceAsync(
+        BackupOptions settings, CancellationToken cancellationToken)
+    {
         Directory.CreateDirectory(settings.Path);
 
         // Alvo principal: comportamento do F12-T003 preservado byte a byte

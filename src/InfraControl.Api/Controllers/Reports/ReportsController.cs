@@ -2,6 +2,7 @@ using InfraControl.Api.Authorization;
 using InfraControl.Api.Controllers;
 using InfraControl.Api.Reporting;
 using InfraControl.Application.AI.Reporting;
+using InfraControl.Application.Company;
 using InfraControl.Application.Reports.Automatics.Queries;
 using InfraControl.Application.Reports.Crossings.Queries;
 using InfraControl.Application.Reports.Dashboards.Ports;
@@ -166,11 +167,12 @@ public sealed class ReportsController(ISender sender) : BaseController
         var exportFormat = ReportExportFormat.Parse(format);
         var history = await sender.Send(
             new GetReportHistoryQuery(from, to), cancellationToken);
+        var companyName = await CompanyNameAsync(cancellationToken);
         var bytes = exportFormat.Value switch
         {
             "csv" => HistoryReportRenderers.RenderCsv(history),
-            "xlsx" => HistoryReportRenderers.RenderXlsx(history),
-            _ => HistoryReportRenderers.RenderPdf(history),
+            "xlsx" => HistoryReportRenderers.RenderXlsx(history, companyName),
+            _ => HistoryReportRenderers.RenderPdf(history, companyName),
         };
         return File(bytes, exportFormat.ContentType,
             $"historico-indicadores.{exportFormat.Extension}");
@@ -216,9 +218,10 @@ public sealed class ReportsController(ISender sender) : BaseController
         var exportFormat = PdiExportFormat.Parse(format);
         var report = await sender.Send(
             new GetTransversalReportQuery(from, to), cancellationToken);
+        var companyName = await CompanyNameAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? TransversalReportRenderers.RenderTransversalXlsx(report)
-            : TransversalReportRenderers.RenderTransversalPdf(report);
+            ? TransversalReportRenderers.RenderTransversalXlsx(report, companyName)
+            : TransversalReportRenderers.RenderTransversalPdf(report, companyName);
         return File(bytes, exportFormat.ContentType,
             $"relatorio-transversal.{exportFormat.Extension}");
     }
@@ -236,4 +239,8 @@ public sealed class ReportsController(ISender sender) : BaseController
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new SummarizeTransversalReportCommand(from, to), cancellationToken)));
+
+    /// <summary>Nome institucional configurado (spec §3); null = fallback nos renderers.</summary>
+    private async Task<string?> CompanyNameAsync(CancellationToken cancellationToken)
+        => (await sender.Send(new GetCompanySettingsQuery(), cancellationToken))?.Name;
 }

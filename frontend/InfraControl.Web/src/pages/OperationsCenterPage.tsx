@@ -20,6 +20,7 @@ const VIEWS: { id: OpsView; label: string }[] = [
 ];
 
 const ROTATION_MS = 60000;
+const EMPTY_INCIDENTS: IncidentItem[] = [];
 
 function getDurationLabel(iso: string) {
   const start = new Date(iso).getTime();
@@ -370,10 +371,10 @@ export function OperationsCenterPage() {
 
   const view = VIEWS[idx] || VIEWS[0];
 
-  const { data: incidents = [] } = useQuery({
+  const { data: incidents = EMPTY_INCIDENTS } = useQuery({
     queryKey: ["ops-incidents"],
     queryFn: () => listIncidents({ page: 1, pageSize: 100 }),
-    select: (data) => data.items ?? [],
+    select: (data) => data.items ?? EMPTY_INCIDENTS,
     refetchInterval: 30000,
   });
 
@@ -425,9 +426,11 @@ export function OperationsCenterPage() {
     refetchInterval: 60000,
   });
 
-  useOperationalRefresh(() => {
+  const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["ops-incidents"] });
-  });
+  }, [queryClient]);
+
+  useOperationalRefresh(handleRefresh);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);

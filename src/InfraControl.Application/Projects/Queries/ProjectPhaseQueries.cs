@@ -17,15 +17,17 @@ public sealed record GetProjectPhasesQuery(Guid ProjectId)
 
 public sealed class GetProjectPhasesQueryHandler(
     IProjectRepository projectRepository,
-    IProjectPhaseRepository phaseRepository)
+    IProjectPhaseRepository phaseRepository,
+    ICurrentUserContext currentUser)
     : IRequestHandler<GetProjectPhasesQuery, ProjectPhasesSummaryDto>
 {
     public async Task<ProjectPhasesSummaryDto> Handle(
         GetProjectPhasesQuery request, CancellationToken cancellationToken)
     {
-        _ = await projectRepository.GetByIdAsync(request.ProjectId, cancellationToken)
-            ?? throw new KeyNotFoundException(
-                $"Projeto '{request.ProjectId}' não encontrado.");
+        _ = ProjectAccess.EnsureVisible(
+            await projectRepository.GetByIdAsync(request.ProjectId, cancellationToken),
+            currentUser,
+            request.ProjectId);
 
         var phases = await phaseRepository.GetByProjectIdAsync(
             request.ProjectId, cancellationToken);

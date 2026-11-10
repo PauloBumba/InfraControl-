@@ -66,6 +66,13 @@ public sealed class CreateProjectCommandHandler(
         if (await projectRepository.GetByCodeAsync(project.Code, cancellationToken) is not null)
             throw new ArgumentException($"Já existe um projeto com o código '{project.Code}'.", nameof(request.Code));
 
+        // Spec §5: o projeto nasce atribuído — o líder entra como membro
+        // Leader e o criador como Member (quando for outra pessoa), o que
+        // também garante a visibilidade na listagem do responsável.
+        project.AddMember(leaderId, ProjectMemberRole.Leader);
+        if (createdById != leaderId)
+            project.AddMember(createdById, ProjectMemberRole.Member);
+
         await projectRepository.AddAsync(project, cancellationToken);
         await projectRepository.SaveChangesAsync(cancellationToken);
 
@@ -136,6 +143,10 @@ public sealed class UpdateProjectCommandHandler(
 
         if (request.PlannedStartDate.HasValue || request.PlannedEndDate.HasValue)
             project.SetPlanningDates(request.PlannedStartDate, request.PlannedEndDate);
+
+        // Troca de líder mantém a equipe consistente: o novo líder vira
+        // membro Leader (AddMember promove quem já é membro).
+        project.AddMember(leaderId, ProjectMemberRole.Leader);
 
         await projectRepository.SaveChangesAsync(cancellationToken);
 

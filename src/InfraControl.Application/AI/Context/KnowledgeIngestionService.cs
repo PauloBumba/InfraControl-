@@ -51,6 +51,9 @@ public sealed class KnowledgeIngestionService(
             ["source"] = "Knowledge",
             ["articleId"] = articleId.ToString(),
             ["title"] = article.Title,
+            // Rastreabilidade do índice: qual provider gerou os vetores —
+            // trocar de modelo exige re-ingestão (um modelo por índice).
+            ["embeddingProvider"] = embeddingProvider.Name,
         };
 
         var chunks = KnowledgeChunker.Split(article.Content);

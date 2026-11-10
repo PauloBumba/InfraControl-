@@ -25,4 +25,5 @@ export { SearchInput } from "./SearchInput";
 export { SelectField } from "./SelectField";
 export { StatusChip } from "./StatusChip";
 export { SwitchField } from "./SwitchField";
+export { TextArea } from "./TextArea";
 export { UniFiTopologyMap } from "./UniFiTopologyMap";

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "@/app/store";
@@ -58,6 +58,27 @@ describe("LoginPage (F43-T003 — Google code flow)", () => {
       name: /continuar com google/i,
     });
     expect(link).toHaveAttribute("href", "/api/v1/auth/google");
+  });
+
+  /**
+   * F50-T002 — o botão social usa a MARCA do Google (logo "G" oficial das
+   * 4 cores), não o ícone genérico do PrimeIcons (`pi-google`). O que se
+   * tranca: dentro do link existe um SVG com papel de imagem rotulado
+   * "Google" — apontar para qualquer outro ícone/fonte quebra este teste.
+   */
+  it("should render the official Google G logo on the social button", async () => {
+    renderPage();
+
+    const link = await screen.findByRole("link", {
+      name: /continuar com google/i,
+    });
+    const logo = within(link).getByRole("img", { name: "Google" });
+    expect(logo.tagName.toLowerCase()).toBe("svg");
+    // As 4 cores oficiais do G (blue/red/yellow/green) estão no SVG.
+    expect(logo.innerHTML).toContain("#4285F4");
+    expect(logo.innerHTML).toContain("#EA4335");
+    // O ícone antigo (PrimeIcons) não pode voltar.
+    expect(link.querySelector(".pi-google")).toBeNull();
   });
 
   it("should hide the Google entry when the client id is not configured", () => {

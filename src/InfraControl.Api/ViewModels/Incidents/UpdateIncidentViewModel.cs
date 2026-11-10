@@ -8,4 +8,5 @@ namespace InfraControl.Api.ViewModels.Incidents;
 public sealed record UpdateIncidentViewModel(
     string Title,
     string? Description,
-    string Severity);
+    string Severity,
+    string? RootCause = null);

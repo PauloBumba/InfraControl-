@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using InfraControl.Api.Hubs;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
@@ -29,6 +30,8 @@ public sealed class HealthStatusNotifier(
         {
             try
             {
+                using var activity = ApiWorkerTracing.Source.StartActivity(
+                    "worker health-status", ActivityKind.Internal);
                 var report = await healthCheckService.CheckHealthAsync(stoppingToken);
 
                 if (previous is null)

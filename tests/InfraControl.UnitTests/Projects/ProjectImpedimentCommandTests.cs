@@ -2,6 +2,7 @@ using FluentAssertions;
 using InfraControl.Application.Projects;
 using InfraControl.Application.Projects.Commands;
 using InfraControl.Application.Projects.Queries;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
@@ -57,7 +58,10 @@ public sealed class ProjectImpedimentCommandTests : IDisposable
         new(Impediments(context), NullLogger<ReopenProjectImpedimentCommandHandler>.Instance);
 
     private static GetProjectImpedimentsQueryHandler QueryHandler(AppDbContext context) =>
-        new(Impediments(context));
+        new(Impediments(context), Projects(context), AdminUser());
+
+    private static ICurrentUserContext AdminUser() =>
+        new FakeCurrentUser(Guid.NewGuid(), UserRole.Admin.ToString());
 
     private static AddProjectMemberCommandHandler AddMemberHandler(AppDbContext context) =>
         new(Projects(context), NullLogger<AddProjectMemberCommandHandler>.Instance);
@@ -325,5 +329,14 @@ public sealed class ProjectImpedimentCommandTests : IDisposable
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    private sealed class FakeCurrentUser(Guid userId, params string[] roles)
+        : ICurrentUserContext
+    {
+        public Guid? UserId => userId;
+        public string? UserName => "admin@example.test";
+        public bool IsAuthenticated => true;
+        public IReadOnlyCollection<string> Roles => roles;
     }
 }

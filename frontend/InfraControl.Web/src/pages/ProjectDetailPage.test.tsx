@@ -11,6 +11,7 @@ import {
   deleteProject,
   deleteProjectImpediment,
   getProject,
+  listProjectConclusions,
   listProjectEvidences,
   listProjectImpediments,
   listProjectPhases,
@@ -27,6 +28,7 @@ import {
 
 vi.mock("@/services/api/projects", () => ({
   approveProject: vi.fn(),
+  approveProjectConclusion: vi.fn(),
   createProjectImpediment: vi.fn(),
   createProjectInvitation: vi.fn(),
   deleteProject: vi.fn(),
@@ -34,12 +36,15 @@ vi.mock("@/services/api/projects", () => ({
   deleteProjectImpediment: vi.fn(),
   downloadProjectEvidence: vi.fn(),
   getProject: vi.fn(),
+  listProjectConclusions: vi.fn(),
   listProjectEvidences: vi.fn(),
   listProjectImpediments: vi.fn(),
   listProjectPhases: vi.fn(),
   reopenProjectImpediment: vi.fn(),
   resolveProjectImpediment: vi.fn(),
+  returnProjectConclusion: vi.fn(),
   reviewProjectEvidence: vi.fn(),
+  submitProjectConclusion: vi.fn(),
   submitProjectForApproval: vi.fn(),
   updateProject: vi.fn(),
   updateProjectImpediment: vi.fn(),
@@ -50,6 +55,7 @@ const getProjectMock = vi.mocked(getProject);
 const listProjectPhasesMock = vi.mocked(listProjectPhases);
 const listProjectImpedimentsMock = vi.mocked(listProjectImpediments);
 const listProjectEvidencesMock = vi.mocked(listProjectEvidences);
+const listProjectConclusionsMock = vi.mocked(listProjectConclusions);
 const submitMock = vi.mocked(submitProjectForApproval);
 const updateProjectMock = vi.mocked(updateProject);
 const deleteProjectMock = vi.mocked(deleteProject);
@@ -129,6 +135,8 @@ describe("ProjectDetailPage — tom do erro (F29-T004)", () => {
     listProjectImpedimentsMock.mockResolvedValue([]);
     listProjectEvidencesMock.mockReset();
     listProjectEvidencesMock.mockResolvedValue([]);
+    listProjectConclusionsMock.mockReset();
+    listProjectConclusionsMock.mockResolvedValue([]);
     updateProjectMock.mockReset();
     deleteProjectMock.mockReset();
     createImpedimentMock.mockReset();
@@ -185,6 +193,7 @@ describe("ProjectDetailPage — CRUD de projeto e sub-entidades", () => {
     getProjectMock.mockResolvedValue(project);
     listProjectImpedimentsMock.mockResolvedValue([]);
     listProjectEvidencesMock.mockResolvedValue([]);
+    listProjectConclusionsMock.mockResolvedValue([]);
     updateProjectMock.mockResolvedValue(project);
     deleteProjectMock.mockResolvedValue(undefined);
     createImpedimentMock.mockResolvedValue(impediment);
