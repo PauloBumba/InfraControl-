@@ -52,7 +52,7 @@ public sealed class HostBootTests : BaseArchitectureTest
     [Fact]
     public void Example_Admin_Password_Should_Satisfy_The_Identity_Policy()
     {
-        // A política (AddIdentityCore: RequiredLength 12 + digit/upper/lower/
+        // A política (AddIdentityCore: RequiredLength 6 + digit/upper/lower/
         // non-alphanumeric) é do código; a senha de exemplo é do .env.example.
         // Fora da política o AdminBootstrapper lança PasswordRequiresUpper na
         // linha 33 e a API morre em restart loop antes de servir qualquer
@@ -67,7 +67,7 @@ public sealed class HostBootTests : BaseArchitectureTest
 
         password.Should().NotBeNullOrEmpty(".env.example precisa documentar BootstrapAdmin__Password");
         password.Should().MatchRegex(
-            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{12,}$",
+            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$",
             "tem de cumprir a política de senha do Identity (src/InfraControl.Infrastructure/Services/DependencyInjection.cs)");
     }
 

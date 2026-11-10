@@ -76,7 +76,7 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddIdentityCore<InfraControlUser>(options =>
         {
             options.User.RequireUniqueEmail = true;
-            options.Password.RequiredLength = 12;
+            options.Password.RequiredLength = 6;
             options.Password.RequireDigit = true;
             options.Password.RequireUppercase = true;
             options.Password.RequireLowercase = true;

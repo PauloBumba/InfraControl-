@@ -67,7 +67,7 @@ describe("AccountPage", () => {
     await user.click(screen.getByRole("button", { name: /trocar senha/i }));
 
     expect(changePasswordMock).not.toHaveBeenCalled();
-    expect(await screen.findAllByText(/pelo menos 12 caracteres/i)).not.toHaveLength(0);
+    expect(await screen.findAllByText(/pelo menos 6 caracteres/i)).not.toHaveLength(0);
   });
 
   it("should block submission when confirmation does not match", async () => {

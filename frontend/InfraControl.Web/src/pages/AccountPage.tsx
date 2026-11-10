@@ -15,15 +15,15 @@ import { AuthApiError, changePassword, updateProfile } from "@/services/api/auth
  * /login, coerente com a sessão que morreu no servidor.
  *
  * A validação abaixo é só feedback imediato espelhando a política do
- * Identity (12+, dígito, maiúscula, minúscula, não-alfanumérico —
+ * Identity (6+, dígito, maiúscula, minúscula, não-alfanumérico —
  * DependencyInjection.cs); o backend continua sendo a autoridade e o
  * motivo pt-BR dele (senha atual errada, política) é o que aparece no
  * envelope de erro.
  */
 
-/** Espelho da política do servidor (RequiredLength=12 + 4 requisitos). */
+/** Espelho da política do servidor (RequiredLength=6 + 4 requisitos). */
 const PASSWORD_POLICY: { test: (value: string) => boolean; message: string }[] = [
-  { test: (value) => value.length >= 12, message: "A nova senha precisa de pelo menos 12 caracteres." },
+  { test: (value) => value.length >= 6, message: "A nova senha precisa de pelo menos 6 caracteres." },
   { test: (value) => /\d/.test(value), message: "A nova senha precisa de pelo menos um dígito." },
   { test: (value) => /[A-Z]/.test(value), message: "A nova senha precisa de pelo menos uma maiúscula." },
   { test: (value) => /[a-z]/.test(value), message: "A nova senha precisa de pelo menos uma minúscula." },
@@ -266,7 +266,7 @@ export function AccountPage() {
               </button>
             </div>
             <span style={{ fontSize: 12, color: "var(--uni-text-muted)" }}>
-              Mínimo de 12 caracteres, com dígito, maiúscula, minúscula e caractere especial.
+              Mínimo de 6 caracteres, com dígito, maiúscula, minúscula e caractere especial.
             </span>
           </div>
 
