@@ -59,7 +59,7 @@ const SECURITY_FEATURES = [
 
 export function FeaturesPage() {
   return (
-    <>
+    <div className="uni-public-page--features">
       <section className="uni-public-hero">
         <p className="uni-public-eyebrow">Recursos completos</p>
         <h1>Descubra o poder da operação centralizada</h1>
@@ -157,6 +157,6 @@ export function FeaturesPage() {
           </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

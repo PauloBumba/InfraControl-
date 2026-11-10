@@ -19,6 +19,9 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // O default (`false`) stuba todo CSS — inclusive `?raw`, e o
+    // publicPagesScope.test.ts precisa ler as folhas das páginas de verdade.
+    css: true,
     globals: false,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],

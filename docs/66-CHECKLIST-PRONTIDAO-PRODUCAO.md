@@ -137,7 +137,7 @@
 | Item | Status |
 | --- | --- |
 | Login social (Google) habilitado | `[x]` F43-T004 no repo (env no overlay de produção + smoke 302/`error=google`); Fase 50 T002 cuida do botão oficial na tela. **Falta:** smoke do fluxo completo no ambiente de produção real (§7) |
-| Melhor layout das páginas públicas/estáticas | `[ ]` **Fase 50–F6** (outra sessão, WIP no working tree) |
+| Melhor layout das páginas públicas/estáticas | `[x]` **Fase 50–F6** (escopo por página `.uni-public-page--*` + base compartilhada, F50-T006) |
 | Melhor logo | `[ ]` **Fase 50–F5** (upload de logo já existe em `/settings/company` na Fase 50) |
 | Auditoria com descrição que facilite a compreensão | `[ ]` **Fase 50–F4** (Alert + Incident.RootCause + TextArea compartilhado) |
 
