@@ -581,34 +581,182 @@ Abranger HP, Brother e demais fabricantes presentes no inventário.
 
 ## FASE 5 — Câmeras, gravadores e videomonitoramento
 
+> **Execução 2026-10-27** (somente Zabbix, via API JSON-RPC com token de sessão — credenciais
+> nunca gravadas no repo): gravador **Intelbras SVR 7164** (`192.168.26.108`, OEM Dahua,
+> firmware 2019, 64 canais) identificado via CGI (`configManager.cgi` RemoteDevice; portas
+> 80 web, 37777 SDK, 554 RTSP, 161 SNMP); **43 canais ativos** extraídos para o inventário.
+> Grupos novos `Cameras HSDS` (groupid 37) e `NVRs HSDS` (38); host `HSDS_NVR_SVR7164`
+> (hostid 10928, template `Generic by SNMP`, interface SNMPv2c community `public`) +
+> **43 hosts `HSDS_CAM_*`** (template `ICMP Ping` — simple check, o servidor Zabbix faz o
+> ping, sem agent no equipamento). Dashboard **440 "Videomonitoramento - Operacao"**
+> (widgets: problemas recentes, problemas por severidade, ping/perda por câmera, navegador
+> de itens). Inventory com `location` por setor (mesma regra do cadastro InfraControl:
+> `FARM*`→Farmacia HSSM, `*_CC`/`CORREDOR CC`→Centro Cirurgico, `*_PS`→Pronto Socorro,
+> `ENTRADA_ALMOX`→Almoxarifado, `SETOR_1`→Setor 1, demais→CPD) + model/serial/MAC do DVR.
+> **Validação:** 0 itens unsupported; 39/44 hosts com ping OK; 4 problemas ativos reais.
+> **Achados:** (1) o NVR **bloqueia ICMP** (testado do Windows e do container Zabbix) —
+> itens ICMP desabilitados no host, disponibilidade via SNMP, 2 falsos positivos fechados
+> via `event.acknowledge` com `manual_close` habilitado; (2) OIDs enterprise Dahua
+> `1.3.6.1.4.1.1004849` (CPU/mem/disco) retornam `noSuchInstance` neste firmware → template
+> "Intelbras Dahua NVR by SNMP" v747 **não se aplica** *(superado em 2026-10-29 — ver
+> §5.0.3: o `noSuchInstance` foi medido antes de o SNMPv2c do NVR ficar operacional;
+> habilitado v2c + reboot, os OIDs respondem e o template v7.4 foi importado e adaptado)*;
+> (3) câmeras não respondem SNMP
+> (timeout testado) — só ICMP; (4) ONVIF recusa a credencial web (precisa de usuário
+> dedicado no DVR, pendente); (5) 4 câmeras sem resposta em 80/554: `192.168.26.58`
+> (CANAL_10), `192.168.26.198` (CANAL_18), `192.168.26.14` (DESCANSO_PS), `192.168.26.11`
+> (CONTABILIDADE); (6) canal 28 (COPA_MEDICOS_PS) com MAC `00:00:00:00:00:00`; canais 9/17
+> sem nome de canal.
+
+#### §5.0.1 — Auditoria SNMP por geração das câmeras (2026-10-28)
+
+> **Objetivo:** tentar ativar SNMP nas43 câmeras (ativação via DVR/câmera) para que a
+> plataforma e o Zabbix tenham dados além do ping. **Credenciais nunca gravadas no repo.**
+> **Método:** probe UDP SNMPv2c real (GET sysDescr `1.3.6.1.2.1.1.1.0`, community `public`)
+> em todas as43; CGI Dahua (`configManager.cgi`) via `curl --digest` no NVR e nas câmeras
+> acessíveis; inventário de canais extraído do NVR (`getConfig&name=RemoteDevice`).
+
+**Achados:**
+
+- **Inventário por geração (64 slots, 43 ativos):** 2013 `2.103.IB00` (3), 2016 VIP-S3020-G2
+  `2.520.IB00` (6), 2020 `2.622.00IB00E` (4), 2021 VIP-1230-D-G3/VIP-1220-D-FC-G3
+  `2.800.00IB000` (13), 2022 VIP-1230-D-G4 `2.800.00IB00C` (5), 2024 VIPC-1230-D-G2
+  `2.860.00IB000` (10), MTIBM `4.2` (1 — web porta80 fechada).
+- **1 de43 responde SNMP hoje:** `192.168.26.190` (canal3, GGKC2401555IC, firmware2013,
+  sysDescr `VIP-S3120`, community `public`) — candidato imediato a template SNMP no Zabbix.
+- **Geração2024 (10 câmeras): SNMP IMPOSSÍVEL por firmware.** Credencial funciona
+  (Digest, `admin` + senha fornecida) e o CGI responde nos grupos padrão (`Network`,
+  `General`, `Encode`, `Record`, `NTP`, `Email`, `DDNS`, `MotionDetect`, `Alarm`,
+  `ChannelTitle`), mas `getConfig&name=SNMP` retorna `Bad Request` e probe UDP161 é mudo —
+  o grupo/daemon SNMP **não existe na firmware Intelbras IB000.0.R** (não é config
+  desabilitada).
+- **Gerações2016-2022 (28 online): senha da web da câmera desconhecida** — o NVR armazena
+  mascarada (`******`) e não expõe via CGI; `admin` + senha2024 → `Invalid Authority!`.
+  Habilitar exige a senha própria de cada geração (fornecida pelo instalador ou trocada
+  pela UI do NVR "Modificar senha da câmera").
+- **NVR:** SNMP v2c `public` OK (validado com probe UDP); CGI OK via Digest; `LockLogin`
+  padrão Dahua (5 falhas/300s) observado nas câmeras2024.
+- **Consequência operacional:** para as2024 (+ MTIBM), a fonte de dados da plataforma
+  será o **NVR** (SNMP MIB-II + CGI por canal) e/ou ONVIF com usuário dedicado; ICMP
+  permanece como sinal de disponibilidade das câmeras sem SNMP.
+
+#### §5.0.2 — Plano de ação derivado da auditoria (pendências)
+
+- [x] Trocar a host `HSDS_CAM_*` de `192.168.26.190` de `ICMP Ping` para
+      `Network Generic Device by SNMP`. <!-- CONCLUÍDA 2026-10-28: host
+      cam-192-168-26-190 / HSDS_CAM_SALA_ESPERA_CC (hostid 10932), template
+      Network Generic Device by SNMP (templateid 10226) no lugar de ICMP Ping; interface
+      SNMPv2c já existia (type=2, 192.168.26.190:161). Validação pós-troca: 12 itens,
+      0 unsupported (state=0), 0 problemas ativos; SNMP agent availability=1;
+      sysDescr=VIP-S3120; sysContact=suporte.isec@intelbras.com.br; sysUpTime (network)
+      fluindo; ICMP ping=1/loss=0 (~8ms) via itens do próprio template SNMP. API Zabbix
+      8.0.0 em localhost:8086 (compose local, credencial padrão da imagem oficial). -->
+- [ ] Obter senha das câmeras2016-2022 (instalador ou troca via UI do NVR) e testar grupo
+      SNMP por geração; ativar via CGI onde existir. <!-- PARCIAL 2026-10-28: varredura de
+      auth por senha (NVR vs câmera) em todas as43 + teste do grupo SNMP por geração.
+      RESULTADO: senha do NVR (admin) autentica nas gerações2013/2020/2022; senha da
+      câmera (admin) autentica na2024 (+ .56 com senha do NVR); lote2021 (13 câmeras
+      VIP-1230-D-G3/VIP-1220-D-FC-G3) + .67/.210/.186 = senha desconhecida (4ª senha).
+      Grupo SNMP (configManager name=SNMP) só EXISTE na geração2013 — nas2020/2022/2024 é
+      "Bad Request" (recurso ausente por firmware). ATIVAÇÃO CONCLUÍDA nas3 câmeras2013:
+      setConfig SNMP.V2Enable=true em .16 e .133 (OK + probe UDP respondendo; .190 já
+      respondia com V1/V2 habilitados de fábrica) — sysDescr VIP-S3120 (.16/.190) e
+      VIP-E4220Z (.133), community public. Zabbix: hosts cam-192-168-26-16
+      (HSDS_CAM_PORTA_CME, hostid 10933) e cam-192-168-26-133 (HSDS_CAM_CORREDOR_CC_1,
+      hostid 10953) trocadas de ICMP Ping para Network Generic Device by SNMP (templateid
+      10226, interfaces SNMP já existiam); validação:24 itens, state=0, SNMP agent
+      availability=1 nas duas, uptime fluindo,0 problemas. Total:3 de43 câmeras em SNMP
+      (190/16/133). Pendência restante do item: senha do lote2021. -->
+- [ ] Para as câmeras2024: montar fonte de dados via NVR (itens `HTTP agent` no host do
+      NVR ou coleta do InfraControl no CGI) + ONVIF com usuário dedicado (pendência
+      anterior).
+
+#### §5.0.3 — Template da comunidade "Intelbras Dahua NVR by SNMP" importada no NVR (2026-10-29)
+
+> **Reavaliação do achado (2) da Fase 5 (2026-10-27):** o `noSuchInstance` nos OIDs
+> enterprises foi medido **antes** de o SNMPv2c do NVR ficar operacional. Nesta execução:
+> SNMPv2c habilitado via CGI (`configManager.cgi?action=setConfig&name=SNMP.V2Enable=true`,
+> `ReadCommon=public`, porta 161 — **quirk: `setConfig` só aceita GET**, POST→400) +
+> **reboot do NVR** (autorizado pelo usuário) → SNMPv2c `public` respondendo (sysUpTime OK;
+> `sysDescr="none"` e `sysName="(none)"` — firmware não popula esses OIDs).
+
+> **Template:** [diasdmhub/Intelbras_NVR_Zabbix_Template](https://github.com/diasdmhub/Intelbras_NVR_Zabbix_Template)
+> (GPL-3.0, upstream v7.4-7, asset `Intelbras_NVR_template_v747.yaml`) importada via API
+> JSON-RPC `configuration.import` em YAML com `version: 8.0` (dry-run prévio com
+> `configuration.importcompare`: 1 template + 3 gráficos a criar, 0 update/remove) →
+> **templateid 10972** `Intelbras Dahua NVR by SNMP` (25 itens + 3 regras LLD + 3 gráficos
+> + 20 macros).
+
+> **Adaptações para conviver com `Generic by SNMP` (10563) no host 10928** (link via
+> `host.update templates=[10563,10972]`):
+> - removidos os itens `snmptrap.fallback` (85432) e `zabbix[host,snmp,available]` (85433)
+>   da template importada — chaves idênticas já herdadas da Generic (a função fica
+>   garantida pela Generic);
+> - `inventory_link=0` em `device.contact/descr/location/name` (85434–85437) — campos de
+>   inventário Contact/Location já ocupados pelos itens da Generic; os itens continuam
+>   coletando (só deixam de gravar inventário);
+> - 4 itens `physicalVolume[util1/3/5/7]` **unsupported** (firmware não expõe utilização
+>   nesses índices — entradas sem disco).
+
+> **Validação pós-link (host 10928):** **269 itens — 265 suportados, 4 unsupported** (só
+> os `physicalVolume[util*]`). Valores reais confirmados: `cpuUsage=18`, `memoryUsage=60`,
+> `memoryTotal≈1,06GB`, `deviceType=SVR 7164`, `serialNumber=ISTI49000349R`,
+> `systemVersion=4.1.0001.0, Build 2022-02-26`, `osName=Linux 3.10.0`, `videoChannel=64`,
+> `systemTime` fluindo, `deviceStatus=1`, `systemStatus=0`. LLD rodando: **Camera Discovery**
+> (64 canais × `remoteDevice.Status/Name/IpAddr` = 192 itens), **Disk Discovery** (20),
+> **Network interfaces discovery** (20). Triggers de sistema/CPU/memória/disco/portas
+> avaliando sem problema.
+
+> **Quirk do firmware SVR 7164 (falso alarme tratado):** o trigger prototype "Camera
+> {#SNMPINDEX} absent" é `{remoteDevice.Status[n]}=3`, mas **este firmware retorna `3` para
+> todos os 64 canais** (inclusive os 43 ativos e os 21 vazios) — o OID não discrimina
+> online/offline neste modelo → 64 falsos alarmes "Camera NN absent" na importação.
+> Resolução: **64 instâncias descobertas desabilitadas** (`trigger.update status=1`,
+> reversível; os itens de status continuam coletando). A disponibilidade das câmeras
+> permanece via ICMP nos hosts `HSDS_CAM_*` + SNMP real nas 3 câmeras 2013 (§5.0.2).
+> Pendência: se um firmware futuro expuser status válido, reabilitar os triggers.
+
+> **Achados de API Zabbix 8.0 desta execução:**
+> - parâmetros `search`/`searchWildcardsEnabled` retornam vazio neste ambiente (host.get,
+>   hostgroup.get, item.get, trigger.get) — usar listagem + filtro local;
+> - `template.get` em 8.0 expõe `templateid` (não `hostid`);
+> - `trigger.update` exige `params` como **array de objetos** com `triggerid` singular
+>   (`{triggerids:[...]}` → `-32602 unexpected parameter "triggerids"`);
+> - `host.update` `templates` exige array de objetos `{templateid:...}` (string crua →
+>   `-32602 an array is expected`).
+> - **Achado de rede:** `enterprises.ipAddr` do NVR reporta `192.168.10.234` (eth0 DHCP
+>   antigo — IP que hoje pertence à impressora HP); endereço de gestão real = eth1
+>   `192.168.26.108`. Não usar `ipAddr` do SNMP para correlação de IP.
+
 ### 5.1. Equipamentos
 
-- [ ] Identificar câmeras IP e gravadores existentes.
-- [ ] Incluir Intelbras e outros fabricantes presentes.
-- [ ] Identificar modelos, endereços e interfaces.
-- [ ] Verificar suporte a SNMP, ICMP, HTTP ou APIs específicas.
-- [ ] Monitorar disponibilidade e perda de comunicação.
-- [ ] Monitorar métricas de sistema, interfaces e armazenamento quando disponíveis.
-- [ ] Verificar recursos de canais, discos e gravação dos gravadores quando expostos.
-- [ ] Identificar equipamentos sem método de coleta adequado.
+- [x] Identificar câmeras IP e gravadores existentes. <!-- 2026-10-27: SVR 7164 + 43 canais ativos via configManager.cgi (dvr-cameras.json), 21 canais vazios -->
+- [x] Incluir Intelbras e outros fabricantes presentes. <!-- NVR Intelbras SVR 7164 (OEM Dahua, serial ISTI49000349R); câmeras VIP-* Intelbras e OEM Dahua (ProtocolType "Dahua2") -->
+- [x] Identificar modelos, endereços e interfaces. <!-- índice/IP/MAC/serial/modelo por canal no inventário; NVR: 80 web, 37777 SDK, 554 RTSP, 161 SNMPv2c -->
+- [x] Verificar suporte a SNMP, ICMP, HTTP ou APIs específicas. <!-- NVR: SNMP MIB-II OK (sysDescr "none", sysName "(none)", sysUpTime OK) / ICMP bloqueado / HTTP+RTSP+SDK OK / ONVIF ter:NotAuthorized com credencial web; câmeras: ICMP OK, SNMP sem resposta (GET 1.3.6.1.2.1.1.5.0 em 192.168.26.59 → timeout) -->
+- [x] Monitorar disponibilidade e perda de comunicação. <!-- template ICMP Ping (icmpping/icmppingloss/icmppingsec + triggers) nas 43 câmeras; NVR via Generic by SNMP (zabbix[host,snmp,available] + "No SNMP data collection"; itens ICMP desabilitados por bloqueio do equipamento) -->
+- [ ] Monitorar métricas de sistema, interfaces e armazenamento quando disponíveis. <!-- PARCIAL 2026-10-27: sistema OK no NVR (sysUpTime/sysDescr/sysName/sysContact + trigger "Host has been restarted"); armazenamento NÃO exposto (OIDs 1004849 noSuchInstance); ifTable do NVR não coberta (template base) e câmeras sem SNMP = sem métricas -->
+- [x] Verificar recursos de canais, discos e gravação dos gravadores quando expostos. <!-- verificado: canais expostos via configManager.cgi; discos/gravação SNMP indisponíveis neste firmware; gravação/armazenamento dependem do ONVIF (usuário dedicado pendente) -->
+- [x] Identificar equipamentos sem método de coleta adequado. <!-- 4 câmeras sem resposta (IPs acima); 11 câmeras sem modelo no DVR; canal 28 MAC zerado; canais 9/17 sem nome; câmeras = apenas ICMP (sem SNMP/agent) -->
 
 ### 5.2. Alertas
 
-- [ ] Câmera ou gravador indisponível.
-- [ ] Falha de comunicação persistente.
-- [ ] Problemas de armazenamento identificáveis.
-- [ ] Falhas de coleta.
-- [ ] Mudanças de estado relevantes fornecidas pelo equipamento.
+- [x] Câmera ou gravador indisponível. <!-- triggers "ICMP Ping: Indisponivel por ICMP ping" (44 hosts) + "Generic by SNMP: Unavailable by ICMP ping" (NVR); 4 ativos em 2026-10-27 = câmeras reais fora do ar -->
+- [x] Falha de comunicação persistente. <!-- "ICMP Ping: Perda de ping acima do limite" (9 triggers) + "High ICMP ping loss" do Generic by SNMP — avaliam icmppingloss por 1m -->
+- [ ] Problemas de armazenamento identificáveis. <!-- BLOQUEADO 2026-10-27: firmware 2019 não expõe discos (SNMP enterprise noSuchInstance); depende de ONVIF com usuário dedicado no DVR (pendente do usuário) -->
+- [x] Falhas de coleta. <!-- NVR: trigger "No SNMP data collection"; contagem item.get state=1 = 0 unsupported (2026-10-27). Câmeras: método único ICMP — host offline vira trigger de indisponibilidade (não há segundo sinal possível sem SNMP) -->
+- [ ] Mudanças de estado relevantes fornecidas pelo equipamento. <!-- PARCIAL 2026-10-27: NVR expõe restart (queda de uptime) e mudança de sysName via SNMP; SNMP traps não configurados; câmeras não expõem estado além do ping -->
 
 Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as câmeras. Isso depende dos recursos e interfaces disponibilizados pelo equipamento.
 
 ### 5.3. Interface
 
-- [ ] Listar câmeras e gravadores.
-- [ ] Agrupar por setor e localização.
-- [ ] Exibir disponibilidade, modelo e última atualização.
-- [ ] Exibir problemas e métricas suportadas.
-- [ ] Diferenciar câmera offline de falha do mecanismo de consulta.
+- [x] Listar câmeras e gravadores. <!-- dashboard 440 "Videomonitoramento - Operacao" (2026-10-27), 4 widgets, espelhando o de impressoras (439) -->
+- [x] Agrupar por setor e localização. <!-- inventory.location preenchido nas 43 câmeras + NVR (CPD 28, Farmacia HSSM 7, Centro Cirurgico 3, Pronto Socorro 3, Setor 1, Almoxarifado) — filtro em Monitoring→Inventory; grupos Cameras/NVRs HSDS por tipo -->
+- [x] Exibir disponibilidade, modelo e última atualização. <!-- widget tophosts com ICMP ping + perda por host; inventory model/serialno_a/macaddress_a (11 câmeras sem modelo no DVR); lastclock dos itens em Latest data -->
+- [x] Exibir problemas e métricas suportadas. <!-- widgets "Problemas recentes" + "Problemas por severidade" + "Itens de videomonitoramento" no dashboard 440 -->
+- [x] Diferenciar câmera offline de falha do mecanismo de consulta. <!-- câmera offline = icmpping 0 + trigger (problema do equipamento); NVR julgado por SNMP (availability flag distinto do ICMP); 0 unsupported = sem falha de coleta; fechamento dos falsos positivos do NVR registrou o motivo em mensagem -->
+
 
 ---
 
@@ -666,6 +814,36 @@ Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as c�
 ---
 
 ## FASE 7 — Telefonia e serviços de comunicação
+
+#### §7.0.1 — Descoberta da frota de telefonia (2026-10-29/30, read-only)
+
+> **Segmento:** `192.168.21.0/24` (rede "Telefonia" vlan=21 mapeada pela integração
+> UniFi/F26 — docs/36). Alcance confirmado da workstation (gateway `.1` responde ICMP;
+> rota existe — diferente dos switches 192.168.127.x, sem rota).
+
+> **Varredura ICMP: 61 hosts vivos** (`.1` = gateway/router; `.10` e demais vazios fora
+> da lista). **Probe TCP/HTTP: 60 hosts com portas 80 e 443 abertas** e resposta
+> idêntica: `HTTP 401` + `Server: GoAhead-Webs` + Basic auth + header de data parado em
+> 2014 (sem RTC/NTP) — assinatura clássica de **telefone IP embedded** (Fanvil,
+> Grandstream, D-Link e congêneres usam o web server GoAhead). Frota uniforme
+> (60/60 mesmo fingerprint) = os telefones IP do hospital. Evidência bruta:
+> `Temp/opencode/t-ping21.txt` + `t-fp21.txt` (temporário).
+
+> **Limites desta descoberta:**
+> - SNMP **não testável da workstation** (UDP 161 sem resposta — caminho bloqueado;
+>   pacote SNMPv2c validado contra respondedores conhecidos que responderiam);
+>   validar via container Zabbix quando a stack voltar (as telefones podem expor
+>   MIB-II → docs/47 §A).
+> - Sem credencial web das telefones → serial/MAC/ramal não coletados (pendência
+>   de credencial, como as câmeras2016-2022 §5.0.2).
+> - **Central/PABX não identificada** neste segmento (nenhum host com perfil
+>   Asterisk/Apache/nginx — todos GoAhead). Localização da central = dado do usuário.
+
+> **Bloqueio de execução:** cadastro no Zabbix adiado — Docker Desktop parou
+> (stack `infracontrol-*` fora, API 8086 sem resposta). Plano pronto: grupo novo
+> `Telefonia HSDS`,60 hosts `tel-192-168-21-XX`, template `ICMP Ping` (10564),
+> tags `managed-by=InfraControl` + `type=telefone-ip`, upgrade SNMP se o probe
+> do container confirmar MIB-II.
 
 ### 7.1. Telefonia
 
