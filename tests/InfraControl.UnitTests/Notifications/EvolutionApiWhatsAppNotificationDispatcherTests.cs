@@ -113,6 +113,96 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         await send.Should().ThrowAsync<HttpRequestException>();
     }
 
+    // ── Formato PT-BR padronizado (seções + emojis) ──────────────────
+
+    [Fact]
+    public async Task SendAsync_PhoneAlert_ShouldFormatDedupedPtBrSections()
+    {
+        var recording = new RecordingHandler();
+        var dispatcher = Create(recording);
+
+        await dispatcher.SendAsync(new WhatsAppNotificationMessage(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Phone: string.Empty,
+            Title: "Alerta crítico criado",
+            Message: "O alerta 'TEL 1565 - TI (1º andar): TEL 1565 - TI (1º andar) fora do ar' foi aberto (CRÍTICO).",
+            CreatedAt: new DateTime(2026, 11, 11, 8, 50, 0, DateTimeKind.Utc)));
+
+        var text = JsonDocument.Parse(recording.Body!).RootElement
+            .GetProperty("text").GetString()!;
+
+        text.Should().Contain("*Alerta crítico*")
+            .And.Contain("📍 TEL 1565 - TI (1º andar) fora do ar")
+            .And.Contain("🎚️ Severidade: CRÍTICO")
+            .And.Contain("💡 Verificar o equipamento e a rede local.")
+            .And.Contain("🕐 11/11/2026 08:50");
+        text.Should().NotContain("TEL 1565 - TI (1º andar): TEL",
+            "a duplicação host:trigger não pode ir para o WhatsApp");
+    }
+
+    [Fact]
+    public async Task SendAsync_ResolvedAlert_ShouldUseGreenResolvedHeader()
+    {
+        var recording = new RecordingHandler();
+        var dispatcher = Create(recording);
+
+        await dispatcher.SendAsync(new WhatsAppNotificationMessage(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Phone: string.Empty,
+            Title: "Alerta resolvido",
+            Message: "O alerta 'TEL 1565 - TI (1º andar) fora do ar' foi resolvido.",
+            CreatedAt: new DateTime(2026, 11, 11, 8, 56, 0, DateTimeKind.Utc)));
+
+        var text = JsonDocument.Parse(recording.Body!).RootElement
+            .GetProperty("text").GetString()!;
+
+        text.Should().Contain("🟢 *Alerta resolvido*")
+            .And.Contain("📍 TEL 1565 - TI (1º andar) fora do ar")
+            .And.Contain("🕐 11/11/2026 08:56");
+    }
+
+    [Fact]
+    public async Task SendAsync_IncidentOpened_ShouldShowSeverityAndKind()
+    {
+        var recording = new RecordingHandler();
+        var dispatcher = Create(recording);
+
+        await dispatcher.SendAsync(new WhatsAppNotificationMessage(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Phone: string.Empty,
+            Title: "Incidente aberto",
+            Message: "O incidente 'HSDS_NVR_SVR7164: CPU acima do limite' foi aberto (High).",
+            CreatedAt: new DateTime(2026, 11, 11, 9, 0, 0, DateTimeKind.Utc)));
+
+        var text = JsonDocument.Parse(recording.Body!).RootElement
+            .GetProperty("text").GetString()!;
+
+        text.Should().Contain("*Incidente — ALTO*")
+            .And.Contain("📍 HSDS_NVR_SVR7164: CPU acima do limite",
+                "sem prefixo duplicado, host:trigger é informação útil e fica");
+    }
+
+    [Fact]
+    public async Task SendAsync_GenericEvent_ShouldKeepSimpleFormattedLayout()
+    {
+        var recording = new RecordingHandler();
+        var dispatcher = Create(recording);
+
+        await dispatcher.SendAsync(new WhatsAppNotificationMessage(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Phone: string.Empty,
+            Title: "Usuário criado",
+            Message: "O usuário maria@hsds.com.br foi criado.",
+            CreatedAt: new DateTime(2026, 11, 11, 9, 5, 0, DateTimeKind.Utc)));
+
+        var text = JsonDocument.Parse(recording.Body!).RootElement
+            .GetProperty("text").GetString()!;
+
+        text.Should().Contain("🔔 *Usuário criado*")
+            .And.Contain("O usuário maria@hsds.com.br foi criado.")
+            .And.Contain("🕐 11/11/2026 09:05");
+    }
+
     // ── Policies (spec ADR-059 §4 — idêntica ao n8n) ─────────────────
 
     // ── F33-T005: sendMedia + fallback texto ──────────────────────────

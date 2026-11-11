@@ -334,6 +334,26 @@ Decisão explícita do usuário: "Alerta criado (Critical)" **e** "Incidente abe
 enviados como **2 mensagens distintas** para o mesmo problema — duplicidade aceita
 para dar mais contexto no grupo.
 
+#### Formato da mensagem (padronizado 2026-11-11)
+
+`BuildText` do dispatcher monta o texto em seções PT-BR com emojis (o mesmo
+texto vira `caption` do sendMedia):
+
+- **Problema** (alerta/incidente aberto): emoji por severidade (🔴 crítico,
+  🟠 alto, 🟡 médio, 🔵 baixo, ⚪ demais) + `*Alerta crítico*`/`*Incidente —
+  SEV*` em negrito, `📍 <assunto>`, `🎚️ Severidade:`, dica contextual
+  ("fora do ar" → "💡 Verificar o equipamento e a rede local.") e `🕐 data`.
+- **Resolução**: `🟢 *Alerta resolvido*`/`🟢 *Incidente resolvido*` + `📍` + `🕐`.
+- **Genérico** (demais eventos): `🔔 *<título>*` + mensagem limpa + `🕐`.
+
+O assunto vem do texto entre aspas da notificação e passa por deduplicação
+`{HOST}: {HOST} resto` → `{HOST} resto` — a media type 105 do Zabbix envia
+`{HOST.NAME1}: {TRIGGER.NAME}` e triggers de telefonia já repetem o nome do
+host ("TEL 1565 - TI (1º andar): TEL 1565 - TI (1º andar) fora do ar" ia
+duplicado para o grupo; agora sai só "TEL 1565 - TI (1º andar) fora do ar").
+`host:trigger` sem repetição (ex.: câmeras/switches) é preservado — é
+informação útil.
+
 #### Risco do número pessoal (ADR-059 §6)
 
 A Evolution API usa conexão não-oficial (WhatsApp Web/Baileys). A Meta pode banir

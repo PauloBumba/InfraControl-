@@ -42,7 +42,16 @@ COPY --from=api-build /out/api ./
 # dependência nativa da libSkiaSharp.so: sem ela o DllImport falha e todo
 # cartão caía no fallback de texto (descoberto na homologação Zabbix,
 # 2026-11-10 — deliveries logavam "falha no envio do gráfico").
-RUN apt-get update \
+# 2026-11-11 — esta rede não alcança archive.ubuntu.com/security.ubuntu.com
+# (DNS falha em todos os resolvers e IP direto não conecta; só os domínios da
+# Ubuntu são bloqueados — github.com e mirrors.edge.kernel.org respondem).
+# O mirror do kernel.org é apontado ANTES do apt-get: sem isto o build trava
+# em "Unable to locate package" porque qualquer mudança de código invalida
+# este layer (o COPY --from acima dele vem primeiro).
+RUN sed -i -e 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' \
+           -e 's|http://security.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' \
+           /etc/apt/sources.list.d/ubuntu.sources \
+ && apt-get update \
  && apt-get install -y --no-install-recommends fonts-dejavu-core libfontconfig1 \
  && rm -rf /var/lib/apt/lists/*
 # Storage de evidências do PDI (ADR-034): o processo roda como $APP_UID
@@ -71,7 +80,12 @@ WORKDIR /app
 # (2026-10-18): /app/backups ficou SEMPRE vazio. Repo PGDG oficial — não há
 # PG 17 no archive da Ubuntu e o buildkit não alcança registry.1.docker.io
 # (não dá pra copiar binários da imagem postgres:17, ver linha 1).
-RUN apt-get update && apt-get install -y iputils-ping curl ca-certificates gnupg \
+# 2026-11-11 — mesmo espelho do target api: archive.ubuntu.com inacessível
+# nesta rede (o apt.postgresql.org abaixo continua alcançável).
+RUN sed -i -e 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' \
+           -e 's|http://security.ubuntu.com/ubuntu/|http://mirrors.edge.kernel.org/ubuntu/|g' \
+           /etc/apt/sources.list.d/ubuntu.sources \
+ && apt-get update && apt-get install -y iputils-ping curl ca-certificates gnupg \
     fonts-dejavu-core libfontconfig1 \
  && install -d /usr/share/postgresql-common/pgdg \
  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \

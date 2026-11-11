@@ -901,10 +901,38 @@ pelo filtro do `NotificationEventConsumer` (só High/Critical vai ao WhatsApp).
 - `scripts/zabbix/smoke-test.ps1` **6/6** (ação 7 e media types 105/106
   habilitados, `queue=0`, pinger ICMP max busy 45,5%).
 
+**Ativação (2026-11-11, decisão do usuário):** teste ao vivo com o ramal da TI
+(`tel-192-168-21-183`, trigger 40466 habilitada isoladamente) validou o fluxo
+completo — `icmpping=0` por ~4 falhas consecutivas → PROBLEM (evento 49081,
+High) → webhook → `monitoring_events` (severity 4) → alerta Critical +
+incidente + notificações SignalR/Email. O monitoramento **nativo** de ping do
+InfraControl disparou em paralelo ("Device 'TI' fora do ar"). Após o sucesso,
+`provision-telefones.ps1 -Enable` habilitou as **59/59 triggers** — qualquer
+telefone fora do ar agora gera alerta WhatsApp via action 7. Na checagem
+imediata pós-ativação, apenas o TEL 1565 constava em PROBLEM (ainda
+desligado); os outros 58 estavam OK.
+
+**Base do InfraControl alimentada (2026-11-11):** os 59 telefones existem como
+`Device` tipo `Phone` no inventário (58 já importados + `Supervisão Enfermagem
+Setor 1` — 192.168.11.183, 2º Andar — cadastrado via `POST
+/inventory/devices/import`, F50-T008). Sync do inventário Zabbix
+(`POST /integrations/zabbix/sync`: created=104, updated=107, errors=0)
+correlacionou **59/59 hosts `tel-*` → devices** via
+`external_device_references` (total Zabbix: 123 referências) — alertas de
+telefonia agora chegam com device/local resolvidos.
+
+**Formato WhatsApp padronizado (2026-11-11):** `BuildText` do
+`EvolutionApiWhatsAppNotificationDispatcher` passou a emitir seções PT-BR com
+emojis (severidade, `📍` assunto deduplicado, `🎚️` severidade, `💡` dica
+"fora do ar", `🕐` data; resolução em 🟢). Corrige a duplicação
+`{HOST}: {HOST} resto` gerada pela media type 105 do Zabbix nos hosts de
+telefonia. Formato documentado em docs/07 §"Formato da mensagem".
+
 **Pendências:**
 
-- [ ] Ativar as triggers quando o responsável decidir lote/horário:
-  `.\scripts\zabbix\provision-telefones.ps1 -Enable` (reversível com `-Disable`);
+- [x] Ativar as triggers quando o responsável decidir lote/horário:
+  `provision-telefones.ps1 -Enable` executado em 2026-11-11 (59/59 habilitadas;
+  reversível com `-Disable`);
 - [ ] `Marketing` (1º andar) e `Lavanderia` (2º andar): planilha com "X" — sem
   IP/MAC, não cadastrados;
 - [ ] Ramal ausente em 8 aparelhos (identificação pelo texto: `FARMA COMERCIAL`,

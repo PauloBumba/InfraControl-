@@ -3,6 +3,7 @@ using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.BuildingBlocks.Domain;
 using InfraControl.Domain.Entities;
@@ -248,6 +249,115 @@ public sealed class ZabbixWhatsAppChartFactoryTests
     }
 
     [Fact]
+    public async Task TryCreateAsync_AvailabilityAlert_ShouldFallbackToIcmpLossItem()
+    {
+        var device = CreateDevice(name: "TEL 1565 - TI (1º andar)");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "TEL 1565 - TI (1º andar)"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("101", "10", "ICMP ping", "icmpping",
+                Type: 0, Enabled: true, Unsupported: false),
+            new ZabbixItemDto("102", "10", "ICMP ping loss", "icmppingloss",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+            new ZabbixItemDto("103", "10", "ICMP ping sec", "icmppingsec",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "s"),
+        ];
+        zabbix.History["102"] =
+        [
+            new ZabbixHistoryValueDto("102", EventAt.AddMinutes(-30), "0"),
+            new ZabbixHistoryValueDto("102", EventAt, "100"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'TEL 1565 - TI (1º andar): TEL 1565 - TI (1º andar) fora do ar' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent",
+            EventAt);
+
+        chart.Should().NotBeNull("alerta de disponibilidade usa o item icmpping* do host");
+        chart!.Title.Should().Be("TEL 1565 - TI (1º andar) fora do ar",
+            "o cartão não repete o prefixo host:host gerado pela media type");
+        chart.Unit.Should().Be("%");
+        chart.Series.Should().HaveCount(2);
+        chart.Series[^1].Value.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_AvailabilityAlert_WithoutIcmpItems_ShouldReturnNull()
+    {
+        var device = CreateDevice(name: "TEL 1565 - TI (1º andar)");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "TEL 1565 - TI (1º andar)"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'TEL 1565 - TI (1º andar) fora do ar' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent",
+            EventAt);
+
+        chart.Should().BeNull("sem item de disponibilidade, gráfico de CPU seria enganoso");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WhenDeviceHasLocation_ShouldExposeLocationLabel()
+    {
+        var location = Location.Create("2º Andar");
+        var device = Device.Create(location.Id, "sw-01", DeviceType.Switch);
+        var factory = CreateFactory(out _, out var zabbix, device,
+            new FakeLocationRepository(location));
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt, "42"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "", "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.LocationLabel.Should().Be("2º Andar");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_FuzzyMatchByDisplayName_ShouldFindHost()
+    {
+        var device = CreateDevice(name: "Comercial");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(new ZabbixHostDto("10", Host: "tel-192-168-21-20",
+            Name: "TEL 1525 - Comercial (1º andar)", Enabled: true, Discovered: false,
+            Interfaces: [new ZabbixInterfaceDto("192.168.21.20", 10050, 1, true)],
+            GroupIds: [], TemplateIds: []));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("102", "10", "ICMP ping loss", "icmppingloss",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["102"] =
+        [
+            new ZabbixHistoryValueDto("102", EventAt, "100"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "Alerta", "O alerta 'TEL 1525 - Comercial fora do ar' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull("o nome de exibição do host casa com o nome do device");
+    }
+
+    [Fact]
     public async Task TryCreateAsync_ResolvedAlert_ShouldExtractTitleAndMatchItem()
     {
         var device = CreateDevice(name: "sw-01");
@@ -291,12 +401,14 @@ public sealed class ZabbixWhatsAppChartFactoryTests
     private static ZabbixWhatsAppChartFactory CreateFactory(
         out FakeDeviceRepository devices,
         out FakeZabbixClient zabbix,
-        Device? device)
+        Device? device,
+        FakeLocationRepository? locations = null)
     {
         devices = new FakeDeviceRepository(device);
         zabbix = new FakeZabbixClient();
         return new ZabbixWhatsAppChartFactory(
-            devices, zabbix, NullLogger<ZabbixWhatsAppChartFactory>.Instance);
+            devices, locations ?? new FakeLocationRepository(), zabbix,
+            NullLogger<ZabbixWhatsAppChartFactory>.Instance);
     }
 
     private sealed class FakeDeviceRepository(Device? device) : IDeviceRepository
@@ -351,6 +463,34 @@ public sealed class ZabbixWhatsAppChartFactoryTests
             => throw new NotImplementedException();
 
         public void Remove(Device entity) => throw new NotImplementedException();
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class FakeLocationRepository : ILocationRepository
+    {
+        private readonly Location? _location;
+
+        public FakeLocationRepository(Location? location = null) => _location = location;
+
+        public Task<Location?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_location is not null && _location.Id == id ? _location : null);
+
+        public Task<Location?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<PagedResult<Location>> SearchAsync(
+            string? term, int page, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<bool> HasRacksAsync(Guid locationId, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task AddAsync(Location entity, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public void Remove(Location entity) => throw new NotImplementedException();
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.CompletedTask;
