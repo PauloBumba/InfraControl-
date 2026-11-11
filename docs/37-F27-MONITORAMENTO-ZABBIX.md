@@ -784,6 +784,61 @@ Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as c�
 - [ ] Verificar templates e descoberta de interfaces.
 - [ ] Evitar duplicar itens e triggers existentes.
 
+#### §6.2.1 — Auditoria SNMP por porta (2026-11-11)
+
+> Pedido do usuário: "ver cada porta up/down e o tráfego, informação vinda do
+> próprio switch". Varredura read-only a partir da rede do compose Zabbix
+> (community `public`, SNMPv2c) + ping da workstation.
+
+**Alcance (planilha do usuário, 21 switches + core):**
+
+| Estado | Qtd | Detalhe |
+|---|---|---|
+| SNMP `public` OK | 14 | .1 A5120-24G EI (core), .231–.235/.242–.245 V1910-24G-PoE e genéricas "Switch 24 portas PoE", .250–.252 V1910-24G-PoE 170W, .220/.240 |
+| Ping OK, **sem SNMP** | 3 | .110 (TP-Link — só HTTP :80, sem SSH/Telnet), .120 e .140 (**nenhuma porta aberta** — provavelmente não gerenciáveis) |
+| Down (sem ping) | 5 | .241 R02-SW01, .130 Comissões, .150 NIR CE, .160 TI, .50.101 Farmácia HSSM |
+
+**Cobertura Zabbix já existente (verificado via API):** os 18 hosts SNMP já têm
+LLD de interfaces ativo — `net.if.discovery` gera itens por porta
+(`net.if.in/out` ifHC 64-bit, `net.if.in/out.errors`, `discards`,
+`oper.status`) e triggers por porta: **"sem link"** (prio 3/Info conforme
+template), **"Uso de banda alto"**, **"Taxa de erros alta"**,
+**"velocidade reduzida"** (custom "HP Comware:"/"Generico:") e half-duplex.
+Ex.: host 10818 (core) tem 146 triggers. Como "sem link" é prioridade
+Information/Average, **não cai no filtro High/Critical da action 7 → não
+gera spam no WhatsApp**; host inteiro fora do ar continua alertando via
+template (ICMP ping).
+
+**Hosts criados nesta data (estavam ausentes, todos down):**
+`sw-192-168-127-130` (11032, Switches de Mesa), `sw-192-168-127-150`
+(11033, Switches de Mesa), `sw-192-168-127-160` (11034, Switches de Mesa),
+`sw-192-168-127-241` (11035, Switches HP — R02-SW01, Setor 1) — template
+ICMP Ping, interface agent, tags `type=switch`/`managed-by=InfraControl`/
+`local`. Divergência de nomenclatura registrada: no Zabbix `.240` já se
+chama "R02-SW01" mas a planilha diz `.240`=R07-SW01 (sala de aula) e
+`.241`=R02-SW01 — nomes visíveis do inventário antigo divergem da planilha
+nova (idem PD1-SW0x × R04-SW0x); reconciliar nomes depois.
+
+**FDB/MAC table (base do mapa "qual switch/porta cada device usa"):**
+`dot1dTpFdbTable` (1.3.6.1.2.1.17.4.3.1) responde no core (**718 MACs
+aprendidos** → porta) e na V1910 .231 (resposta mínima — V1910 limita a
+tabela via SNMP); a Intelbras .244 **não expõe** FDB via SNMP. LLDP
+remoto vazio no core (lldp provavelmente desabilitado nos switches/devices).
+Coletor FDB→InfraControl = feature nova (não implementada — ver pendências).
+
+**Pendências switches:**
+- [ ] .110 TP-Link: habilitar SNMP pela interface web (única porta aberta;
+  login admin da planilha) — avaliar se o modelo suporta;
+- [ ] .120/.140: sem nenhuma porta de gerenciamento aberta → provável
+  não-gerenciável; confirmar modelo e, se for o caso, substituir ou aceitar
+  monitoramento só por ping (status atual);
+- [ ] Quando .130/.150/.160/.241/.50.101 voltarem: testar SNMP e, se
+  responderem, trocar template ICMP→Comware/Generic + interface SNMP :161;
+- [ ] Coletor FDB (MAC→porta→switch) para o mapa device→porta no
+  InfraControl — depende de decisão de arquitetura (job SNMP no worker ×
+  consulta sob demanda);
+- [ ] Reconciliar nomes visíveis Zabbix × planilha nova (R04×PD1, .240/.241).
+
 ### 6.3. Access Points
 
 - [ ] Monitorar disponibilidade.
