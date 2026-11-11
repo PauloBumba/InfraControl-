@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -319,15 +320,13 @@ export function HealthPage() {
               </div>
             ))}
             {alertsTotal > 5 && (
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => navigate("/alerts")}
-                style={{
-                  alignSelf: "flex-start", background: "none", border: "none",
-                  color: "#3b82f6", fontSize: 12, cursor: "pointer", padding: 0,
-                }}
+                style={{ alignSelf: "flex-start", padding: 0, fontSize: 12 }}
               >
                 Ver todos ({alertsTotal}) →
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -340,6 +339,7 @@ export function HealthPage() {
             Portas UniFi com link up
           </div>
           <MeterGroup
+            className="uni-meter-group"
             values={[{
               label: "Up",
               value: Math.round((unifi.ports.up / unifi.ports.total) * 100),

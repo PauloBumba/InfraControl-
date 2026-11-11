@@ -97,7 +97,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 
 export function HomePage() {
   return (
-    <>
+    <div className="uni-public-page--home">
       <section className="uni-public-hero">
         <div className="uni-public-hero-content">
           <div className="uni-public-hero-text">
@@ -279,6 +279,6 @@ export function HomePage() {
           </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

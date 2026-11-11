@@ -27,6 +27,7 @@ public static class AccessModuleCatalog
         new("admin", "Administração", ["admin"], ["Identity.Administration"]),
         new("ai", "Inteligência Artificial", ["ai", "automation"], ["AI"]),
         new("auth", "Autenticação", ["auth"], ["Identity.Authentication", "Identity.Sessions"]),
+        new("checklists", "Checklists", ["checklists"], ["Checklists"]),
         new("company-settings", "Config. institucional", ["company-settings"], ["Company"]),
         new("discovery", "Descoberta", ["discovery", "clients"], ["Discovery"]),
         new("incidents", "Incidentes", ["incidents"], ["Incidents"]),

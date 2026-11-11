@@ -54,4 +54,13 @@ describe("FeaturesPage (F26-T002)", () => {
       expect(screen.getAllByText(feature).length).toBeGreaterThan(0);
     }
   });
+
+  /** F50-T006: o CSS da features só vale dentro desta raiz (fim do vazamento). */
+  it("should wrap the whole page in its CSS scope root", () => {
+    const { container } = renderPage();
+
+    const root = container.querySelector(".uni-public-page--features");
+    expect(root).not.toBeNull();
+    expect(root?.querySelector(".uni-public-hero")).not.toBeNull();
+  });
 });

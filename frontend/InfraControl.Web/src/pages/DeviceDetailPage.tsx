@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
@@ -460,11 +461,14 @@ export function DeviceDetailPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <BreadCrumb className="uni-breadcrumb" home={{ icon: "pi pi-home", command: () => navigate("/") }} model={[{ label: "Dispositivos", command: () => navigate("/devices") }, { label: device.name }]} />
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={() => navigate("/devices")} style={{ width: 32, height: 32, borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", background: "white", cursor: "pointer" }}>
-          <i className="pi pi-arrow-left" style={{ fontSize: 12 }} />
-        </button>
+        <Button
+          variant="ghost"
+          icon="pi pi-arrow-left"
+          aria-label="Voltar para Dispositivos"
+          onClick={() => navigate("/devices")}
+          style={{ padding: "6px 10px" }}
+        />
         {resolveUploadSrc(device.imagePath) ? (
           <img
             src={resolveUploadSrc(device.imagePath)!}
@@ -476,58 +480,57 @@ export function DeviceDetailPage() {
             <i className={icon} />
           </div>
         )}
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>{device.name}</h1>
-          <p style={{ fontSize: 12, color: "#6b7280" }}>
-            {device.model ?? device.type} · {device.ip ?? "sem IP"}
-          </p>
-        </div>
-        {status && (
-          <StatusChip
-            label={
-              status.status === "Available" ? "Disponível"
-              : status.status === "Degraded" ? "Degradado"
-              : status.status === "Unavailable" ? "Indisponível"
-              : "Desconhecido"
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <PageHeader
+            title={device.name}
+            subtitle={`${device.model ?? device.type} · ${device.ip ?? "sem IP"}`}
+            actions={
+              <>
+                {status && (
+                  <StatusChip
+                    label={
+                      status.status === "Available" ? "Disponível"
+                      : status.status === "Degraded" ? "Degradado"
+                      : status.status === "Unavailable" ? "Indisponível"
+                      : "Desconhecido"
+                    }
+                    background={
+                      status.status === "Available" ? "#f0fdf4"
+                      : status.status === "Degraded" ? "#fef3c7"
+                      : status.status === "Unavailable" ? "#fef2f2"
+                      : "#f1f5f9"
+                    }
+                    color={
+                      status.status === "Available" ? "#15803d"
+                      : status.status === "Degraded" ? "#d97706"
+                      : status.status === "Unavailable" ? "#dc2626"
+                      : "#64748b"
+                    }
+                    fontWeight={600}
+                    fontSize={10}
+                  />
+                )}
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: `${color}15`, color }}>
+                  {device.type}
+                </span>
+                {/* F34-T007 (ADR-060 D1/D2) — só aparece com SO informado (F34-T006):
+                    o backend valida permissão/credencial e minta o token; o navegador
+                    só abre a aba do gateway. */}
+                {device.operatingSystem && (
+                  <Button
+                    variant="info"
+                    icon="pi pi-external-link"
+                    onClick={() => void openRemoteGateway()}
+                    disabled={gatewayOpening}
+                    title={`Abrir ${device.operatingSystem === "Windows" ? "RDP" : "SSH"} pelo gateway de acesso remoto`}
+                  >
+                    {gatewayOpening ? "Abrindo…" : "Acesso remoto"}
+                  </Button>
+                )}
+              </>
             }
-            background={
-              status.status === "Available" ? "#f0fdf4"
-              : status.status === "Degraded" ? "#fef3c7"
-              : status.status === "Unavailable" ? "#fef2f2"
-              : "#f1f5f9"
-            }
-            color={
-              status.status === "Available" ? "#15803d"
-              : status.status === "Degraded" ? "#d97706"
-              : status.status === "Unavailable" ? "#dc2626"
-              : "#64748b"
-            }
-            fontWeight={600}
-            fontSize={10}
           />
-        )}
-        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 4, background: `${color}15`, color }}>
-          {device.type}
-        </span>
-        {/* F34-T007 (ADR-060 D1/D2) — só aparece com SO informado (F34-T006):
-            o backend valida permissão/credencial e minta o token; o navegador
-            só abre a aba do gateway. */}
-        {device.operatingSystem && (
-          <button
-            onClick={() => void openRemoteGateway()}
-            disabled={gatewayOpening}
-            title={`Abrir ${device.operatingSystem === "Windows" ? "RDP" : "SSH"} pelo gateway de acesso remoto`}
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-              borderRadius: 6, border: "1px solid #2563eb", background: "#2563eb",
-              color: "white", fontSize: 12, fontWeight: 600,
-              cursor: gatewayOpening ? "wait" : "pointer", opacity: gatewayOpening ? 0.7 : 1,
-            }}
-          >
-            <i className="pi pi-external-link" style={{ fontSize: 11 }} />
-            {gatewayOpening ? "Abrindo…" : "Acesso remoto"}
-          </button>
-        )}
+        </div>
       </div>
 
       {/* Info bar */}
@@ -646,16 +649,13 @@ export function DeviceDetailPage() {
                     <span style={{ color: "#94a3b8" }}>→ {formatDateTime(new Date(session.endedAt))}</span>
                   )}
                   {session.status === "Active" && (
-                    <button
+                    <Button
+                      variant="danger"
                       onClick={() => void endRemoteSession(session.id)}
-                      style={{
-                        marginLeft: "auto", padding: "3px 10px", borderRadius: 6,
-                        border: "1px solid #e2e8f0", background: "white", color: "#dc2626",
-                        fontSize: 11, fontWeight: 600, cursor: "pointer",
-                      }}
+                      style={{ marginLeft: "auto", padding: "3px 10px", fontSize: 11 }}
                     >
                       Encerrar
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))
@@ -707,30 +707,21 @@ export function DeviceDetailPage() {
                     }}
                   />
                 </label>
-                <button
+                <Button
+                  variant="primary"
                   onClick={() => void saveCredential()}
                   disabled={credSaving || !credUser.trim() || !credPassword}
-                  style={{
-                    padding: "7px 14px", borderRadius: 6, border: "1px solid #2563eb",
-                    background: "#2563eb", color: "white", fontSize: 12, fontWeight: 600,
-                    cursor: credSaving || !credUser.trim() || !credPassword ? "default" : "pointer",
-                    opacity: credSaving || !credUser.trim() || !credPassword ? 0.6 : 1,
-                  }}
                 >
                   {credSaving ? "Salvando…" : credential?.hasCredential ? "Rotacionar" : "Salvar"}
-                </button>
+                </Button>
                 {credential?.hasCredential && (
-                  <button
+                  <Button
+                    variant="danger"
                     onClick={() => void removeCredential()}
                     disabled={credSaving}
-                    style={{
-                      padding: "7px 12px", borderRadius: 6, border: "1px solid #e2e8f0",
-                      background: "white", color: "#dc2626", fontSize: 12, fontWeight: 600,
-                      cursor: credSaving ? "default" : "pointer",
-                    }}
                   >
                     Remover
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

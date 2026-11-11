@@ -60,4 +60,13 @@ describe("ContactPage (F26-T002)", () => {
     const link = screen.getByRole("link", { name: /suporte@acme\.com/ });
     expect(link).toHaveAttribute("href", "mailto:suporte@acme.com");
   });
+
+  /** F50-T006: o CSS do contato só vale dentro desta raiz (fim do vazamento). */
+  it("should wrap the whole page in its CSS scope root", () => {
+    const { container } = renderPage();
+
+    const root = container.querySelector(".uni-public-page--contact");
+    expect(root).not.toBeNull();
+    expect(root?.querySelector(".uni-public-hero")).not.toBeNull();
+  });
 });

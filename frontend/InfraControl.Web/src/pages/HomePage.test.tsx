@@ -54,4 +54,13 @@ describe("HomePage (F26-T002)", () => {
       "/recursos",
     );
   });
+
+  /** F50-T006: o CSS da home só vale dentro desta raiz (fim do vazamento). */
+  it("should wrap the whole page in its CSS scope root", () => {
+    const { container } = renderPage();
+
+    const root = container.querySelector(".uni-public-page--home");
+    expect(root).not.toBeNull();
+    expect(root?.querySelector(".uni-public-hero")).not.toBeNull();
+  });
 });

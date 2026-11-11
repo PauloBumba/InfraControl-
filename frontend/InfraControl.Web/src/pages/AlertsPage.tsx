@@ -19,7 +19,6 @@ import { SelectButton } from "primereact/selectbutton";
 import { errorMessage } from "@/hooks/queries";
 import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import { TabView, TabPanel } from "primereact/tabview";
 
 /**
  * F17-T011 — AlertsPage conectada ao backend (substitui `alertsData` de
@@ -68,7 +67,6 @@ export function AlertsPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
 
   // F50-T003 — dialog de anotação do operador.
   const [noteTarget, setNoteTarget] = useState<AlertItem | null>(null);
@@ -80,9 +78,8 @@ export function AlertsPage() {
     setLoading(true);
     setError(null);
     try {
-      const effectiveStatus = activeTab === 1 ? "resolved" : status === "resolved" ? "" : status;
       const result = await listAlerts({
-        status: effectiveStatus || undefined,
+        status: status || undefined,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -93,7 +90,7 @@ export function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [status, page, activeTab]);
+  }, [status, page]);
 
   useEffect(() => {
     void load();
@@ -136,20 +133,18 @@ export function AlertsPage() {
       error={error}
       onRetry={() => void load()}
       actions={
-        activeTab === 0 ? (
-          <SelectButton
-            className="uni-select-button"
-            value={status}
-            options={filters.filter((f) => f.key !== "resolved")}
-            optionLabel="label"
-            optionValue="key"
-            allowEmpty={false}
-            onChange={(event) => {
-              setStatus(event.value);
-              setPage(1);
-            }}
-          />
-        ) : undefined
+        <SelectButton
+          className="uni-select-button"
+          value={status}
+          options={filters}
+          optionLabel="label"
+          optionValue="key"
+          allowEmpty={false}
+          onChange={(event) => {
+            setStatus(event.value);
+            setPage(1);
+          }}
+        />
       }
       footer={
         totalCount > PAGE_SIZE ? (
@@ -157,39 +152,19 @@ export function AlertsPage() {
         ) : undefined
       }
     >
-      <TabView activeIndex={activeTab} onTabChange={(e) => { setActiveTab(e.index); setPage(1); setStatus(""); }}>
-        <TabPanel header="Abertos">
-          <div className="uni-panel">
-            <div className="uni-alerts-list">
-              {items.map((alert) => (
-                <AlertRow key={alert.id} alert={alert} onNote={() => openNote(alert)} />
-              ))}
-              {!loading && items.length === 0 && (
-                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  {error ? "—" : "Nenhum alerta neste filtro"}
-                </div>
-              )}
-              {loading && items.length === 0 && <LoadingBlock />}
+      <div className="uni-panel">
+        <div className="uni-alerts-list">
+          {items.map((alert) => (
+            <AlertRow key={alert.id} alert={alert} onNote={() => openNote(alert)} />
+          ))}
+          {!loading && items.length === 0 && (
+            <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
+              {error ? "—" : "Nenhum alerta neste filtro"}
             </div>
-          </div>
-        </TabPanel>
-        <TabPanel header="Resolvidos">
-          <div className="uni-panel">
-            <div className="uni-alerts-list">
-              {items.map((alert) => (
-                <AlertRow key={alert.id} alert={alert} onNote={() => openNote(alert)} />
-              ))}
-              {!loading && items.length === 0 && (
-                <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
-                  {error ? "—" : "Nenhum alerta resolvido"}
-                </div>
-              )}
-              {loading && items.length === 0 && <LoadingBlock />}
-            </div>
-          </div>
-        </TabPanel>
-      </TabView>
-
+          )}
+          {loading && items.length === 0 && <LoadingBlock />}
+        </div>
+      </div>
       <Dialog
         visible={noteTarget !== null}
         onHide={() => setNoteTarget(null)}

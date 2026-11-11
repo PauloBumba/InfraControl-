@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import {
   listDevices,
@@ -337,15 +338,10 @@ export function TopologyPage() {
   // com o cabeçalho e o ErrorBanner cuida do aviso (role="alert" + retry).
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>Topologia de Rede</h1>
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-            {groups.length} dispositivos · {graph?.nodes.length ?? 0} interfaces · {graph?.edges.length ?? 0} conexões
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Topologia de Rede"
+        subtitle={`${groups.length} dispositivos · ${graph?.nodes.length ?? 0} interfaces · ${graph?.edges.length ?? 0} conexões`}
+      />
 
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 

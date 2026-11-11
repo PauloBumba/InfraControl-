@@ -40,7 +40,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
 export function ContactPage() {
   const supportEmail = getSupportEmail();
   return (
-    <>
+    <div className="uni-public-page--contact">
       <section className="uni-public-hero">
         <p className="uni-public-eyebrow">Suporte e contato</p>
         <h1>Encontre o caminho certo para sua dúvida</h1>
@@ -112,6 +112,6 @@ export function ContactPage() {
           Entrar
         </Link>
       </section>
-    </>
+    </div>
   );
 }
