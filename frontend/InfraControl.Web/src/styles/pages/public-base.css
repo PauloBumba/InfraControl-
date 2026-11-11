@@ -1,25 +1,546 @@
 /* ============================================================
-   PUBLIC BASE — tokens, layout base, componentes compartilhados
-   Similar ao site.css do Sentinel
+   PUBLIC BASE — tokens, ritmo, tipografia, layout e componentes
+   compartilhados das páginas públicas (F50-T009 — reforma).
+
+   Contrato (trancado em publicPagesScope.test.ts):
+   — o compartilhado vive AQUI, uma vez só;
+   — cada page CSS só declara sob `.uni-public-page--{página}`;
+   — nenhuma folha global repete seletor de outra (base × components ×
+     dark). Antes o FAQ existia em base E em components com valores
+     distintos, e o mesmo valia para stats/steps/integrations/footer.
    ============================================================ */
 
-/* Container centralizado comum ao header, ao conteúdo e ao rodapé */
-.uni-public-container {
-  width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 20px;
+/* ------------------------------------------------------------
+   1. Tokens — ritmo e forma de toda a área pública
+   ------------------------------------------------------------ */
+:root {
+  /* Ritmo vertical: UMA escala de seção. Antes somavam main gap 72px +
+     section 24px + stats margin 48px + hero 80px, sem escala comum. */
+  --pub-section-y: 88px;
+  --pub-section-y-tight: 56px;
+  --pub-container: 1120px;
+  --pub-gutter: 24px;
+
+  /* Raios — conteúdo 12px conforme IDENTIDADE-VISUAL §Raios */
+  --pub-radius-sm: 10px;
+  --pub-radius: 12px;
+  --pub-radius-lg: 18px;
+
+  /* Sombras em 2 níveis (repouso / elevado) */
+  --pub-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 30px -20px rgba(15, 23, 42, 0.35);
+  --pub-shadow-lift: 0 2px 4px rgba(15, 23, 42, 0.05), 0 30px 60px -30px rgba(15, 23, 42, 0.45);
+
+  /* Hero — bloco escuro full-bleed, o MESMO nos dois temas (o fundo é
+     navy por decisão de design, não por tema). */
+  --pub-hero-glow: rgba(59, 130, 246, 0.4);
+  --pub-hero-bg:
+    radial-gradient(900px 460px at 50% -10%, var(--pub-hero-glow), transparent 62%),
+    linear-gradient(180deg, #0a1124 0%, #0d1730 55%, #0a1226 100%);
+  --pub-hero-fg: #f7f9fc;
+  --pub-hero-muted: #a9b7d0;
+  --pub-hero-line: rgba(147, 197, 253, 0.16);
+  --pub-hero-chip: rgba(255, 255, 255, 0.07);
 }
 
-/* Header público com mais profundidade */
-.uni-public-header {
+/* ------------------------------------------------------------
+   2. Container e ritmo das seções
+   ------------------------------------------------------------ */
+
+/* Container do header/rodapé (conteúdo fixo) */
+.uni-public-container {
+  width: 100%;
+  max-width: var(--pub-container);
+  margin: 0 auto;
+  padding: 0 var(--pub-gutter);
+}
+
+/* A seção é o próprio container: o fundo (ex.: --alt) vai de ponta a
+   ponta e o conteúdo é centrado em 1120px pelo padding lateral — sem
+   wrapper extra e sem a seção vazar para as bordas da janela (antes
+   `.uni-public-section` não tinha max-width NEM padding: os grids de
+   card encostavam na borda em telas largas). */
+.uni-public-section {
+  padding: var(--pub-section-y) max(var(--pub-gutter), calc((100% - var(--pub-container)) / 2));
+}
+
+.uni-public-section--tight {
+  padding-block: var(--pub-section-y-tight);
+}
+
+/* Faixa de contraste full-bleed (mesmo ritmo, fundo alternado) */
+.uni-public-section--alt {
+  background: var(--uni-surface-alt, #fafbfc);
+  border-block: 1px solid var(--uni-border);
+}
+
+/* main só cresce: o hero encostado no header exige padding ZERO aqui.
+   (As páginas de auth ganham respiro próprio em login.css.)
+   Sem min-height próprio: `.uni-public` já é flex column com
+   min-height 100vh e o `flex: 1 0 auto` empurra o rodapé para o fim do
+   viewport — o `calc(100vh - 64px)` anterior era redundante e jogava o
+   rodapé para fora da tela em janelas altas. */
+.uni-public-main {
+  flex: 1 0 auto;
+}
+
+/* ------------------------------------------------------------
+   3. Tipografia de seção
+   ------------------------------------------------------------ */
+.uni-public-section-head {
+  max-width: 760px;
+  margin: 0 auto 44px;
+  text-align: center;
+}
+
+.uni-public-section-head--left {
+  margin-inline: 0;
+  text-align: left;
+}
+
+.uni-public-section-head h2 {
+  margin: 0 0 14px;
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--uni-text);
+  text-wrap: balance;
+}
+
+.uni-public-section-lead {
+  margin: 0;
+  font-size: clamp(15px, 1.4vw, 17px);
+  line-height: 1.7;
+  color: var(--uni-text-secondary);
+}
+
+/* ------------------------------------------------------------
+   4. Eyebrow, lead e ações
+   ------------------------------------------------------------ */
+.uni-public-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 6px 13px;
+  border: 1px solid color-mix(in srgb, var(--uni-accent) 30%, transparent);
+  border-radius: 999px;
+  background: var(--uni-chip-blue-bg);
+  color: var(--uni-accent-hover);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.uni-public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ------------------------------------------------------------
+   5. Botões
+   ------------------------------------------------------------ */
+.uni-public-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border: 1px solid transparent;
+  border-radius: var(--pub-radius-sm);
+  background: linear-gradient(135deg, var(--uni-accent) 0%, var(--uni-accent-hover) 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 12px 26px -14px rgba(37, 99, 235, 0.9);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
+    border-color 0.15s ease, color 0.15s ease;
+}
+
+.uni-public-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px -16px rgba(37, 99, 235, 0.95);
+}
+
+.uni-public-button:active {
+  transform: translateY(0);
+}
+
+.uni-public-button-small {
+  padding: 9px 16px;
+  font-size: 14px;
+}
+
+/* Ghost neutro: usa os tokens do tema (claro e escuro) em vez de cinza
+   fixo — o #d1d5db antigo ignorava o dark mode. */
+.uni-public-button-ghost {
+  background: transparent;
+  color: var(--uni-ghost-text, var(--uni-text));
+  border-color: var(--uni-border);
+  box-shadow: none;
+}
+
+.uni-public-button-ghost:hover {
+  background: var(--uni-hover);
+  border-color: var(--uni-text-muted);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------
+   6. Hero — bloco escuro full-bleed (fonte única dos 3 modelos)
+   ------------------------------------------------------------ */
+.uni-public-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--pub-hero-fg);
+  background: var(--pub-hero-bg);
+  padding:
+    clamp(56px, 7vw, 92px)
+    max(var(--pub-gutter), calc((100% - var(--pub-container)) / 2))
+    clamp(48px, 6vw, 72px);
+}
+
+/* Grade técnica sutil, mascarada para sumir nas bordas */
+.uni-public-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(var(--pub-hero-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--pub-hero-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 65% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 80% 65% at 50% 0%, #000 25%, transparent 78%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.uni-public-hero-content {
+  position: relative;
+  display: grid;
+  gap: clamp(36px, 5vw, 64px);
+  align-items: center;
+}
+
+/* Variante com visual (Home): texto + mockup. */
+.uni-public-hero--split .uni-public-hero-content {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+/* Variante centralizada (Recursos/Contato): sem visual. */
+.uni-public-hero--center .uni-public-hero-content {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+}
+
+.uni-public-hero h1 {
+  margin: 0 0 18px;
+  font-size: clamp(34px, 4.4vw, 56px);
+  line-height: 1.06;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--pub-hero-fg);
+  text-wrap: balance;
+}
+
+.uni-public-hero .uni-public-lead {
+  margin: 0;
+  max-width: 60ch;
+  font-size: clamp(16px, 1.5vw, 19px);
+  line-height: 1.65;
+  color: var(--pub-hero-muted);
+}
+
+.uni-public-hero--center .uni-public-lead {
+  margin-inline: auto;
+}
+
+/* Eyebrow sobre o hero: cor fixa clara porque o fundo é navy nos 2 temas */
+.uni-public-hero .uni-public-eyebrow {
+  background: var(--pub-hero-chip);
+  border-color: var(--pub-hero-line);
+  color: #cfe0ff;
+}
+
+.uni-public-hero .uni-public-actions {
+  margin-top: 30px;
+}
+
+.uni-public-hero--center .uni-public-actions {
+  justify-content: center;
+}
+
+/* Ghost vira contorno claro dentro do hero */
+.uni-public-hero .uni-public-button-ghost {
+  color: var(--pub-hero-fg);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.uni-public-hero .uni-public-button-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.uni-public-hero-visual {
+  position: relative;
+}
+
+/* Faixa dentro do hero (métricas da Home) */
+.uni-public-hero-foot {
+  position: relative;
+  margin-top: clamp(40px, 5vw, 64px);
+  padding-top: 28px;
+  border-top: 1px solid var(--pub-hero-line);
+}
+
+/* ------------------------------------------------------------
+   7. Grids e cards
+   ------------------------------------------------------------ */
+.uni-public-grid {
+  display: grid;
+  gap: var(--pub-gutter);
+  /* auto-fit colapsa as trilhas vazias: 3 ou 4 itens viram colunas
+     iguais sem classe por quantidade */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+
+.uni-public-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px;
   background: var(--surface-card, #fff);
-  border-bottom: 1px solid var(--uni-border);
+  border: 1px solid var(--uni-border);
+  border-radius: var(--pub-radius);
+  box-shadow: var(--pub-shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.uni-public-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--pub-shadow-lift);
+  border-color: color-mix(in srgb, var(--uni-accent) 40%, var(--uni-border));
+}
+
+.uni-public-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--pub-radius-sm);
+  background: var(--uni-chip-blue-bg);
+  color: var(--uni-accent-hover);
+  font-size: 18px;
+}
+
+.uni-public-card h2,
+.uni-public-card h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--uni-text);
+}
+
+.uni-public-card p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--uni-text-secondary);
+}
+
+/* Lista com check dentro de card */
+.uni-public-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uni-public-list li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--uni-text-secondary);
+}
+
+.uni-public-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--uni-accent-hover);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------
+   8. FAQ (fonte única — existia também em public-components.css)
+   ------------------------------------------------------------ */
+.uni-public-faq {
+  display: grid;
+  gap: 12px;
+  max-width: 820px;
+  margin-inline: auto;
+}
+
+.uni-public-faq-item {
+  background: var(--surface-card, #fff);
+  border: 1px solid var(--uni-border);
+  border-radius: var(--pub-radius);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.uni-public-faq-item:hover {
+  border-color: color-mix(in srgb, var(--uni-accent) 45%, var(--uni-border));
+}
+
+.uni-public-faq-item.open {
+  box-shadow: var(--pub-shadow-card);
+}
+
+.uni-public-faq-question {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--uni-text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.uni-public-faq-question:hover {
+  background: var(--uni-hover);
+}
+
+.uni-public-faq-question i {
+  flex-shrink: 0;
+  color: var(--uni-accent-hover);
+  font-size: 14px;
+  transition: transform 0.25s ease;
+}
+
+.uni-public-faq-item.open .uni-public-faq-question i {
+  transform: rotate(180deg);
+}
+
+.uni-public-faq-answer {
+  padding: 0 22px 20px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--uni-text-secondary);
+}
+
+.uni-public-faq-answer p {
+  margin: 0;
+}
+
+/* o componente mantém a resposta no DOM com `hidden` */
+.uni-public-faq-answer[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------
+   9. Banda de CTA (fonte única — o contact.css tinha a dele própria)
+   ------------------------------------------------------------ */
+.uni-public-band {
+  position: relative;
+  overflow: hidden;
+  width: min(100% - 2 * var(--pub-gutter), var(--pub-container));
+  margin-inline: auto;
+  padding: clamp(44px, 6vw, 68px) clamp(24px, 5vw, 56px);
+  text-align: center;
+  color: #fff;
+  border-radius: var(--pub-radius-lg);
+  background:
+    radial-gradient(600px 280px at 50% -20%, rgba(255, 255, 255, 0.22), transparent 65%),
+    linear-gradient(135deg, #2563eb 0%, #1d4ed8 55%, #1e3a8a 100%);
+  box-shadow: 0 40px 80px -48px rgba(29, 78, 216, 0.9);
+}
+
+.uni-public-band h2 {
+  margin: 0 0 14px;
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.uni-public-band-text {
+  margin: 0 auto;
+  max-width: 56ch;
+  font-size: 16px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.uni-public-band .uni-public-actions {
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.uni-public-band .uni-public-button {
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.55);
+}
+
+.uni-public-band .uni-public-button-ghost {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
+}
+
+.uni-public-band .uni-public-button-ghost:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #fff;
+}
+
+/* ------------------------------------------------------------
+   10. Header
+   ------------------------------------------------------------ */
+.uni-public-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(10px);
+  background: var(--surface-card, #fff);
+  border-bottom: 1px solid var(--uni-border);
+}
+
+/* Progressive enhancement: o blur só faz sentido com fundo translúcido.
+   Sem suporte a color-mix o header fica opaco (comportamento de antes). */
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .uni-public-header {
+    background: color-mix(in srgb, var(--surface-card, #fff) 84%, transparent);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+  }
 }
 
 .uni-public-bar {
@@ -30,7 +551,7 @@
 }
 
 .uni-public-brand {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
   font-size: 16px;
@@ -38,719 +559,249 @@
   letter-spacing: -0.01em;
   color: var(--uni-text);
   text-decoration: none;
-  margin-right: auto;
-  transition: opacity 0.2s ease;
 }
 
 .uni-public-brand:hover {
-  opacity: 0.8;
+  color: var(--uni-accent-hover);
 }
 
 .uni-public-logo {
-  width: 32px;
-  height: 32px;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Navegação pública com mais destaque */
+.uni-public-nav-desktop {
+  margin-inline-start: auto;
+}
+
 .uni-public-nav {
   display: flex;
   align-items: center;
   gap: 4px;
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 .uni-public-nav-link {
-  display: block;
+  display: inline-flex;
+  align-items: center;
   padding: 8px 14px;
-  border-radius: 8px;
+  border-radius: var(--pub-radius-sm);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--uni-text-secondary);
   text-decoration: none;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.uni-public-nav-link::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 2px;
-  background: var(--uni-accent);
-  transition: width 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .uni-public-nav-link:hover {
+  background: var(--uni-hover);
   color: var(--uni-text);
-  background: var(--uni-bg);
-}
-
-.uni-public-nav-link:hover::before {
-  width: 60%;
 }
 
 .uni-public-nav-link-active {
-  color: var(--uni-accent);
-  background: var(--uni-bg);
-  font-weight: 600;
-}
-
-.uni-public-nav-link-active::before {
-  width: 60%;
+  background: var(--uni-active-bg);
+  color: var(--uni-accent-hover);
 }
 
 .uni-public-bar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-inline-start: auto;
 }
 
-/* Conteúdo principal */
-.uni-public-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 72px;
-  padding: 72px 0 80px;
-}
-
-/* Hero genérico */
-.uni-public-hero {
-  max-width: 1080px;
-  margin: 0 auto;
-  text-align: center;
-  z-index: 1;
-  position: relative;
-}
-
-/* Animações de scroll/reveal */
-@keyframes revealUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.uni-reveal {
-  opacity: 0;
-  animation: revealUp 0.6s ease-out forwards;
-}
-
-.uni-reveal-delay-1 {
-  animation-delay: 0.1s;
-}
-
-.uni-reveal-delay-2 {
-  animation-delay: 0.2s;
-}
-
-.uni-reveal-delay-3 {
-  animation-delay: 0.3s;
-}
-
-.uni-reveal-delay-4 {
-  animation-delay: 0.4s;
-}
-
-/* Badge do hero */
-.uni-public-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  background: var(--uni-bg);
-  color: var(--uni-accent);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 16px;
-}
-
-.uni-public-hero-content {
-  display: flex;
-  align-items: center;
-  gap: clamp(24px, 5vw, 64px);
-  max-width: 1080px;
-  margin: 0 auto;
-}
-
-.uni-public-hero-text {
-  flex: 1;
-  text-align: left;
-}
-
-.uni-public-hero-visual {
-  flex-shrink: 0;
-}
-
-.uni-public-eyebrow {
-  margin: 0 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--uni-accent);
-}
-
-.uni-public-hero h1 {
-  margin: 0 0 14px;
-  font-size: 38px;
-  line-height: 1.15;
-  font-weight: 700;
-  color: var(--uni-text);
-}
-
-.uni-public-lead {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--uni-text-secondary);
-}
-
-/* Ações do hero (CTAs) — base compartilhada usada pela home e pelos
-   recursos; a animação da home fica no escopo dela (F50-T006). */
-.uni-public-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 32px;
-}
-
-/* Botões públicos */
-.uni-public-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 20px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: var(--uni-accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-}
-
-.uni-public-button:hover {
-  background: var(--uni-accent-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.uni-public-button:active {
-  transform: translateY(0);
-}
-
-.uni-public-button:focus-visible {
-  outline: 2px solid var(--uni-accent);
-  outline-offset: 2px;
-}
-
-.uni-public-button-small {
-  padding: 8px 16px;
-  font-size: 13px;
-}
-
-.uni-public-button-ghost {
-  background: transparent;
-  color: var(--uni-text);
-  border-color: #d1d5db;
-  box-shadow: none;
-}
-
-.uni-public-button-ghost:hover {
-  background: var(--surface-card, #fff);
-  border-color: #9ca3af;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.uni-public-button-ghost:focus-visible {
-  outline: 2px solid var(--uni-accent);
-  outline-offset: 2px;
-}
-
-/* Seções */
-.uni-public-section {
-  width: 100%;
-  padding: 24px 0;
-}
-
-.uni-public-section > h2 {
-  margin: 0 0 32px;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-align: center;
-  color: var(--uni-text);
-}
-
-/* Grid responsivo */
-.uni-public-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
-}
-
-/* Cards públicos */
-.uni-public-card {
-  background: var(--surface-card, #fff);
-  border: 1px solid var(--uni-border);
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: all 0.3s ease;
-}
-
-.uni-public-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
-  border-color: var(--uni-accent);
-}
-
-.uni-public-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--uni-bg);
-  color: var(--uni-accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(59, 130, 246, 0.1);
-}
-
-.uni-public-card-icon i {
-  font-size: 16px;
-}
-
-.uni-public-card h2,
-.uni-public-card h3 {
-  margin: 4px 0 0;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--uni-text);
-}
-
-.uni-public-card p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--uni-text-secondary);
-}
-
-/* Card link para CTAs dentro de cards */
-.uni-public-card-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--uni-accent);
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.uni-public-card-link:hover {
-  transform: translateX(4px);
-  color: var(--uni-accent-hover);
-}
-
-/* Band CTA compartilhada (home + recursos + contato) — F50-T006: vivia em
-   features.css/contact.css e os dois se disputavam a mesma regra no
-   cascade (o contact vencia); a home nem tinha declaração própria e
-   dependia do vazamento. Estrutura = versão features + stacking do
-   contact (z-index sobre o radial do ::before). Overrides por página
-   ficam nos seus arquivos, escopados. */
-.uni-public-band {
-  background: linear-gradient(135deg, var(--uni-accent) 0%, #1d4ed8 50%, #1e40af 100%);
-  padding: 80px 20px;
-  text-align: center;
-  color: #fff;
-  border-radius: 20px;
-  max-width: 1080px;
-  margin: 0 auto;
-  position: relative;
-  overflow: hidden;
-}
-
-.uni-public-band::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 60%;
-  height: 200%;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.uni-public-band::after {
-  content: '';
-  position: absolute;
-  bottom: -30%;
-  left: -10%;
-  width: 50%;
-  height: 150%;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.uni-public-band-content {
-  max-width: 700px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 28px;
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-band-text {
-  flex: 1;
-}
-
-.uni-public-band h2 {
-  margin: 0 0 12px;
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #fff;
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-band p {
-  margin: 0;
-  font-size: 17px;
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.6;
-}
-
-.uni-public-band .uni-public-button {
-  background: #fff;
-  color: var(--uni-accent);
-  border-color: #fff;
-  font-size: 15px;
-  padding: 14px 24px;
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-band .uni-public-button:hover {
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-}
-
-.uni-public-band .uni-public-button-ghost {
-  background: transparent;
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-.uni-public-band .uni-public-button-ghost:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #fff;
-  transform: translateY(-3px);
-}
-
-/* FAQ compartilhado (home + contato) — F50-T006: vivia só em contact.css e
-   a home dependia do vazamento para renderizar os accordions. */
-.uni-public-faq-item {
-  background: var(--surface-card, #fff);
-  border: 1px solid var(--uni-border);
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.uni-public-faq-item:hover {
-  border-color: var(--uni-accent);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
-}
-
-.uni-public-faq-question {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--uni-text);
-  text-align: left;
-  transition: background 0.2s ease;
-}
-
-.uni-public-faq-question:hover {
-  background: var(--uni-hover);
-}
-
-.uni-public-faq-question i {
-  color: var(--uni-text-muted);
-  font-size: 14px;
-  transition: transform 0.3s ease;
-}
-
-.uni-public-faq-item.open .uni-public-faq-question i {
-  transform: rotate(180deg);
-  color: var(--uni-accent);
-}
-
-.uni-public-faq-answer {
-  padding: 0 24px 24px;
-  font-size: 14px;
-  color: var(--uni-text-secondary);
-  line-height: 1.7;
-}
-
-/* Footer público */
+/* ------------------------------------------------------------
+   11. Rodapé
+   ------------------------------------------------------------ */
 .uni-public-footer {
+  margin-top: auto;
   background: var(--surface-card, #fff);
   border-top: 1px solid var(--uni-border);
-  margin-top: auto;
+  padding-top: 56px;
 }
 
-/* Grid do footer com 4 colunas */
 .uni-public-footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 32px;
-  padding-top: 32px;
-  padding-bottom: 32px;
+  grid-template-columns: 1.5fr repeat(3, 1fr);
+  gap: 40px 32px;
+  padding-bottom: 40px;
 }
 
-/* Brand do footer */
 .uni-public-footer-brand {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  max-width: 320px;
 }
 
 .uni-public-footer-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.uni-public-footer-brand-text {
-  font-size: 15px;
-  font-weight: 700;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--uni-text);
 }
 
 .uni-public-footer-description {
-  font-size: 13px;
-  line-height: 1.5;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--uni-text-secondary);
-  max-width: 280px;
 }
 
-/* Seções do footer */
+.uni-public-social {
+  display: flex;
+  gap: 8px;
+}
+
+.uni-public-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--uni-border);
+  border-radius: var(--pub-radius-sm);
+  background: transparent;
+  color: var(--uni-text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.uni-public-social-link:hover {
+  background: var(--uni-hover);
+  border-color: var(--uni-accent);
+  color: var(--uni-accent-hover);
+  transform: translateY(-2px);
+}
+
 .uni-public-footer-section h6 {
-  margin: 0 0 12px;
-  font-size: 13px;
-  font-weight: 600;
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--uni-text);
 }
 
 .uni-public-footer-links {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .uni-public-footer-links a {
-  font-size: 13px;
+  display: inline-flex;
+  font-size: 14px;
   color: var(--uni-text-secondary);
   text-decoration: none;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .uni-public-footer-links a:hover {
-  color: var(--uni-accent);
+  color: var(--uni-accent-hover);
+  transform: translateX(3px);
 }
 
-.uni-public-footer-meta {
-  font-size: 12px;
+.uni-public-footer-links a[aria-current="page"] {
+  color: var(--uni-accent-hover);
+  font-weight: 600;
+}
+
+/* Nota honesta do rodapé quando a instância não publica e-mail de
+   suporte (mesma semântica da página de contato). */
+.uni-public-footer-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--uni-text-muted);
 }
 
-/* Rodapé inferior */
 .uni-public-footer-bottom {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding-top: 16px;
-  padding-bottom: 16px;
+  gap: 12px 24px;
+  padding-top: 20px;
+  padding-bottom: 28px;
   border-top: 1px solid var(--uni-border);
-  font-size: 12px;
+}
+
+.uni-public-footer-bottom small {
+  font-size: 13px;
   color: var(--uni-text-muted);
 }
 
-/* Responsividade melhorada */
-@media (max-width: 720px) {
+.uni-public-footer-bottom-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.uni-public-footer-bottom-links a {
+  font-size: 13px;
+  color: var(--uni-text-muted);
+  text-decoration: none;
+}
+
+.uni-public-footer-bottom-links a:hover {
+  color: var(--uni-accent-hover);
+}
+
+/* ------------------------------------------------------------
+   12. Responsivo
+   ------------------------------------------------------------ */
+@media (max-width: 960px) {
+  :root {
+    --pub-section-y: 64px;
+    --pub-section-y-tight: 44px;
+  }
+
+  .uni-public-hero--split .uni-public-hero-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .uni-public-footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .uni-public-nav-desktop {
+    display: none;
+  }
+
   .uni-public-bar {
-    flex-wrap: wrap;
-    padding-top: 12px;
-    padding-bottom: 12px;
     min-height: 56px;
   }
 
-  .uni-public-brand {
-    margin-right: 0;
-    font-size: 15px;
+  .uni-public-section-head {
+    margin-bottom: 32px;
   }
+}
 
-  .uni-public-logo {
-    width: 28px;
-    height: 28px;
-  }
-
-  .uni-public-bar nav {
-    order: 3;
-    width: 100%;
-  }
-
-  .uni-public-bar-actions {
-    margin-left: auto;
-  }
-
-  .uni-public-hero-content {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .uni-public-hero-text {
-    text-align: center;
-  }
-
-  .uni-public-hero h1 {
-    font-size: 28px;
-  }
-
-  .uni-public-lead {
-    font-size: 15px;
-  }
-
-  .uni-public-actions {
-    justify-content: center;
-  }
-
-  .uni-public-main {
-    gap: 48px;
-    padding: 48px 0 56px;
-  }
-
-  .uni-public-section {
-    padding: 16px 0;
-  }
-
-  .uni-public-section > h2 {
-    font-size: 24px;
-  }
-
-  .uni-public-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+@media (max-width: 560px) {
+  :root {
+    --pub-section-y: 48px;
+    --pub-section-y-tight: 36px;
+    --pub-gutter: 18px;
   }
 
   .uni-public-footer-grid {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 28px;
   }
 
   .uni-public-footer-bottom {
     flex-direction: column;
-    text-align: center;
-    gap: 8px;
-  }
-
-  .uni-public-band-content {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .uni-public-band-text {
-    text-align: center;
-  }
-
-  .uni-public-band h2 {
-    font-size: 26px;
-  }
-
-  .uni-public-band p {
-    font-size: 15px;
-  }
-
-  .uni-public-faq-question {
-    padding: 18px 20px;
-  }
-
-  .uni-public-faq-answer {
-    padding: 0 20px 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .uni-public-hero h1 {
-    font-size: 24px;
-  }
-
-  .uni-public-lead {
-    font-size: 14px;
-  }
-
-  .uni-public-section > h2 {
-    font-size: 20px;
-  }
-
-  .uni-public-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .uni-public-card {
-    padding: 20px;
-  }
-
-  .uni-public-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .uni-public-steps {
-    grid-template-columns: 1fr;
-  }
-
-  .uni-public-integrations {
-    grid-template-columns: 1fr;
+    align-items: flex-start;
   }
 }

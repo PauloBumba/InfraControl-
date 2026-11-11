@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import contactCss from "./contact.css?raw";
 import featuresCss from "./features.css?raw";
 import homeCss from "./home.css?raw";
+import publicBaseCss from "./public-base.css?raw";
+import publicComponentsCss from "./public-components.css?raw";
+import publicDarkCss from "./public-dark.css?raw";
 
 /**
  * F50-T006 (F6) — contrato de escopo das folhas das páginas públicas.
@@ -80,5 +83,48 @@ describe.each(PAGES)("escopo de $file (F50-T006)", ({ css, scope }) => {
       (selector) => selector !== scope && !selector.startsWith(`${scope} `),
     );
     expect(unscoped, "regras fora do escopo da página (vazamento global)").toEqual([]);
+  });
+});
+
+/**
+ * F50-T009 — contrato das 3 folhas GLOBAIS das páginas públicas.
+ *
+ * O bug que se repetiu 2 vezes (`.uni-public-band` no F50-T006 e o FAQ
+ * hoje): `public-base.css` e `public-components.css` declaram os MESMOS
+ * seletores com valores diferentes — o import que vem depois vence,
+ * invisível, e a folha "perdedora" vira mentira documentada. Concreto do
+ * FAQ: 2 definições de `.uni-public-faq-item`/`-question`/`-answer` com
+ * padding, raio e hover distintos, decididos pela ordem de import.
+ *
+ * `public-dark.css` entra na comparação: ele só escapava do conflito até
+ * aqui por já ser todo prefixado com `[data-theme="dark"]`.
+ *
+ * Media query não salva: `.x` no topo de um arquivo e `.x` dentro de
+ * `@media` em outro é o mesmo conflito — o parser desce em `@media` e
+ * compara o seletor puro.
+ */
+const GLOBAL_SHEETS = [
+  { file: "public-base.css", css: publicBaseCss },
+  { file: "public-components.css", css: publicComponentsCss },
+  { file: "public-dark.css", css: publicDarkCss },
+] as const;
+
+describe("folhas globais das páginas públicas (F50-T009)", () => {
+  it("nenhum seletor declarado em mais de uma folha", () => {
+    const owner = new Map<string, string>();
+    const duplicated: string[] = [];
+
+    for (const { file, css } of GLOBAL_SHEETS) {
+      for (const selector of ruleSelectors(css)) {
+        const previous = owner.get(selector);
+        if (previous === undefined) {
+          owner.set(selector, file);
+        } else if (previous !== file) {
+          duplicated.push(`${selector} — ${previous} × ${file}`);
+        }
+      }
+    }
+
+    expect(duplicated, "seletor redefinido entre folhas globais (guerra de cascade)").toEqual([]);
   });
 });

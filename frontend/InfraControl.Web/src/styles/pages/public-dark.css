@@ -1,151 +1,23 @@
 /* ============================================================
-   PUBLIC DARK THEME — suporte completo ao tema escuro nas páginas
-   públicas (landing, login, contato, recursos)
+   PUBLIC DARK THEME — tema escuro nas páginas públicas
    Carregado condicionalmente quando data-theme="dark"
+   (última folha pública importada em styles.css)
+
+   F50-T009: a área pública foi reescrita sobre os tokens do tema
+   (--surface-card, --uni-border, --uni-text, --uni-bg…), então quase
+   tudo escurece sozinho — aqui só ficam (1) o ajuste do token do hero
+   e (2) as páginas de autenticação, que têm estilo próprio.
    ============================================================ */
 
-/* Hero com gradientes mais impactantes no dark mode */
-[data-theme="dark"] .uni-public-hero::before {
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+/* Hero é navy nos DOIS temas (decisão de design); só o halo fica mais
+   vivo no escuro, onde o fundo ao redor também é escuro. */
+[data-theme="dark"] {
+  --pub-hero-glow: rgba(96, 165, 250, 0.5);
 }
 
-[data-theme="dark"] .uni-public-hero::after {
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
-}
-
-[data-theme="dark"] .uni-public-header {
-  background: var(--surface-card);
-  border-bottom-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-nav-link {
-  color: var(--uni-text-secondary);
-}
-
-[data-theme="dark"] .uni-public-nav-link:hover {
-  background: var(--uni-hover);
-  color: var(--uni-text);
-}
-
-[data-theme="dark"] .uni-public-nav-link-active {
-  color: var(--uni-accent);
-  background: var(--uni-hover);
-}
-
-[data-theme="dark"] .uni-public-button-ghost {
-  color: var(--uni-text);
-  border-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-button-ghost:hover {
-  background: var(--uni-hover);
-  border-color: var(--uni-text-muted);
-}
-
-/* Cards com gradientes no dark mode */
-[data-theme="dark"] .uni-public-card {
-  background: linear-gradient(135deg, var(--surface-card) 0%, rgba(59, 130, 246, 0.03) 100%);
-  border-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-card:hover {
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
-  border-color: var(--uni-accent);
-}
-
-[data-theme="dark"] .uni-public-card-icon {
-  background: linear-gradient(135deg, var(--uni-bg) 0%, rgba(59, 130, 246, 0.08) 100%);
-  border-color: rgba(59, 130, 246, 0.2);
-}
-
-/* Stats com gradientes no dark mode */
-[data-theme="dark"] .uni-public-stat {
-  background: linear-gradient(135deg, var(--surface-card) 0%, rgba(59, 130, 246, 0.04) 100%);
-}
-
-[data-theme="dark"] .uni-public-stat:hover {
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
-  border-color: var(--uni-accent);
-}
-
-/* Band CTA com gradiente mais forte no dark mode */
-[data-theme="dark"] .uni-public-band {
-  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
-  border-color: var(--uni-border);
-}
-
-/* FAQ no dark mode */
-[data-theme="dark"] .uni-public-faq-item {
-  background: var(--surface-card);
-  border-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-faq-item:hover {
-  border-color: var(--uni-accent);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.12);
-}
-
-[data-theme="dark"] .uni-public-faq-question:hover {
-  background: var(--uni-hover);
-}
-
-/* Stats hover no dark mode */
-[data-theme="dark"] .uni-public-stat {
-  border-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-footer {
-  background: var(--surface-card);
-  border-top-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-terminal {
-  background: #0d1117;
-}
-
-[data-theme="dark"] .uni-public-terminal-bar {
-  background: #161b22;
-  border-bottom-color: #30363d;
-}
-
-[data-theme="dark"] .uni-public-terminal pre {
-  background: #0d1117;
-}
-
-[data-theme="dark"] .uni-public-mockup {
-  background: var(--surface-card);
-  border-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-mockup-header {
-  background: var(--uni-bg);
-  border-bottom-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-mockup-body {
-  background: var(--uni-bg);
-}
-
-[data-theme="dark"] .uni-public-mockup-card {
-  background: var(--surface-card);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="dark"] .uni-public-arch-layer {
-  background: var(--surface-card);
-  border-color: var(--uni-border);
-}
-
-[data-theme="dark"] .uni-public-arch-layer.primary {
-  background: var(--uni-bg);
-  border-color: var(--uni-accent);
-}
-
-[data-theme="dark"] .uni-public-timeline-dot {
-  border-color: var(--surface-card);
-}
-
-/* Login page dark theme */
+/* ============================================================
+   Login / recuperação / convite
+   ============================================================ */
 [data-theme="dark"] .uni-login {
   background: var(--uni-bg);
 }

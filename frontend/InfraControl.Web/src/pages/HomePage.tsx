@@ -1,5 +1,9 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CtaBand } from "@/components/marketing/CtaBand";
+import { DashboardMockup } from "@/components/marketing/DashboardMockup";
+import { FaqList } from "@/components/marketing/FaqAccordion";
+import { PublicHero } from "@/components/marketing/PublicHero";
+import { SectionHead } from "@/components/marketing/SectionHead";
 
 const PILLARS = [
   {
@@ -63,6 +67,12 @@ const INTEGRATIONS = [
   { icon: "pi pi-bell", name: "SignalR" },
 ] as const;
 
+const ON_PREM_POINTS = [
+  "Nada sai do seu datacenter: base, alertas, auditoria e arquivos ficam na sua rede.",
+  "Docker Compose sobe API, workers, web, PostgreSQL, Redis e RabbitMQ em minutos.",
+  "Código aberto: audite o que roda, versione a configuração e atualize no seu ritmo.",
+] as const;
+
 const FAQ = [
   {
     question: "O InfraControl é realmente on-premises?",
@@ -82,145 +92,50 @@ const FAQ = [
   },
 ] as const;
 
-function FaqItem({ question, answer }: { question: string; answer: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`uni-public-faq-item ${open ? "open" : ""}`}>
-      <button className="uni-public-faq-question" onClick={() => setOpen(!open)} aria-expanded={open}>
-        <span>{question}</span>
-        <i className="pi pi-angle-down" />
-      </button>
-      {open && <div className="uni-public-faq-answer">{answer}</div>}
-    </div>
-  );
-}
-
 export function HomePage() {
   return (
     <div className="uni-public-page--home">
-      <section className="uni-public-hero">
-        <div className="uni-public-hero-content">
-          <div className="uni-public-hero-text">
-            <p className="uni-public-eyebrow">Plataforma on-premises de operação de TI</p>
-            <h1>Centralize sua infraestrutura. Tome decisões antecipadas.</h1>
-            <p className="uni-public-lead">
-              Monitore dispositivos, antecipe falhas, gerencie incidentes e mantenha o conhecimento da sua equipe — tudo em uma plataforma self-hosted, sem depender de nuvens externas.
-            </p>
-            <div className="uni-public-actions">
-              <Link to="/login" className="uni-public-button">
-                <i className="pi pi-sign-in" />
-                <span>Entrar</span>
-              </Link>
-              <Link to="/recursos" className="uni-public-button uni-public-button-ghost">
-                <i className="pi pi-info-circle" />
-                <span>Ver recursos</span>
-              </Link>
-            </div>
+      <PublicHero
+        eyebrow="Plataforma on-premises de operação de TI"
+        title="Centralize sua infraestrutura. Tome decisões antecipadas."
+        lead="Monitore dispositivos, antecipe falhas, gerencie incidentes e mantenha o conhecimento da sua equipe — tudo em uma plataforma self-hosted, sem depender de nuvens externas."
+        actions={
+          <>
+            <Link to="/login" className="uni-public-button">
+              <i className="pi pi-sign-in" aria-hidden="true" />
+              <span>Entrar</span>
+            </Link>
+            <Link to="/recursos" className="uni-public-button uni-public-button-ghost">
+              <i className="pi pi-info-circle" aria-hidden="true" />
+              <span>Ver recursos</span>
+            </Link>
+          </>
+        }
+        visual={<DashboardMockup />}
+        foot={
+          <div className="uni-public-stats">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="uni-public-stat">
+                <div className="uni-public-stat-value">{stat.value}</div>
+                <div className="uni-public-stat-label">{stat.label}</div>
+              </div>
+            ))}
           </div>
-          <div className="uni-public-hero-visual">
-            <svg viewBox="0 0 280 280" className="uni-public-hero-icon" role="img" aria-label="Ilustração de infraestrutura com server rack, rede e dashboard">
-              <defs>
-                <linearGradient id="heroBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor:'#60a5fa',stopOpacity:0.15}} />
-                  <stop offset="100%" style={{stopColor:'#3b82f6',stopOpacity:0.05}} />
-                </linearGradient>
-                <linearGradient id="heroPrimaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor:'#3b82f6',stopOpacity:1}} />
-                  <stop offset="50%" style={{stopColor:'#2563eb',stopOpacity:1}} />
-                  <stop offset="100%" style={{stopColor:'#1d4ed8',stopOpacity:1}} />
-                </linearGradient>
-                <linearGradient id="heroGreenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor:'#4ade80',stopOpacity:1}} />
-                  <stop offset="100%" style={{stopColor:'#22c55e',stopOpacity:1}} />
-                </linearGradient>
-                <linearGradient id="heroAmberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor:'#fbbf24',stopOpacity:1}} />
-                  <stop offset="100%" style={{stopColor:'#eab308',stopOpacity:1}} />
-                </linearGradient>
-              </defs>
+        }
+      />
 
-              {/* Background glow */}
-              <circle cx="140" cy="140" r="120" fill="url(#heroBgGrad)" />
-
-              {/* Server rack principal */}
-              <g>
-                <rect x="85" y="50" width="110" height="140" rx="12" fill="none" stroke="url(#heroPrimaryGrad)" strokeWidth="3" />
-                <line x1="85" y1="80" x2="195" y2="80" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
-                <line x1="85" y1="110" x2="195" y2="110" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
-                <line x1="85" y1="140" x2="195" y2="140" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
-                <line x1="85" y1="170" x2="195" y2="170" stroke="url(#heroPrimaryGrad)" strokeWidth="1.5" opacity="0.3" />
-
-                <rect x="95" y="60" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.9" />
-                <rect x="95" y="90" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.8" />
-                <rect x="95" y="120" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.7" />
-                <rect x="95" y="150" width="80" height="14" rx="4" fill="url(#heroPrimaryGrad)" opacity="0.6" />
-
-                <circle cx="165" cy="67" r="2.5" fill="url(#heroGreenGrad)" />
-                <circle cx="165" cy="97" r="2.5" fill="url(#heroGreenGrad)" />
-                <circle cx="165" cy="127" r="2.5" fill="url(#heroAmberGrad)" />
-                <circle cx="165" cy="157" r="2.5" fill="url(#heroGreenGrad)" />
-              </g>
-
-              {/* Network connections */}
-              <g stroke="url(#heroPrimaryGrad)" strokeWidth="2" fill="none" opacity="0.5">
-                <path d="M 50 90 Q 70 90, 85 90" />
-                <circle cx="50" cy="90" r="4" fill="url(#heroPrimaryGrad)" />
-
-                <path d="M 50 150 Q 70 150, 85 150" />
-                <circle cx="50" cy="150" r="4" fill="url(#heroPrimaryGrad)" />
-
-                <path d="M 195 120 Q 220 120, 230 120" />
-                <circle cx="230" cy="120" r="4" fill="url(#heroPrimaryGrad)" />
-              </g>
-
-              {/* Small dashboard card */}
-              <g transform="translate(180, 180)">
-                <rect x="0" y="0" width="80" height="60" rx="8" fill="none" stroke="url(#heroPrimaryGrad)" strokeWidth="2" opacity="0.6" />
-                <rect x="8" y="8" width="20" height="4" rx="2" fill="url(#heroPrimaryGrad)" opacity="0.5" />
-                <rect x="8" y="18" width="40" height="3" rx="1.5" fill="url(#heroPrimaryGrad)" opacity="0.3" />
-                <rect x="8" y="26" width="30" height="3" rx="1.5" fill="url(#heroPrimaryGrad)" opacity="0.3" />
-                <circle cx="65" cy="45" r="12" fill="none" stroke="url(#heroGreenGrad)" strokeWidth="2" opacity="0.6" />
-                <path d="M 65 38 L 65 45 L 70 48" stroke="url(#heroGreenGrad)" strokeWidth="2" fill="none" opacity="0.6" />
-              </g>
-
-              {/* Decorative dots */}
-              <g fill="url(#heroPrimaryGrad)" opacity="0.3">
-                <circle cx="105" cy="67" r="1.5" />
-                <circle cx="115" cy="67" r="1.5" />
-                <circle cx="125" cy="67" r="1.5" />
-                <circle cx="105" cy="97" r="1.5" />
-                <circle cx="115" cy="97" r="1.5" />
-                <circle cx="125" cy="97" r="1.5" />
-                <circle cx="105" cy="127" r="1.5" />
-                <circle cx="115" cy="127" r="1.5" />
-                <circle cx="125" cy="127" r="1.5" />
-                <circle cx="105" cy="157" r="1.5" />
-                <circle cx="115" cy="157" r="1.5" />
-                <circle cx="125" cy="157" r="1.5" />
-              </g>
-            </svg>
-          </div>
-        </div>
-      </section>
-
-      <section className="uni-public-section" aria-label="Estatísticas">
-        <div className="uni-public-stats">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="uni-public-stat">
-              <div className="uni-public-stat-value">{stat.value}</div>
-              <div className="uni-public-stat-label">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section aria-labelledby="pilares" className="uni-public-section">
-        <h2 id="pilares">Do dado bruto à ação inteligente</h2>
+      <section className="uni-public-section" aria-labelledby="pilares">
+        <SectionHead
+          id="pilares"
+          eyebrow="Quatro frentes"
+          title="Do dado bruto à ação inteligente"
+          lead="Cada pilar aponta para uma capacidade que existe no produto — nada de promessa genérica."
+        />
         <div className="uni-public-grid">
           {PILLARS.map((pillar) => (
             <article key={pillar.title} className="uni-public-card">
               <span className="uni-public-card-icon">
-                <i className={pillar.icon} />
+                <i className={pillar.icon} aria-hidden="true" />
               </span>
               <h3>{pillar.title}</h3>
               <p>{pillar.body}</p>
@@ -229,8 +144,42 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="como-funciona" className="uni-public-section">
-        <h2 id="como-funciona">Como funciona</h2>
+      <section className="uni-public-section uni-public-section--alt" aria-labelledby="on-prem">
+        <div className="uni-public-split">
+          <div>
+            <SectionHead
+              align="left"
+              id="on-prem"
+              eyebrow="On-premises de verdade"
+              title="A sua infraestrutura não sai do seu datacenter"
+              lead="Instale uma vez, na sua rede, com as ferramentas que a sua equipe já opera."
+            />
+            <ul className="uni-public-list">
+              {ON_PREM_POINTS.map((point) => (
+                <li key={point}>{point}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="uni-public-terminal">
+            <div className="uni-public-terminal-bar">bash — infracontrol</div>
+            <pre>
+              <span className="cmd">$ git clone https://github.com/PauloBumba/InfraControl-.git</span>
+              {"\n"}
+              <span className="cmd">$ cd InfraControl- &amp;&amp; docker compose up -d</span>
+              {"\n"}
+              <span className="ok">✓ api · workers · web · postgres · redis · rabbitmq</span>
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      <section className="uni-public-section" aria-labelledby="como-funciona">
+        <SectionHead
+          id="como-funciona"
+          eyebrow="Como funciona"
+          title="Do primeiro ping ao relatório executivo"
+          lead="Quatro passos entre subir a plataforma e operar com histórico e SLA."
+        />
         <div className="uni-public-steps">
           {STEPS.map((step) => (
             <div key={step.number} className="uni-public-step">
@@ -242,43 +191,49 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="integracoes" className="uni-public-section">
-        <h2 id="integracoes">Integrações</h2>
+      <section className="uni-public-section uni-public-section--alt" aria-labelledby="integracoes">
+        <SectionHead
+          id="integracoes"
+          eyebrow="Integrações"
+          title="Conecta com o que você já usa"
+          lead="Fontes de dado, canais de alerta e ferramentas de acesso que a plataforma consome de verdade."
+        />
         <div className="uni-public-integrations">
           {INTEGRATIONS.map((integration) => (
             <div key={integration.name} className="uni-public-integration">
-              <div className="uni-public-integration-icon">
-                <i className={integration.icon} />
-              </div>
+              <span className="uni-public-integration-icon">
+                <i className={integration.icon} aria-hidden="true" />
+              </span>
               <span className="uni-public-integration-name">{integration.name}</span>
             </div>
           ))}
         </div>
       </section>
 
-      <section aria-labelledby="faq" className="uni-public-section">
-        <h2 id="faq">Perguntas frequentes</h2>
-        <div className="uni-public-faq">
-          {FAQ.map((item) => (
-            <FaqItem key={item.question} question={item.question} answer={item.answer} />
-          ))}
-        </div>
+      <section className="uni-public-section" aria-labelledby="faq">
+        <SectionHead
+          id="faq"
+          eyebrow="Perguntas frequentes"
+          title="O que perguntam antes de implantar"
+        />
+        <FaqList items={FAQ} />
       </section>
 
-      <section aria-labelledby="ja-tem-instancia" className="uni-public-band">
-        <div className="uni-public-band-content">
-          <div className="uni-public-band-text">
-            <h2 id="ja-tem-instancia">Pronto para operar?</h2>
-            <p>
-              Acesse sua instância e comece a transformar dados em decisões.
-            </p>
-          </div>
-          <Link to="/login" className="uni-public-button">
-            <i className="pi pi-arrow-right" />
-            <span>Acessar plataforma</span>
-          </Link>
-        </div>
-      </section>
+      <CtaBand
+        title="Pronto para operar?"
+        text="Acesse sua instância e comece a transformar dados em decisões."
+        actions={
+          <>
+            <Link to="/login" className="uni-public-button">
+              <i className="pi pi-arrow-right" aria-hidden="true" />
+              <span>Acessar plataforma</span>
+            </Link>
+            <Link to="/recursos" className="uni-public-button uni-public-button-ghost">
+              <span>Ver recursos</span>
+            </Link>
+          </>
+        }
+      />
     </div>
   );
 }

@@ -59,12 +59,18 @@ A identidade visual do InfraControl foi projetada para transmitir profissionalis
 
 | Elemento | Tamanho | Weight | Line-height |
 |----------|---------|--------|-------------|
-| H1 (hero) | clamp(28px, 5vw, 38px) | 700 | 1.15 |
-| H2 (seção) | 22px | 700 | 1.3 |
-| H3 (card) | 15px | 600 | 1.4 |
+| H1 (hero público) | clamp(34px, 4.4vw, 56px) | 800 | 1.06 |
+| H2 (seção pública) | clamp(26px, 3vw, 36px) | 800 | 1.15 |
+| H3 (card público) | 18px | 700 | 1.3 |
+| Lead (hero) | clamp(16px, 1.5vw, 19px) | 400 | 1.65 |
+| Lead (seção) | clamp(15px, 1.4vw, 17px) | 400 | 1.7 |
+| Eyebrow | 12px, tracking 0.1em, caixa alta | 700 | 1.4 |
 | Corpo | 13-16px | 400 | 1.6 |
 | Label | 12px | 500 | 1.4 |
 | Caption | 11-12px | 400 | 1.4 |
+
+> Valores acima valem para as **páginas públicas** (F50-T009). O shell do app
+> mantém escala própria (títulos 20-38px, corpo 13-16px) — ver `styles.css`.
 
 ## Logo
 
@@ -110,15 +116,16 @@ O logo do InfraControl representa infraestrutura de TI através de um server rac
 | Tipo | Background | Texto | Border | Hover |
 |------|------------|-------|--------|-------|
 | Primário | `#3b82f6` | Branco | Transparent | `#2563eb` |
-| Secundário | Transparent | `#3b82f6` | `#d1d5db` | `#f3f4f6` |
+| Secundário (ghost) | Transparent | `--uni-ghost-text` (claro `#374151` / escuro `#cbd5e1`) | `--uni-border` | `--uni-hover` |
+| Ghost sobre o hero | Transparent | `#f7f9fc` | `rgba(255,255,255,.34)` | `rgba(255,255,255,.1)` |
 | CTA (gradiente) | Gradiente azul | Branco | Transparent | Elevação + sombra |
 
 ### Cards
 
 - **Background**: Surface card
 - **Border**: 1px solid border color
-- **Border-radius**: 12px
-- **Padding**: 20px
+- **Border-radius**: 12px (`--pub-radius`)
+- **Padding**: 26px nas páginas públicas (o shell do app usa 20px)
 - **Hover**: translateY(-4px) + shadow azul
 
 ### Ícones
@@ -234,6 +241,56 @@ Usado para entrada de elementos do hero e cards:
 - Texto claro (#f3f4f6, #d1d5db)
 - Bordas mais sutis
 - Gradientes ajustados para dark mode
+
+## Páginas públicas (F50-T009)
+
+As páginas de vendas (Home, Recursos, Contato) e o `PublicLayout` vivem sobre
+tokens próprios em `src/styles/pages/public-base.css` — **fonte única** do que
+é compartilhado. Cada página só declara sob `.uni-public-page--{página}`
+(`home.css`, `features.css`, `contact.css`); `public-components.css` cuida de
+toggle/menu/mockup/terminal; `public-dark.css` só reajusta o token do hero e o
+bloco de auth. Nenhum seletor pode se repetir entre as 3 folhas globais —
+trancado em `publicPagesScope.test.ts`.
+
+### Tokens `--pub-*`
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `--pub-section-y` | 88px (64 ≤960px / 48 ≤560px) | ritmo vertical — escala única (antes: 72/40/48/24 misturados) |
+| `--pub-section-y-tight` | 56px | seções de refúrgio (banda CTA, seção on-premises) |
+| `--pub-container` | 1120px | largura máxima de conteúdo |
+| `--pub-gutter` | 24px (18px ≤560px) | margem lateral |
+| `--pub-radius-sm` / `--pub-radius` / `--pub-radius-lg` | 10 / 12 / 18px | chips, botões pequenos / cards e FAQ / banda CTA |
+| `--pub-shadow-card` / `--pub-shadow-lift` | 2 níveis | repouso / hover elevado |
+
+### Ritmo das seções
+
+- `.uni-public-section` **é** o container: `padding: var(--pub-section-y) max(var(--pub-gutter), calc((100% - var(--pub-container)) / 2))`
+  — o fundo vai de ponta a ponta e o conteúdo fica centrado com teto de 1120px.
+- **Bug raiz corrigido**: antes não havia max-width nem padding, e os grids de
+  card colavam nas bordas em telas largas.
+- Alternância branca / `--uni-surface-alt` entre seções (`--alt` no bloco).
+
+### Hero (decisão de design)
+
+- Bloco **escuro full-bleed** (`--pub-hero-bg`, navy) com o mesmo fundo nos dois
+  temas; `data-theme="dark"` só ajusta `--pub-hero-glow`.
+- Grade técnica de 64px mascarada em elipse (`mask-image`) + halo radial.
+- Duas variantes do `PublicHero`: `--split` (texto + `DashboardMockup`, Home) e
+  `--center` (Recursos/Contato). Eyebrow vira pill `#cfe0ff` sobre chip translúcido.
+- Métricas da Home no `--hero-foot`, com divisórias `--pub-hero-line`.
+
+### Componentes compartilhados
+
+`PublicHero`, `SectionHead`, `CtaBand`, `FaqAccordion` e `DashboardMockup` em
+`src/components/marketing/` — nenhuma página reimplementa esses blocos (antes:
+`FaqItem` duplicado em Home e Contact; a banda CTA tinha markup e gradiente
+divergentes em cada página, com o `contact.css` vencendo).
+
+### Ícones
+
+- Apenas glifos existentes no `primeicons.css` — trancado em `publicIcons.test.ts`
+  (bug original: `pi-life-ring` inexistente = quadrado vazio no card de suporte).
 
 ## Arquivos
 

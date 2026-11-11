@@ -1,213 +1,214 @@
 /* ============================================================
-   HOME — hero, pillars, visual e CTA
-   Carregado por HomePage.tsx
+   HOME — hero com mockup, métricas no hero, pilares, faixa
+   on-premises, passos, integrações e FAQ (F50-T009 — reforma).
+   Carregado por HomePage.tsx.
+
+   Toda regra sob .uni-public-page--home (contrato F50-T006,
+   trancado em publicPagesScope.test.ts).
    ============================================================ */
 
-/* Hero com background gradient e mais impacto */
-.uni-public-page--home .uni-public-hero {
-  position: relative;
-  padding: 80px 20px 60px;
-  overflow: hidden;
-}
-
-.uni-public-page--home .uni-public-hero::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 70%;
-  height: 150%;
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.uni-public-page--home .uni-public-hero::after {
-  content: '';
-  position: absolute;
-  bottom: -30%;
-  left: -10%;
-  width: 60%;
-  height: 120%;
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-/* Hero home — eyebrow, título, lead, ações, visual */
-.uni-public-page--home .uni-public-hero h1 {
-  font-size: clamp(32px, 5vw, 48px);
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  animation: fadeInUp 0.6s ease-out;
-  margin-bottom: 20px;
-}
-
-.uni-public-page--home .uni-public-lead {
-  font-size: clamp(15px, 2vw, 18px);
-  line-height: 1.7;
-  animation: fadeInUp 0.6s ease-out 0.1s backwards;
-  max-width: 580px;
-  margin-bottom: 32px;
-}
-
-.uni-public-page--home .uni-public-eyebrow {
-  animation: fadeInUp 0.6s ease-out backwards;
-  margin-bottom: 16px;
-}
-
+/* ------------------------------------------------------------
+   Hero — mockup levemente inclinado (3D sutil, sem flutuação)
+   ------------------------------------------------------------ */
 .uni-public-page--home .uni-public-hero-visual {
-  flex-shrink: 0;
-  animation: fadeInRight 0.8s ease-out 0.2s backwards;
-  position: relative;
+  transform: perspective(1400px) rotateY(-6deg) rotateX(2deg);
+  transform-origin: left center;
 }
 
-.uni-public-page--home .uni-public-hero-icon {
-  width: clamp(240px, 30vw, 320px);
-  height: clamp(240px, 30vw, 320px);
-  filter: drop-shadow(0 12px 32px rgba(59, 130, 246, 0.2));
-  animation: float 6s ease-in-out infinite;
-}
-
-/* Ações do hero */
-/* Base (flex/gap/margin-top) vive no public-base.css — F50-T006; aqui só
-   a animação da home. */
-.uni-public-page--home .uni-public-actions {
-  animation: fadeInUp 0.6s ease-out 0.3s backwards;
-}
-
-/* Animação de flutuação para o SVG do hero */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-/* Animações */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Estatísticas com animação e mais destaque */
+/* ------------------------------------------------------------
+   Métricas no rodapé do hero (faixa escura, divisórias)
+   ------------------------------------------------------------ */
 .uni-public-page--home .uni-public-stats {
-  margin: 48px auto;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
 }
 
 .uni-public-page--home .uni-public-stat {
-  animation: fadeInUp 0.6s ease-out backwards;
-  padding: 32px 20px;
-  background: linear-gradient(135deg, var(--surface-card) 0%, rgba(59, 130, 246, 0.02) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uni-public-page--home .uni-public-stat + .uni-public-stat {
+  padding-left: 24px;
+  border-left: 1px solid var(--pub-hero-line);
 }
 
 .uni-public-page--home .uni-public-stat-value {
-  font-size: 36px;
+  font-size: clamp(28px, 3vw, 40px);
   font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--pub-hero-fg);
+  font-variant-numeric: tabular-nums;
 }
 
 .uni-public-page--home .uni-public-stat-label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--pub-hero-muted);
 }
 
-.uni-public-page--home .uni-public-stat:nth-child(1) { animation-delay: 0.4s; }
-.uni-public-page--home .uni-public-stat:nth-child(2) { animation-delay: 0.5s; }
-.uni-public-page--home .uni-public-stat:nth-child(3) { animation-delay: 0.6s; }
-.uni-public-page--home .uni-public-stat:nth-child(4) { animation-delay: 0.7s; }
-
-/* Cards de features com animação e mais profundidade */
-.uni-public-page--home .uni-public-card {
-  animation: fadeInUp 0.6s ease-out backwards;
-  padding: 28px;
-  gap: 12px;
-  border: 1px solid var(--uni-border);
-  background: linear-gradient(135deg, var(--surface-card) 0%, rgba(59, 130, 246, 0.01) 100%);
+/* ------------------------------------------------------------
+   Pilares — um tom por pilar (era tudo azul, carta repetida)
+   ------------------------------------------------------------ */
+.uni-public-page--home .uni-public-card:nth-child(1) .uni-public-card-icon {
+  background: rgba(59, 130, 246, 0.14);
+  color: #3b82f6;
 }
 
-.uni-public-page--home .uni-public-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
-  border-color: var(--uni-accent);
+.uni-public-page--home .uni-public-card:nth-child(2) .uni-public-card-icon {
+  background: rgba(139, 92, 246, 0.14);
+  color: #8b5cf6;
 }
 
-.uni-public-page--home .uni-public-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--uni-bg) 0%, rgba(59, 130, 246, 0.05) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.1);
+.uni-public-page--home .uni-public-card:nth-child(3) .uni-public-card-icon {
+  background: rgba(245, 158, 11, 0.16);
+  color: #f59e0b;
 }
 
-.uni-public-page--home .uni-public-card h2,
-.uni-public-page--home .uni-public-card h3 {
+.uni-public-page--home .uni-public-card:nth-child(4) .uni-public-card-icon {
+  background: rgba(34, 197, 94, 0.14);
+  color: #22c55e;
+}
+
+/* ------------------------------------------------------------
+   Faixa on-premises: texto + terminal
+   ------------------------------------------------------------ */
+.uni-public-page--home .uni-public-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: center;
+}
+
+/* ------------------------------------------------------------
+   Passos — linha conectora com marcador
+   ------------------------------------------------------------ */
+.uni-public-page--home .uni-public-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--pub-gutter);
+}
+
+.uni-public-page--home .uni-public-step {
+  position: relative;
+  padding-top: 26px;
+  border-top: 2px solid var(--uni-border);
+}
+
+.uni-public-page--home .uni-public-step::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--uni-accent);
+  box-shadow: 0 0 0 4px var(--uni-active-bg);
+}
+
+.uni-public-page--home .uni-public-step-number {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--uni-accent-hover);
+  font-variant-numeric: tabular-nums;
+}
+
+.uni-public-page--home .uni-public-step h3 {
+  margin: 0 0 8px;
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  color: var(--uni-text);
 }
 
-.uni-public-page--home .uni-public-card p {
+.uni-public-page--home .uni-public-step p {
+  margin: 0;
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.65;
+  color: var(--uni-text-secondary);
 }
 
-.uni-public-page--home .uni-public-card:nth-child(1) { animation-delay: 0.8s; }
-.uni-public-page--home .uni-public-card:nth-child(2) { animation-delay: 0.9s; }
-.uni-public-page--home .uni-public-card:nth-child(3) { animation-delay: 1.0s; }
-.uni-public-page--home .uni-public-card:nth-child(4) { animation-delay: 1.1s; }
+/* ------------------------------------------------------------
+   Integrações — pastilhas compactas
+   ------------------------------------------------------------ */
+.uni-public-page--home .uni-public-integrations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 14px;
+}
 
-/* Padrões de responsividade específicos da home */
-@media (max-width: 720px) {
-  .uni-public-page--home .uni-public-hero-content {
-    flex-direction: column;
-    text-align: center;
+.uni-public-page--home .uni-public-integration {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--surface-card, #fff);
+  border: 1px solid var(--uni-border);
+  border-radius: var(--pub-radius);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.uni-public-page--home .uni-public-integration:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--uni-accent) 40%, var(--uni-border));
+  box-shadow: var(--pub-shadow-card);
+}
+
+.uni-public-page--home .uni-public-integration-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--pub-radius-sm);
+  background: var(--uni-chip-blue-bg);
+  color: var(--uni-accent-hover);
+}
+
+.uni-public-page--home .uni-public-integration-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--uni-text);
+}
+
+/* ------------------------------------------------------------
+   Responsivo
+   ------------------------------------------------------------ */
+@media (max-width: 960px) {
+  .uni-public-page--home .uni-public-hero-visual {
+    transform: none;
   }
 
-  .uni-public-page--home .uni-public-hero-text {
-    text-align: center;
+  .uni-public-page--home .uni-public-split {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .uni-public-page--home .uni-public-hero h1 {
-    font-size: 28px;
-  }
-
-  .uni-public-page--home .uni-public-hero-icon {
-    width: 200px;
-    height: 200px;
-  }
-
-  .uni-public-page--home .uni-public-actions {
-    justify-content: center;
+  .uni-public-page--home .uni-public-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px var(--pub-gutter);
   }
 }
 
-@media (max-width: 480px) {
-  .uni-public-page--home .uni-public-hero h1 {
-    font-size: 24px;
+@media (max-width: 760px) {
+  .uni-public-page--home .uni-public-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
   }
 
-  .uni-public-page--home .uni-public-lead {
-    font-size: 14px;
+  .uni-public-page--home .uni-public-stat + .uni-public-stat {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .uni-public-page--home .uni-public-steps {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
