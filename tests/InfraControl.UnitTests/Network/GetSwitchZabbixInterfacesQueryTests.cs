@@ -172,6 +172,16 @@ public sealed class GetSwitchZabbixInterfacesQueryTests : IDisposable
             string itemId, DateTime fromUtc, DateTime toUtc, int limit,
             CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>([]);
+
+        public Task<IReadOnlyList<ZabbixItemLastValueDto>> GetItemsLastValuesAsync(
+            string hostId, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<ZabbixItemLastValueDto>>([]);
+
+        public Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryBatchAsync(
+            IReadOnlyList<string> itemIds, int history,
+            DateTime fromUtc, DateTime toUtc, int limit,
+            CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>([]);
     }
 
     private sealed class FakeZabbixHostsRepository : IZabbixHostsRepository

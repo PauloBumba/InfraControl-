@@ -63,3 +63,9 @@ export function formatBytes(bytes: number | null | undefined): string {
   }
   return `${value >= 100 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
 }
+
+/** Bytes/s → "900 KB/s" / "1.2 MB/s"; null/negativo ⇒ "—". */
+export function formatRate(bytesPerSecond: number | null | undefined): string {
+  if (bytesPerSecond == null || !Number.isFinite(bytesPerSecond) || bytesPerSecond < 0) return "—";
+  return `${formatBytes(bytesPerSecond)}/s`;
+}

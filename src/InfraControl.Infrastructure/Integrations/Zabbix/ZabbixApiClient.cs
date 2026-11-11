@@ -398,6 +398,83 @@ public sealed class ZabbixApiClient : IZabbixClient
             .ToList();
     }
 
+    public async Task<IReadOnlyList<ZabbixItemLastValueDto>> GetItemsLastValuesAsync(
+        string hostId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(hostId))
+            throw new ArgumentException(
+                "O hostid é obrigatório para consultar os últimos valores.", nameof(hostId));
+
+        var result = await CallListAsync("item.get", new
+        {
+            output = new[] { "itemid", "key_", "lastvalue", "lastclock" },
+            hostids = hostId,
+            limit = DefaultListLimit
+        }, cancellationToken);
+
+        return result.EnumerateArray()
+            .Select(item =>
+            {
+                var lastClock = ReadOrNull(item, "lastclock");
+                DateTime? clockUtc = null;
+                if (long.TryParse(lastClock, out var seconds) && seconds > 0)
+                    clockUtc = DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+
+                return new ZabbixItemLastValueDto(
+                    Read(item, "itemid"),
+                    Read(item, "key_"),
+                    ReadOrNull(item, "lastvalue"),
+                    clockUtc);
+            })
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryBatchAsync(
+        IReadOnlyList<string> itemIds,
+        int history,
+        DateTime fromUtc,
+        DateTime toUtc,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (itemIds.Count == 0)
+            return [];
+
+        if (itemIds.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException(
+                "A lista de itemids não pode conter valores vazios.", nameof(itemIds));
+
+        if (limit <= 0 || limit > MaxHistoryLimit)
+            throw new ArgumentOutOfRangeException(nameof(limit),
+                $"O limite do histórico deve estar entre 1 e {MaxHistoryLimit}.");
+
+        if (toUtc < fromUtc)
+            throw new ArgumentException(
+                "O período final deve ser maior ou igual ao inicial.",
+                nameof(toUtc));
+
+        var result = await CallListAsync("history.get", new
+        {
+            output = new[] { "itemid", "clock", "value" },
+            itemids = itemIds,
+            history,
+            time_from = (int)new DateTimeOffset(
+                DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc)).ToUnixTimeSeconds(),
+            time_till = (int)new DateTimeOffset(
+                DateTime.SpecifyKind(toUtc, DateTimeKind.Utc)).ToUnixTimeSeconds(),
+            sortfield = "clock",
+            sortorder = "DESC",
+            limit = limit
+        }, cancellationToken);
+
+        return result.EnumerateArray()
+            .Select(value => new ZabbixHistoryValueDto(
+                Read(value, "itemid"),
+                DateTimeOffset.FromUnixTimeSeconds(ReadLong(value, "clock")).UtcDateTime,
+                Read(value, "value")))
+            .ToList();
+    }
+
     /// <summary>Chamada autenticada de lista comum (limite já no params).</summary>
     private async Task<JsonElement> CallListAsync(
         string method, object parameters, CancellationToken cancellationToken)

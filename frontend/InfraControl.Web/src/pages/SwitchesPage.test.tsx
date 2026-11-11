@@ -12,6 +12,7 @@ import { setUnifiPortConfig } from "@/services/api/unifi";
 import {
   getSwitchUnifiPorts,
   getSwitchZabbixInterfaces,
+  getSwitchZabbixPorts,
   listSwitches,
 } from "@/services/api/network";
 
@@ -30,6 +31,7 @@ vi.mock("@/services/api/network", async (importOriginal) => {
     listSwitches: vi.fn(),
     getSwitchUnifiPorts: vi.fn(),
     getSwitchZabbixInterfaces: vi.fn(),
+    getSwitchZabbixPorts: vi.fn(),
   };
 });
 
@@ -48,6 +50,7 @@ const listLocationsMock = vi.mocked(listLocations);
 const listSwitchPortsMock = vi.mocked(listSwitchPorts);
 const unifiPortsMock = vi.mocked(getSwitchUnifiPorts);
 const zabbixIfacesMock = vi.mocked(getSwitchZabbixInterfaces);
+const zabbixPortsMock = vi.mocked(getSwitchZabbixPorts);
 const systemInfoMock = vi.mocked(getDeviceSystemInfo);
 
 vi.mock("@/services/api/monitoring", async (importOriginal) => {
@@ -80,6 +83,7 @@ beforeEach(() => {
   // Só rodam com um switch selecionado — esvazia para não haver fetch real.
   unifiPortsMock.mockResolvedValue([]);
   zabbixIfacesMock.mockResolvedValue([]);
+  zabbixPortsMock.mockResolvedValue([]);
   systemInfoMock.mockResolvedValue({ uptimeSeconds: null, sysDescr: null, capturedAtUtc: null });
   deviceResultsMock.mockResolvedValue({ deviceId: switchItem.id, deviceName: "sw-core-01", results: [] });
 });
@@ -407,5 +411,98 @@ describe("SwitchesPage — escrita de porta usa estado administrativo (H6)", () 
 
     expect(await screen.findByRole("button", { name: "Habilitar" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desabilitar" })).toBeNull();
+  });
+});
+
+describe("SwitchesPage — portas Zabbix ao vivo (net.if.*)", () => {
+  it("should render link state and traffic rate per port", async () => {
+    listSwitchesMock.mockResolvedValue({
+      items: [switchItem],
+      totalCount: 1,
+      page: 1,
+      pageSize: 100,
+    });
+    listSwitchPortsMock.mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 100,
+    });
+    zabbixPortsMock.mockResolvedValue([
+      {
+        interfaceName: "GigabitEthernet1/0/10",
+        ifIndex: 10,
+        linkUp: true,
+        speedMbps: 1000,
+        duplex: "Full",
+        inBytesPerSecond: 102400,
+        outBytesPerSecond: 51200,
+      },
+      {
+        interfaceName: "GigabitEthernet1/0/11",
+        ifIndex: 11,
+        linkUp: false,
+        speedMbps: null,
+        duplex: null,
+        inBytesPerSecond: null,
+        outBytesPerSecond: null,
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("Zabbix SNMP")).toBeInTheDocument();
+    expect(await screen.findByText("2 portas · 1 up · 1 down")).toBeInTheDocument();
+    expect(await screen.findByText("Portas ao vivo (Zabbix SNMP)")).toBeInTheDocument();
+    // nome aparece no card do grid e na linha da tabela de detalhe
+    expect(screen.getAllByText("GigabitEthernet1/0/10").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Up").length).toBeGreaterThanOrEqual(1);
+    // 100 KB/s in / 50.0 KB/s out formatados (formatBytes usa 1 casa <100)
+    expect(screen.getAllByText(/100 KB\/s/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/50\.0 KB\/s/).length).toBeGreaterThanOrEqual(1);
+    // velocidade/duplex vêm dos itens net.if.speed/net.if.duplex do Zabbix
+    expect(screen.getAllByText("1000 Mbps").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Full").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should prefer UniFi live ports over Zabbix ports", async () => {
+    listSwitchesMock.mockResolvedValue({
+      items: [switchItem],
+      totalCount: 1,
+      page: 1,
+      pageSize: 100,
+    });
+    listSwitchPortsMock.mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 100,
+    });
+    unifiPortsMock.mockResolvedValue([
+      {
+        portIndex: 1,
+        name: "Port 1",
+        enabled: true,
+        linkUp: true,
+        speed: null,
+        fullDuplex: null,
+        portVlan: null,
+        poeEnable: null,
+        poeStatus: null,
+        media: null,
+        clientMac: null,
+      },
+    ]);
+    zabbixPortsMock.mockResolvedValue([
+      {
+        interfaceName: "eth0",
+        ifIndex: 1,
+        linkUp: false,
+        speedMbps: null,
+        duplex: null,
+        inBytesPerSecond: null,
+        outBytesPerSecond: null,
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("UniFi ao vivo")).toBeInTheDocument();
+    expect(screen.getAllByText("Port 1").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("eth0")).toBeNull();
   });
 });

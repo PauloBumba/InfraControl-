@@ -248,6 +248,30 @@ export async function getSwitchZabbixInterfaces(
   return data ?? [];
 }
 
+/** Porta/interface ao vivo via Zabbix SNMP (net.if.* LLD). */
+export interface ZabbixPortStatus {
+  interfaceName: string;
+  ifIndex: number | null;
+  linkUp: boolean | null;
+  speedMbps: number | null;
+  duplex: string | null;
+  inBytesPerSecond: number | null;
+  outBytesPerSecond: number | null;
+}
+
+/**
+ * Status ao vivo das portas do switch via Zabbix (link + tráfego).
+ * Lista vazia = sem referência Zabbix, host ausente ou sem itens net.if.*.
+ */
+export async function getSwitchZabbixPorts(
+  switchId: string,
+): Promise<ZabbixPortStatus[]> {
+  const data = await api.get<ZabbixPortStatus[]>(
+    `/network/switches/${encodeURIComponent(switchId)}/zabbix-ports`,
+  );
+  return data ?? [];
+}
+
 /**
  * Fase 07c — sincroniza o cadastro de portas a partir do port_table
  * UniFi. 409 se o switch não tem referência UniFi.

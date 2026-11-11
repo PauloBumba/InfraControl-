@@ -4,7 +4,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UniFiDashboardPage } from "./UniFiDashboardPage";
 import { getUniFiDashboard, type UniFiDashboard } from "@/services/api/unifi";
 
-vi.mock("@/services/api/unifi", () => ({ getUniFiDashboard: vi.fn() }));
+vi.mock("@/services/api/unifi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/api/unifi")>();
+  return {
+    ...actual,
+    getUniFiDashboard: vi.fn(),
+    getUniFiCorrelation: vi.fn().mockResolvedValue({ matched: [], unlinked: [], conflicts: [] }),
+    listUniFiSyncRuns: vi.fn().mockResolvedValue([]),
+  };
+});
 
 const getMock = vi.mocked(getUniFiDashboard);
 

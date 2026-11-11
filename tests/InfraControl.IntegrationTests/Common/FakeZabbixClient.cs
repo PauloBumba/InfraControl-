@@ -46,4 +46,14 @@ public sealed class FakeZabbixClient : IZabbixClient
         string itemId, DateTime fromUtc, DateTime toUtc, int limit,
         CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>([]);
+
+    public Task<IReadOnlyList<ZabbixItemLastValueDto>> GetItemsLastValuesAsync(
+        string hostId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ZabbixItemLastValueDto>>([]);
+
+    public Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryBatchAsync(
+        IReadOnlyList<string> itemIds, int history,
+        DateTime fromUtc, DateTime toUtc, int limit,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>([]);
 }

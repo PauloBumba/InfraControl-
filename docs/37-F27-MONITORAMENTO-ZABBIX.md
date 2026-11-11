@@ -826,6 +826,27 @@ tabela via SNMP); a Intelbras .244 **não expõe** FDB via SNMP. LLDP
 remoto vazio no core (lldp provavelmente desabilitado nos switches/devices).
 Coletor FDB→InfraControl = feature nova (não implementada — ver pendências).
 
+**Portas ao vivo no InfraControl (2026-11-11, implementado):**
+novo endpoint `GET /api/v1/network/switches/{id}/zabbix-ports`
+(`GetSwitchZabbixPortStatusQuery`, BaseQuery + cache 60s) resolve
+referência Zabbix → host → itens `net.if.*` e devolve **por porta**:
+`interfaceName`, `ifIndex`, `linkUp` (ifOperStatus via `item.get`
+lastvalue — 1 chamada), `speedMbps` (`net.if.speed`/ifHighSpeed),
+`duplex` (`net.if.duplex`/dot3StatsDuplexStatus) e taxa
+`in/outBytesPerSecond` calculada dos 2 últimos pontos do `history.get`
+em lote (history=3 unsigned + history=0 float, janela 15min).
+Novos métodos do `IZabbixClient`: `GetItemsLastValuesAsync` e
+`GetHistoryBatchAsync`. No front, `SwitchesPage` exibe grid + tabela
+"Portas ao vivo (Zabbix SNMP)" com Link/Velocidade/Duplex/Recebido/
+Enviado em **todos os switches com referência Zabbix** (não só UniFi);
+prioridade mantida: UniFi ao vivo → Zabbix → cadastro manual.
+Colunas que o Zabbix **não coleta hoje** nesses hosts: VLAN (PVID),
+PoE, mídia e MAC do cliente — exigiriam novos itens LLD
+(Q-BRIDGE-MIB/POWER-ETHERNET-MIB) ou o coletor FDB; exibidas como "—".
+`UniFiDashboardPage` reformulada no padrão ZabbixOverview: chips de
+estado dos devices + tabela de devices sem vínculo
+(`getUniFiCorrelation`) + últimas sincronizações (`listUniFiSyncRuns`).
+
 **Pendências switches:**
 - [ ] .110 TP-Link: habilitar SNMP pela interface web (única porta aberta;
   login admin da planilha) — avaliar se o modelo suporta;
