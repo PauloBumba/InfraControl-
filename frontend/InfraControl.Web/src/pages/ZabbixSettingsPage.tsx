@@ -12,10 +12,13 @@ import { mutationErrorMessage } from "@/hooks/queries";
 import { formatDateTime } from "@/utils/format";
 import {
   getZabbixConfig,
+  getZabbixSummary,
   saveZabbixConfig,
+  syncZabbixInventory,
   testZabbixConnection,
   type ZabbixConnectionTestResult,
   type ZabbixSettingsPayload,
+  type ZabbixSyncResult,
 } from "@/services/api/zabbix";
 
 const inputStyle: React.CSSProperties = {
@@ -43,6 +46,14 @@ export function ZabbixSettingsPage() {
   const config = useQuery({
     queryKey: ["zabbix-config"],
     queryFn: getZabbixConfig,
+  });
+
+  // Resumo operacional (read-model + problemas ao vivo) — falha segregada
+  // em problemsAvailable, igual ao ZabbixOverviewPage.
+  const summary = useQuery({
+    queryKey: ["zabbix-summary"],
+    queryFn: getZabbixSummary,
+    refetchInterval: 60_000,
   });
 
   const [apiUrl, setApiUrl] = useState("");
@@ -81,6 +92,23 @@ export function ZabbixSettingsPage() {
         version: null,
         error: mutationErrorMessage(error as Error),
       }),
+  });
+
+  const [syncResult, setSyncResult] = useState<ZabbixSyncResult | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const sync = useMutation({
+    mutationFn: syncZabbixInventory,
+    onSuccess: (result) => {
+      setSyncError(null);
+      setSyncResult(result);
+      void queryClient.invalidateQueries({ queryKey: ["zabbix-config"] });
+      void queryClient.invalidateQueries({ queryKey: ["zabbix-summary"] });
+    },
+    onError: (error) => {
+      setSyncResult(null);
+      setSyncError(mutationErrorMessage(error as Error));
+    },
   });
 
   function submit(event: React.FormEvent) {
@@ -189,6 +217,18 @@ export function ZabbixSettingsPage() {
             >
               {test.isPending ? "Testando…" : "Testar conexão"}
             </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={sync.isPending}
+              style={{ padding: "6px 14px" }}
+              onClick={() => {
+                setSyncError(null);
+                sync.mutate();
+              }}
+            >
+              {sync.isPending ? "Sincronizando…" : "Sincronizar inventário"}
+            </Button>
             <span style={{ fontSize: 11, color: "#94a3b8" }}>
               Credencial cifrada no servidor (AES-GCM) · nunca exibida de volta
             </span>
@@ -219,6 +259,40 @@ export function ZabbixSettingsPage() {
             {testResult.ok
               ? `Conexão OK · versão ${testResult.version ?? "desconhecida"}`
               : `Falha: ${testResult.error ?? "erro desconhecido"}`}
+          </div>
+        )}
+        {syncResult && (
+          <div
+            role="status"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 6,
+              marginBottom: 10,
+              fontSize: 12,
+              background: syncResult.errors > 0 ? "#fffbeb" : "#f0fdf4",
+              color: syncResult.errors > 0 ? "#b45309" : "#15803d",
+              border: `1px solid ${syncResult.errors > 0 ? "#fde68a" : "#bbf7d0"}`,
+            }}
+          >
+            Sincronização concluída · criados {syncResult.created} · atualizados{" "}
+            {syncResult.updated} · ausentes {syncResult.missing} · erros {syncResult.errors}
+            {syncResult.version ? ` · versão ${syncResult.version}` : ""}
+          </div>
+        )}
+        {syncError && (
+          <div
+            role="alert"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 6,
+              marginBottom: 10,
+              fontSize: 12,
+              background: "#fef2f2",
+              color: "#b91c1c",
+              border: "1px solid #fecaca",
+            }}
+          >
+            Falha na sincronização: {syncError}
           </div>
         )}
         <div
@@ -278,6 +352,73 @@ export function ZabbixSettingsPage() {
         {settings?.lastTestError && (
           <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>
             Último erro: {settings.lastTestError}
+          </div>
+        )}
+      </div>
+
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          Inventário sincronizado
+        </div>
+        {summary.isLoading && (
+          <div style={{ fontSize: 12, color: "#64748b" }}>Carregando resumo…</div>
+        )}
+        {summary.error && (
+          <div style={{ fontSize: 12, color: "#b91c1c" }}>
+            Não foi possível carregar o resumo:{" "}
+            {mutationErrorMessage(summary.error) ?? "erro desconhecido"}
+          </div>
+        )}
+        {summary.data && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10,
+              fontSize: 12,
+            }}
+          >
+            <div>
+              <div style={{ color: "#64748b" }}>Hosts no Zabbix</div>
+              <div style={{ fontWeight: 600, fontSize: 18 }}>{summary.data.totalHosts}</div>
+            </div>
+            <div>
+              <div style={{ color: "#64748b" }}>Habilitados</div>
+              <div style={{ fontWeight: 600, fontSize: 18 }}>{summary.data.enabledHosts}</div>
+            </div>
+            <div>
+              <div style={{ color: "#64748b" }}>Ausentes</div>
+              <div style={{ fontWeight: 600, fontSize: 18 }}>{summary.data.missingHosts}</div>
+            </div>
+            <div>
+              <div style={{ color: "#64748b" }}>Com asset vinculado</div>
+              <div style={{ fontWeight: 600, fontSize: 18 }}>{summary.data.hostsWithAsset}</div>
+            </div>
+            <div>
+              <div style={{ color: "#64748b" }}>Sem asset</div>
+              <div style={{ fontWeight: 600, fontSize: 18 }}>{summary.data.hostsWithoutAsset}</div>
+            </div>
+            <div>
+              <div style={{ color: "#64748b" }}>Problemas ativos</div>
+              <div style={{ fontWeight: 600, fontSize: 18 }}>
+                {summary.data.problemsAvailable ? summary.data.problemsTotal : "—"}
+              </div>
+            </div>
+          </div>
+        )}
+        {summary.data && !summary.data.problemsAvailable && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "#b45309" }}>
+            Contagem de problemas indisponível
+            {summary.data.problemsError ? `: ${summary.data.problemsError}` : ""}
+          </div>
+        )}
+        {summary.data && (
+          <div style={{ marginTop: 10, fontSize: 11, color: "#94a3b8" }}>
+            Última sincronização:{" "}
+            {formatUtc(summary.data.lastInventorySyncAtUtc)} · detalhe em{" "}
+            <Link to="/zabbix/hosts" style={{ color: "#3b82f6" }}>
+              Hosts monitorados
+            </Link>
           </div>
         )}
       </div>

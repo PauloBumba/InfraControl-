@@ -581,34 +581,182 @@ Abranger HP, Brother e demais fabricantes presentes no inventário.
 
 ## FASE 5 — Câmeras, gravadores e videomonitoramento
 
+> **Execução 2026-10-27** (somente Zabbix, via API JSON-RPC com token de sessão — credenciais
+> nunca gravadas no repo): gravador **Intelbras SVR 7164** (`192.168.26.108`, OEM Dahua,
+> firmware 2019, 64 canais) identificado via CGI (`configManager.cgi` RemoteDevice; portas
+> 80 web, 37777 SDK, 554 RTSP, 161 SNMP); **43 canais ativos** extraídos para o inventário.
+> Grupos novos `Cameras HSDS` (groupid 37) e `NVRs HSDS` (38); host `HSDS_NVR_SVR7164`
+> (hostid 10928, template `Generic by SNMP`, interface SNMPv2c community `public`) +
+> **43 hosts `HSDS_CAM_*`** (template `ICMP Ping` — simple check, o servidor Zabbix faz o
+> ping, sem agent no equipamento). Dashboard **440 "Videomonitoramento - Operacao"**
+> (widgets: problemas recentes, problemas por severidade, ping/perda por câmera, navegador
+> de itens). Inventory com `location` por setor (mesma regra do cadastro InfraControl:
+> `FARM*`→Farmacia HSSM, `*_CC`/`CORREDOR CC`→Centro Cirurgico, `*_PS`→Pronto Socorro,
+> `ENTRADA_ALMOX`→Almoxarifado, `SETOR_1`→Setor 1, demais→CPD) + model/serial/MAC do DVR.
+> **Validação:** 0 itens unsupported; 39/44 hosts com ping OK; 4 problemas ativos reais.
+> **Achados:** (1) o NVR **bloqueia ICMP** (testado do Windows e do container Zabbix) —
+> itens ICMP desabilitados no host, disponibilidade via SNMP, 2 falsos positivos fechados
+> via `event.acknowledge` com `manual_close` habilitado; (2) OIDs enterprise Dahua
+> `1.3.6.1.4.1.1004849` (CPU/mem/disco) retornam `noSuchInstance` neste firmware → template
+> "Intelbras Dahua NVR by SNMP" v747 **não se aplica** *(superado em 2026-10-29 — ver
+> §5.0.3: o `noSuchInstance` foi medido antes de o SNMPv2c do NVR ficar operacional;
+> habilitado v2c + reboot, os OIDs respondem e o template v7.4 foi importado e adaptado)*;
+> (3) câmeras não respondem SNMP
+> (timeout testado) — só ICMP; (4) ONVIF recusa a credencial web (precisa de usuário
+> dedicado no DVR, pendente); (5) 4 câmeras sem resposta em 80/554: `192.168.26.58`
+> (CANAL_10), `192.168.26.198` (CANAL_18), `192.168.26.14` (DESCANSO_PS), `192.168.26.11`
+> (CONTABILIDADE); (6) canal 28 (COPA_MEDICOS_PS) com MAC `00:00:00:00:00:00`; canais 9/17
+> sem nome de canal.
+
+#### §5.0.1 — Auditoria SNMP por geração das câmeras (2026-10-28)
+
+> **Objetivo:** tentar ativar SNMP nas43 câmeras (ativação via DVR/câmera) para que a
+> plataforma e o Zabbix tenham dados além do ping. **Credenciais nunca gravadas no repo.**
+> **Método:** probe UDP SNMPv2c real (GET sysDescr `1.3.6.1.2.1.1.1.0`, community `public`)
+> em todas as43; CGI Dahua (`configManager.cgi`) via `curl --digest` no NVR e nas câmeras
+> acessíveis; inventário de canais extraído do NVR (`getConfig&name=RemoteDevice`).
+
+**Achados:**
+
+- **Inventário por geração (64 slots, 43 ativos):** 2013 `2.103.IB00` (3), 2016 VIP-S3020-G2
+  `2.520.IB00` (6), 2020 `2.622.00IB00E` (4), 2021 VIP-1230-D-G3/VIP-1220-D-FC-G3
+  `2.800.00IB000` (13), 2022 VIP-1230-D-G4 `2.800.00IB00C` (5), 2024 VIPC-1230-D-G2
+  `2.860.00IB000` (10), MTIBM `4.2` (1 — web porta80 fechada).
+- **1 de43 responde SNMP hoje:** `192.168.26.190` (canal3, GGKC2401555IC, firmware2013,
+  sysDescr `VIP-S3120`, community `public`) — candidato imediato a template SNMP no Zabbix.
+- **Geração2024 (10 câmeras): SNMP IMPOSSÍVEL por firmware.** Credencial funciona
+  (Digest, `admin` + senha fornecida) e o CGI responde nos grupos padrão (`Network`,
+  `General`, `Encode`, `Record`, `NTP`, `Email`, `DDNS`, `MotionDetect`, `Alarm`,
+  `ChannelTitle`), mas `getConfig&name=SNMP` retorna `Bad Request` e probe UDP161 é mudo —
+  o grupo/daemon SNMP **não existe na firmware Intelbras IB000.0.R** (não é config
+  desabilitada).
+- **Gerações2016-2022 (28 online): senha da web da câmera desconhecida** — o NVR armazena
+  mascarada (`******`) e não expõe via CGI; `admin` + senha2024 → `Invalid Authority!`.
+  Habilitar exige a senha própria de cada geração (fornecida pelo instalador ou trocada
+  pela UI do NVR "Modificar senha da câmera").
+- **NVR:** SNMP v2c `public` OK (validado com probe UDP); CGI OK via Digest; `LockLogin`
+  padrão Dahua (5 falhas/300s) observado nas câmeras2024.
+- **Consequência operacional:** para as2024 (+ MTIBM), a fonte de dados da plataforma
+  será o **NVR** (SNMP MIB-II + CGI por canal) e/ou ONVIF com usuário dedicado; ICMP
+  permanece como sinal de disponibilidade das câmeras sem SNMP.
+
+#### §5.0.2 — Plano de ação derivado da auditoria (pendências)
+
+- [x] Trocar a host `HSDS_CAM_*` de `192.168.26.190` de `ICMP Ping` para
+      `Network Generic Device by SNMP`. <!-- CONCLUÍDA 2026-10-28: host
+      cam-192-168-26-190 / HSDS_CAM_SALA_ESPERA_CC (hostid 10932), template
+      Network Generic Device by SNMP (templateid 10226) no lugar de ICMP Ping; interface
+      SNMPv2c já existia (type=2, 192.168.26.190:161). Validação pós-troca: 12 itens,
+      0 unsupported (state=0), 0 problemas ativos; SNMP agent availability=1;
+      sysDescr=VIP-S3120; sysContact=suporte.isec@intelbras.com.br; sysUpTime (network)
+      fluindo; ICMP ping=1/loss=0 (~8ms) via itens do próprio template SNMP. API Zabbix
+      8.0.0 em localhost:8086 (compose local, credencial padrão da imagem oficial). -->
+- [ ] Obter senha das câmeras2016-2022 (instalador ou troca via UI do NVR) e testar grupo
+      SNMP por geração; ativar via CGI onde existir. <!-- PARCIAL 2026-10-28: varredura de
+      auth por senha (NVR vs câmera) em todas as43 + teste do grupo SNMP por geração.
+      RESULTADO: senha do NVR (admin) autentica nas gerações2013/2020/2022; senha da
+      câmera (admin) autentica na2024 (+ .56 com senha do NVR); lote2021 (13 câmeras
+      VIP-1230-D-G3/VIP-1220-D-FC-G3) + .67/.210/.186 = senha desconhecida (4ª senha).
+      Grupo SNMP (configManager name=SNMP) só EXISTE na geração2013 — nas2020/2022/2024 é
+      "Bad Request" (recurso ausente por firmware). ATIVAÇÃO CONCLUÍDA nas3 câmeras2013:
+      setConfig SNMP.V2Enable=true em .16 e .133 (OK + probe UDP respondendo; .190 já
+      respondia com V1/V2 habilitados de fábrica) — sysDescr VIP-S3120 (.16/.190) e
+      VIP-E4220Z (.133), community public. Zabbix: hosts cam-192-168-26-16
+      (HSDS_CAM_PORTA_CME, hostid 10933) e cam-192-168-26-133 (HSDS_CAM_CORREDOR_CC_1,
+      hostid 10953) trocadas de ICMP Ping para Network Generic Device by SNMP (templateid
+      10226, interfaces SNMP já existiam); validação:24 itens, state=0, SNMP agent
+      availability=1 nas duas, uptime fluindo,0 problemas. Total:3 de43 câmeras em SNMP
+      (190/16/133). Pendência restante do item: senha do lote2021. -->
+- [ ] Para as câmeras2024: montar fonte de dados via NVR (itens `HTTP agent` no host do
+      NVR ou coleta do InfraControl no CGI) + ONVIF com usuário dedicado (pendência
+      anterior).
+
+#### §5.0.3 — Template da comunidade "Intelbras Dahua NVR by SNMP" importada no NVR (2026-10-29)
+
+> **Reavaliação do achado (2) da Fase 5 (2026-10-27):** o `noSuchInstance` nos OIDs
+> enterprises foi medido **antes** de o SNMPv2c do NVR ficar operacional. Nesta execução:
+> SNMPv2c habilitado via CGI (`configManager.cgi?action=setConfig&name=SNMP.V2Enable=true`,
+> `ReadCommon=public`, porta 161 — **quirk: `setConfig` só aceita GET**, POST→400) +
+> **reboot do NVR** (autorizado pelo usuário) → SNMPv2c `public` respondendo (sysUpTime OK;
+> `sysDescr="none"` e `sysName="(none)"` — firmware não popula esses OIDs).
+
+> **Template:** [diasdmhub/Intelbras_NVR_Zabbix_Template](https://github.com/diasdmhub/Intelbras_NVR_Zabbix_Template)
+> (GPL-3.0, upstream v7.4-7, asset `Intelbras_NVR_template_v747.yaml`) importada via API
+> JSON-RPC `configuration.import` em YAML com `version: 8.0` (dry-run prévio com
+> `configuration.importcompare`: 1 template + 3 gráficos a criar, 0 update/remove) →
+> **templateid 10972** `Intelbras Dahua NVR by SNMP` (25 itens + 3 regras LLD + 3 gráficos
+> + 20 macros).
+
+> **Adaptações para conviver com `Generic by SNMP` (10563) no host 10928** (link via
+> `host.update templates=[10563,10972]`):
+> - removidos os itens `snmptrap.fallback` (85432) e `zabbix[host,snmp,available]` (85433)
+>   da template importada — chaves idênticas já herdadas da Generic (a função fica
+>   garantida pela Generic);
+> - `inventory_link=0` em `device.contact/descr/location/name` (85434–85437) — campos de
+>   inventário Contact/Location já ocupados pelos itens da Generic; os itens continuam
+>   coletando (só deixam de gravar inventário);
+> - 4 itens `physicalVolume[util1/3/5/7]` **unsupported** (firmware não expõe utilização
+>   nesses índices — entradas sem disco).
+
+> **Validação pós-link (host 10928):** **269 itens — 265 suportados, 4 unsupported** (só
+> os `physicalVolume[util*]`). Valores reais confirmados: `cpuUsage=18`, `memoryUsage=60`,
+> `memoryTotal≈1,06GB`, `deviceType=SVR 7164`, `serialNumber=ISTI49000349R`,
+> `systemVersion=4.1.0001.0, Build 2022-02-26`, `osName=Linux 3.10.0`, `videoChannel=64`,
+> `systemTime` fluindo, `deviceStatus=1`, `systemStatus=0`. LLD rodando: **Camera Discovery**
+> (64 canais × `remoteDevice.Status/Name/IpAddr` = 192 itens), **Disk Discovery** (20),
+> **Network interfaces discovery** (20). Triggers de sistema/CPU/memória/disco/portas
+> avaliando sem problema.
+
+> **Quirk do firmware SVR 7164 (falso alarme tratado):** o trigger prototype "Camera
+> {#SNMPINDEX} absent" é `{remoteDevice.Status[n]}=3`, mas **este firmware retorna `3` para
+> todos os 64 canais** (inclusive os 43 ativos e os 21 vazios) — o OID não discrimina
+> online/offline neste modelo → 64 falsos alarmes "Camera NN absent" na importação.
+> Resolução: **64 instâncias descobertas desabilitadas** (`trigger.update status=1`,
+> reversível; os itens de status continuam coletando). A disponibilidade das câmeras
+> permanece via ICMP nos hosts `HSDS_CAM_*` + SNMP real nas 3 câmeras 2013 (§5.0.2).
+> Pendência: se um firmware futuro expuser status válido, reabilitar os triggers.
+
+> **Achados de API Zabbix 8.0 desta execução:**
+> - parâmetros `search`/`searchWildcardsEnabled` retornam vazio neste ambiente (host.get,
+>   hostgroup.get, item.get, trigger.get) — usar listagem + filtro local;
+> - `template.get` em 8.0 expõe `templateid` (não `hostid`);
+> - `trigger.update` exige `params` como **array de objetos** com `triggerid` singular
+>   (`{triggerids:[...]}` → `-32602 unexpected parameter "triggerids"`);
+> - `host.update` `templates` exige array de objetos `{templateid:...}` (string crua →
+>   `-32602 an array is expected`).
+> - **Achado de rede:** `enterprises.ipAddr` do NVR reporta `192.168.10.234` (eth0 DHCP
+>   antigo — IP que hoje pertence à impressora HP); endereço de gestão real = eth1
+>   `192.168.26.108`. Não usar `ipAddr` do SNMP para correlação de IP.
+
 ### 5.1. Equipamentos
 
-- [ ] Identificar câmeras IP e gravadores existentes.
-- [ ] Incluir Intelbras e outros fabricantes presentes.
-- [ ] Identificar modelos, endereços e interfaces.
-- [ ] Verificar suporte a SNMP, ICMP, HTTP ou APIs específicas.
-- [ ] Monitorar disponibilidade e perda de comunicação.
-- [ ] Monitorar métricas de sistema, interfaces e armazenamento quando disponíveis.
-- [ ] Verificar recursos de canais, discos e gravação dos gravadores quando expostos.
-- [ ] Identificar equipamentos sem método de coleta adequado.
+- [x] Identificar câmeras IP e gravadores existentes. <!-- 2026-10-27: SVR 7164 + 43 canais ativos via configManager.cgi (dvr-cameras.json), 21 canais vazios -->
+- [x] Incluir Intelbras e outros fabricantes presentes. <!-- NVR Intelbras SVR 7164 (OEM Dahua, serial ISTI49000349R); câmeras VIP-* Intelbras e OEM Dahua (ProtocolType "Dahua2") -->
+- [x] Identificar modelos, endereços e interfaces. <!-- índice/IP/MAC/serial/modelo por canal no inventário; NVR: 80 web, 37777 SDK, 554 RTSP, 161 SNMPv2c -->
+- [x] Verificar suporte a SNMP, ICMP, HTTP ou APIs específicas. <!-- NVR: SNMP MIB-II OK (sysDescr "none", sysName "(none)", sysUpTime OK) / ICMP bloqueado / HTTP+RTSP+SDK OK / ONVIF ter:NotAuthorized com credencial web; câmeras: ICMP OK, SNMP sem resposta (GET 1.3.6.1.2.1.1.5.0 em 192.168.26.59 → timeout) -->
+- [x] Monitorar disponibilidade e perda de comunicação. <!-- template ICMP Ping (icmpping/icmppingloss/icmppingsec + triggers) nas 43 câmeras; NVR via Generic by SNMP (zabbix[host,snmp,available] + "No SNMP data collection"; itens ICMP desabilitados por bloqueio do equipamento) -->
+- [ ] Monitorar métricas de sistema, interfaces e armazenamento quando disponíveis. <!-- PARCIAL 2026-10-27: sistema OK no NVR (sysUpTime/sysDescr/sysName/sysContact + trigger "Host has been restarted"); armazenamento NÃO exposto (OIDs 1004849 noSuchInstance); ifTable do NVR não coberta (template base) e câmeras sem SNMP = sem métricas -->
+- [x] Verificar recursos de canais, discos e gravação dos gravadores quando expostos. <!-- verificado: canais expostos via configManager.cgi; discos/gravação SNMP indisponíveis neste firmware; gravação/armazenamento dependem do ONVIF (usuário dedicado pendente) -->
+- [x] Identificar equipamentos sem método de coleta adequado. <!-- 4 câmeras sem resposta (IPs acima); 11 câmeras sem modelo no DVR; canal 28 MAC zerado; canais 9/17 sem nome; câmeras = apenas ICMP (sem SNMP/agent) -->
 
 ### 5.2. Alertas
 
-- [ ] Câmera ou gravador indisponível.
-- [ ] Falha de comunicação persistente.
-- [ ] Problemas de armazenamento identificáveis.
-- [ ] Falhas de coleta.
-- [ ] Mudanças de estado relevantes fornecidas pelo equipamento.
+- [x] Câmera ou gravador indisponível. <!-- triggers "ICMP Ping: Indisponivel por ICMP ping" (44 hosts) + "Generic by SNMP: Unavailable by ICMP ping" (NVR); 4 ativos em 2026-10-27 = câmeras reais fora do ar -->
+- [x] Falha de comunicação persistente. <!-- "ICMP Ping: Perda de ping acima do limite" (9 triggers) + "High ICMP ping loss" do Generic by SNMP — avaliam icmppingloss por 1m -->
+- [ ] Problemas de armazenamento identificáveis. <!-- BLOQUEADO 2026-10-27: firmware 2019 não expõe discos (SNMP enterprise noSuchInstance); depende de ONVIF com usuário dedicado no DVR (pendente do usuário) -->
+- [x] Falhas de coleta. <!-- NVR: trigger "No SNMP data collection"; contagem item.get state=1 = 0 unsupported (2026-10-27). Câmeras: método único ICMP — host offline vira trigger de indisponibilidade (não há segundo sinal possível sem SNMP) -->
+- [ ] Mudanças de estado relevantes fornecidas pelo equipamento. <!-- PARCIAL 2026-10-27: NVR expõe restart (queda de uptime) e mudança de sysName via SNMP; SNMP traps não configurados; câmeras não expõem estado além do ping -->
 
 Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as câmeras. Isso depende dos recursos e interfaces disponibilizados pelo equipamento.
 
 ### 5.3. Interface
 
-- [ ] Listar câmeras e gravadores.
-- [ ] Agrupar por setor e localização.
-- [ ] Exibir disponibilidade, modelo e última atualização.
-- [ ] Exibir problemas e métricas suportadas.
-- [ ] Diferenciar câmera offline de falha do mecanismo de consulta.
+- [x] Listar câmeras e gravadores. <!-- dashboard 440 "Videomonitoramento - Operacao" (2026-10-27), 4 widgets, espelhando o de impressoras (439) -->
+- [x] Agrupar por setor e localização. <!-- inventory.location preenchido nas 43 câmeras + NVR (CPD 28, Farmacia HSSM 7, Centro Cirurgico 3, Pronto Socorro 3, Setor 1, Almoxarifado) — filtro em Monitoring→Inventory; grupos Cameras/NVRs HSDS por tipo -->
+- [x] Exibir disponibilidade, modelo e última atualização. <!-- widget tophosts com ICMP ping + perda por host; inventory model/serialno_a/macaddress_a (11 câmeras sem modelo no DVR); lastclock dos itens em Latest data -->
+- [x] Exibir problemas e métricas suportadas. <!-- widgets "Problemas recentes" + "Problemas por severidade" + "Itens de videomonitoramento" no dashboard 440 -->
+- [x] Diferenciar câmera offline de falha do mecanismo de consulta. <!-- câmera offline = icmpping 0 + trigger (problema do equipamento); NVR julgado por SNMP (availability flag distinto do ICMP); 0 unsupported = sem falha de coleta; fechamento dos falsos positivos do NVR registrou o motivo em mensagem -->
+
 
 ---
 
@@ -635,6 +783,82 @@ Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as c�
 - [ ] Identificar interfaces sem coleta de métricas esperadas.
 - [ ] Verificar templates e descoberta de interfaces.
 - [ ] Evitar duplicar itens e triggers existentes.
+
+#### §6.2.1 — Auditoria SNMP por porta (2026-11-11)
+
+> Pedido do usuário: "ver cada porta up/down e o tráfego, informação vinda do
+> próprio switch". Varredura read-only a partir da rede do compose Zabbix
+> (community `public`, SNMPv2c) + ping da workstation.
+
+**Alcance (planilha do usuário, 21 switches + core):**
+
+| Estado | Qtd | Detalhe |
+|---|---|---|
+| SNMP `public` OK | 14 | .1 A5120-24G EI (core), .231–.235/.242–.245 V1910-24G-PoE e genéricas "Switch 24 portas PoE", .250–.252 V1910-24G-PoE 170W, .220/.240 |
+| Ping OK, **sem SNMP** | 3 | .110 (TP-Link — só HTTP :80, sem SSH/Telnet), .120 e .140 (**nenhuma porta aberta** — provavelmente não gerenciáveis) |
+| Down (sem ping) | 5 | .241 R02-SW01, .130 Comissões, .150 NIR CE, .160 TI, .50.101 Farmácia HSSM |
+
+**Cobertura Zabbix já existente (verificado via API):** os 18 hosts SNMP já têm
+LLD de interfaces ativo — `net.if.discovery` gera itens por porta
+(`net.if.in/out` ifHC 64-bit, `net.if.in/out.errors`, `discards`,
+`oper.status`) e triggers por porta: **"sem link"** (prio 3/Info conforme
+template), **"Uso de banda alto"**, **"Taxa de erros alta"**,
+**"velocidade reduzida"** (custom "HP Comware:"/"Generico:") e half-duplex.
+Ex.: host 10818 (core) tem 146 triggers. Como "sem link" é prioridade
+Information/Average, **não cai no filtro High/Critical da action 7 → não
+gera spam no WhatsApp**; host inteiro fora do ar continua alertando via
+template (ICMP ping).
+
+**Hosts criados nesta data (estavam ausentes, todos down):**
+`sw-192-168-127-130` (11032, Switches de Mesa), `sw-192-168-127-150`
+(11033, Switches de Mesa), `sw-192-168-127-160` (11034, Switches de Mesa),
+`sw-192-168-127-241` (11035, Switches HP — R02-SW01, Setor 1) — template
+ICMP Ping, interface agent, tags `type=switch`/`managed-by=InfraControl`/
+`local`. Divergência de nomenclatura registrada: no Zabbix `.240` já se
+chama "R02-SW01" mas a planilha diz `.240`=R07-SW01 (sala de aula) e
+`.241`=R02-SW01 — nomes visíveis do inventário antigo divergem da planilha
+nova (idem PD1-SW0x × R04-SW0x); reconciliar nomes depois.
+
+**FDB/MAC table (base do mapa "qual switch/porta cada device usa"):**
+`dot1dTpFdbTable` (1.3.6.1.2.1.17.4.3.1) responde no core (**718 MACs
+aprendidos** → porta) e na V1910 .231 (resposta mínima — V1910 limita a
+tabela via SNMP); a Intelbras .244 **não expõe** FDB via SNMP. LLDP
+remoto vazio no core (lldp provavelmente desabilitado nos switches/devices).
+Coletor FDB→InfraControl = feature nova (não implementada — ver pendências).
+
+**Portas ao vivo no InfraControl (2026-11-11, implementado):**
+novo endpoint `GET /api/v1/network/switches/{id}/zabbix-ports`
+(`GetSwitchZabbixPortStatusQuery`, BaseQuery + cache 60s) resolve
+referência Zabbix → host → itens `net.if.*` e devolve **por porta**:
+`interfaceName`, `ifIndex`, `linkUp` (ifOperStatus via `item.get`
+lastvalue — 1 chamada), `speedMbps` (`net.if.speed`/ifHighSpeed),
+`duplex` (`net.if.duplex`/dot3StatsDuplexStatus) e taxa
+`in/outBytesPerSecond` calculada dos 2 últimos pontos do `history.get`
+em lote (history=3 unsigned + history=0 float, janela 15min).
+Novos métodos do `IZabbixClient`: `GetItemsLastValuesAsync` e
+`GetHistoryBatchAsync`. No front, `SwitchesPage` exibe grid + tabela
+"Portas ao vivo (Zabbix SNMP)" com Link/Velocidade/Duplex/Recebido/
+Enviado em **todos os switches com referência Zabbix** (não só UniFi);
+prioridade mantida: UniFi ao vivo → Zabbix → cadastro manual.
+Colunas que o Zabbix **não coleta hoje** nesses hosts: VLAN (PVID),
+PoE, mídia e MAC do cliente — exigiriam novos itens LLD
+(Q-BRIDGE-MIB/POWER-ETHERNET-MIB) ou o coletor FDB; exibidas como "—".
+`UniFiDashboardPage` reformulada no padrão ZabbixOverview: chips de
+estado dos devices + tabela de devices sem vínculo
+(`getUniFiCorrelation`) + últimas sincronizações (`listUniFiSyncRuns`).
+
+**Pendências switches:**
+- [ ] .110 TP-Link: habilitar SNMP pela interface web (única porta aberta;
+  login admin da planilha) — avaliar se o modelo suporta;
+- [ ] .120/.140: sem nenhuma porta de gerenciamento aberta → provável
+  não-gerenciável; confirmar modelo e, se for o caso, substituir ou aceitar
+  monitoramento só por ping (status atual);
+- [ ] Quando .130/.150/.160/.241/.50.101 voltarem: testar SNMP e, se
+  responderem, trocar template ICMP→Comware/Generic + interface SNMP :161;
+- [ ] Coletor FDB (MAC→porta→switch) para o mapa device→porta no
+  InfraControl — depende de decisão de arquitetura (job SNMP no worker ×
+  consulta sob demanda);
+- [ ] Reconciliar nomes visíveis Zabbix × planilha nova (R04×PD1, .240/.241).
 
 ### 6.3. Access Points
 
@@ -666,6 +890,134 @@ Não presumir que o Zabbix consiga validar a gravação de vídeo de todas as c�
 ---
 
 ## FASE 7 — Telefonia e serviços de comunicação
+
+#### §7.0.1 — Descoberta da frota de telefonia (2026-10-29/30, read-only)
+
+> **Segmento:** `192.168.21.0/24` (rede "Telefonia" vlan=21 mapeada pela integração
+> UniFi/F26 — docs/36). Alcance confirmado da workstation (gateway `.1` responde ICMP;
+> rota existe — diferente dos switches 192.168.127.x, sem rota).
+
+> **Varredura ICMP: 61 hosts vivos** (`.1` = gateway/router; `.10` e demais vazios fora
+> da lista). **Probe TCP/HTTP: 60 hosts com portas 80 e 443 abertas** e resposta
+> idêntica: `HTTP 401` + `Server: GoAhead-Webs` + Basic auth + header de data parado em
+> 2014 (sem RTC/NTP) — assinatura clássica de **telefone IP embedded** (Fanvil,
+> Grandstream, D-Link e congêneres usam o web server GoAhead). Frota uniforme
+> (60/60 mesmo fingerprint) = os telefones IP do hospital. Evidência bruta:
+> `Temp/opencode/t-ping21.txt` + `t-fp21.txt` (temporário).
+
+> **Limites desta descoberta:**
+> - SNMP **não testável da workstation** (UDP 161 sem resposta — caminho bloqueado;
+>   pacote SNMPv2c validado contra respondedores conhecidos que responderiam);
+>   validar via container Zabbix quando a stack voltar (as telefones podem expor
+>   MIB-II → docs/47 §A).
+> - Sem credencial web das telefones → serial/MAC/ramal não coletados (pendência
+>   de credencial, como as câmeras2016-2022 §5.0.2).
+> - **Central/PABX não identificada** neste segmento (nenhum host com perfil
+>   Asterisk/Apache/nginx — todos GoAhead). Localização da central = dado do usuário.
+
+> **Bloqueio de execução:** cadastro no Zabbix adiado — Docker Desktop parou
+> (stack `infracontrol-*` fora, API 8086 sem resposta). Plano pronto: grupo novo
+> `Telefonia HSDS`,60 hosts `tel-192-168-21-XX`, template `ICMP Ping` (10564),
+> tags `managed-by=InfraControl` + `type=telefone-ip`, upgrade SNMP se o probe
+> do container confirmar MIB-II.
+
+#### §7.0.2 — Cadastro no Zabbix (2026-11-10, F27-T014)
+
+> **Decisões do usuário (2026-11-10):** monitoramento por **ICMP ping por
+> telefone**; notificação **via WhatsApp** (pipeline existente); **corrigir o
+> typo óbvio e cadastrar tudo que tem IP** (pendências listadas abaixo).
+> **As triggers nasceram DESABILITADAS** — ativação manual (`-Enable`) para não
+> disparar alerta em massa no grupo de WhatsApp da empresa.
+
+**Artefatos versionados:**
+
+- `scripts/zabbix/telefones-hsds.json` — inventário normalizado (**59
+  aparelhos**: 28 no 1º andar, 12 no 2º, 11 no 3º, 8 no Pronto-Socorro);
+- `scripts/zabbix/provision-telefones.ps1` — provisionamento **idempotente**
+  (sobrescreve por env `ZBX_API_URL`/`ZBX_USER`/`ZBX_PASSWORD`); `-Enable` e
+  `-Disable` alternam o status das triggers.
+
+**Criado (Zabbix 8.0.0, API `localhost:8086`):**
+
+| O que | Detalhe |
+|---|---|
+| Grupo | `Telefonia HSDS` (**groupid 39**) |
+| Hosts | **59** `tel-<ip-normalizado>`, nome `TEL <ramal> - <setor> (<local>)` — ex.: `TEL 1518 - NIR (1º andar)` |
+| Itens | **177** (`icmpping`, `icmppingloss`, `icmppingsec` — *simple check*, 1m, 7d/30d) |
+| Triggers | **59** `… fora do ar` (**40447–40505**), expr. `max(/tel-…/icmpping,#3)=0`, severidade **High (4)**, **status=1 (desabilitada)** |
+| Tags | `type=telefone-ip`, `managed-by=InfraControl`, `ramal`, `local`, `mac`, `setor` |
+| Macros | `{$SETOR}`, `{$RAMAL}`, `{$MAC}`, `{$LOCAL}` |
+
+**Por que NÃO linkamos o template `ICMP Ping` (10564):** ele já traz 3 triggers
+**habilitadas** (ex.: `ICMP Ping: Indisponivel por ICMP ping`, severidade 4) e
+trigger herdada **não pode ser desabilitada por host**; alterar o template
+afetaria os **59 hosts** que já o usam (câmeras/APs/switches). Os itens foram
+então espelhados no script e a trigger por aparelho nasce desabilitada e com
+nome específico (ramal + setor + local).
+
+**Notificação (Ação + WhatsApp):** **nenhuma action nova** — a action **7**
+(`InfraControl - triggers`) é global (`filter.conditions: []`) e já envia
+PROBLEM/OK às media types **105/106** → `POST /api/v1/integrations/zabbix/problems`
+→ `NotificationWhatsAppWorker` → grupo de WhatsApp (docs/27 §4). Uma action
+própria de telefonia **duplicaria** a mensagem. A severidade **High** é exigida
+pelo filtro do `NotificationEventConsumer` (só High/Critical vai ao WhatsApp).
+
+**Correções aplicadas à planilha:** Consultorio 2 `193.168.21.133` →
+`192.168.21.133`; Tomografia MAC `00268B9D663D4]` → `00268B9D663D`.
+
+**Validação (2026-11-10):**
+
+- itens **177/177 `supported`**; `icmpping` com valor em **59/59**
+  (59 vivos / 0 em falha no momento da checagem);
+- triggers **59/59 desabilitadas** (0 habilitadas, 0 em problema);
+- reexecução do script = **0 hosts / 0 itens / 0 triggers novos e 0
+  atualizações** (idempotente — a comparação da expressão usa
+  `expandExpression=true`, senão a API devolve o formato legado `{itemid}=0`
+  e o update reexecutaria à toa);
+- `scripts/zabbix/smoke-test.ps1` **6/6** (ação 7 e media types 105/106
+  habilitados, `queue=0`, pinger ICMP max busy 45,5%).
+
+**Ativação (2026-11-11, decisão do usuário):** teste ao vivo com o ramal da TI
+(`tel-192-168-21-183`, trigger 40466 habilitada isoladamente) validou o fluxo
+completo — `icmpping=0` por ~4 falhas consecutivas → PROBLEM (evento 49081,
+High) → webhook → `monitoring_events` (severity 4) → alerta Critical +
+incidente + notificações SignalR/Email. O monitoramento **nativo** de ping do
+InfraControl disparou em paralelo ("Device 'TI' fora do ar"). Após o sucesso,
+`provision-telefones.ps1 -Enable` habilitou as **59/59 triggers** — qualquer
+telefone fora do ar agora gera alerta WhatsApp via action 7. Na checagem
+imediata pós-ativação, apenas o TEL 1565 constava em PROBLEM (ainda
+desligado); os outros 58 estavam OK.
+
+**Base do InfraControl alimentada (2026-11-11):** os 59 telefones existem como
+`Device` tipo `Phone` no inventário (58 já importados + `Supervisão Enfermagem
+Setor 1` — 192.168.11.183, 2º Andar — cadastrado via `POST
+/inventory/devices/import`, F50-T008). Sync do inventário Zabbix
+(`POST /integrations/zabbix/sync`: created=104, updated=107, errors=0)
+correlacionou **59/59 hosts `tel-*` → devices** via
+`external_device_references` (total Zabbix: 123 referências) — alertas de
+telefonia agora chegam com device/local resolvidos.
+
+**Formato WhatsApp padronizado (2026-11-11):** `BuildText` do
+`EvolutionApiWhatsAppNotificationDispatcher` passou a emitir seções PT-BR com
+emojis (severidade, `📍` assunto deduplicado, `🎚️` severidade, `💡` dica
+"fora do ar", `🕐` data; resolução em 🟢). Corrige a duplicação
+`{HOST}: {HOST} resto` gerada pela media type 105 do Zabbix nos hosts de
+telefonia. Formato documentado em docs/07 §"Formato da mensagem".
+
+**Pendências:**
+
+- [x] Ativar as triggers quando o responsável decidir lote/horário:
+  `provision-telefones.ps1 -Enable` executado em 2026-11-11 (59/59 habilitadas;
+  reversível com `-Disable`);
+- [ ] `Marketing` (1º andar) e `Lavanderia` (2º andar): planilha com "X" — sem
+  IP/MAC, não cadastrados;
+- [ ] Ramal ausente em 8 aparelhos (identificação pelo texto: `FARMA COMERCIAL`,
+  `Sup Compras`, `SUPERVISAO CC`, `Agenda CC`, `Obstetríca`, `Sanificação`,
+  `Manutenção`, `Supervisão Enfermagem Setor 1`);
+- [ ] SNMP/credencial web não testados (§7.0.1) → serial, firmware e registro SIP
+  continuam fora do escopo; central/PABX não identificada;
+- [ ] Export versionado em `zabbix-config/` após a ativação (backup diário 02:00
+  já cobre o restante).
 
 ### 7.1. Telefonia
 
@@ -990,6 +1342,304 @@ Integração Zx:   9/10     (1 = E2E/S4 — IVetorStore)
 ```
 
 Hosts no Zabbix: `10818–10839` (switches) + `10084` (Zabbix server) — grupo `Network devices` (gid 22), template `ICMP Ping` (tid 10564), tags `managed-by=InfraControl,local`.
+
+---
+
+## Próximo checkpoint — reconciliação dos equipamentos já cadastrados
+
+**Escopo solicitado em 2026-10-23.** Antes de avançar para câmeras, telefones
+IP e servidores, conferir e fazer funcionar o que já foi cadastrado para
+impressoras, switches e equipamentos UniFi (APs/switches). Não presumir que o
+inventário e o Zabbix descritos nas auditorias de 2026-10-09/10 continuam
+iguais: a ficha da impressora registra um template `IC Impressora SNMP`
+(`templateid` 10887) e impressoras reais vistos em 2026-10-18, enquanto o
+inventário inicial da F27 não tinha impressoras/APs. O estado vivo precisa ser
+reconsultado.
+
+### Plano de execução
+
+1. **Auditoria somente leitura no Zabbix Web/API**: confirmar versão, estado
+   dos hosts atuais, problemas abertos, modelo/grupo/interface/templates,
+   itens unsupported, protótipos LLD, triggers e ação/webhooks; comparar com
+   IDs e resultados registrados neste documento e na ficha [docs/43](43-FICHA-TECNICA-IMPRESSORA.md).
+2. **Corrigir problemas pela causa**: distinguir alerta real de falha de
+   coleta/configuração. Para problemas do próprio Zabbix/agent, validar a
+   interface e o alcance do agent; não reconhecer/fechar manualmente problema
+   que deve se resolver por recuperação. Confirmar a entrega do webhook ao
+   InfraControl sem enviar teste ao WhatsApp/grupo de produção.
+3. **Impressoras**: conferir o template `IC Impressora SNMP` existente antes
+   de criar/alterar qualquer template; validar host, modelo, versão SNMP,
+   `bulk`, métricas de suprimentos/estado/contadores e thresholds com dados
+   reais. Corrigir apenas lacunas provadas e verificar os mesmos valores na
+   página Impressoras do InfraControl.
+4. **Switches e UniFi/APs**: sincronizar hosts já existentes e confrontar
+   host IDs, IPs, grupos, templates, problemas e vínculo com `Device`/
+   `ExternalDeviceReference`. Manter as responsabilidades da ADR-028 e
+   ADR-048: Zabbix para coleta/triggers/histórico; UniFi API para telemetria
+   própria do controller; InfraControl para inventário/correlação e operação.
+   Distinguir ausência de rota/SNMP de defeito do equipamento.
+5. **Fechamento e documentação**: validar que problemas e dados apresentados
+   na Visão Zabbix, Impressoras, Switches e Wi-Fi/UniFi correspondem às
+   fontes; registrar hosts cobertos, lacunas, mudanças, testes e rollback.
+   Só então avançar a etapa seguinte.
+
+### Limites e critérios de aceite
+
+- Nesta etapa não cadastrar câmeras, telefones IP ou servidores; ficam para
+  fases posteriores com inventário e aprovação próprios.
+- Não criar host, template, trigger, descoberta ou regra de ação duplicada.
+  Alterações na instância ativa ficam restritas ao que a auditoria demonstrar
+  necessário e devem ser documentadas antes da aplicação.
+- Não persistir senhas/tokens no repositório ou na documentação. O acesso
+  interativo deve ser autenticado pelo usuário na sessão do navegador.
+- Não afirmar que um host está operacional apenas por estar sincronizado:
+  confirmar coleta recente, itens suportados e ausência/recuperação de
+  problemas.
+- Aceite requer: hosts reais correlacionados sem Devices duplicados; estado e
+  alertas consultáveis; métricas de impressora verificadas no equipamento e
+  visíveis no InfraControl; coleta de switch/AP identificada corretamente
+  (inclusive limitações de rota/SNMP); PROBLEM e recovery do webhook validados;
+  evidências e pendências registradas. Sem credenciais/sessão ou sem alcance
+  aos dispositivos, registrar o bloqueio em vez de inventar sucesso.
+
+### Evidências iniciais da auditoria ao vivo (2026-10-24)
+
+- O usuário autenticou na sessão integrada do Zabbix. A auditoria ao vivo
+  começou em modo somente leitura. Posteriormente, após documentação do plano
+  e autorização explícita do usuário, foi aplicada a correção específica do
+  template descrita abaixo. Não houve reconhecimento de evento, envio de
+  WhatsApp ou reinício de container Zabbix.
+- O template `IC Impressora SNMP` (`templateid` 10887) existe e está ligado
+  a 36 hosts. A listagem mostra 4 itens e 2 regras de descoberta habilitadas:
+  `printer.alerts.discovery` (5m) e `printer.supplies.discovery` (1h). Cada
+  regra declara 2 protótipos de trigger.
+- Na consulta inicial, a ação global `InfraControl - triggers` (`actionid` 7)
+  estava habilitada e encaminhava eventos do Zabbix ao InfraControl. Ela foi
+  pausada somente durante a correção autorizada do template e, após a
+  alteração, foi restaurada; a listagem de ações foi reaberta e mostrou a ação
+  como **Enabled**. No momento da consulta inicial, o
+  canal WhatsApp estava habilitado (`notifications_enabled=true`), mas não
+  havia entregas WhatsApp em processamento, pendentes ou com retry vencido
+  (0/0).
+- Antes da correção, no host `HSDS_HP_SETOR_1_ENF`, o item descoberto
+  `Alerta 7 - severidade` coletava o valor `7`; a interface SNMP era
+  `192.168.22.175:161`, o OID usado era
+  `1.3.6.1.2.1.43.18.1.1.3.1.1` e o intervalo era 5m. A descrição do item
+  documentava os valores 1–4, mas não explicava o valor 7.
+- Antes da correção, os protótipos de trigger observados eram `Alerta aviso`
+  quando o valor era exatamente `3` e `Alerta fatal` quando era `>=4`. Isso
+  explica por que o valor 7 ativava o protótipo fatal, mas não comprovava uma
+  falha real na impressora: o significado do valor foi então validado contra
+  a RFC/MIB antes de corrigir a condição e a descrição do item.
+- A listagem de `Latest data` mostrou a última coleta há 4m39s no momento da
+  consulta. Isso confirma coleta recente desse item, não o estado geral de
+  todas as impressoras.
+- Na verificação inicial, antes da correção descrita abaixo, a aplicação não
+  pôde ser conferida no navegador. `docker compose ps` indicava frontend e API
+  saudáveis e o frontend publicado em `8080→80` e `8443→443`. A resposta HTTP
+  em `localhost:8080` redirecionava para
+  `https://localhost/` sem a porta publicada. A configuração em
+  `docker-compose.yml` usa `HTTPS_PORT:-443` para `NGINX_HTTPS_PORT`, embora
+  o mapeamento da porta use `HTTPS_PORT:-8443`; o Nginx ativo confirmou o
+  valor 443. O endpoint `https://localhost:8443/` responde 200 quando a
+  verificação TLS é ignorada, mas a validação TLS normal rejeita o
+  certificado local como não confiável. Assim, o navegador integrado não
+  conseguiu abrir a aplicação.
+- Correção aplicada após autorização: o fallback de `NGINX_HTTPS_PORT` foi
+  ajustado para `8443` em `docker-compose.yml` e somente o container frontend
+  foi recriado. O container ficou healthy; `localhost:8080` agora redireciona
+  para `https://localhost:8443/` e o endpoint HTTPS responde 200 com
+  verificação TLS desativada. O navegador integrado confirma que o
+  certificado ainda não é confiável (`ERR_CERT_AUTHORITY_INVALID`), portanto
+  a validação visual da aplicação permanece bloqueada. A confiança do
+  certificado não foi alterada. Nenhum container do Zabbix foi reiniciado ou
+  modificado.
+- O resultado anterior de 107 hosts habilitados e o widget de disponibilidade
+  totalizando 25 continuam divergentes; a cobertura de impressoras, APs e
+  switches ainda não foi reconciliada. A confirmação anterior de entregas
+  `Sent` ao InfraControl não substitui a validação de PROBLEM/recovery nesta
+  etapa.
+
+### Causa raiz confirmada e correção aplicada — impressoras
+
+- A RFC 3805 define `prtAlertSeverityLevel` como a coluna 2 de
+  `prtAlertEntry` (`...43.18.1.1.2`) e `prtAlertTrainingLevel` como a coluna 3
+  (`...43.18.1.1.3`). O item prototype `printer.alert.severity[{#SNMPINDEX}]`
+  do template 10887 usava a coluna 3, portanto o valor 7 que disparou o falso
+  alerta High era dado de treinamento/intervenção, não severidade. Na
+  convenção da RFC, `noInterventionRequired` é valor 7 de training level.
+- O enum padronizado da severidade na RFC contém `other(1)`, `critical(3)`,
+  `warning(4)` e `warningBinaryChangeEvent(5)`. Antes da correção, além da
+  coluna incorreta, os protótipos classificavam `>=4` como High e `=3` como
+  Warning.
+- Correção aplicada no template já existente, sem criar cópia:
+  - item prototype `83315`: OID alterado para
+    `get[1.3.6.1.2.1.43.18.1.1.2.{#SNMPINDEX}]` e descrição ajustada para
+    `prtAlertSeverityLevel`;
+  - trigger prototype `38061`: expressão `last(...)=3`, severidade High e
+    nome `Alerta crítico`;
+  - trigger prototype `38062`: expressão
+    `last(...)<>1 and last(...)<>3`, severidade Warning e nome
+    `Alerta não crítico ou severidade não mapeada`.
+  Os três valores foram reabertos no Zabbix e conferidos após salvar. A ação
+  global `actionid` 7 foi restaurada para Enabled e esse estado foi
+  confirmado na listagem de ações. A alteração alcança os 36 hosts vinculados.
+  Na validação posterior, `Latest data` do host Zabbix `10907`
+  (`HSDS_HP_SETOR_1_ENF`) mostrou o item `Alerta 7 - severidade` com último
+  valor `1` e coleta há cerca de 1 minuto. A listagem de Problems filtrada
+  pelo host/trigger não encontrou problemas ativos. O nome `Alerta 7` é o
+  alerta descoberto na impressora; o último valor `1` é a severidade coletada,
+  agora `other(1)`. É uma amostra validada, não evidência de coleta nos 36
+  hosts. Não houve teste sintético nem envio de WhatsApp.
+- Implementação da aplicação concluída em `SnmpPrinterStatusProvider`: 3 é
+  critical, 4/5 são warning, códigos restantes são unknown; a severidade
+  agregada usa prioridade (critical > warning > unknown), não ordem numérica.
+  Os testes focados passaram 17/17.
+- A alteração propaga-se aos 36 hosts vinculados e pode gerar
+  recuperação/abertura de eventos. Conforme o plano documentado e aprovado,
+  a ação Zabbix `actionid` 7 foi desabilitada temporariamente durante a
+  edição, e restaurada Enabled imediatamente depois; seu estado foi
+  confirmado na listagem. Enquanto pausada, eventos de qualquer host não
+  foram encaminhados ao InfraControl e podem não ser reenviados
+  automaticamente. Não foram feitos testes sintéticos nem envios de
+  WhatsApp.
+
+**Estado:** correção do provider concluída (17/17 testes focados) e correção
+específica do template aplicada e conferida no Zabbix; ação global 7
+restaurada e confirmada Enabled. Uma impressora (host 10907) já coleta
+severidade `1` e não apresenta problema ativo no filtro verificado; verificar
+as demais impressoras e continuar a reconciliação de APs/switches. A
+landing e o formulário de login do InfraControl já foram abertos com TLS
+validado. A inspeção das páginas protegidas depende de uma sessão de usuário
+InfraControl, que não estava disponível; não foram fornecidas nem tentadas
+credenciais. Nenhum container Zabbix foi reiniciado.
+
+### Plano de confiabilidade do broker (2026-10-24)
+
+- Durante a validação do fluxo, o RabbitMQ aparecia `unhealthy` embora
+  `rabbitmq-diagnostics check_running` confirmasse o broker ativo e
+  `check_port_connectivity` passasse. Medição do comando de conectividade:
+  10,71 s; timeout configurado no Compose: 5 s. O broker continha 0 mensagens
+  prontas e 0 não confirmadas nas filas `NotificationEvent` e
+  `AiInferenceWorker`.
+- Mudança proposta: elevar somente o timeout do healthcheck do RabbitMQ para
+  15 s, mantendo o mesmo comando, intervalos e política de retries. Depois,
+  recriar somente o container RabbitMQ quando as filas continuarem vazias e
+  verificar health `healthy`, liveness/readiness da API e estado dos workers.
+  Volume e dados serão preservados. Sem publicação de eventos sintéticos,
+  WhatsApp ou alteração no Zabbix.
+- Aplicada: timeout alterado de 5 s para 15 s; `docker compose config
+  --quiet` válido. Antes da recriação, filas `NotificationEvent` e
+  `AiInferenceWorker` estavam em 0/0; somente o container RabbitMQ foi
+  recriado, preservando seu volume. Resultado: broker `healthy`, API e workers
+  `healthy`, `/health/live` e `/health/ready` HTTP 200, filas seguem em 0/0.
+  O comando de healthcheck passa dentro da janela ampliada. O endpoint
+  agregado `/health` também respondeu HTTP 200 (`Degraded`, 4,7 s):
+  `masstransit-bus`, PostgreSQL e Redis estão `Healthy`; `ai-runtime` está
+  `Degraded`, estado permitido para capacidade opcional de IA sem provider
+  alcançável (ADR-036/§44), sem bloquear o monitoramento.
+
+### Correção do certificado local e validação visual (2026-10-24)
+
+- A inspeção inicial do certificado encontrou `CN=infracontrol.local` sem
+  extensão SAN, embora o endereço publicado seja `localhost`, causando erro
+  de autoridade e incompatibilidade de nome.
+- Aplicada em `docker/Dockerfile`: certificado de desenvolvimento com SAN para
+  `localhost`, `127.0.0.1` e `infracontrol.local`; somente o frontend foi
+  reconstruído e recriado. O SAN foi conferido no container; a porta HTTPS
+  responde 200 com verificação TLS desativada, HTTP redireciona para
+  `https://localhost:8443/` e `/health/ready` responde 200.
+- Com autorização explícita, o certificado público atual foi importado em
+  `Cert:\CurrentUser\Root` somente para o usuário Windows atual; nenhum
+  repositório de máquina foi alterado. HTTPS estrito responde 200 e o browser
+  abriu landing e login. O `/auth/me` anônimo retorna 401, e a página então
+  apresenta o formulário de login após carregar. O usuário informou não ter
+  acesso à conta InfraControl agora; dashboard e páginas protegidas ainda não
+  foram validados. Nenhuma credencial foi solicitada ou usada.
+
+### Plano e resultado da reconciliação Zabbix (2026-10-24)
+
+**Plano documentado para a continuação:** comparar grupos de hosts com os
+templates e interfaces SNMP efetivamente ligados; conferir itens unsupported,
+problemas ativos e a ação de encaminhamento; reconciliar a diferença entre
+hosts cadastrados e hosts com SNMP. Esta verificação é somente leitura. Não
+alterar templates/hosts, reconhecer problemas, gerar eventos sintéticos nem
+enviar mensagens WhatsApp. Qualquer mudança futura em hosts ou templates
+dependerá de evidência de capacidade/configuração do equipamento e será
+documentada antes de ser aplicada.
+
+**Resultado da consulta ao vivo, em transação somente leitura:**
+
+- **Impressoras:** o grupo contém 37 hosts habilitados; 36 estão ligados ao
+  template `IC Impressora SNMP` (10887) e os 36 têm interface SNMP disponível.
+  A diferença é exclusivamente `HSSM_HP_SETOR2` (host 10924, `192.168.50.111`),
+  cadastrado como ping-only e com interface SNMP em estado desconhecido. Isso
+  reconcilia os totais, mas não significa que esse HP esteja coletando Printer-MIB.
+- **APs UniFi:** 43 hosts habilitados, todos com itens ICMP habilitados e
+  suportados. 30 usam `Network Generic Device by SNMP`, com 30/30 interfaces
+  SNMP disponíveis; os 13 restantes estão em ICMP-only. Os itens SNMP
+  consultados não têm estado unsupported, mas o template genérico não comprova
+  métricas específicas do controlador UniFi (rádios/clientes).
+- **Switches:** 25 hosts habilitados: 10 HP com template Comware por SNMP,
+  5 Intelbras com template genérico SNMP, 5 de 6 UniFi com template genérico
+  SNMP e 4 switches de mesa com `ICMP Ping`. As 20 interfaces SNMP configuradas
+  estão disponíveis; os outros 5 hosts estão em ping-only. Os itens
+  unsupported foram reportados como zero naquela consulta, mas essa contagem
+  foi contradita durante a criação do dashboard: no seletor de itens do host
+  `HSDS_HP_SETOR_1_ENF`, `Alerta 7 - severidade`
+  (`printer.alert.severity[1.1]`) apareceu como `Not supported`. A quantidade
+  total e a causa precisam ser reconsultadas por estado; não desabilitar nem
+  remover o item sem investigação.
+- **Problemas e encaminhamento:** a consulta anterior que sustentava
+  `0` problemas ativos filtrava `r_eventid = 0`. Esse filtro não é válido para
+  eventos Zabbix sem recuperação: nesses casos `r_eventid` é `NULL`. Portanto,
+  a afirmação anterior de zero problemas ativos fica invalidada. Os antigos
+  erros `No Such Instance` de `HSDS_HP_PS_TRIAGEM` (10904) e `HSDS_HP_SETOR_3`
+  (10910) não estavam presentes naquela consulta; os itens descobertos
+  consultados estavam `state=0`, sem erro atual naquele momento. A ação global
+  `InfraControl - triggers` (id 7) segue habilitada (`status=0`).
+- Na etapa de reconciliação somente leitura e na criação do dashboard, não
+  foram alterados hosts, interfaces, templates, triggers ou ações (a correção
+  do template 10887 foi uma etapa separada, já registrada acima). O dashboard
+  abaixo é uma criação visual isolada. Não houve teste sintético,
+  reconhecimento de problema ou envio WhatsApp.
+
+### Dashboard operacional de impressoras (2026-10-24)
+
+Dashboard **Impressoras - Operacao** criado e salvo no Zabbix (ID `439`),
+com a página **Visão geral**, privado e sem compartilhamentos de
+usuários/grupos. Os cinco widgets carregam no grupo `Impressoras`:
+
+- problemas recentes;
+- problemas por severidade;
+- disponibilidade SNMP;
+- Top hosts com `printer.status` e `printer.pages.total`, limite de 37 hosts;
+- Item navigator, filtrado pelo grupo, exibindo `100 de 100+` itens.
+
+Na validação visual, a disponibilidade mostrou 36 disponíveis, 0 indisponíveis,
+0 mistos e 1 desconhecido (37 hosts). Problemas por severidade mostrou 12
+`Average` e 19 `Warning`; portanto, há problemas ativos no grupo e a
+reconciliação continua pendente. O widget de problemas recentes mostrou 25 de
+32 entradas e incluiu ao menos uma linha `RESOLVED`. A lista também inclui
+alertas de suprimentos, alertas Printer-MIB e ao menos um alerta de tempo de
+resposta ICMP. Um alerta exibiu
+`Alerta não crítico ou severidade não mapeada: 6`; seu significado deve ser
+investigado separadamente antes de qualquer mudança no template.
+
+Não foram reconhecidos problemas nem modificados hosts, templates, triggers
+ou ações. A ausência de coleta de filas, bandejas/tampas, consumo mensal e
+previsão de troca permanece.
+
+**Pendências objetivas:** há 13 APs e 5 switches sem interface SNMP no Zabbix;
+`HSSM_HP_SETOR2` tem interface SNMP desconhecida, mas continua ping-only. O
+usuário escolheu prosseguir somente pelo Zabbix, sem alterar o controller ou
+os equipamentos. Portanto, manter esses hosts sem SNMP até que uma consulta
+SNMP seja validada por um caminho já autorizado; não adicionar interface ou
+template por tentativa. O controller está na tela de login e não foram
+solicitadas credenciais. Para métricas específicas UniFi, definir uma
+fonte/template compatível com o controlador — o template SNMP genérico atual
+não cobre essa capacidade. Não criar OIDs ou templates específicos sem
+validar modelo, firmware e acesso aos dados.
 
 ---
 

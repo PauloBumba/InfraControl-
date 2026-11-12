@@ -74,8 +74,16 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
             dateFont, mutedPaint);
 
         canvas.DrawText("DISPOSITIVO", Padding, 120, labelFont, mutedPaint);
-        canvas.DrawText(data.DeviceLabel ?? "Dispositivo", Padding, 155,
-            deviceFont, foregroundPaint);
+        var deviceLabel = data.DeviceLabel ?? "Dispositivo";
+        canvas.DrawText(deviceLabel, Padding, 155, deviceFont, foregroundPaint);
+
+        if (!string.IsNullOrWhiteSpace(data.LocationLabel))
+        {
+            using var locationFont = new SKFont(SKTypeface.Default, 16);
+            var locationText = $"· {data.LocationLabel}";
+            var locationX = Padding + deviceFont.MeasureText(deviceLabel, foregroundPaint) + 12;
+            canvas.DrawText(locationText, locationX, 153, locationFont, mutedPaint);
+        }
 
         var titleLines = WrapText(data.Title, titleFont, foregroundPaint,
             Width - (Padding * 2), maxLines: 2);

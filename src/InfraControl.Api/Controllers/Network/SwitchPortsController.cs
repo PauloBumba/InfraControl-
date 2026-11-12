@@ -54,6 +54,18 @@ public sealed class SwitchPortsController(ISender sender) : BaseController
             new GetSwitchZabbixInterfacesQuery(switchId), cancellationToken)));
 
     /// <summary>
+    /// Status ao vivo das portas via Zabbix SNMP: link up/down
+    /// (ifOperStatus) + taxa de tráfego in/out por porta. Lista vazia =
+    /// sem referência Zabbix, host ausente ou switch sem itens net.if.*.
+    /// </summary>
+    [HttpGet("switches/{switchId:guid}/zabbix-ports")]
+    [Authorize]
+    public async Task<IActionResult> GetZabbixPortStatus(
+        Guid switchId, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetSwitchZabbixPortStatusQuery(switchId), cancellationToken)));
+
+    /// <summary>
     /// Fase 07c: sincroniza o cadastro de portas a partir do port_table
     /// do controller UniFi. Portas existentes têm LinkUp atualizado;
     /// novas são criadas; manuais ausentes do controller são preservadas.

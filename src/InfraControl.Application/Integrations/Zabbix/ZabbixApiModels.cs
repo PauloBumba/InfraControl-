@@ -67,3 +67,13 @@ public sealed record ZabbixHistoryValueDto(
     string ItemId,
     DateTime ClockUtc,
     string Value);
+
+/// <summary>
+/// Último valor coletado de um item (item.get com lastvalue/lastclock) —
+/// leitura barata de "estado atual" sem varrer histórico.
+/// </summary>
+public sealed record ZabbixItemLastValueDto(
+    string ItemId,
+    string Key,
+    string? LastValue,
+    DateTime? LastClockUtc);

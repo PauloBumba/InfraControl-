@@ -1,4 +1,7 @@
 import { Link } from "react-router-dom";
+import { CtaBand } from "@/components/marketing/CtaBand";
+import { PublicHero } from "@/components/marketing/PublicHero";
+import { SectionHead } from "@/components/marketing/SectionHead";
 
 const GROUPS = [
   {
@@ -57,25 +60,58 @@ const SECURITY_FEATURES = [
   { icon: "pi pi-eye", name: "Auditoria", desc: "Toda ação registrada com ator, recurso e resultado" },
 ] as const;
 
+const ARCH_LAYERS = [
+  {
+    title: "Aplicação",
+    primary: true,
+    items: ["React + TypeScript", ".NET 10", "CQRS + MediatR"],
+  },
+  {
+    title: "Dados",
+    primary: false,
+    items: ["PostgreSQL", "Redis", "RabbitMQ"],
+  },
+  {
+    title: "Infraestrutura",
+    primary: false,
+    items: ["Docker Compose", "Nginx", "OpenTelemetry"],
+  },
+] as const;
+
 export function FeaturesPage() {
   return (
     <div className="uni-public-page--features">
-      <section className="uni-public-hero">
-        <p className="uni-public-eyebrow">Recursos completos</p>
-        <h1>Descubra o poder da operação centralizada</h1>
-        <p className="uni-public-lead">
-          Uma ferramenta única para monitorar, detectar, operar e governar toda a sua infraestrutura — com segurança, rastreabilidade e controle total.
-        </p>
-      </section>
+      <PublicHero
+        eyebrow="Recursos completos"
+        title="Descubra o poder da operação centralizada"
+        lead="Uma ferramenta única para monitorar, detectar, operar e governar toda a sua infraestrutura — com segurança, rastreabilidade e controle total."
+        actions={
+          <>
+            <Link to="/login" className="uni-public-button">
+              <i className="pi pi-sign-in" aria-hidden="true" />
+              <span>Entrar</span>
+            </Link>
+            <Link to="/contato" className="uni-public-button uni-public-button-ghost">
+              <span>Falar com a gente</span>
+            </Link>
+          </>
+        }
+      />
 
-      <section className="uni-public-section">
-        <div className="uni-public-grid">
+      <section className="uni-public-section" aria-labelledby="grupos">
+        <SectionHead
+          id="grupos"
+          eyebrow="Como o produto se organiza"
+          title="Quatro frentes, um só painel"
+          lead="Os grupos espelham a estrutura real da plataforma — cada item listado existe no código."
+        />
+        <div className="uni-public-grid uni-public-groups">
           {GROUPS.map((group) => (
             <article key={group.title} className="uni-public-card">
               <span className="uni-public-card-icon">
-                <i className={group.icon} />
+                <i className={group.icon} aria-hidden="true" />
               </span>
-              <h2>{group.title}</h2>
+              <h3>{group.title}</h3>
               <ul className="uni-public-list">
                 {group.items.map((item) => (
                   <li key={item}>{item}</li>
@@ -86,13 +122,18 @@ export function FeaturesPage() {
         </div>
       </section>
 
-      <section aria-labelledby="monitoramento-detalhado" className="uni-public-section">
-        <h2 id="monitoramento-detalhado">Monitoramento inteligente e automatizado</h2>
+      <section className="uni-public-section uni-public-section--alt" aria-labelledby="monitoramento-detalhado">
+        <SectionHead
+          id="monitoramento-detalhado"
+          eyebrow="Monitoramento"
+          title="Monitoramento inteligente e automatizado"
+          lead="Descoberta de rede, correlação e histórico em um ciclo só."
+        />
         <div className="uni-public-grid">
           {MONITORING_FEATURES.map((feature) => (
             <article key={feature.name} className="uni-public-card">
               <span className="uni-public-card-icon">
-                <i className={feature.icon} />
+                <i className={feature.icon} aria-hidden="true" />
               </span>
               <h3>{feature.name}</h3>
               <p>{feature.desc}</p>
@@ -101,13 +142,18 @@ export function FeaturesPage() {
         </div>
       </section>
 
-      <section aria-labelledby="seguranca-detalhada" className="uni-public-section">
-        <h2 id="seguranca-detalhada">Segurança de nível empresarial</h2>
+      <section className="uni-public-section" aria-labelledby="seguranca-detalhada">
+        <SectionHead
+          id="seguranca-detalhada"
+          eyebrow="Segurança"
+          title="Segurança de nível empresarial"
+          lead="Identidade, sessão e trilha de auditoria tratadas como cidadãos de primeira classe."
+        />
         <div className="uni-public-grid">
           {SECURITY_FEATURES.map((feature) => (
             <article key={feature.name} className="uni-public-card">
               <span className="uni-public-card-icon">
-                <i className={feature.icon} />
+                <i className={feature.icon} aria-hidden="true" />
               </span>
               <h3>{feature.name}</h3>
               <p>{feature.desc}</p>
@@ -116,47 +162,45 @@ export function FeaturesPage() {
         </div>
       </section>
 
-      <section aria-labelledby="arquitetura" className="uni-public-section">
-        <h2 id="arquitetura">Arquitetura moderna e 100% on-premises</h2>
+      <section className="uni-public-section uni-public-section--alt" aria-labelledby="arquitetura">
+        <SectionHead
+          id="arquitetura"
+          eyebrow="Arquitetura"
+          title="Arquitetura moderna e 100% on-premises"
+          lead="Camadas separadas, mensageria e telemetria — sem serviço gerenciado obrigatório."
+        />
         <div className="uni-public-arch">
-          <div className="uni-public-arch-layer primary">
-            <div className="uni-public-arch-layer-header">Aplicação</div>
-            <div className="uni-public-arch-layer-body">
-              <span className="uni-public-arch-item">React + TypeScript</span>
-              <span className="uni-public-arch-item">.NET 10</span>
-              <span className="uni-public-arch-item">CQRS + MediatR</span>
+          {ARCH_LAYERS.map((layer) => (
+            <div
+              key={layer.title}
+              className={`uni-public-arch-layer${layer.primary ? " primary" : ""}`}
+            >
+              <div className="uni-public-arch-layer-header">{layer.title}</div>
+              <div className="uni-public-arch-layer-body">
+                {layer.items.map((item) => (
+                  <span key={item} className="uni-public-arch-item">
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="uni-public-arch-layer">
-            <div className="uni-public-arch-layer-header">Dados</div>
-            <div className="uni-public-arch-layer-body">
-              <span className="uni-public-arch-item">PostgreSQL</span>
-              <span className="uni-public-arch-item">Redis</span>
-              <span className="uni-public-arch-item">RabbitMQ</span>
-            </div>
-          </div>
-          <div className="uni-public-arch-layer">
-            <div className="uni-public-arch-layer-header">Infraestrutura</div>
-            <div className="uni-public-arch-layer-body">
-              <span className="uni-public-arch-item">Docker Compose</span>
-              <span className="uni-public-arch-item">Nginx</span>
-              <span className="uni-public-arch-item">OpenTelemetry</span>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      <section aria-labelledby="falar" className="uni-public-band">
-        <h2 id="falar">Pronto para transformar sua operação?</h2>
-        <div className="uni-public-actions">
-          <Link to="/contato" className="uni-public-button">
-            Falar com a gente
-          </Link>
-          <Link to="/login" className="uni-public-button uni-public-button-ghost">
-            Entrar
-          </Link>
-        </div>
-      </section>
+      <CtaBand
+        title="Pronto para transformar sua operação?"
+        actions={
+          <>
+            <Link to="/contato" className="uni-public-button">
+              <span>Falar com a gente</span>
+            </Link>
+            <Link to="/login" className="uni-public-button uni-public-button-ghost">
+              <span>Entrar</span>
+            </Link>
+          </>
+        }
+      />
     </div>
   );
 }

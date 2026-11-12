@@ -4,7 +4,9 @@ using System.Text.RegularExpressions;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
+using InfraControl.Application.Inventory.Locations.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
+using InfraControl.Domain.Entities;
 using InfraControl.Domain.Events;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +19,7 @@ namespace InfraControl.Infrastructure.Notifications;
 /// </summary>
 public sealed class ZabbixWhatsAppChartFactory(
     IDeviceRepository deviceRepository,
+    ILocationRepository locationRepository,
     IZabbixClient zabbixClient,
     ILogger<ZabbixWhatsAppChartFactory> logger)
     : IWhatsAppChartFactory
@@ -31,6 +34,19 @@ public sealed class ZabbixWhatsAppChartFactory(
         "esta", "no", "na", "por", "se", "e", "o", "a"
     };
     private const int HistoryLimit = 240;
+
+    /// <summary>
+    /// Alertas de disponibilidade ("fora do ar", "indisponível", ICMP) não
+    /// casam item por palavra — o item certo é o de disponibilidade do host.
+    /// </summary>
+    private static readonly string[] AvailabilityHints =
+    [
+        "fora do ar", "indispon", "unreachable", "offline", "down",
+        "sem resposta", "perda de ping", "icmpping", "host down"
+    ];
+
+    /// <summary>Ordem de preferência dos itens de disponibilidade (spike visual primeiro).</summary>
+    private static readonly string[] AvailabilityKeys = ["icmppingloss", "icmpping", "icmppingsec"];
 
     public async Task<IncidentChartData?> TryCreateAsync(
         Guid? deviceId,
@@ -58,21 +74,14 @@ public sealed class ZabbixWhatsAppChartFactory(
                 return null;
             }
 
-            var alertTitle = ResolveAlertTitle(title, message);
+            var alertTitle = DedupHostPrefix(ResolveAlertTitle(title, message));
             var alertWords = Words(alertTitle);
-            var candidates = (await zabbixClient.ListItemsAsync(host.HostId, cancellationToken))
+            var items = (await zabbixClient.ListItemsAsync(host.HostId, cancellationToken))
                 .Where(item => item.Enabled && !item.Unsupported)
-                .Select(item => new { Item = item, Score = MatchScore(alertWords, item) })
-                .Where(candidate => candidate.Score > 0)
-                .OrderByDescending(candidate => candidate.Score)
                 .ToList();
-            if (candidates.Count == 0
-                || (candidates.Count > 1 && candidates[0].Score == candidates[1].Score))
-            {
+            var item = ResolveItem(items, alertTitle, alertWords);
+            if (item is null)
                 return null;
-            }
-
-            var item = candidates[0].Item;
             var history = await zabbixClient.GetHistoryAsync(
                 item.ItemId, eventAtUtc - Window, eventAtUtc,
                 HistoryLimit, cancellationToken);
@@ -101,7 +110,8 @@ public sealed class ZabbixWhatsAppChartFactory(
                 SeverityLabel: severity,
                 EventAtUtc: eventAtUtc,
                 Series: series,
-                Unit: item.Unit);
+                Unit: item.Unit,
+                LocationLabel: await ResolveLocationLabelAsync(device, cancellationToken));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -113,6 +123,84 @@ public sealed class ZabbixWhatsAppChartFactory(
                 exception,
                 "Gráfico WhatsApp: falha ao montar série do Zabbix para device {DeviceId} — envio segue em texto.",
                 deviceId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Item do gráfico: match único por palavras do título; sem match (ou
+    /// empate), cai no item de disponibilidade do host quando o alerta é
+    /// de "fora do ar"/indisponibilidade — caso dos telefones e de hosts
+    /// monitorados por ICMP, cujo título não repete nome de item.
+    /// </summary>
+    private static ZabbixItemDto? ResolveItem(
+        IReadOnlyList<ZabbixItemDto> items, string alertTitle, HashSet<string> alertWords)
+    {
+        var candidates = items
+            .Select(item => new { Item = item, Score = MatchScore(alertWords, item) })
+            .Where(candidate => candidate.Score > 0)
+            .OrderByDescending(candidate => candidate.Score)
+            .ToList();
+
+        if (candidates.Count == 1
+            || (candidates.Count > 1 && candidates[0].Score != candidates[1].Score))
+        {
+            return candidates[0].Item;
+        }
+
+        if (!IsAvailabilityAlert(alertTitle))
+            return null;
+
+        foreach (var key in AvailabilityKeys)
+        {
+            var availability = items.FirstOrDefault(item =>
+                string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
+            if (availability is not null)
+                return availability;
+        }
+
+        return null;
+    }
+
+    private static bool IsAvailabilityAlert(string alertTitle)
+    {
+        var normalized = alertTitle.Normalize(NormalizationForm.FormD);
+        var plain = new string(normalized
+            .Where(character => CharUnicodeInfo.GetUnicodeCategory(character)
+                != UnicodeCategory.NonSpacingMark)
+            .ToArray()).ToLowerInvariant();
+        return AvailabilityHints.Any(plain.Contains);
+    }
+
+    /// <summary>Mesma regra do dispatcher: "{HOST}: {HOST} resto" → "resto".</summary>
+    private static string DedupHostPrefix(string subject)
+    {
+        var idx = subject.IndexOf(": ", StringComparison.Ordinal);
+        if (idx <= 0)
+            return subject;
+
+        var prefix = subject[..idx];
+        var rest = subject[(idx + 2)..];
+        return rest.StartsWith(prefix + " ", StringComparison.Ordinal)
+            ? rest
+            : subject;
+    }
+
+    private async Task<string?> ResolveLocationLabelAsync(
+        Device device, CancellationToken cancellationToken)
+    {
+        if (device.LocationId == Guid.Empty)
+            return null;
+
+        try
+        {
+            return (await locationRepository.GetByIdAsync(
+                device.LocationId, cancellationToken))?.Name;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogDebug(exception,
+                "Gráfico WhatsApp: falha ao resolver local do device {DeviceId}.", device.Id);
             return null;
         }
     }
@@ -159,7 +247,9 @@ public sealed class ZabbixWhatsAppChartFactory(
 
         var fuzzyMatches = hosts.Where(host => host.Enabled
                 && (host.Host.Contains(deviceName, StringComparison.OrdinalIgnoreCase)
-                    || deviceName.Contains(host.Host, StringComparison.OrdinalIgnoreCase)))
+                    || host.Name.Contains(deviceName, StringComparison.OrdinalIgnoreCase)
+                    || deviceName.Contains(host.Host, StringComparison.OrdinalIgnoreCase)
+                    || deviceName.Contains(host.Name, StringComparison.OrdinalIgnoreCase)))
             .Take(2)
             .ToList();
         if (fuzzyMatches.Count == 1)

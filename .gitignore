@@ -292,3 +292,6 @@ Desktop.ini
 *.swp
 *~
 .aider*
+
+# Zabbix config export (templates.json >100MB — nao versionar)
+zabbix-config/export/templates.json

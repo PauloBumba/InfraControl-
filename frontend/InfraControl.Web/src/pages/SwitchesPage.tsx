@@ -3,7 +3,7 @@ import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { ListPageShell } from "@/components/ui/ListPageShell";
-import { formatPortDuplex, formatPortSpeed, formatUptime } from "@/utils/format";
+import { formatPortDuplex, formatPortSpeed, formatRate, formatUptime } from "@/utils/format";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { SelectField } from "@/components/ui/SelectField";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
@@ -18,7 +18,7 @@ import {
   type LocationItem,
   type SwitchPortItem,
 } from "@/services/api/inventory";
-import { listSwitches, getSwitchUnifiPorts, getSwitchZabbixInterfaces, syncSwitchPortsFromUnifi, type ZabbixInterfaceItem } from "@/services/api/network";
+import { listSwitches, getSwitchUnifiPorts, getSwitchZabbixInterfaces, getSwitchZabbixPorts, syncSwitchPortsFromUnifi, type ZabbixInterfaceItem, type ZabbixPortStatus } from "@/services/api/network";
 import { setUnifiPortConfig } from "@/services/api/unifi";
 import type { UniFiSwitchPort } from "@/services/api/unifi";
 import { getDeviceResults, type DeviceResults } from "@/services/api/monitoring";
@@ -95,6 +95,14 @@ export function SwitchesPage() {
   const zabbixIfaces = useObjectQuery<ZabbixInterfaceItem[]>(
     ["switchZabbixInterfaces", selectedId ?? ""],
     () => getSwitchZabbixInterfaces(selectedId as string),
+    { enabled: selectedId !== null },
+  );
+
+  // Status ao vivo das portas via Zabbix (net.if.*): link up/down +
+  // tráfego in/out por porta. Vazio = sem referência/itens (não é erro).
+  const zabbixPorts = useObjectQuery<ZabbixPortStatus[]>(
+    ["switchZabbixPorts", selectedId ?? ""],
+    () => getSwitchZabbixPorts(selectedId as string),
     { enabled: selectedId !== null },
   );
 
@@ -176,8 +184,13 @@ export function SwitchesPage() {
   const liveUp = livePorts.filter((p) => p.linkUp === true).length;
   const liveDown = livePorts.filter((p) => p.linkUp === false).length;
 
+  const zabbixPortList = zabbixPorts.data ?? [];
+  const zabbixPortUp = zabbixPortList.filter((p) => p.linkUp === true).length;
+  const zabbixPortDown = zabbixPortList.filter((p) => p.linkUp === false).length;
+  const hasZabbixPorts = !hasLivePorts && zabbixPortList.length > 0;
+
   const zabbixIfs = zabbixIfaces.data ?? [];
-  const hasZabbixIfs = !hasLivePorts && zabbixIfs.length > 0;
+  const hasZabbixIfs = !hasLivePorts && !hasZabbixPorts && zabbixIfs.length > 0;
 
   const kanbanColumns = [
     ...locations.map((location) => ({ key: location.id, label: location.name })),
@@ -304,7 +317,7 @@ export function SwitchesPage() {
                 UniFi ao vivo
               </span>
             )}
-            {hasZabbixIfs && (
+            {(hasZabbixPorts || hasZabbixIfs) && (
               <span
                 style={{
                   marginLeft: 8,
@@ -321,7 +334,7 @@ export function SwitchesPage() {
               </span>
             )}
           </h2>
-          {!ports.isPending && !portsError && !hasLivePorts && !hasZabbixIfs && (
+          {!ports.isPending && !portsError && !hasLivePorts && !hasZabbixPorts && !hasZabbixIfs && (
             <span style={{ fontSize: 12, color: "#64748b" }}>
               {ports.totalCount} portas · {upCount} up · {downCount} down
             </span>
@@ -329,6 +342,11 @@ export function SwitchesPage() {
           {hasLivePorts && (
             <span style={{ fontSize: 12, color: "#64748b" }}>
               {livePorts.length} portas · {liveUp} up · {liveDown} down
+            </span>
+          )}
+          {hasZabbixPorts && (
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              {zabbixPortList.length} portas · {zabbixPortUp} up · {zabbixPortDown} down
             </span>
           )}
           {hasZabbixIfs && (
@@ -398,7 +416,7 @@ export function SwitchesPage() {
           </div>
         )}
 
-        {portsError && !hasLivePorts && !hasZabbixIfs && (
+        {portsError && !hasLivePorts && !hasZabbixPorts && !hasZabbixIfs && (
           <ErrorBanner
             message={portsError}
             onRetry={() => void ports.refetch()}
@@ -406,11 +424,11 @@ export function SwitchesPage() {
           />
         )}
 
-        {(ports.isFetching || unifiPorts.isFetching || zabbixIfaces.isFetching) && !hasLivePorts && !hasZabbixIfs && ports.items.length === 0 && (
+        {(ports.isFetching || unifiPorts.isFetching || zabbixPorts.isFetching || zabbixIfaces.isFetching) && !hasLivePorts && !hasZabbixPorts && !hasZabbixIfs && ports.items.length === 0 && (
           <LoadingBlock />
         )}
 
-        {!unifiPorts.isFetching && !zabbixIfaces.isFetching && (hasLivePorts || hasZabbixIfs || (!ports.isFetching && !portsError)) && (
+        {!unifiPorts.isFetching && !zabbixPorts.isFetching && !zabbixIfaces.isFetching && (hasLivePorts || hasZabbixPorts || hasZabbixIfs || (!ports.isFetching && !portsError)) && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 8, padding: 16 }}>
             {hasLivePorts
               ? livePorts.map((port) => {
@@ -461,6 +479,54 @@ export function SwitchesPage() {
                     </div>
                   );
                 })
+              : hasZabbixPorts
+                ? zabbixPortList.map((port) => {
+                    const up = port.linkUp === true;
+                    const down = port.linkUp === false;
+                    const traffic = [
+                      port.inBytesPerSecond != null ? `↓ ${formatRate(port.inBytesPerSecond)}` : null,
+                      port.outBytesPerSecond != null ? `↑ ${formatRate(port.outBytesPerSecond)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
+                    const speed = [
+                      port.speedMbps != null ? `${port.speedMbps} Mbps` : null,
+                      port.duplex ?? null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    return (
+                      <div
+                        key={port.interfaceName}
+                        style={{
+                          padding: "10px 6px",
+                          borderRadius: 6,
+                          border: `2px solid ${up ? "#22c55e" : down ? "#ef4444" : "#e5e7eb"}`,
+                          background: up ? "#f0fdf4" : down ? "#fef2f2" : "#f9fafb",
+                          textAlign: "center",
+                          fontSize: 10,
+                        }}
+                        title={
+                          [port.interfaceName, speed || null, traffic || null]
+                            .filter(Boolean)
+                            .join("\n")
+                        }
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 700, wordBreak: "break-all" }}>
+                          {port.interfaceName}
+                        </div>
+                        <div style={{ fontSize: 8, fontWeight: 700, marginTop: 2, color: up ? "#16a34a" : down ? "#dc2626" : "#94a3b8" }}>
+                          {up ? "Up" : down ? "Down" : "—"}
+                        </div>
+                        {speed && (
+                          <div style={{ fontSize: 7, color: "#64748b", marginTop: 2 }}>{speed}</div>
+                        )}
+                        {traffic && (
+                          <div style={{ fontSize: 7, color: "#64748b", marginTop: 2 }}>{traffic}</div>
+                        )}
+                      </div>
+                    );
+                  })
               : hasZabbixIfs
                 ? zabbixIfs.map((iface) => (
                     <div
@@ -518,7 +584,7 @@ export function SwitchesPage() {
                 Nenhuma porta disponível
               </div>
             )}
-            {!hasLivePorts && !hasZabbixIfs && ports.items.length === 0 && !ports.isFetching && (
+            {!hasLivePorts && !hasZabbixPorts && !hasZabbixIfs && ports.items.length === 0 && !ports.isFetching && (
               <div style={{ gridColumn: "1 / -1", padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                 Nenhuma porta cadastrada neste switch
               </div>
@@ -696,6 +762,45 @@ export function SwitchesPage() {
               </Button>
             </div>
           )}
+        </div>
+      ) : hasZabbixPorts ? (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>Portas ao vivo (Zabbix SNMP)</h2>
+          </div>
+          <DataTablePanel
+            panel={false}
+            value={zabbixPortList}
+            dataKey="interfaceName"
+            emptyMessage="—"
+          >
+            <Column
+              header="Porta"
+              body={(port: ZabbixPortStatus) => port.interfaceName}
+              style={{ fontFamily: "monospace", fontWeight: 600, fontSize: 12, minWidth: 160 }}
+            />
+            <Column header="Link" body={(port: ZabbixPortStatus) => (
+              <StatusChip
+                label={port.linkUp === true ? "Up" : port.linkUp === false ? "Down" : "—"}
+                background={port.linkUp === true ? "#dcfce7" : port.linkUp === false ? "#fee2e2" : "#f1f5f9"}
+                color={port.linkUp === true ? "#16a34a" : port.linkUp === false ? "#dc2626" : "#64748b"}
+              />
+            )} style={{ width: 90 }} />
+            <Column header="Velocidade" body={(port: ZabbixPortStatus) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }}>
+                {port.speedMbps != null ? `${port.speedMbps} Mbps` : "—"}
+              </span>
+            )} style={{ width: 100 }} />
+            <Column header="Duplex" body={(port: ZabbixPortStatus) => (
+              <span style={{ fontSize: 13, color: "#64748b" }}>{port.duplex ?? "—"}</span>
+            )} style={{ width: 80 }} />
+            <Column header="Recebido" body={(port: ZabbixPortStatus) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{formatRate(port.inBytesPerSecond)}</span>
+            )} style={{ width: 110 }} />
+            <Column header="Enviado" body={(port: ZabbixPortStatus) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{formatRate(port.outBytesPerSecond)}</span>
+            )} style={{ width: 110 }} />
+          </DataTablePanel>
         </div>
       ) : hasZabbixIfs ? (
         <div className="uni-panel">

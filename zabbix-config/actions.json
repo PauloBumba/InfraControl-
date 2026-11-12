@@ -1,0 +1,334 @@
+[
+    {
+        "actionid":  "2",
+        "name":  "Auto discovery. Linux servers.",
+        "eventsource":  "1",
+        "status":  "1",
+        "esc_period":  "0",
+        "pause_suppressed":  "1",
+        "notify_if_canceled":  "1",
+        "pause_symptoms":  "1",
+        "operations":  [
+                           {
+                               "operationid":  "1",
+                               "actionid":  "2",
+                               "operationtype":  "6",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "optemplate":  [
+                                                  {
+                                                      "templateid":  "10001"
+                                                  }
+                                              ]
+                           },
+                           {
+                               "operationid":  "2",
+                               "actionid":  "2",
+                               "operationtype":  "4",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "opgroup":  [
+                                               {
+                                                   "groupid":  "2"
+                                               }
+                                           ]
+                           }
+                       ],
+        "recovery_operations":  [
+
+                                ]
+    },
+    {
+        "actionid":  "3",
+        "name":  "Report problems to Zabbix administrators",
+        "eventsource":  "0",
+        "status":  "1",
+        "esc_period":  "1h",
+        "pause_suppressed":  "1",
+        "notify_if_canceled":  "1",
+        "pause_symptoms":  "1",
+        "operations":  [
+                           {
+                               "operationid":  "3",
+                               "actionid":  "3",
+                               "operationtype":  "0",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "opmessage":  {
+                                                 "default_msg":  "1",
+                                                 "subject":  "",
+                                                 "message":  "",
+                                                 "mediatypeid":  "0"
+                                             },
+                               "opmessage_grp":  [
+                                                     {
+                                                         "usrgrpid":  "7"
+                                                     }
+                                                 ],
+                               "opmessage_usr":  [
+
+                                                 ]
+                           }
+                       ],
+        "recovery_operations":  [
+                                    {
+                                        "operationid":  "7",
+                                        "actionid":  "3",
+                                        "operationtype":  "11",
+                                        "evaltype":  "0",
+                                        "opconditions":  [
+
+                                                         ],
+                                        "opmessage":  {
+                                                          "default_msg":  "1",
+                                                          "subject":  "",
+                                                          "message":  "",
+                                                          "mediatypeid":  "0"
+                                                      }
+                                    }
+                                ]
+    },
+    {
+        "actionid":  "4",
+        "name":  "Report not supported items",
+        "eventsource":  "3",
+        "status":  "1",
+        "esc_period":  "1h",
+        "pause_suppressed":  "1",
+        "notify_if_canceled":  "1",
+        "pause_symptoms":  "1",
+        "operations":  [
+                           {
+                               "operationid":  "4",
+                               "actionid":  "4",
+                               "operationtype":  "0",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "opmessage":  {
+                                                 "default_msg":  "1",
+                                                 "subject":  "",
+                                                 "message":  "",
+                                                 "mediatypeid":  "0"
+                                             },
+                               "opmessage_grp":  [
+                                                     {
+                                                         "usrgrpid":  "7"
+                                                     }
+                                                 ],
+                               "opmessage_usr":  [
+
+                                                 ]
+                           }
+                       ],
+        "recovery_operations":  [
+                                    {
+                                        "operationid":  "8",
+                                        "actionid":  "4",
+                                        "operationtype":  "11",
+                                        "evaltype":  "0",
+                                        "opconditions":  [
+
+                                                         ],
+                                        "opmessage":  {
+                                                          "default_msg":  "1",
+                                                          "subject":  "",
+                                                          "message":  "",
+                                                          "mediatypeid":  "0"
+                                                      }
+                                    }
+                                ]
+    },
+    {
+        "actionid":  "5",
+        "name":  "Report not supported low level discovery rules",
+        "eventsource":  "3",
+        "status":  "1",
+        "esc_period":  "1h",
+        "pause_suppressed":  "1",
+        "notify_if_canceled":  "1",
+        "pause_symptoms":  "1",
+        "operations":  [
+                           {
+                               "operationid":  "5",
+                               "actionid":  "5",
+                               "operationtype":  "0",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "opmessage":  {
+                                                 "default_msg":  "1",
+                                                 "subject":  "",
+                                                 "message":  "",
+                                                 "mediatypeid":  "0"
+                                             },
+                               "opmessage_grp":  [
+                                                     {
+                                                         "usrgrpid":  "7"
+                                                     }
+                                                 ],
+                               "opmessage_usr":  [
+
+                                                 ]
+                           }
+                       ],
+        "recovery_operations":  [
+                                    {
+                                        "operationid":  "9",
+                                        "actionid":  "5",
+                                        "operationtype":  "11",
+                                        "evaltype":  "0",
+                                        "opconditions":  [
+
+                                                         ],
+                                        "opmessage":  {
+                                                          "default_msg":  "1",
+                                                          "subject":  "",
+                                                          "message":  "",
+                                                          "mediatypeid":  "0"
+                                                      }
+                                    }
+                                ]
+    },
+    {
+        "actionid":  "6",
+        "name":  "Report unknown triggers",
+        "eventsource":  "3",
+        "status":  "1",
+        "esc_period":  "1h",
+        "pause_suppressed":  "1",
+        "notify_if_canceled":  "1",
+        "pause_symptoms":  "1",
+        "operations":  [
+                           {
+                               "operationid":  "6",
+                               "actionid":  "6",
+                               "operationtype":  "0",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "opmessage":  {
+                                                 "default_msg":  "1",
+                                                 "subject":  "",
+                                                 "message":  "",
+                                                 "mediatypeid":  "0"
+                                             },
+                               "opmessage_grp":  [
+                                                     {
+                                                         "usrgrpid":  "7"
+                                                     }
+                                                 ],
+                               "opmessage_usr":  [
+
+                                                 ]
+                           }
+                       ],
+        "recovery_operations":  [
+                                    {
+                                        "operationid":  "10",
+                                        "actionid":  "6",
+                                        "operationtype":  "11",
+                                        "evaltype":  "0",
+                                        "opconditions":  [
+
+                                                         ],
+                                        "opmessage":  {
+                                                          "default_msg":  "1",
+                                                          "subject":  "",
+                                                          "message":  "",
+                                                          "mediatypeid":  "0"
+                                                      }
+                                    }
+                                ]
+    },
+    {
+        "actionid":  "7",
+        "name":  "InfraControl - triggers",
+        "eventsource":  "0",
+        "status":  "0",
+        "esc_period":  "60",
+        "pause_suppressed":  "1",
+        "notify_if_canceled":  "1",
+        "pause_symptoms":  "1",
+        "operations":  [
+                           {
+                               "operationid":  "11",
+                               "actionid":  "7",
+                               "operationtype":  "0",
+                               "esc_period":  "0",
+                               "esc_step_from":  "1",
+                               "esc_step_to":  "1",
+                               "evaltype":  "0",
+                               "opconditions":  [
+
+                                                ],
+                               "opmessage":  {
+                                                 "default_msg":  "0",
+                                                 "subject":  "InfraControl: {TRIGGER.STATUS}: {TRIGGER.NAME}",
+                                                 "message":  "{TRIGGER.NAME} on {HOST.NAME} is {EVENT.SEVERITY}. Event ID: {EVENT.ID}.",
+                                                 "mediatypeid":  "105"
+                                             },
+                               "opmessage_grp":  [
+                                                     {
+                                                         "usrgrpid":  "7"
+                                                     }
+                                                 ],
+                               "opmessage_usr":  [
+
+                                                 ]
+                           }
+                       ],
+        "recovery_operations":  [
+                                    {
+                                        "operationid":  "12",
+                                        "actionid":  "7",
+                                        "operationtype":  "0",
+                                        "evaltype":  "0",
+                                        "opconditions":  [
+
+                                                         ],
+                                        "opmessage":  {
+                                                          "default_msg":  "0",
+                                                          "subject":  "InfraControl RESOLVED: {TRIGGER.NAME}",
+                                                          "message":  "{TRIGGER.NAME} on {HOST.NAME} recovered. Recovery event ID: {EVENT.RECOVERY.ID}.",
+                                                          "mediatypeid":  "106"
+                                                      },
+                                        "opmessage_grp":  [
+                                                              {
+                                                                  "usrgrpid":  "7"
+                                                              }
+                                                          ],
+                                        "opmessage_usr":  [
+
+                                                          ]
+                                    }
+                                ]
+    }
+]

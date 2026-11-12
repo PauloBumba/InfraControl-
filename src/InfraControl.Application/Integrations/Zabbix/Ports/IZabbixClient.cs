@@ -42,4 +42,26 @@ public interface IZabbixClient
         DateTime toUtc,
         int limit,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Último valor de TODOS os itens de um host em uma chamada
+    /// (item.get com lastvalue/lastclock) — usado para estado ao vivo de
+    /// portas sem varrer histórico.
+    /// </summary>
+    Task<IReadOnlyList<ZabbixItemLastValueDto>> GetItemsLastValuesAsync(
+        string hostId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Histórico em lote de vários itens numa única chamada history.get
+    /// (o <paramref name="history"/> seleciona a tabela: 0 float,
+    /// 3 unsigned). Ordenado por clock DESC para facilitar "últimos
+    /// pontos" por item.
+    /// </summary>
+    Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryBatchAsync(
+        IReadOnlyList<string> itemIds,
+        int history,
+        DateTime fromUtc,
+        DateTime toUtc,
+        int limit,
+        CancellationToken cancellationToken = default);
 }

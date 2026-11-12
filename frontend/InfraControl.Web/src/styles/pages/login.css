@@ -324,19 +324,30 @@
 
 /* Dentro do PublicLayout (header/footer partilhados), as páginas de auth
    (login, recuperação, redefinição, convite) centram o cartão sem forçar
-   100vh — o header/footer já ocupam espaço. */
+   100vh — o header/footer já ocupam espaço.
+
+   F50-T009: `main` perdeu o padding (o hero das páginas de vendas agora
+   é full-bleed e encosta no header), então o respiro e o gutter das
+   páginas de auth são declarados aqui. */
 .uni-public-main > .uni-login {
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 0;
+  padding: 48px var(--pub-gutter);
 }
 
 .uni-public-main > .uni-login-card,
 .uni-public-main > .uni-login > .uni-login-card {
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Cartão órfão no main (recuperação/redefinição/convite): nunca encosta
+   nas bordas em tela estreita. */
+.uni-public-main > .uni-login-card {
+  width: min(100% - 2 * var(--pub-gutter), 400px);
+  margin-block: 56px;
 }
 
 .uni-login-footer {

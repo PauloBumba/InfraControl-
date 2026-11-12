@@ -531,12 +531,29 @@ ficha (F30). Detalhes operacionais em `docs/27-INTEGRACAO-ZABBIX.md`.
 | Área da ficha | Item/template no Zabbix | Status |
 | --- | --- | --- |
 | A. Identificação | `printer.info[sysDescr]` (modelo, firmware, S/N) + itens genéricos do template 10226 (sysName, sysContact, sysLocation, sysObjectID) | ✅ ao vivo |
-| B. Estado | `printer.status` (hrPrinterStatus, value map em PT) + LLD **alertas** `printer.alerts.discovery` (`prtAlertDescription` → `{#SNMPVALUE}`) com protótipo de severidade (`prtAlertSeverityLevel`) e triggers "Alerta fatal" (≥4) / "Alerta aviso" (=3) — cobre atolamento, tampa aberta, toner esgotado | ✅ ao vivo |
+| B. Estado | `printer.status` (hrPrinterStatus, value map em PT) + LLD **alertas** `printer.alerts.discovery` (`prtAlertDescription` → `{#SNMPVALUE}`); correção F27-T012 aplicada no template: item lê `prtAlertSeverityLevel` (coluna 2), triggers distinguem crítico e warning/valor não mapeado; coleta e ausência de problema ativo verificadas no host HSDS_HP_SETOR_1_ENF | ✅ amostra ao vivo verificada; demais hosts pendentes |
 | C. Consumíveis | LLD **suprimentos** `printer.supplies.discovery` (`prtMarkerSuppliesDescription`), protótipos nível (`prtMarkerSuppliesLevel`) e capacidade (`prtMarkerSuppliesMaxCapacity`), triggers "baixo" (<10%) e "criticamente baixo" (<5%) | ✅ ao vivo |
 | D. Contadores | `printer.pages.total` (`prtMarkerLifeCount` — total de páginas) | ✅ ao vivo (split mono/color, fase 2) |
 | E. Filas | — | ⏳ fora do escopo inicial |
 | F. Logs | — | ⏳ (prtAlertTable é o "estado atual"; histórico fica no history do Zabbix) |
 | G. Prevenção | triggers de nível de suprimento (10%/5%) + uptime/reinicialização (`printer.uptime[sysUpTime]`) | ✅ parcial |
+
+### Correção F27-T012 — interpretação Printer-MIB (2026-10-24)
+
+- O provider `SnmpPrinterStatusProvider` agora interpreta os códigos
+  padronizados da RFC 3805: `critical(3)`, `warning(4)` e
+  `warningBinaryChangeEvent(5)`; outros valores são `unknown`. O agregado
+  escolhe `critical` antes de `warning` e `unknown`. Testes focados: 17/17.
+- O template Zabbix existente (10887) foi corrigido após documentação e
+  autorização: item prototype `83315` passou a consultar a coluna 2
+  (`prtAlertSeverityLevel`); trigger `38061` classifica `=3` como crítico/High
+  e trigger `38062` classifica `<>1 and <>3` como Warning, incluindo enums não
+  mapeados sem chamá-los de fatais. A ação global `InfraControl - triggers`
+  (id 7) foi pausada durante a mudança e restaurada; a listagem foi conferida
+  como Enabled. Após o próximo ciclo, `HSDS_HP_SETOR_1_ENF` (host 10907)
+  mostrou valor `1` no item de severidade; o filtro de Problems para o host e
+  trigger não encontrou problema ativo. A validação das outras impressoras
+  continua pendente. Sem eventos sintéticos ou envio de WhatsApp.
 
 ### Validação ao vivo (2026-10-18)
 
@@ -567,3 +584,146 @@ ficha (F30). Detalhes operacionais em `docs/27-INTEGRACAO-ZABBIX.md`.
   por tipo de mídia.
 - LLD de bandejas (`prtInputTable`) e tampas (`prtCoverTable`).
 - Zebra 220/503 e demais Epson: descobrir IPs (VLANs a investigar).
+
+## Dashboard operacional de impressoras no Zabbix (plano e execução 2026-10-24)
+
+### Objetivo
+
+Criar no Zabbix um dashboard operacional para o grupo **Impressoras** (host
+group ID 31), reutilizando itens, descoberta e triggers existentes. O painel
+deve separar a visão global de problemas/disponibilidade do acesso aos dados
+detalhados por impressora, sem criar coletores ou templates duplicados.
+
+### Layout proposto
+
+Uma página **Visão geral** com estes widgets nativos:
+
+1. **Problems** — problemas recentes, filtrados pelo grupo `Impressoras`;
+   mostrar recuperação recente para facilitar conferir o ciclo de alerta.
+2. **Problems by severity** — distribuição da severidade para o mesmo grupo.
+3. **Host availability** — disponibilidade SNMP dos hosts que têm interface
+   SNMP configurada; ping-only continuará sem status SNMP e não deve ser
+   apresentado como falha de impressora.
+4. **Top hosts** — tabela do grupo `Impressoras`, com as colunas comuns
+   `Impressora - status (hrPrinterStatus)` e
+   `Impressora - total de paginas (prtMarkerLifeCount)`. Hosts sem esses itens,
+   como o HP ping-only, podem aparecer sem valor para essas métricas.
+5. **Item navigator** — seleção de host/item no grupo, para consultar
+   suprimentos e alertas LLD que variam por modelo e por dispositivo.
+
+O Zabbix 8.0 documenta suporte a dashboards com widgets de problemas,
+disponibilidade, Top hosts, navegação de itens e histórico/gráficos. Os filtros
+de grupo e widgets foram validados visualmente na instância.
+
+### Limites conhecidos
+
+- O snapshot da auditoria tinha 37 hosts no grupo: 36 com o template `IC
+  Impressora SNMP` e SNMP disponível; `HSSM_HP_SETOR2` está ping-only. Logo,
+  disponibilidade SNMP e Printer-MIB não cobrem ainda todos os hosts.
+- Suprimentos são descobertos por LLD e descrições/índices variam entre
+  fabricantes e dispositivos. O painel oferecerá navegação/drill-down por
+  host; não fingirá que um único nível de toner representa toda a frota.
+- Não há coleta implantada de filas de impressão, bandejas/tampas, consumo
+  mensal agregado ou previsão de troca. Esses itens permanecem pendências da
+  ficha e não serão simulados no dashboard.
+- O dashboard apresenta o que está cadastrado no Zabbix; não altera a ação
+  global, os hosts, interfaces, templates ou triggers.
+
+### Plano de execução e rollback
+
+1. Confirmar que não existe dashboard de impressoras equivalente.
+2. Criar um dashboard chamado **Impressoras - Operacao**, com os cinco widgets
+   descritos acima e grupo `Impressoras`.
+3. Compartilhamento definido pelo usuário como **privado**; não adicionar
+   compartilhamentos de grupo/usuário sem autorização posterior.
+4. Conferir que cada widget carrega e permanece filtrado ao grupo; corrigir ou
+   remover widget que apresente erro ou dados de outros grupos.
+5. Validar visualmente problemas, severidades, disponibilidade e valores
+   comuns sem gerar evento de teste.
+
+### Resultado da execução
+
+- Dashboard `Impressoras - Operacao`, ID `439`, salvo no Zabbix e confirmado
+  como **privado**, sem compartilhamentos de usuários/grupos; página única
+  chamada **Visão geral**.
+- Os cinco widgets carregam para o grupo `Impressoras`: problemas recentes,
+  problemas por severidade, disponibilidade SNMP, Top hosts e Item navigator.
+- Problemas recentes mostra 25 de 32 entradas, incluindo uma linha recuperada;
+  o widget de severidade mostra 12 `Average` e 19 `Warning`.
+- Disponibilidade na validação: 36 disponíveis, 0 indisponíveis, 0 mistos e
+  1 desconhecido, de 37 hosts.
+- Top hosts mostra `printer.status` (valores numéricos, conforme o item atual)
+  e `printer.pages.total`, com limite 37 e ordenação pela contagem de páginas.
+  A disponibilidade desses itens depende da coleta por host.
+- Item navigator está filtrado pelo grupo e mostra `100 de 100+` itens; ele
+  permite buscar os itens descobertos de suprimentos e alertas por dispositivo.
+- Durante a seleção das métricas do Top hosts, o seletor para
+  `HSDS_HP_SETOR_1_ENF` marcou `Alerta 7 - severidade`
+  (`printer.alert.severity[1.1]`) como `Not supported`. Isso contradiz a
+  contagem unsupported anterior; quantidade total e causa ainda precisam ser
+  apuradas, sem desabilitar ou remover itens por tentativa.
+- A contagem anterior de zero problemas ativos não era válida: a consulta
+  usou `r_eventid = 0`, mas eventos sem recuperação usam `r_eventid IS NULL`.
+  A investigação desses alertas permanece pendente em F27-T012; nenhum foi
+  reconhecido.
+- A interface exibiu `Alerta não crítico ou severidade não mapeada: 6`; não
+  alterar a interpretação no template sem conferir o valor e a regra
+  Printer-MIB correspondentes.
+
+## Dashboard individual ao abrir uma impressora (plano 2026-10-24)
+
+### Problema observado
+
+Ao abrir o host `HSDS_CANON_CE` (hostid `10889`) pelo endereço de host
+dashboard informado, o Zabbix mostrou apenas o painel herdado **Network
+interfaces**, com o gráfico `Interface {#IFNAME}({#IFALIAS}): Network traffic`
+vazio. Esse é um host dashboard criado por template, não o dashboard global
+`Impressoras - Operacao` (ID `439`). Os dashboards de host do Zabbix são
+configurados em templates; o dashboard global não é aberto automaticamente
+ao clicar num host.
+
+### Plano antes da mudança
+
+1. Adicionar ao template **IC Impressora SNMP** (ID `10887`) um novo host
+   dashboard chamado **Impressora - Operacao**, sem apagar nem editar o
+   painel herdado **Network interfaces**.
+2. Configurar widgets nativos sem filtros globais de host:
+   - **Problems**, para os problemas e recuperações do host atualmente aberto;
+   - **Item navigator**, para explorar os itens comuns e os itens LLD de
+     suprimentos do próprio host;
+   - métricas comuns existentes no template (`printer.status` e
+     `printer.pages.total`) somente se os widgets disponíveis no editor de
+     dashboards de template permitirem selecionar esses itens e mostrar
+     valores reais.
+3. Não criar itens/LLD/triggers, alterar thresholds, reconhecer problemas,
+   enviar mensagens, nem modificar dados de hosts.
+4. Validar o painel no host `HSDS_CANON_CE` e em pelo menos um outro host que
+   use o template: confirmar widgets não vazios quando houver dados, verificar
+   que os nomes/valores pertencem ao host aberto e apontar itens sem histórico
+   ou não suportados sem preencher com valores fictícios.
+5. Se o tipo de widget não suportar a seleção dinâmica de dados do host no
+   template dashboard, manter somente widgets realmente compatíveis; não
+   colocar painéis de tráfego sem dados como substituto de métricas da
+   impressora.
+
+### Evidência técnica
+
+A documentação oficial do Zabbix 8.0 estabelece que host dashboards são
+configurados nos templates e gerados para cada host vinculado; seus widgets
+mostram dados apenas do host selecionado. Dashboards globais pertencem à
+seção Dashboards e não substituem esses painéis individuais.
+
+- [Zabbix 8.0 — Host dashboards](https://www.zabbix.com/documentation/8.0/en/manual/web_interface/frontend_sections/monitoring/hosts/dashboards)
+- [Zabbix 8.0 — Adicionar dashboards ao template](https://www.zabbix.com/documentation/8.0/en/manual/config/templates/template#adding-dashboards)
+
+O rollback consiste em excluir apenas o dashboard criado nesta tarefa ou
+remover widgets nele; não requer migração, alteração de host/template, restart
+de container nem exclusão de histórico. Não executar operações de teste que
+acionem notificações.
+
+### Pesquisa oficial
+
+- [Zabbix 8.0 — Dashboards](https://www.zabbix.com/documentation/8.0/en/manual/web_interface/frontend_sections/dashboards)
+- [Zabbix 8.0 — Widgets de dashboard](https://www.zabbix.com/documentation/8.0/en/manual/web_interface/frontend_sections/dashboards/widgets)
+- [Zabbix 8.0 — Problems widget](https://www.zabbix.com/documentation/8.0/en/manual/web_interface/frontend_sections/dashboards/widgets/problems)
+- [Zabbix 8.0 — Top hosts widget](https://www.zabbix.com/documentation/8.0/en/manual/web_interface/frontend_sections/dashboards/widgets/top_hosts)

@@ -192,87 +192,171 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     }
 
     /// <summary>
-    /// Texto simples do WhatsApp (ADR-059 §4): formato em português com dados
-    /// relevantes. Com o gráfico habilitado (F33-T005) este mesmo texto vira
-    /// a caption do sendMedia.
+    /// Texto do WhatsApp em PT-BR padronizado (seções + emojis): cabeçalho
+    /// com o tipo do evento, linha do equipamento/problema (deduplicada —
+    /// a media type 105 manda "{HOST}: {TRIGGER}" e triggers de telefonia já
+    /// repetem o nome do host), severidade, dica contextual e data. Com o
+    /// gráfico habilitado (F33-T005) este mesmo texto vira a caption do
+    /// sendMedia.
     /// </summary>
     private static string BuildText(WhatsAppNotificationMessage message)
     {
-        var severity = MapSeverityPt(message.Title);
-        var header = string.IsNullOrWhiteSpace(severity)
-            ? $"{message.Title} | {message.CreatedAt:dd/MM/yyyy HH:mm}"
-            : $"{severity} | {message.CreatedAt:dd/MM/yyyy HH:mm}";
-        var lines = new List<string> { header };
+        var kind = Classify(message.Title);
+        var subject = ExtractSubject(message.Message, message.Title);
+        var severity = ParseSeverity(message.Message, message.Title);
+        var stamp = message.CreatedAt.ToString("dd/MM/yyyy HH:mm");
 
-        if (!string.IsNullOrWhiteSpace(message.Message) && message.Message.Contains("Carga de CPU alta"))
+        var lines = new List<string>();
+
+        if (kind == EventKind.Resolved)
         {
-            lines.Add("Carga de CPU alta");
-            return string.Join("\n", lines);
+            lines.Add($"🟢 *{ResolvedHeader(message.Title)}*");
+            lines.Add($"📍 {subject}");
+        }
+        else if (kind == EventKind.Generic)
+        {
+            lines.Add($"🔔 *{message.Title}*");
+            lines.Add(subject);
+        }
+        else
+        {
+            var emoji = SeverityEmoji(severity);
+            lines.Add($"{emoji} *{ProblemHeader(kind, severity)}*");
+            lines.Add($"📍 {subject}");
+            if (!string.IsNullOrWhiteSpace(severity))
+                lines.Add($"🎚️ Severidade: {severity}");
+            if (subject.Contains("fora do ar", StringComparison.OrdinalIgnoreCase))
+                lines.Add("💡 Verificar o equipamento e a rede local.");
         }
 
-        if (!string.IsNullOrWhiteSpace(message.Message))
-        {
-            var cleaned = CleanMessage(message.Message);
-            if (!string.IsNullOrWhiteSpace(cleaned) && !cleaned.Equals(header, StringComparison.OrdinalIgnoreCase))
-                lines.Add(cleaned);
-        }
-
-        if (lines.Count == 1 && !string.IsNullOrWhiteSpace(message.Title))
-            lines.Add(message.Title);
-
+        lines.Add($"🕐 {stamp}");
         return string.Join("\n", lines);
     }
 
-    private static string MapSeverityPt(string title)
+    private enum EventKind { AlertCritical, Alert, Incident, Resolved, Generic }
+
+    private static EventKind Classify(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
-            return string.Empty;
+            return EventKind.Generic;
 
         var upper = title.ToUpperInvariant();
-        if (upper.Contains("CRITICAL") || upper.Contains("CRÍTICO"))
-            return "CRÍTICO";
-        if (upper.Contains("HIGH") || upper.Contains("ALTO"))
-            return "ALTO";
-        if (upper.Contains("MEDIUM") || upper.Contains("MÉDIO"))
-            return "MÉDIO";
-        if (upper.Contains("LOW") || upper.Contains("BAIXO"))
-            return "BAIXO";
-        if (upper.Contains("WARNING") || upper.Contains("AVISO"))
-            return "AVISO";
+        if (upper.Contains("RESOLVID"))
+            return EventKind.Resolved;
+        if (upper.Contains("INCIDENT"))
+            return EventKind.Incident;
+        if (upper.Contains("CRÍTICO") || upper.Contains("CRITICO"))
+            return EventKind.AlertCritical;
+        if (upper.Contains("ALERTA") || upper.Contains("ALERT"))
+            return EventKind.Alert;
+        return EventKind.Generic;
+    }
 
+    private static string ProblemHeader(EventKind kind, string severity)
+    {
+        var label = kind switch
+        {
+            EventKind.Incident => "Incidente",
+            EventKind.AlertCritical => "Alerta crítico",
+            _ => "Alerta"
+        };
+        return string.IsNullOrWhiteSpace(severity) || label.Contains(severity, StringComparison.OrdinalIgnoreCase)
+            ? label
+            : $"{label} — {severity}";
+    }
+
+    private static string ResolvedHeader(string title)
+        => title.Trim().ToLowerInvariant() switch
+        {
+            var t when t.Contains("incidente") => "Incidente resolvido",
+            _ => "Alerta resolvido"
+        };
+
+    private static string SeverityEmoji(string severity) => severity switch
+    {
+        "CRÍTICO" => "🔴",
+        "ALTO" => "🟠",
+        "MÉDIO" => "🟡",
+        "BAIXO" => "🔵",
+        _ => "⚪"
+    };
+
+    /// <summary>
+    /// Extrai o assunto entre aspas simples das mensagens do consumer
+    /// ("O alerta 'X' foi aberto (SEV).") e remove a duplicação
+    /// "{HOST}: {HOST} resto" gerada pela media type do Zabbix — quando a
+    /// parte após os dois-pontos começa repetindo o prefixo, fica só o resto.
+    /// </summary>
+    private static string ExtractSubject(string? message, string fallback)
+    {
+        var text = message?.Trim() ?? string.Empty;
+        var first = text.IndexOf('\'');
+        var last = first < 0 ? -1 : text.IndexOf('\'', first + 1);
+        if (first >= 0 && last > first)
+            text = text[(first + 1)..last];
+
+        if (string.IsNullOrWhiteSpace(text))
+            text = CleanMessage(message) is { Length: > 0 } cleaned ? cleaned : fallback;
+
+        return DedupHostPrefix(text.Trim());
+    }
+
+    private static string DedupHostPrefix(string subject)
+    {
+        var idx = subject.IndexOf(": ", StringComparison.Ordinal);
+        if (idx <= 0)
+            return subject;
+
+        var prefix = subject[..idx];
+        var rest = subject[(idx + 2)..];
+        return rest.StartsWith(prefix + " ", StringComparison.Ordinal)
+            ? rest
+            : subject;
+    }
+
+    /// <summary>
+    /// Severidade em pt-BR a partir do sufixo da mensagem
+    /// ("(CRÍTICO)", "(High)"…) com fallback no título ("Alerta crítico").
+    /// </summary>
+    private static string ParseSeverity(string? message, string title)
+    {
+        var text = $"{message} {title}".ToUpperInvariant();
+        if (text.Contains("CRÍTICO") || text.Contains("CRITICO") || text.Contains("CRITICAL") || text.Contains("DISASTER"))
+            return "CRÍTICO";
+        if (text.Contains("ALTO") || text.Contains("HIGH"))
+            return "ALTO";
+        if (text.Contains("MÉDIO") || text.Contains("MEDIO") || text.Contains("MEDIUM"))
+            return "MÉDIO";
+        if (text.Contains("BAIXO") || text.Contains("LOW"))
+            return "BAIXO";
+        if (text.Contains("AVISO") || text.Contains("WARNING"))
+            return "AVISO";
         return string.Empty;
     }
 
-    private static string CleanMessage(string message)
+    private static string CleanMessage(string? message)
     {
         if (string.IsNullOrWhiteSpace(message))
             return string.Empty;
 
-        var text = message.Replace("O incidente '", "Incidente: ")
-            .Replace("' foi aberto", "")
-            .Replace("' foi resolvido", "")
-            .Replace("O alerta '", "Alerta: ")
-            .Replace("' foi resolvido", "")
-            .Replace(" (Critical)", "")
-            .Replace(" (High)", "")
-            .Replace(" (Medium)", "")
-            .Replace(" (Low)", "")
-            .Replace(" (Warning)", "")
-            .Replace("(Critical)", "")
-            .Replace("(High)", "")
-            .Replace("(Medium)", "")
-            .Replace("(Low)", "")
-            .Replace("(Warning)", "")
-            .Replace(" (CRÍTICO)", "")
-            .Replace(" (ALTO)", "")
-            .Replace(" (MÉDIO)", "")
-            .Replace(" (BAIXO)", "")
-            .Replace(" (AVISO)", "");
-
-        if (text.Contains("Carga de CPU alta"))
-            return "Carga de CPU alta";
-
-        return text.Trim();
+        return message
+            .Replace("O incidente '", string.Empty)
+            .Replace("O alerta '", string.Empty)
+            .Replace("' foi aberto", string.Empty)
+            .Replace("' foi resolvido", string.Empty)
+            .Replace(" foi aberto", string.Empty)
+            .Replace(" foi resolvido", string.Empty)
+            .Replace(" (CRÍTICO)", string.Empty)
+            .Replace(" (ALTO)", string.Empty)
+            .Replace(" (MÉDIO)", string.Empty)
+            .Replace(" (BAIXO)", string.Empty)
+            .Replace(" (AVISO)", string.Empty)
+            .Replace(" (Critical)", string.Empty)
+            .Replace(" (High)", string.Empty)
+            .Replace(" (Medium)", string.Empty)
+            .Replace(" (Low)", string.Empty)
+            .Replace(" (Warning)", string.Empty)
+            .Trim(' ', '.', '\'');
     }
 
     /// <summary>Corpo do POST — contrato real da v2.3.7 validado no spike.</summary>

@@ -1,22 +1,29 @@
 /* ============================================================
-   PUBLIC COMPONENTS — toggle de tema, menu mobile, redes sociais,
-   stats, seções expandidas
+   PUBLIC COMPONENTS — toggle de tema, menu mobile, mockup do
+   hero e terminal (F50-T009 — reforma).
+
+   Componentes de página (stats, steps, integrações) saíram daqui e
+   vivem no CSS da sua página, escopados. Nada deste arquivo repete
+   seletor de public-base.css/public-dark.css (trancado em
+   publicPagesScope.test.ts).
    ============================================================ */
 
-/* Toggle de tema no header público */
+/* ------------------------------------------------------------
+   Toggle de tema
+   ------------------------------------------------------------ */
 .uni-public-theme-toggle {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--pub-radius-sm);
   border: 1px solid var(--uni-border);
-  background: var(--surface-card);
+  background: transparent;
   color: var(--uni-text-secondary);
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .uni-public-theme-toggle:hover {
@@ -25,761 +32,307 @@
   border-color: var(--uni-text-muted);
 }
 
-/* Menu mobile toggle */
+/* ------------------------------------------------------------
+   Menu mobile
+   ------------------------------------------------------------ */
 .uni-public-mobile-toggle {
   display: none;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--pub-radius-sm);
   border: 1px solid var(--uni-border);
-  background: var(--surface-card);
+  background: transparent;
   color: var(--uni-text);
   font-size: 16px;
   cursor: pointer;
 }
 
-.uni-public-nav-desktop {
-  display: flex;
+.uni-public-mobile-toggle:hover {
+  background: var(--uni-hover);
 }
 
-/* Mobile menu dropdown */
 .uni-public-mobile-menu {
-  display: none;
   border-top: 1px solid var(--uni-border);
-  background: var(--surface-card);
-  padding: 8px 20px 16px;
+  background: var(--surface-card, #fff);
+  padding: 12px max(var(--pub-gutter), calc((100% - var(--pub-container)) / 2)) 16px;
 }
 
 .uni-public-mobile-menu .uni-public-nav {
   flex-direction: column;
-  gap: 2px;
+  align-items: stretch;
+  gap: 4px;
 }
 
 .uni-public-mobile-menu .uni-public-nav-link {
-  display: block;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 12px 14px;
 }
 
-/* Redes sociais no footer */
-.uni-public-social {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.uni-public-social-link {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  border: 1px solid var(--uni-border);
-  background: var(--surface-card);
-  color: var(--uni-text-secondary);
-  font-size: 15px;
-  transition: all 0.3s;
-}
-
-.uni-public-social-link:hover {
-  background: var(--uni-accent);
-  color: #fff;
-  border-color: var(--uni-accent);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-/* Footer bottom links */
-.uni-public-footer-bottom-links {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.uni-public-footer-bottom-links a {
-  font-size: 12px;
-  color: var(--uni-text-muted);
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.uni-public-footer-bottom-links a:hover {
-  color: var(--uni-accent);
-}
-
-/* Seção de estatísticas com mais destaque */
-.uni-public-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 20px;
-  max-width: 1080px;
-  margin: 48px auto;
-  position: relative;
-}
-
-.uni-public-stats::before {
-  content: '';
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  height: calc(100% + 60px);
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.02) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.uni-public-stat {
-  text-align: center;
-  padding: 32px 20px;
-  background: var(--surface-card);
-  border: 1px solid var(--uni-border);
-  border-radius: 16px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.uni-public-stat::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--uni-accent) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.uni-public-stat:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
-  border-color: var(--uni-accent);
-}
-
-.uni-public-stat:hover::before {
-  opacity: 1;
-}
-
-.uni-public-stat-value {
-  font-size: 36px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--uni-accent);
-  margin-bottom: 8px;
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-stat-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--uni-text-secondary);
-  position: relative;
-  z-index: 1;
-}
-
-/* Seção "Como funciona" com mais destaque */
-.uni-public-steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
-  max-width: 1080px;
-  margin: 0 auto;
-  position: relative;
-}
-
-.uni-public-steps::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80%;
-  height: 80%;
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.02) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.uni-public-step {
-  text-align: center;
-  padding: 32px 20px;
-  background: var(--surface-card);
-  border: 1px solid var(--uni-border);
-  border-radius: 16px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.uni-public-step::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--uni-accent) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.uni-public-step:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12);
-  border-color: var(--uni-accent);
-}
-
-.uni-public-step:hover::before {
-  opacity: 1;
-}
-
-.uni-public-step-number {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--uni-accent) 0%, #1d4ed8 100%);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 800;
-  margin-bottom: 16px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-step h3 {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--uni-text);
-  margin: 0 0 12px;
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-step p {
-  font-size: 14px;
-  color: var(--uni-text-secondary);
-  line-height: 1.7;
-  margin: 0;
-  position: relative;
-  z-index: 1;
-}
-
-/* Seção de integrações com mais destaque */
-.uni-public-integrations {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-  max-width: 1080px;
-  margin: 0 auto;
-  position: relative;
-}
-
-.uni-public-integrations::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90%;
-  height: 80%;
-  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.02) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.uni-public-integration {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: var(--surface-card);
-  border: 1px solid var(--uni-border);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.uni-public-integration::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--uni-accent) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.uni-public-integration:hover {
-  border-color: var(--uni-accent);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
-  transform: translateY(-4px);
-}
-
-.uni-public-integration:hover::before {
-  opacity: 1;
-}
-
-.uni-public-integration-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--uni-bg) 0%, rgba(59, 130, 246, 0.05) 100%);
-  border: 1px solid rgba(59, 130, 246, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--uni-accent);
-  font-size: 18px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.uni-public-integration-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--uni-text);
-  position: relative;
-  z-index: 1;
-}
-
-/* Seção FAQ */
-.uni-public-faq {
-  max-width: 800px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.uni-public-faq-item {
-  background: var(--surface-card);
-  border: 1px solid var(--uni-border);
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.uni-public-faq-item:hover {
-  border-color: var(--uni-accent);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
-}
-
-.uni-public-faq-question {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--uni-text);
-  text-align: left;
-  transition: background 0.2s ease;
-}
-
-.uni-public-faq-question:hover {
-  background: var(--uni-hover);
-}
-
-.uni-public-faq-question i {
-  color: var(--uni-text-muted);
-  font-size: 14px;
-  transition: transform 0.3s ease;
-}
-
-.uni-public-faq-item.open .uni-public-faq-question i {
-  transform: rotate(180deg);
-  color: var(--uni-accent);
-}
-
-.uni-public-faq-answer {
-  padding: 0 24px 24px;
-  font-size: 14px;
-  color: var(--uni-text-secondary);
-  line-height: 1.7;
-}
-
-/* Seção de CTA expandida */
-.uni-public-cta-section {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.uni-public-cta-section h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--uni-text);
-  margin: 0 0 12px;
-}
-
-.uni-public-cta-section p {
-  font-size: 15px;
-  color: var(--uni-text-secondary);
-  margin: 0 0 20px;
-}
-
-/* Responsividade */
-@media (max-width: 720px) {
-  .uni-public-nav-desktop {
-    display: none;
-  }
-
+@media (max-width: 760px) {
   .uni-public-mobile-toggle {
     display: inline-flex;
   }
-
-  .uni-public-mobile-menu {
-    display: block;
-  }
-
-  .uni-public-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .uni-public-steps {
-    grid-template-columns: 1fr;
-  }
-
-  .uni-public-integrations {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .uni-public-footer-bottom {
-    flex-direction: column;
-    text-align: center;
-    gap: 8px;
-  }
-
-  .uni-public-footer-bottom-links {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
 }
 
-@media (max-width: 480px) {
-  .uni-public-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .uni-public-integrations {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ============================================================
-   TERMINAL — code blocks estilo terminal
-   ============================================================ */
-
-.uni-public-terminal {
-  background: #1e1e1e;
-  border-radius: 8px;
+/* ------------------------------------------------------------
+   Mockup do dashboard (visual do hero da Home)
+   Sempre sobre o fundo navy do hero — por isso é escuro nos dois temas.
+   ------------------------------------------------------------ */
+.uni-public-mockup {
+  position: relative;
   overflow: hidden;
-  margin: 16px 0;
+  border-radius: var(--pub-radius-lg);
+  background: linear-gradient(180deg, #111c3d 0%, #0c1430 100%);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  box-shadow:
+    0 44px 90px -44px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.uni-public-mockup-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(147, 197, 253, 0.16);
+}
+
+.uni-public-mockup-dots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.uni-public-mockup-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.uni-public-mockup-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(207, 224, 255, 0.78);
+}
+
+.uni-public-mockup-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4ade80;
+}
+
+.uni-public-mockup-live i {
+  font-size: 7px;
+  animation: uniMockPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes uniMockPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.uni-public-mockup-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.uni-public-mockup-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.uni-public-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--pub-radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(147, 197, 253, 0.14);
+}
+
+.uni-public-kpi-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(169, 183, 208, 0.95);
+}
+
+.uni-public-kpi-value {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f7f9fc;
+  font-variant-numeric: tabular-nums;
+}
+
+.uni-public-kpi-trend {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.uni-public-kpi-trend--up {
+  color: #4ade80;
+}
+
+.uni-public-kpi-trend--down {
+  color: #93c5fd;
+}
+
+.uni-public-kpi-trend--flat {
+  color: rgba(169, 183, 208, 0.9);
+}
+
+.uni-public-mockup-chart {
+  padding: 12px 14px 4px;
+  border-radius: var(--pub-radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(147, 197, 253, 0.14);
+}
+
+.uni-public-mockup-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: rgba(169, 183, 208, 0.95);
+}
+
+.uni-public-mockup-chart-head strong {
+  font-size: 15px;
+  color: #f7f9fc;
+  font-variant-numeric: tabular-nums;
+}
+
+.uni-public-mockup-chart svg {
+  display: block;
+  width: 100%;
+  height: 96px;
+}
+
+.uni-public-mockup-rows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uni-public-mockup-rows li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--pub-radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(147, 197, 253, 0.12);
+  font-size: 12.5px;
+}
+
+.uni-public-mockup-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.uni-public-mockup-dot--ok {
+  background: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.18);
+}
+
+.uni-public-mockup-dot--warn {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+}
+
+.uni-public-mockup-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #dbe6ff;
+}
+
+.uni-public-mockup-detail {
+  margin-inline-start: auto;
+  color: rgba(169, 183, 208, 0.95);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .uni-public-mockup-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .uni-public-mockup-kpis .uni-public-kpi:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* ------------------------------------------------------------
+   Terminal (seção on-premises da Home) — escuro nos dois temas
+   ------------------------------------------------------------ */
+.uni-public-terminal {
+  overflow: hidden;
+  border: 1px solid #30363d;
+  border-radius: var(--pub-radius);
+  background: #0d1117;
+  box-shadow: var(--pub-shadow-lift);
 }
 
 .uni-public-terminal-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3d3d3d;
+  gap: 8px;
+  padding: 11px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #8b949e;
 }
 
-.uni-public-terminal-dot {
+.uni-public-terminal-bar::before {
+  content: "";
   width: 10px;
   height: 10px;
   border-radius: 50%;
-}
-
-.uni-public-terminal-title {
-  margin-left: auto;
-  font-size: 12px;
-  color: #999;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  background: #30363d;
+  box-shadow: 16px 0 0 #30363d, 32px 0 0 #30363d;
+  margin-right: 34px;
 }
 
 .uni-public-terminal pre {
   margin: 0;
-  padding: 16px;
-  background: #1e1e1e;
+  padding: 18px 20px;
   overflow-x: auto;
-}
-
-.uni-public-terminal code {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
-  line-height: 1.6;
-  color: #e0e0e0;
+  line-height: 1.75;
+  color: #c9d1d9;
 }
 
-.uni-public-term-prompt {
-  color: #22c55e;
-  margin-right: 8px;
+.uni-public-terminal .ok {
+  color: #4ade80;
 }
 
-.uni-public-term-success {
-  color: #22c55e;
-}
-
-/* ============================================================
-   TIMELINE — timeline vertical
-   ============================================================ */
-
-.uni-public-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.uni-public-timeline-item {
-  position: relative;
-  padding-left: 32px;
-}
-
-.uni-public-timeline-item::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 24px;
-  bottom: -24px;
-  width: 2px;
-  background: var(--uni-border);
-}
-
-.uni-public-timeline-item:last-child::before {
-  display: none;
-}
-
-.uni-public-timeline-dot {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--uni-accent);
-  border: 3px solid var(--surface-card, #fff);
-}
-
-.uni-public-timeline-dot.done {
-  background: var(--uni-green);
-}
-
-.uni-public-timeline-dot.wip {
-  background: var(--uni-yellow);
-}
-
-.uni-public-timeline-dot.future {
-  background: var(--uni-text-muted);
-}
-
-/* ============================================================
-   DIAGRAMA — camadas de arquitetura
-   ============================================================ */
-
-.uni-public-arch {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.uni-public-arch-layer {
-  border: 2px solid var(--uni-border);
-  border-radius: 12px;
-  padding: 16px;
-  background: var(--surface-card, #fff);
-}
-
-.uni-public-arch-layer.primary {
-  border-color: var(--uni-accent);
-  background: var(--uni-bg);
-}
-
-.uni-public-arch-layer.purple {
-  border-color: #8b5cf6;
-}
-
-.uni-public-arch-layer.amber {
-  border-color: var(--uni-yellow);
-}
-
-.uni-public-arch-layer.slate {
-  border-color: var(--uni-text-muted);
-}
-
-.uni-public-arch-layer-header {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--uni-text);
-  margin-bottom: 12px;
-}
-
-.uni-public-arch-layer-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.uni-public-arch-item {
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: var(--uni-bg);
-  font-size: 12px;
-  color: var(--uni-text-secondary);
-}
-
-.uni-public-arch-chip {
-  border: 1px solid var(--uni-border);
-}
-
-/* ============================================================
-   BADGES — badges de plataforma/status
-   ============================================================ */
-
-.uni-public-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  background: var(--surface-card, #fff);
-  border: 1px solid var(--uni-border);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--uni-text-secondary);
-}
-
-.uni-public-badge i {
-  color: var(--uni-accent);
-}
-
-.uni-public-badge strong {
-  color: var(--uni-text);
-}
-
-/* Status badges */
-.uni-public-status-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.uni-public-status-badge.done {
-  background: var(--uni-green-bg);
-  color: var(--uni-green);
-}
-
-.uni-public-status-badge.wip {
-  background: var(--uni-yellow-bg);
-  color: var(--uni-yellow);
-}
-
-.uni-public-status-badge.future {
-  background: var(--uni-bg);
-  color: var(--uni-text-muted);
-}
-
-/* Version badge */
-.uni-public-version-badge {
-  background: var(--uni-accent);
-  color: #fff;
-}
-
-/* ============================================================
-   MOCKUP — visual do dashboard
-   ============================================================ */
-
-.uni-public-mockup {
-  background: var(--surface-card, #fff);
-  border: 1px solid var(--uni-border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.uni-public-mockup-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 16px;
-  background: var(--uni-bg);
-  border-bottom: 1px solid var(--uni-border);
-}
-
-.uni-public-mockup-body {
-  padding: 16px;
-  background: var(--uni-bg);
-}
-
-.uni-public-mockup-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.uni-public-mockup-card {
-  background: var(--surface-card, #fff);
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.uni-public-mockup-card-label {
-  font-size: 11px;
-  color: var(--uni-text-muted);
-  margin-bottom: 4px;
-}
-
-.uni-public-mockup-card-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--uni-text);
-}
-
-/* Responsividade componentes antigos */
-@media (max-width: 720px) {
-  .uni-public-timeline {
-    gap: 12px;
-  }
-
-  .uni-public-arch {
-    gap: 8px;
-  }
-
-  .uni-public-arch-layer {
-    padding: 12px;
-  }
-
-  .uni-public-mockup-row {
-    grid-template-columns: 1fr;
-  }
+.uni-public-terminal .cmd {
+  color: #79c0ff;
 }

@@ -36,8 +36,7 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
     // prtAlertCode: other(1)/unknown(2) = linha idle, não é alerta ativo.
     private const long IdleAlertCodeMax = 2;
 
-    // prtAlertSeverityLevel: critical(3) major(4) minor(5) warning(6)
-    // informational(7) — menor número real = pior.
+    // prtAlertSeverityLevel (RFC 3805): critical(3), warning(4/5).
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(3);
 
     public string Name => CheckKind.SnmpPrinterStatus.ToString();
@@ -130,7 +129,10 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
         };
 
         if (active.Length > 0)
-            values["worstAlertSeverity"] = MapSeverity(active.Min());
+        {
+            var worstSeverity = active.OrderBy(GetSeverityRank).First();
+            values["worstAlertSeverity"] = MapSeverity(worstSeverity);
+        }
 
         return new MonitoringProviderResult(true, stopwatch.Elapsed, null, values);
     }
@@ -187,10 +189,14 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
     internal static string MapSeverity(long severity) => severity switch
     {
         3 => "critical",
-        4 => "major",
-        5 => "minor",
-        6 => "warning",
-        7 => "informational",
+        4 or 5 => "warning",
         _ => "unknown"
+    };
+
+    private static int GetSeverityRank(long severity) => severity switch
+    {
+        3 => 0,
+        4 or 5 => 1,
+        _ => 2
     };
 }

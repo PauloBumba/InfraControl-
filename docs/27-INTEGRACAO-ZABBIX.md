@@ -577,9 +577,26 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
     (`prtMarkerSuppliesLevel`) e capacidade (`prtMarkerSuppliesMaxCapacity`)
     + triggers "Suprimento X baixo" (<10%, warning) e "criticamente baixo"
     (<5%, average);
-  - LLD **alertas** `printer.alerts.discovery`: protótipo severidade
-    (`prtAlertSeverityLevel`) + triggers "Alerta fatal" (≥4, high) e
-    "Alerta aviso" (=3, warning) — atolamento/tampa/toner esgotado.
+  - LLD **alertas** `printer.alerts.discovery`: auditoria F27-T012 encontrou
+    que o item `printer.alert.severity` consulta a coluna 3
+    (`prtAlertTrainingLevel`), não a coluna 2 (`prtAlertSeverityLevel`), e
+    que os triggers atuais classificam `>=4` como High e `=3` como Warning.
+    Correção aplicada ao template existente: o item prototype agora consulta
+    a coluna 2; `=3` é crítico/High e `<>1 and <>3` é Warning para severidade
+    não crítica ou enum não mapeado. O provider SNMP da aplicação foi
+    alinhado aos códigos da RFC (3 critical, 4/5 warning, demais unknown;
+    testes focados 17/17). A ação `InfraControl - triggers` (id 7) foi
+    pausada durante a alteração autorizada, depois restaurada e conferida
+    Enabled. Na amostra `HSDS_HP_SETOR_1_ENF` (host Zabbix 10907), a coleta
+    atual retornou severidade `1` e o filtro de Problems não encontrou
+    problema ativo. Na reconciliação de 2026-10-24, o grupo tinha 37 hosts:
+    36 ligados ao template e com SNMP disponível; `HSSM_HP_SETOR2` (host
+    10924, `50.111`) é a única impressora ping-only, sem disponibilidade SNMP.
+    Não havia item unsupported nem problema ativo no snapshot consultado. Os
+    itens dos hosts `HSDS_HP_PS_TRIAGEM` e `HSDS_HP_SETOR_3` que haviam
+    reportado `No Such Instance` já estavam sem erro e suportados na consulta
+    atual; foram mantidos. Não foram enviados eventos sintéticos nem mensagens
+    WhatsApp. Ver evidências e lacunas de APs/switches em `docs/37`.
 - Cada host SNMP liga **10226 (Network Generic Device) + 10887**; grupos
   `Impressoras` (31) + `Impressoras HSDS` (32) / `Impressoras HSSM` (33).
 - **37 hosts cadastrados (só online)**: HSDS 33 + HSSM 3 Canons
@@ -616,7 +633,8 @@ tags `vendor`/`location`; descrição com modelo e modo de monitoramento.
   Auditoria 86.866 páginas, toner 92%, 6 suprimentos (toner, OPC, fuser,
   transfer, rollers); alerta HP "Power Saver Mode" descoberto em
   severidade informativa (sem alarme).
-- Pendências: ativar SNMP na `50.111` (painel, usuário `user` /
-  senha `1-7`) e promover; IPs/setores das Zebra 220/503 e
-  `HSDS_NIR_CE`; ULTRASSOM_A4 (planilha "164_1" — só há um device no
-  .164, Tomografia A3).
+- Pendências: `HSSM_HP_SETOR2` (`50.111`) continua ping-only; não alterar
+  equipamento/controller no escopo atual. Só promover no Zabbix após validar
+  uma resposta SNMP por caminho autorizado; conferir IPs/setores das Zebra
+  220/503 e `HSDS_NIR_CE`; ULTRASSOM_A4 (planilha "164_1" — só há um device
+  no `.164`, Tomografia A3).

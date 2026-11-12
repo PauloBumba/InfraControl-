@@ -1,9 +1,12 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CtaBand } from "@/components/marketing/CtaBand";
+import { FaqList } from "@/components/marketing/FaqAccordion";
+import { PublicHero } from "@/components/marketing/PublicHero";
+import { SectionHead } from "@/components/marketing/SectionHead";
+import { getSupportEmail } from "@/services/support";
 
-export function getSupportEmail(): string {
-  return (import.meta.env.VITE_SUPPORT_EMAIL ?? "").trim();
-}
+/** Contrato antigo da página: `getSupportEmail` continua exportado daqui. */
+export { getSupportEmail };
 
 const FAQ = [
   {
@@ -24,38 +27,41 @@ const FAQ = [
   },
 ] as const;
 
-function FaqItem({ question, answer }: { question: string; answer: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`uni-public-faq-item ${open ? "open" : ""}`}>
-      <button className="uni-public-faq-question" onClick={() => setOpen(!open)} aria-expanded={open}>
-        <span>{question}</span>
-        <i className="pi pi-angle-down" />
-      </button>
-      {open && <div className="uni-public-faq-answer">{answer}</div>}
-    </div>
-  );
-}
-
 export function ContactPage() {
   const supportEmail = getSupportEmail();
+
   return (
     <div className="uni-public-page--contact">
-      <section className="uni-public-hero">
-        <p className="uni-public-eyebrow">Suporte e contato</p>
-        <h1>Encontre o caminho certo para sua dúvida</h1>
-        <p className="uni-public-lead">
-          O InfraControl é self-hosted: sua equipe controla a implantação e a operação. Escolha o canal adequado para o seu caso.
-        </p>
-      </section>
+      <PublicHero
+        eyebrow="Suporte e contato"
+        title="Encontre o caminho certo para sua dúvida"
+        lead="O InfraControl é self-hosted: sua equipe controla a implantação e a operação. Escolha o canal adequado para o seu caso."
+        actions={
+          <>
+            <Link to="/login" className="uni-public-button">
+              <i className="pi pi-sign-in" aria-hidden="true" />
+              <span>Entrar</span>
+            </Link>
+            <Link to="/recursos" className="uni-public-button uni-public-button-ghost">
+              <span>Ver recursos</span>
+            </Link>
+          </>
+        }
+      />
 
-      <section className="uni-public-section">
-        <div className="uni-public-grid">
+      <section className="uni-public-section" aria-labelledby="canais">
+        <SectionHead
+          id="canais"
+          eyebrow="Canais honestos"
+          title="Sem formulário que finge enviar"
+          lead="Não existe endpoint de contato no backend — por isso a página mostra canais reais em vez de um form que não entregaria nada."
+        />
+        <div className="uni-public-grid uni-public-channels">
           <article className="uni-public-card">
             <span className="uni-public-card-icon">
-              <i className="pi pi-life-ring" />
+              <i className="pi pi-headphones" aria-hidden="true" />
             </span>
-            <h2>Suporte da sua instância</h2>
+            <h3>Suporte da sua instância</h3>
             {supportEmail ? (
               <p>
                 Dúvidas sobre o uso da sua instância:{" "}
@@ -72,20 +78,23 @@ export function ContactPage() {
 
           <article className="uni-public-card">
             <span className="uni-public-card-icon">
-              <i className="pi pi-key" />
+              <i className="pi pi-key" aria-hidden="true" />
             </span>
-            <h2>Problemas de acesso</h2>
+            <h3>Problemas de acesso</h3>
             <p>
               Não consegue entrar, esqueceu a senha ou precisa trocá-la? O login
               e a recuperação de senha ficam na própria tela de entrada.
             </p>
+            <Link to="/login" className="uni-public-card-link">
+              Ir para a tela de entrada
+            </Link>
           </article>
 
           <article className="uni-public-card">
             <span className="uni-public-card-icon">
-              <i className="pi pi-book" />
+              <i className="pi pi-book" aria-hidden="true" />
             </span>
-            <h2>Funcionalidades da plataforma</h2>
+            <h3>Funcionalidades da plataforma</h3>
             <p>
               Antes de perguntar, explore a lista completa de recursos —
               monitoramento, operação, governança e segurança.
@@ -97,21 +106,30 @@ export function ContactPage() {
         </div>
       </section>
 
-      <section aria-labelledby="faq-contato" className="uni-public-section">
-        <h2 id="faq-contato">Dúvidas comuns</h2>
-        <div className="uni-public-faq">
-          {FAQ.map((item) => (
-            <FaqItem key={item.question} question={item.question} answer={item.answer} />
-          ))}
-        </div>
+      <section className="uni-public-section uni-public-section--alt" aria-labelledby="faq-contato">
+        <SectionHead
+          id="faq-contato"
+          eyebrow="Perguntas frequentes"
+          title="Dúvidas comuns"
+          lead="Instalação, requisitos e suporte — respondidos sem enrolação."
+        />
+        <FaqList items={FAQ} />
       </section>
 
-      <section aria-labelledby="entrar" className="uni-public-band">
-        <h2 id="entrar">Já tem acesso à sua instância?</h2>
-        <Link to="/login" className="uni-public-button">
-          Entrar
-        </Link>
-      </section>
+      <CtaBand
+        title="Já tem acesso à sua instância?"
+        actions={
+          <>
+            <Link to="/login" className="uni-public-button">
+              <i className="pi pi-sign-in" aria-hidden="true" />
+              <span>Entrar</span>
+            </Link>
+            <Link to="/recursos" className="uni-public-button uni-public-button-ghost">
+              <span>Ver recursos</span>
+            </Link>
+          </>
+        }
+      />
     </div>
   );
 }

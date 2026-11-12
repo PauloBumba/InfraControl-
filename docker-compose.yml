@@ -203,7 +203,7 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 5
     restart: unless-stopped
     networks:
@@ -503,7 +503,7 @@ services:
     environment:
       # Porta HTTPS publicada no HOST — o redirect HTTP→HTTPS do nginx não tem
       # como deduzi-la (80→443, 8080→8443, 8085→8445); entra via envsubst.
-      NGINX_HTTPS_PORT: ${HTTPS_PORT:-443}
+      NGINX_HTTPS_PORT: ${HTTPS_PORT:-8443}
       SEQ_AUTH_USER: ${SEQ_AUTH_USER:-admin}
       SEQ_AUTH_PASSWORD: ${SEQ_AUTH_PASSWORD:-admin}
     healthcheck:
@@ -722,6 +722,7 @@ services:
     # 2026-10-19: ROLLBACK para trunk + volume original (zabbix_db_data).
     # Bancos preservados: zabbix_db_data (ativo, 8.0.0rc2) + zabbix_db_data_v74
     # (teste 7.4.15) + pg_dump em temp/opencode/backups/.
+    # docs/66: Aumentado StartPingers de 1 para 5 para corrigir gargalo 100% (152 hosts).
     image: zabbix/zabbix-server-pgsql:alpine-trunk
     container_name: infracontrol-zabbix-server
     profiles: ["zabbix"]
@@ -730,7 +731,8 @@ services:
       POSTGRES_DB: zabbix
       POSTGRES_USER: zabbix
       POSTGRES_PASSWORD: ${ZABBIX_DB_PASSWORD:-zabbix_dev_password_2026}
-      ZBX_HANODENAME: zabbix-server
+      ZBX_STARTPINGERS: 5
+      ZBX_STARTPINGERSUNREACHABLE: 5
     ports:
       - "${ZABBIX_SERVER_PORT:-10051}:10051"
     volumes:
