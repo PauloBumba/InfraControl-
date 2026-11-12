@@ -1,4 +1,5 @@
 using InfraControl.Application.Projects.Ports;
+using InfraControl.Application.Projects.Queries;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
@@ -19,6 +20,7 @@ public sealed record CreateProjectCommand(
     DateOnly? PlannedEndDate = null) : BaseCommand<ProjectDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class CreateProjectCommandHandler(
@@ -108,6 +110,7 @@ public sealed record UpdateProjectCommand(
     DateOnly? PlannedEndDate = null) : BaseCommand<ProjectDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class UpdateProjectCommandHandler(
@@ -158,6 +161,47 @@ public sealed class UpdateProjectCommandHandler(
 public sealed record DeleteProjectCommand(Guid Id) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
+}
+
+/// <summary>
+/// Transferência de liderança (F50): o Admin passa o projeto para
+/// outro responsável sem o form completo de edição — policy
+/// Administer, mesma tag de cache da lista/detalhe.
+/// </summary>
+public sealed record TransferProjectCommand(Guid ProjectId, Guid NewLeaderId)
+    : BaseCommand<ProjectDto>, IAuthorizedRequest, IAuditableRequest
+{
+    public string AuditResource => "Project";
+    public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
+}
+
+public sealed class TransferProjectCommandHandler(
+    IProjectRepository projectRepository,
+    ILogger<TransferProjectCommandHandler> logger)
+    : IRequestHandler<TransferProjectCommand, ProjectDto>
+{
+    public async Task<ProjectDto> Handle(
+        TransferProjectCommand request, CancellationToken cancellationToken)
+    {
+        var project = await projectRepository.GetByIdAsync(request.ProjectId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Projeto '{request.ProjectId}' não encontrado.");
+
+        var previousLeaderId = project.LeaderId;
+        project.TransferLeadership(request.NewLeaderId);
+        await projectRepository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Project {ProjectId} leadership transferred from {From} to {To}.",
+            project.Id, previousLeaderId, project.LeaderId);
+
+        var names = await projectRepository.GetUserNamesAsync(
+            SearchProjectsQueryHandler.ProjectUserIds(project).ToArray(),
+            cancellationToken);
+
+        return ProjectDto.From(project, names);
+    }
 }
 
 public sealed class DeleteProjectCommandHandler(
@@ -184,6 +228,7 @@ public sealed record TransitionProjectStatusCommand(
     string? Reason = null) : BaseCommand<ProjectDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class TransitionProjectStatusCommandHandler(

@@ -18,6 +18,7 @@ public sealed record AddProjectMemberCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class AddProjectMemberCommandHandler(
@@ -55,6 +56,7 @@ public sealed record RemoveProjectMemberCommand(Guid ProjectId, Guid UserId) : B
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class RemoveProjectMemberCommandHandler(

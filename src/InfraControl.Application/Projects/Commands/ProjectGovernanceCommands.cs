@@ -15,6 +15,7 @@ public sealed record SubmitProjectForApprovalCommand(Guid ProjectId)
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class SubmitProjectForApprovalCommandHandler(
@@ -48,6 +49,7 @@ public sealed record ApproveProjectCommand(Guid ProjectId, string? ApprovalNotes
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ApproveProjectCommandHandler(

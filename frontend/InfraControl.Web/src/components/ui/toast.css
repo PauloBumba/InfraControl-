@@ -1,0 +1,154 @@
+/* Host global dos toasts (ToastProvider) — canto superior direito,
+   acima do layout (z-index do topbar/dialogs fica abaixo).
+   Visual segue o padrão do EmailTemplate (ADR do e-mail transacional):
+   card branco, borda #e7e9ee, radius 12, sombra sutil, fonte Inter e
+   faixa de gradiente #101828→#1f2937 no topo (o "cabeçalho" do card). */
+
+.uni-toast-host {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.uni-toast {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 400px;
+  padding: 14px 34px 14px 14px;
+  border-radius: 12px;
+  border: 1px solid #e7e9ee;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 0.02),
+    0 8px 24px -16px rgb(15 23 42 / 0.4);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow: hidden;
+  animation: uni-toast-in 0.18s ease-out;
+}
+
+/* Faixa de gradiente do topo — assinatura visual do EmailTemplate. */
+.uni-toast::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #101828 0%, #1f2937 100%);
+}
+
+.uni-toast__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.uni-toast__message {
+  flex: 1;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.uni-toast__close {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.uni-toast__close:hover {
+  background: rgb(100 116 139 / 0.12);
+  color: #1f2937;
+}
+
+/* Linha de tempo: barra que esgota da esquerda p/ direita ao longo da
+   duração do toast (valor sincronizado com TOAST_DURATION_MS via CSS var). */
+.uni-toast__timeline {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.55;
+  transform-origin: left center;
+  animation-name: uni-toast-timeline;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-duration: var(--uni-toast-duration, 4000ms);
+}
+
+/* Variantes: card permanece branco (padrão do e-mail); a cor vive no
+   chip do ícone e na timeline. */
+.uni-toast--success {
+  color: #15803d;
+}
+
+.uni-toast--success .uni-toast__icon {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.uni-toast--error {
+  color: #b91c1c;
+}
+
+.uni-toast--error .uni-toast__icon {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.uni-toast--info {
+  color: #1d4ed8;
+}
+
+.uni-toast--info .uni-toast__icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+@keyframes uni-toast-timeline {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes uni-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

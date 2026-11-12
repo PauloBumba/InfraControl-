@@ -17,6 +17,10 @@ public sealed record SearchProjectsQuery(
     int PageSize = 20) : BaseQuery<PagedResult<ProjectDto>>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Read;
+
+    // Tag compartilhada com GetProjectQuery e com as mutations de projeto:
+    // sem ela o TTL de 5 min segura a lista antiga após um create.
+    public override IReadOnlyCollection<string> CacheTags => ["projects"];
 }
 
 public sealed class SearchProjectsQueryHandler(
@@ -103,6 +107,7 @@ public sealed record GetProjectQuery(Guid Id)
     : BaseQuery<ProjectDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Read;
+    public override IReadOnlyCollection<string> CacheTags => ["projects"];
 }
 
 public sealed class GetProjectQueryHandler(

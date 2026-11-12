@@ -247,6 +247,21 @@ public sealed class ProjectsController(
             cancellationToken)));
     }
 
+    /// <summary>Transferir a liderança para outro usuário (só Admin — F50).</summary>
+    [HttpPost("{id:guid}/transfer")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> Transfer(
+        Guid id,
+        [FromBody] TransferProjectViewModel model,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        return Ok(ApiResponse.Ok(await sender.Send(
+            new TransferProjectCommand(id, model.LeaderId),
+            cancellationToken)));
+    }
+
     // ---- Conclusão e aprovação formal (spec evolução 2026-11-07 §6) ----
 
     [HttpGet("{id:guid}/conclusions")]

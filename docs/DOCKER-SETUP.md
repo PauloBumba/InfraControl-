@@ -8,7 +8,7 @@
 | Redis | 6379 | - | - |
 | RabbitMQ | 5672 | infracontrol | infracontrol_dev_2026 |
 | RabbitMQ Management | 15672 | infracontrol | infracontrol_dev_2026 |
-| Adminer | 8080 | - | - |
+| Adminer | 8082 (`ADMINER_PORT`) | infracontrol | infracontrol_dev_2026 |
 
 ## Comandos
 
@@ -44,7 +44,7 @@ docker compose down -v
 
 ## URLs de Acesso
 
-- **Adminer:** http://localhost:8080
+- **Adminer:** http://localhost:8082 (servidor `postgres`, usuário/senha do PostgreSQL acima)
 - **RabbitMQ Management:** http://localhost:15672
 - **PostgreSQL:** localhost:5432
 

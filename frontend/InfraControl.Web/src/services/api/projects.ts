@@ -140,6 +140,14 @@ export async function deleteProject(id: string): Promise<void> {
   await api.delete(`/projects/${id}`);
 }
 
+/** Transferência de liderança (F50) — endpoint Admin-only. */
+export async function transferProject(
+  projectId: string,
+  newLeaderId: string,
+): Promise<void> {
+  await api.post(`/projects/${projectId}/transfer`, { leaderId: newLeaderId });
+}
+
 export async function listProjectPhases(projectId: string): Promise<ProjectPhaseItem[]> {
   const data = await api.get<ProjectPhaseItem[]>(`/projects/${projectId}/phases`);
   return data ?? [];

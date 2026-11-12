@@ -73,6 +73,7 @@ public sealed record SubmitProjectConclusionCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class SubmitProjectConclusionCommandHandler(
@@ -186,6 +187,7 @@ public sealed record ApproveProjectConclusionCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ApproveProjectConclusionCommandHandler(
@@ -265,6 +267,7 @@ public sealed record ReturnProjectConclusionCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ReturnProjectConclusionCommandHandler(

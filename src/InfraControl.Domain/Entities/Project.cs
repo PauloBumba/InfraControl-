@@ -156,6 +156,29 @@ public sealed class Project : AggregateRoot
         RaiseDomainEvent(new ProjectUpdatedDomainEvent(Id, Title, Status));
     }
 
+    /// <summary>
+    /// Transferência de liderança (F50): muda só o responsável, sem
+    /// tocar nos demais campos do form de edição. Projetos encerrados
+    /// ou cancelados não transferem (mesma guarda do UpdateDetails).
+    /// </summary>
+    public void TransferLeadership(Guid newLeaderId)
+    {
+        if (Status is ProjectStatus.Completed or ProjectStatus.Cancelled)
+            throw new InvalidOperationException(
+                $"Não é possível transferir a liderança de um projeto no estado '{Status}'.");
+
+        if (newLeaderId == Guid.Empty)
+            throw new ArgumentException(
+                "O novo líder do projeto é obrigatório.", nameof(newLeaderId));
+
+        if (newLeaderId == LeaderId)
+            return;
+
+        LeaderId = newLeaderId;
+        AddMember(newLeaderId, ProjectMemberRole.Leader);
+        RaiseDomainEvent(new ProjectUpdatedDomainEvent(Id, Title, Status));
+    }
+
     public void SetPlanningDates(DateOnly? plannedStart, DateOnly? plannedEnd)
     {
         if (plannedStart.HasValue && plannedEnd.HasValue && plannedEnd.Value < plannedStart.Value)

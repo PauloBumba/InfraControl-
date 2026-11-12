@@ -7,6 +7,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import { PrimeReactProvider } from "primereact/api";
 import { store, persistor } from "./app/store";
 import { AppRouter } from "./app/router";
+import { ToastProvider } from "./components/ui/ToastProvider";
 import { initTheme } from "./services/theme";
 // Tema claro do PrimeReact (decisão do levantamento docs/28): o app é
 // claro (painéis brancos uni-*) e o tema anterior `lara-dark-blue` não
@@ -44,7 +45,11 @@ createRoot(document.getElementById("root")!).render(
         <PersistGate loading={null} persistor={persistor}>
           <QueryClientProvider client={queryClient}>
             <BrowserRouter>
-              <AppRouter />
+              {/* Toast global com auto-dismiss (useToast) — mesmo método
+                  de notificação transitória para toda a aplicação. */}
+              <ToastProvider>
+                <AppRouter />
+              </ToastProvider>
             </BrowserRouter>
           </QueryClientProvider>
         </PersistGate>

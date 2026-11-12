@@ -6,19 +6,27 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
 import { ProjectsPage } from "./ProjectsPage";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import {
   createProject,
   deleteProject,
   listProjects,
+  transferProject,
   updateProject,
   type ProjectItem,
 } from "@/services/api/projects";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 
 vi.mock("@/services/api/projects", () => ({
   listProjects: vi.fn(),
   createProject: vi.fn(),
   updateProject: vi.fn(),
   deleteProject: vi.fn(),
+  transferProject: vi.fn(),
+}));
+
+vi.mock("@/services/api/adminUsers", () => ({
+  listUsers: vi.fn(),
 }));
 
 const CURRENT_USER_ID = "3f1a1111-2222-3333-4444-555566667777";
@@ -46,7 +54,28 @@ const project: ProjectItem = {
   actualEndDate: null,
   members: [{ userId: "member-1", role: "Member" }],
   createdById: "creator-1",
+  createdByName: "Ana Criadora",
+  leaderName: "Líder Silva",
 };
+
+const USERS: AdminUser[] = [
+  {
+    userId: CURRENT_USER_ID,
+    email: "ana@exemplo.com",
+    displayName: "Ana",
+    isActive: true,
+    roles: [2],
+    updatedAt: "2026-11-10T00:00:00Z",
+  },
+  {
+    userId: "other-9",
+    email: "bruno@exemplo.com",
+    displayName: "Bruno Gestor",
+    isActive: true,
+    roles: [3],
+    updatedAt: "2026-11-10T00:00:00Z",
+  },
+];
 
 function CurrentPath() {
   const location = useLocation();
@@ -57,7 +86,9 @@ function renderPage(initialEntries?: string[]) {
   return render(
     <Provider store={store}>
       <MemoryRouter {...(initialEntries ? { initialEntries } : {})}>
-        <ProjectsPage />
+        <ToastProvider>
+          <ProjectsPage />
+        </ToastProvider>
         <CurrentPath />
       </MemoryRouter>
     </Provider>,
@@ -70,6 +101,9 @@ describe("ProjectsPage", () => {
     vi.mocked(createProject).mockReset();
     vi.mocked(updateProject).mockReset();
     vi.mocked(deleteProject).mockReset();
+    vi.mocked(transferProject).mockReset();
+    vi.mocked(listUsers).mockReset();
+    vi.mocked(listUsers).mockResolvedValue(USERS);
     // a preferência de visão vive no localStorage — zera p/ default determinístico
     localStorage.clear();
     store.dispatch(
@@ -172,6 +206,90 @@ describe("ProjectsPage", () => {
       plannedStartDate: null,
       plannedEndDate: null,
     });
+    // refetch imediato: sem isso o novo projeto só aparece no próximo
+    // mount/filtro (o reset de filtros é no-op quando já estão no default)
+    await vi.waitFor(() => {
+      expect(listProjects).toHaveBeenCalledTimes(2);
+    });
+    // notificação transitória global some sozinha (linha de tempo)
+    const toast = await screen.findByTestId("toast");
+    expect(toast).toHaveTextContent("Projeto criado.");
+    expect(toast).toHaveAttribute("role", "status");
+  });
+
+  it("shows the Criado / Responsável column with creator and leader", async () => {
+    vi.mocked(listProjects).mockResolvedValue({
+      items: [project],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Migração Core")).toBeInTheDocument();
+    expect(screen.getByText("Criado / Responsável")).toBeInTheDocument();
+    expect(screen.getByText("Ana Criadora")).toBeInTheDocument();
+    expect(screen.getByText("Líder Silva")).toBeInTheDocument();
+    expect(screen.queryByText("Líder")).not.toBeInTheDocument();
+  });
+
+  it("lets an admin transfer the project to another person", async () => {
+    vi.mocked(listProjects).mockResolvedValue({
+      items: [project],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    vi.mocked(transferProject).mockResolvedValue(undefined);
+    store.dispatch(
+      sessionChecked({
+        id: CURRENT_USER_ID,
+        email: "ana@exemplo.com",
+        displayName: "Ana",
+        roles: ["Admin"],
+      }),
+    );
+
+    renderPage();
+    const user = userEvent.setup();
+
+    await screen.findByText("Migração Core");
+    await user.click(
+      screen.getByRole("button", { name: "Transferir projeto Migração Core" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(
+      within(dialog).getByLabelText("Novo responsável"),
+      "other-9",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Transferir" }));
+
+    await vi.waitFor(() => {
+      expect(transferProject).toHaveBeenCalledWith(project.id, "other-9");
+    });
+    const toast = await screen.findByTestId("toast");
+    expect(toast).toHaveTextContent("Projeto transferido para Bruno Gestor.");
+    await vi.waitFor(() => {
+      expect(listProjects).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("hides the transfer action from non-admin users", async () => {
+    vi.mocked(listProjects).mockResolvedValue({
+      items: [project],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+
+    renderPage();
+
+    await screen.findByText("Migração Core");
+    expect(
+      screen.queryByRole("button", { name: "Transferir projeto Migração Core" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the create dialog when arriving with ?novo=1 (deep-link do dashboard)", async () => {

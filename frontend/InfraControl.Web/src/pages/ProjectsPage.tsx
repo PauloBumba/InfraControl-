@@ -10,11 +10,13 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { useToast } from "@/components/ui/ToastProvider";
 import { useAppSelector } from "@/app/store/hooks";
 import {
   createProject,
   deleteProject,
   listProjects,
+  transferProject,
   updateProject,
   type ProjectItem,
 } from "@/services/api/projects";
@@ -132,8 +134,15 @@ export function ProjectsPage() {
   const [form, setForm] = useState<ProjectForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProjectItem | null>(null);
+  // Transferência de liderança (F50): dialog próprio, error próprio.
+  const [transferTarget, setTransferTarget] = useState<ProjectItem | null>(null);
+  const [transferLeaderId, setTransferLeaderId] = useState("");
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const isAdmin =
+    useAppSelector((state) => state.auth.user?.roles.includes("Admin")) ?? false;
+  // Notificação transitória global (auto-dismiss) — ver ToastProvider.
+  const toast = useToast();
 
   function setField<K extends keyof ProjectForm>(key: K, value: ProjectForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -179,12 +188,17 @@ export function ProjectsPage() {
           plannedStartDate: form.plannedStartDate || null,
           plannedEndDate: form.plannedEndDate || null,
         });
-        setNotice("Projeto criado.");
+        toast.success("Projeto criado.");
         // Garante que o novo projeto apareça: volta à página 1 sem filtros.
         setPage(1);
         setTerm("");
         setStatusFilter("All");
         setPriorityFilter("All");
+        // Refetch explícito: o reset acima é no-op quando os filtros já
+        // estão no default e o effect de load não re-dispararia — além
+        // disso o backend invalida a tag "projects" no create (sem isso
+        // o TTL de 5 min serviria a lista antiga).
+        await loadProjects();
       } else if (dialogMode === "edit" && editingProject) {
         await updateProject(editingProject.id, {
           title: form.title.trim(),
@@ -195,7 +209,7 @@ export function ProjectsPage() {
           plannedStartDate: form.plannedStartDate || null,
           plannedEndDate: form.plannedEndDate || null,
         });
-        setNotice("Projeto atualizado.");
+        toast.success("Projeto atualizado.");
         await loadProjects();
       }
       setDialogMode(null);
@@ -213,10 +227,34 @@ export function ProjectsPage() {
     setActionError(null);
     try {
       await deleteProject(deleteTarget.id);
-      setNotice(`Projeto ${deleteTarget.code} removido.`);
+      toast.success(`Projeto ${deleteTarget.code} removido.`);
       await loadProjects();
     } catch (caught) {
       setActionError(caught instanceof Error ? caught.message : "Não foi possível remover o projeto.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmTransfer() {
+    if (!transferTarget || !transferLeaderId) return;
+    setSaving(true);
+    setTransferError(null);
+    try {
+      const name =
+        users.find((user) => user.userId === transferLeaderId)?.displayName ??
+        "outro usuário";
+      await transferProject(transferTarget.id, transferLeaderId);
+      toast.success(`Projeto transferido para ${name}.`);
+      setTransferTarget(null);
+      setTransferLeaderId("");
+      await loadProjects();
+    } catch (caught) {
+      setTransferError(
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível transferir o projeto.",
+      );
     } finally {
       setSaving(false);
     }
@@ -388,10 +426,6 @@ export function ProjectsPage() {
           </div>
         }
       />
-
-      {notice && (
-        <div style={{ padding: 12, borderRadius: 10, background: "#f0fdf4", color: "#15803d" }}>{notice}</div>
-      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
@@ -566,8 +600,20 @@ export function ProjectsPage() {
             body={(project: ProjectItem) => `${formatDate(project.plannedStartDate)} → ${formatDate(project.plannedEndDate)}`}
           />
           <Column
-            header="Líder"
-            body={(project: ProjectItem) => project.leaderName ?? "—"}
+            header="Criado / Responsável"
+            body={(project: ProjectItem) => (
+              <div style={{ fontSize: 12 }}>
+                <div style={{ color: "#64748b" }}>
+                  <i className="pi pi-pencil" style={{ fontSize: 9, marginRight: 3 }} />
+                  {project.createdByName ?? "—"}
+                </div>
+                <div style={{ color: "#475569" }}>
+                  <i className="pi pi-user" style={{ fontSize: 9, marginRight: 3 }} />
+                  {project.leaderName ?? "—"}
+                </div>
+              </div>
+            )}
+            style={{ width: 170 }}
           />
           <Column
             header="Equipe"
@@ -596,6 +642,20 @@ export function ProjectsPage() {
                 >
                   Editar
                 </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    icon="pi pi-share-alt"
+                    aria-label={`Transferir projeto ${project.title}`}
+                    onClick={() => {
+                      setTransferTarget(project);
+                      setTransferLeaderId("");
+                      setTransferError(null);
+                    }}
+                  >
+                    Transferir
+                  </Button>
+                )}
                 <Button
                   variant="danger"
                   icon="pi pi-trash"
@@ -743,6 +803,57 @@ export function ProjectsPage() {
         confirmLabel="Remover"
         severity="danger"
       />
+
+      <Dialog
+        visible={transferTarget !== null}
+        onHide={() => {
+          setTransferTarget(null);
+          setTransferLeaderId("");
+          setTransferError(null);
+        }}
+        header={`Transferir ${transferTarget?.code ?? ""}`}
+        width={480}
+        footer={
+          <div className="uni-modal-actions">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setTransferTarget(null);
+                setTransferLeaderId("");
+                setTransferError(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void confirmTransfer()}
+              disabled={saving || !transferLeaderId}
+            >
+              Transferir
+            </Button>
+          </div>
+        }
+      >
+        <div className="uni-form">
+          <label>
+            <span>Novo responsável</span>
+            <select
+              value={transferLeaderId}
+              onChange={(event) => setTransferLeaderId(event.target.value)}
+            >
+              <option value="">Selecione um usuário…</option>
+              {users
+                .filter((user) => user.userId !== transferTarget?.leaderId)
+                .map((user) => (
+                  <option key={user.userId} value={user.userId}>
+                    {user.displayName} — {user.email}
+                  </option>
+                ))}
+            </select>
+          </label>
+          {transferError && <ErrorBanner message={transferError} />}
+        </div>
+      </Dialog>
     </div>
   );
 }
