@@ -145,4 +145,19 @@ public sealed class MonitoringController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new SetAlertOperatorNoteCommand(id, model.Note),
             cancellationToken)));
+
+    /// <summary>
+    /// F52-T003 — baixa justificada do alerta (padrão ServiceNow):
+    /// código + justificativa obrigatórios; a resolução automática
+    /// pós-check não passa por aqui.
+    /// </summary>
+    [HttpPut("alerts/{id:guid}/resolve")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> ResolveAlert(
+        Guid id,
+        [FromBody] ResolveAlertViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new ResolveAlertCommand(id, model.Code, model.Note),
+            cancellationToken)));
 }

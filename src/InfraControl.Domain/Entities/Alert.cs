@@ -23,6 +23,9 @@ public sealed class Alert : AggregateRoot
     /// <summary>Anotação do operador (F50-T003) — máx. 500.</summary>
     public const int OperatorNoteMaxLength = 500;
 
+    /// <summary>Justificativa da baixa manual (F52-T003) — máx. 500.</summary>
+    public const int ResolutionNoteMaxLength = 500;
+
     public Guid? DeviceId { get; private set; }
     public CheckKind? Kind { get; private set; }
     public MonitoringSource Source { get; private set; }
@@ -38,6 +41,12 @@ public sealed class Alert : AggregateRoot
     /// sistema — este é o único campo editável pelo operador).
     /// </summary>
     public string? OperatorNote { get; private set; }
+
+    // F52-T003 — baixa justificada (ServiceNow): código + justificativa
+    // gravados só na resolução manual via Resolve(code, note); a
+    // resolução automática (Resolve()) deixa ambos nulos.
+    public ResolutionCode? ResolutionCode { get; private set; }
+    public string? ResolutionNote { get; private set; }
 
     private Alert() { }
 
@@ -132,6 +141,38 @@ public sealed class Alert : AggregateRoot
         ResolvedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 
         // F19-T007: resolução → notificação Operator + Admin.
+        RaiseDomainEvent(new AlertResolvedDomainEvent(Id, Message, DeviceId));
+    }
+
+    /// <summary>
+    /// F52-T003: baixa manual justificada — código (enum definido) +
+    /// justificativa obrigatória ≤ <see cref="ResolutionNoteMaxLength"/>.
+    /// Mesmo efeito de <see cref="Resolve()/> (status + carimbo + evento);
+    /// a automática continua chamando Resolve() sem argumentos e deixa
+    /// code/note nulos.
+    /// </summary>
+    public void Resolve(ResolutionCode code, string note)
+    {
+        if (!Enum.IsDefined(code))
+            throw new ArgumentException("Código de baixa inválido.", nameof(code));
+
+        var trimmed = note?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+            throw new ArgumentException(
+                "A justificativa da baixa é obrigatória.", nameof(note));
+        if (trimmed.Length > ResolutionNoteMaxLength)
+            throw new ArgumentException(
+                $"A justificativa da baixa deve ter no máximo {ResolutionNoteMaxLength} caracteres.",
+                nameof(note));
+
+        if (Status == AlertStatus.Resolved)
+            return;
+
+        Status = AlertStatus.Resolved;
+        ResolvedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        ResolutionCode = code;
+        ResolutionNote = trimmed;
+
         RaiseDomainEvent(new AlertResolvedDomainEvent(Id, Message, DeviceId));
     }
 

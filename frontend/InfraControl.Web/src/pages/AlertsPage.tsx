@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   listAlerts,
+  resolveAlert,
   setAlertNote,
   type AlertItem,
   type AlertStatusFilter,
@@ -16,6 +17,8 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectButton } from "primereact/selectbutton";
+import { SelectField } from "@/components/ui/SelectField";
+import { RESOLUTION_CODE_OPTIONS, resolutionCodeLabel } from "@/utils/resolutionCodes";
 import { errorMessage } from "@/hooks/queries";
 import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
@@ -74,6 +77,14 @@ export function AlertsPage() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
 
+  // F52-T003 — baixa justificada (ServiceNow): código + justificativa
+  // obrigatórios; botão "Resolver" só em alerta não-Resolved.
+  const [resolveTarget, setResolveTarget] = useState<AlertItem | null>(null);
+  const [resolveCode, setResolveCode] = useState("Fixed");
+  const [resolveNote, setResolveNote] = useState("");
+  const [resolveSaving, setResolveSaving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -121,6 +132,33 @@ export function AlertsPage() {
     }
   }
 
+  function openResolve(alert: AlertItem) {
+    setResolveTarget(alert);
+    setResolveCode("Fixed");
+    setResolveNote("");
+    setResolveError(null);
+  }
+
+  async function submitResolve() {
+    if (!resolveTarget) return;
+    const note = resolveNote.trim();
+    if (!note) {
+      setResolveError("A justificativa da baixa é obrigatória.");
+      return;
+    }
+    setResolveSaving(true);
+    setResolveError(null);
+    try {
+      await resolveAlert(resolveTarget.id, resolveCode, note);
+      setResolveTarget(null);
+      await load();
+    } catch (caught) {
+      setResolveError(errorMessage(caught));
+    } finally {
+      setResolveSaving(false);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
@@ -155,7 +193,12 @@ export function AlertsPage() {
       <div className="uni-panel">
         <div className="uni-alerts-list">
           {items.map((alert) => (
-            <AlertRow key={alert.id} alert={alert} onNote={() => openNote(alert)} />
+            <AlertRow
+              key={alert.id}
+              alert={alert}
+              onNote={() => openNote(alert)}
+              onResolve={() => openResolve(alert)}
+            />
           ))}
           {!loading && items.length === 0 && (
             <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
@@ -212,11 +255,76 @@ export function AlertsPage() {
           <FormError message={noteError ?? ""} />
         </div>
       </Dialog>
+      <Dialog
+        visible={resolveTarget !== null}
+        onHide={() => setResolveTarget(null)}
+        header="Baixar alerta"
+        width={460}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setResolveTarget(null)}
+              disabled={resolveSaving}
+              style={{ padding: "6px 14px" }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void submitResolve()}
+              disabled={resolveSaving}
+              style={{ padding: "6px 14px" }}
+            >
+              {resolveSaving ? "Baixando…" : "Baixar"}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {resolveTarget && (
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              {resolveTarget.deviceName ?? "Sem device"} · {resolveTarget.check ?? resolveTarget.source}
+              {" — "}
+              {resolveTarget.message}
+            </div>
+          )}
+          <FormField label="Código de baixa">
+            <SelectField
+              value={resolveCode}
+              onChange={setResolveCode}
+              options={RESOLUTION_CODE_OPTIONS}
+              disabled={resolveSaving}
+            />
+          </FormField>
+          <FormField label="Justificativa (obrigatória — máx. 500)">
+            <TextArea
+              value={resolveNote}
+              onChange={setResolveNote}
+              rows={4}
+              maxLength={500}
+              placeholder="O que foi feito para baixar este alerta…"
+              disabled={resolveSaving}
+            />
+          </FormField>
+          <FormError message={resolveError ?? ""} />
+        </div>
+      </Dialog>
     </ListPageShell>
   );
 }
 
-function AlertRow({ alert, onNote }: { alert: AlertItem; onNote: () => void }) {
+function AlertRow({
+  alert,
+  onNote,
+  onResolve,
+}: {
+  alert: AlertItem;
+  onNote: () => void;
+  onResolve: () => void;
+}) {
   const severity = severityConfig[alert.severity] ?? {
     label: alert.severity, bg: "#f1f5f9", color: "#64748b", icon: "pi pi-info-circle",
   };
@@ -237,6 +345,13 @@ function AlertRow({ alert, onNote }: { alert: AlertItem; onNote: () => void }) {
             {alert.operatorNote}
           </div>
         )}
+        {alert.resolutionCode && (
+          <div style={{ fontSize: 11, color: "#15803d", marginTop: 2 }}>
+            <i className="pi pi-check-circle" style={{ marginRight: 4 }} />
+            Baixa: {resolutionCodeLabel(alert.resolutionCode)}
+            {alert.resolutionNote ? ` — ${alert.resolutionNote}` : ""}
+          </div>
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
         <StatusChip label={severity.label} background={severity.bg} color={severity.color} fontWeight={600} />
@@ -246,27 +361,52 @@ function AlertRow({ alert, onNote }: { alert: AlertItem; onNote: () => void }) {
           {alert.resolvedAt ? ` → ${formatDateTime(new Date(alert.resolvedAt))}` : ""}
         </span>
         <Can level="operate">
-          <button
-            type="button"
-            onClick={onNote}
-            aria-label="Anotar"
-            title="Anotar"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              border: "1px solid #e5e7eb",
-              background: "white",
-              borderRadius: 6,
-              padding: "2px 8px",
-              fontSize: 11,
-              color: "#475569",
-              cursor: "pointer",
-            }}
-          >
-            <i className="pi pi-pencil" style={{ fontSize: 10 }} />
-            Anotar
-          </button>
+          <div style={{ display: "flex", gap: 4 }}>
+            {alert.status !== "Resolved" && (
+              <button
+                type="button"
+                onClick={onResolve}
+                aria-label="Resolver"
+                title="Baixar alerta"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  border: "1px solid #e5e7eb",
+                  background: "white",
+                  borderRadius: 6,
+                  padding: "2px 8px",
+                  fontSize: 11,
+                  color: "#475569",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="pi pi-check" style={{ fontSize: 10 }} />
+                Resolver
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onNote}
+              aria-label="Anotar"
+              title="Anotar"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                border: "1px solid #e5e7eb",
+                background: "white",
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontSize: 11,
+                color: "#475569",
+                cursor: "pointer",
+              }}
+            >
+              <i className="pi pi-pencil" style={{ fontSize: 10 }} />
+              Anotar
+            </button>
+          </div>
         </Can>
       </div>
     </div>

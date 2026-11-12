@@ -28,6 +28,10 @@ export interface AlertItem {
   resolvedAt: string | null;
   /** F50-T003 — anotação do operador (null = sem nota; ver `setAlertNote`). */
   operatorNote: string | null;
+  /** F52-T003 — código de baixa (Fixed|Workaround|Duplicate|NoAction|Other). */
+  resolutionCode?: string | null;
+  /** F52-T003 — justificativa da baixa manual (máx. 500). */
+  resolutionNote?: string | null;
 }
 
 /** `PagedResult<T>` — o campo `data` do envelope. */
@@ -64,4 +68,20 @@ export async function listAlerts(filters: {
  */
 export async function setAlertNote(id: string, note: string): Promise<AlertItem | null> {
   return api.put<AlertItem>(`/monitoring/alerts/${id}/note`, { note: note || null });
+}
+
+/**
+ * F52-T003 — `PUT /monitoring/alerts/{id}/resolve` (Operate): baixa
+ * manual justificada — código + justificativa obrigatórios. A resolução
+ * automática pós-check não passa por aqui (code/note ficam null).
+ */
+export async function resolveAlert(
+  id: string,
+  code: string,
+  note: string,
+): Promise<AlertItem | null> {
+  return api.put<AlertItem>(`/monitoring/alerts/${id}/resolve`, {
+    code,
+    note,
+  });
 }

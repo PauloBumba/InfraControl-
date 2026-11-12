@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { AlertsPage } from "./AlertsPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
-import { listAlerts, setAlertNote, type AlertItem } from "@/services/api/alerts";
+import { listAlerts, resolveAlert, setAlertNote, type AlertItem } from "@/services/api/alerts";
 
 /**
  * F29-T001B — piloto da `ListPageShell`.
@@ -21,10 +21,12 @@ import { listAlerts, setAlertNote, type AlertItem } from "@/services/api/alerts"
 vi.mock("@/services/api/alerts", () => ({
   listAlerts: vi.fn(),
   setAlertNote: vi.fn(),
+  resolveAlert: vi.fn(),
 }));
 
 const listAlertsMock = vi.mocked(listAlerts);
 const setAlertNoteMock = vi.mocked(setAlertNote);
+const resolveAlertMock = vi.mocked(resolveAlert);
 
 function makeAlert(overrides: Partial<AlertItem> = {}): AlertItem {
   return {
@@ -39,6 +41,8 @@ function makeAlert(overrides: Partial<AlertItem> = {}): AlertItem {
     openedAt: "2026-10-11T10:00:00Z",
     resolvedAt: null,
     operatorNote: null,
+    resolutionCode: null,
+    resolutionNote: null,
     ...overrides,
   };
 }
@@ -159,5 +163,70 @@ describe("AlertsPage — anotação do operador (F50-T003)", () => {
     );
     // Recarrega a lista para refletir a nota salva.
     await waitFor(() => expect(listAlertsMock).toHaveBeenCalledTimes(2));
+  });
+});
+
+/**
+ * F52-T003 — baixa justificada: o botão "Resolver" (só em alerta
+ * não-Resolved) abre o dialog com código + justificativa e chama
+ * `resolveAlert`; a linha já resolvida não mostra o botão e exibe a
+ * baixa gravada.
+ */
+describe("AlertsPage — baixa justificada (F52-T003)", () => {
+  it("should open the resolve dialog and call resolveAlert with code and note", async () => {
+    resolveAlertMock.mockResolvedValue(null);
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Resolver" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Baixar alerta" });
+    const textarea = within(dialog).getByPlaceholderText(/O que foi feito para baixar/);
+    await user.type(textarea, "condição normalizada após troca do cabo");
+    await user.click(within(dialog).getByRole("button", { name: "Baixar" }));
+
+    await waitFor(() =>
+      expect(resolveAlertMock).toHaveBeenCalledWith(
+        "11111111-2222-3333-4444-555566667777",
+        "Fixed",
+        "condição normalizada após troca do cabo",
+      ),
+    );
+    // Recarrega a lista para refletir a baixa.
+    await waitFor(() => expect(listAlertsMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("dialog", { name: "Baixar alerta" })).toBeNull();
+  });
+
+  it("should not offer Resolver on an already-resolved alert and show its code", async () => {
+    listAlertsMock.mockResolvedValue({
+      items: [
+        makeAlert({
+          status: "Resolved",
+          resolvedAt: "2026-10-11T11:00:00Z",
+          resolutionCode: "Fixed",
+          resolutionNote: "cabo trocado",
+        }),
+      ],
+      totalCount: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    renderPage();
+
+    expect(await screen.findByText(/Baixa: Corrigido/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Resolver" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Anotar" })).toBeInTheDocument();
+  });
+
+  it("should require the justification before calling the API", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Resolver" }));
+    await screen.findByRole("dialog", { name: "Baixar alerta" });
+    await user.click(screen.getByRole("button", { name: "Baixar" }));
+
+    expect(await screen.findByText("A justificativa da baixa é obrigatória.")).toBeInTheDocument();
+    expect(resolveAlertMock).not.toHaveBeenCalled();
   });
 });

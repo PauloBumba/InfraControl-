@@ -19,4 +19,7 @@ public sealed record AlertDto(
     string Message,
     DateTime OpenedAt,
     DateTime? ResolvedAt,
-    string? OperatorNote = null);
+    string? OperatorNote = null,
+    // F52-T003 — baixa justificada (null na resolução automática).
+    string? ResolutionCode = null,
+    string? ResolutionNote = null);

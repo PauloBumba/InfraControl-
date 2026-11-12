@@ -63,6 +63,17 @@ public sealed class AlertConfiguration : IEntityTypeConfiguration<Alert>
             .HasColumnName("operator_note")
             .HasMaxLength(Alert.OperatorNoteMaxLength);
 
+        // F52-T003 — baixa justificada (enum-string; null na resolução
+        // automática pós-check).
+        builder.Property(x => x.ResolutionCode)
+            .HasColumnName("resolution_code")
+            .HasMaxLength(20)
+            .HasConversion<string>();
+
+        builder.Property(x => x.ResolutionNote)
+            .HasColumnName("resolution_note")
+            .HasMaxLength(Alert.ResolutionNoteMaxLength);
+
         builder.HasOne<Device>()
             .WithMany()
             .HasForeignKey(x => x.DeviceId)

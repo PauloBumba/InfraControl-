@@ -51,6 +51,8 @@ public sealed class SetAlertOperatorNoteCommandHandler(
             alert.Message,
             alert.CreateDateTime,
             alert.ResolvedAt,
-            alert.OperatorNote);
+            alert.OperatorNote,
+            alert.ResolutionCode?.ToString(),
+            alert.ResolutionNote);
     }
 }
