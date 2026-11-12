@@ -9,6 +9,9 @@ namespace InfraControl.Infrastructure.Integrations.Email;
 /// (deliverability). Cada ação só fornece os blocos (saudação, título,
 /// descrição, CTA opcional, detalhes opcionais); feature nova amanhã
 /// reusa a factory sem template novo. Nunca envia senha — só link.
+/// Identidade 2026-11: header com a logo tile (rack + LEDs + trilho —
+/// HTML puro, sem SVG/img externa, pra renderizar em qualquer cliente)
+/// e CTA no accent azul do app.
 /// </summary>
 public static class EmailTemplate
 {
@@ -31,11 +34,33 @@ public static class EmailTemplate
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
             <tr><td align="center">
             <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e7e9ee;box-shadow:0 1px 2px rgba(15,23,42,0.02),0 8px 24px -16px rgba(15,23,42,0.4);">
-            <tr><td style="background:linear-gradient(90deg,#101828 0%,#1f2937 100%);padding:24px 40px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            <tr><td align="left">
-            <span style="color:#ffffff;font-size:16px;font-weight:600;letter-spacing:0.2px;">InfraControl</span>
-            </td></tr>
+            <tr><td style="background:linear-gradient(90deg,#101828 0%,#1f2937 100%);padding:20px 40px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+            <td width="40" height="40" valign="middle" style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#1f2937 0%,#101828 100%);border:1px solid rgba(255,255,255,0.18);">
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0 3.5px;">
+            <tr>
+            <td style="width:17px;height:3px;background:#f8fafc;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="width:4px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="width:4px;height:4px;background:#22c55e;border-radius:50%;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+            <td style="width:17px;height:3px;background:#f8fafc;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="width:4px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="width:4px;height:4px;background:#eab308;border-radius:50%;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+            <td style="width:17px;height:3px;background:#f8fafc;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="width:4px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="width:4px;height:4px;background:#22c55e;border-radius:50%;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+            <td colspan="3" style="height:2px;background:#60a5fa;border-radius:1px;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            </table>
+            </td>
+            <td valign="middle" style="padding-left:12px;color:#ffffff;font-size:16px;font-weight:600;letter-spacing:0.2px;">InfraControl</td>
+            </tr>
             </table>
             </td></tr>
             <tr><td style="padding:40px 40px 32px;">
@@ -72,7 +97,7 @@ public static class EmailTemplate
         {
             html.Append("<p style=\"margin:0 0 10px;\"><a href=\"")
                 .Append(WebUtility.HtmlEncode(cta.Url))
-                .Append("\" style=\"display:inline-block;padding:12px 28px;background:#0052cc;color:#ffffff;text-decoration:none;border-radius:999px;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,82,204,0.25);\">")
+                .Append("\" style=\"display:inline-block;padding:12px 28px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:999px;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(37,99,235,0.3);\">")
                 .Append(WebUtility.HtmlEncode(cta.Label))
                 .Append("</a></p>\n");
             html.Append("<p style=\"margin:0 0 24px;font-size:12px;color:#9aa0b4;word-break:break-all;\">")
@@ -82,6 +107,7 @@ public static class EmailTemplate
 
         html.Append("""
             </td></tr>
+            <tr><td style="height:4px;background:linear-gradient(90deg,#101828 0%,#1f2937 55%,#60a5fa 100%);font-size:0;line-height:0;">&nbsp;</td></tr>
             <tr><td style="padding:18px 40px;border-top:1px solid #eef1f6;background:#fbfbfd;">
             <p style="margin:0;font-size:12px;color:#8a90a2;">Este e-mail foi enviado automaticamente pelo InfraControl. Se não foi você quem solicitou, ignore esta mensagem.</p>
             </td></tr>

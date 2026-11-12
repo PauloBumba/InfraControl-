@@ -75,4 +75,43 @@ public sealed class EmailTemplateTests
         html.Should().Contain("Ol&#225;, Fulano:");
         plainText.Should().Contain("Olá, Fulano:");
     }
+
+    [Fact]
+    public void Build_Header_ShouldCarryTheBrandLogoTile()
+    {
+        var (html, _) = EmailTemplate.Build("Título", "Descrição");
+
+        // tile navy invertido (135deg) com borda clara — espelho do Logo.tsx
+        html.Should().Contain("linear-gradient(135deg,#1f2937 0%,#101828 100%)");
+        html.Should().Contain("border:1px solid rgba(255,255,255,0.18)");
+        // rack de 3 barras brancas + trilho de rede azul
+        html.Should().Contain("background:#f8fafc");
+        html.Should().Contain("background:#60a5fa");
+        // LEDs de status (verde/âmbar/verde)
+        html.Should().Contain("background:#22c55e");
+        html.Should().Contain("background:#eab308");
+        // wordmark ao lado do tile
+        html.Should().Contain(">InfraControl</td>");
+    }
+
+    [Fact]
+    public void Build_WithCta_ShouldUseTheBrandAccentBlue()
+    {
+        var (html, _) = EmailTemplate.Build(
+            "Título", "Descrição",
+            new EmailTemplate.Cta("Abrir", "https://app.test/x"));
+
+        // CTA alinhado ao --uni-accent-hover do app (#0052cc era off-palette)
+        html.Should().Contain("background:#2563eb");
+        html.Should().Contain("background:#2563eb;color:#ffffff");
+    }
+
+    [Fact]
+    public void Build_ShouldCloseTheCardWithTheBrandRail()
+    {
+        var (html, _) = EmailTemplate.Build("Título", "Descrição");
+
+        // trilho de marca navy→azul entre corpo e rodapé
+        html.Should().Contain("#1f2937 55%,#60a5fa 100%");
+    }
 }
