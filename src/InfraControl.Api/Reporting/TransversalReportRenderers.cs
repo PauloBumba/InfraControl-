@@ -11,6 +11,7 @@ namespace InfraControl.Api.Reporting;
 /// licença Community) e XLSX (ClosedXML), no mesmo técnica/estilo dos
 /// renderers do PDI (docs/30 §22) mas auto-contido (sem acoplar ao módulo
 /// PDI). Recebe o DTO pronto do read-model e devolve os bytes.
+/// F52-T004: header/footer com <see cref="ReportBranding"/>.
 /// </summary>
 public static class TransversalReportRenderers
 {
@@ -18,8 +19,10 @@ public static class TransversalReportRenderers
         => QuestPDF.Settings.License = LicenseType.Community;
 
     public static byte[] RenderTransversalPdf(
-        TransversalReportDto report, string? companyName = null)
-        => Document.Create(document =>
+        TransversalReportDto report, ReportBranding? branding = null)
+    {
+        var b = branding ?? ReportBranding.Fallback();
+        return Document.Create(document =>
         {
             document.Page(page =>
             {
@@ -28,10 +31,8 @@ public static class TransversalReportRenderers
                 page.DefaultTextStyle(text => text.FontSize(10));
                 page.Header().Column(column =>
                 {
-                    column.Item().Text(text =>
-                        text.Span(companyName ?? "InfraControl")
-                            .FontSize(9).Bold());
-                    column.Item().Text(text =>
+                    ReportBrandingHeader.Render(column, b);
+                    column.Item().PaddingTop(6).Text(text =>
                         text.Span("Relatório Transversal").FontSize(16).Bold());
                     column.Item().Text(text => text.Span(Period(report.From, report.To))
                         .FontSize(9).FontColor(Colors.Grey.Darken1));
@@ -67,30 +68,30 @@ public static class TransversalReportRenderers
                                 : "—"),
                     ]);
                 });
-                page.Footer().AlignCenter().Text(text =>
+                page.Footer().Column(footer =>
                 {
-                    text.Span($"{companyName ?? "InfraControl"} · Relatórios · página ");
-                    text.CurrentPageNumber();
-                    text.Span(" de ");
-                    text.TotalPages();
+                    ReportBrandingFooter.Render(footer, b, "Relatórios");
                 });
             });
         }).GeneratePdf();
+    }
 
     public static byte[] RenderTransversalXlsx(
-        TransversalReportDto report, string? companyName = null)
+        TransversalReportDto report, ReportBranding? branding = null)
     {
+        var b = branding ?? ReportBranding.Fallback();
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Transversal");
 
-        sheet.Cell(1, 1).Value = companyName ?? "InfraControl";
-        sheet.Cell(2, 1).Value = "Relatório Transversal";
-        sheet.Cell(3, 1).Value = Period(report.From, report.To);
-        sheet.Cell(5, 1).Value = "Módulo";
-        sheet.Cell(5, 2).Value = "Métrica";
-        sheet.Cell(5, 3).Value = "Valor";
+        var nextRow = ReportBrandingXlsx.RenderHeader(sheet, b);
+        sheet.Cell(nextRow, 1).Value = "Relatório Transversal";
+        sheet.Cell(nextRow + 1, 1).Value = Period(report.From, report.To);
+        var headerRow = nextRow + 3;
+        sheet.Cell(headerRow, 1).Value = "Módulo";
+        sheet.Cell(headerRow, 2).Value = "Métrica";
+        sheet.Cell(headerRow, 3).Value = "Valor";
         foreach (var column in new[] { 1, 2, 3 })
-            sheet.Cell(5, column).Style.Font.Bold = true;
+            sheet.Cell(headerRow, column).Style.Font.Bold = true;
 
         var rows = new List<(string Modulo, string Metrica, string Valor)>
         {
@@ -112,7 +113,7 @@ public static class TransversalReportRenderers
                 report.Incidents.AverageResolutionHours?.ToString("F1") ?? "—"),
         };
 
-        var row = 6;
+        var row = headerRow + 1;
         foreach (var (modulo, metrica, valor) in rows)
         {
             sheet.Cell(row, 1).Value = modulo;
@@ -121,6 +122,7 @@ public static class TransversalReportRenderers
             row++;
         }
 
+        ReportBrandingXlsx.RenderFooter(sheet, b, row + 1);
         sheet.Columns().AdjustToContents();
 
         using var stream = new MemoryStream();

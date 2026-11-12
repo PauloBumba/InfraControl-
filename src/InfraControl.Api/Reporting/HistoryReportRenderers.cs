@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using ClosedXML.Excel;
 using InfraControl.Application.Reports.History;
 using QuestPDF.Fluent;
@@ -12,6 +11,8 @@ namespace InfraControl.Api.Reporting;
 /// F25-T005 §14 — renderização da série histórica (docs/33 §13): CSV, PDF
 /// (QuestPDF, licença Community) e XLSX (ClosedXML), no mesmo técnica dos
 /// renderers do transversal (ADR-049) mas auto-contido.
+/// F52-T004: header/footer com <see cref="ReportBranding"/> (empresa +
+/// logo + CNPJ + autoria); CSV ganha 1ª linha com a empresa.
 /// </summary>
 public static class HistoryReportRenderers
 {
@@ -21,9 +22,12 @@ public static class HistoryReportRenderers
     private static readonly string[] Headers =
         ["Mês", "Tasks", "Concluídas", "Knowledge", "PDIs"];
 
-    public static byte[] RenderCsv(ReportHistoryDto history)
+    public static byte[] RenderCsv(
+        ReportHistoryDto history, ReportBranding? branding = null)
     {
-        var sb = new StringBuilder();
+        var b = branding ?? ReportBranding.Fallback();
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(b.CsvCompanyLine);
         sb.AppendLine(string.Join(",", Headers));
         foreach (var m in history.Months)
         {
@@ -36,12 +40,14 @@ public static class HistoryReportRenderers
             }));
         }
 
-        return Encoding.UTF8.GetBytes(sb.ToString());
+        return ReportBranding.ToUtf8(sb.ToString());
     }
 
     public static byte[] RenderPdf(
-        ReportHistoryDto history, string? companyName = null)
-        => Document.Create(document =>
+        ReportHistoryDto history, ReportBranding? branding = null)
+    {
+        var b = branding ?? ReportBranding.Fallback();
+        return Document.Create(document =>
         {
             document.Page(page =>
             {
@@ -50,10 +56,8 @@ public static class HistoryReportRenderers
                 page.DefaultTextStyle(text => text.FontSize(10));
                 page.Header().Column(column =>
                 {
-                    column.Item().Text(text =>
-                        text.Span(companyName ?? "InfraControl")
-                            .FontSize(9).Bold());
-                    column.Item().Text(text =>
+                    ReportBrandingHeader.Render(column, b);
+                    column.Item().PaddingTop(6).Text(text =>
                         text.Span("Histórico de Indicadores").FontSize(16).Bold());
                     column.Item().Text(text => text.Span(Period(history.From, history.To))
                         .FontSize(9).FontColor(Colors.Grey.Darken1));
@@ -87,32 +91,32 @@ public static class HistoryReportRenderers
                             table.Cell().Padding(4).Text(value);
                     }
                 });
-                page.Footer().AlignCenter().Text(text =>
+                page.Footer().Column(footer =>
                 {
-                    text.Span($"{companyName ?? "InfraControl"} · Histórico · página ");
-                    text.CurrentPageNumber();
-                    text.Span(" de ");
-                    text.TotalPages();
+                    ReportBrandingFooter.Render(footer, b, "Histórico");
                 });
             });
         }).GeneratePdf();
+    }
 
     public static byte[] RenderXlsx(
-        ReportHistoryDto history, string? companyName = null)
+        ReportHistoryDto history, ReportBranding? branding = null)
     {
+        var b = branding ?? ReportBranding.Fallback();
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Histórico");
 
-        sheet.Cell(1, 1).Value = companyName ?? "InfraControl";
-        sheet.Cell(2, 1).Value = "Histórico de Indicadores";
-        sheet.Cell(3, 1).Value = Period(history.From, history.To);
+        var nextRow = ReportBrandingXlsx.RenderHeader(sheet, b);
+        sheet.Cell(nextRow, 1).Value = "Histórico de Indicadores";
+        sheet.Cell(nextRow + 1, 1).Value = Period(history.From, history.To);
+        var headerRow = nextRow + 3;
         for (var c = 0; c < Headers.Length; c++)
         {
-            sheet.Cell(5, c + 1).Value = Headers[c];
-            sheet.Cell(5, c + 1).Style.Font.Bold = true;
+            sheet.Cell(headerRow, c + 1).Value = Headers[c];
+            sheet.Cell(headerRow, c + 1).Style.Font.Bold = true;
         }
 
-        var row = 6;
+        var row = headerRow + 1;
         foreach (var m in history.Months)
         {
             sheet.Cell(row, 1).Value = m.Month;
@@ -123,6 +127,7 @@ public static class HistoryReportRenderers
             row++;
         }
 
+        ReportBrandingXlsx.RenderFooter(sheet, b, row + 1);
         sheet.Columns().AdjustToContents();
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);

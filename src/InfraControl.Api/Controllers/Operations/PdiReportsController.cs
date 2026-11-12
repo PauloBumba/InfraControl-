@@ -1,6 +1,7 @@
 using System.Globalization;
 using InfraControl.Api.Authorization;
 using InfraControl.Api.Reporting;
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Pdi.Queries;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
@@ -18,7 +19,10 @@ namespace InfraControl.Api.Controllers.Operations;
 /// 400 (ArgumentException no GlobalExceptionHandler).
 /// </summary>
 [Route("api/v1/pdi")]
-public sealed class PdiReportsController(ISender sender) : BaseController
+public sealed class PdiReportsController(
+    ISender sender,
+    IAuditWriter auditWriter,
+    Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment) : BaseController
 {
     /// <summary>§21 — indicadores consolidados (filtro de período opcional).</summary>
     [HttpGet("indicators")]
@@ -51,10 +55,13 @@ public sealed class PdiReportsController(ISender sender) : BaseController
         var exportFormat = PdiExportFormat.Parse(format);
         var report = await sender.Send(
             new GetPdiIndividualReportQuery(userId), cancellationToken);
-        var companyName = await CompanyNameAsync(cancellationToken);
+        var branding = await BrandingAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? PdiReportRenderers.RenderIndividualXlsx(report, companyName)
-            : PdiReportRenderers.RenderIndividualPdf(report, companyName);
+            ? PdiReportRenderers.RenderIndividualXlsx(report, branding)
+            : PdiReportRenderers.RenderIndividualPdf(report, branding);
+        await ReportBrandingFactory.AuditExportAsync(
+            auditWriter, "pdi-individual", exportFormat.Extension,
+            User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-individual", exportFormat));
     }
@@ -85,10 +92,13 @@ public sealed class PdiReportsController(ISender sender) : BaseController
             new GetPdiSemesterReportQuery(
                 ParseDate(from, nameof(from)), ParseDate(to, nameof(to))),
             cancellationToken);
-        var companyName = await CompanyNameAsync(cancellationToken);
+        var branding = await BrandingAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? PdiReportRenderers.RenderSemesterXlsx(report, companyName)
-            : PdiReportRenderers.RenderSemesterPdf(report, companyName);
+            ? PdiReportRenderers.RenderSemesterXlsx(report, branding)
+            : PdiReportRenderers.RenderSemesterPdf(report, branding);
+        await ReportBrandingFactory.AuditExportAsync(
+            auditWriter, "pdi-semester", exportFormat.Extension,
+            User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-semestral", exportFormat));
     }
@@ -119,10 +129,13 @@ public sealed class PdiReportsController(ISender sender) : BaseController
             new GetPdiDifficultiesReportQuery(
                 ParseDate(from, nameof(from)), ParseDate(to, nameof(to))),
             cancellationToken);
-        var companyName = await CompanyNameAsync(cancellationToken);
+        var branding = await BrandingAsync(cancellationToken);
         var bytes = exportFormat == PdiExportFormat.Xlsx
-            ? PdiReportRenderers.RenderDifficultiesXlsx(report, companyName)
-            : PdiReportRenderers.RenderDifficultiesPdf(report, companyName);
+            ? PdiReportRenderers.RenderDifficultiesXlsx(report, branding)
+            : PdiReportRenderers.RenderDifficultiesPdf(report, branding);
+        await ReportBrandingFactory.AuditExportAsync(
+            auditWriter, "pdi-difficulties", exportFormat.Extension,
+            User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-dificuldades", exportFormat));
     }
@@ -142,11 +155,12 @@ public sealed class PdiReportsController(ISender sender) : BaseController
             $"Data '{name}' inválida — use o formato AAAA-MM-DD.");
     }
 
-    /// <summary>Nome institucional configurado (spec §3); null = fallback nos renderers.</summary>
-    private async Task<string?> CompanyNameAsync(CancellationToken cancellationToken)
-        => (await sender.Send(
-            new InfraControl.Application.Company.GetCompanySettingsQuery(),
-            cancellationToken))?.Name;
+    /// <summary>
+    /// F52-T004 — branding completo do export (empresa + logo + autoria).
+    /// </summary>
+    private Task<ReportBranding> BrandingAsync(CancellationToken cancellationToken)
+        => ReportBrandingFactory.BuildAsync(
+            sender, environment, User, cancellationToken);
 
     private static string FileName(string slug, PdiExportFormat format)
         => $"pdi-{slug}-{DateTime.UtcNow:yyyyMMdd}.{format.Extension}";
