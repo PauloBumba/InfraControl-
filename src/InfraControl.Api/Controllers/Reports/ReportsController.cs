@@ -29,6 +29,7 @@ namespace InfraControl.Api.Controllers.Reports;
 public sealed class ReportsController(
     ISender sender,
     IAuditWriter auditWriter,
+    IUnitOfWork unitOfWork,
     Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment) : BaseController
 {
     /// <summary>Snapshot agregado; filtros de período opcionais (de/até).</summary>
@@ -179,7 +180,8 @@ public sealed class ReportsController(
             _ => HistoryReportRenderers.RenderPdf(history, branding),
         };
         await ReportBrandingFactory.AuditExportAsync(
-            auditWriter, "history", exportFormat.Value, User, cancellationToken);
+            auditWriter, unitOfWork, "history", exportFormat.Value,
+            User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             $"historico-indicadores.{exportFormat.Extension}");
     }
@@ -230,7 +232,8 @@ public sealed class ReportsController(
             ? TransversalReportRenderers.RenderTransversalXlsx(report, branding)
             : TransversalReportRenderers.RenderTransversalPdf(report, branding);
         await ReportBrandingFactory.AuditExportAsync(
-            auditWriter, "transversal", exportFormat.Extension, User, cancellationToken);
+            auditWriter, unitOfWork, "transversal", exportFormat.Extension,
+            User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             $"relatorio-transversal.{exportFormat.Extension}");
     }

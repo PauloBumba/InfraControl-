@@ -22,6 +22,7 @@ namespace InfraControl.Api.Controllers.Operations;
 public sealed class PdiReportsController(
     ISender sender,
     IAuditWriter auditWriter,
+    IUnitOfWork unitOfWork,
     Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment) : BaseController
 {
     /// <summary>§21 — indicadores consolidados (filtro de período opcional).</summary>
@@ -60,7 +61,7 @@ public sealed class PdiReportsController(
             ? PdiReportRenderers.RenderIndividualXlsx(report, branding)
             : PdiReportRenderers.RenderIndividualPdf(report, branding);
         await ReportBrandingFactory.AuditExportAsync(
-            auditWriter, "pdi-individual", exportFormat.Extension,
+            auditWriter, unitOfWork, "pdi-individual", exportFormat.Extension,
             User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-individual", exportFormat));
@@ -97,7 +98,7 @@ public sealed class PdiReportsController(
             ? PdiReportRenderers.RenderSemesterXlsx(report, branding)
             : PdiReportRenderers.RenderSemesterPdf(report, branding);
         await ReportBrandingFactory.AuditExportAsync(
-            auditWriter, "pdi-semester", exportFormat.Extension,
+            auditWriter, unitOfWork, "pdi-semester", exportFormat.Extension,
             User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-semestral", exportFormat));
@@ -134,7 +135,7 @@ public sealed class PdiReportsController(
             ? PdiReportRenderers.RenderDifficultiesXlsx(report, branding)
             : PdiReportRenderers.RenderDifficultiesPdf(report, branding);
         await ReportBrandingFactory.AuditExportAsync(
-            auditWriter, "pdi-difficulties", exportFormat.Extension,
+            auditWriter, unitOfWork, "pdi-difficulties", exportFormat.Extension,
             User, cancellationToken);
         return File(bytes, exportFormat.ContentType,
             FileName("relatorio-dificuldades", exportFormat));

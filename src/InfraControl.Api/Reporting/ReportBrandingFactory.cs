@@ -32,14 +32,19 @@ public static class ReportBrandingFactory
     /// Auditoria da exportação: action
     /// <c>ReportExport.{slug}.{format}</c>, ator = e-mail do operador
     /// (mesmo formato que o <c>AuditReader</c> casa com o usuário).
+    /// O <see cref="IAuditWriter"/> só estagia a entrada no DbContext —
+    /// como o export não passa por um command MediatR (que salvaria), o
+    /// controller precisa fechar a unidade de trabalho aqui.
     /// </summary>
-    public static Task AuditExportAsync(
+    public static async Task AuditExportAsync(
         IAuditWriter auditWriter,
+        IUnitOfWork unitOfWork,
         string reportSlug,
         string format,
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
-        => auditWriter.WriteAsync(
+    {
+        await auditWriter.WriteAsync(
             new AuditEntry(
                 ReportBranding.AuditAction(reportSlug, format),
                 "ReportExport",
@@ -47,6 +52,8 @@ public static class ReportBrandingFactory
                 user.FindFirstValue(ClaimTypes.Email)
                     ?? user.Identity?.Name),
             cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
 
     /// <summary>Nome de exibição do operador (displayName → e-mail).</summary>
     public static string? GeneratedBy(ClaimsPrincipal user)
