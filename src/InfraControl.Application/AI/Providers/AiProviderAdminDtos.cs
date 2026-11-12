@@ -44,6 +44,18 @@ public sealed record AiProviderConnectionTestDto(bool Ok, string? Error);
 
 public sealed record AiProviderModelsDto(IReadOnlyList<string> Models, string? Error);
 
+/// <summary>
+/// Resultado do "testar mensagem" de uma capacidade (F51): exercita a rota
+/// configurada no cadastro (provider+modelo padrão, com fallback §54) com um
+/// prompt mínimo — prova que o modelo escolhido responde de verdade.
+/// </summary>
+public sealed record AiCapabilityTestResultDto(
+    string Text,
+    string Provider,
+    string Model,
+    bool UsedFallback,
+    long DurationMs);
+
 internal static class AiProviderAdminMapper
 {
     internal static AiProviderDto ToDto(this AiProvider provider, ICredentialProtector protector)

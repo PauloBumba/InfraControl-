@@ -266,7 +266,16 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
             }}
             title={`${displayName} — ${roleLabel} (opções da conta)`}
           >
-            <div className="layout-user-avatar">{initials}</div>
+            {user?.avatarPath ? (
+              <img
+                src={user.avatarPath}
+                alt=""
+                className="layout-user-avatar"
+                style={{ objectFit: "cover" }}
+              />
+            ) : (
+              <div className="layout-user-avatar">{initials}</div>
+            )}
             <div className="layout-user-details">
               <span className="layout-user-name">{displayName}</span>
               <span className="layout-user-role">{roleLabel}</span>

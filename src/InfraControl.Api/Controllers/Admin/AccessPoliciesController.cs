@@ -14,7 +14,9 @@ namespace InfraControl.Api.Controllers.Admin;
 /// Tabela vazia = defaults do ADR-016.
 /// </summary>
 [Route("api/v1/admin/access-policies")]
-[Authorize(Policy = AuthorizationPolicies.Administer)]
+// F51 — GET aberto a autenticados (operadores veem a matriz); PUT segue
+// Administer (a policy fica na action, não na classe).
+[Authorize]
 public sealed class AccessPoliciesController(ISender sender) : BaseController
 {
     /// <summary>Matriz efetiva: módulos × roles (nível + flag de override).</summary>
@@ -25,6 +27,7 @@ public sealed class AccessPoliciesController(ISender sender) : BaseController
 
     /// <summary>Substitui o conjunto de overrides (level null = volta ao default).</summary>
     [HttpPut]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> ReplaceGrants(
         [FromBody] ReplaceAccessPolicyGrantsRequest request,
         CancellationToken cancellationToken)

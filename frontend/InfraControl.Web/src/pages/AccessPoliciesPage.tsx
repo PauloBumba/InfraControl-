@@ -11,6 +11,7 @@ import {
   type AccessPolicyGrantInput,
   type AccessPolicyMatrix,
 } from "@/services/api/accessPolicies";
+import { useCan } from "@/app/router/access";
 
 /**
  * ADR-066 — matriz role×módulo editável pelo admin. Cada célula escolhe o
@@ -47,6 +48,9 @@ const ROLE_LABEL: Record<string, string> = {
 type CellValue = string; // "" = segue o default
 
 export function AccessPoliciesPage() {
+  // F51 — leitura para todos os autenticados; a edição (selects + Salvar)
+  // só aparece para quem administra (o PUT segue Administer no backend).
+  const canEdit = useCan("administer");
   const [matrix, setMatrix] = useState<AccessPolicyMatrix | null>(null);
   const [cells, setCells] = useState<Record<string, CellValue>>({});
   const [loading, setLoading] = useState(true);
@@ -158,15 +162,21 @@ export function AccessPoliciesPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PageHeader
         title="Políticas de acesso"
-        subtitle="Defina o nível de cada perfil por módulo. Padrao segue a regra original (Leitor le, Operador opera, Admin administra)."
+        subtitle={
+          canEdit
+            ? "Defina o nível de cada perfil por módulo. Padrao segue a regra original (Leitor le, Operador opera, Admin administra)."
+            : "Visualização interna: o que cada perfil pode fazer em cada módulo. Somente administradores alteram."
+        }
         actions={
-          <Button
-            icon="pi pi-save"
-            disabled={!dirty || saving}
-            onClick={() => void save()}
-          >
-            {saving ? "Salvando…" : "Salvar"}
-          </Button>
+          canEdit ? (
+            <Button
+              icon="pi pi-save"
+              disabled={!dirty || saving}
+              onClick={() => void save()}
+            >
+              {saving ? "Salvando…" : "Salvar"}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -213,17 +223,29 @@ export function AccessPoliciesPage() {
                     const grant = mod.roles.find((r) => r.role === role.role);
                     return (
                       <td key={role.role} style={{ padding: "8px 8px", textAlign: "center" }}>
-                        <SelectField
-                          value={value}
-                          options={LEVEL_OPTIONS}
-                          onChange={(v) => setCell(mod.key, role.role, v)}
-                          aria-label={`${mod.label} — ${role.label}`}
-                          style={{ minWidth: 176 }}
-                        />
-                        {grant && !grant.isOverride && value === "" && (
-                          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
-                            padrão: {LEVEL_BY_VALUE[String(grant.level)] ?? grant.level}
-                          </div>
+                        {canEdit ? (
+                          <>
+                            <SelectField
+                              value={value}
+                              options={LEVEL_OPTIONS}
+                              onChange={(v) => setCell(mod.key, role.role, v)}
+                              aria-label={`${mod.label} — ${role.label}`}
+                              style={{ minWidth: 176 }}
+                            />
+                            {grant && !grant.isOverride && value === "" && (
+                              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+                                padrão: {LEVEL_BY_VALUE[String(grant.level)] ?? grant.level}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 12, fontWeight: 500 }}>
+                            {grant
+                              ? grant.isOverride
+                                ? (LEVEL_BY_VALUE[String(grant.level)] ?? grant.level)
+                                : `padrão: ${LEVEL_BY_VALUE[String(grant.level)] ?? grant.level}`
+                              : "—"}
+                          </span>
                         )}
                       </td>
                     );

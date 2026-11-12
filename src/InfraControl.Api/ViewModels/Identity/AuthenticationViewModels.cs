@@ -22,7 +22,11 @@ public sealed record ChangePasswordViewModel(string CurrentPassword, string NewP
 /// F38 — <c>FullName</c> (nome completo, coluna opcional) viaja junto:
 /// ausente no corpo = não informado (preserva o gravado), <c>""</c> = limpa.
 /// </summary>
-public sealed record UpdateProfileViewModel(string DisplayName, string? FullName = null);
+public sealed record UpdateProfileViewModel(
+    string DisplayName,
+    string? FullName = null,
+    /// <summary>null = não informado (preserva a foto); "" = remove.</summary>
+    string? AvatarPath = null);
 
 /// <summary>Confirm do MFA (F1-T016a): um código TOTP de 6 dígitos.</summary>
 public sealed record MfaConfirmViewModel(string Code);

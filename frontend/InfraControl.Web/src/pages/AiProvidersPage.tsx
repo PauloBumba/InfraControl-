@@ -16,9 +16,11 @@ import {
   setAiProviderActive,
   upsertAiProviderCapability,
   deleteAiProviderCapability,
+  testAiCapabilityMessage,
   testAiProviderConnection,
   listAiProviderModels,
   validateAiProvider,
+  type AiCapabilityTestResult,
   type AiProviderDto,
   type AiConnectionValidationDto,
   type ValidateAiProviderPayload,
@@ -56,6 +58,9 @@ export function AiProvidersPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; error: string | null }>>({});
+  const [routeTestResults, setRouteTestResults] = useState<
+    Record<string, AiCapabilityTestResult | { error: string }>
+  >({});
   const [modelResults, setModelResults] = useState<Record<string, { models: string[]; error: string | null }>>({});
 
   const [showCreate, setShowCreate] = useState(false);
@@ -159,6 +164,21 @@ export function AiProvidersPage() {
     onError: (error) => {
       setNotice(null);
       setSaveError(mutationErrorMessage(error as Error));
+    },
+  });
+
+  const testRoute = useMutation({
+    mutationFn: (capability: string) => testAiCapabilityMessage(capability),
+    onSuccess: (result, capability) => {
+      setRouteTestResults((prev) => ({ ...prev, [capability]: result }));
+    },
+    onError: (error, capability) => {
+      setRouteTestResults((prev) => ({
+        ...prev,
+        [capability]: {
+          error: mutationErrorMessage(error as Error) ?? "Erro desconhecido.",
+        },
+      }));
     },
   });
 
@@ -890,7 +910,24 @@ export function AiProvidersPage() {
                               Limpar
                             </Button>
                           )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            style={{ padding: "4px 10px", fontSize: 12 }}
+                            disabled={testRoute.isPending}
+                            onClick={() => testRoute.mutate(route.capability)}
+                          >
+                            <i
+                              className={`pi ${testRoute.isPending && testRoute.variables === route.capability ? "pi-spin pi-spinner" : "pi-send"}`}
+                            />
+                            Testar
+                          </Button>
                         </div>
+                        {routeTestResults[route.capability] != null && (
+                          <RouteTestResult
+                            result={routeTestResults[route.capability]!}
+                          />
+                        )}
                       </div>
                     </Can>
                   </td>
@@ -900,6 +937,42 @@ export function AiProvidersPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Resultado do "testar mensagem" de uma capacidade — texto + rota efetiva. */
+function RouteTestResult({
+  result,
+}: {
+  result: AiCapabilityTestResult | { error: string };
+}) {
+  if ("error" in result) {
+    return (
+      <div className="uni-alert uni-alert-error" role="alert" style={{ fontSize: 12 }}>
+        <i className="pi pi-exclamation-triangle" />
+        <span>{result.error}</span>
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        fontSize: 12,
+        border: "1px solid #d1d5db",
+        borderRadius: 6,
+        padding: "8px 10px",
+        background: "#f8fafc",
+      }}
+    >
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", color: "#64748b", marginBottom: 4 }}>
+        <span>
+          <strong>{result.provider}</strong> · {result.model}
+          {result.usedFallback && " (fallback)"}
+        </span>
+        <span>{(result.durationMs / 1000).toFixed(1)}s</span>
+      </div>
+      <div style={{ whiteSpace: "pre-wrap", color: "#1e293b" }}>{result.text}</div>
     </div>
   );
 }

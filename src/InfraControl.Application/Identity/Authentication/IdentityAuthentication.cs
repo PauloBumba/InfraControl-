@@ -13,7 +13,12 @@ public sealed record ChangePasswordRequest(Guid UserId, string CurrentPassword, 
 /// está gravado), <c>""</c> = limpa. Assim chamadas antigas que mandam só o
 /// nome exibido nunca apagam o FullName por acidente.
 /// </summary>
-public sealed record UpdateProfileRequest(Guid UserId, string DisplayName, string? FullName = null);
+public sealed record UpdateProfileRequest(
+    Guid UserId,
+    string DisplayName,
+    string? FullName = null,
+    /// <summary>null = não informado (preserva); "" = remove a foto.</summary>
+    string? AvatarPath = null);
 public sealed record GoogleLoginRequest(string IdToken);
 
 /// <summary>
@@ -82,7 +87,8 @@ public sealed record AuthenticatedUser(
     string Email,
     string DisplayName,
     IReadOnlyCollection<string> Roles,
-    string? FullName = null);
+    string? FullName = null,
+    string? AvatarPath = null);
 
 public sealed record AuthenticationResult(
     AuthenticatedUser User,

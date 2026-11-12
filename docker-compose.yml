@@ -20,6 +20,13 @@
 # dinâmico com DNS round-robin do Docker para load balancing entre réplicas
 # da API e do Ollama.
 
+# Nome de projeto FIXO: sem `name:` o Compose usaria o basename do
+# diretório de checkout — clonar em outra pasta/máquina mudaria o projeto
+# e quebraria o filtro do Cluster (que lista só containers deste projeto
+# via label com.docker.compose.project). COMPOSE_PROJECT_NAME no .env ou
+# `-p` continuam tendo precedência sobre este default.
+name: ${COMPOSE_PROJECT_NAME:-infracontrol-}
+
 services:
   postgres:
     # ADR-038 §1/§46: pgvector no Postgres existente (RAG vetorial).
@@ -236,6 +243,12 @@ services:
     profiles: ["app"]
     environment: &app-env
       ASPNETCORE_ENVIRONMENT: Production
+      # F51: identidade do projeto Compose — a API filtra o socket Docker
+      # só por containers deste projeto (Cluster só mostra InfraControl).
+      # O valor é o MESMO usado na seção compose-agent (basename do dir ou
+      # COMPOSE_PROJECT_NAME do .env) — portar a instalação = subir o
+      # compose, sem ajuste extra.
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-infracontrol-}
       # D1 (docs/66): pool explícito por processo — sem isso o Npgsql usa o
       # default 100 e a API esgotar o max_connections do Postgres (workers,
       # psql e migrações ficam sem conexão sob carga). Produção já exigia a

@@ -135,10 +135,10 @@ describe("AccountPage", () => {
  */
 describe("AccountPage — perfil (F29-T002)", () => {
   it("should prefill the profile form with the signed-in display name", async () => {
-    updateProfileMock.mockResolvedValue({ displayName: "Ana", fullName: null });
+    updateProfileMock.mockResolvedValue({ displayName: "Ana", fullName: null, avatarPath: null });
     renderPage();
 
-    expect(await screen.findByLabelText("Nome de exibição")).toHaveValue("Ana");
+    expect(await screen.findByLabelText("Nome de operador")).toHaveValue("Ana");
     // Nome completo é o campo SEPARADO (F38) e nasce em branco aqui.
     expect(screen.getByLabelText("Nome completo")).toHaveValue("");
     // O e-mail está na tela como campo travado, não como texto solto —
@@ -149,11 +149,11 @@ describe("AccountPage — perfil (F29-T002)", () => {
   });
 
   it("should send only the new display name", async () => {
-    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null });
+    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null, avatarPath: null });
     renderPage();
 
     const user = userEvent.setup();
-    const field = await screen.findByLabelText("Nome de exibição");
+    const field = await screen.findByLabelText("Nome de operador");
     await user.clear(field);
     await user.type(field, "Ana Maria");
     await user.click(screen.getByRole("button", { name: /salvar/i }));
@@ -173,6 +173,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
     updateProfileMock.mockResolvedValue({
       displayName: "Ana",
       fullName: "Ana Maria da Silva",
+      avatarPath: null,
     });
     renderPage();
 
@@ -198,7 +199,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
     renderPage();
 
     const user = userEvent.setup();
-    const field = await screen.findByLabelText("Nome de exibição");
+    const field = await screen.findByLabelText("Nome de operador");
     // Só espaços: passa pelo `required` nativo (o valor NÃO é vazio) e só o
     // servidor recusa — é ele quem manda na regra, não uma guarda local.
     await user.clear(field);
@@ -215,12 +216,12 @@ describe("AccountPage — perfil (F29-T002)", () => {
   });
 
   it("should keep the user signed in after saving the profile", async () => {
-    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null });
+    updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null, avatarPath: null });
     changePasswordMock.mockReset();
     renderPage();
 
     const user = userEvent.setup();
-    const field = await screen.findByLabelText("Nome de exibição");
+    const field = await screen.findByLabelText("Nome de operador");
     await user.clear(field);
     await user.type(field, "Ana Maria");
     await user.click(screen.getByRole("button", { name: /salvar/i }));

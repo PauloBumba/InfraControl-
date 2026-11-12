@@ -15,6 +15,8 @@ public static class ImageUploadRules
         "knowledge",
         "devices",
         "general",
+        // F51 — foto de perfil do operador (auto-upload em Minha Conta).
+        "avatars",
     ];
 
     /// <summary>

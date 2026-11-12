@@ -314,7 +314,7 @@ public sealed class AuthenticationController(
             return Unauthorized(ApiResponse<object>.Fail(["É necessário um id de usuário autenticado."]));
 
         var result = await authenticationService.UpdateProfileAsync(
-            new UpdateProfileRequest(userId, model.DisplayName, model.FullName), cancellationToken);
+            new UpdateProfileRequest(userId, model.DisplayName, model.FullName, model.AvatarPath), cancellationToken);
         if (!result.Succeeded)
             return BadRequest(ApiResponse<object>.Fail(result.Errors));
 
@@ -334,20 +334,33 @@ public sealed class AuthenticationController(
             _ => model.FullName.Trim()
         };
 
+        // F51 — avatarPath segue a mesma regra do FullName: ausente no corpo
+        // = não informado (mantém a claim), "" = limpa (claim some), caminho
+        // = novo valor. O domínio já validou que é /uploads/avatars/…
+        var avatarPath = model.AvatarPath switch
+        {
+            null => identity.FindFirst("avatarPath")?.Value,
+            "" => null,
+            _ => model.AvatarPath.Trim()
+        };
+
         var claims = identity.Claims
-            .Where(claim => claim.Type != "displayName" && claim.Type != "fullName")
+            .Where(claim => claim.Type is not ("displayName" or "fullName" or "avatarPath"))
             .Append(new Claim("displayName", model.DisplayName.Trim()))
             .ToList();
 
         if (!string.IsNullOrWhiteSpace(fullName))
             claims.Add(new Claim("fullName", fullName));
 
+        if (!string.IsNullOrWhiteSpace(avatarPath))
+            claims.Add(new Claim("avatarPath", avatarPath));
+
         await HttpContext.SignInAsync(
             IdentityConstants.ApplicationScheme,
             new ClaimsPrincipal(new ClaimsIdentity(
                 claims, identity.AuthenticationType, identity.NameClaimType, identity.RoleClaimType)));
 
-        return Ok(ApiResponse.Ok(new { displayName = model.DisplayName.Trim(), fullName }));
+        return Ok(ApiResponse.Ok(new { displayName = model.DisplayName.Trim(), fullName, avatarPath }));
     }
 
     [Authorize]
@@ -371,6 +384,7 @@ public sealed class AuthenticationController(
             // F38 — nome completo (coluna nova, nullable). Claim emitida no
             // CreatePrincipal e re-emisso no PUT /auth/profile.
             fullName = User.FindFirst("fullName")?.Value,
+            avatarPath = User.FindFirst("avatarPath")?.Value,
             roles = User.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToArray()
         }));
     }
@@ -398,6 +412,11 @@ public sealed class AuthenticationController(
         // /auth/me lê daqui, então ela nasce junto com a sessão.
         if (!string.IsNullOrWhiteSpace(user.FullName))
             claims.Add(new Claim("fullName", user.FullName.Trim()));
+
+        // F51 — foto de perfil (claim própria, como fullName): o /auth/me lê
+        // daqui e a UI mostra <img> em vez das iniciais.
+        if (!string.IsNullOrWhiteSpace(user.AvatarPath))
+            claims.Add(new Claim("avatarPath", user.AvatarPath.Trim()));
 
         foreach (var role in user.Roles)
         {

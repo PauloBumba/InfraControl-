@@ -353,3 +353,44 @@ public sealed class ListAiProviderModelsCommandHandler(
         }
     }
 }
+
+/// <summary>
+/// "Testar mensagem" de uma capacidade (F51): envia um prompt mínimo pelo
+/// IAiGateway — resolve a rota do cadastro (provider+modelo padrão, com
+/// fallback §54) e devolve texto/provider/modelo/latência para o admin
+/// conferir se o modelo escolhido responde de verdade.
+/// </summary>
+public sealed record TestAiCapabilityMessageCommand(string Capability)
+    : BaseCommand<AiCapabilityTestResultDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
+}
+
+public sealed class TestAiCapabilityMessageCommandHandler(
+    IAiGateway gateway,
+    ICurrentUserContext currentUser)
+    : IRequestHandler<TestAiCapabilityMessageCommand, AiCapabilityTestResultDto>
+{
+    public async Task<AiCapabilityTestResultDto> Handle(
+        TestAiCapabilityMessageCommand request, CancellationToken cancellationToken)
+    {
+        var capability = AiProviderAdminValidation.CanonicalCapability(request.Capability);
+        var parsed = Enum.Parse<AiCapability>(capability);
+
+        var completion = await gateway.CompleteAsync(
+            new AiCompletionRequest(
+                parsed,
+                "Responda apenas com a palavra: ok",
+                SystemPrompt: "Você é um assistente de teste de configuração. Responda de forma mínima.",
+                Actor: currentUser.UserName),
+            cancellationToken);
+
+        return new AiCapabilityTestResultDto(
+            completion.Text,
+            completion.ProviderName,
+            completion.Model,
+            completion.UsedFallback,
+            completion.DurationMs);
+    }
+}

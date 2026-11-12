@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { sessionChecked, signedOut } from "@/app/store/slices/authSlice";
-import { AuthApiError, changePassword, updateProfile } from "@/services/api/auth";
+import { AuthApiError, changePassword, updateProfile, uploadAvatar } from "@/services/api/auth";
 
 /**
  * F26-T001 — "Minha Conta": troca de senha autenticada. O backend
@@ -48,6 +49,13 @@ export function AccountPage() {
   // com o nome exibido no MESMO PUT /auth/profile.
   const [profileName, setProfileName] = useState(user?.displayName ?? "");
   const [profileFullName, setProfileFullName] = useState(user?.fullName ?? "");
+  // F51 — foto de perfil: `avatarPath` guarda o caminho salvo (ou o recém-
+  // upado); `avatarDirty` marca que o PUT /auth/profile deve enviar o campo
+  // (undefined = não informado → servidor preserva).
+  const [avatarPath, setAvatarPath] = useState<string | null>(user?.avatarPath ?? null);
+  const [avatarDirty, setAvatarDirty] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profilePending, setProfilePending] = useState(false);
@@ -73,14 +81,28 @@ export function AccountPage() {
 
     setProfilePending(true);
     try {
-      const { displayName, fullName } = await updateProfile(trimmed, trimmedFullName);
+      // avatarPath só viaja quando a foto mudou — ausente = servidor preserva.
+      const { displayName, fullName, avatarPath: savedAvatar } = avatarDirty
+        ? await updateProfile(trimmed, trimmedFullName, avatarPath ?? "")
+        : await updateProfile(trimmed, trimmedFullName);
       // O servidor re-emite o cookie com as claims novas; aqui só espelhamos no
       // estado local o que acabou de mudar, para a sidebar/cabeçalho
       // mostrarem o nome certo sem precisar de F5. Reuso do sessionChecked:
       // é exatamente o mesmo fato ("backend confirmou a sessão").
-      dispatch(sessionChecked({ ...user!, displayName, fullName }));
+      dispatch(
+        sessionChecked({
+          ...user!,
+          displayName,
+          fullName,
+          avatarPath: avatarDirty ? (savedAvatar ?? null) : (user?.avatarPath ?? null),
+        }),
+      );
       setProfileName(displayName);
       setProfileFullName(fullName ?? "");
+      if (avatarDirty) {
+        setAvatarPath(savedAvatar ?? null);
+        setAvatarDirty(false);
+      }
       setProfileSaved(true);
     } catch (submitError) {
       setProfileError(
@@ -88,6 +110,26 @@ export function AccountPage() {
       );
     } finally {
       setProfilePending(false);
+    }
+  };
+
+  const handleAvatarFile = async (file: File | undefined) => {
+    if (!file) return;
+    setProfileError(null);
+    setProfileSaved(false);
+    setAvatarUploading(true);
+    try {
+      const result = await uploadAvatar(file);
+      if (!result?.imagePath) throw new Error("Upload sem caminho.");
+      setAvatarPath(result.imagePath);
+      setAvatarDirty(true);
+    } catch (uploadError) {
+      setProfileError(
+        toMessage(uploadError, "Não foi possível enviar a foto. Tente novamente."),
+      );
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   };
 
@@ -122,27 +164,178 @@ export function AccountPage() {
     }
   };
 
+  const displayLabel = user?.fullName?.trim() || user?.displayName || user?.email || "—";
+  const initials = displayLabel
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 720 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 860 }}>
       <PageHeader
         title="Minha Conta"
-        subtitle="Edite seu perfil e troque sua senha de acesso ao InfraControl."
+        subtitle="Seu perfil de operador, preferências de exibição e segurança de acesso."
       />
 
+      {/* ── Identidade do operador ────────────────────────────────────── */}
+      <section
+        className="uni-card"
+        style={{
+          padding: "20px 24px",
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        {avatarPath ? (
+          <img
+            src={avatarPath}
+            alt={`Foto de ${displayLabel}`}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              objectFit: "cover",
+              flexShrink: 0,
+              border: "2px solid #dbeafe",
+            }}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #1e3a8a, #3b82f6)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
+          <strong style={{ fontSize: 16, color: "var(--uni-text-primary)" }}>{displayLabel}</strong>
+          <span style={{ fontSize: 13, color: "var(--uni-text-muted)" }}>{user?.email}</span>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {(user?.roles ?? []).map((role) => (
+            <span
+              key={role}
+              style={{
+                fontSize: 11,
+                padding: "3px 10px",
+                borderRadius: 999,
+                background: "#eff6ff",
+                color: "#1d4ed8",
+                fontWeight: 600,
+              }}
+            >
+              {role}
+            </span>
+          ))}
+        </div>
+      </section>
+
       {/* ── Perfil (F29-T002) ─────────────────────────────────────────── */}
-      <div className="uni-card" style={{ maxWidth: 560, padding: 24 }}>
-        <h2 style={{ fontSize: 15, margin: "0 0 4px" }}>Perfil</h2>
-        <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-          O nome de exibição aparece para toda a equipe. O e-mail é o seu
-          login e não é editável por aqui.
-        </p>
+      <div className="uni-card" style={{ padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16 }}>
+          <h2 style={{ fontSize: 15, margin: 0, color: "var(--uni-text-primary)" }}>Perfil do operador</h2>
+          <span style={{ fontSize: 12, color: "var(--uni-text-muted)" }}>
+            O nome de exibição aparece em menus, auditoria, relatórios e análises de IA.
+          </span>
+        </div>
+
+        {/* F51 — foto de perfil: upload imediato (só grava de fato no
+            "Salvar alterações" junto com os nomes). */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          {avatarPath ? (
+            <img
+              src={avatarPath}
+              alt="Pré-visualização da foto de perfil"
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "1px solid #d1d5db",
+              }}
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "#e2e8f0",
+                color: "#64748b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <i className="pi pi-user" />
+            </div>
+          )}
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(event) => void handleAvatarFile(event.target.files?.[0])}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            style={{ padding: "6px 12px", fontSize: 12 }}
+            disabled={avatarUploading || profilePending}
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            <i className={`pi ${avatarUploading ? "pi-spin pi-spinner" : "pi-camera"}`} />
+            {avatarPath ? "Trocar foto" : "Enviar foto"}
+          </Button>
+          {avatarPath && (
+            <Button
+              type="button"
+              variant="ghost"
+              style={{ padding: "6px 12px", fontSize: 12, color: "#b91c1c" }}
+              disabled={avatarUploading || profilePending}
+              onClick={() => {
+                setAvatarPath(null);
+                setAvatarDirty(true);
+                setProfileSaved(false);
+              }}
+            >
+              <i className="pi pi-trash" />
+              Remover
+            </Button>
+          )}
+          <span style={{ fontSize: 12, color: "var(--uni-text-muted)" }}>
+            PNG, JPG ou WebP até 10 MB.
+          </span>
+        </div>
 
         <form
           onSubmit={handleProfileSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 14,
+            marginTop: 8,
+          }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label htmlFor="display-name">Nome de exibição</label>
+            <label htmlFor="display-name">Nome de operador</label>
             <input
               id="display-name"
               type="text"
@@ -155,7 +348,7 @@ export function AccountPage() {
               required
             />
             <span style={{ fontSize: 12, color: "#64748b" }}>
-              É o nome que aparece em menus, auditoria e notificações.
+              É o nome que aparece em menus, auditoria, relatórios e análises de IA.
             </span>
           </div>
 

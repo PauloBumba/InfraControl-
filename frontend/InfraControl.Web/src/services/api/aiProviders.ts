@@ -139,6 +139,30 @@ export function deleteAiProviderCapability(
   ).then(() => undefined);
 }
 
+export interface AiCapabilityTestResult {
+  text: string;
+  provider: string;
+  model: string;
+  usedFallback: boolean;
+  durationMs: number;
+}
+
+/**
+ * F51: "testar mensagem" — envia um prompt mínimo pela rota configurada da
+ * capacidade (provider+modelo do cadastro, fallback §54) e devolve o texto,
+ * provider/modelo efetivamente usados e a latência do gateway.
+ */
+export function testAiCapabilityMessage(
+  capability: string
+): Promise<AiCapabilityTestResult> {
+  return required(
+    api.post<AiCapabilityTestResult>(
+      `/admin/ai-providers/capabilities/${encodeURIComponent(capability)}/test-message`
+    ),
+    { text: "", provider: "", model: "", usedFallback: false, durationMs: 0 }
+  );
+}
+
 export function testAiProviderConnection(
   id: string
 ): Promise<AiProviderConnectionTestResult> {

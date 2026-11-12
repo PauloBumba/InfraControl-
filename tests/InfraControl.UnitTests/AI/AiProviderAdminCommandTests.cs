@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InfraControl.Application.AI;
+using InfraControl.BuildingBlocks.Application;
 using InfraControl.Application.AI.Providers;
 using InfraControl.Application.AI.Providers.Commands;
 using InfraControl.Application.AI.Providers.Ports;
@@ -393,5 +394,65 @@ public sealed class AiProviderAdminCommandTests : IDisposable
         requests.Should().OnlyContain(
             request => request.RequiredRoles.SequenceEqual(
                 InfraControl.Domain.Enums.RoleAccess.Administer));
+    }
+}
+
+/// <summary>
+/// F51 — "testar mensagem" da capacidade: o handler repassa a capacidade
+/// canônica ao gateway (que resolve a rota do cadastro) e devolve texto,
+/// provider/modelo efetivos, flag de fallback e latência.
+/// </summary>
+public sealed class TestAiCapabilityMessageCommandTests
+{
+    [Fact]
+    public async Task Handle_Deve_Chamar_Gateway_Com_A_Capacidade_E_Devolver_Rota_Efetiva()
+    {
+        var gateway = new FakeGateway(new AiCompletion(
+            "ok", "gemini", "gemini-3.8-flash", 10, 1, UsedFallback: false, DurationMs: 1234));
+        var handler = new TestAiCapabilityMessageCommandHandler(gateway, new FakeUser("admin@x.com"));
+
+        var result = await handler.Handle(
+            new TestAiCapabilityMessageCommand("copilot"), CancellationToken.None);
+
+        result.Text.Should().Be("ok");
+        result.Provider.Should().Be("gemini");
+        result.Model.Should().Be("gemini-3.8-flash");
+        result.UsedFallback.Should().BeFalse();
+        result.DurationMs.Should().Be(1234);
+        gateway.LastRequest!.Capability.Should().Be(AiCapability.Copilot);
+        gateway.LastRequest.Actor.Should().Be("admin@x.com");
+    }
+
+    [Fact]
+    public async Task Handle_Com_Capacidade_Invalida_Deve_Falhar()
+    {
+        var handler = new TestAiCapabilityMessageCommandHandler(
+            new FakeGateway(new AiCompletion("x", "p", "m", null, null, false)),
+            new FakeUser("admin@x.com"));
+
+        var act = () => handler.Handle(
+            new TestAiCapabilityMessageCommand("nao-existe"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    private sealed class FakeGateway(AiCompletion completion) : IAiGateway
+    {
+        public AiCompletionRequest? LastRequest { get; private set; }
+
+        public Task<AiCompletion> CompleteAsync(
+            AiCompletionRequest request, CancellationToken cancellationToken = default)
+        {
+            LastRequest = request;
+            return Task.FromResult(completion);
+        }
+    }
+
+    private sealed class FakeUser(string userName) : ICurrentUserContext
+    {
+        public Guid? UserId => Guid.NewGuid();
+        public string? UserName => userName;
+        public bool IsAuthenticated => true;
+        public IReadOnlyCollection<string> Roles => ["Admin"];
     }
 }

@@ -244,6 +244,12 @@ public sealed class IdentityAuthenticationService(
             // Sem esse ?? o default do domínio (null) APAGARIA o nome completo
             // em toda troca só de nome exibido.
             domainUser.Update(request.DisplayName, domainUser.Email, request.FullName ?? domainUser.FullName);
+
+            // F51 — avatar: null = não informado (preserva); informado
+            // ("" ou caminho) aplica via SetAvatarPath ("" limpa). O
+            // ArgumentException do domínio vira erro pt-BR no OperationResult.
+            if (request.AvatarPath is not null)
+                domainUser.SetAvatarPath(request.AvatarPath);
         }
         catch (ArgumentException exception)
         {
@@ -502,7 +508,8 @@ public sealed class IdentityAuthenticationService(
                 identityUser.Email!,
                 domainUser.DisplayName,
                 roles,
-                domainUser.FullName),
+                domainUser.FullName,
+                domainUser.AvatarPath),
             refreshToken,
             expiresAt);
     }

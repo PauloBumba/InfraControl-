@@ -44,7 +44,10 @@ public sealed record AccessPolicyGrantInput(
 public sealed record GetAccessPolicyMatrixQuery
     : IQuery<AccessPolicyMatrixDto>, IAuthorizedRequest
 {
-    public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    // F51 — leitura aberta a qualquer role autenticada: operadores veem na
+    // plataforma o que cada perfil pode fazer (visão interna). A ESCRITA
+    // (UpdateAccessPolicyGrantsCommand) continua Administer.
+    public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Read;
 }
 
 public sealed class GetAccessPolicyMatrixQueryHandler(IAccessPolicyService service)

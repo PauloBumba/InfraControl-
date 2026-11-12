@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Provider } from "react-redux";
 import { AccessPoliciesPage } from "./AccessPoliciesPage";
+import { store } from "@/app/store";
+import { sessionChecked } from "@/app/store/slices/authSlice";
 import {
   getAccessPolicyMatrix,
   updateAccessPolicyGrants,
@@ -60,7 +63,11 @@ const MATRIX: AccessPolicyMatrix = {
 };
 
 function renderPage() {
-  return render(<AccessPoliciesPage />);
+  return render(
+    <Provider store={store}>
+      <AccessPoliciesPage />
+    </Provider>,
+  );
 }
 
 /**
@@ -71,6 +78,16 @@ function renderPage() {
 describe("AccessPoliciesPage — padrão da casa", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // F51 — a página lê as roles do store (useCan) para decidir se mostra
+    // a edição; estes testes cobrem o modo admin.
+    store.dispatch(
+      sessionChecked({
+        id: "3f1a1111-2222-3333-4444-555566667777",
+        email: "admin@exemplo.com",
+        displayName: "Admin",
+        roles: ["Admin"],
+      }),
+    );
     getMock.mockResolvedValue(MATRIX);
     putMock.mockImplementation(async (grants) => ({
       ...MATRIX,

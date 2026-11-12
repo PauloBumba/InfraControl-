@@ -11,6 +11,8 @@ export interface AuthUser {
    * ausência como "em branco", nunca como erro.
    */
   fullName?: string | null;
+  /** F51 — foto de perfil (`/uploads/avatars/…`); null = iniciais. */
+  avatarPath?: string | null;
   /** Roles canônicas (ADR-016): "Admin" | "Operator" | "Viewer". */
   roles: string[];
 }

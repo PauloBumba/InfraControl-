@@ -11,6 +11,13 @@ public sealed class User : AggregateRoot
     public string Email { get; private set; } = string.Empty;
     public string DisplayName { get; private set; } = string.Empty;
     public string? FullName { get; private set; }
+    /// <summary>
+    /// Caminho web da foto de perfil (<c>/uploads/avatars/…</c>, servido por
+    /// <c>UseStaticFiles</c>). Null = iniciais na UI. Só caminhos do módulo
+    /// de avatars são aceitos — nunca URL arbitrária (evita hotlink/SSRF de
+    /// exibição e mantém o arquivo dentro do wwwroot da API).
+    /// </summary>
+    public string? AvatarPath { get; private set; }
     public bool IsActive { get; private set; }
     public IReadOnlyCollection<UserRole> Roles => _roleAssignments.Select(assignment => assignment.Role).ToArray();
     public IReadOnlyCollection<UserRoleAssignment> RoleAssignments => _roleAssignments.AsReadOnly();
@@ -118,6 +125,31 @@ public sealed class User : AggregateRoot
         FullName = newFullName;
         Touch();
         RaiseDomainEvent(new UserUpdatedDomainEvent(Id, DisplayName, Email));
+    }
+
+    /// <summary>
+    /// F51 — foto de perfil auto-editável. <paramref name="avatarPath"/> null
+    /// ou vazio REMOVE a foto; qualquer outro valor precisa ser um caminho
+    /// <c>/uploads/avatars/…</c> relativo (nunca absoluto nem de outro módulo).
+    /// O serviço só chama este método quando o campo foi informado no request —
+    /// "não informado" (ausente) preserva o valor, como FullName.
+    /// </summary>
+    public void SetAvatarPath(string? avatarPath)
+    {
+        var normalized = string.IsNullOrWhiteSpace(avatarPath) ? null : avatarPath.Trim();
+        if (normalized is not null
+            && (!normalized.StartsWith("/uploads/avatars/", StringComparison.Ordinal)
+                || normalized.Contains("..", StringComparison.Ordinal)
+                || normalized.Length > 500))
+        {
+            throw new ArgumentException(
+                "Avatar inválido — envie a imagem pelo upload da plataforma.",
+                nameof(avatarPath));
+        }
+
+        if (AvatarPath == normalized) return;
+        AvatarPath = normalized;
+        Touch();
     }
 
     public void Delete()

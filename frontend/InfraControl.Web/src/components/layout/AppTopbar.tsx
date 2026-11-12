@@ -458,7 +458,20 @@ export const AppTopbar = forwardRef<AppTopbarRef, AppTopbarProps>(
             aria-expanded={topbarMenuOpen}
             onClick={(event) => topbarUserMenuRef.current?.toggle(event)}
           >
-            {initials}
+            {user?.avatarPath ? (
+              <img
+                src={user.avatarPath}
+                alt=""
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              initials
+            )}
           </button>
 
           <Menu

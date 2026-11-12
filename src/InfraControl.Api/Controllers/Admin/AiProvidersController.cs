@@ -112,6 +112,17 @@ public sealed class AiProvidersController(ISender sender) : BaseController
         return NoContent();
     }
 
+    // F51: "testar mensagem" — prompt mínimo pela rota configurada da
+    // capacidade (provider+modelo do cadastro, fallback §54) devolve
+    // texto/provider/modelo/latência. Prova que o modelo escolhido
+    // responde de verdade antes de confiar nele nas análises.
+    [HttpPost("capabilities/{capability}/test-message")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> TestCapabilityMessage(
+        string capability, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new TestAiCapabilityMessageCommand(capability), cancellationToken)));
+
     [HttpPost("{id:guid}/test-connection")]
     [Authorize(Policy = AuthorizationPolicies.Administer)]
     public async Task<IActionResult> TestConnection(

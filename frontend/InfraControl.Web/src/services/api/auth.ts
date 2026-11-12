@@ -24,6 +24,8 @@ interface CurrentUserPayload {
   displayName: string | null;
   /** F38 — nome completo (claim `fullName`; ausente = em branco). */
   fullName?: string | null;
+  /** F51 — foto de perfil (claim `avatarPath`; `/uploads/avatars/…`). */
+  avatarPath?: string | null;
   roles: string[];
 }
 
@@ -36,6 +38,7 @@ function toAuthUser(payload: CurrentUserPayload): AuthUser {
     email: payload.email,
     displayName: payload.displayName || payload.email,
     fullName: payload.fullName ?? null,
+    avatarPath: payload.avatarPath ?? null,
     roles: payload.roles ?? [],
   };
 }
@@ -166,14 +169,36 @@ export async function changePassword(currentPassword: string, newPassword: strin
 export async function updateProfile(
   displayName: string,
   fullName: string,
-): Promise<{ displayName: string; fullName: string | null }> {
-  const data = await api.put<{ displayName: string; fullName: string | null }>(
+  avatarPath?: string | null,
+): Promise<{ displayName: string; fullName: string | null; avatarPath: string | null }> {
+  // F51 — avatarPath: undefined = não informado (preserva a foto no
+  // servidor); "" = remove; caminho = novo avatar (vindo do upload
+  // /uploads/images?module=avatars).
+  const data = await api.put<{
+    displayName: string;
+    fullName: string | null;
+    avatarPath?: string | null;
+  }>(
     "/auth/profile",
-    { displayName, fullName },
+    avatarPath === undefined
+      ? { displayName, fullName }
+      : { displayName, fullName, avatarPath },
   );
   // O 200 traz o nome normalizado (trim) pelo servidor; se a resposta vier
   // sem corpo, mantém o valor enviado — nunca um null para a UI.
-  return data ?? { displayName, fullName: fullName || null };
+  const fallback = { displayName, fullName: fullName || null, avatarPath: avatarPath ?? null };
+  return data ? { ...fallback, ...data } : fallback;
+}
+
+/**
+ * F51 — upload da foto de perfil: reusa o endpoint genérico de imagens
+ * (módulo `avatars`, whitelist de extensões no servidor). Devolve o
+ * `imagePath` (`/uploads/avatars/…`) para viajar no PUT /auth/profile.
+ */
+export async function uploadAvatar(file: File): Promise<{ imagePath: string } | null> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return api.post<{ imagePath: string }>("/uploads/images?module=avatars", formData);
 }
 
 /**

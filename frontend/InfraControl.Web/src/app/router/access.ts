@@ -25,8 +25,9 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/notifications/rules": "administer",
   // FAI-T011b (ADR-057) — cadastro de providers de IA (Administer).
   "/admin/ai-providers": "administer",
-  // ADR-066 — matriz de acesso dinâmico e backup da plataforma (Administer).
-  "/admin/access-policies": "administer",
+  // ADR-066 — matriz de acesso: LEITURA para todos (operadores veem o que
+  // cada perfil pode); a edição segue Administer no backend (F51).
+  "/admin/access-policies": "read",
   "/admin/access-roles": "administer",
   "/admin/cluster": "administer",
   "/settings/backup": "administer",
