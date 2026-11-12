@@ -1,13 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
     <linearGradient id="logoPrimaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#2563eb;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="logoBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:0.3" />
-      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.1" />
+      <stop offset="0%" style="stop-color:#101828;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1f2937;stop-opacity:1" />
     </linearGradient>
     <linearGradient id="ledGreenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#4ade80;stop-opacity:1" />
@@ -18,37 +13,21 @@
       <stop offset="100%" style="stop-color:#eab308;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <circle cx="32" cy="32" r="30" fill="url(#logoBgGrad)" />
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#logoPrimaryGrad)" />
   <g>
-    <rect x="14" y="8" width="36" height="48" rx="6" fill="none" stroke="url(#logoPrimaryGrad)" stroke-width="2.5"/>
-    <line x1="14" y1="20" x2="50" y2="20" stroke="url(#logoPrimaryGrad)" stroke-width="1" opacity="0.3" />
-    <line x1="14" y1="32" x2="50" y2="32" stroke="url(#logoPrimaryGrad)" stroke-width="1" opacity="0.3" />
-    <line x1="14" y1="44" x2="50" y2="44" stroke="url(#logoPrimaryGrad)" stroke-width="1" opacity="0.3" />
-    <rect x="18" y="12" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.9" />
-    <rect x="18" y="22" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.8" />
-    <rect x="18" y="32" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.7" />
-    <rect x="18" y="42" width="28" height="6" rx="2" fill="url(#logoPrimaryGrad)" opacity="0.6" />
-    <circle cx="42" cy="15" r="1.8" fill="url(#ledGreenGrad)" />
-    <circle cx="42" cy="25" r="1.8" fill="url(#ledGreenGrad)" />
-    <circle cx="42" cy="35" r="1.8" fill="url(#ledAmberGrad)" />
-    <circle cx="42" cy="45" r="1.8" fill="url(#ledGreenGrad)" />
+    <rect x="14" y="12" width="36" height="10" rx="3.5" fill="#f8fafc" />
+    <rect x="14" y="27" width="36" height="10" rx="3.5" fill="#f8fafc" opacity="0.9" />
+    <rect x="14" y="42" width="36" height="10" rx="3.5" fill="#f8fafc" opacity="0.8" />
+    <rect x="18" y="16" width="9" height="2" rx="1" fill="#94a3b8" opacity="0.9" />
+    <rect x="18" y="31" width="9" height="2" rx="1" fill="#94a3b8" opacity="0.9" />
+    <rect x="18" y="46" width="9" height="2" rx="1" fill="#94a3b8" opacity="0.9" />
+    <circle cx="43" cy="17" r="2.2" fill="url(#ledGreenGrad)" />
+    <circle cx="43" cy="32" r="2.2" fill="url(#ledAmberGrad)" />
+    <circle cx="43" cy="47" r="2.2" fill="url(#ledGreenGrad)" />
   </g>
-  <g stroke="url(#logoPrimaryGrad)" stroke-width="1.5" fill="none" opacity="0.6">
-    <path d="M 8 20 Q 10 20, 14 20" />
-    <circle cx="8" cy="20" r="2" fill="url(#logoPrimaryGrad)" />
-    <path d="M 8 44 Q 10 44, 14 44" />
-    <circle cx="8" cy="44" r="2" fill="url(#logoPrimaryGrad)" />
-    <path d="M 50 32 Q 54 32, 56 32" />
-    <circle cx="56" cy="32" r="2" fill="url(#logoPrimaryGrad)" />
-  </g>
-  <g fill="url(#logoPrimaryGrad)" opacity="0.4">
-    <circle cx="24" cy="15" r="1" />
-    <circle cx="28" cy="15" r="1" />
-    <circle cx="24" cy="25" r="1" />
-    <circle cx="28" cy="25" r="1" />
-    <circle cx="24" cy="35" r="1" />
-    <circle cx="28" cy="35" r="1" />
-    <circle cx="24" cy="45" r="1" />
-    <circle cx="28" cy="45" r="1" />
+  <g stroke="#60a5fa" stroke-width="1.5" fill="none" opacity="0.85">
+    <path d="M 14 56 H 50" />
+    <circle cx="14" cy="56" r="2" fill="#60a5fa" stroke="none" />
+    <circle cx="50" cy="56" r="2" fill="#60a5fa" stroke="none" />
   </g>
 </svg>
