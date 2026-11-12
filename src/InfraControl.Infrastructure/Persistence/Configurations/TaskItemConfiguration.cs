@@ -47,6 +47,11 @@ public sealed class TaskItemConfiguration : IEntityTypeConfiguration<TaskItem>
         // tasks legadas anteriores à migração AddTaskCreatedById.
         builder.Property(x => x.CreatedById);
 
+        // F52-T002 — código de baixa (enum-string, mesmo padrão de State).
+        builder.Property(x => x.ResolutionCode)
+            .HasMaxLength(20)
+            .HasConversion<string>();
+
         // F23-T004/P4a — subtarefas: auto-relação na própria `tasks`;
         // pai excluído → filho sobrevive (SetNull) e vira task raiz.
         builder.HasOne<TaskItem>()

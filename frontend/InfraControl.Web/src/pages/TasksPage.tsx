@@ -46,6 +46,7 @@ import {
   stateColumns,
   stateLabel,
 } from "@/components/tasks/taskCatalogs";
+import { RESOLUTION_CODE_OPTIONS } from "@/utils/resolutionCodes";
 
 /**
  * F17-T001 + F23-T001 + ADR-030 Fase 5 — TasksPage com React Query
@@ -109,6 +110,9 @@ export function TasksPage() {
   const [moving, setMoving] = useState<string | null>(null);
   const [completing, setCompleting] = useState<TaskItem | null>(null);
   const [completionNotes, setCompletionNotes] = useState("");
+  // F52-T002 — alvo do diálogo (Resolved ou Closed) + código de baixa.
+  const [completionState, setCompletionState] = useState<"Resolved" | "Closed">("Resolved");
+  const [completionCode, setCompletionCode] = useState("Fixed");
   const [completionError, setCompletionError] = useState<string | null>(null);
 
   // Filtros: o input é aplicado no submit (mesmo padrão da ClientsPage) e os
@@ -169,8 +173,18 @@ export function TasksPage() {
   });
   const completeMutation = useUpdateMutation({
     invalidate: ["tasks"],
-    mutationFn: (input: { id: string; result: string; state?: "Resolved" | "Closed" }) =>
-      completeTask(input.id, input.result, input.state ?? "Resolved"),
+    mutationFn: (input: {
+      id: string;
+      result: string;
+      state?: "Resolved" | "Closed";
+      resolutionCode?: string;
+    }) =>
+      completeTask(
+        input.id,
+        input.result,
+        input.state ?? "Resolved",
+        input.resolutionCode,
+      ),
     onSuccess: () => {
       setActionError(null);
       setNotice("Tarefa finalizada.");
@@ -213,6 +227,8 @@ export function TasksPage() {
       if (target === "Resolved" || target === "Closed") {
         setCompleting(task);
         setCompletionNotes(task.result ?? "");
+        setCompletionState(target as "Resolved" | "Closed");
+        setCompletionCode("Fixed");
         setCompletionError(null);
         return;
       }
@@ -241,7 +257,12 @@ export function TasksPage() {
       return;
     }
     setCompletionError(null);
-    completeMutation.mutate({ id: completing.id, result: notes, state: "Resolved" });
+    completeMutation.mutate({
+      id: completing.id,
+      result: notes,
+      state: completionState,
+      resolutionCode: completionCode,
+    });
   }
 
   function resetForm() {
@@ -751,6 +772,14 @@ export function TasksPage() {
                 />
                 {completionError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{completionError}</div>}
               </div>
+              <FormField label="Código de baixa">
+                <SelectField
+                  value={completionCode}
+                  onChange={setCompletionCode}
+                  options={RESOLUTION_CODE_OPTIONS}
+                  disabled={completeMutation.isPending}
+                />
+              </FormField>
             </div>
           )}
           confirmLabel={completeMutation.isPending ? "Finalizando..." : "Finalizar"}

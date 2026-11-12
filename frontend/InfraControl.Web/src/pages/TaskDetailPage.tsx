@@ -11,6 +11,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { formatDateTime } from "@/utils/format";
+import { RESOLUTION_CODE_OPTIONS } from "@/utils/resolutionCodes";
 import { ApiError } from "@/services/api/client";
 import {
   addTaskComment,
@@ -196,6 +197,10 @@ export function TaskDetailPage() {
   const [resultText, setResultText] = useState("");
   const [finishOpen, setFinishOpen] = useState(false);
   const [finishNotes, setFinishNotes] = useState("");
+  // F52-T002 — alvo do diálogo (Resolved|Closed, antes era fixo Resolved)
+  // + código de baixa obrigatório nos alvos conclusivos.
+  const [finishTarget, setFinishTarget] = useState<"Resolved" | "Closed">("Resolved");
+  const [finishCode, setFinishCode] = useState("Fixed");
   const [criterionText, setCriterionText] = useState("");
   const [pendingCriterion, setPendingCriterion] = useState<TaskCriterion | null>(null);
 
@@ -591,6 +596,8 @@ export function TaskDetailPage() {
     if (!task || target === task.state) return;
     if ((target === "Resolved" || target === "Closed") && task.state !== target) {
       setFinishNotes(task.result ?? "");
+      setFinishTarget(target as "Resolved" | "Closed");
+      setFinishCode("Fixed");
       setFinishOpen(true);
       return;
     }
@@ -612,7 +619,7 @@ export function TaskDetailPage() {
     await run(
       async () => {
         await updateTaskResult(task.id, notes);
-        await changeTaskState(task.id, "Resolved");
+        await changeTaskState(task.id, finishTarget, finishCode);
       },
       "Tarefa finalizada com 'O que foi feito'.",
       () => setFinishOpen(false),
@@ -2491,6 +2498,13 @@ export function TaskDetailPage() {
               placeholder="Descreva a solução, ações realizadas, resultado..."
             />
           </div>
+          <FormField label="Código de baixa">
+            <SelectField
+              value={finishCode}
+              onChange={setFinishCode}
+              options={RESOLUTION_CODE_OPTIONS}
+            />
+          </FormField>
         </div>
       </Dialog>
     </div>

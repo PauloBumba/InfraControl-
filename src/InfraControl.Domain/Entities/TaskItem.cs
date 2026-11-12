@@ -46,6 +46,11 @@ public sealed class TaskItem : AggregateRoot
     public DateOnly? PlannedEnd { get; private set; }
     public string? Result { get; private set; }
 
+    // F52-T002 — código de baixa (ServiceNow): Resolved/Closed exigem um
+    // código válido (o handler valida via ResolutionCodes.Parse); sair de
+    // estado conclusivo limpa (espelho do Incident.ResolutionCode).
+    public ResolutionCode? ResolutionCode { get; private set; }
+
     // F23-T004/P4a — subtarefas (spec subtarefas/progresso): auto-relação
     // na própria tabela `tasks` (subtarefa É task). Pai excluído → filho
     // sobrevive (FK SetNull na configuração). Regra de profundidade
@@ -198,6 +203,27 @@ public sealed class TaskItem : AggregateRoot
         RaiseDomainEvent(new TaskItemUpdatedDomainEvent(Id, Title, State));
 
         if (state is TaskState.Resolved or TaskState.Closed)
+        {
             RaiseDomainEvent(new TaskResolvedDomainEvent(Id, Title, state, changedByUserId));
+        }
+        else
+        {
+            // Reabertura/retrabalho/cancelamento limpa a baixa (espelho do
+            // Incident: sair de Resolved zera code/note).
+            ResolutionCode = null;
+        }
+    }
+
+    /// <summary>
+    /// F52-T002: grava o código de baixa. <paramref name="code"/> null limpa
+    /// (usado ao reabrir); valor precisa ser um membro definido do enum.
+    /// A exigência de código+resultado na transição conclusiva é do handler.
+    /// </summary>
+    public void SetResolutionCode(ResolutionCode? code)
+    {
+        if (code is { } value && !Enum.IsDefined(value))
+            throw new ArgumentException("Código de baixa inválido.", nameof(code));
+
+        ResolutionCode = code;
     }
 }

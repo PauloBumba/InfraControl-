@@ -32,7 +32,9 @@ public sealed record TaskDto(
     int SubtaskCount,
     int? Progress,
     Guid? CreatedById = null,
-    string? CreatedByName = null)
+    string? CreatedByName = null,
+    // F52-T002 — código de baixa (null fora de Resolved/Closed).
+    string? ResolutionCode = null)
 {
     internal static TaskDto From(
         Domain.Entities.TaskItem task,
@@ -88,5 +90,6 @@ public sealed record TaskDto(
             task.CreatedById,
             task.CreatedById is null
                 ? null
-                : string.IsNullOrEmpty(createdByName) ? null : createdByName);
+                : string.IsNullOrEmpty(createdByName) ? null : createdByName,
+            task.ResolutionCode?.ToString());
 }

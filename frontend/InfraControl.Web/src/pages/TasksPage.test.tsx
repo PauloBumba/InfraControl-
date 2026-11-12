@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { TasksPage } from "./TasksPage";
 import { store } from "@/app/store";
 import { sessionChecked } from "@/app/store/slices/authSlice";
-import { createTask, listTasks, setTaskIdentification } from "@/services/api/tasks";
+import { createTask, completeTask, listTasks, setTaskIdentification } from "@/services/api/tasks";
 import { listUsers } from "@/services/api/adminUsers";
 
 /**
@@ -44,6 +44,7 @@ vi.mock("@/services/api/tasks", () => ({
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
   changeTaskState: vi.fn(),
+  completeTask: vi.fn(),
   setTaskIdentification: vi.fn(),
 }));
 
@@ -79,6 +80,7 @@ vi.mock("@/components/ui/SelectField", () => ({
 
 const listTasksMock = vi.mocked(listTasks);
 const createTaskMock = vi.mocked(createTask);
+const completeTaskMock = vi.mocked(completeTask);
 const setTaskIdentificationMock = vi.mocked(setTaskIdentification);
 const listUsersMock = vi.mocked(listUsers);
 
@@ -112,6 +114,7 @@ const umaTarefa = {
   progress: null,
   createdById: "9e9a1111-2222-3333-4444-555566667777",
   createdByName: "Ana",
+  resolutionCode: null,
 };
 
 beforeEach(() => {
@@ -339,5 +342,49 @@ describe("TasksPage — concluídas ocultas por default (F32-T002)", () => {
     renderPage();
 
     expect(await screen.findByTitle("Criado por: Ana")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F52-T002 — baixa justificada: o "Finalizar" do card abre o diálogo com
+ * "O que foi feito" + código de baixa e envia o estado alvo real
+ * (antes o estado era hardcoded "Resolved" e o código não existia).
+ */
+describe("TasksPage — finalização com código de baixa (F52-T002)", () => {
+  it("should send the chosen resolution code and the target state", async () => {
+    completeTaskMock.mockResolvedValue({ ...umaTarefa, state: "Resolved" });
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTitle("Finalizar tarefa"));
+
+    const dialog = await screen.findByRole("dialog", { name: "Finalizar tarefa" });
+    const notes = within(dialog).getByPlaceholderText(/Descreva a solução/);
+    await user.type(notes, "Troquei o cabo de rede");
+    await user.selectOptions(
+      within(dialog).getByRole("combobox"),
+      "Workaround",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Finalizar" }));
+
+    expect(completeTaskMock).toHaveBeenCalledWith(
+      umaTarefa.id,
+      "Troquei o cabo de rede",
+      "Resolved",
+      "Workaround",
+    );
+  });
+
+  it("should block an empty 'what was done' without calling the API", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTitle("Finalizar tarefa"));
+
+    const dialog = await screen.findByRole("dialog", { name: "Finalizar tarefa" });
+    await user.click(within(dialog).getByRole("button", { name: "Finalizar" }));
+
+    // ConfirmDialog fecha após onConfirm — a trava é a mutation não disparar.
+    expect(completeTaskMock).not.toHaveBeenCalled();
   });
 });

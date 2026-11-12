@@ -142,4 +142,131 @@ public sealed class TaskStateCommandTests : IDisposable
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage("*obrigatório*");
     }
+
+    // ── F52-T002 — baixa justificada (padrão ServiceNow) ──────────────
+
+    private static async Task<Guid> SeedInProgressAsync(
+        AppDbContext context, string? result = "Execução concluída sem imprevisto.")
+    {
+        var task = TaskItem.Create("Task a finalizar", TaskKind.Manual);
+        context.Tasks.Add(task);
+        await context.SaveChangesAsync();
+        task.ChangeState(TaskState.InProgress);
+        task.SetResult(result);
+        await context.SaveChangesAsync();
+        return task.Id;
+    }
+
+    private static async Task<Guid> SeedResolvedAsync(AppDbContext context)
+    {
+        var id = await SeedInProgressAsync(context);
+        var task = await context.Tasks.SingleAsync(t => t.Id == id);
+        task.ChangeState(TaskState.Resolved);
+        task.SetResolutionCode(ResolutionCodes.Parse("Fixed"));
+        await context.SaveChangesAsync();
+        return id;
+    }
+
+    [Fact]
+    public async Task Resolve_WithResultAndCode_ShouldChangeStateAndKeepCode()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedInProgressAsync(context);
+        var history = new RecordingTaskHistoryWriter();
+
+        var dto = await Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "Resolved", "Fixed"), default);
+
+        dto.State.Should().Be(nameof(TaskState.Resolved));
+        dto.ResolutionCode.Should().Be("Fixed");
+        var reloaded = await context.Tasks.SingleAsync(t => t.Id == taskId);
+        reloaded.ResolutionCode.Should().Be(ResolutionCode.Fixed);
+    }
+
+    [Fact]
+    public async Task Resolve_WithoutResult_ShouldThrowPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedInProgressAsync(context, result: null);
+        var history = new RecordingTaskHistoryWriter();
+
+        var act = () => Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "Resolved", "Fixed"), default);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*Informe o que foi feito para finalizar a tarefa.*");
+        history.Records.Should().BeEmpty("conclusão rejeitada não gera histórico");
+    }
+
+    [Fact]
+    public async Task Resolve_WithoutCode_ShouldThrowPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedInProgressAsync(context);
+        var history = new RecordingTaskHistoryWriter();
+
+        var act = () => Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "Resolved"), default);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*Código de baixa inválido*");
+    }
+
+    [Fact]
+    public async Task Resolve_WithInvalidCode_ShouldEchoItPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedInProgressAsync(context);
+        var history = new RecordingTaskHistoryWriter();
+
+        var act = () => Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "Resolved", "banana"), default);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*banana*");
+    }
+
+    [Fact]
+    public async Task Reopen_ShouldClearResolutionCode()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedResolvedAsync(context);
+        var history = new RecordingTaskHistoryWriter();
+
+        var dto = await Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "InProgress"), default);
+
+        dto.State.Should().Be(nameof(TaskState.InProgress));
+        dto.ResolutionCode.Should().BeNull("sair do estado conclusivo limpa o código");
+        var reloaded = await context.Tasks.SingleAsync(t => t.Id == taskId);
+        reloaded.ResolutionCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Close_FromResolved_WithNewCode_ShouldSucceed()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedResolvedAsync(context);
+        var history = new RecordingTaskHistoryWriter();
+
+        var dto = await Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "Closed", "Workaround"), default);
+
+        dto.State.Should().Be(nameof(TaskState.Closed));
+        dto.ResolutionCode.Should().Be("Workaround");
+    }
+
+    [Fact]
+    public async Task Cancelled_ShouldNotRequireResultNorCode()
+    {
+        await using var context = await CreateContextAsync();
+        var taskId = await SeedInProgressAsync(context, result: null);
+        var history = new RecordingTaskHistoryWriter();
+
+        var dto = await Handler(context, history)
+            .Handle(new ChangeTaskStateCommand(taskId, "Cancelled"), default);
+
+        dto.State.Should().Be(nameof(TaskState.Cancelled));
+        dto.ResolutionCode.Should().BeNull();
+    }
 }

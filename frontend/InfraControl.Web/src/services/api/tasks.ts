@@ -44,6 +44,8 @@ export interface TaskItem {
   progress: number | null;
   createdById: string | null;
   createdByName: string | null;
+  /** F52-T002 — código de baixa (Fixed|Workaround|Duplicate|NoAction|Other). */
+  resolutionCode: string | null;
 }
 
 /** `PagedResult<TaskDto>` — o campo `data` do envelope. */
@@ -329,11 +331,12 @@ export async function completeTask(
   id: string,
   result: string,
   state: "Resolved" | "Closed" = "Resolved",
+  resolutionCode?: string,
 ): Promise<TaskItem | null> {
   if (result?.trim()) {
     await updateTaskResult(id, result.trim());
   }
-  return changeTaskState(id, state);
+  return changeTaskState(id, state, resolutionCode);
 }
 
 /**
@@ -599,6 +602,13 @@ export function getTaskTimeline(
  * transição fora do mapa do domínio = 409 pt-BR ("Transição inválida…") —
  * ambos chegam como ApiError com a mensagem do envelope.
  */
-export function changeTaskState(id: string, state: string): Promise<TaskItem | null> {
-  return api.put<TaskItem>(`/tasks/${id}/state`, { state });
+export function changeTaskState(
+  id: string,
+  state: string,
+  resolutionCode?: string,
+): Promise<TaskItem | null> {
+  return api.put<TaskItem>(`/tasks/${id}/state`, {
+    state,
+    resolutionCode: resolutionCode ?? undefined,
+  });
 }

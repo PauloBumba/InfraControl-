@@ -13,7 +13,7 @@ namespace InfraControl.Application.Tasks.Commands;
 // (TaskStateWorkflow); aqui só 404 (task), 400 (estado desconhecido/vazio)
 // e a propagação da InvalidOperationException do domínio → 409.
 
-public sealed record ChangeTaskStateCommand(Guid Id, string State)
+public sealed record ChangeTaskStateCommand(Guid Id, string State, string? ResolutionCode = null)
     : BaseCommand<TaskDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
@@ -47,6 +47,26 @@ public sealed class ChangeTaskStateCommandHandler(
 
         if (previous == task.State)
             return await BuildDtoAsync(task, cancellationToken); // mesmo estado: sem histórico
+
+        // F52-T002 — baixa justificada: Resolved/Closed exigem resultado
+        // preenchido E código válido (400 pt-BR); Cancelled não exige.
+        // O 409 do workflow acima continua tendo precedência.
+        if (target is TaskState.Resolved or TaskState.Closed)
+        {
+            if (string.IsNullOrWhiteSpace(task.Result))
+                throw new ArgumentException(
+                    "Informe o que foi feito para finalizar a tarefa.",
+                    nameof(request.ResolutionCode));
+
+            // ResolutionCodes.Parse rejeita nulo/vazio/inválido com
+            // "Código de baixa inválido: '…'" (400 pt-BR, ADR-061).
+            task.SetResolutionCode(ResolutionCodes.Parse(request.ResolutionCode));
+        }
+        else if (!string.IsNullOrWhiteSpace(request.ResolutionCode))
+        {
+            // Cancelled e demais transições não conclusivas não gravam código.
+            task.SetResolutionCode(null);
+        }
 
         await repository.SaveChangesAsync(cancellationToken);
 

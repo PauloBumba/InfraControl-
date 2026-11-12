@@ -30,26 +30,72 @@ public sealed class TaskStateIntegrationTests : BaseIntegrationTest
             new ChangeTaskStateCommand(task.Id, "InProgress"));
         inProgress.State.Should().Be(nameof(TaskState.InProgress));
 
+        // F52-T002 — conclusão exige resultado + código de baixa.
+        await mediator.Send(new UpdateTaskResultCommand(
+            task.Id, "Execução concluída com sucesso."));
+
         var resolved = await mediator.Send(
-            new ChangeTaskStateCommand(task.Id, "Resolved"));
+            new ChangeTaskStateCommand(task.Id, "Resolved", "Fixed"));
         resolved.State.Should().Be(nameof(TaskState.Resolved));
+        resolved.ResolutionCode.Should().Be("Fixed");
 
         var closed = await mediator.Send(
-            new ChangeTaskStateCommand(task.Id, "Closed"));
+            new ChangeTaskStateCommand(task.Id, "Closed", "Workaround"));
         closed.State.Should().Be(nameof(TaskState.Closed));
+        closed.ResolutionCode.Should().Be("Workaround");
 
         var entries = await mediator.Send(new GetTaskHistoryQuery(task.Id));
         entries.Select(entry => entry.Action)
             .Should().Equal(
                 nameof(TaskHistoryAction.Created),
                 nameof(TaskHistoryAction.StateChanged),
+                nameof(TaskHistoryAction.ResultChanged),
                 nameof(TaskHistoryAction.StateChanged),
                 nameof(TaskHistoryAction.StateChanged));
-        entries.Skip(1).Select(entry => entry.Detail)
+        entries.Where(e => e.Action == nameof(TaskHistoryAction.StateChanged))
+            .Select(entry => entry.Detail)
             .Should().Equal(
                 "Open → InProgress",
                 "InProgress → Resolved",
                 "Resolved → Closed");
+    }
+
+    [Fact]
+    public async Task Resolve_WithoutCode_ShouldThrowArgumentExceptionPtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+
+        var task = await mediator.Send(
+            new CreateTaskCommand("Conclusão sem código", "Manual"));
+        await mediator.Send(new ChangeTaskStateCommand(task.Id, "InProgress"));
+        await mediator.Send(new UpdateTaskResultCommand(
+            task.Id, "Execução concluída."));
+
+        var action = () => mediator.Send(
+            new ChangeTaskStateCommand(task.Id, "Resolved"));
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*Código de baixa inválido*");
+    }
+
+    [Fact]
+    public async Task Resolve_WithoutResult_ShouldThrowArgumentExceptionPtBr()
+    {
+        using var scope = CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        UseRole(UserRole.Admin);
+
+        var task = await mediator.Send(
+            new CreateTaskCommand("Conclusão sem resultado", "Manual"));
+        await mediator.Send(new ChangeTaskStateCommand(task.Id, "InProgress"));
+
+        var action = () => mediator.Send(
+            new ChangeTaskStateCommand(task.Id, "Resolved", "Fixed"));
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*Informe o que foi feito para finalizar a tarefa.*");
     }
 
     [Fact]

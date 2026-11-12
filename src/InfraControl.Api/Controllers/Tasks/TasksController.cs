@@ -176,7 +176,7 @@ public sealed class TasksController(ISender sender) : BaseController
         [FromBody] ChangeTaskStateViewModel model,
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new ChangeTaskStateCommand(id, model.State), cancellationToken)));
+            new ChangeTaskStateCommand(id, model.State, model.ResolutionCode), cancellationToken)));
 
 
     // F7-T002: responsáveis (N:N com usuários) — 204 nos dois sentidos

@@ -4351,6 +4351,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("ResolutionCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<Guid?>("ResponsibleId")
                         .HasColumnType("uuid");
 

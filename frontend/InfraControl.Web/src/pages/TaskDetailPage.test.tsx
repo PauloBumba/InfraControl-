@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -32,6 +32,8 @@ vi.mock("@/services/api/tasks", async (importOriginal) => {
     getTaskSlaPauses: vi.fn(),
     deleteTask: vi.fn(),
     updateTask: vi.fn(),
+    changeTaskState: vi.fn(),
+    updateTaskResult: vi.fn(),
   };
 });
 
@@ -75,6 +77,8 @@ vi.mock("@/services/api/pdi", async (importOriginal) => {
 import {
   getTask,
   updateTask,
+  changeTaskState,
+  updateTaskResult,
   getTaskComments,
   getTaskCriteria,
   getTaskEvidence,
@@ -88,6 +92,8 @@ import {
 
 const getTaskMock = vi.mocked(getTask);
 const updateTaskMock = vi.mocked(updateTask);
+const changeTaskStateMock = vi.mocked(changeTaskState);
+const updateTaskResultMock = vi.mocked(updateTaskResult);
 
 function umaTask(id: string, title: string): TaskItem {
   return {
@@ -120,6 +126,7 @@ function umaTask(id: string, title: string): TaskItem {
     progress: null,
     createdById: null,
     createdByName: null,
+    resolutionCode: null,
   };
 }
 
@@ -239,5 +246,51 @@ describe("TaskDetailPage — falha de mutação preserva o diálogo (M2)", () =>
     // Diálogo aberto + texto preservado (antes: fechava e limpava).
     expect(screen.getByText("Editar dados da tarefa")).toBeInTheDocument();
     expect(screen.getByLabelText("Título")).toHaveValue("Novo título digitado");
+  });
+});
+
+/**
+ * F52-T002 — baixa justificada: o diálogo "Finalizar tarefa" envia o
+ * estado alvo escolhido (antes era hardcoded "Resolved") e o código de
+ * baixa selecionado (default "Fixed").
+ */
+describe("TaskDetailPage — finalização com código de baixa (F52-T002)", () => {
+  it("sends the target state and the resolution code to changeTaskState", async () => {
+    const task = { ...umaTask("task-a", "Task A"), state: "InProgress" };
+    getTaskMock.mockResolvedValue(task);
+    updateTaskResultMock.mockResolvedValue({ ...task, result: "feito" });
+    changeTaskStateMock.mockResolvedValue({ ...task, state: "Resolved" });
+
+    const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [{ path: "/tasks/:id", element: <Routed /> }],
+      { initialEntries: ["/tasks/task-a"] },
+    );
+    render(
+      <Provider store={store}>
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+            })
+          }
+        >
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </Provider>,
+    );
+
+    await screen.findByText("Task A");
+    await user.click(screen.getByRole("button", { name: /Finalizar/ }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Finalizar tarefa" });
+    const notes = within(dialog).getByPlaceholderText(/Descreva a solução/);
+    await user.type(notes, "Resolvido no switch");
+    await user.click(within(dialog).getByRole("button", { name: "Finalizar" }));
+
+    await waitFor(() => {
+      expect(updateTaskResultMock).toHaveBeenCalledWith("task-a", "Resolvido no switch");
+      expect(changeTaskStateMock).toHaveBeenCalledWith("task-a", "Resolved", "Fixed");
+    });
   });
 });
