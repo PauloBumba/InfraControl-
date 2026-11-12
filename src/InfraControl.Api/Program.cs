@@ -100,6 +100,9 @@ builder.Services.AddHostedService<NotificationSlackWorker>();
 builder.Services.AddHostedService<InfraControl.Api.Workers.HealthStatusNotifier>();
 // Tráfego interno: drena o RequestMetricsRecorder para o Postgres a cada 30s.
 builder.Services.AddHostedService<InfraControl.Infrastructure.Services.RequestMetricsFlushService>();
+// Métricas de container via Engine API (cAdvisor não enxerga containers com
+// containerd snapshotter) — publica gauges OTLP por serviço Compose.
+builder.Services.AddHostedService<InfraControl.Infrastructure.Services.ContainerStatsPollService>();
 // F9-T006: o admin escolhe os canais do fanout e os destinos por canal
 // (Notifications:Channels) — a MESMA seção lida pelo NotificationEventConsumer
 // no host dos Workers; defaults vazios = comportamento Email+SignalR.
