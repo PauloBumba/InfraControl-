@@ -9,6 +9,7 @@ import { MeterGroup } from "primereact/metergroup";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
 import { getZabbixSummary, type ZabbixSummary } from "@/services/api/zabbix";
 import { getUniFiDashboard, type UniFiDashboard } from "@/services/api/unifi";
+import { getStatusContainers, type DockerStatus } from "@/services/api/status";
 import { onHealthStatusChange } from "@/services/signalr/notifications";
 import { formatDateTime } from "@/utils/format";
 
@@ -40,6 +41,7 @@ export function HealthPage() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [alertsTotal, setAlertsTotal] = useState(0);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [docker, setDocker] = useState<DockerStatus | null>(null);
   const [healthNotice, setHealthNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,17 +50,19 @@ export function HealthPage() {
     setLoading(true);
     setError(null);
     try {
-      const [z, u, a, h] = await Promise.all([
+      const [z, u, a, h, d] = await Promise.all([
         getZabbixSummary(),
         getUniFiDashboard(),
         listAlerts({ status: "open", pageSize: 10 }),
         fetch("/health").then((r) => r.json() as Promise<HealthResponse>).catch(() => null),
+        getStatusContainers().catch(() => null),
       ]);
       setZabbix(z);
       setUnifi(u);
       setAlerts(a.items);
       setAlertsTotal(a.totalCount);
       setHealth(h);
+      setDocker(d);
     } catch {
       setError("Não foi possível carregar a saúde das integrações.");
     } finally {
@@ -237,6 +241,84 @@ export function HealthPage() {
           </div>
         ) : (
           <div style={{ fontSize: 12, color: "#94a3b8" }}>Não foi possível carregar o status dos containers.</div>
+        )}
+      </div>
+
+      {/* Parque de containers (F50) — leitura; escala/remoção fica no Cluster. */}
+      <div className="uni-panel" style={{ padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div>
+            <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Containers</h3>
+            <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0" }}>
+              {docker?.available
+                ? `${docker.containers.length} container(s) no parque`
+                : "Via Docker Engine"}
+            </p>
+          </div>
+          <StatusChip
+            label={
+              !docker
+                ? "Indisponível"
+                : docker.available
+                  ? `${docker.containers.filter((c) => c.state === "running").length} em execução`
+                  : "Indisponível"
+            }
+            background={
+              docker?.available ? "#dcfce7" : "#f1f5f9"
+            }
+            color={docker?.available ? "#16a34a" : "#475569"}
+            fontWeight={600}
+          />
+        </div>
+        {!docker ? (
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>Não foi possível carregar os containers.</div>
+        ) : !docker.available ? (
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>Docker indisponível neste ambiente.</div>
+        ) : docker.containers.length === 0 ? (
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>Nenhum container encontrado.</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ textAlign: "left", color: "#6b7280" }}>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Nome</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Imagem</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Estado</th>
+                  <th style={{ padding: "6px 8px", fontWeight: 600 }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {docker.containers.map((container) => {
+                  const running = container.state === "running";
+                  return (
+                    <tr
+                      key={container.id}
+                      style={{ borderTop: "1px solid #eef1f6" }}
+                    >
+                      <td style={{ padding: "7px 8px", fontWeight: 600, overflowWrap: "anywhere" }}>
+                        {container.name}
+                      </td>
+                      <td style={{ padding: "7px 8px", color: "#64748b", overflowWrap: "anywhere" }}>
+                        {container.image}
+                      </td>
+                      <td style={{ padding: "7px 8px" }}>
+                        <StatusChip
+                          label={running ? "Em execução" : container.state}
+                          background={running ? "#dcfce7" : "#f1f5f9"}
+                          color={running ? "#16a34a" : "#475569"}
+                          fontWeight={600}
+                          fontSize={10}
+                        />
+                      </td>
+                      <td style={{ padding: "7px 8px", color: "#64748b", whiteSpace: "nowrap" }}>
+                        {container.status}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

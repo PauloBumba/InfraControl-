@@ -240,15 +240,14 @@ builder.Services.AddHealthChecks()
     .AddCheck<OutboxBacklogHealthCheck>("outbox-backlog", tags: ["workers"]);
 
 // F46-T006: serviços irmãos da stack via HTTP (configurados por ambiente —
-// no compose apontam para os containers da rede docker).
+// no compose apontam para os containers da rede docker). Slots de profile
+// opcional chegam vazios (docs/66 D7) e são descartados — ver
+// HealthServiceEndpoints.
 builder.Services.AddHttpClient("health-probe", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(5);
 });
-var healthServiceEndpoints = builder.Configuration
-    .GetSection("Health:Services")
-    .Get<List<HealthServiceEndpoint>>() ?? [];
-foreach (var endpoint in healthServiceEndpoints)
+foreach (var endpoint in HealthServiceEndpoints.FromConfiguration(builder.Configuration))
 {
     // Registration manual (factory): nome/url/link por instância, sem
     // depender da assinatura params de AddTypeActivatedCheck.

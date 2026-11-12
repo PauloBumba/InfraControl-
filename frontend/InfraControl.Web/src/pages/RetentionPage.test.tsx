@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { RetentionPage } from "./RetentionPage";
 import {
   deleteRetentionPolicy,
+  exportRetentionPolicies,
   getRetentionPolicies,
+  importRetentionPolicies,
   upsertRetentionPolicy,
   type RetentionPolicyItem,
 } from "@/services/api/retention";
@@ -13,11 +15,15 @@ vi.mock("@/services/api/retention", () => ({
   getRetentionPolicies: vi.fn(),
   upsertRetentionPolicy: vi.fn(),
   deleteRetentionPolicy: vi.fn(),
+  exportRetentionPolicies: vi.fn(),
+  importRetentionPolicies: vi.fn(),
 }));
 
 const listMock = vi.mocked(getRetentionPolicies);
 const upsertMock = vi.mocked(upsertRetentionPolicy);
 const deleteMock = vi.mocked(deleteRetentionPolicy);
+const exportMock = vi.mocked(exportRetentionPolicies);
+const importMock = vi.mocked(importRetentionPolicies);
 
 const POLICIES: RetentionPolicyItem[] = [
   { dataType: "AuditEntries", days: 90, source: "Policy" },
@@ -34,6 +40,8 @@ describe("RetentionPage — padrão da casa", () => {
     listMock.mockResolvedValue(POLICIES);
     upsertMock.mockResolvedValue(POLICIES[0]!);
     deleteMock.mockResolvedValue(undefined);
+    exportMock.mockResolvedValue(new Blob(['{"policies":[]}']));
+    importMock.mockResolvedValue(1);
   });
 
   it("should use ListPageShell title and list the policies", async () => {
@@ -73,5 +81,73 @@ describe("RetentionPage — padrão da casa", () => {
     await user.click(saveBtn);
 
     await waitFor(() => expect(upsertMock).toHaveBeenCalledWith("AuditEntries", 120));
+  });
+
+  it("should label managed types and the BackupSettings source (F50)", async () => {
+    listMock.mockResolvedValue([
+      { dataType: "Grafana", days: 30, source: "Config" },
+      { dataType: "Databases", days: 365, source: "Config" },
+      { dataType: "Backups", days: 7, source: "BackupSettings" },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("Métricas do Grafana")).toBeInTheDocument();
+    expect(await screen.findByText("Dados dos bancos da stack")).toBeInTheDocument();
+    expect(await screen.findByText("Arquivos de backup")).toBeInTheDocument();
+    expect(screen.getAllByText("Gerenciada")).toHaveLength(2);
+    expect(screen.getByText("Backup")).toBeInTheDocument();
+    expect(screen.getAllByText("Padrão")).toHaveLength(2);
+  });
+
+  it("should save the Backups row into BackupSettings via the same endpoint", async () => {
+    listMock.mockResolvedValue([
+      { dataType: "Backups", days: 7, source: "BackupSettings" },
+    ]);
+    renderPage();
+    const user = userEvent.setup();
+
+    const row = (await screen.findByText("Arquivos de backup")).closest("tr");
+    const input = row!.querySelector("input") as HTMLInputElement;
+    await user.clear(input);
+    fireEvent.change(input, { target: { value: "30" } });
+    await user.click(row!.querySelector("button[title='Salvar política']")!);
+
+    await waitFor(() => expect(upsertMock).toHaveBeenCalledWith("Backups", 30));
+  });
+
+  it("should export the effective policies as a JSON download (F50)", async () => {
+    const createObjectURL = vi.fn(() => "blob:retention");
+    const revokeObjectURL = vi.fn();
+    URL.createObjectURL = createObjectURL as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+    renderPage();
+    const user = userEvent.setup();
+
+    await screen.findByRole("heading", { name: "Retenção de dados" });
+    await user.click(screen.getByTitle("Exportar políticas (JSON)"));
+
+    await waitFor(() => expect(exportMock).toHaveBeenCalled());
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+  });
+
+  it("should import policies from a JSON file and show the count (F50)", async () => {
+    const { container } = renderPage();
+    await screen.findByRole("heading", { name: "Retenção de dados" });
+
+    const file = new File(
+      [JSON.stringify({ policies: [{ dataType: "Grafana", days: 45 }] })],
+      "retention.json",
+      { type: "application/json" },
+    );
+    const input = container.querySelector("input[type=file]") as HTMLInputElement;
+    expect(input).not.toBeNull();
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(importMock).toHaveBeenCalledWith([{ dataType: "Grafana", days: 45 }]),
+    );
+    expect(
+      await screen.findByText(/2 políticas · 1 política importada\./),
+    ).toBeInTheDocument();
   });
 });

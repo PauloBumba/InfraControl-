@@ -12,6 +12,11 @@ public sealed record RetentionOptions
     public int MonitoringEventsDays { get; set; } = 90;
     public int InvitationsDays { get; set; } = 90;
     public int UniFiSyncRunsDays { get; set; } = 180;
+    // F50 — políticas gerenciadas (registradas na tela, sem aplicação do
+    // cleanup): defaults exibidos quando o admin ainda não gravou policy.
+    public int GrafanaDays { get; set; } = 30;
+    public int ZabbixDays { get; set; } = 90;
+    public int DatabasesDays { get; set; } = 365;
     public int BatchSize { get; set; } = 500;
 
     public DateTime OutboxCutoff(DateTime utcNow) => utcNow.AddDays(-OutboxProcessedDays);

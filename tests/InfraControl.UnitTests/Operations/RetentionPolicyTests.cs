@@ -64,7 +64,7 @@ public sealed class RetentionPolicyTests
     }
 
     [Fact]
-    public void DataType_ShouldCoverExactlyTheTenCleanupTypes()
+    public void DataType_ShouldCoverCleanupTypesManagedAndBackups()
     {
         Enum.GetValues<RetentionDataType>().Should().BeEquivalentTo([
             RetentionDataType.OutboxMessages,
@@ -76,7 +76,13 @@ public sealed class RetentionPolicyTests
             RetentionDataType.DiscoveryRuns,
             RetentionDataType.MonitoringEvents,
             RetentionDataType.Invitations,
-            RetentionDataType.UniFiSyncRuns
+            RetentionDataType.UniFiSyncRuns,
+            // F50: Backups = poda de dumps (BackupWorker); os 3 gerenciados
+            // são registrados na tela sem aplicação pelo app.
+            RetentionDataType.Backups,
+            RetentionDataType.Grafana,
+            RetentionDataType.Zabbix,
+            RetentionDataType.Databases
         ]);
     }
 }

@@ -14,7 +14,7 @@ namespace InfraControl.IntegrationTests.Operations;
 public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 {
     [Fact]
-    public async Task GetPolicies_WithAdminRole_ShouldReturnTenTypesWithConfigDefaults()
+    public async Task GetPolicies_WithAdminRole_ShouldReturnAllTypesWithConfigDefaults()
     {
         using var scope = CreateScope();
         UseRole(UserRole.Admin);
@@ -22,8 +22,12 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 
         var policies = await mediator.Send(new GetRetentionPoliciesQuery());
 
-        policies.Should().HaveCount(10);
-        policies.Should().OnlyContain(p => p.Source == "Config");
+        // 10 do cleanup + Backups (BackupSettings) + 3 gerenciados (F50).
+        policies.Should().HaveCount(14);
+        policies
+            .Where(p => p.DataType != "Backups")
+            .Should().OnlyContain(p => p.Source == "Config");
+        policies.Single(p => p.DataType == "Backups").Source.Should().Be("BackupSettings");
         policies.Single(p => p.DataType == "AuditEntries").Days.Should().Be(90);
         policies.Single(p => p.DataType == "RemoteSessions").Days.Should().Be(90);
     }

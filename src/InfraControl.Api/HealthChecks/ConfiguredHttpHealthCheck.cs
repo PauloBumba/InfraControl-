@@ -2,8 +2,14 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace InfraControl.Api.HealthChecks;
 
-/// <summary>Endpoint HTTP de um serviço irmão da stack (F46-T006).</summary>
-public sealed record HealthServiceEndpoint(string Name, string Url, string? Link);
+/// <summary>Endpoint HTTP de um serviço irmão da stack (F46-T006).
+/// Defaults nos parâmetros: o ConfigurationBinder descarta elementos de
+/// <c>Health:Services</c> quando um ctor param não tem chave no config
+/// (slots vazios do compose — docs/66 D7).</summary>
+public sealed record HealthServiceEndpoint(
+    string Name = "",
+    string Url = "",
+    string? Link = null);
 
 /// <summary>
 /// F46-T006 — checagem HTTP configurável por ambiente

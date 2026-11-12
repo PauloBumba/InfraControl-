@@ -38,13 +38,16 @@ public sealed class RetentionPolicyCommandTests : IDisposable
     }
 
     private static UpsertRetentionPolicyCommandHandler UpsertHandler(AppDbContext context)
-        => new(new RetentionPolicyRepository(context));
+        => new(new RetentionPolicyRepository(context), new BackupSettingsRepository(context));
 
     private static DeleteRetentionPolicyCommandHandler DeleteHandler(AppDbContext context)
-        => new(new RetentionPolicyRepository(context));
+        => new(new RetentionPolicyRepository(context), new BackupSettingsRepository(context));
 
     private static GetRetentionPoliciesQueryHandler QueryHandler(AppDbContext context)
-        => new(new RetentionPolicyRepository(context), Options.Create(new RetentionOptions()));
+        => new(
+            new RetentionPolicyRepository(context),
+            Options.Create(new RetentionOptions()),
+            new BackupSettingsRepository(context));
 
     [Fact]
     public async Task Upsert_NewPolicy_ShouldPersist()
@@ -115,15 +118,20 @@ public sealed class RetentionPolicyCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPolicies_WithoutPolicies_ShouldReturnAllTenTypesWithConfigDefaults()
+    public async Task GetPolicies_WithoutPolicies_ShouldReturnAllTypesWithConfigDefaults()
     {
         await using var context = await CreateContextAsync();
 
         var policies = await QueryHandler(context).Handle(
             new GetRetentionPoliciesQuery(), CancellationToken.None);
 
-        policies.Should().HaveCount(10);
-        policies.Should().OnlyContain(p => p.Source == "Config");
+        // 10 do cleanup + Backups (BackupSettings) + 3 gerenciados (F50).
+        policies.Should().HaveCount(14);
+        policies
+            .Where(p => p.DataType != "Backups")
+            .Should().OnlyContain(p => p.Source == "Config");
+        policies.Single(p => p.DataType == "Backups").Source.Should().Be("BackupSettings");
+        policies.Single(p => p.DataType == "Backups").Days.Should().Be(7);
         policies.Single(p => p.DataType == "OutboxMessages").Days.Should().Be(30);
         policies.Single(p => p.DataType == "ProcessedMessages").Days.Should().Be(30);
         policies.Single(p => p.DataType == "AuditEntries").Days.Should().Be(90);

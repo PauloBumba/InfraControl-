@@ -5,19 +5,23 @@ import { HealthPage } from "./HealthPage";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
 import { getZabbixSummary, type ZabbixSummary } from "@/services/api/zabbix";
 import { getUniFiDashboard, type UniFiDashboard } from "@/services/api/unifi";
+import { getStatusContainers, type DockerStatus } from "@/services/api/status";
 
 /**
  * Fase 06 (Plano Mestre): HealthPage religada ao backend — os testes
  * travam (1) os cards de integração com dados reais, (2) o resumo de
  * alertas abertos e (3) o estado de erro com retry.
+ * F50 (tela de status): seção de containers em nível de leitura.
  */
 vi.mock("@/services/api/alerts", () => ({ listAlerts: vi.fn() }));
 vi.mock("@/services/api/zabbix", () => ({ getZabbixSummary: vi.fn() }));
 vi.mock("@/services/api/unifi", () => ({ getUniFiDashboard: vi.fn() }));
+vi.mock("@/services/api/status", () => ({ getStatusContainers: vi.fn() }));
 
 const listAlertsMock = vi.mocked(listAlerts);
 const getZabbixSummaryMock = vi.mocked(getZabbixSummary);
 const getUniFiDashboardMock = vi.mocked(getUniFiDashboard);
+const getStatusContainersMock = vi.mocked(getStatusContainers);
 
 const EMPTY_SUMMARY: ZabbixSummary = {
   totalHosts: 0, enabledHosts: 0, missingHosts: 0,
@@ -48,6 +52,22 @@ const HEALTHY_DASHBOARD: UniFiDashboard = {
   ports: { total: 48, up: 45 },
 };
 
+const DOCKER_AVAILABLE: DockerStatus = {
+  available: true,
+  containers: [
+    {
+      id: "abc123", name: "infracontrol-api-1", image: "infracontrol-api:dev",
+      state: "running", status: "Up 2 hours",
+      memoryUsageBytes: null, cpuPercent: null,
+    },
+    {
+      id: "def456", name: "postgres-1", image: "pgvector/pgvector:pg17",
+      state: "running", status: "Up 3 days",
+      memoryUsageBytes: null, cpuPercent: null,
+    },
+  ],
+};
+
 function makeAlert(overrides: Partial<AlertItem> = {}): AlertItem {
   return {
     id: "11111111-2222-3333-4444-555566667777",
@@ -69,6 +89,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   getZabbixSummaryMock.mockResolvedValue(HEALTHY_SUMMARY);
   getUniFiDashboardMock.mockResolvedValue(HEALTHY_DASHBOARD);
+  getStatusContainersMock.mockResolvedValue(DOCKER_AVAILABLE);
   listAlertsMock.mockResolvedValue({
     items: [makeAlert()],
     totalCount: 1,
@@ -143,5 +164,30 @@ describe("HealthPage — saúde real do sistema", () => {
 
     expect(await screen.findByText("Nenhum alerta aberto.")).toBeInTheDocument();
     expect(screen.getByText("Normal")).toBeInTheDocument();
+  });
+
+  it("should show the containers table with name, image and state", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Containers")).toBeInTheDocument();
+    expect(screen.getByText("infracontrol-api-1")).toBeInTheDocument();
+    expect(screen.getByText("infracontrol-api:dev")).toBeInTheDocument();
+    expect(screen.getByText("postgres-1")).toBeInTheDocument();
+    expect(screen.getByText("Up 3 days")).toBeInTheDocument();
+    expect(screen.getAllByText("Em execução")).toHaveLength(2);
+  });
+
+  it("should show unavailable state when docker is not accessible", async () => {
+    getStatusContainersMock.mockResolvedValue({
+      available: false,
+      containers: [],
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Containers")).toBeInTheDocument();
+    expect(
+      screen.getByText("Docker indisponível neste ambiente."),
+    ).toBeInTheDocument();
   });
 });

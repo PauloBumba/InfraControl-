@@ -31,3 +31,32 @@ export async function upsertRetentionPolicy(
 export async function deleteRetentionPolicy(dataType: string): Promise<void> {
   await api.delete<null>(`/operations/retention-policies/${encodeURIComponent(dataType)}`);
 }
+
+/** Item do export/import JSON (F50). */
+export interface RetentionExportItem {
+  dataType: string;
+  days: number;
+}
+
+/**
+ * Exporta o estado efetivo de todas as políticas (JSON) — download via
+ * cookie de sessão; o caller monta objectURL + `<a download>`.
+ */
+export async function exportRetentionPolicies(): Promise<Blob> {
+  return api.download("/operations/retention-policies/export");
+}
+
+/**
+ * Importa políticas em lote: o backend valida TODOS os itens antes de
+ * aplicar (payload inválido não deixa meio estado) e devolve quantos
+ * foram aplicados.
+ */
+export async function importRetentionPolicies(
+  policies: RetentionExportItem[],
+): Promise<number> {
+  const data = await api.post<{ imported: number } | null>(
+    "/operations/retention-policies/import",
+    { policies },
+  );
+  return data?.imported ?? 0;
+}

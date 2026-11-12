@@ -340,14 +340,32 @@ services:
       Health__Services__1__Name: rabbitmq
       Health__Services__1__Url: http://rabbitmq:15672
       Health__Services__1__Link: http://localhost:15672
+      # D7 (docs/66): serviços de profile opcional ficam com Name VAZIO por
+      # padrão — o HealthServiceEndpoints descarta a entrada e o probe não
+      # nasce. Ao habilitar o profile (obs), defina a variável correspondente
+      # no .env (ex.: HEALTH_SVC_GRAFANA=grafana) e recrie a API. Url/Link
+      # são fixos (DNS da rede compose).
+      Health__Services__2__Name: ${HEALTH_SVC_GRAFANA:-}
+      Health__Services__2__Url: http://grafana:3000/api/health
+      Health__Services__2__Link: https://localhost:8443/grafana/
+      Health__Services__3__Name: ${HEALTH_SVC_PROMETHEUS:-}
+      Health__Services__3__Url: http://prometheus:9090/-/ready
+      Health__Services__3__Link: http://localhost:9090
+      Health__Services__4__Name: ${HEALTH_SVC_TEMPO:-}
+      Health__Services__4__Url: http://tempo:3200/ready
       # D3 (docs/66): Adminer escuta 8080 (8082 é o mapeamento do host).
       Health__Services__5__Name: adminer
       Health__Services__5__Url: http://adminer:8080
       Health__Services__5__Link: http://localhost:8082
+      Health__Services__6__Name: ${HEALTH_SVC_SEQ:-}
+      Health__Services__6__Url: http://seq:80
+      Health__Services__6__Link: http://localhost:5341
+      Health__Services__7__Name: ${HEALTH_SVC_CADVISOR:-}
+      Health__Services__7__Url: http://cadvisor:8080/healthz
       # D7 (docs/66): zabbix-web/evolution/guacamole são de profiles
       # opcionais (zabbix/evolution/remote) — fora do profile `app` os probes
       # ficavam Unhealthy e derrubavam /health. Ao habilitar o profile,
-      # readicione a entrada via env Health__Services__N__* neste compose.
+      # adicione a entrada via env Health__Services__N__* neste compose.
       # Fase 0: repasse de integração/monitoramento/notificação que existiam só
       # no appsettings — sem aqui a action legada do Zabbix cai no 401 (Token
       # vazio) e o SnmpSystem roda com o default "public"/161 da engenharia,
