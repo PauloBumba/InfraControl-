@@ -107,6 +107,6 @@ public sealed class TaskSlaPauseIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new PauseTaskSlaCommand(Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Operate).");
     }
 }

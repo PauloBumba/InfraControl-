@@ -102,6 +102,6 @@ public sealed class SloIntegrationTests : BaseIntegrationTest
             new CreateSloCommand("Sem permissão", 99.9m, 30, Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Operate).");
     }
 }

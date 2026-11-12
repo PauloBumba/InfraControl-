@@ -87,6 +87,6 @@ public sealed class KnowledgeArticleLinkIntegrationTests : BaseIntegrationTest
             new LinkKnowledgeArticleDeviceCommand(Guid.NewGuid(), Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'knowledge' (nível Operate).");
     }
 }

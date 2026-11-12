@@ -131,6 +131,6 @@ public sealed class SloBudgetIntegrationTests : BaseIntegrationTest
             Guid.NewGuid(), Start, null, 10m));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Operate).");
     }
 }

@@ -106,6 +106,6 @@ public sealed class SloMeasurementIntegrationTests : BaseIntegrationTest
             Guid.NewGuid(), DateTime.UtcNow, 99.9m));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Operate).");
     }
 }

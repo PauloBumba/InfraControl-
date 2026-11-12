@@ -1,3 +1,6 @@
+using InfraControl.Application.Common.Security;
+using InfraControl.Application.Operations.Backup.Ports;
+using InfraControl.Application.AI.Context;
 using InfraControl.Application;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.Alerts.Ports;
@@ -50,8 +53,9 @@ namespace InfraControl.IntegrationTests.Common;
 public abstract class BaseIntegrationTest : IAsyncLifetime
 {
     // Imagem já presente localmente — evita pull do Docker Hub (exige auth/rate limit).
+    // F51-T-R: pgvector/pg17 (a alpine não embute a extensão `vector`).
     private readonly PostgreSqlContainer _postgres =
-        new PostgreSqlBuilder("postgres:17-alpine").Build();
+        new PostgreSqlBuilder("pgvector/pgvector:pg17").Build();
 
     protected ServiceProvider Services { get; private set; } = null!;
 
@@ -313,10 +317,35 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         // Usuário de teste (roles são a fonte da verdade, ADR-016)
         services.AddSingleton<ICurrentUserContext>(CurrentUser);
 
+        // ADR-066: AuthorizationBehavior injeta IAccessPolicyService — o
+        // host de teste monta o pipeline à mão e não chama AddInfrastructure.
+        services.AddSingleton<ICacheService, InMemoryCacheService>();
+        services.AddScoped<Application.Common.Security.Ports.IAccessPolicyRepository,
+            InfraControl.Infrastructure.Repositories.AccessPolicyRepository>();
+        services.AddScoped<Application.Common.Security.Ports.IAccessRoleRepository,
+            InfraControl.Infrastructure.Repositories.AccessRoleRepository>();
+        services.AddScoped<Application.Common.Security.IAccessPolicyService,
+            Application.Common.Security.AccessPolicyService>();
+
+        // Handlers que ganharam dependências fora do grafo montado à mão:
+        // Retention (IBackupSettingsRepository) e Knowledge publish
+        // (IAiKnowledgeIngestion — degrada sem IVectorStore, ADR-038 §46).
+        services.AddScoped<Application.Operations.Backup.Ports.IBackupSettingsRepository,
+            BackupSettingsRepository>();
+        services.AddSingleton<IEmbeddingProvider>(FakeEmbeddingProvider.Instance);
+        services.AddScoped<IAiKnowledgeIngestion>(provider => new KnowledgeIngestionService(
+            provider.GetRequiredService<IMediator>(),
+            provider.GetRequiredService<IEmbeddingProvider>(),
+            vectorStore: null,
+            provider.GetRequiredService<ILogger<KnowledgeIngestionService>>()));
+
         Services = services.BuildServiceProvider();
 
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        // EnsureCreated cria o schema do MODELO (não roda migrations) — o
+        // CREATE EXTENSION do AddAiVectorStore nunca executa aqui (F51-T-R).
+        await dbContext.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS vector;");
         await dbContext.Database.EnsureCreatedAsync();
 
         // F24-T001/K1: o handler de criação de artigo stampa

@@ -11,9 +11,11 @@ import { FormField, FormError } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { TextArea } from "@/components/ui/TextArea";
 import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
+import { RESOLUTION_CODE_OPTIONS, resolutionCodeLabel } from "@/utils/resolutionCodes";
 
 import {
   useCreateMutation,
@@ -107,6 +109,29 @@ export function IncidentsPage() {
   // F50-T003 — causa raiz: null preserva no backend, "" limpa, texto grava.
   const [editRootCause, setEditRootCause] = useState("");
 
+  // F52-T001 — baixa justificada (ServiceNow): código + justificativa
+  // obrigatórios só na transição → Resolved (dialog curto ≤2 campos).
+  const [resolveTarget, setResolveTarget] = useState<IncidentItem | null>(null);
+  const [resolveCode, setResolveCode] = useState("Fixed");
+  const [resolveNote, setResolveNote] = useState("");
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  function submitResolve() {
+    if (!resolveTarget) return;
+    const note = resolveNote.trim();
+    if (!note) {
+      setResolveError("A justificativa da baixa é obrigatória.");
+      return;
+    }
+    setResolveError(null);
+    statusMutation.mutate({
+      id: resolveTarget.id,
+      status: "Resolved",
+      resolutionCode: resolveCode,
+      resolutionNote: note,
+    });
+  }
+
   // AI Investigation (ADR-053 · Fase C) — painel de análise LEVEL 0
   // aberto por incidente; resultado não é persistido no incidente.
   const [investigating, setInvestigating] = useState<IncidentItem | null>(null);
@@ -139,11 +164,22 @@ export function IncidentsPage() {
   });
   const statusMutation = useUpdateMutation({
     invalidate: ["incidents"],
-    mutationFn: (input: { id: string; status: string }) =>
-      changeIncidentStatus(input.id, input.status),
+    mutationFn: (input: {
+      id: string;
+      status: string;
+      resolutionCode?: string | null;
+      resolutionNote?: string | null;
+    }) =>
+      changeIncidentStatus(
+        input.id,
+        input.status,
+        input.resolutionCode,
+        input.resolutionNote,
+      ),
     onSuccess: (_data, vars) => {
       setActionError(null);
       setNotice(`Incidente movido para ${statusConfig[vars.status]?.label ?? vars.status}.`);
+      if (vars.status === "Resolved") setResolveTarget(null);
     },
     onError: (error) => setActionError(mutationErrorMessage(error)),
   });
@@ -298,6 +334,13 @@ export function IncidentsPage() {
         style={{ width }}
         onChange={(target) => {
           if (target === incident.status) return;
+          if (target === "Resolved") {
+            setResolveTarget(incident);
+            setResolveCode("Fixed");
+            setResolveNote("");
+            setResolveError(null);
+            return;
+          }
           statusMutation.mutate({ id: incident.id, status: target });
         }}
       />
@@ -466,6 +509,60 @@ export function IncidentsPage() {
           </div>
         </form>
       )}
+
+      <Dialog
+        visible={resolveTarget !== null}
+        onHide={() => setResolveTarget(null)}
+        header="Baixar incidente"
+        width={460}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setResolveTarget(null)}
+              disabled={statusMutation.isPending}
+              style={{ padding: "6px 14px" }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={submitResolve}
+              disabled={statusMutation.isPending}
+              style={{ padding: "6px 14px" }}
+            >
+              {statusMutation.isPending ? "Baixando…" : "Baixar"}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {resolveTarget && (
+            <div style={{ fontSize: 12, color: "#64748b" }}>{resolveTarget.title}</div>
+          )}
+          <FormField label="Código de baixa">
+            <SelectField
+              value={resolveCode}
+              onChange={setResolveCode}
+              options={RESOLUTION_CODE_OPTIONS}
+              disabled={statusMutation.isPending}
+            />
+          </FormField>
+          <FormField label="Justificativa (obrigatória — máx. 500)">
+            <TextArea
+              value={resolveNote}
+              onChange={setResolveNote}
+              rows={3}
+              maxLength={500}
+              placeholder="O que foi feito para fechar este incidente…"
+              disabled={statusMutation.isPending}
+            />
+          </FormField>
+          <FormError message={resolveError ?? ""} />
+        </div>
+      </Dialog>
 
       {investigating && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
@@ -670,6 +767,12 @@ function IncidentSummary({ incident }: { incident: IncidentItem }) {
         )}
         {incident.rootCause && (
           <div style={{ fontSize: 11, color: "#b45309" }}>Causa: {incident.rootCause}</div>
+        )}
+        {incident.resolutionCode && (
+          <div style={{ fontSize: 11, color: "#15803d" }}>
+            Baixa: {resolutionCodeLabel(incident.resolutionCode)}
+            {incident.resolutionNote ? ` — ${incident.resolutionNote}` : ""}
+          </div>
         )}
         {meta.length > 0 && (
           <div style={{ fontSize: 11, color: "#94a3b8" }}>{meta.join(" · ")}</div>

@@ -67,7 +67,7 @@ public sealed class ClientsIntegrationTests : BaseIntegrationTest
         var act = () => mediator.Send(new SearchClientsQuery());
 
         (await act.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'discovery' (nível Read).");
     }
 
     private static async Task SeedTwoRunsWithSameMacAsync(AppDbContext dbContext, Guid deviceId)

@@ -41,8 +41,9 @@ public sealed class E2EHost : IAsyncLifetime
     public const string UserPassword = "E2e@User123!";
     public const string ZabbixToken = "e2e-zabbix-token";
 
+    // F51-T-R: pgvector/pg17 (a alpine não embute a extensão `vector`).
     private readonly PostgreSqlContainer _postgres =
-        new PostgreSqlBuilder("postgres:17-alpine").Build();
+        new PostgreSqlBuilder("pgvector/pgvector:pg17").Build();
 
     private bool _quietWorkers;
 
@@ -82,6 +83,9 @@ public sealed class E2EHost : IAsyncLifetime
                 .UseNpgsql(_postgres.GetConnectionString())
                 .Options))
         {
+            // EnsureCreated cria o schema do MODELO (não roda migrations) —
+            // o CREATE EXTENSION do AddAiVectorStore nunca executa aqui (F51).
+            await schema.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS vector;");
             await schema.Database.EnsureCreatedAsync();
         }
 

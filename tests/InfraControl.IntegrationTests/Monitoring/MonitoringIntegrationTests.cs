@@ -53,7 +53,7 @@ public sealed class MonitoringIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new RunCheckCommand(device.Id, "Ping"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'monitoring' (nível Operate).");
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class MonitoringIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new RunCheckCommand(device.Id, "Ping"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'monitoring' (nível Operate).");
     }
 
     [Fact]

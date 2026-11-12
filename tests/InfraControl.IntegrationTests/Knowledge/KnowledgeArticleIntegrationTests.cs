@@ -98,7 +98,7 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
             new CreateKnowledgeArticleCommand("Sem permissão", "Conteúdo.", null));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'knowledge' (nível Operate).");
     }
 
     /// <summary>Cadeia completa via API: Draft → InReview → Approved →
@@ -180,6 +180,6 @@ public sealed class KnowledgeArticleIntegrationTests : BaseIntegrationTest
         var change = () => mediator.Send(
             new ChangeKnowledgeArticleStatusCommand(draft.Id, "published"));
         (await change.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'knowledge' (nível Operate).");
     }
 }

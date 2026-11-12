@@ -47,9 +47,13 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
         acknowledged.Status.Should().Be(nameof(IncidentStatus.Investigating));
 
         var resolved = await mediator.Send(
-            new UpdateIncidentStatusCommand(created.Id, "resolved"));
+            new UpdateIncidentStatusCommand(
+                created.Id, "resolved",
+                ResolutionCode: "Fixed", ResolutionNote: "Troca do switch"));
         resolved.Status.Should().Be(nameof(IncidentStatus.Resolved));
         resolved.ResolvedAt.Should().NotBeNull();
+        resolved.ResolutionCode.Should().Be("Fixed");
+        resolved.ResolutionNote.Should().Be("Troca do switch");
 
         var page = await mediator.Send(new SearchIncidentsQuery());
         var item = page.Items.Should().ContainSingle().Subject;
@@ -70,7 +74,7 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new SearchIncidentsQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'incidents' (nível Read).");
     }
 
     [Fact]
@@ -84,7 +88,7 @@ public sealed class IncidentIntegrationTests : BaseIntegrationTest
             new CreateIncidentCommand("x", IncidentSeverity.Low));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'incidents' (nível Operate).");
     }
 
     [Fact]

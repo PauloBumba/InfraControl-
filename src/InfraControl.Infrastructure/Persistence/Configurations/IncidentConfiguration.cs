@@ -45,6 +45,16 @@ public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(x => x.RootCause)
             .HasMaxLength(Incident.RootCauseMaxLength);
 
+        // F52-T001: baixa justificada (ServiceNow) — enum-string ADR-061.
+        builder.Property(x => x.ResolutionCode)
+            .HasColumnName("resolution_code")
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(x => x.ResolutionNote)
+            .HasColumnName("resolution_note")
+            .HasMaxLength(Incident.ResolutionNoteMaxLength);
+
         // Incidente de device excluído acompanha (mesma política dos alerts).
         builder.HasOne<Device>()
             .WithMany()

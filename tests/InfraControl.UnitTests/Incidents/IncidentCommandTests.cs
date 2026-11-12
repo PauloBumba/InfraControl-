@@ -123,16 +123,76 @@ public sealed class IncidentCommandTests : IDisposable
         var handler = new UpdateIncidentStatusCommandHandler(Repo(context));
 
         var resolved = await handler.Handle(
-            new UpdateIncidentStatusCommand(created.Id, "resolved"),
+            new UpdateIncidentStatusCommand(
+                created.Id, "resolved",
+                ResolutionCode: "Fixed", ResolutionNote: "Troca do switch"),
             CancellationToken.None);
         resolved.Status.Should().Be(nameof(IncidentStatus.Resolved));
         resolved.ResolvedAt.Should().NotBeNull();
+        resolved.ResolutionCode.Should().Be("Fixed");
+        resolved.ResolutionNote.Should().Be("Troca do switch");
 
         var reopened = await handler.Handle(
             new UpdateIncidentStatusCommand(created.Id, "monitoring"),
             CancellationToken.None);
         reopened.Status.Should().Be(nameof(IncidentStatus.Monitoring));
         reopened.ResolvedAt.Should().BeNull();
+        reopened.ResolutionCode.Should().BeNull();
+        reopened.ResolutionNote.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateStatus_ToResolved_WithoutCode_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateIncidentCommand("inc", IncidentSeverity.Low),
+            CancellationToken.None);
+
+        var action = () => new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
+            new UpdateIncidentStatusCommand(
+                created.Id, "resolved",
+                ResolutionCode: null, ResolutionNote: "nota"),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*Código de baixa inválido*");
+    }
+
+    [Fact]
+    public async Task UpdateStatus_ToResolved_WithoutNote_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateIncidentCommand("inc", IncidentSeverity.Low),
+            CancellationToken.None);
+
+        var action = () => new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
+            new UpdateIncidentStatusCommand(
+                created.Id, "resolved",
+                ResolutionCode: "Workaround", ResolutionNote: "  "),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*justificativa da baixa é obrigatória*");
+    }
+
+    [Fact]
+    public async Task UpdateStatus_ToResolved_WithInvalidCode_ShouldThrowArgumentPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var created = await CreateHandler(context).Handle(
+            new CreateIncidentCommand("inc", IncidentSeverity.Low),
+            CancellationToken.None);
+
+        var action = () => new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
+            new UpdateIncidentStatusCommand(
+                created.Id, "resolved",
+                ResolutionCode: "banana", ResolutionNote: "ok"),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage("*banana*");
     }
 
     [Fact]
@@ -191,7 +251,9 @@ public sealed class IncidentCommandTests : IDisposable
             CancellationToken.None);
 
         await new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
-            new UpdateIncidentStatusCommand(first.Id, "resolved"),
+            new UpdateIncidentStatusCommand(
+                first.Id, "resolved",
+                ResolutionCode: "NoAction", ResolutionNote: "duplicado de b"),
             CancellationToken.None);
 
         var open = await new SearchIncidentsQueryHandler(Repo(context)).Handle(
@@ -228,7 +290,9 @@ public sealed class IncidentCommandTests : IDisposable
             CancellationToken.None);
 
         await new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
-            new UpdateIncidentStatusCommand(first.Id, "resolved"),
+            new UpdateIncidentStatusCommand(
+                first.Id, "resolved",
+                ResolutionCode: "Fixed", ResolutionNote: "ok"),
             CancellationToken.None);
         await new UpdateIncidentStatusCommandHandler(Repo(context)).Handle(
             new UpdateIncidentStatusCommand(second.Id, "investigating"),

@@ -66,7 +66,7 @@ public sealed class ServiceIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new CreateServiceCommand("Sem Permissão"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Operate).");
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class ServiceIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new SearchServicesQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Read).");
     }
 
     [Fact]

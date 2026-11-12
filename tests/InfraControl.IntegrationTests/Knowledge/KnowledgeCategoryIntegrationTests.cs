@@ -91,6 +91,6 @@ public sealed class KnowledgeCategoryIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new CreateKnowledgeCategoryCommand("Sem permissão", null));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'knowledge' (nível Operate).");
     }
 }

@@ -68,8 +68,17 @@ public sealed class AcknowledgeIncidentCommandHandler(
     }
 }
 
-/// <summary>Troca o status (open|investigating|identified|monitoring|resolved).</summary>
-public sealed record UpdateIncidentStatusCommand(Guid Id, string Status)
+/// <summary>
+/// Troca o status (open|investigating|identified|monitoring|resolved).
+/// F52-T001: na transição → <c>resolved</c> exige código de baixa
+/// (enum-string) + justificativa; demais transições não usam os campos
+/// (auto-resolve do avaliador/ingestor não passa por aqui).
+/// </summary>
+public sealed record UpdateIncidentStatusCommand(
+    Guid Id,
+    string Status,
+    string? ResolutionCode = null,
+    string? ResolutionNote = null)
     : BaseCommand<IncidentDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
@@ -89,7 +98,17 @@ public sealed class UpdateIncidentStatusCommandHandler(
             ?? throw new KeyNotFoundException(
                 $"Incidente '{request.Id}' não encontrado.");
 
-        incident.ChangeStatus(status);
+        if (status == IncidentStatus.Resolved)
+        {
+            var code = ResolutionCodes.Parse(request.ResolutionCode);
+            incident.ChangeStatus(status);
+            incident.SetResolution(code, request.ResolutionNote ?? string.Empty);
+        }
+        else
+        {
+            incident.ChangeStatus(status);
+        }
+
         await repository.SaveChangesAsync(cancellationToken);
 
         return IncidentDto.From(incident);

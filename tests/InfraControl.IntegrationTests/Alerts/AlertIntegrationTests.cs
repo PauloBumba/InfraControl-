@@ -85,7 +85,7 @@ public sealed class AlertIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new SearchAlertsQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'monitoring' (nível Read).");
     }
 
     [Fact]

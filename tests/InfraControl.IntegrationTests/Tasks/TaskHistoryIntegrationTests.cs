@@ -69,7 +69,7 @@ public sealed class TaskHistoryIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetTaskHistoryQuery(Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'tasks' (nível Read).");
     }
 
     [Fact]

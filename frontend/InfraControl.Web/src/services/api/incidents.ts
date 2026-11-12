@@ -20,6 +20,8 @@ export interface IncidentItem {
   alertCount: number;
   alertIds: string[];
   rootCause: string | null;
+  resolutionCode: string | null;
+  resolutionNote: string | null;
 }
 
 /** `PagedResult<IncidentDto>` — o campo `data` do envelope. */
@@ -79,12 +81,22 @@ export function createIncident(input: {
  * Troca de status (PUT /incidents/{id}/status) — ciclo por estado no
  * backend (409/400 pt-BR quando a transição não é permitida). Sem DELETE
  * (ADR-030: ciclo por estado, exclusão não existe).
+ *
+ * F52-T001: na transição → `Resolved`, `resolutionCode`
+ * (Fixed|Workaround|Duplicate|NoAction|Other) e `resolutionNote` são
+ * obrigatórios no backend (ServiceNow); demais status não mandam os campos.
  */
 export async function changeIncidentStatus(
   id: string,
   status: string,
+  resolutionCode?: string | null,
+  resolutionNote?: string | null,
 ): Promise<IncidentItem | null> {
-  return api.put<IncidentItem>(`/incidents/${id}/status`, { status });
+  return api.put<IncidentItem>(`/incidents/${id}/status`, {
+    status,
+    resolutionCode: resolutionCode ?? undefined,
+    resolutionNote: resolutionNote ?? undefined,
+  });
 }
 
 /** Acknowledge (POST /incidents/{id}/acknowledge) — Open → Investigating. */

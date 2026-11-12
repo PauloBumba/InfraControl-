@@ -15,6 +15,7 @@ namespace InfraControl.Domain.Entities;
 public sealed class Incident : AggregateRoot
 {
     public const int RootCauseMaxLength = 500;
+    public const int ResolutionNoteMaxLength = 500;
 
     public string Title { get; private set; } = string.Empty;
     public string? Description { get; private set; }
@@ -28,6 +29,16 @@ public sealed class Incident : AggregateRoot
     /// pt-BR); null = manual ou ainda não resolvida.
     /// </summary>
     public string? RootCause { get; private set; }
+
+    /// <summary>
+    /// F52-T001: motivo da baixa (padrão ServiceNow) — gravado só na
+    /// transição humana → Resolved; auto-resolve (avaliador/ingestor)
+    /// deixa null. Limpo ao reabrir.
+    /// </summary>
+    public ResolutionCode? ResolutionCode { get; private set; }
+
+    /// <summary>F52-T001: justificativa da baixa (obrigatória com o código).</summary>
+    public string? ResolutionNote { get; private set; }
 
     private Incident() { }
 
@@ -77,10 +88,35 @@ public sealed class Incident : AggregateRoot
         }
         else
         {
+            // Reabertura limpa o carimbo e a baixa (espelho do ResolvedAt).
             ResolvedAt = null;
+            ResolutionCode = null;
+            ResolutionNote = null;
         }
 
         RaiseDomainEvent(new IncidentUpdatedDomainEvent(Id, Status));
+    }
+
+    /// <summary>
+    /// F52-T001: grava código + justificativa da baixa (ServiceNow).
+    /// Justificativa obrigatória e ≤ <see cref="ResolutionNoteMaxLength"/>.
+    /// </summary>
+    public void SetResolution(ResolutionCode code, string note)
+    {
+        if (!Enum.IsDefined(code))
+            throw new ArgumentException("Código de baixa inválido.", nameof(code));
+
+        var trimmed = note?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+            throw new ArgumentException(
+                "A justificativa da baixa é obrigatória.", nameof(note));
+        if (trimmed.Length > ResolutionNoteMaxLength)
+            throw new ArgumentException(
+                $"A justificativa da baixa deve ter no máximo {ResolutionNoteMaxLength} caracteres.",
+                nameof(note));
+
+        ResolutionCode = code;
+        ResolutionNote = trimmed;
     }
 
     public void Acknowledge()

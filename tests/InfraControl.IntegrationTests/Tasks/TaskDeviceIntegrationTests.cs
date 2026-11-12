@@ -75,6 +75,6 @@ public sealed class TaskDeviceIntegrationTests : BaseIntegrationTest
             new LinkTaskDeviceCommand(Guid.NewGuid(), Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'tasks' (nível Operate).");
     }
 }

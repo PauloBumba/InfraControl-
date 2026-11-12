@@ -1,6 +1,6 @@
 using System.Security.Claims;
-using System.Text.Json;
 using InfraControl.Application.Common.Security;
+using InfraControl.BuildingBlocks.Application.Response;
 using InfraControl.Domain.Access;
 using InfraControl.Domain.Enums;
 using Microsoft.AspNetCore.Http;
@@ -13,6 +13,7 @@ namespace InfraControl.Api.Middleware;
 /// de <c>UseAuthorization</c>: usuário autenticado + módulo catalogado com
 /// grant <see cref="AccessLevel.None"/> → 403. Módulo desconhecido ou
 /// não autenticado → segue o fluxo normal.
+/// O corpo é o envelope <c>ApiResponse</c> (F0-T023 — nunca <c>{success}</c> cru).
 /// </summary>
 public sealed class AccessPolicyMiddleware(RequestDelegate next)
 {
@@ -38,12 +39,12 @@ public sealed class AccessPolicyMiddleware(RequestDelegate next)
                 if (!allowed)
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync(JsonSerializer.Serialize(new
-                    {
-                        success = false,
-                        message = $"Acesso negado ao módulo '{moduleKey}'.",
-                    }));
+                    await context.Response.WriteAsJsonAsync(
+                        ApiResponse<object>.Fail(
+                        [
+                            $"Acesso negado ao módulo '{moduleKey}' (nível Read)."
+                        ]),
+                        context.RequestAborted);
                     return;
                 }
             }

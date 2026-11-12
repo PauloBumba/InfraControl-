@@ -92,7 +92,7 @@ public sealed class NotificationPreferenceIntegrationTests : BaseIntegrationTest
             Guid.NewGuid(), NotificationChannel.Email, Enabled: true));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: *");
+            .WithMessage("Acesso negado ao módulo 'notifications' (nível *).");
     }
 
     [Fact]

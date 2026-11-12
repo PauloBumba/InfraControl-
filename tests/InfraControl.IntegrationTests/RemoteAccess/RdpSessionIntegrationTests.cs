@@ -53,7 +53,7 @@ public sealed class RdpSessionIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new OpenRdpSessionCommand(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'inventory' (nível Operate).");
         (await dbContext.RemoteSessions.CountAsync()).Should().Be(0);
     }
 
@@ -70,7 +70,7 @@ public sealed class RdpSessionIntegrationTests : BaseIntegrationTest
             new CloseRemoteSessionCommand(device.Id, Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'inventory' (nível Operate).");
     }
 
     [Fact]

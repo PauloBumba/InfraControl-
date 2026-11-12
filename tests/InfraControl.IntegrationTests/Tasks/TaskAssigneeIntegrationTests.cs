@@ -88,6 +88,6 @@ public sealed class TaskAssigneeIntegrationTests : BaseIntegrationTest
             new AssignTaskCommand(Guid.NewGuid(), Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'tasks' (nível Operate).");
     }
 }

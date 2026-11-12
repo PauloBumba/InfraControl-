@@ -88,7 +88,7 @@ public sealed class SlaPolicyIntegrationTests : BaseIntegrationTest
             new CreateSlaPolicyCommand("Sem permissão", 30, 480));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'sla' (nível Operate).");
     }
 
     [Fact]

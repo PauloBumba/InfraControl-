@@ -67,7 +67,9 @@ public sealed class IncidentsController(ISender sender) : BaseController
         [FromBody] UpdateIncidentStatusViewModel model,
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new UpdateIncidentStatusCommand(id, model.Status), cancellationToken)));
+            new UpdateIncidentStatusCommand(
+                id, model.Status, model.ResolutionCode, model.ResolutionNote),
+            cancellationToken)));
 
     /// <summary>
     /// CRUD-Incidentes (2026-10-12): edição dos campos descritivos

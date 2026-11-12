@@ -73,7 +73,7 @@ public sealed class TaskCommentIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetTaskCommentsQuery(Guid.NewGuid()));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'tasks' (nível Read).");
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class TaskCommentIntegrationTests : BaseIntegrationTest
             new AddTaskCommentCommand(Guid.NewGuid(), "comentário"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'tasks' (nível Operate).");
     }
 
     [Fact]

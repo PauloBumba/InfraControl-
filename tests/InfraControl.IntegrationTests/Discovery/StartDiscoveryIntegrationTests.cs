@@ -49,7 +49,7 @@ public sealed class StartDiscoveryIntegrationTests : BaseIntegrationTest
         var act = () => mediator.Send(new StartDiscoveryCommand(device.Id, "Icmp"));
 
         (await act.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'discovery' (nível Operate).");
     }
 
     [Fact]

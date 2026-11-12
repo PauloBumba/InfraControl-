@@ -51,7 +51,7 @@ public sealed class DeviceCredentialIntegrationTests : BaseIntegrationTest
             device.Id, "svc", "Senha!1"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin");
+            .WithMessage("Acesso negado ao módulo 'inventory' (nível Administer).");
         (await dbContext.DeviceCredentials.CountAsync()).Should().Be(0);
     }
 
@@ -105,6 +105,6 @@ public sealed class DeviceCredentialIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetDeviceCredentialQuery(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin");
+            .WithMessage("Acesso negado ao módulo 'inventory' (nível Administer).");
     }
 }

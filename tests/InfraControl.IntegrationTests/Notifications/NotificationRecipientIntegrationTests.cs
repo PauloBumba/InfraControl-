@@ -96,6 +96,6 @@ public sealed class NotificationRecipientIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetNotificationRecipientsQuery(Guid.NewGuid()));
 
         var ex = await action.Should().ThrowAsync<UnauthorizedAccessException>();
-        ex.WithMessage("Roles ausentes: *");
+        ex.WithMessage("Acesso negado ao módulo 'notifications' (nível *).");
     }
 }

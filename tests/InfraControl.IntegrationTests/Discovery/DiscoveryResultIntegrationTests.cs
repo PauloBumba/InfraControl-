@@ -47,7 +47,7 @@ public sealed class DiscoveryResultIntegrationTests : BaseIntegrationTest
         var act = () => mediator.Send(new SearchDiscoveryResultsQuery(Guid.NewGuid()));
 
         (await act.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'discovery' (nível Read).");
     }
 
     [Fact]

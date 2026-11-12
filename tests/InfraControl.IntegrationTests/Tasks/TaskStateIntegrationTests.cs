@@ -115,7 +115,7 @@ public sealed class TaskStateIntegrationTests : BaseIntegrationTest
             new ChangeTaskStateCommand(Guid.NewGuid(), "InProgress"));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator");
+            .WithMessage("Acesso negado ao módulo 'tasks' (nível Operate).");
     }
 
     [Fact]

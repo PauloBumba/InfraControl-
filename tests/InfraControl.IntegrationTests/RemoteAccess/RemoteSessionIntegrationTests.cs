@@ -63,7 +63,7 @@ public sealed class RemoteSessionIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetDeviceSessionsQuery(device.Id));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin, Operator, Viewer");
+            .WithMessage("Acesso negado ao módulo 'inventory' (nível Read).");
     }
 
     private static async Task SeedSessionsAsync(

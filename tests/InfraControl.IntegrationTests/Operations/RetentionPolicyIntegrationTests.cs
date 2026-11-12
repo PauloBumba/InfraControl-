@@ -79,7 +79,7 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
             RetentionDataType.AuditEntries, 30));
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin");
+            .WithMessage("Acesso negado ao módulo 'operations' (nível Administer).");
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
         var action = () => mediator.Send(new GetRetentionPoliciesQuery());
 
         (await action.Should().ThrowAsync<UnauthorizedAccessException>())
-            .WithMessage("Roles ausentes: Admin");
+            .WithMessage("Acesso negado ao módulo 'operations' (nível Administer).");
     }
 
     [Fact]
