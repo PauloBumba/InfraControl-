@@ -407,13 +407,43 @@ export function AccountPage() {
         </form>
       </div>
 
-      {/* ── Senha (F26-T001) ──────────────────────────────────────────── */}
-      <section className="uni-card" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-        <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--uni-text-primary)" }}>Segurança</h2>
-          <p style={{ fontSize: 13, color: "var(--uni-text-muted)", margin: 0 }}>
-            Altere sua senha. Ao trocar, todas as sessões ativas serão encerradas.
-          </p>
+      {/* ── Senha (F26-T001 · F52-T007) ────────────────────────────────── */}
+      <section
+        className="uni-card"
+        style={{
+          padding: 28,
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+          maxWidth: 640,
+        }}
+      >
+        <header style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: "linear-gradient(135deg,#1e3a8a,#3b82f6)",
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              flexShrink: 0,
+            }}
+          >
+            <i className="pi pi-shield" />
+          </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--uni-text-primary)" }}>
+              Alterar senha
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--uni-text-muted)", margin: 0 }}>
+              Troque sua senha de acesso. Ao confirmar, todas as sessões ativas serão encerradas.
+            </p>
+          </div>
         </header>
 
         <div className="uni-alert uni-alert-info" role="note">
@@ -423,62 +453,56 @@ export function AccountPage() {
           </span>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="current-password" style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>Senha atual</label>
-            <div className="uni-input-group">
-              <input
-                id="current-password"
-                className="uni-input uni-input-with-icon"
-                type={showCurrent ? "text" : "password"}
-                autoComplete="current-password"
-                value={current}
-                onChange={(event) => setCurrent(event.target.value)}
-                required
-              />
-              <button type="button" className="uni-input-action" onClick={() => setShowCurrent((v) => !v)} aria-label={showCurrent ? "Ocultar senha" : "Mostrar senha"}>
-                <i className={showCurrent ? "pi pi-eye-slash" : "pi pi-eye"} />
-              </button>
-            </div>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <PasswordField
+            id="current-password"
+            label="Senha atual"
+            autoComplete="current-password"
+            value={current}
+            onChange={setCurrent}
+            visible={showCurrent}
+            onToggle={() => setShowCurrent((v) => !v)}
+          />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <PasswordField
+              id="new-password"
+              label="Nova senha"
+              autoComplete="new-password"
+              value={next}
+              onChange={setNext}
+              visible={showNext}
+              onToggle={() => setShowNext((v) => !v)}
+            />
+            {next.length > 0 && <PasswordPolicyChecklist value={next} />}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="new-password" style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>Nova senha</label>
-            <div className="uni-input-group">
-              <input
-                id="new-password"
-                className="uni-input uni-input-with-icon"
-                type={showNext ? "text" : "password"}
-                autoComplete="new-password"
-                value={next}
-                onChange={(event) => setNext(event.target.value)}
-                required
-              />
-              <button type="button" className="uni-input-action" onClick={() => setShowNext((v) => !v)} aria-label={showNext ? "Ocultar senha" : "Mostrar senha"}>
-                <i className={showNext ? "pi pi-eye-slash" : "pi pi-eye"} />
-              </button>
-            </div>
-            <span style={{ fontSize: 12, color: "var(--uni-text-muted)" }}>
-              Mínimo de 6 caracteres, com dígito, maiúscula, minúscula e caractere especial.
-            </span>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label htmlFor="confirm-password" style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>Confirmar nova senha</label>
-            <div className="uni-input-group">
-              <input
-                id="confirm-password"
-                className="uni-input uni-input-with-icon"
-                type={showConfirm ? "text" : "password"}
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
-                required
-              />
-              <button type="button" className="uni-input-action" onClick={() => setShowConfirm((v) => !v)} aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}>
-                <i className={showConfirm ? "pi pi-eye-slash" : "pi pi-eye"} />
-              </button>
-            </div>
+            <PasswordField
+              id="confirm-password"
+              label="Confirmar nova senha"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={setConfirm}
+              visible={showConfirm}
+              onToggle={() => setShowConfirm((v) => !v)}
+            />
+            {confirm.length > 0 && next.length > 0 && (
+              <span
+                role="status"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: confirm === next ? "#15803d" : "#b91c1c",
+                }}
+              >
+                <i className={`pi ${confirm === next ? "pi-check-circle" : "pi-times-circle"}`} />
+                {confirm === next ? "As senhas conferem." : "As senhas não conferem."}
+              </span>
+            )}
           </div>
 
           {error && (
@@ -488,14 +512,114 @@ export function AccountPage() {
             </div>
           )}
 
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <Button
+              type="button"
+              variant="ghost"
+              style={{ padding: "8px 16px" }}
+              disabled={pending}
+              onClick={() => {
+                setCurrent("");
+                setNext("");
+                setConfirm("");
+                setError(null);
+              }}
+            >
+              Limpar
+            </Button>
             <button className="uni-btn uni-btn-primary" type="submit" disabled={pending}>
               <i className={`pi ${pending ? "pi-spin pi-spinner" : "pi-key"}`} />
-              <span>Trocar senha</span>
+              <span>{pending ? "Trocando..." : "Trocar senha"}</span>
             </button>
           </div>
         </form>
       </section>
     </div>
+  );
+}
+
+/** Campo de senha com label + toggle de visibilidade (F52-T007). */
+function PasswordField({
+  id,
+  label,
+  autoComplete,
+  value,
+  onChange,
+  visible,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  autoComplete: string;
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 500, color: "var(--uni-text-primary)" }}>
+        {label}
+      </label>
+      <div className="uni-input-group">
+        <input
+          id={id}
+          className="uni-input uni-input-with-icon"
+          type={visible ? "text" : "password"}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          required
+        />
+        <button
+          type="button"
+          className="uni-input-action"
+          onClick={onToggle}
+          aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+        >
+          <i className={visible ? "pi pi-eye-slash" : "pi pi-eye"} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Checklist vivo da política de senha (espelho do Identity — só feedback). */
+function PasswordPolicyChecklist({ value }: { value: string }) {
+  return (
+    <ul
+      aria-label="Requisitos da nova senha"
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+      }}
+    >
+      {PASSWORD_POLICY.map((rule) => {
+        const ok = rule.test(value);
+        return (
+          <li
+            key={rule.message}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: ok ? "#15803d" : "#64748b",
+              fontWeight: ok ? 500 : 400,
+            }}
+          >
+            <i className={`pi ${ok ? "pi-check-circle" : "pi-circle"}`} />
+            <span>{rule.message.replace(/^A nova senha precisa de /, "")}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

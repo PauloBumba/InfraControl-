@@ -97,6 +97,29 @@ describe("AccountPage", () => {
     expect(await screen.findByText("Senha atual incorreta.")).toBeInTheDocument();
   });
 
+  it("should show the live policy checklist and confirmation hint (F52-T007)", async () => {
+    changePasswordMock.mockResolvedValue(undefined);
+    renderPage();
+
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Senha atual"), "Atual!123456");
+    await user.type(screen.getByLabelText("Nova senha", { selector: "input" }), "Nova!Senha123");
+
+    // checklist da política visível enquanto digita
+    const checklist = await screen.findByLabelText("Requisitos da nova senha");
+    expect(checklist).toBeInTheDocument();
+
+    // confirmação ainda vazia → sem indicador de match
+    expect(screen.queryByText("As senhas conferem.")).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "Nova!Senha124");
+    expect(await screen.findByText("As senhas não conferem.")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Confirmar nova senha"));
+    await user.type(screen.getByLabelText("Confirmar nova senha"), "Nova!Senha123");
+    expect(await screen.findByText("As senhas conferem.")).toBeInTheDocument();
+  });
+
   it("should redirect to /login after a successful change (sessions revoked server-side)", async () => {
     changePasswordMock.mockResolvedValue(undefined);
     render(
