@@ -15,7 +15,8 @@ public sealed record AiInvestigationDto(
     IReadOnlyList<AiChatEvidenceDto> Evidences,
     string Provider,
     string Model,
-    bool UsedFallback);
+    bool UsedFallback,
+    long DurationMs);
 
 /// <summary>
 /// Investiga um incidente com IA (ADR-053 · Fase C): dados do incidente
@@ -79,7 +80,8 @@ public sealed class InvestigateIncidentCommandHandler(
                 .ToList(),
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     /// <summary>

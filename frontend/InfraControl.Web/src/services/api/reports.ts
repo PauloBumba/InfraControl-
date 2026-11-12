@@ -68,6 +68,7 @@ export interface TransversalAiSummary {
   provider: string;
   model: string;
   usedFallback: boolean;
+  durationMs: number;
 }
 
 export function summarizeTransversalReport(
@@ -392,8 +393,8 @@ export function getAutomaticReport(cadence: ReportCadence): Promise<AutomaticRep
 export function summarizeGerencialReport(
   from?: string | null,
   to?: string | null,
-): Promise<{ summary: string; provider: string; model: string; usedFallback: boolean }> {
+): Promise<{ summary: string; provider: string; model: string; usedFallback: boolean; durationMs: number }> {
   return api.post(
     `/reports/gerencial/ai-interpretation${buildQuery(from, to)}`,
-  ) as Promise<{ summary: string; provider: string; model: string; usedFallback: boolean }>;
+  ) as Promise<{ summary: string; provider: string; model: string; usedFallback: boolean; durationMs: number }>;
 }

@@ -726,6 +726,12 @@ export function AiProvidersPage() {
                 fallbackProviderId: route.fallbackProviderId ?? "",
                 fallbackModel: route.fallbackModel ?? "",
               };
+              const routeProvider = providers.find((provider) => provider.id === draft.providerId);
+              const fallbackProvider = providers.find(
+                (provider) => provider.id === draft.fallbackProviderId,
+              );
+              const modelListId = `models-${route.capability}`;
+              const fallbackModelListId = `models-fallback-${route.capability}`;
               return (
                 <tr key={route.capability} style={{ borderTop: "1px solid #f1f5f9" }}>
                   <td style={{ padding: "8px", fontWeight: 500 }}>{route.capability}</td>
@@ -794,10 +800,20 @@ export function AiProvidersPage() {
                               [route.capability]: { ...draft, defaultModel: event.target.value },
                             }))
                           }
-                          placeholder="modelo default (ex.: llama3.2)"
+                          placeholder={
+                            routeProvider?.models.length
+                              ? "selecione o modelo padrão"
+                              : "modelo default (ex.: llama3.2)"
+                          }
+                          list={modelListId}
                           style={inputStyle}
                           autoComplete="off"
                         />
+                        <datalist id={modelListId}>
+                          {(routeProvider?.models ?? []).map((model) => (
+                            <option key={model} value={model} />
+                          ))}
+                        </datalist>
                         <select
                           value={draft.fallbackProviderId}
                           onChange={(event) =>
@@ -825,10 +841,20 @@ export function AiProvidersPage() {
                               [route.capability]: { ...draft, fallbackModel: event.target.value },
                             }))
                           }
-                          placeholder="modelo de fallback (opcional)"
+                          placeholder={
+                            fallbackProvider?.models.length
+                              ? "selecione o modelo de fallback"
+                              : "modelo de fallback (opcional)"
+                          }
+                          list={fallbackModelListId}
                           style={inputStyle}
                           autoComplete="off"
                         />
+                        <datalist id={fallbackModelListId}>
+                          {(fallbackProvider?.models ?? []).map((model) => (
+                            <option key={model} value={model} />
+                          ))}
+                        </datalist>
                         <div style={{ display: "flex", gap: 6 }}>
                           <Button
                             type="button"

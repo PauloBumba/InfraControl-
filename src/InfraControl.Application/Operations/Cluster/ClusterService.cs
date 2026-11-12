@@ -52,7 +52,8 @@ public sealed record ClusterInsightDto(
     string Analysis,
     string Provider,
     string Model,
-    bool UsedFallback);
+    bool UsedFallback,
+    long DurationMs);
 
 // ------------------------------------------------------------------
 // Queries / Commands
@@ -307,7 +308,8 @@ public sealed class GetClusterInsightsCommandHandler(
             completion.Text,
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     /// <summary>
@@ -520,7 +522,8 @@ public sealed class GetDockerLogsInsightCommandHandler(
             completion.Text,
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     /// <summary>Dossiê coletado de um container: alvo + inspect + métricas + logs.</summary>

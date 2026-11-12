@@ -129,6 +129,7 @@ export interface InvestigationResult {
   provider: string;
   model: string;
   usedFallback: boolean;
+  durationMs: number;
 }
 
 export function investigateIncident(id: string): Promise<InvestigationResult> {

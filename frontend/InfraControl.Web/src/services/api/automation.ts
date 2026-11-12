@@ -18,6 +18,7 @@ export interface AutomationRecommendations {
   provider: string;
   model: string;
   usedFallback: boolean;
+  durationMs: number;
 }
 
 export function generateAutomationRecommendations(): Promise<AutomationRecommendations> {

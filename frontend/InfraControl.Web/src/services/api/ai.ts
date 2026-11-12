@@ -25,6 +25,7 @@ export interface AiChatResponse {
   provider: string;
   model: string;
   usedFallback: boolean;
+  durationMs: number;
 }
 
 /** Envia a conversa (últimas 20 turns; a última é do usuário). */

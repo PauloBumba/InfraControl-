@@ -121,6 +121,7 @@ export interface ClusterInsight {
   provider: string;
   model: string;
   usedFallback: boolean;
+  durationMs: number;
 }
 
 export interface ServiceInstanceInput {

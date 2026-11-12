@@ -12,7 +12,8 @@ public sealed record TransversalAiSummaryDto(
     string Summary,
     string Provider,
     string Model,
-    bool UsedFallback);
+    bool UsedFallback,
+    long DurationMs);
 
 /// <summary>
 /// Resumo do relatório transversal com IA (Fase E · docs/34 §37 —
@@ -54,7 +55,8 @@ public sealed class SummarizeTransversalReportCommandHandler(
             completion.Text,
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     /// <summary>

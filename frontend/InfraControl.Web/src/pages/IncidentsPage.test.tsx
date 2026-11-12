@@ -246,6 +246,7 @@ describe("IncidentsPage — investigação com IA", () => {
       provider: "ollama",
       model: "qwen2.5-coder:1.5b",
       usedFallback: false,
+      durationMs: 3200,
     });
 
     renderPage();
@@ -366,6 +367,7 @@ describe("IncidentsPage — investigação não cruza painéis (H7)", () => {
       provider: string;
       model: string;
       usedFallback: boolean;
+      durationMs: number;
     }) => void;
     const slowA = new Promise<Parameters<typeof resolveA>[0]>((resolve) => {
       resolveA = resolve;
@@ -378,6 +380,7 @@ describe("IncidentsPage — investigação não cruza painéis (H7)", () => {
         provider: "ollama",
         model: "qwen2.5-coder:1.5b",
         usedFallback: false,
+        durationMs: 3200,
       });
 
     renderPage();
@@ -398,6 +401,7 @@ describe("IncidentsPage — investigação não cruza painéis (H7)", () => {
         provider: "ollama",
         model: "qwen2.5-coder:1.5b",
         usedFallback: false,
+        durationMs: 3200,
       });
     });
 

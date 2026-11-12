@@ -4,6 +4,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { useCan } from "@/app/router/access";
+import { formatAiDuration } from "@/utils/format";
 import {
   exportReportHistory,
   exportTransversalReport,
@@ -72,7 +73,7 @@ export function ReportsPage() {
   const [cadence, setCadence] = useState<ReportCadence>("mensal");
   const [automatic, setAutomatic] = useState<AutomaticReport | null>(null);
   const [autoLoading, setAutoLoading] = useState(false);
-  const [gerAi, setGerAi] = useState<string | null>(null);
+  const [gerAi, setGerAi] = useState<{ summary: string; provider: string; model: string; usedFallback: boolean; durationMs: number } | null>(null);
   const [gerAiLoading, setGerAiLoading] = useState(false);
 
   const loadAutomatic = useCallback(async () => {
@@ -92,7 +93,7 @@ export function ReportsPage() {
     setError(null);
     try {
       const result = await summarizeGerencialReport(from || null, to || null);
-      setGerAi(result.summary);
+      setGerAi(result);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "IA não disponível (sem provider configurado).");
     } finally {
@@ -799,8 +800,15 @@ export function ReportsPage() {
 
         {gerAi && (
           <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Interpretação com IA (gerencial)</div>
-            <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{gerAi}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+              Interpretação com IA (gerencial){" "}
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#94a3b8" }}>
+                {gerAi.provider} · {gerAi.model}
+                {gerAi.usedFallback ? " (fallback)" : ""}
+                {formatAiDuration(gerAi.durationMs) && ` · ${formatAiDuration(gerAi.durationMs)}`}
+              </span>
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{gerAi.summary}</div>
           </div>
         )}
       </div>
@@ -828,6 +836,7 @@ export function ReportsPage() {
             <span style={{ fontSize: 11, color: "#94a3b8" }}>
               LEVEL 0 · {aiSummary.provider} · {aiSummary.model}
               {aiSummary.usedFallback ? " (fallback)" : ""}
+              {formatAiDuration(aiSummary.durationMs) && ` · ${formatAiDuration(aiSummary.durationMs)}`}
             </span>
           </div>
           <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>

@@ -30,7 +30,7 @@ public sealed class AiChatTests
             .Returns(EvidenceSet.Empty);
         _gateway
             .Setup(g => g.CompleteAsync(It.IsAny<AiCompletionRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AiCompletion("resposta grounded", "ollama", "qwen2.5-coder:1.5b", 10, 20, false));
+            .ReturnsAsync(new AiCompletion("resposta grounded", "ollama", "qwen2.5-coder:1.5b", 10, 20, false, 1234));
         _currentUser.Setup(c => c.UserName).Returns("ana@exemplo.com");
     }
 
@@ -54,6 +54,7 @@ public sealed class AiChatTests
         response.Provider.Should().Be("ollama");
         response.Model.Should().Be("qwen2.5-coder:1.5b");
         response.UsedFallback.Should().BeFalse();
+        response.DurationMs.Should().Be(1234);
     }
 
     [Fact]

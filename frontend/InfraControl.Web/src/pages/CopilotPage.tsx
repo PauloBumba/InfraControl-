@@ -12,6 +12,7 @@ import {
   generateAutomationRecommendations,
   type AutomationRecommendation,
 } from "@/services/api/automation";
+import { formatAiDuration } from "@/utils/format";
 
 /** Mensagem da tela: turno + anexos de evidência quando é do assistente. */
 interface ChatView {
@@ -21,6 +22,7 @@ interface ChatView {
   provider?: string;
   model?: string;
   usedFallback?: boolean;
+  durationMs?: number;
 }
 
 const MAX_TURNS = 20;
@@ -49,7 +51,7 @@ export function CopilotPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [recommendations, setRecommendations] = useState<AutomationRecommendation[]>([]);
-  const [recMeta, setRecMeta] = useState<{ provider: string; model: string } | null>(null);
+  const [recMeta, setRecMeta] = useState<{ provider: string; model: string; durationMs?: number } | null>(null);
   const [recLoading, setRecLoading] = useState(false);
   const [recError, setRecError] = useState<string | null>(null);
   const [recNotConfigured, setRecNotConfigured] = useState(false);
@@ -63,7 +65,7 @@ export function CopilotPage() {
     try {
       const response = await generateAutomationRecommendations();
       setRecommendations(response.items);
-      setRecMeta({ provider: response.provider, model: response.model });
+      setRecMeta({ provider: response.provider, model: response.model, durationMs: response.durationMs });
       setRecLoaded(true);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 503) {
@@ -106,6 +108,7 @@ export function CopilotPage() {
           provider: response.provider,
           model: response.model,
           usedFallback: response.usedFallback,
+          durationMs: response.durationMs,
         },
       ]);
     } catch (caught) {
@@ -233,6 +236,7 @@ export function CopilotPage() {
                 <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6 }}>
                   {view.provider} · {view.model}
                   {view.usedFallback ? " (fallback)" : ""}
+                  {formatAiDuration(view.durationMs) && ` · ${formatAiDuration(view.durationMs)}`}
                 </div>
               )}
             </div>
@@ -384,7 +388,8 @@ export function CopilotPage() {
               );
             })}
             <div style={{ fontSize: 10, color: "#94a3b8" }}>
-              {recMeta?.provider} · {recMeta?.model} — LEVEL 1: nenhuma ação é
+              {recMeta?.provider} · {recMeta?.model}
+              {formatAiDuration(recMeta?.durationMs) && ` · ${formatAiDuration(recMeta?.durationMs)}`} — LEVEL 1: nenhuma ação é
               executada por esta IA.
             </div>
           </div>

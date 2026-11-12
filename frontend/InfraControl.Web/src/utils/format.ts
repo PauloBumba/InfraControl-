@@ -51,6 +51,17 @@ export function formatUptime(seconds: number | null | undefined): string {
   return `${total}s`;
 }
 
+/** Latência de IA em ms → "850ms" / "1.2s" / "2m 5s"; ausente ⇒ "". */
+export function formatAiDuration(durationMs: number | null | undefined): string {
+  if (durationMs == null || !Number.isFinite(durationMs) || durationMs < 0) return "";
+  if (durationMs < 1000) return `${Math.round(durationMs)}ms`;
+  const totalSeconds = durationMs / 1000;
+  if (totalSeconds < 60) return `${totalSeconds.toFixed(1)}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.round(totalSeconds % 60);
+  return `${minutes}m ${seconds}s`;
+}
+
 /** Bytes → "512 MB" / "1.2 GB"; null/negativo ⇒ "—". */
 export function formatBytes(bytes: number | null | undefined): string {
   if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";

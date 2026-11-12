@@ -11,7 +11,8 @@ public sealed record AiReportSummaryDto(
     string Summary,
     string Provider,
     string Model,
-    bool UsedFallback);
+    bool UsedFallback,
+    long DurationMs);
 
 /// <summary>
 /// F25-T006 §16 — interpretação por IA do relatório gerencial do período
@@ -52,7 +53,8 @@ public sealed class SummarizeGerencialReportCommandHandler(
             completion.Text,
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     /// <summary>

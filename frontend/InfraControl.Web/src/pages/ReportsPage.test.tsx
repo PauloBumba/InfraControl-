@@ -103,6 +103,7 @@ describe("ReportsPage — resumo com IA", () => {
       provider: "ollama",
       model: "qwen2.5-coder:1.5b",
       usedFallback: false,
+      durationMs: 5400,
     });
     renderPage();
     const user = userEvent.setup();

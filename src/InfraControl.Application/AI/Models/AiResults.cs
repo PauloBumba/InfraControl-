@@ -13,7 +13,10 @@ public sealed record AiCompletion(
     string Model,
     long? PromptTokens,
     long? CompletionTokens,
-    bool UsedFallback);
+    bool UsedFallback,
+    // Latência total do gateway (resolução + provider + fallback) em ms —
+    // exibida ao usuário ("demorou Xs") e auditada via AiAuditEntry.
+    long DurationMs = 0);
 
 /// <summary>
 /// Entrada de auditoria de 1 request de IA (ADR-036/040 · §41/§43/§54):

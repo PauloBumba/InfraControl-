@@ -143,12 +143,14 @@ beforeEach(() => {
     provider: "ollama",
     model: "llama3",
     usedFallback: false,
+    durationMs: 850,
   });
   logsInsightMock.mockResolvedValue({
     analysis: "Sem erros nos logs.",
     provider: "ollama",
     model: "llama3",
     usedFallback: false,
+    durationMs: 850,
   });
   checkAllMock.mockResolvedValue(OVERVIEW);
 });

@@ -321,9 +321,16 @@ public sealed class AccessPolicyService(
     ICacheService cache,
     ILogger<AccessPolicyService> logger) : IAccessPolicyService
 {
-    private const string CacheKey = "access-policy:rules";
+    // v2: a entidade AccessPolicyRule não faz round-trip no System.Text.Json
+    // (ctor privado + setters privados) — cachear DTO em vez do agregado.
+    private const string CacheKey = "access-policy:rules:v2";
     private const string RolesCacheKey = "access-policy:roles";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>Shape serializável da regra para o cache (evita envenenar
+    /// o fallback/Redis com JSON que não volta para a entidade).</summary>
+    private sealed record CachedAccessRule(
+        string RoleKey, string ModuleKey, AccessLevel Level);
 
     private static readonly string[] BuiltInRoles =
         [nameof(UserRole.Viewer), nameof(UserRole.Operator), nameof(UserRole.Admin)];
@@ -455,12 +462,20 @@ public sealed class AccessPolicyService(
     private async Task<IReadOnlyList<AccessPolicyRule>> LoadRulesAsync(
         CancellationToken cancellationToken)
     {
-        var cached = await cache.GetAsync<List<AccessPolicyRule>>(CacheKey, cancellationToken);
+        var cached = await cache.GetAsync<List<CachedAccessRule>>(CacheKey, cancellationToken);
         if (cached is not null)
-            return cached;
+        {
+            return cached
+                .Select(r => AccessPolicyRule.Create(r.RoleKey, r.ModuleKey, r.Level))
+                .ToList();
+        }
 
         var rules = (await repository.ListAsync(cancellationToken)).ToList();
-        await cache.SetAsync(CacheKey, rules, CacheTtl, cancellationToken);
+        await cache.SetAsync(
+            CacheKey,
+            rules.Select(r => new CachedAccessRule(r.RoleKey, r.ModuleKey, r.Level)).ToList(),
+            CacheTtl,
+            cancellationToken);
         return rules;
     }
 

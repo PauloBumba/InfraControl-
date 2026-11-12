@@ -132,6 +132,7 @@ public sealed class AiGatewayTests
         completion.UsedFallback.Should().BeFalse();
         completion.PromptTokens.Should().Be(12);
         completion.CompletionTokens.Should().Be(34);
+        completion.DurationMs.Should().BeGreaterThanOrEqualTo(0);
         fallback.Calls.Should().BeEmpty();
 
         primary.Calls.Should().ContainSingle().Which.Model.Should().Be("modelo-primario");

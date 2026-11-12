@@ -129,7 +129,8 @@ public sealed class AiGateway : IAiGateway
                 modelUsed,
                 result.PromptTokens,
                 result.CompletionTokens,
-                usedFallback);
+                usedFallback,
+                (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
 
             AiDiagnosticsFinish(activity, request.Capability, providerUsed, modelUsed,
                 usedFallback, success: true, error: null);

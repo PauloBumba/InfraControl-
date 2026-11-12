@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
 import { Can } from "@/components/auth/Can";
-import { formatDateTime } from "@/utils/format";
+import { formatAiDuration, formatDateTime } from "@/utils/format";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { ListPageShell } from "@/components/ui/ListPageShell";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -510,6 +510,7 @@ export function IncidentsPage() {
               <div style={{ fontSize: 11, color: "#94a3b8" }}>
                 {investigation.provider} · {investigation.model}
                 {investigation.usedFallback ? " (fallback)" : ""}
+                {formatAiDuration(investigation.durationMs) && ` · ${formatAiDuration(investigation.durationMs)}`}
               </div>
             </>
           )}

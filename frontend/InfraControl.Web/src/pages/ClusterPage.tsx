@@ -36,7 +36,7 @@ import {
   type ServiceInstanceItem,
   type TrafficMetrics,
 } from "@/services/api/accessPolicies";
-import { formatBytes, formatDateTime } from "@/utils/format";
+import { formatAiDuration, formatBytes, formatDateTime } from "@/utils/format";
 
 /**
  * Administração geral do cluster: instâncias/réplicas registradas pelo admin,
@@ -946,7 +946,8 @@ export function ClusterPage() {
           style={{ ...panelStyle, borderLeft: "3px solid #3b82f6" }}
         >
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 8px" }}>
-            Investigação — {logsInsightScope} ({logsInsight.provider}/{logsInsight.model})
+            Investigação — {logsInsightScope} ({logsInsight.provider}/{logsInsight.model}
+            {formatAiDuration(logsInsight.durationMs) && ` · ${formatAiDuration(logsInsight.durationMs)}`})
           </h3>
           <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{logsInsight.analysis}</div>
         </div>
@@ -959,6 +960,7 @@ export function ClusterPage() {
         >
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 8px" }}>
             Análise do cluster — {insight.provider}/{insight.model}
+            {formatAiDuration(insight.durationMs) && ` · ${formatAiDuration(insight.durationMs)}`}
           </h3>
           <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{insight.analysis}</div>
         </div>

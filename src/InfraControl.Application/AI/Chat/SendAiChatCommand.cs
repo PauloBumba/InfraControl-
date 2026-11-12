@@ -23,7 +23,8 @@ public sealed record AiChatResponse(
     IReadOnlyList<AiChatEvidenceDto> Evidences,
     string Provider,
     string Model,
-    bool UsedFallback);
+    bool UsedFallback,
+    long DurationMs);
 
 /// <summary>
 /// Chat do Copilot (ADR-052): LEVEL 0 somente leitura, grounding pelo
@@ -84,7 +85,8 @@ public sealed class SendAiChatCommandHandler(
                 .ToList(),
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     private static void Validate(IReadOnlyList<ChatTurn>? messages)

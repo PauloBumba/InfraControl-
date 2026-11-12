@@ -39,6 +39,7 @@ const grounded: AiChatResponse = {
   provider: "ollama",
   model: "qwen2.5-coder:1.5b",
   usedFallback: false,
+  durationMs: 1234,
 };
 
 beforeEach(() => {
@@ -75,7 +76,7 @@ describe("CopilotPage — chat grounded", () => {
 
     expect(await screen.findByText(/INC-42 está em andamento/i)).toBeTruthy();
     expect(screen.getByText(/Incident #42 — link de falha APP-02/i)).toBeTruthy();
-    expect(screen.getByText(/ollama · qwen2.5-coder:1.5b/i)).toBeTruthy();
+    expect(screen.getByText(/ollama · qwen2.5-coder:1.5b · 1.2s/i)).toBeTruthy();
 
     expect(sendMock).toHaveBeenCalledWith([
       { role: "user", content: "Qual o status do INC-42?" },
@@ -125,6 +126,7 @@ describe("CopilotPage — assistente de automação (LEVEL 1)", () => {
     provider: "ollama",
     model: "qwen2.5-coder:1.5b",
     usedFallback: false,
+    durationMs: 640,
   };
 
   it("should render the recommendations with priority and the LEVEL 1 disclaimer", async () => {
@@ -149,6 +151,7 @@ describe("CopilotPage — assistente de automação (LEVEL 1)", () => {
       provider: "ollama",
       model: "qwen2.5-coder:1.5b",
       usedFallback: false,
+      durationMs: 0,
     });
     renderPage();
     const user = userEvent.setup();

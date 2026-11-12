@@ -20,7 +20,8 @@ public sealed record AutomationRecommendationsDto(
     IReadOnlyList<AutomationRecommendationItem> Items,
     string Provider,
     string Model,
-    bool UsedFallback);
+    bool UsedFallback,
+    long DurationMs);
 
 /// <summary>
 /// Automation Agent em LEVEL 1 (ADR-055 · blueprint §38–§39): Consultar,
@@ -57,7 +58,7 @@ public sealed class GenerateAutomationRecommendationsCommandHandler(
         {
             // Guardrail de honestidade (ADR-055 §2): sem sinal, sem
             // recomendação — e sem custo/alucinação de LLM.
-            return new AutomationRecommendationsDto([], string.Empty, string.Empty, false);
+            return new AutomationRecommendationsDto([], string.Empty, string.Empty, false, 0);
         }
 
         var term = string.Join(" ", signals.Select(signal => signal.Title));
@@ -82,7 +83,8 @@ public sealed class GenerateAutomationRecommendationsCommandHandler(
             items,
             completion.ProviderName,
             completion.Model,
-            completion.UsedFallback);
+            completion.UsedFallback,
+            completion.DurationMs);
     }
 
     private async Task<IReadOnlyList<ActiveIncidentSignal>> CollectSignalsAsync(
