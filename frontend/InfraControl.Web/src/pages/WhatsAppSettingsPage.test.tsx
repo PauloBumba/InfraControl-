@@ -324,7 +324,7 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /mensagem de teste/ }));
 
-    const status = await screen.findByRole("status");
+    const status = await screen.findByRole("alert");
     await waitFor(() => expect(status).toHaveTextContent(/Grupo inexistente\./));
   });
 });

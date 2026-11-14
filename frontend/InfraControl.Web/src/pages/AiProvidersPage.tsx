@@ -948,12 +948,7 @@ function RouteTestResult({
   result: AiCapabilityTestResult | { error: string };
 }) {
   if ("error" in result) {
-    return (
-      <div className="uni-alert uni-alert-error" role="alert" style={{ fontSize: 12 }}>
-        <i className="pi pi-exclamation-triangle" />
-        <span>{result.error}</span>
-      </div>
-    );
+    return <ErrorBanner message={result.error} />;
   }
   return (
     <div

@@ -80,6 +80,28 @@ public sealed class AlertRepository(AppDbContext dbContext)
         return new PagedResult<AlertWithDevice>(items, total, page, pageSize);
     }
 
+    public async Task<IReadOnlyList<OpenAlertCount>> GetOpenCountsByDeviceAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.Alerts
+            .AsNoTracking()
+            .Where(alert =>
+                alert.Status == AlertStatus.Open && alert.DeviceId != null)
+            .GroupBy(alert => new { alert.DeviceId, alert.Severity })
+            .Select(group => new
+            {
+                group.Key.DeviceId,
+                group.Key.Severity,
+                Count = group.Count(),
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new OpenAlertCount(
+                row.DeviceId!.Value, row.Severity, row.Count))
+            .ToList();
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

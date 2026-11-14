@@ -152,6 +152,43 @@ public sealed class ZabbixIntegrationController(
     }
 
     /// <summary>
+    /// F54-T001: itens de um host (item.get + último valor) — alimenta o
+    /// seletor de métricas dos gráficos do dashboard. hostId é o hostid
+    /// do Zabbix (read-model `/hosts`).
+    /// </summary>
+    [HttpGet("hosts/{hostId}/items")]
+    [Authorize]
+    public async Task<IActionResult> GetHostItems(
+        string hostId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetZabbixHostItemsQuery(hostId), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// F54-T001: série temporal em lote de itens do host (history.get
+    /// itemids[], tabelas float+unsigned) — gráficos de tráfego/CPU/
+    /// memória do dashboard. `itemIds` = CSV (máx. 20); período ≤ 92 dias.
+    /// </summary>
+    [HttpGet("hosts/{hostId}/series")]
+    [Authorize]
+    public async Task<IActionResult> GetHostSeries(
+        string hostId,
+        [FromQuery] string? itemIds,
+        [FromQuery] DateTime fromUtc,
+        [FromQuery] DateTime toUtc,
+        [FromQuery] int limit = 20000,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await sender.Send(
+            new GetZabbixHostSeriesQuery(hostId, itemIds, fromUtc, toUtc, limit),
+            cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
     /// F27 Fase 10.3: resumo do dashboard (totais do read-model, match
     /// com Assets, estado da integração e problemas por severidade —
     /// consulta ao vivo com falha segregada em ProblemsAvailable).

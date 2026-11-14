@@ -1,7 +1,9 @@
+using System.Diagnostics.Metrics;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Rules.Ports;
+using InfraControl.Application.Notifications.Transitions;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
@@ -33,7 +35,8 @@ public sealed class NotificationEventConsumer(
     IOptions<NotificationChannelsOptions> channelsOptions,
     IWhatsAppOptionsResolver whatsAppOptionsResolver,
     INotificationEventRuleRepository ruleRepository,
-    ILogger<NotificationEventConsumer> logger)
+    ILogger<NotificationEventConsumer> logger,
+    IOccurrenceTransitionGate? transitionGate = null)
     : IConsumer<UserCreatedDomainEvent>,
       IConsumer<UserDisabledDomainEvent>,
       IConsumer<UserUpdatedDomainEvent>,
@@ -70,6 +73,13 @@ public sealed class NotificationEventConsumer(
 
     public const string ConsumerName = "NotificationConsumer";
 
+    private static readonly Meter Meter = new("InfraControl.Notifications");
+
+    /// <summary>Notificações criadas por tipo de evento de domínio (§4).</summary>
+    private static readonly Counter<long> NotificationsCreated = Meter.CreateCounter<long>(
+        "infracontrol_notifications_created",
+        description: "Notificações persistidas pelo consumer por EventType.");
+
     /// <summary>
     /// F16-T002/ADR-023: incidente (webhook Zabbix F16-T001, manual F6 ou
     /// auto-abertura F6) → destinatários por role Operator e Admin
@@ -78,7 +88,7 @@ public sealed class NotificationEventConsumer(
     /// Filtro WhatsApp (docs/66): só envia CRÍTICOS (High/Critical) para WhatsApp;
     /// incidentes Low/Medium vão apenas para SignalR+Email (sem spam no grupo).
     /// </summary>
-    public Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
+    public async Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
     {
         var message = context.Message;
 
@@ -88,7 +98,14 @@ public sealed class NotificationEventConsumer(
             ? null // usa fanout padrão (inclui WhatsApp se configurado)
             : [NotificationChannel.SignalR, NotificationChannel.Email]; // SEM WhatsApp
 
-        return HandleAsync(
+        // Gate de transição: a ocorrência é o ALERTA vinculado (IncidentAlert)
+        // — incidente e alerta do mesmo problema compartilham a chave, então
+        // IncidentCreated após AlertCreated é a transição Alert → Incident.
+        // aggregateId canônico = id do alerta raiz (mesma correlação do gate).
+        var occurrence = await ResolveIncidentOccurrenceAsync(
+            message.IncidentId, context.CancellationToken);
+
+        await HandleAsync(
             message.EventId,
             message.EventType,
             "Incidente aberto",
@@ -97,23 +114,38 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             channels: channels,
-            deviceId: message.DeviceId);
+            deviceId: message.DeviceId,
+            aggregateId: occurrence.AggregateId,
+            occurrenceKey: occurrence.Key,
+            occurrenceState: OccurrenceState.Incident,
+            correlationId: context.CorrelationId);
     }
 
     /// <summary>
     /// F19-T007: resolução do incidente (regra 7: só o InfraControl decide)
     /// → Operator + Admin. Mensagens em português para o grupo do WhatsApp.
     /// </summary>
-    public Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
-        => HandleAsync(
-            context.Message.EventId,
-            context.Message.EventType,
+    public async Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
+    {
+        var message = context.Message;
+
+        var occurrence = await ResolveIncidentOccurrenceAsync(
+            message.IncidentId, context.CancellationToken);
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
             "Incidente resolvido",
-            $"O incidente '{context.Message.Title}' foi resolvido ({MapIncidentSeverityPt(context.Message.Severity)}).",
+            $"O incidente '{message.Title}' foi resolvido ({MapIncidentSeverityPt(message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            deviceId: context.Message.DeviceId);
+            deviceId: message.DeviceId,
+            aggregateId: occurrence.AggregateId,
+            occurrenceKey: occurrence.Key,
+            occurrenceState: OccurrenceState.Resolved,
+            correlationId: context.CorrelationId);
+    }
 
     /// <summary>
     /// F33-T004/ADR-059 + decisão do usuário (2026-11-10): alerta criado
@@ -141,7 +173,11 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             deviceId: message.DeviceId,
-            channels: channels);
+            channels: channels,
+            aggregateId: message.AlertId,
+            occurrenceKey: $"alert:{message.AlertId}",
+            occurrenceState: OccurrenceState.Alert,
+            correlationId: context.CorrelationId);
     }
 
     /// <summary>
@@ -176,15 +212,23 @@ public sealed class NotificationEventConsumer(
     /// incidente vinculado não é garantido aqui; o worker aplica filtros.
     /// </summary>
     public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
-        => HandleAsync(
-            context.Message.EventId,
-            context.Message.EventType,
+    {
+        var message = context.Message;
+
+        return HandleAsync(
+            message.EventId,
+            message.EventType,
             "Alerta resolvido",
-            $"O alerta '{context.Message.Message}' foi resolvido.",
+            $"O alerta '{message.Message}' foi resolvido.",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            deviceId: context.Message.DeviceId);
+            deviceId: message.DeviceId,
+            aggregateId: message.AlertId,
+            occurrenceKey: $"alert:{message.AlertId}",
+            occurrenceState: OccurrenceState.Resolved,
+            correlationId: context.CorrelationId);
+    }
 
     /// <summary>
     /// PDI criado (docs/29 §8, regra do usuário 2026-10-04): notifica o
@@ -483,7 +527,11 @@ public sealed class NotificationEventConsumer(
         CancellationToken cancellationToken,
         NotificationChannel[]? channels = null,
         Guid? deviceId = null,
-        IReadOnlyCollection<Guid>? recipientUserIds = null)
+        IReadOnlyCollection<Guid>? recipientUserIds = null,
+        Guid? aggregateId = null,
+        string? occurrenceKey = null,
+        OccurrenceState? occurrenceState = null,
+        Guid? correlationId = null)
     {
         // F42-T002: regra por evento — Enabled=false silencia ANTES da
         // idempotência (nada persistido); Channels preenchido substitui
@@ -511,7 +559,8 @@ public sealed class NotificationEventConsumer(
         // mensagem perdida (processed sem notification).
         // F33-T005: DeviceId do evento viaja até o worker de WhatsApp
         // (série histórica do gráfico no Zabbix).
-        var notification = Notification.Create(eventId, eventType, title, message, deviceId);
+        var notification = Notification.Create(
+            eventId, eventType, title, message, deviceId, aggregateId);
 
         var firstDelivery = await inboxStore.TryMarkProcessedAsync(
             eventId, ConsumerName, cancellationToken);
@@ -520,11 +569,39 @@ public sealed class NotificationEventConsumer(
             logger.LogInformation(
                 "Evento {EventType}/{EventId} já processado — notificação duplicada ignorada.",
                 eventType, eventId);
+            // Auditoria: replay de evento de ocorrência fica registrado
+            // como DuplicateEvent (sem estado novo, sem notificação).
+            if (occurrenceKey is not null && transitionGate is not null)
+            {
+                await transitionGate.RecordDiscardedAsync(
+                    occurrenceKey, occurrenceState, eventType, eventId,
+                    correlationId, cancellationToken);
+            }
             return;
+        }
+
+        // Gate central de transição de estado (spec): sem mudança de
+        // estado = nenhuma notificação em NENHUM canal. Roda depois do
+        // inbox para que replay do mesmo eventId nunca reavalie o gate.
+        if (occurrenceKey is not null && occurrenceState is { } newState
+            && transitionGate is not null)
+        {
+            var authorized = await transitionGate.AuthorizeAsync(
+                occurrenceKey, newState, eventType, eventId,
+                correlationId, cancellationToken);
+            if (!authorized)
+            {
+                logger.LogInformation(
+                    "Notificação {EventType}/{EventId} descartada pelo gate de transição (ocorrência {OccurrenceKey}).",
+                    eventType, eventId, occurrenceKey);
+                return;
+            }
         }
 
         dbContext.Notifications.Add(notification);
         await dbContext.SaveChangesAsync(cancellationToken);
+        NotificationsCreated.Add(1,
+            new KeyValuePair<string, object?>("event_type", eventType));
 
         // usuário OU roles (1..N, dedup) — vazio apenas quando a resolução
         // falhou (ex.: convite sem usuário). F48-T001: vários usuários
@@ -579,7 +656,29 @@ public sealed class NotificationEventConsumer(
             : effectiveChannels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList();
 
         foreach (var channel in fanout)
-            await QueueDeliveriesAsync(notification, channel, whatsapp, cancellationToken);
+            await QueueDeliveriesAsync(
+                notification, channel, whatsapp, cancellationToken);
+    }
+
+    /// <summary>
+    /// Identidade canônica da ocorrência para eventos de incidente: o
+    /// alerta vinculado via IncidentAlert (incidente e alerta do mesmo
+    /// problema compartilham "alert:{id}" → Alert→Incident e →Resolved
+    /// deduplicam corretamente). AggregateId = id do alerta raiz quando
+    /// vinculado (mesma correlação do gate); sem vínculo, a chave e o
+    /// aggregate usam o próprio incidente.
+    /// </summary>
+    private async Task<(string Key, Guid AggregateId)> ResolveIncidentOccurrenceAsync(
+        Guid incidentId, CancellationToken cancellationToken)
+    {
+        var alertId = await dbContext.IncidentAlerts.AsNoTracking()
+            .Where(link => link.IncidentId == incidentId)
+            .Select(link => (Guid?)link.AlertId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return alertId is { } id && id != Guid.Empty
+            ? ($"alert:{id}", id)
+            : ($"incident:{incidentId}", incidentId);
     }
 
     /// <summary>
@@ -728,8 +827,12 @@ public sealed class NotificationEventConsumer(
                 continue;
             }
 
-            dbContext.NotificationDeliveries.Add(NotificationDelivery.Create(
-                notification.Id, userId, channel));
+            var delivery = NotificationDelivery.Create(
+                notification.Id,
+                userId,
+                channel,
+                status: DeliveryStatus.Pending);
+            dbContext.NotificationDeliveries.Add(delivery);
             added = true;
 
             // Broadcast no grupo: destino único — 1 delivery por

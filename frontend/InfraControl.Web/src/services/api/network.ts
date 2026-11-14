@@ -147,6 +147,13 @@ export interface TopologyNodeItem {
    */
   isGhost?: boolean;
   port?: string | null;
+  /**
+   * F53-T002/T003: camada da hierarquia (BFS a partir de Router/Firewall
+   * sobre as Connections reais; 1 = raiz). `null` = device sem caminho até
+   * uma raiz (ou ghost) — fora da hierarquia, renderizado na faixa
+   * "Sem hierarquia".
+   */
+  layer?: number | null;
 }
 
 export interface TopologyEdgeItem {
@@ -155,6 +162,34 @@ export interface TopologyEdgeItem {
   targetInterfaceId: string;
   /** F29-5: aresta até um nó ghost (não é Connection persistida). */
   isGhost?: boolean;
+  /**
+   * F53-T002/T005 — metadados das pontas (já enviados pelo
+   * `TopologyEdgeDto`): nome real da interface, velocidade/duplex da
+   * `SwitchPort` casada e origem/confiança da Connection (wire minúsculo
+   * `manual`/`lldp`/`cdp`/`unifi` · `confirmed`/`estimated`; null = sem
+   * dado — ex.: aresta ghost ou porta sem observação).
+   */
+  sourceInterfaceName?: string | null;
+  targetInterfaceName?: string | null;
+  sourceSpeed?: string | null;
+  targetSpeed?: string | null;
+  sourceDuplex?: string | null;
+  targetDuplex?: string | null;
+  source?: string | null;
+  confidence?: string | null;
+  /**
+   * F53-T002/T004 — VLANs nas pontas da Connection (SwitchPortVlan da
+   * porta casada por nome): `null` = sem porta casada; lista vazia =
+   * porta sem VLAN cadastrada. Fonte do filtro "VLAN" do mapa.
+   */
+  sourceVlans?: TopologyVlanRef[] | null;
+  targetVlans?: TopologyVlanRef[] | null;
+}
+
+/** VLAN numa ponta de aresta (F53-T002 — `TopologyVlanDto` do backend). */
+export interface TopologyVlanRef {
+  number: number;
+  name: string;
 }
 
 export interface TopologyGraph {

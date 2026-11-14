@@ -34,7 +34,9 @@ public sealed class SearchConnectionsQueryHandler(IConnectionRepository reposito
             result.Items.Select(item => new ConnectionDto(
                 item.Connection.Id,
                 item.Source.Id, item.Source.Name, item.Source.DeviceId,
-                item.Target.Id, item.Target.Name, item.Target.DeviceId)).ToArray(),
+                item.Target.Id, item.Target.Name, item.Target.DeviceId,
+                item.Connection.Source.ToWire(),
+                item.Connection.Confidence.ToWire())).ToArray(),
             result.TotalCount,
             result.Page,
             result.PageSize);
@@ -60,6 +62,8 @@ public sealed class GetConnectionQueryHandler(IConnectionRepository repository)
         return new ConnectionDto(
             item.Connection.Id,
             item.Source.Id, item.Source.Name, item.Source.DeviceId,
-            item.Target.Id, item.Target.Name, item.Target.DeviceId);
+            item.Target.Id, item.Target.Name, item.Target.DeviceId,
+            item.Connection.Source.ToWire(),
+            item.Connection.Confidence.ToWire());
     }
 }

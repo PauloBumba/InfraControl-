@@ -58,7 +58,8 @@ public sealed class CreateConnectionCommandHandler(
         return new ConnectionDto(
             connection.Id,
             source.Id, source.Name, source.DeviceId,
-            target.Id, target.Name, target.DeviceId);
+            target.Id, target.Name, target.DeviceId,
+            connection.Source.ToWire(), connection.Confidence.ToWire());
     }
 }
 
@@ -140,6 +141,7 @@ public sealed class UpdateConnectionCommandHandler(
         return new ConnectionDto(
             connection.Id,
             source.Id, source.Name, source.DeviceId,
-            target.Id, target.Name, target.DeviceId);
+            target.Id, target.Name, target.DeviceId,
+            connection.Source.ToWire(), connection.Confidence.ToWire());
     }
 }

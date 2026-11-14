@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAppSelector } from "@/app/store/hooks";
 import {
@@ -204,15 +205,13 @@ export function CompanySettingsPage() {
       />
 
       {!isAdmin && (
-        <div style={{ padding: 10, borderRadius: 8, background: "#fef3c7", color: "#b45309", fontSize: 12 }}>
-          Somente administradores podem editar a configuração institucional.
-        </div>
+        <NoticeBanner
+          message="Somente administradores podem editar a configuração institucional."
+          background="#fef3c7"
+          color="#b45309"
+        />
       )}
-      {notice && (
-        <div role="status" style={{ padding: 10, borderRadius: 8, background: "#f0fdf4", color: "#15803d", fontSize: 12 }}>
-          {notice}
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} />}
       {error && <ErrorBanner message={error} onRetry={() => void load()} />}
 
       <fieldset disabled={!isAdmin} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 16, background: "#fff" }}>

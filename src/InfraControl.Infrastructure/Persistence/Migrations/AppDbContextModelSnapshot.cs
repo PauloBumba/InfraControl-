@@ -684,8 +684,24 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Confidence")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("unknown")
+                        .HasColumnName("confidence");
+
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("unknown")
+                        .HasColumnName("source");
 
                     b.Property<Guid>("SourceInterfaceId")
                         .HasColumnType("uuid")
@@ -1915,6 +1931,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AggregateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aggregate_id");
+
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("create_datetime");
@@ -1950,6 +1970,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnName("update_datetime");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AggregateId")
+                        .HasDatabaseName("ix_notifications_aggregate_id");
 
                     b.HasIndex("EventId")
                         .IsUnique()
@@ -2003,6 +2026,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("status");
 
+                    b.Property<string>("SuppressionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("suppression_reason");
+
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -2012,12 +2040,14 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NotificationId");
-
                     b.HasIndex("UserId");
 
                     b.HasIndex("Channel", "Status")
                         .HasDatabaseName("ix_notification_deliveries_channel_status");
+
+                    b.HasIndex("NotificationId", "UserId", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notification_deliveries_dedup");
 
                     b.ToTable("notification_deliveries", (string)null);
                 });
@@ -2237,6 +2267,108 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventType");
 
                     b.ToTable("notification_routing_rules", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Occurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OccurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_occurrences_key");
+
+                    b.HasIndex("UpdatedAtUtc")
+                        .HasDatabaseName("ix_occurrences_updated_at");
+
+                    b.ToTable("occurrences", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.OccurrenceTransition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FromState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OccurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("SourceEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SuppressionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ToState")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceKey", "OccurredAtUtc")
+                        .HasDatabaseName("ix_occurrence_transitions_key_time");
+
+                    b.ToTable("occurrence_transitions", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.OutboxMessage", b =>

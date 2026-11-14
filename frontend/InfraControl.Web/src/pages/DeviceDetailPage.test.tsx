@@ -307,6 +307,7 @@ describe("DeviceDetailPage — acesso remoto via gateway + credencial (F34-T007/
       protocol: "Ssh",
       token: "abc123",
       path: "/guacamole/",
+      connectionId: "conn-1",
     });
     const openSpy = vi
       .spyOn(window, "open")
@@ -321,7 +322,7 @@ describe("DeviceDetailPage — acesso remoto via gateway + credencial (F34-T007/
     await waitFor(() => expect(gatewayMock).toHaveBeenCalledWith("ap-001"));
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith(
-        "/guacamole/?token=abc123",
+        "/guacamole/?token=abc123#/client/conn-1",
         "_blank",
         "noopener",
       ),

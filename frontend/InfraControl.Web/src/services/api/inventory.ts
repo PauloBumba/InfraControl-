@@ -410,3 +410,30 @@ export async function globalSearch(
   const data = await api.get<GlobalSearchResult>(`/inventory/search?${params}`);
   return data ?? { items: [], totalCount: 0 };
 }
+
+/**
+ * F54-T001 — overview agregado da frota (`GET /inventory/devices/status-overview`):
+ * totais por tipo + status consolidado em lote + alertas Open por severidade.
+ */
+export interface FleetTypeCount {
+  type: string;
+  count: number;
+}
+
+export interface FleetStatusCount {
+  status: "Available" | "Degraded" | "Unavailable" | "Unknown" | string;
+  count: number;
+}
+
+export interface FleetStatusOverview {
+  totalDevices: number;
+  byType: FleetTypeCount[];
+  byStatus: FleetStatusCount[];
+  openAlerts: number;
+  openCriticalAlerts: number;
+  openWarningAlerts: number;
+}
+
+export async function getFleetStatusOverview(): Promise<FleetStatusOverview | null> {
+  return api.get<FleetStatusOverview>("/inventory/devices/status-overview");
+}

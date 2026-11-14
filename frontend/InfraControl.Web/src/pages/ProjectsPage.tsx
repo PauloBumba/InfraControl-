@@ -516,7 +516,7 @@ export function ProjectsPage() {
       {error && <ErrorBanner message={error} onRetry={() => void loadProjects()} />}
 
       {actionError && (
-        <div style={{ padding: 12, borderRadius: 10, background: "#fef2f2", color: "#991b1b" }}>{actionError}</div>
+        <ErrorBanner message={actionError} color="#991b1b" style={{ padding: 12, borderRadius: 10 }} />
       )}
 
       {loading ? (
@@ -787,9 +787,7 @@ export function ProjectsPage() {
             </select>
           </label>
           {actionError && (
-            <div style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-              {actionError}
-            </div>
+            <ErrorBanner message={actionError} color="#991b1b" style={{ padding: 10, borderRadius: 8, fontSize: 12 }} />
           )}
         </div>
       </Dialog>

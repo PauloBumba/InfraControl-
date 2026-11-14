@@ -37,6 +37,14 @@ public interface IAlertRepository : IRepository<Alert>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F54-T001: contagem de alertas Open por (device, severidade) para o
+    /// overview da frota — uma query agrupada em vez de N searches por
+    /// device. Alertas externos sem device mapeado ficam de fora.
+    /// </summary>
+    Task<IReadOnlyList<OpenAlertCount>> GetOpenCountsByDeviceAsync(
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -45,3 +53,6 @@ public interface IAlertRepository : IRepository<Alert>
 /// quando o alerta externo não mapeou device (ADR-027).
 /// </summary>
 public sealed record AlertWithDevice(Alert Alert, string? DeviceName);
+
+/// <summary>F54-T001: alertas Open agregados por device e severidade.</summary>
+public sealed record OpenAlertCount(Guid DeviceId, AlertSeverity Severity, int Count);

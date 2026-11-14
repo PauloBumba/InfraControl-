@@ -133,6 +133,22 @@ public sealed class MonitoringController(ISender sender) : BaseController
             cancellationToken)));
 
     /// <summary>
+    /// F54-T001: série de disponibilidade dos checks internos
+    /// (monitoring_results agregados em buckets) — gráfico do dashboard
+    /// independente do Zabbix. Período ≤ 92 dias, ≤ 2000 buckets.
+    /// </summary>
+    [HttpGet("results/availability")]
+    [Authorize]
+    public async Task<IActionResult> GetAvailability(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] int? bucketMinutes,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetMonitoringAvailabilityQuery(fromUtc, toUtc, bucketMinutes),
+            cancellationToken)));
+
+    /// <summary>
     /// F50-T003 — anotação do operador no alerta (única mutação humana
     /// num alerta que nasce do sistema): PUT de substituição.
     /// </summary>

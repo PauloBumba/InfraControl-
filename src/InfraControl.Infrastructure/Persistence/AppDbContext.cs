@@ -84,6 +84,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationRoutingPolicy> NotificationRoutingPolicies => Set<NotificationRoutingPolicy>();
     public DbSet<NotificationRoutingRule> NotificationRoutingRules => Set<NotificationRoutingRule>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<Occurrence> Occurrences => Set<Occurrence>();
+    public DbSet<OccurrenceTransition> OccurrenceTransitions => Set<OccurrenceTransition>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
     public DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions => Set<KnowledgeArticleVersion>();

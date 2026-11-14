@@ -4,6 +4,7 @@ import { useAppSelector } from "@/app/store/hooks";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { ProjectConclusionSection } from "@/components/projects/ProjectConclusionSection";
@@ -599,11 +600,7 @@ export function ProjectDetailPage() {
       />
 
       {error && <ErrorBanner message={error} onRetry={() => void refresh()} />}
-      {notice && (
-        <div role="status" style={{ padding: 12, borderRadius: 8, background: "#ecfdf5", color: "#047857" }}>
-          {notice}
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} />}
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 16 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -647,11 +644,7 @@ export function ProjectDetailPage() {
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>Equipe do projeto</div>
-        {invitationNotice && (
-          <div role="status" style={{ padding: 12, borderRadius: 8, background: "#ecfdf5", color: "#047857" }}>
-            {invitationNotice}
-          </div>
-        )}
+        {invitationNotice && <NoticeBanner message={invitationNotice} />}
         {project.members?.length ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             {project.members.map((member) => (
@@ -740,9 +733,7 @@ export function ProjectDetailPage() {
           )}
         </div>
         {impError && (
-          <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-            {impError}
-          </div>
+          <ErrorBanner message={impError} />
         )}
         {impediments.length === 0 ? (
           <div style={{ color: "#64748b" }}>Nenhum impedimento registrado.</div>
@@ -796,9 +787,7 @@ export function ProjectDetailPage() {
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>Evidências</div>
         {evError && (
-          <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-            {evError}
-          </div>
+          <ErrorBanner message={evError} />
         )}
         {canOperate && (
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "end", gap: 10, paddingBottom: 8, borderBottom: "1px solid #e2e8f0" }}>
@@ -1010,9 +999,7 @@ export function ProjectDetailPage() {
             </label>
           </div>
           {editError && (
-            <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-              {editError}
-            </div>
+            <ErrorBanner message={editError} />
           )}
         </div>
       </Dialog>
@@ -1101,9 +1088,7 @@ export function ProjectDetailPage() {
             />
           </label>
           {impError && (
-            <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-              {impError}
-            </div>
+            <ErrorBanner message={impError} />
           )}
         </div>
       </Dialog>

@@ -127,7 +127,7 @@ export function RemotePage() {
       setActionError(null);
       if (opened) {
         window.open(
-          `${opened.path}?token=${encodeURIComponent(opened.token)}`,
+          `${opened.path}?token=${encodeURIComponent(opened.token)}#/client/${opened.connectionId}`,
           "_blank",
           "noopener",
         );

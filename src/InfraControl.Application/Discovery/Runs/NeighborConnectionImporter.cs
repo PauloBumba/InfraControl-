@@ -1,6 +1,7 @@
 using InfraControl.Application.Inventory.NetworkInterfaces.Ports;
 using InfraControl.Application.Network.Connections.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace InfraControl.Application.Discovery.Runs;
@@ -13,10 +14,12 @@ namespace InfraControl.Application.Discovery.Runs;
 // dedupe por par dirigido; self-loop/vizinho/interface ausente → pula.
 
 /// <summary>Vizinho candidato a Connection: device já vinculado (F4-T010)
-/// + atributos do achado (local_if_name, port_desc…).</summary>
+/// + atributos do achado (local_if_name, port_desc…) + origem do achado
+/// (F53-T001 — LLDP/CDP vira origem da conexão).</summary>
 public sealed record NeighborCandidate(
     Guid DeviceId,
-    IReadOnlyDictionary<string, string> Values);
+    IReadOnlyDictionary<string, string> Values,
+    ConnectionSource Origin);
 
 public interface INeighborConnectionImporter
 {
@@ -79,8 +82,18 @@ public sealed class NeighborConnectionImporter(
                         localNic.Id, remoteNic.Id, cancellationToken) is not null)
                     continue;
 
+                // F53-T001: origem do achado (LLDP/CDP) vira origem da
+                // conexão com confiança de evidência de protocolo; sem
+                // origem declarada a confiança fica Unknown (spec 11.7 —
+                // não inventar ligação confirmada).
+                var confidence = candidate.Origin == ConnectionSource.Unknown
+                    ? ConnectionConfidence.Unknown
+                    : ConnectionConfidence.Confirmed;
+
                 await connectionRepository.AddAsync(
-                    Connection.Create(localNic.Id, remoteNic.Id), cancellationToken);
+                    Connection.Create(
+                        localNic.Id, remoteNic.Id, candidate.Origin, confidence),
+                    cancellationToken);
                 created++;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

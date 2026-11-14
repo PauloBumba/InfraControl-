@@ -2,6 +2,8 @@ import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { sessionChecked, signedOut } from "@/app/store/slices/authSlice";
 import { AuthApiError, changePassword, updateProfile, uploadAvatar } from "@/services/api/auth";
@@ -385,17 +387,14 @@ export function AccountPage() {
           </div>
 
           {profileError && (
-            <div className="uni-alert uni-alert-error" role="alert" style={{ gridColumn: "1 / -1" }}>
-              <i className="pi pi-exclamation-triangle" />
-              <span>{profileError}</span>
-            </div>
+            <ErrorBanner message={profileError} style={{ gridColumn: "1 / -1" }} />
           )}
 
           {profileSaved && (
-            <div className="uni-alert uni-alert-success" role="status" style={{ gridColumn: "1 / -1" }}>
-              <i className="pi pi-check-circle" />
-              <span>Perfil atualizado com sucesso.</span>
-            </div>
+            <NoticeBanner
+              message="Perfil atualizado com sucesso."
+              style={{ gridColumn: "1 / -1" }}
+            />
           )}
 
           <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
@@ -505,12 +504,7 @@ export function AccountPage() {
             )}
           </div>
 
-          {error && (
-            <div className="uni-alert uni-alert-error" role="alert">
-              <i className="pi pi-exclamation-triangle" />
-              <span>{error}</span>
-            </div>
-          )}
+          {error && <ErrorBanner message={error} />}
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <Button

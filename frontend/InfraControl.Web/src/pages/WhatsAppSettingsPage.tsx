@@ -331,9 +331,10 @@ export function WhatsAppSettingsPage() {
         )}
 
         {instanceError && (
-          <div role="alert" style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>
-            Não foi possível criar a instância: {instanceError}
-          </div>
+          <ErrorBanner
+            message={`Não foi possível criar a instância: ${instanceError}`}
+            style={{ marginTop: 10 }}
+          />
         )}
 
         {instanceResult && (
@@ -347,7 +348,9 @@ export function WhatsAppSettingsPage() {
           </div>
         )}
 
-        {qrError && <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>{qrError}</div>}
+        {qrError && (
+          <ErrorBanner message={qrError} style={{ marginTop: 10 }} />
+        )}
 
         {qrSrc && (
           <div
@@ -473,11 +476,11 @@ export function WhatsAppSettingsPage() {
           </label>
           {settings?.source === "database" &&
             instanceId.trim() !== settings.instanceId && (
-              <div role="status" style={{ fontSize: 12, color: "#854d0e" }}>
-                A troca do número limpará o destino anterior e deixará as
-                notificações automáticas desligadas. Configure e salve o novo
-                grupo antes de ativá-las.
-              </div>
+              <NoticeBanner
+                message="A troca do número limpará o destino anterior e deixará as notificações automáticas desligadas. Configure e salve o novo grupo antes de ativá-las."
+                background="#fffbeb"
+                color="#854d0e"
+              />
             )}
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -679,24 +682,18 @@ export function WhatsAppSettingsPage() {
           </div>
         )}
 
-        {testResult && (
-          <div
-            role="status"
-            style={{
-              marginTop: 12,
-              padding: "10px 12px",
-              borderRadius: 6,
-              fontSize: 12,
-              background: testResult.ok ? "#f0fdf4" : "#fef2f2",
-              color: testResult.ok ? "#15803d" : "#b91c1c",
-              border: `1px solid ${testResult.ok ? "#bbf7d0" : "#fecaca"}`,
-            }}
-          >
-            {testResult.ok
-              ? "Mensagem de teste enviada para o destino configurado."
-              : `Falha no teste: ${testResult.error ?? "erro desconhecido"}`}
-          </div>
-        )}
+        {testResult &&
+          (testResult.ok ? (
+            <NoticeBanner
+              message="Mensagem de teste enviada para o destino configurado."
+              style={{ marginTop: 12, border: "1px solid #bbf7d0" }}
+            />
+          ) : (
+            <ErrorBanner
+              message={`Falha no teste: ${testResult.error ?? "erro desconhecido"}`}
+              style={{ marginTop: 12, border: "1px solid #fecaca" }}
+            />
+          ))}
       </div>
     </div>
   );

@@ -243,57 +243,34 @@ export function ZabbixSettingsPage() {
         {test.isPending && !testResult && (
           <div style={{ fontSize: 12, color: "#64748b" }}>Testando conexão…</div>
         )}
-        {testResult && (
-          <div
-            role="status"
-            style={{
-              padding: "10px 12px",
-              borderRadius: 6,
-              marginBottom: 10,
-              fontSize: 12,
-              background: testResult.ok ? "#f0fdf4" : "#fef2f2",
-              color: testResult.ok ? "#15803d" : "#b91c1c",
-              border: `1px solid ${testResult.ok ? "#bbf7d0" : "#fecaca"}`,
-            }}
-          >
-            {testResult.ok
-              ? `Conexão OK · versão ${testResult.version ?? "desconhecida"}`
-              : `Falha: ${testResult.error ?? "erro desconhecido"}`}
-          </div>
-        )}
+        {testResult &&
+          (testResult.ok ? (
+            <NoticeBanner
+              message={`Conexão OK · versão ${testResult.version ?? "desconhecida"}`}
+              style={{ marginBottom: 10, border: "1px solid #bbf7d0" }}
+            />
+          ) : (
+            <ErrorBanner
+              message={`Falha: ${testResult.error ?? "erro desconhecido"}`}
+              style={{ marginBottom: 10, border: "1px solid #fecaca" }}
+            />
+          ))}
         {syncResult && (
-          <div
-            role="status"
+          <NoticeBanner
+            message={`Sincronização concluída · criados ${syncResult.created} · atualizados ${syncResult.updated} · ausentes ${syncResult.missing} · erros ${syncResult.errors}${syncResult.version ? ` · versão ${syncResult.version}` : ""}`}
+            background={syncResult.errors > 0 ? "#fffbeb" : "#f0fdf4"}
+            color={syncResult.errors > 0 ? "#b45309" : "#15803d"}
             style={{
-              padding: "10px 12px",
-              borderRadius: 6,
               marginBottom: 10,
-              fontSize: 12,
-              background: syncResult.errors > 0 ? "#fffbeb" : "#f0fdf4",
-              color: syncResult.errors > 0 ? "#b45309" : "#15803d",
               border: `1px solid ${syncResult.errors > 0 ? "#fde68a" : "#bbf7d0"}`,
             }}
-          >
-            Sincronização concluída · criados {syncResult.created} · atualizados{" "}
-            {syncResult.updated} · ausentes {syncResult.missing} · erros {syncResult.errors}
-            {syncResult.version ? ` · versão ${syncResult.version}` : ""}
-          </div>
+          />
         )}
         {syncError && (
-          <div
-            role="alert"
-            style={{
-              padding: "10px 12px",
-              borderRadius: 6,
-              marginBottom: 10,
-              fontSize: 12,
-              background: "#fef2f2",
-              color: "#b91c1c",
-              border: "1px solid #fecaca",
-            }}
-          >
-            Falha na sincronização: {syncError}
-          </div>
+          <ErrorBanner
+            message={`Falha na sincronização: ${syncError}`}
+            style={{ marginBottom: 10, border: "1px solid #fecaca" }}
+          />
         )}
         <div
           style={{

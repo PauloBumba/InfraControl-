@@ -42,6 +42,11 @@ public sealed class StartDiscoveryCommandHandler(
 
         var provider = ResolveProvider(request.Provider);
 
+        // F53-T001: a origem da conexão importada vem do provider que
+        // emitiu o achado Neighbor ("LLDP"/"CDP" — outros, se algum dia
+        // emitirem, ficam Unknown e a confiança vira Unknown também).
+        var connectionOrigin = ResolveConnectionOrigin(provider.Name);
+
         if (string.IsNullOrWhiteSpace(device.Ip))
             throw new ArgumentException("Device sem IP cadastrado.", nameof(request.DeviceId));
 
@@ -119,7 +124,7 @@ public sealed class StartDiscoveryCommandHandler(
                 && linkedDeviceId is not null)
             {
                 neighborCandidates.Add(new NeighborCandidate(
-                    linkedDeviceId.Value, values));
+                    linkedDeviceId.Value, values, connectionOrigin));
             }
         }
 
@@ -209,6 +214,19 @@ public sealed class StartDiscoveryCommandHandler(
 
     private static readonly string[] NameAttributeKeys =
         ["sys_name", "device_id", "hostname"];
+
+    /// <summary>Mapeia o nome canônico do provider para a origem da
+    /// conexão (F53-T001): "LLDP" → Lldp, "CDP" → Cdp, resto → Unknown.</summary>
+    private static ConnectionSource ResolveConnectionOrigin(string providerName)
+    {
+        if (string.Equals(providerName, "LLDP", StringComparison.OrdinalIgnoreCase))
+            return ConnectionSource.Lldp;
+
+        if (string.Equals(providerName, "CDP", StringComparison.OrdinalIgnoreCase))
+            return ConnectionSource.Cdp;
+
+        return ConnectionSource.Unknown;
+    }
 
     private IDiscoveryProvider ResolveProvider(string provider)
     {

@@ -27,11 +27,18 @@ public sealed class Notification : Entity
     /// </summary>
     public Guid? DeviceId { get; private set; }
 
+    /// <summary>
+    /// Agregado de origem do evento (IncidentId, AlertId, TaskId...) —
+    /// chave de correlação para anti-flapping (abrir↔resolver o mesmo
+    /// agregado) e, futuramente, agrupamento por causa comum.
+    /// </summary>
+    public Guid? AggregateId { get; private set; }
+
     private Notification() { }
 
     public static Notification Create(
         Guid eventId, string eventType, string title, string message,
-        Guid? deviceId = null)
+        Guid? deviceId = null, Guid? aggregateId = null)
     {
         if (eventId == Guid.Empty)
             throw new ArgumentException("O evento de origem é obrigatório.", nameof(eventId));
@@ -63,7 +70,8 @@ public sealed class Notification : Entity
             EventType = eventType.Trim(),
             Title = title.Trim(),
             Message = message.Trim(),
-            DeviceId = deviceId
+            DeviceId = deviceId,
+            AggregateId = aggregateId
         };
     }
 }

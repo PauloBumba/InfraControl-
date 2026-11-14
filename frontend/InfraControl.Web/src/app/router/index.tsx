@@ -25,6 +25,7 @@ const AlertsPage = lazy(() => import("@/pages/AlertsPage").then(m => ({ default:
 const UniFiLivePage = lazy(() => import("@/pages/UniFiLivePage").then(m => ({ default: m.UniFiLivePage })));
 const UniFiDashboardPage = lazy(() => import("@/pages/UniFiDashboardPage").then(m => ({ default: m.UniFiDashboardPage })));
 const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m => ({ default: m.IntegrationsPage })));
+const IntegrationsHubPage = lazy(() => import("@/pages/IntegrationsHubPage").then(m => ({ default: m.IntegrationsHubPage })));
 const ZabbixSettingsPage = lazy(() => import("@/pages/ZabbixSettingsPage").then(m => ({ default: m.ZabbixSettingsPage })));
 // ADR-062 — gestão do canal WhatsApp (Evolution API): conexão/QR, grupos e teste.
 const WhatsAppSettingsPage = lazy(() => import("@/pages/WhatsAppSettingsPage").then(m => ({ default: m.WhatsAppSettingsPage })));
@@ -354,7 +355,14 @@ function AppContent() {
               <UniFiLivePage />
             </ProtectedRoute>
           } />
+          {/* Hub de integrações — índice das 4 conexões externas. */}
           <Route path="/integrations" element={
+            <ProtectedRoute>
+              <IntegrationsHubPage />
+            </ProtectedRoute>
+          } />
+          {/* Config do UniFi (era o conteúdo de /integrations). */}
+          <Route path="/integrations/unifi" element={
             <ProtectedRoute>
               <IntegrationsPage />
             </ProtectedRoute>

@@ -72,6 +72,7 @@ export interface RemoteGatewaySession {
   protocol: "Ssh" | "Rdp";
   token: string;
   path: string;
+  connectionId: string;
 }
 
 /**

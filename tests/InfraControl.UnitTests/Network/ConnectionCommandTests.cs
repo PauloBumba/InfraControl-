@@ -40,6 +40,21 @@ public sealed class ConnectionCommandTests : IDisposable
         return context;
     }
 
+    // Leitura crua do SQLite — prova o casing persistido (decisão F53-T001:
+    // `source`/`confidence` gravam em minúsculas; o EF lê case-insensitive).
+    // Sem WHERE: os testes que usam este helper semeiam exatamente 1 conexão
+    // e evitam acoplar ao formato de Guid do storage do SQLite.
+    private async Task<(string Source, string Confidence)> ReadRawConnectionAsync()
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText = "SELECT source, confidence FROM connections";
+        using var reader = await command.ExecuteReaderAsync();
+        (await reader.ReadAsync()).Should().BeTrue("a conexão existe no banco");
+        var row = (reader.GetString(0), reader.GetString(1));
+        (await reader.ReadAsync()).Should().BeFalse("o teste semeia exatamente uma conexão");
+        return row;
+    }
+
     private static async Task<Guid> SeedInterfaceAsync(
         AppDbContext context,
         string deviceName,
@@ -112,6 +127,33 @@ public sealed class ConnectionCommandTests : IDisposable
         (await GetHandler(context).Handle(
                 new GetConnectionQuery(created.Id), CancellationToken.None))
             .TargetInterfaceId.Should().Be(newTargetId);
+    }
+
+    [Fact]
+    public async Task Update_ExistingLldp_ShouldRepointAsManualOrigin()
+    {
+        // F53-T001 + spec 11.3 — PUT manual volta a conexão para
+        // `manual`/`confirmed` mesmo quando nasceu de descoberta LLDP.
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var oldTargetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var newTargetId = await SeedInterfaceAsync(context, "sw-03", "Gi0/3");
+        var connection = Connection.Create(
+            sourceId, oldTargetId, ConnectionSource.Lldp);
+        context.Connections.Add(connection);
+        await context.SaveChangesAsync();
+
+        var result = await UpdateHandler(context).Handle(
+            new UpdateConnectionCommand(connection.Id, sourceId, newTargetId),
+            CancellationToken.None);
+
+        result.Source.Should().Be("manual");
+        result.Confidence.Should().Be("confirmed");
+
+        var stored = await context.Connections.AsNoTracking()
+            .SingleAsync(c => c.Id == connection.Id);
+        stored.Source.Should().Be(ConnectionSource.Manual);
+        stored.Confidence.Should().Be(ConnectionConfidence.Confirmed);
     }
 
     [Fact]
@@ -202,6 +244,32 @@ public sealed class ConnectionCommandTests : IDisposable
         result.TargetInterfaceId.Should().Be(targetId);
         result.TargetInterfaceName.Should().Be("Gi0/2");
         context.Connections.Should().ContainSingle(c => c.Id == result.Id);
+    }
+
+    [Fact]
+    public async Task Create_Valid_ShouldPersistAndExposeManualOriginLowercase()
+    {
+        // F53-T001 — CRUD manual grava `manual`/`confirmed`, no banco e no
+        // wire, em minúsculas (mesmo casing do UniFi live "confirmed").
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var targetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+
+        var result = await CreateHandler(context).Handle(
+            new CreateConnectionCommand(sourceId, targetId), CancellationToken.None);
+
+        result.Source.Should().Be("manual");
+        result.Confidence.Should().Be("confirmed");
+
+        var raw = await ReadRawConnectionAsync();
+        raw.Source.Should().Be("manual", "persistência em minúsculas (decisão registrada)");
+        raw.Confidence.Should().Be("confirmed");
+
+        var paged = await SearchHandler(context).Handle(
+            new SearchConnectionsQuery(), CancellationToken.None);
+        var item = paged.Items.Should().ContainSingle().Subject;
+        item.Source.Should().Be("manual");
+        item.Confidence.Should().Be("confirmed");
     }
 
     [Fact]
@@ -325,6 +393,26 @@ public sealed class ConnectionCommandTests : IDisposable
         result.Id.Should().Be(created.Id);
         result.SourceDeviceId.Should().NotBe(Guid.Empty);
         result.TargetDeviceId.Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public async Task GetById_WithLldpOrigin_ShouldReturnLowercaseWire()
+    {
+        // F53-T001 — consulta devolve a origem do banco em minúsculas
+        // ("lldp"/"confirmed"), casando com o DTO do UniFi live.
+        await using var context = await CreateContextAsync();
+        var sourceId = await SeedInterfaceAsync(context, "sw-01", "Gi0/1");
+        var targetId = await SeedInterfaceAsync(context, "sw-02", "Gi0/2");
+        var connection = Connection.Create(
+            sourceId, targetId, ConnectionSource.Lldp);
+        context.Connections.Add(connection);
+        await context.SaveChangesAsync();
+
+        var result = await GetHandler(context).Handle(
+            new GetConnectionQuery(connection.Id), CancellationToken.None);
+
+        result.Source.Should().Be("lldp");
+        result.Confidence.Should().Be("confirmed");
     }
 
     [Fact]

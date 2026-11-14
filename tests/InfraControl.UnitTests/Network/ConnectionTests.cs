@@ -1,4 +1,5 @@
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 
 namespace InfraControl.UnitTests.Network;
 
@@ -88,5 +89,51 @@ public sealed class ConnectionTests
 
         forward.TargetInterfaceId.Should().Be(b);
         backward.TargetInterfaceId.Should().Be(a);
+    }
+
+    // ── F53-T001: origem/confiança da conexão (spec 11.7) ────────────────
+
+    [Fact]
+    public void Create_WithoutOrigin_ShouldDefaultToManualConfirmed()
+    {
+        var connection = Connection.Create(Guid.NewGuid(), Guid.NewGuid());
+
+        connection.Source.Should().Be(ConnectionSource.Manual);
+        connection.Confidence.Should().Be(ConnectionConfidence.Confirmed);
+    }
+
+    [Fact]
+    public void Create_WithSourceOnly_ShouldDefaultConfidenceToConfirmed()
+    {
+        var connection = Connection.Create(
+            Guid.NewGuid(), Guid.NewGuid(), ConnectionSource.Lldp);
+
+        connection.Source.Should().Be(ConnectionSource.Lldp);
+        connection.Confidence.Should().Be(ConnectionConfidence.Confirmed);
+    }
+
+    [Fact]
+    public void Create_WithExplicitOriginAndConfidence_ShouldPersistBoth()
+    {
+        var connection = Connection.Create(
+            Guid.NewGuid(), Guid.NewGuid(),
+            ConnectionSource.Unifi, ConnectionConfidence.Estimated);
+
+        connection.Source.Should().Be(ConnectionSource.Unifi);
+        connection.Confidence.Should().Be(ConnectionConfidence.Estimated);
+    }
+
+    [Fact]
+    public void Repoint_ShouldMarkAsManualConfiguration()
+    {
+        // Spec 11.3 — ajuste manual identifica a conexão como configuração
+        // manual (e não como descoberta automática).
+        var connection = Connection.Create(
+            Guid.NewGuid(), Guid.NewGuid(), ConnectionSource.Lldp);
+
+        connection.Repoint(Guid.NewGuid(), Guid.NewGuid());
+
+        connection.Source.Should().Be(ConnectionSource.Manual);
+        connection.Confidence.Should().Be(ConnectionConfidence.Confirmed);
     }
 }

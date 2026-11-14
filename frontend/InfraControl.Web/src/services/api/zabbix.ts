@@ -222,3 +222,62 @@ const EMPTY_SETTINGS: ZabbixSettings = {
   lastTestError: null,
   updatedAtUtc: null,
 };
+
+/** F54-T001 — itens de um host Zabbix (seletor de métricas dos gráficos). */
+export interface ZabbixHostItem {
+  itemId: string;
+  name: string;
+  key: string;
+  unit: string;
+  type: number;
+  enabled: boolean;
+  unsupported: boolean;
+  lastValue: string | null;
+  lastClockUtc: string | null;
+}
+
+export interface ZabbixSeriesPoint {
+  clockUtc: string;
+  value: string;
+}
+
+export interface ZabbixHostSeries {
+  itemId: string;
+  name: string;
+  key: string;
+  unit: string;
+  points: ZabbixSeriesPoint[];
+}
+
+export interface ZabbixHostSeriesResult {
+  series: ZabbixHostSeries[];
+}
+
+export function getZabbixHostItems(hostId: string): Promise<ZabbixHostItem[]> {
+  return required(
+    api.get<ZabbixHostItem[]>(`/integrations/zabbix/hosts/${encodeURIComponent(hostId)}/items`),
+    [],
+  );
+}
+
+/** Série temporal em lote; `itemIds` é CSV (máx. 20). */
+export function getZabbixHostSeries(query: {
+  hostId: string;
+  itemIds: string;
+  fromUtc: string;
+  toUtc: string;
+  limit?: number;
+}): Promise<ZabbixHostSeriesResult> {
+  const params = new URLSearchParams({
+    itemIds: query.itemIds,
+    fromUtc: query.fromUtc,
+    toUtc: query.toUtc,
+  });
+  params.set("limit", String(query.limit ?? 20000));
+  return required(
+    api.get<ZabbixHostSeriesResult>(
+      `/integrations/zabbix/hosts/${encodeURIComponent(query.hostId)}/series?${params.toString()}`,
+    ),
+    { series: [] },
+  );
+}

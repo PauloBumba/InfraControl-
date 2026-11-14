@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Domain.Common;
 using InfraControl.Domain.Entities;
@@ -18,6 +19,18 @@ public abstract class NotificationChannelWorkerBase(
     : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(2);
+
+    private static readonly Meter Meter = new("InfraControl.Notifications.Channels");
+
+    /// <summary>Resultado das deliveries por canal: sent | failed | dlq (§4).</summary>
+    private static readonly Counter<long> Deliveries = Meter.CreateCounter<long>(
+        "infracontrol_notification_deliveries",
+        description: "Deliveries processadas por canal e resultado.");
+
+    private void RecordDelivery(string result)
+        => Deliveries.Add(1,
+            new KeyValuePair<string, object?>("channel", channel.ToString()),
+            new KeyValuePair<string, object?>("result", result));
 
     /// <summary>F9-T009: 5 tentativas (30s/60s/120s/240s) — depois, DLQ.</summary>
     public const int MaxAttempts = 5;
@@ -91,6 +104,7 @@ public abstract class NotificationChannelWorkerBase(
                 await DispatchAsync(item, delivery, scope.ServiceProvider, cancellationToken);
                 delivery.MarkSent(AppTimeProvider.Current.GetUtcNow().UtcDateTime);
                 sent++;
+                RecordDelivery("sent");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -103,6 +117,8 @@ public abstract class NotificationChannelWorkerBase(
                     AppTimeProvider.Current.GetUtcNow().UtcDateTime,
                     MaxAttempts,
                     RetryBackoff);
+
+                RecordDelivery(delivery.NextAttemptAt is null ? "dlq" : "failed");
 
                 if (delivery.NextAttemptAt is null)
                     logger.LogError(

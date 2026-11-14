@@ -36,6 +36,17 @@ public sealed class DevicesController(ISender sender) : BaseController
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDeviceQuery(id), cancellationToken)));
 
+    /// <summary>
+    /// F54-T001: overview agregado da frota (totais por tipo + status
+    /// consolidado em lote + alertas Open por severidade) — KPIs do
+    /// dashboard sem N+1. Cache de 30s na query.
+    /// </summary>
+    [HttpGet("status-overview")]
+    [Authorize]
+    public async Task<IActionResult> GetFleetStatus(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetDeviceFleetStatusQuery(), cancellationToken)));
+
     [HttpGet("{id:guid}/status")]
     [Authorize]
     public async Task<IActionResult> GetStatus(Guid id, CancellationToken cancellationToken)

@@ -16,6 +16,8 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/audit": "administer",
   "/settings": "administer",
   "/integrations": "administer",
+  // Config UniFi — era o conteúdo de /integrations (hub agora indexa as 4).
+  "/integrations/unifi": "administer",
   // F27 Fase 2.2 — configuração Zabbix (espelha a policy Administer do controller).
   "/integrations/zabbix": "administer",
   // ADR-062 — gestão do canal WhatsApp (espelha a policy Administer do controller).

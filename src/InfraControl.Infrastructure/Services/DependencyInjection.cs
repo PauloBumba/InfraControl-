@@ -414,6 +414,9 @@ public static class DependencyInjection
             },
         });
 
+        services.AddScoped<Application.Notifications.Transitions.IOccurrenceTransitionGate,
+            Application.Notifications.Transitions.OccurrenceTransitionGate>();
+
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
 

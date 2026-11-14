@@ -770,7 +770,7 @@ export function TasksPage() {
                   }}
                   placeholder="Descreva a solução, ações realizadas, resultado..."
                 />
-                {completionError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{completionError}</div>}
+                {completionError && <span style={{ display: "block", fontSize: 11, color: "#b91c1c", marginTop: 4 }}>{completionError}</span>}
               </div>
               <FormField label="Código de baixa">
                 <SelectField

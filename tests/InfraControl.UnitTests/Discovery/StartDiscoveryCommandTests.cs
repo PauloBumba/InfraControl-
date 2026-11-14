@@ -680,6 +680,51 @@ public sealed class StartDiscoveryCommandTests : IDisposable
         var connection = context.Connections.Should().ContainSingle().Subject;
         connection.SourceInterfaceId.Should().Be(localNic);
         connection.TargetInterfaceId.Should().Be(remoteNic);
+        // F53-T001 — ingestão grava a origem do achado (LLDP) e a
+        // confiança de evidência de protocolo (confirmed).
+        connection.Source.Should().Be(ConnectionSource.Lldp);
+        connection.Confidence.Should().Be(ConnectionConfidence.Confirmed);
+    }
+
+    // Vizinho CDP: ifIndex 11 → ifName "Gi0/11"; device_id sw-cisco-01 casa
+    // o device vizinho (F4-T010) e device_port "Gi0/24" a interface dele.
+    private static IReadOnlyList<SnmpVariable> CdpNeighborWalk(string oid)
+        => oid == CdpDiscoveryProvider.IfNameTableOid
+            ? [new SnmpVariable($"{CdpDiscoveryProvider.IfNameTableOid}.11", "Gi0/11")]
+            :
+            [
+                new("1.3.6.1.4.1.9.9.23.1.2.1.1.6.11.1", "sw-cisco-01"),
+                new("1.3.6.1.4.1.9.9.23.1.2.1.1.7.11.1", "Gi0/24")
+            ];
+
+    [Fact]
+    public async Task Start_Cdp_ShouldCreateConnectionWithCdpOrigin()
+    {
+        // F53-T001 — ingestão CDP grava source=cdp/confidence=confirmed.
+        await using var context = await CreateContextAsync();
+        var localId = await SeedDeviceAsync(context, ip: "192.0.2.90", name: "sw-local");
+        var localNic = await SeedInterfaceAsync(context, localId, "Gi0/11");
+        var remoteId = await SeedDeviceAsync(context, ip: null, name: "sw-cisco-01");
+        var remoteNic = await SeedInterfaceAsync(context, remoteId, "Gi0/24");
+
+        var handler = new StartDiscoveryCommandHandler(
+            new DeviceRepository(context),
+            new ProviderRegistry<IDiscoveryProvider>(
+                [new CdpDiscoveryProvider(new OidAwareWalkClient(CdpNeighborWalk))]),
+            new DiscoveryRunRepository(context),
+            new DiscoveryResultRepository(context),
+            Importer(context),
+            NullLogger<StartDiscoveryCommandHandler>.Instance);
+
+        var dto = await handler.Handle(
+            new StartDiscoveryCommand(localId, "Cdp"), CancellationToken.None);
+
+        dto.Status.Should().Be(nameof(DiscoveryRunStatus.Completed));
+        var connection = context.Connections.Should().ContainSingle().Subject;
+        connection.SourceInterfaceId.Should().Be(localNic);
+        connection.TargetInterfaceId.Should().Be(remoteNic);
+        connection.Source.Should().Be(ConnectionSource.Cdp);
+        connection.Confidence.Should().Be(ConnectionConfidence.Confirmed);
     }
 
     [Fact]

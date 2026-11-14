@@ -20,4 +20,35 @@ public interface IMonitoringResultRepository : IRepository<MonitoringResult>
         Domain.Enums.CheckKind kind,
         int limit,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F54-T001: últimos polls de TODOS os devices (mais recente primeiro),
+    /// limitado — base do fallback "sem alertas/Zabbix" do status da frota
+    /// (o handler agrupa por device e fica com os N mais recentes de cada).
+    /// </summary>
+    Task<IReadOnlyList<MonitoringResult>> GetRecentAsync(
+        int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F54-T001: contagens de polls agregadas em células de 5 minutos no
+    /// banco (GROUP BY) — série de disponibilidade sem varrer linha a
+    /// linha. O handler funde as células nos buckets pedidos.
+    /// </summary>
+    Task<IReadOnlyList<MonitoringAvailabilityCell>> GetAvailabilityCellsAsync(
+        DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Célula agregada de 5 min: polls totais e com sucesso.</summary>
+public sealed record MonitoringAvailabilityCell(
+    int Year,
+    int Month,
+    int Day,
+    int Hour,
+    int MinuteBucket,
+    int Total,
+    int Succeeded)
+{
+    /// <summary>Início UTC da célula (MinuteBucket = minuto/5, 0..11).</summary>
+    public DateTime StartUtc =>
+        new(Year, Month, Day, Hour, MinuteBucket * 5, 0, DateTimeKind.Utc);
 }

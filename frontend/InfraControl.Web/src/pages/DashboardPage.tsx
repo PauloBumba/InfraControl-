@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/Button";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { HealthBar, type HealthItem } from "@/components/dashboard/HealthBar";
 import { DeviceHealthCard } from "@/components/dashboard/DeviceHealthCard";
+import {
+  EventsCenter,
+  FleetStatusStrip,
+  PerformanceSection,
+  TopologyEmbed,
+  UniFiSummaryPanel,
+} from "@/components/dashboard/DashboardInsights";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
@@ -384,6 +391,14 @@ export function DashboardPage() {
       {/* ============ HEALTH BAR (estilo UniFi — F40-T001) ============ */}
       <HealthBar items={healthItems} />
 
+      {/* F54-T002 — status da frota agregado (online/offline por status
+          consolidado + totais por tipo + alertas Open por severidade) */}
+      <FleetStatusStrip />
+
+      {/* F54-T003 — gráficos com seletor de período (1h/24h/7d/30d);
+          cada gráfico some quando não há dado real */}
+      <PerformanceSection />
+
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div className="uni-dash-stats">
         <DeviceHealthCard
@@ -590,9 +605,18 @@ export function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* F54-T004 — topologia UniFi embutida (resumo; mapa completo em /unifi) */}
+          <TopologyEmbed />
+
+          {/* F54-T005 — resumo UniFi (sites/switches/APs/clientes/portas) */}
+          <UniFiSummaryPanel />
         </div>
 
         <div className="uni-dash-side">
+          {/* F54-T006 — central de eventos: alertas + problemas Zabbix */}
+          <EventsCenter />
+
           {/* ---- Alertas Abertos ---- */}
           <div className="uni-panel">
             <div className="uni-panel-header">

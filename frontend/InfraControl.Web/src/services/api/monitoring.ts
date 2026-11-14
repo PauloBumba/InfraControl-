@@ -34,3 +34,37 @@ export function getDeviceResults(
 ): Promise<DeviceResults | null> {
   return api.get<DeviceResults>(`/monitoring/results/${deviceId}?limit=${limit}`);
 }
+
+/**
+ * F54-T001 — série de disponibilidade dos checks internos
+ * (`GET /monitoring/results/availability`): buckets com polls
+ * totais/com sucesso — "% de sucesso" é derivado no cliente.
+ */
+export interface AvailabilityPoint {
+  bucketStartUtc: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+}
+
+export interface MonitoringAvailability {
+  fromUtc: string;
+  toUtc: string;
+  bucketMinutes: number;
+  points: AvailabilityPoint[];
+}
+
+export function getMonitoringAvailability(query: {
+  fromUtc?: string;
+  toUtc?: string;
+  bucketMinutes?: number;
+} = {}): Promise<MonitoringAvailability | null> {
+  const params = new URLSearchParams();
+  if (query.fromUtc) params.set("fromUtc", query.fromUtc);
+  if (query.toUtc) params.set("toUtc", query.toUtc);
+  if (query.bucketMinutes) params.set("bucketMinutes", String(query.bucketMinutes));
+  const qs = params.toString();
+  return api.get<MonitoringAvailability>(
+    `/monitoring/results/availability${qs ? `?${qs}` : ""}`,
+  );
+}

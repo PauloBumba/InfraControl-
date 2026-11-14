@@ -9,6 +9,7 @@ import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/EntityView";
 import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
+import { FormError } from "@/components/ui/FormField";
 import { Can } from "@/components/auth/Can";
 import { useAppSelector } from "@/app/store/hooks";
 import { formatDateTime } from "@/utils/format";
@@ -394,9 +395,7 @@ export function InvitationsPage() {
               {role}
             </label>
           ))}
-          {formError && (
-            <p style={{ color: "#dc2626", fontSize: 12, margin: 0 }}>{formError}</p>
-          )}
+          {formError && <FormError message={formError} />}
           <div className="flex justify-content-end gap-2" style={{ marginTop: 4 }}>
             <Button variant="ghost" onClick={() => setEditTarget(null)}>
               Cancelar
