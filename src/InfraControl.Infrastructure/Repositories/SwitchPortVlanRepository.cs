@@ -47,6 +47,20 @@ public sealed class SwitchPortVlanRepository(AppDbContext dbContext) : ISwitchPo
             .Select(link => link.SwitchPortId)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<SwitchPortVlan>> GetByPortIdsAsync(
+        IEnumerable<Guid> switchPortIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = switchPortIds.Distinct().ToArray();
+        if (ids.Length == 0)
+            return [];
+
+        return await dbContext.SwitchPortVlans
+            .AsNoTracking()
+            .Where(link => ids.Contains(link.SwitchPortId))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> HasVlanLinksAsync(Guid switchPortId, CancellationToken cancellationToken = default)
         => dbContext.SwitchPortVlans
             .AnyAsync(link => link.SwitchPortId == switchPortId, cancellationToken);

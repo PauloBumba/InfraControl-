@@ -29,7 +29,8 @@ public sealed class GlobalSearchQueryHandler(
     IDeviceRepository devices,
     INetworkInterfaceRepository interfaces,
     IMacAddressRepository macs,
-    IIpAddressRepository ips) : IRequestHandler<GlobalSearchQuery, GlobalSearchResultDto>
+    IIpAddressRepository ips,
+    Network.Explorer.SearchMacLookupQueryHandler macLookup) : IRequestHandler<GlobalSearchQuery, GlobalSearchResultDto>
 {
     public async Task<GlobalSearchResultDto> Handle(
         GlobalSearchQuery request,
@@ -78,6 +79,41 @@ public sealed class GlobalSearchQueryHandler(
         items.AddRange(ipResult.Items.Select(entity =>
             new GlobalSearchItemDto("ip", entity.Id, entity.Ip, null)));
         totalCount += ipResult.TotalCount;
+
+        // Network Explorer F3 — fonte relacional: evidências de discovery
+        // (tabela MAC/ARP/DHCP/LLDP + AP Wi-Fi). Só adiciona item quando há
+        // evidência real; nunca inventa. Erro aqui não derruba a busca.
+        try
+        {
+            var lookup = await macLookup.Handle(
+                new Network.Explorer.SearchMacLookupQuery(term), cancellationToken);
+            if (lookup.Sightings.Count > 0)
+            {
+                // Id sintético estável (hash do termo) — a navegação real vai
+                // em Target (rota do Explorer com o termo original).
+                var anchor = lookup.MatchedMac ?? lookup.Ip ?? lookup.Hostname ?? term;
+                var context = string.Join(" · ", new[]
+                {
+                    lookup.Ip,
+                    lookup.Hostname,
+                    lookup.Vlan is { } v ? $"VLAN {v}" : null,
+                    lookup.WifiApName is { } ap ? $"Wi-Fi: {ap}" : null,
+                }.Where(s => !string.IsNullOrWhiteSpace(s)));
+                var hash = System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(term));
+                items.Add(new GlobalSearchItemDto(
+                    "network",
+                    new Guid(hash[..16]),
+                    anchor,
+                    $"{lookup.Sightings.Count} evidência(s) de rede{(context.Length > 0 ? $" · {context}" : "")}",
+                    $"/network/explorer?term={Uri.EscapeDataString(term)}"));
+                totalCount += 1;
+            }
+        }
+        catch
+        {
+            // fonte auxiliar — falha não bloqueia o restante da busca
+        }
 
         return new GlobalSearchResultDto(items, totalCount);
     }

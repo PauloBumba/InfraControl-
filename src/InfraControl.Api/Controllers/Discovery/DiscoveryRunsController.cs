@@ -32,6 +32,13 @@ public sealed class DiscoveryRunsController(ISender sender) : BaseController
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(new GetDiscoveryRunQuery(id), cancellationToken)));
 
+    /// <summary>Providers de discovery disponíveis (Network Explorer F4).</summary>
+    [HttpGet("providers")]
+    [Authorize]
+    public async Task<IActionResult> ListProviders(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new ListDiscoveryProvidersQuery(), cancellationToken)));
+
     /// <summary>Gatilho manual de discovery (F4-T003) — MonitoringManage.</summary>
     [HttpPost("devices/{deviceId:guid}/runs")]
     [Authorize(Policy = AuthorizationPolicies.Operate)]
@@ -41,4 +48,16 @@ public sealed class DiscoveryRunsController(ISender sender) : BaseController
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new StartDiscoveryCommand(deviceId, model.Provider), cancellationToken)));
+
+    /// <summary>
+    /// Network Explorer F4 — varredura completa: todos os providers em
+    /// sequência, um run por provider. Operate.
+    /// </summary>
+    [HttpPost("devices/{deviceId:guid}/sweep")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> Sweep(
+        Guid deviceId,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new RunDiscoverySweepCommand(deviceId), cancellationToken)));
 }

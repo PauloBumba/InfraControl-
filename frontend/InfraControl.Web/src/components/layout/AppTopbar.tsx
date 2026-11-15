@@ -32,6 +32,7 @@ const SEARCH_TYPE_LABEL: Record<GlobalSearchItem["type"], string> = {
   interface: "Interface",
   mac: "MAC",
   ip: "IP",
+  network: "Rede",
 };
 
 export const AppTopbar = forwardRef<AppTopbarRef, AppTopbarProps>(
@@ -163,6 +164,7 @@ export const AppTopbar = forwardRef<AppTopbarRef, AppTopbarProps>(
       setSearchTerm("");
       if (item.type === "device") routerNavigate(`/devices/${item.id}`);
       else if (item.type === "location" || item.type === "rack") routerNavigate("/locations");
+      else if (item.type === "network") routerNavigate(item.target ?? `/network/explorer?term=${encodeURIComponent(item.id)}`);
     }, [routerNavigate]);
 
     // Load badges on mount
@@ -285,7 +287,7 @@ export const AppTopbar = forwardRef<AppTopbarRef, AppTopbarProps>(
                   </div>
                 )}
                 {!searching && !searchError && searchResults.map((item) => {
-                  const navigable = item.type === "device" || item.type === "location" || item.type === "rack";
+                  const navigable = item.type === "device" || item.type === "location" || item.type === "rack" || item.type === "network";
                   return (
                     <button
                       key={`${item.type}-${item.id}`}
