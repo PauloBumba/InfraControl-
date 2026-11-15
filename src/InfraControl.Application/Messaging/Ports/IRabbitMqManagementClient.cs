@@ -70,7 +70,55 @@ public interface IRabbitMqManagementClient
 
     Task<RabbitMqListResult<RabbitMqConnectionSummary>> GetConnectionsAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F55-T003: consumers ativos do broker (GET /api/consumers) — base do
+    /// Worker Management e do pause broker-level.
+    /// </summary>
+    Task<RabbitMqListResult<RabbitMqConsumerInfo>> GetConsumersAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cancela um consumer (DELETE /api/consumers/{vhost}/{tag}) — base do
+    /// pause broker-level. O app não é notificado; o resume recicla a
+    /// conexão para o cliente re-subscrever.
+    /// </summary>
+    Task<RabbitMqActionResult> CancelConsumerAsync(
+        string vhost, string consumerTag, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fecha uma conexão (DELETE /api/connections/{name}) — força o cliente
+    /// (MassTransit) a reconectar e re-subscrever consumers. Usado no resume.
+    /// </summary>
+    Task<RabbitMqActionResult> CloseConnectionAsync(
+        string connectionName, CancellationToken cancellationToken = default);
 }
+
+/// <summary>Resultado de uma ação administrativa no broker (nunca lança).</summary>
+public sealed record RabbitMqActionResult(
+    bool Reachable,
+    string? UnavailableReason,
+    bool Success,
+    string? Detail)
+{
+    public static RabbitMqActionResult Done(string? detail = null)
+        => new(true, null, true, detail);
+
+    public static RabbitMqActionResult Failed(string reason)
+        => new(false, reason, false, reason);
+}
+
+/// <summary>Consumer ativo visto pela Management API (GET /api/consumers).</summary>
+public sealed record RabbitMqConsumerInfo(
+    string ConsumerTag,
+    string QueueName,
+    string Vhost,
+    bool AckRequired,
+    int PrefetchCount,
+    bool Active,
+    string? ChannelName,
+    string? ConnectionName,
+    string? PeerHost);
 
 /// <summary>
 /// Lista do Explorer com disponibilidade explícita: <c>Reachable=false</c> +

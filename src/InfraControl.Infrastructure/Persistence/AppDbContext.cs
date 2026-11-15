@@ -136,6 +136,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<ServiceInstance> ServiceInstances => Set<ServiceInstance>();
     public DbSet<RequestMetricBucket> RequestMetricBuckets => Set<RequestMetricBucket>();
     public DbSet<AiVectorDocument> AiVectorDocuments => Set<AiVectorDocument>();
+    public DbSet<MessagingQueuePause> MessagingQueuePauses => Set<MessagingQueuePause>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

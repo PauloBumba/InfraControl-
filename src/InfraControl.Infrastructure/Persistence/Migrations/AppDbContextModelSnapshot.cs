@@ -1715,6 +1715,61 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("mac_addresses", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.MessagingQueuePause", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ConnectionNames")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)")
+                        .HasColumnName("connection_names");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<DateTime>("PausedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paused_at_utc");
+
+                    b.Property<string>("PausedByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paused_by_user_id");
+
+                    b.Property<string>("QueueName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("queue_name");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.Property<string>("Vhost")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("vhost");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QueueName")
+                        .IsUnique();
+
+                    b.ToTable("messaging_queue_pauses", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
                 {
                     b.Property<Guid>("Id")

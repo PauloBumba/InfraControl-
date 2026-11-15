@@ -174,6 +174,76 @@ public sealed class RabbitMqManagementClient(
             RabbitMqListResult<RabbitMqConnectionSummary>.Unreachable);
     }
 
+    public async Task<RabbitMqListResult<RabbitMqConsumerInfo>> GetConsumersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var outcome = await FetchAsync("api/consumers", cancellationToken);
+        if (outcome.Error is not null)
+        {
+            return RabbitMqListResult<RabbitMqConsumerInfo>.Unreachable(outcome.Error);
+        }
+
+        return Parse<ConsumerInfoJson[]?, RabbitMqListResult<RabbitMqConsumerInfo>>(
+            outcome.Body!,
+            raw => RabbitMqListResult<RabbitMqConsumerInfo>.Ok(
+                (raw ?? []).Select(MapConsumerInfo).ToArray()),
+            RabbitMqListResult<RabbitMqConsumerInfo>.Unreachable);
+    }
+
+    public Task<RabbitMqActionResult> CancelConsumerAsync(
+        string vhost, string consumerTag, CancellationToken cancellationToken = default)
+        => DeleteAsync(
+            $"api/consumers/{Uri.EscapeDataString(vhost)}/{Uri.EscapeDataString(consumerTag)}",
+            cancellationToken);
+
+    public Task<RabbitMqActionResult> CloseConnectionAsync(
+        string connectionName, CancellationToken cancellationToken = default)
+        // O nome da conexão contém espaços e "->"; a API espera o nome cru
+        // percent-encoded como UM segmento (não path-separado).
+        => DeleteAsync(
+            $"api/connections/{Uri.EscapeDataString(connectionName)}",
+            cancellationToken);
+
+    private async Task<RabbitMqActionResult> DeleteAsync(
+        string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Delete, path);
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return RabbitMqActionResult.Done($"HTTP {(int)response.StatusCode}");
+            }
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            logger.LogWarning(
+                "Management API recusou DELETE {Path}: HTTP {Status} {Body}",
+                path, (int)response.StatusCode, body);
+            return RabbitMqActionResult.Failed($"HTTP {(int)response.StatusCode}");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return RabbitMqActionResult.Failed("tempo esgotado");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Management API do RabbitMQ indisponível ({Path})", path);
+            return RabbitMqActionResult.Failed("não respondeu");
+        }
+    }
+
+    private static RabbitMqConsumerInfo MapConsumerInfo(ConsumerInfoJson consumer) => new(
+        ConsumerTag: consumer.ConsumerTag ?? string.Empty,
+        QueueName: consumer.Queue?.Name ?? string.Empty,
+        Vhost: consumer.Queue?.Vhost ?? "/",
+        AckRequired: consumer.AckRequired ?? true,
+        PrefetchCount: consumer.PrefetchCount ?? 0,
+        Active: consumer.Active ?? false,
+        ChannelName: consumer.ChannelDetails?.Name,
+        ConnectionName: consumer.ChannelDetails?.ConnectionName,
+        PeerHost: consumer.ChannelDetails?.PeerHost);
+
     // ---- fetch/parse compartilhados das listas do Explorer (T002) ----------
 
     private sealed record FetchOutcome(string? Error, string? Body);
@@ -353,6 +423,23 @@ public sealed class RabbitMqManagementClient(
         [property: JsonPropertyName("state")] string? State,
         [property: JsonPropertyName("channels")] int? Channels,
         [property: JsonPropertyName("connected_at")] long? ConnectedAt);
+
+    private sealed record ConsumerInfoJson(
+        [property: JsonPropertyName("consumer_tag")] string? ConsumerTag,
+        [property: JsonPropertyName("ack_required")] bool? AckRequired,
+        [property: JsonPropertyName("prefetch_count")] int? PrefetchCount,
+        [property: JsonPropertyName("active")] bool? Active,
+        [property: JsonPropertyName("queue")] ConsumerQueueJson? Queue,
+        [property: JsonPropertyName("channel_details")] ConsumerChannelJson? ChannelDetails);
+
+    private sealed record ConsumerQueueJson(
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("vhost")] string? Vhost);
+
+    private sealed record ConsumerChannelJson(
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("connection_name")] string? ConnectionName,
+        [property: JsonPropertyName("peer_host")] string? PeerHost);
 
     private static RabbitMqBrokerSnapshot Map(OverviewEnvelope overview)
     {

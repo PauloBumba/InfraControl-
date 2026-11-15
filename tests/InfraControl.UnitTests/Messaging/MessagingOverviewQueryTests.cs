@@ -40,6 +40,18 @@ public sealed class MessagingOverviewQueryTests
         public Task<RabbitMqListResult<RabbitMqConnectionSummary>> GetConnectionsAsync(
             CancellationToken cancellationToken = default)
             => Task.FromResult(RabbitMqListResult<RabbitMqConnectionSummary>.Unreachable("não configurado"));
+
+        public Task<RabbitMqListResult<RabbitMqConsumerInfo>> GetConsumersAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(RabbitMqListResult<RabbitMqConsumerInfo>.Unreachable("não configurado"));
+
+        public Task<RabbitMqActionResult> CancelConsumerAsync(
+            string vhost, string consumerTag, CancellationToken cancellationToken = default)
+            => Task.FromResult(RabbitMqActionResult.Failed("não configurado"));
+
+        public Task<RabbitMqActionResult> CloseConnectionAsync(
+            string connectionName, CancellationToken cancellationToken = default)
+            => Task.FromResult(RabbitMqActionResult.Failed("não configurado"));
     }
 
     private sealed class FakeStatsStore(MessagingAppStats stats) : IMessagingStatsStore

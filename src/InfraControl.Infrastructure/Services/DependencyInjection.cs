@@ -456,6 +456,8 @@ public static class DependencyInjection
             Infrastructure.Messaging.RabbitMqManagementClient>();
         services.AddScoped<Application.Messaging.Ports.IMessagingStatsStore,
             Repositories.MessagingStatsStore>();
+        services.AddScoped<Application.Messaging.Ports.IMessagingPauseStore,
+            Repositories.MessagingPauseStore>();
 
         services.AddScoped<Application.Notifications.Transitions.IOccurrenceTransitionGate,
             Application.Notifications.Transitions.OccurrenceTransitionGate>();
