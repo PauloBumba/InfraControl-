@@ -438,8 +438,9 @@ public static class DependencyInjection
         // F55-T001: Management API do RabbitMQ — backend-only (o navegador
         // nunca fala com o broker), Basic auth das credenciais já existentes
         // em env (RabbitMQ:User/Password), timeout curto + resiliência leve.
-        services.AddHttpClient(Infrastructure.Messaging.RabbitMqManagementClient.HttpClientName,
-            client =>
+        services.AddHttpClient<Application.Messaging.Ports.IRabbitMqManagementClient,
+                Infrastructure.Messaging.RabbitMqManagementClient>()
+            .ConfigureHttpClient(client =>
             {
                 client.BaseAddress = new Uri(
                     configuration["RabbitMQ:Management:BaseUrl"] ?? "http://rabbitmq:15672");
@@ -452,8 +453,6 @@ public static class DependencyInjection
             })
             .AddResilienceHandler("rabbitmq-mgmt", static (builder, _) =>
                 Infrastructure.Messaging.RabbitMqManagementClient.ConfigureResilience(builder));
-        services.AddScoped<Application.Messaging.Ports.IRabbitMqManagementClient,
-            Infrastructure.Messaging.RabbitMqManagementClient>();
         services.AddScoped<Application.Messaging.Ports.IMessagingStatsStore,
             Repositories.MessagingStatsStore>();
         services.AddScoped<Application.Messaging.Ports.IMessagingPauseStore,
