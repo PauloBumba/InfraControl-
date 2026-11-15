@@ -29,6 +29,7 @@ import {
   updateProjectImpediment,
   createProjectImpediment,
   uploadProjectEvidence,
+  projectEvidencePreviewUrl,
   type ProjectEvidenceItem,
   type ProjectImpedimentItem,
   type ProjectItem,
@@ -164,6 +165,11 @@ const EVIDENCE_STATUS_LABEL: Record<string, string> = {
   Rejected: "Rejeitada",
 };
 
+/** Preview inline suportado: imagem, vídeo e PDF abrem dentro da plataforma. */
+const PREVIEWABLE = /^(image\/|video\/|application\/pdf)/i;
+const canPreviewEvidence = (item: ProjectEvidenceItem) =>
+  PREVIEWABLE.test(item.contentType ?? "");
+
 const EVIDENCE_STATUS_COLOR: Record<string, { background: string; color: string }> = {
   Pending: { background: "#fef3c7", color: "#b45309" },
   Validated: { background: "#dcfce7", color: "#15803d" },
@@ -260,6 +266,7 @@ export function ProjectDetailPage() {
   const [evReject, setEvReject] = useState<ProjectEvidenceItem | null>(null);
   const [evRejectReason, setEvRejectReason] = useState("");
   const [evBusy, setEvBusy] = useState<string | null>(null);
+  const [evPreview, setEvPreview] = useState<ProjectEvidenceItem | null>(null);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -973,8 +980,19 @@ export function ProjectDetailPage() {
                   {item.status === "Rejected" && item.rejectionReason && (
                     <div style={{ color: "#b91c1c", fontSize: 12 }}>Motivo: {item.rejectionReason}</div>
                   )}
-                  {canOperate && (
+                  {(canPreviewEvidence(item) || canOperate) && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 6, borderTop: "1px solid #f1f5f9" }}>
+                      {canPreviewEvidence(item) && (
+                        <Button
+                          variant="ghost"
+                          icon="pi pi-eye"
+                          onClick={() => setEvPreview(item)}
+                        >
+                          Visualizar
+                        </Button>
+                      )}
+                      {canOperate && (
+                        <>
                       <Button
                         variant="ghost"
                         icon="pi pi-download"
@@ -1009,6 +1027,8 @@ export function ProjectDetailPage() {
                       <Button variant="danger" icon="pi pi-trash" onClick={() => setEvDelete(item)} disabled={evBusy === item.id}>
                         Remover
                       </Button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1380,6 +1400,57 @@ export function ProjectDetailPage() {
             />
           </label>
         </div>
+      </Dialog>
+
+      {/* ---- Diálogo: preview de evidência (foto/vídeo/PDF inline) ---- */}
+      <Dialog
+        visible={evPreview !== null}
+        onHide={() => setEvPreview(null)}
+        header={evPreview?.fileName ?? "Visualizar evidência"}
+        width={720}
+        footer={
+          <div className="uni-modal-actions">
+            <Button variant="ghost" onClick={() => setEvPreview(null)}>Fechar</Button>
+            {evPreview && (
+              <Button
+                variant="primary"
+                icon="pi pi-download"
+                onClick={() => void downloadEvidence(evPreview)}
+              >
+                Baixar
+              </Button>
+            )}
+          </div>
+        }
+      >
+        {evPreview && id && (
+          <div style={{ display: "grid", gap: 8 }}>
+            {evPreview.contentType.startsWith("image/") && (
+              <img
+                src={projectEvidencePreviewUrl(id, evPreview.id)}
+                alt={evPreview.fileName}
+                style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", borderRadius: 8, background: "#0f172a" }}
+              />
+            )}
+            {evPreview.contentType.startsWith("video/") && (
+              <video
+                src={projectEvidencePreviewUrl(id, evPreview.id)}
+                controls
+                style={{ maxWidth: "100%", maxHeight: "70vh", borderRadius: 8, background: "#0f172a" }}
+              />
+            )}
+            {evPreview.contentType === "application/pdf" && (
+              <iframe
+                src={projectEvidencePreviewUrl(id, evPreview.id)}
+                title={evPreview.fileName}
+                style={{ width: "100%", height: "70vh", border: "1px solid #e2e8f0", borderRadius: 8 }}
+              />
+            )}
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              {evPreview.contentType} · {formatBytes(evPreview.fileSize)}
+            </div>
+          </div>
+        )}
       </Dialog>
 
       {/* ---- Diálogo: rejeitar fase ---- */}

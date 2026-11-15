@@ -422,6 +422,12 @@ export async function deleteProjectEvidence(
   await api.delete(`/projects/${projectId}/evidences/${evidenceId}`);
 }
 
+/** URL autenticada para preview inline (img/video/pdf) — cookies same-origin. */
+export function projectEvidencePreviewUrl(projectId: string, evidenceId: string): string {
+  const base = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+  return `${base}/projects/${projectId}/evidences/${evidenceId}/download?inline=true`;
+}
+
 /** Download autenticado — blob → objectURL → clique no link temporário. */
 export async function downloadProjectEvidence(
   projectId: string,
