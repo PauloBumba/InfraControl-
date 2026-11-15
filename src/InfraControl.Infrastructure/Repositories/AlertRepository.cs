@@ -221,6 +221,21 @@ public sealed class AlertRepository(AppDbContext dbContext)
             .ToList();
     }
 
+    public async Task<IReadOnlyList<OpenSeverityCount>> GetOpenCountsBySeverityAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.Alerts
+            .AsNoTracking()
+            .Where(alert => alert.Status == AlertStatus.Open)
+            .GroupBy(alert => alert.Severity)
+            .Select(group => new { group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new OpenSeverityCount(row.Key, row.Count))
+            .ToList();
+    }
+
     public Task<bool> UserExistsAsync(
         Guid userId, CancellationToken cancellationToken = default)
         => dbContext.DomainUsers.AnyAsync(user => user.Id == userId, cancellationToken);

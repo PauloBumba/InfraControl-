@@ -129,3 +129,72 @@ public sealed class ScheduledReportTests
         report.NextRunAtUtc.Should().Be(failedAt.AddMinutes(15));
     }
 }
+
+/// <summary>Composição do e-mail do relatório geral — seções completas.</summary>
+public sealed class GeneralReportComposeTests
+{
+    private static InfraControl.Application.Reports.Scheduled.GeneralReportContent Content()
+        => new(
+            new DateTime(2026, 11, 16, 1, 0, 0, DateTimeKind.Utc),
+            TotalDevices: 10,
+            DevicesByType: new Dictionary<string, int> { ["Router"] = 4, ["Switch"] = 6 },
+            OpenIncidents: 2,
+            OpenAlerts: 5,
+            DiscoveryRunsLast24h: 3,
+            DiscoveryRunsFailedLast24h: 1,
+            DiscoveryRunsCompletedLast24h: 2,
+            CompanyName: "Empresa X",
+            CompanyDetails: "CNPJ 00.000.000/0001-00",
+            OpenAlertsBySeverity: new Dictionary<string, int> { ["Critical"] = 1, ["Warning"] = 4 },
+            IncidentsByStatus: new Dictionary<string, int>
+            {
+                ["Open"] = 1, ["Investigating"] = 1, ["Resolved"] = 7,
+            },
+            TasksByState: new Dictionary<string, int> { ["Open"] = 3, ["InProgress"] = 2 },
+            SlaViolatedOpenTasks: 1,
+            ProjectsByStatus: new Dictionary<string, int> { ["InProgress"] = 2 },
+            PdisByStatus: new Dictionary<string, int> { ["Active"] = 4 },
+            NotificationDeliveriesLast24h: new Dictionary<string,
+                InfraControl.Application.Reports.Scheduled.DeliveryChannelStat>
+            {
+                ["WhatsApp"] = new(10, 1, 0),
+                ["Email"] = new(3, 0, 2),
+            });
+
+    [Fact]
+    public void ComposeEmail_ShouldIncludeAllSectionsInTextAndHtml()
+    {
+        var (subject, html, text) =
+            InfraControl.Application.Reports.Scheduled.GeneralReportBuilder
+                .ComposeEmail(Content());
+
+        subject.Should().Contain("Empresa X");
+        text.Should().Contain("MONITORAMENTO").And.Contain("TAREFAS E PROJETOS")
+            .And.Contain("NOTIFICAÇÕES");
+        text.Should().Contain("Critical: 1").And.Contain("SLA violado");
+        text.Should().Contain("WhatsApp: 10 enviadas, 1 falhas");
+        html.Should().Contain("Monitoramento").And.Contain("Tarefas e Projetos")
+            .And.Contain("Notificações").And.Contain("Pendentes");
+    }
+
+    [Fact]
+    public void ComposeEmail_EmptyCollections_ShouldRenderPlaceholders()
+    {
+        var content = Content() with
+        {
+            TasksByState = new Dictionary<string, int>(),
+            ProjectsByStatus = new Dictionary<string, int>(),
+            PdisByStatus = new Dictionary<string, int>(),
+            NotificationDeliveriesLast24h = new Dictionary<string,
+                InfraControl.Application.Reports.Scheduled.DeliveryChannelStat>(),
+        };
+
+        var (_, _, text) =
+            InfraControl.Application.Reports.Scheduled.GeneralReportBuilder
+                .ComposeEmail(content);
+
+        text.Should().Contain("Tasks: nenhuma").And.Contain("Projetos: nenhum")
+            .And.Contain("PDIs: nenhum")
+            .And.Contain("Nenhuma entrega no período");
+    }
+}
