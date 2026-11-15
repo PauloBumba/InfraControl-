@@ -6,6 +6,8 @@ import {
   getSchemaCatalog,
   type SchemaEntity,
 } from "@/services/api/schema";
+import { ErDiagram } from "@/components/schema/ErDiagram";
+import { SelectButton } from "primereact/selectbutton";
 
 /**
  * Dicionário de dados dinâmico: entidades, tabelas, colunas e
@@ -18,6 +20,7 @@ export function SchemaPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<SchemaEntity | null>(null);
+  const [view, setView] = useState<"list" | "diagram">("list");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +52,12 @@ export function SchemaPage() {
   const fkCount = (e: SchemaEntity) =>
     e.properties.filter((p) => p.foreignKeyTarget != null).length;
 
+  const diagramCenter =
+    entities.find((e) => e.entityName === selected?.entityName) ??
+    filtered[0] ??
+    entities[0] ??
+    null;
+
   return (
     <ListPageShell
       title="Esquema do banco"
@@ -60,17 +69,64 @@ export function SchemaPage() {
       error={error}
       onRetry={() => void load()}
       actions={
-        <Button
-          variant="ghost"
-          icon="pi pi-refresh"
-          title="Atualizar"
-          aria-label="Atualizar"
-          disabled={loading}
-          onClick={() => void load()}
-        />
+        <div className="flex align-items-center gap-2">
+          <SelectButton
+            className="uni-select-button"
+            value={view}
+            options={[
+              { label: "Lista", value: "list" },
+              { label: "Diagrama (DER)", value: "diagram" },
+            ]}
+            optionLabel="label"
+            optionValue="value"
+            allowEmpty={false}
+            onChange={(e) => setView(e.value)}
+          />
+          <Button
+            variant="ghost"
+            icon="pi pi-refresh"
+            title="Atualizar"
+            aria-label="Atualizar"
+            disabled={loading}
+            onClick={() => void load()}
+          />
+        </div>
       }
     >
-      {!loading && (
+      {!loading && view === "diagram" && diagramCenter && (
+        <div className="uni-panel" style={{ padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "#64748b" }}>
+              Entidade central:
+            </span>
+            <select
+              className="uni-login-input"
+              style={{ maxWidth: 280 }}
+              value={diagramCenter.entityName}
+              onChange={(e) => {
+                const found = entities.find((x) => x.entityName === e.target.value);
+                if (found) setSelected(found);
+              }}
+              aria-label="Entidade central do diagrama"
+            >
+              {entities.map((e) => (
+                <option key={e.entityName} value={e.entityName}>
+                  {e.entityName} ({e.tableName})
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+              Clique numa entidade vizinha para recentralizar · PK = chave primária · ⧉ = FK
+            </span>
+          </div>
+          <ErDiagram
+            entities={entities}
+            center={diagramCenter}
+            onSelect={setSelected}
+          />
+        </div>
+      )}
+      {!loading && view === "list" && (
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
           <div className="uni-panel" style={{ padding: 16, flex: 1, minWidth: 0 }}>
             <div style={{ marginBottom: 12 }}>
