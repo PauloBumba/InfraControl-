@@ -21,6 +21,7 @@ import {
   rejectInvitation,
   updateInvitationRoles,
   cancelInvitation,
+  resendInvitation,
   type InvitationItem,
 } from "@/services/api/invitations";
 import {
@@ -114,6 +115,22 @@ export function InvitationsPage() {
     // Recusa do servidor — nível do formulário, não de um campo.
     onError: (error) => failForm(errorMessage(error)),
   });
+  const resendMutation = useUpdateMutation({
+    invalidate: ["invitations"],
+    mutationFn: (input: { id: string; sendEmail: boolean }) =>
+      resendInvitation(input.id, input.sendEmail),
+    onSuccess: (result, input) => {
+      if (input.sendEmail) {
+        showMessage({ severity: "success", summary: "Convite reenviado por e-mail." });
+      } else if (result?.acceptUrl) {
+        void navigator.clipboard.writeText(result.acceptUrl).then(
+          () => showMessage({ severity: "success", summary: "Link do convite copiado." }),
+          () => showMessage({ severity: "info", summary: `Link: ${result.acceptUrl}` }),
+        );
+      }
+    },
+    onError: (error) => showMessage({ severity: "error", summary: mutationErrorMessage(error) ?? "" }),
+  });
   const cancelMutation = useUpdateMutation({
     invalidate: ["invitations"],
     mutationFn: (id: string) => cancelInvitation(id),
@@ -124,6 +141,7 @@ export function InvitationsPage() {
   const busyId =
     acceptMutation.isPending ? acceptMutation.variables
     : rejectMutation.isPending ? rejectMutation.variables
+    : resendMutation.isPending ? resendMutation.variables?.id
     : cancelMutation.isPending ? cancelMutation.variables
     : null;
 
@@ -288,11 +306,27 @@ export function InvitationsPage() {
                     {row.status === "Pending" && (
                       <>
                         {!row.projectId && (
-                          <Button variant="ghost" onClick={() => openRolesEdit(row)}>
+                          <Button variant="ghost" icon="pi pi-pencil" onClick={() => openRolesEdit(row)}>
                             Roles
                           </Button>
                         )}
-                        <Button variant="danger" onClick={() => setCancelTarget(row)}>
+                        <Button
+                          variant="ghost"
+                          icon="pi pi-send"
+                          onClick={() => resendMutation.mutate({ id: row.id, sendEmail: true })}
+                          disabled={busyId === row.id}
+                        >
+                          Reenviar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          icon="pi pi-copy"
+                          onClick={() => resendMutation.mutate({ id: row.id, sendEmail: false })}
+                          disabled={busyId === row.id}
+                        >
+                          Copiar link
+                        </Button>
+                        <Button variant="danger" icon="pi pi-trash" onClick={() => setCancelTarget(row)}>
                           Cancelar
                         </Button>
                       </>
@@ -355,10 +389,28 @@ export function InvitationsPage() {
                 <Can level="administer">
                   {invitation.status === "Pending" && (
                     <>
-                      <Button variant="ghost" onClick={() => openRolesEdit(invitation)}>
-                        Roles
+                      {!invitation.projectId && (
+                        <Button variant="ghost" icon="pi pi-pencil" onClick={() => openRolesEdit(invitation)}>
+                          Roles
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        icon="pi pi-send"
+                        onClick={() => resendMutation.mutate({ id: invitation.id, sendEmail: true })}
+                        disabled={busyId === invitation.id}
+                      >
+                        Reenviar
                       </Button>
-                      <Button variant="danger" onClick={() => setCancelTarget(invitation)}>
+                      <Button
+                        variant="ghost"
+                        icon="pi pi-copy"
+                        onClick={() => resendMutation.mutate({ id: invitation.id, sendEmail: false })}
+                        disabled={busyId === invitation.id}
+                      >
+                        Copiar link
+                      </Button>
+                      <Button variant="danger" icon="pi pi-trash" onClick={() => setCancelTarget(invitation)}>
                         Cancelar
                       </Button>
                     </>

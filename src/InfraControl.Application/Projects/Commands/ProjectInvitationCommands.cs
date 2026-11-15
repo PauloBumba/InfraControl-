@@ -19,6 +19,7 @@ public sealed record CreateProjectInvitationCommand(
     int ExpiresInDays = 7) : BaseCommand<ProjectInvitationResult>, IAuthorizedRequest, IAuditableRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => [];
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
     public string AuditResource => "ProjectInvitation";
 }
 

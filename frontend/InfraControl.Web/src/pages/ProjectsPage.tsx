@@ -141,6 +141,9 @@ export function ProjectsPage() {
   const [transferError, setTransferError] = useState<string | null>(null);
   const isAdmin =
     useAppSelector((state) => state.auth.user?.roles.includes("Admin")) ?? false;
+  // Espelha a regra do backend: só o criador do projeto ou Admin exclui.
+  const canDeleteProject = (project: ProjectItem) =>
+    isAdmin || (project.createdById != null && project.createdById === currentUserId);
   // Notificação transitória global (auto-dismiss) — ver ToastProvider.
   const toast = useToast();
 
@@ -396,14 +399,16 @@ export function ProjectsPage() {
           >
             Editar
           </Button>
-          <Button
-            variant="danger"
-            icon="pi pi-trash"
-            aria-label={`Remover projeto ${project.title}`}
-            onClick={() => setDeleteTarget(project)}
-          >
-            Remover
-          </Button>
+          {canDeleteProject(project) && (
+            <Button
+              variant="danger"
+              icon="pi pi-trash"
+              aria-label={`Remover projeto ${project.title}`}
+              onClick={() => setDeleteTarget(project)}
+            >
+              Remover
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -656,14 +661,16 @@ export function ProjectsPage() {
                     Transferir
                   </Button>
                 )}
-                <Button
-                  variant="danger"
-                  icon="pi pi-trash"
-                  aria-label={`Remover projeto ${project.title}`}
-                  onClick={() => setDeleteTarget(project)}
-                >
-                  Remover
-                </Button>
+                {canDeleteProject(project) && (
+                  <Button
+                    variant="danger"
+                    icon="pi pi-trash"
+                    aria-label={`Remover projeto ${project.title}`}
+                    onClick={() => setDeleteTarget(project)}
+                  >
+                    Remover
+                  </Button>
+                )}
               </div>
             )}
           />

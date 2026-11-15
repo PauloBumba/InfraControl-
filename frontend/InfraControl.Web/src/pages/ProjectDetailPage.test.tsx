@@ -85,7 +85,7 @@ const project: ProjectItem = {
   actualStartDate: null,
   actualEndDate: null,
   members: [{ userId: "member-1", role: "Member" }],
-  createdById: "creator-1",
+  createdById: "user-1",
 };
 
 const impediment: ProjectImpedimentItem = {

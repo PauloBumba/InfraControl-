@@ -206,6 +206,7 @@ public sealed class TransferProjectCommandHandler(
 
 public sealed class DeleteProjectCommandHandler(
     IProjectRepository projectRepository,
+    ICurrentUserContext currentUser,
     ILogger<DeleteProjectCommandHandler> logger)
     : IRequestHandler<DeleteProjectCommand>
 {
@@ -213,6 +214,15 @@ public sealed class DeleteProjectCommandHandler(
     {
         var project = await projectRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Projeto '{request.Id}' não encontrado.");
+
+        // Só o criador do projeto ou um Admin pode excluí-lo — Operate sozinho
+        // não basta: membro/líder/gestor não pode apagar o projeto alheio.
+        if (!ProjectAccess.IsAdmin(currentUser)
+            && project.CreatedById != currentUser.UserId)
+        {
+            throw new UnauthorizedAccessException(
+                "Apenas o criador do projeto ou um administrador pode excluí-lo.");
+        }
 
         project.Delete();
         projectRepository.Remove(project);

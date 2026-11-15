@@ -13,6 +13,7 @@ public sealed record GetProjectPhasesQuery(Guid ProjectId)
     : BaseQuery<ProjectPhasesSummaryDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Read;
+    public override IReadOnlyCollection<string> CacheTags => ["projects"];
 }
 
 public sealed class GetProjectPhasesQueryHandler(

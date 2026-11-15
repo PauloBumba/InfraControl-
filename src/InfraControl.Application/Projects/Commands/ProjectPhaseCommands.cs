@@ -23,6 +23,7 @@ public sealed record AddProjectPhaseCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class AddProjectPhaseCommandHandler(
@@ -93,6 +94,7 @@ public sealed record UpdateProjectPhaseCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class UpdateProjectPhaseCommandHandler(
@@ -134,6 +136,7 @@ public sealed record ReorderProjectPhasesCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ReorderProjectPhasesCommandHandler(
@@ -197,6 +200,7 @@ public sealed record SetPhaseStatusCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class SetPhaseStatusCommandHandler(
