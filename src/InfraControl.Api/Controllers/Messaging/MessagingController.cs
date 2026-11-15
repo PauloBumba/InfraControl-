@@ -1,5 +1,6 @@
 using InfraControl.Application.Messaging.Explorer;
 using InfraControl.Application.Messaging.Failures;
+using InfraControl.Application.Messaging.Flow;
 using InfraControl.Application.Messaging.Overview;
 using InfraControl.Application.Messaging.Workers;
 using MediatR;
@@ -152,6 +153,14 @@ public sealed class MessagingController(ISender sender) : BaseController
         CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new ReplayNotificationDeliveryCommand(id, body?.Reason), cancellationToken)));
+
+    // ---- F55-T006: Message Flow ------------------------------------------
+
+    [HttpGet("flow")]
+    [Authorize]
+    public async Task<IActionResult> GetFlow(CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetMessagingFlowQuery(), cancellationToken)));
 }
 
 public sealed record MessagingQueuePauseRequest(string? Reason);
