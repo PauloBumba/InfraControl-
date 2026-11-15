@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { BRAZIL_TIME_ZONE } from "@/utils/format";
 import {
   approveProjectConclusion,
   listProjectConclusions,
@@ -36,7 +37,9 @@ const INPUT_STYLE = {
 function formatDateTime(value: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR");
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("pt-BR", { timeZone: BRAZIL_TIME_ZONE });
 }
 
 interface Props {

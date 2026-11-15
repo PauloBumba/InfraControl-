@@ -9,6 +9,7 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { listRouters, runAllRouterChecks } from "@/services/api/routers";
 import { getDeviceResults, type DeviceResults, type MonitoringResultItem } from "@/services/api/monitoring";
 import { listLocations, type DeviceItem, type LocationItem } from "@/services/api/inventory";
+import { formatDateTimeBR } from "@/utils/format";
 import {
   useListQuery,
   usePagedQuery,
@@ -86,7 +87,7 @@ function jsonOf<T>(result: MonitoringResultItem | undefined, key: string): T[] {
 function checkedAtLabel(result: MonitoringResultItem | undefined): string {
   if (!result) return "sem execução";
   const at = new Date(result.checkedAt);
-  return `última execução ${at.toLocaleString("pt-BR")}`;
+  return `última execução ${formatDateTimeBR(at)}`;
 }
 
 function numLabel(value: number | null, unit = ""): string {

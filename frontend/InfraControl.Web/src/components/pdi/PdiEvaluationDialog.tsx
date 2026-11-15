@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { BRAZIL_TIME_ZONE } from "@/utils/format";
 import {
   finalizePdiResult,
   getPdiEvaluation,
@@ -54,6 +55,7 @@ function formatTimestamp(value: string | null): string {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: BRAZIL_TIME_ZONE,
       });
 }
 

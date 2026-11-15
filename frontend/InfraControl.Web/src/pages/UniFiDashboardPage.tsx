@@ -6,7 +6,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
-import { formatDateTime } from "@/utils/format";
+import { formatDateTimeBR } from "@/utils/format";
 import {
   getUniFiDashboard,
   getUniFiCorrelation,
@@ -79,7 +79,7 @@ export function UniFiDashboardPage() {
         <NoticeBanner
           message={
             d.lastSyncAtUtc
-              ? `Dados possivelmente desatualizados — última sincronização em ${new Date(d.lastSyncAtUtc).toLocaleString("pt-BR")}`
+              ? `Dados possivelmente desatualizados — última sincronização em ${formatDateTimeBR(d.lastSyncAtUtc)}`
               : "Nenhuma sincronização registrada ainda"
           }
           background="#fef9c3"
@@ -115,7 +115,7 @@ export function UniFiDashboardPage() {
         />
         <Card
           label="Última sincronização"
-          value={d.lastSyncAtUtc ? new Date(d.lastSyncAtUtc).toLocaleString("pt-BR") : "—"}
+          value={d.lastSyncAtUtc ? formatDateTimeBR(d.lastSyncAtUtc) : "—"}
           sub={
             d.lastSyncSucceeded === null
               ? "sem registro"
@@ -226,7 +226,7 @@ export function UniFiDashboardPage() {
           >
             <Column
               header="Início"
-              body={(run: UniFiSyncRun) => formatDateTime(new Date(run.startedAtUtc))}
+              body={(run: UniFiSyncRun) => formatDateTimeBR(run.startedAtUtc)}
               style={{ width: 170 }}
             />
             <Column

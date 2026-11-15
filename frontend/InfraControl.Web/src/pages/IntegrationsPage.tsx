@@ -6,6 +6,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
+import { formatDateTimeBR } from "@/utils/format";
 import {
   createUniFiAssetLink,
   deleteUniFiAssetLink,
@@ -387,7 +388,7 @@ export function IntegrationsPage() {
             <tbody>
               {syncRuns.data.map((run) => (
                 <tr key={run.id} style={{ borderTop: "1px solid #e5e7eb" }}>
-                  <td style={histTd}>{new Date(run.startedAtUtc).toLocaleString("pt-BR")}</td>
+                  <td style={histTd}>{formatDateTimeBR(run.startedAtUtc)}</td>
                   <td style={histTd}>
                     {Math.max(
                       0,
@@ -421,7 +422,7 @@ export function IntegrationsPage() {
                 .slice(0, 3)
                 .map((r) => (
                   <li key={r.id}>
-                    {new Date(r.startedAtUtc).toLocaleString("pt-BR")}: {r.message}
+                    {formatDateTimeBR(r.startedAtUtc)}: {r.message}
                   </li>
                 ))}
             </ul>
@@ -432,7 +433,7 @@ export function IntegrationsPage() {
       {config.data?.updatedAtUtc && (
         <p style={{ fontSize: 12, color: "#6b7280" }}>
           Última alteração da configuração:{" "}
-          {new Date(config.data.updatedAtUtc).toLocaleString("pt-BR")}
+          {formatDateTimeBR(config.data.updatedAtUtc)}
         </p>
       )}
     </div>

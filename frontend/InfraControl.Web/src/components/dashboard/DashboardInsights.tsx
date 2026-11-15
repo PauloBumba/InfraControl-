@@ -12,6 +12,7 @@ import { UniFiTopologyMap } from "@/components/ui/UniFiTopologyMap";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { BRAZIL_TIME_ZONE, formatDateTimeBR } from "@/utils/format";
 import {
   getFleetStatusOverview,
   listDevices,
@@ -77,9 +78,9 @@ function PeriodSelector({
 
 function formatBucket(iso: string, hours: number): string {
   const d = new Date(iso);
-  if (hours <= 24) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
-    " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit" });
+  if (hours <= 24) return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: BRAZIL_TIME_ZONE });
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: BRAZIL_TIME_ZONE }) +
+    " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", timeZone: BRAZIL_TIME_ZONE });
 }
 
 /* ------------------------------------------------------------------ */
@@ -467,7 +468,7 @@ export function UniFiSummaryPanel() {
         <ErrorBanner message={data.controllerError ?? "Controlador UniFi inalcançável."} />
       )}
       {data.stale && (
-        <p className="uni-dash-empty">Dados do último sync{data.lastSyncAtUtc ? ` (${new Date(data.lastSyncAtUtc).toLocaleString("pt-BR")})` : ""} — pode estar desatualizado.</p>
+        <p className="uni-dash-empty">Dados do último sync{data.lastSyncAtUtc ? ` (${formatDateTimeBR(data.lastSyncAtUtc)})` : ""} — pode estar desatualizado.</p>
       )}
       <div className="uni-dash-unifi-grid">
         <div><strong>{data.sites}</strong><span>Sites</span></div>
@@ -590,7 +591,7 @@ export function EventsCenter() {
               <div className="uni-dash-event-body">
                 <span className="uni-dash-event-title">{item.title}</span>
                 <span className="uni-dash-event-meta">
-                  {item.detail} · {item.source} · {new Date(item.at).toLocaleString("pt-BR")}
+                  {item.detail} · {item.source} · {formatDateTimeBR(item.at)}
                   {item.resolved ? " · resolvido" : ""}
                 </span>
               </div>
