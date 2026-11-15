@@ -94,6 +94,7 @@ export function InvitationsPage() {
   // `FormField`, então não há um input para pendurar a mensagem.
   const { error: formError, reset: resetFormError, fail: failForm } = useFormErrors();
   const [cancelTarget, setCancelTarget] = useState<InvitationItem | null>(null);
+  const [resendTarget, setResendTarget] = useState<{ inv: InvitationItem; sendEmail: boolean } | null>(null);
 
   const acceptMutation = useUpdateMutation({
     invalidate: ["invitations"],
@@ -145,6 +146,10 @@ export function InvitationsPage() {
     : cancelMutation.isPending ? cancelMutation.variables
     : null;
 
+  /** Pendente no status mas já vencido — o backend rejeita (RotateToken), então a UI nem oferece. */
+  const isInviteExpired = (inv: InvitationItem) =>
+    inv.status === "Pending" && new Date(inv.expiresAt).getTime() <= Date.now();
+
   const list = invitations.items;
   const filtered = useMemo(() => {
     return list.filter((inv) => {
@@ -183,6 +188,14 @@ export function InvitationsPage() {
     } catch {
       // erro já exibido no onError (banner inline)
     }
+  }
+
+  function confirmResend() {
+    if (!resendTarget) return;
+    resendMutation.mutate(
+      { id: resendTarget.inv.id, sendEmail: resendTarget.sendEmail },
+      { onSettled: () => setResendTarget(null) },
+    );
   }
 
   const listError = mutationErrorMessage(invitations.error as Error | null);
@@ -241,11 +254,13 @@ export function InvitationsPage() {
               header="Status"
               sortable
               body={(row: InvitationItem) => {
-                const meta = statusColors[row.status] || {
-                  bg: "#f1f5f9",
-                  color: "#64748b",
-                  label: row.status,
-                };
+                const meta = isInviteExpired(row)
+                  ? statusColors.Expired!
+                  : statusColors[row.status] || {
+                      bg: "#f1f5f9",
+                      color: "#64748b",
+                      label: row.status,
+                    };
                 return (
                   <StatusChip
                     label={meta.label}
@@ -284,7 +299,7 @@ export function InvitationsPage() {
               header="Ações"
               body={(row: InvitationItem) => (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {row.status === "Pending" && (
+                  {row.status === "Pending" && !isInviteExpired(row) && (
                     <>
                       <Button
                         variant="primary"
@@ -310,22 +325,26 @@ export function InvitationsPage() {
                             Roles
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          icon="pi pi-send"
-                          onClick={() => resendMutation.mutate({ id: row.id, sendEmail: true })}
-                          disabled={busyId === row.id}
-                        >
-                          Reenviar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          icon="pi pi-copy"
-                          onClick={() => resendMutation.mutate({ id: row.id, sendEmail: false })}
-                          disabled={busyId === row.id}
-                        >
-                          Copiar link
-                        </Button>
+                        {!isInviteExpired(row) && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              icon="pi pi-send"
+                              onClick={() => setResendTarget({ inv: row, sendEmail: true })}
+                              disabled={busyId === row.id}
+                            >
+                              Reenviar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              icon="pi pi-copy"
+                              onClick={() => setResendTarget({ inv: row, sendEmail: false })}
+                              disabled={busyId === row.id}
+                            >
+                              Copiar link
+                            </Button>
+                          </>
+                        )}
                         <Button variant="danger" icon="pi pi-trash" onClick={() => setCancelTarget(row)}>
                           Cancelar
                         </Button>
@@ -339,9 +358,11 @@ export function InvitationsPage() {
           </DataTablePanel>
         }
         renderCard={(invitation) => {
-          const meta = statusColors[invitation.status] ?? {
-            bg: "#f1f5f9", color: "#64748b", label: invitation.status,
-          };
+          const meta = isInviteExpired(invitation)
+            ? statusColors.Expired!
+            : statusColors[invitation.status] ?? {
+                bg: "#f1f5f9", color: "#64748b", label: invitation.status,
+              };
           return (
             <div className="uni-panel" style={{ padding: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
@@ -368,7 +389,7 @@ export function InvitationsPage() {
                 Criado {formatDateTime(new Date(invitation.createdAt))} · Expira {formatDateTime(new Date(invitation.expiresAt))}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                {invitation.status === "Pending" && (
+                {invitation.status === "Pending" && !isInviteExpired(invitation) && (
                   <>
                     <Button
                       variant="primary"
@@ -394,22 +415,26 @@ export function InvitationsPage() {
                           Roles
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        icon="pi pi-send"
-                        onClick={() => resendMutation.mutate({ id: invitation.id, sendEmail: true })}
-                        disabled={busyId === invitation.id}
-                      >
-                        Reenviar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        icon="pi pi-copy"
-                        onClick={() => resendMutation.mutate({ id: invitation.id, sendEmail: false })}
-                        disabled={busyId === invitation.id}
-                      >
-                        Copiar link
-                      </Button>
+                      {!isInviteExpired(invitation) && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            icon="pi pi-send"
+                            onClick={() => setResendTarget({ inv: invitation, sendEmail: true })}
+                            disabled={busyId === invitation.id}
+                          >
+                            Reenviar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            icon="pi pi-copy"
+                            onClick={() => setResendTarget({ inv: invitation, sendEmail: false })}
+                            disabled={busyId === invitation.id}
+                          >
+                            Copiar link
+                          </Button>
+                        </>
+                      )}
                       <Button variant="danger" icon="pi pi-trash" onClick={() => setCancelTarget(invitation)}>
                         Cancelar
                       </Button>
@@ -474,6 +499,21 @@ export function InvitationsPage() {
             : ""
         }
         confirmLabel="Cancelar convite"
+      />
+
+      <ConfirmDialog
+        visible={resendTarget !== null}
+        onHide={() => setResendTarget(null)}
+        onConfirm={confirmResend}
+        header={resendTarget?.sendEmail ? "Reenviar convite" : "Copiar link do convite"}
+        message={
+          resendTarget
+            ? resendTarget.sendEmail
+              ? `Reenviar o convite para "${resendTarget.inv.email}" por e-mail? O link anterior será invalidado.`
+              : `Gerar um novo link para "${resendTarget.inv.email}" e copiar? O link anterior será invalidado.`
+            : ""
+        }
+        confirmLabel={resendTarget?.sendEmail ? "Reenviar" : "Gerar e copiar"}
       />
     </ListPageShell>
   );
