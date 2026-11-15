@@ -46,6 +46,8 @@ vi.mock("@/services/api/projects", () => ({
   reviewProjectEvidence: vi.fn(),
   submitProjectConclusion: vi.fn(),
   submitProjectForApproval: vi.fn(),
+  setProjectPhaseStatus: vi.fn(),
+  transitionProjectStatus: vi.fn(),
   updateProject: vi.fn(),
   updateProjectImpediment: vi.fn(),
   uploadProjectEvidence: vi.fn(),

@@ -1019,73 +1019,135 @@ export function ProjectDetailPage() {
       </div>
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 18 }}>Fases</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Fases</div>
+          {phases.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#64748b" }}>
+                {phases.filter((p) => p.status === "Completed").length} de {phases.length} concluídas
+              </span>
+              <div style={{ width: 140, background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
+                <div style={{
+                  width: `${Math.round(phases.reduce((acc, p) => acc + p.percent, 0) / phases.length)}%`,
+                  height: 8, background: "#16a34a", transition: "width .3s",
+                }} />
+              </div>
+            </div>
+          )}
+        </div>
+        {phases.length > 0
+          && phases.every((p) => p.status === "Completed")
+          && project.status === "InProgress" && (
+          <div style={{ fontSize: 12, color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px" }}>
+            Todas as fases concluídas — o projeto está pronto para homologação final.
+          </div>
+        )}
         {phases.length === 0 ? (
           <div style={{ color: "#64748b" }}>Nenhuma fase cadastrada para este projeto.</div>
-        ) : (
-          phases.map((phase) => {
+        ) : (() => {
+          const currentIndex = phases.findIndex(
+            (p) => p.status === "InProgress" || p.status === "PendingValidation",
+          );
+          const activeIndex = currentIndex >= 0
+            ? currentIndex
+            : phases.findIndex((p) => p.status === "NotStarted");
+          return phases.map((phase, index) => {
             const phaseStatus = PHASE_STATUS_COLOR[phase.status] ?? { background: "#f1f5f9", color: "#475569" };
+            const done = phase.status === "Completed";
+            const isCurrent = index === activeIndex;
+            const dotColor = done ? "#16a34a" : isCurrent ? "#2563eb" : phaseStatus.color;
+            const dotBg = done ? "#16a34a" : isCurrent ? "#2563eb" : "#fff";
             return (
-            <div key={phase.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <strong>{phase.order}. {phase.title}</strong>
-                <StatusChip label={PHASE_STATUS_LABEL[phase.status] ?? phase.status} background={phaseStatus.background} color={phaseStatus.color} />
+            <div key={phase.id} style={{ display: "flex", gap: 14 }}>
+              {/* trilho do stepper: círculo + linha conectora */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, fontWeight: 700,
+                  background: dotBg, color: done || isCurrent ? "#fff" : dotColor,
+                  border: `2px solid ${dotColor}`,
+                  boxShadow: isCurrent ? "0 0 0 4px #dbeafe" : "none",
+                }}>
+                  {done ? "✓" : phase.order}
+                </div>
+                {index < phases.length - 1 && (
+                  <div style={{
+                    width: 2, flex: 1, minHeight: 24, marginTop: 4,
+                    background: done ? "#16a34a" : "#e2e8f0",
+                  }} />
+                )}
               </div>
-              <div style={{ color: "#475569", fontSize: 13 }}>{phase.description || "Sem descrição."}</div>
-              <div style={{ color: "#64748b", fontSize: 12 }}>
-                {formatDate(phase.plannedStartDate)} → {formatDate(phase.plannedEndDate)} · {phase.percent}% concluído
-              </div>
-              <div style={{ width: "100%", background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
-                <div style={{ width: `${Math.min(100, Math.max(0, phase.percent))}%`, height: 8, background: "#2563eb" }} />
-              </div>
-              {canOperate && phase.status !== "Completed" && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {phase.status === "NotStarted" && (
-                    <Button
-                      variant="primary"
-                      style={{ padding: "4px 12px", fontSize: 12 }}
-                      disabled={phaseBusy === phase.id}
-                      onClick={() => void handlePhaseAction(phase, "Start")}
-                    >
-                      Iniciar fase
-                    </Button>
-                  )}
-                  {phase.status === "InProgress" && (
-                    <Button
-                      variant="info"
-                      style={{ padding: "4px 12px", fontSize: 12 }}
-                      disabled={phaseBusy === phase.id}
-                      onClick={() => void handlePhaseAction(phase, "Submit")}
-                    >
-                      Enviar p/ validação
-                    </Button>
-                  )}
-                  {phase.status === "PendingValidation" && (
-                    <>
+              {/* cartão da fase */}
+              <div style={{
+                flex: 1, border: `1px solid ${isCurrent ? "#93c5fd" : "#e2e8f0"}`,
+                borderRadius: 10, padding: 14, display: "grid", gap: 8,
+                background: isCurrent ? "#f8fbff" : "#fff",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <strong>{phase.order}. {phase.title}</strong>
+                  <StatusChip label={PHASE_STATUS_LABEL[phase.status] ?? phase.status} background={phaseStatus.background} color={phaseStatus.color} />
+                </div>
+                <div style={{ color: "#475569", fontSize: 13 }}>{phase.description || "Sem descrição."}</div>
+                <div style={{ color: "#64748b", fontSize: 12 }}>
+                  {formatDate(phase.plannedStartDate)} → {formatDate(phase.plannedEndDate)} · {phase.percent}% concluído
+                </div>
+                <div style={{ width: "100%", background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.min(100, Math.max(0, phase.percent))}%`, height: 8, background: done ? "#16a34a" : "#2563eb" }} />
+                </div>
+                {canOperate && phase.status !== "Completed" && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {phase.status === "NotStarted" && (
                       <Button
                         variant="primary"
+                        icon="pi pi-play"
                         style={{ padding: "4px 12px", fontSize: 12 }}
                         disabled={phaseBusy === phase.id}
-                        onClick={() => void handlePhaseAction(phase, "Validate")}
+                        onClick={() => void handlePhaseAction(phase, "Start")}
                       >
-                        Validar fase
+                        Iniciar fase
                       </Button>
+                    )}
+                    {phase.status === "InProgress" && (
                       <Button
-                        variant="danger"
+                        variant="info"
+                        icon="pi pi-send"
                         style={{ padding: "4px 12px", fontSize: 12 }}
                         disabled={phaseBusy === phase.id}
-                        onClick={() => { setPhaseReject(phase); setPhaseRejectReason(""); }}
+                        onClick={() => void handlePhaseAction(phase, "Submit")}
                       >
-                        Rejeitar
+                        Enviar p/ validação
                       </Button>
-                    </>
-                  )}
-                </div>
-              )}
+                    )}
+                    {phase.status === "PendingValidation" && (
+                      <>
+                        <Button
+                          variant="primary"
+                          icon="pi pi-check"
+                          style={{ padding: "4px 12px", fontSize: 12 }}
+                          disabled={phaseBusy === phase.id}
+                          onClick={() => void handlePhaseAction(phase, "Validate")}
+                        >
+                          Validar fase
+                        </Button>
+                        <Button
+                          variant="danger"
+                          icon="pi pi-times"
+                          style={{ padding: "4px 12px", fontSize: 12 }}
+                          disabled={phaseBusy === phase.id}
+                          onClick={() => { setPhaseReject(phase); setPhaseRejectReason(""); }}
+                        >
+                          Rejeitar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             );
-          })
-        )}
+          });
+        })()}
       </div>
 
       {/* ---- Diálogo: editar projeto ---- */}
