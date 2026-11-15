@@ -164,6 +164,8 @@ public sealed class GeminiProvider : IAiProvider
         var parsed = JsonSerializer.Deserialize<GeminiModelsResponse>(json, JsonOptions);
 
         return parsed?.Models?
+            .Where(model => model.SupportedGenerationMethods?
+                .Contains("generateContent", StringComparer.Ordinal) == true)
             .Select(model => model.Name)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name!.StartsWith("models/", StringComparison.Ordinal)
@@ -277,5 +279,6 @@ public sealed class GeminiProvider : IAiProvider
     private sealed class GeminiModelInfo
     {
         public string? Name { get; set; }
+        public List<string>? SupportedGenerationMethods { get; set; }
     }
 }
