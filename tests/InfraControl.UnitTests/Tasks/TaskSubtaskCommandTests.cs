@@ -62,7 +62,9 @@ public sealed class TaskSubtaskCommandTests : IDisposable
             AssigneeRepo(context),
             history,
             new FakeCurrentUser(actorId ?? Guid.NewGuid()),
-            NullLogger<CreateTaskCommandHandler>.Instance);
+                        new SlaPolicyRepository(context),
+                        new TaskSlaRepository(context),
+                        NullLogger<CreateTaskCommandHandler>.Instance);
 
     private static SetTaskParentCommandHandler SetParentHandler(
         AppDbContext context, RecordingTaskHistoryWriter history, Guid actorId)

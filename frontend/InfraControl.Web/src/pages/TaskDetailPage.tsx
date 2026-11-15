@@ -1951,11 +1951,43 @@ export function TaskDetailPage() {
                 <DataRow label="Política" value={policyName(sla.slaPolicyId)} />
                 <DataRow
                   label="Resposta até"
-                  value={formatDateTime(new Date(sla.responseDueAt))}
+                  value={
+                    <span>
+                      {formatDateTime(new Date(sla.responseDueAt))}
+                      {sla.responseBreachedAt && (
+                        <span
+                          title={`Violado em ${formatDateTime(new Date(sla.responseBreachedAt))}`}
+                          style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 700,
+                            padding: "1px 6px", borderRadius: 4,
+                            background: "#fef2f2", color: "#b91c1c",
+                          }}
+                        >
+                          SLA ESTOURADO
+                        </span>
+                      )}
+                    </span>
+                  }
                 />
                 <DataRow
                   label="Resolução até"
-                  value={formatDateTime(new Date(sla.resolutionDueAt))}
+                  value={
+                    <span>
+                      {formatDateTime(new Date(sla.resolutionDueAt))}
+                      {sla.resolutionBreachedAt && (
+                        <span
+                          title={`Violado em ${formatDateTime(new Date(sla.resolutionBreachedAt))}`}
+                          style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 700,
+                            padding: "1px 6px", borderRadius: 4,
+                            background: "#fef2f2", color: "#b91c1c",
+                          }}
+                        >
+                          SLA ESTOURADO
+                        </span>
+                      )}
+                    </span>
+                  }
                 />
                 <DataRow
                   label="Relógio"

@@ -35,7 +35,8 @@ public sealed class SearchSlaPoliciesQueryHandler(ISlaPolicyRepository repositor
             result.Items
                 .Select(policy => new SlaPolicyDto(
                     policy.Id, policy.Name,
-                    policy.ResponseMinutes, policy.ResolutionMinutes, policy.ServiceId))
+                    policy.ResponseMinutes, policy.ResolutionMinutes, policy.ServiceId,
+                    policy.IsDefault))
                 .ToArray(),
             result.TotalCount,
             result.Page,
@@ -61,6 +62,7 @@ public sealed class GetSlaPolicyQueryHandler(ISlaPolicyRepository repository)
 
         return new SlaPolicyDto(
             policy.Id, policy.Name,
-            policy.ResponseMinutes, policy.ResolutionMinutes, policy.ServiceId);
+            policy.ResponseMinutes, policy.ResolutionMinutes, policy.ServiceId,
+            policy.IsDefault);
     }
 }

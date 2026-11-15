@@ -11,6 +11,7 @@ using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -54,6 +55,7 @@ public sealed class NotificationEventConsumer(
       IConsumer<TaskItemCreatedDomainEvent>,
       IConsumer<TaskAssigneeCreatedDomainEvent>,
       IConsumer<TaskResolvedDomainEvent>,
+      IConsumer<TaskSlaBreachedDomainEvent>,
       IConsumer<ProjectStatusChangedDomainEvent>
 {
     public NotificationEventConsumer(
@@ -338,6 +340,38 @@ public sealed class NotificationEventConsumer(
     }
 
     /// <summary>
+    /// SLA de task estourado (SlaBreachWorker) → notifica o responsável
+    /// e o criador da task (destinatários diretos); sem nenhum dos dois,
+    /// cai para Operator+Admin — mesmo público de tarefa criada.
+    /// </summary>
+    public async Task Consume(ConsumeContext<TaskSlaBreachedDomainEvent> context)
+    {
+        var message = context.Message;
+        var task = await dbContext.Tasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == message.TaskId, context.CancellationToken);
+
+        var users = new List<Guid>();
+        if (task?.ResponsibleId is { } responsible)
+            users.Add(responsible);
+        if (task?.CreatedById is { } creator)
+            users.Add(creator);
+
+        var recipientRoles = users.Count == 0
+            ? new[] { UserRole.Operator.ToString(), UserRole.Admin.ToString() }
+            : Array.Empty<string>();
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
+            "SLA estourado",
+            $"O SLA de {message.BreachKind} da tarefa '{message.Title}' venceu.",
+            recipientUserId: null,
+            recipientRoles: recipientRoles,
+            context.CancellationToken,
+            recipientUserIds: users.Distinct().ToArray());
+    }
+
+    /// <summary>
     /// F48-T002: projeto concluído (NewStatus=Completed) notifica os
     /// membros do projeto + líder — silencioso nas demais transições
     /// (regra do evento via NotificationEventRule vem em F48-T004).
@@ -599,7 +633,24 @@ public sealed class NotificationEventConsumer(
         }
 
         dbContext.Notifications.Add(notification);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation
+        })
+        {
+            // Corrida: outro consumer gravou a mesma notification (mesmo
+            // eventId) entre o check do inbox e este insert — ux_notifications_event_id
+            // garante a idempotência; tratar como duplicata, não como falha.
+            dbContext.Entry(notification).State = EntityState.Detached;
+            logger.LogInformation(
+                "Notificação de {EventType}/{EventId} já persistida por consumo concorrente — duplicata ignorada.",
+                eventType, eventId);
+            return;
+        }
         NotificationsCreated.Add(1,
             new KeyValuePair<string, object?>("event_type", eventType));
 

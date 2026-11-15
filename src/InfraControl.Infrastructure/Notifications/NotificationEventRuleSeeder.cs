@@ -18,6 +18,7 @@ public sealed class NotificationEventRuleSeeder(
     private static readonly (string EventType, string Channels)[] DefaultRules =
     [
         (nameof(TaskResolvedDomainEvent), "Email,SignalR"),
+        (nameof(TaskSlaBreachedDomainEvent), "Email,SignalR"),
         (nameof(ProjectStatusChangedDomainEvent), "Email,SignalR"),
     ];
 

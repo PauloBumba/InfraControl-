@@ -4121,6 +4121,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -4143,6 +4147,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsDefault")
+                        .IsUnique()
+                        .HasFilter("is_default AND service_id IS NULL");
 
                     b.HasIndex("ServiceId");
 
@@ -4788,6 +4796,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("ResolutionBreachedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolution_breached_at");
+
                     b.Property<DateTime>("ResolutionDueAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("resolution_due_at");
@@ -4795,6 +4807,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<int>("ResolutionMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("resolution_minutes");
+
+                    b.Property<DateTime?>("ResponseBreachedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("response_breached_at");
 
                     b.Property<DateTime>("ResponseDueAt")
                         .HasColumnType("timestamp with time zone")

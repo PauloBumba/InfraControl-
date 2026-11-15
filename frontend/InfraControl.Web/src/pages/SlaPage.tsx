@@ -70,6 +70,7 @@ const emptyValues = {
   targetPercent: "99.9",
   windowDays: "30",
   serviceId: "",
+  isDefault: false,
 };
 
 export function SlaPage() {
@@ -129,13 +130,13 @@ export function SlaPage() {
 
   const policyCreate = useCreateMutation({
     invalidate: ["slaPolicies"],
-    mutationFn: (input: { name: string; responseMinutes: number; resolutionMinutes: number; serviceId?: string }) =>
+    mutationFn: (input: { name: string; responseMinutes: number; resolutionMinutes: number; serviceId?: string; isDefault?: boolean }) =>
       createSlaPolicy(input),
     onSuccess: () => setNotice("Política de SLA criada."),
   });
   const policyUpdate = useUpdateMutation({
     invalidate: ["slaPolicies"],
-    mutationFn: (input: { id: string; name: string; responseMinutes: number; resolutionMinutes: number; serviceId?: string }) => {
+    mutationFn: (input: { id: string; name: string; responseMinutes: number; resolutionMinutes: number; serviceId?: string; isDefault?: boolean }) => {
       const { id, ...rest } = input;
       return updateSlaPolicy(id, rest);
     },
@@ -199,6 +200,7 @@ export function SlaPage() {
         responseMinutes: String(policy.responseMinutes),
         resolutionMinutes: String(policy.resolutionMinutes),
         serviceId: policy.serviceId ?? "",
+        isDefault: policy.isDefault,
       });
     } else {
       const slo = target as SloItem;
@@ -244,6 +246,7 @@ export function SlaPage() {
           responseMinutes: response,
           resolutionMinutes: resolution,
           serviceId: values.serviceId || undefined,
+          isDefault: values.isDefault,
         };
         if (form.mode === "create") await policyCreate.mutateAsync(input);
         else if (form.target) await policyUpdate.mutateAsync({ id: form.target.id, ...input });
@@ -449,7 +452,23 @@ export function SlaPage() {
           }}
           table={
             <DataTablePanel panel={false} value={policies.items} dataKey="id" emptyMessage={listError ? "—" : "Nenhuma política cadastrada"}>
-              <Column header="Política" body={(policy: SlaPolicyItem) => policy.name} />
+              <Column header="Política" body={(policy: SlaPolicyItem) => (
+                <span>
+                  {policy.name}
+                  {policy.isDefault && (
+                    <span
+                      title="Política padrão — auto-aplicada a toda task nova"
+                      style={{
+                        marginLeft: 6, fontSize: 10, fontWeight: 600,
+                        padding: "1px 6px", borderRadius: 4,
+                        background: "#eff6ff", color: "#1d4ed8",
+                      }}
+                    >
+                      PADRÃO
+                    </span>
+                  )}
+                </span>
+              )} />
               <Column header="Serviço" body={(policy: SlaPolicyItem) => policy.serviceId ? serviceName(policy.serviceId) : "Global"} style={{ width: 180 }} />
               <Column header="Resposta" body={(policy: SlaPolicyItem) => `${policy.responseMinutes} min`} style={{ width: 110 }} />
               <Column header="Resolução" body={(policy: SlaPolicyItem) => `${policy.resolutionMinutes} min`} style={{ width: 110 }} />
@@ -638,6 +657,22 @@ export function SlaPage() {
                     style={{ width: "100%" }}
                   />
                 </FormField>
+                {!values.serviceId && (
+                  <label
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      fontSize: 13, color: "#334155", cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={values.isDefault}
+                      onChange={(event) =>
+                        setValues((current) => ({ ...current, isDefault: event.target.checked }))}
+                    />
+                    Política padrão — aplicada automaticamente a toda task nova
+                  </label>
+                )}
               </>
             )}
 

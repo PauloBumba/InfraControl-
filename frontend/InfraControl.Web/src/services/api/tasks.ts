@@ -165,6 +165,9 @@ export interface TaskSla {
   resolutionMinutes: number;
   responseDueAt: string;
   resolutionDueAt: string;
+  /** Instante da violação (null = dentro do prazo). */
+  responseBreachedAt?: string | null;
+  resolutionBreachedAt?: string | null;
 }
 
 /** `TaskSlaPauseDto` (F8-T004) — `endAt` nulo = pausa em curso. */

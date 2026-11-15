@@ -21,6 +21,14 @@ public sealed class TaskSla : AggregateRoot
     public DateTime ResponseDueAt { get; private set; }
     public DateTime ResolutionDueAt { get; private set; }
 
+    /// <summary>
+    /// Instante da violação de cada prazo (null = dentro do SLA ou ainda
+    /// não verificado). O SlaBreachWorker marca uma única vez — evento
+    /// duplicado de breach é impossível por construção.
+    /// </summary>
+    public DateTime? ResponseBreachedAt { get; private set; }
+    public DateTime? ResolutionBreachedAt { get; private set; }
+
     private TaskSla() { }
 
     /// <summary>Aplica a política a partir da abertura da task (CreateDateTime).</summary>
@@ -56,4 +64,35 @@ public sealed class TaskSla : AggregateRoot
         RaiseDomainEvent(new TaskSlaUpdatedDomainEvent(
             TaskId, ResponseDueAt, ResolutionDueAt));
     }
+
+    /// <summary>
+    /// Marca a violação de um prazo (worker de SLA). Idempotente: prazo já
+    /// marcado não emite evento de novo. Retorna true se marcou agora.
+    /// </summary>
+    public bool MarkBreached(SlaBreachKind kind, DateTime breachedAtUtc, string taskTitle)
+    {
+        var dueAt = kind == SlaBreachKind.Response ? ResponseDueAt : ResolutionDueAt;
+        var already = kind == SlaBreachKind.Response
+            ? ResponseBreachedAt : ResolutionBreachedAt;
+        if (already is not null || dueAt > breachedAtUtc)
+            return false;
+
+        if (kind == SlaBreachKind.Response)
+            ResponseBreachedAt = breachedAtUtc;
+        else
+            ResolutionBreachedAt = breachedAtUtc;
+
+        RaiseDomainEvent(new TaskSlaBreachedDomainEvent(
+            TaskId, SlaPolicyId, taskTitle,
+            kind == SlaBreachKind.Response ? "resposta" : "resolução",
+            dueAt));
+        return true;
+    }
+}
+
+/// <summary>Qual prazo do SLA estourou.</summary>
+public enum SlaBreachKind
+{
+    Response,
+    Resolution
 }

@@ -56,6 +56,7 @@ public sealed class ApplyTaskSlaCommandHandler(
         return new TaskSlaDto(
             sla.TaskId, sla.SlaPolicyId,
             sla.ResponseMinutes, sla.ResolutionMinutes,
-            sla.ResponseDueAt, sla.ResolutionDueAt);
+            sla.ResponseDueAt, sla.ResolutionDueAt,
+            sla.ResponseBreachedAt, sla.ResolutionBreachedAt);
     }
 }

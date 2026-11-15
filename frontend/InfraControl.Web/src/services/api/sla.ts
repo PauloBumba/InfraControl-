@@ -26,6 +26,8 @@ export interface SlaPolicyItem {
   responseMinutes: number;
   resolutionMinutes: number;
   serviceId: string | null;
+  /** Política padrão global — auto-aplicada a toda task nova. */
+  isDefault: boolean;
 }
 
 export interface SloBudgetItem {
@@ -133,12 +135,14 @@ export function createSlaPolicy(input: {
   responseMinutes: number;
   resolutionMinutes: number;
   serviceId?: string;
+  isDefault?: boolean;
 }): Promise<SlaPolicyItem | null> {
   return api.post<SlaPolicyItem>("/sla/policies", {
     name: input.name,
     responseMinutes: input.responseMinutes,
     resolutionMinutes: input.resolutionMinutes,
     serviceId: input.serviceId || null,
+    isDefault: input.isDefault ?? false,
   });
 }
 
@@ -150,6 +154,7 @@ export async function updateSlaPolicy(
     responseMinutes: number;
     resolutionMinutes: number;
     serviceId?: string;
+    isDefault?: boolean;
   },
 ): Promise<null> {
   return api.put<null>(`/sla/policies/${id}`, {
@@ -157,6 +162,7 @@ export async function updateSlaPolicy(
     responseMinutes: input.responseMinutes,
     resolutionMinutes: input.resolutionMinutes,
     serviceId: input.serviceId || null,
+    isDefault: input.isDefault ?? false,
   });
 }
 

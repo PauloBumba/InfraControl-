@@ -53,6 +53,22 @@ public sealed class SlaPolicyRepository(AppDbContext dbContext) : ISlaPolicyRepo
         => dbContext.SlaPolicies.AnyAsync(
             policy => policy.ServiceId == serviceId, cancellationToken);
 
+    public Task<SlaPolicy?> GetDefaultAsync(CancellationToken cancellationToken = default)
+        => dbContext.SlaPolicies
+            .SingleOrDefaultAsync(
+                policy => policy.IsDefault && policy.ServiceId == null,
+                cancellationToken);
+
+    public async Task ClearDefaultsExceptAsync(
+        Guid exceptId, CancellationToken cancellationToken = default)
+    {
+        var others = await dbContext.SlaPolicies
+            .Where(policy => policy.IsDefault && policy.Id != exceptId)
+            .ToListAsync(cancellationToken);
+        foreach (var other in others)
+            other.SetDefault(false);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

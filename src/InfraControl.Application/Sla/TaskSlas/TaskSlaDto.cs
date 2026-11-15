@@ -9,4 +9,7 @@ public sealed record TaskSlaDto(
     int ResponseMinutes,
     int ResolutionMinutes,
     DateTime ResponseDueAt,
-    DateTime ResolutionDueAt);
+    DateTime ResolutionDueAt,
+    /// <summary>Instante da violação (null = dentro do prazo).</summary>
+    DateTime? ResponseBreachedAt = null,
+    DateTime? ResolutionBreachedAt = null);

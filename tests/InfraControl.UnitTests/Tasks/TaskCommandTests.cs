@@ -55,7 +55,9 @@ public sealed class TaskCommandTests : IDisposable
         AppDbContext context, Guid? creatorId = null)
         => new(Repo(context), AssigneeRepo(context), History(),
             new FakeCurrentUser(creatorId ?? Guid.NewGuid()),
-            NullLogger<CreateTaskCommandHandler>.Instance);
+                        new SlaPolicyRepository(context),
+                        new TaskSlaRepository(context),
+                        NullLogger<CreateTaskCommandHandler>.Instance);
 
     // ── Create ───────────────────────────────────────────────────────────
 
@@ -88,6 +90,42 @@ public sealed class TaskCommandTests : IDisposable
         var saved = await context.Tasks.AsNoTracking().SingleAsync();
         saved.State.Should().Be(TaskState.Open);
         saved.CreatedById.Should().Be(creatorId);
+    }
+
+    [Fact]
+    public async Task Create_WithDefaultSlaPolicy_ShouldAutoApplySnapshot()
+    {
+        await using var context = await CreateContextAsync();
+        var policy = Domain.Entities.SlaPolicy.Create("Padrão global", 30, 480);
+        policy.SetDefault(true);
+        context.SlaPolicies.Add(policy);
+        await context.SaveChangesAsync();
+
+        var dto = await CreateHandler(context, Guid.NewGuid()).Handle(
+            new CreateTaskCommand("Task com SLA automático", "Manual"),
+            CancellationToken.None);
+
+        var sla = await context.TaskSlas.AsNoTracking()
+            .SingleAsync(s => s.TaskId == dto.Id);
+        sla.SlaPolicyId.Should().Be(policy.Id);
+        sla.ResponseMinutes.Should().Be(30);
+        sla.ResolutionMinutes.Should().Be(480);
+    }
+
+    [Fact]
+    public async Task Create_WithoutDefaultSlaPolicy_ShouldNotApplySla()
+    {
+        await using var context = await CreateContextAsync();
+        context.SlaPolicies.Add(
+            Domain.Entities.SlaPolicy.Create("Não padrão", 30, 480));
+        await context.SaveChangesAsync();
+
+        var dto = await CreateHandler(context, Guid.NewGuid()).Handle(
+            new CreateTaskCommand("Task sem SLA", "Manual"),
+            CancellationToken.None);
+
+        (await context.TaskSlas.CountAsync(s => s.TaskId == dto.Id))
+            .Should().Be(0);
     }
 
     [Fact]

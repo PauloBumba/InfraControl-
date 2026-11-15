@@ -29,6 +29,15 @@ public sealed class SlaPolicyConfiguration : IEntityTypeConfiguration<SlaPolicy>
         builder.Property(x => x.ServiceId)
             .HasColumnName("service_id");
 
+        builder.Property(x => x.IsDefault)
+            .HasColumnName("is_default")
+            .IsRequired();
+
+        // No máximo uma política padrão global.
+        builder.HasIndex(x => x.IsDefault)
+            .IsUnique()
+            .HasFilter("is_default AND service_id IS NULL");
+
         // Política global (null) ou por serviço; Service Restrict — não
         // apagar um serviço com policies (pré-check 409 no handler + FK).
         builder.HasOne<Service>()
