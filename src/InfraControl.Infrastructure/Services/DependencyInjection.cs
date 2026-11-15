@@ -458,6 +458,8 @@ public static class DependencyInjection
             Repositories.MessagingStatsStore>();
         services.AddScoped<Application.Messaging.Ports.IMessagingPauseStore,
             Repositories.MessagingPauseStore>();
+        services.AddScoped<Application.Messaging.Ports.IMessagingExplorerStore,
+            Repositories.MessagingExplorerStore>();
 
         services.AddScoped<Application.Notifications.Transitions.IOccurrenceTransitionGate,
             Application.Notifications.Transitions.OccurrenceTransitionGate>();

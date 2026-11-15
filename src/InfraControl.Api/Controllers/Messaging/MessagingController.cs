@@ -74,6 +74,48 @@ public sealed class MessagingController(ISender sender) : BaseController
         string name, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new ResumeQueueConsumptionCommand(name), cancellationToken)));
+
+    // ---- F55-T004: Message Explorer -------------------------------------
+
+    [HttpGet("messages")]
+    [Authorize]
+    public async Task<IActionResult> SearchMessages(
+        [FromQuery] Guid? messageId, [FromQuery] string? correlationId,
+        [FromQuery] string? eventType, [FromQuery] string? state,
+        [FromQuery] string? text, [FromQuery] int? minAttempts,
+        [FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(new SearchMessagingMessagesQuery(
+            messageId, correlationId, eventType, state, text, minAttempts,
+            fromUtc, toUtc,
+            Math.Max(1, page), Math.Clamp(pageSize, 1, 100)), cancellationToken)));
+
+    [HttpGet("messages/{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> GetMessage(
+        Guid id, CancellationToken cancellationToken)
+    {
+        var detail = await sender.Send(
+            new GetMessagingMessageDetailQuery(id), cancellationToken);
+        return detail is null
+            ? NotFound(ApiResponse.Fail(["Mensagem não encontrada."]))
+            : Ok(ApiResponse.Ok(detail));
+    }
+
+    [HttpGet("deliveries")]
+    [Authorize]
+    public async Task<IActionResult> SearchDeliveries(
+        [FromQuery] Guid? deliveryId, [FromQuery] Guid? notificationId,
+        [FromQuery] string? channel, [FromQuery] string? status,
+        [FromQuery] int? minAttempts,
+        [FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(new SearchMessagingDeliveriesQuery(
+            deliveryId, notificationId, channel, status, minAttempts,
+            fromUtc, toUtc,
+            Math.Max(1, page), Math.Clamp(pageSize, 1, 100)), cancellationToken)));
 }
 
 public sealed record MessagingQueuePauseRequest(string? Reason);
