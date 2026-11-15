@@ -78,16 +78,18 @@ Sempre apresentar:
 
 Ao criar ou alterar qualquer slice, aplicar SEMPRE:
 
-1. **Nova tabela/entidade que cresce** → decidir retenção na hora:
-   - histórico/append-only ou log → novo `RetentionDataType` +
-     `RetentionOptions.*Days` + método `Delete*Async` no `CleanupService`
-     + caso em `GetRetentionPoliciesQuery.ConfigDays` + label em
-     `RetentionPage.tsx` (`DATA_TYPE_LABELS`);
-   - estado/configuração pequena (ex.: `MessagingQueuePause`) → N/A
-     documentado no enum/comentário;
-   - sistema externo/banco da stack → tipo "managed" (registrado, sem poda).
-   - `CleanupResult.TotalDeleted` deve incluir TODO campo novo — já houve
-     bug de soma incompleta.
+1. **Nova tabela/entidade que cresce** → retenção genérica por tabela
+   (2026-11-15): o `RetentionTableCatalog` descobre sozinho toda entidade
+   do EF model com tabela física + `CreateDateTime`, e o admin atribui os
+   dias em `/settings/retention` → "Retenção por tabela"
+   (`table_retention_policies`). **Não** criar `RetentionDataType` novo
+   por tabela — o tipo explícito só serve para casos com regra própria
+   (cutoff por coluna diferente, exclusões de FK, managed externo).
+   Antes de permitir a política de uma tabela, garantir que ela é
+   historico/append-only — NUNCA estado vivo ou configuração. Estado
+   pequeno → simplesmente não atribuir dias (fica "Sem retenção").
+   `CleanupResult.TotalDeleted` deve incluir TODO campo novo — já houve
+   bug de soma incompleta.
 2. **Novo módulo/endpoint** → declarar nível explicitamente:
    leitura `RoleAccess.Operate` (Operator+Admin), gestão `Administer`
    (só Admin); frontend espelha em `ROUTE_ACCESS`/`access.ts` e esconde

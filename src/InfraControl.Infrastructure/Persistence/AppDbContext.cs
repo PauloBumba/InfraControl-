@@ -98,6 +98,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
     public DbSet<CameraNvrMapping> CameraNvrMappings => Set<CameraNvrMapping>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+    public DbSet<TableRetentionPolicy> TableRetentionPolicies => Set<TableRetentionPolicy>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();

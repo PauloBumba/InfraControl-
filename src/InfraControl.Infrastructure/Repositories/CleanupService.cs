@@ -27,6 +27,7 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
         var unifiSyncRunsDeleted = await DeleteUniFiSyncRunsAsync(Cutoff(days, RetentionDataType.UniFiSyncRuns, _options.UniFiSyncRunsDays, utcNow), batchSize, cancellationToken);
         var invitationsDeleted = await DeleteInvitationsAsync(Cutoff(days, RetentionDataType.Invitations, _options.InvitationsDays, utcNow), batchSize, cancellationToken);
         var occurrenceTransitionsDeleted = await DeleteOccurrenceTransitionsAsync(Cutoff(days, RetentionDataType.OccurrenceTransitions, _options.OccurrenceTransitionsDays, utcNow), batchSize, cancellationToken);
+        var tableRowsDeleted = await DeleteTableRetentionAsync(utcNow, batchSize, cancellationToken);
 
         return new CleanupResult(
             outboxDeleted,
@@ -39,7 +40,8 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             monitoringEventsDeleted,
             invitationsDeleted,
             UniFiSyncRunsDeleted: unifiSyncRunsDeleted,
-            OccurrenceTransitionsDeleted: occurrenceTransitionsDeleted);
+            OccurrenceTransitionsDeleted: occurrenceTransitionsDeleted,
+            TableRowsDeleted: tableRowsDeleted);
     }
 
     private async Task<int> DeleteOutboxAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
@@ -233,6 +235,57 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             .Where(m => ids.Contains(m.Id))
             .ExecuteDeleteAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// Retenção genérica por tabela (metodologia 2026-11-15): para cada
+    /// <see cref="Domain.Entities.TableRetentionPolicy"/>, resolve a entidade
+    /// no EF model e apaga em lote as linhas com <c>CreateDateTime</c> &lt;
+    /// cutoff. Entidade que sumiu do model é pulada (política fica órfã,
+    /// visível na tela — nunca inventa delete).
+    /// </summary>
+    private async Task<int> DeleteTableRetentionAsync(
+        DateTime utcNow, int batchSize, CancellationToken cancellationToken)
+    {
+        var policies = await _dbContext.TableRetentionPolicies
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        var deleted = 0;
+        foreach (var policy in policies)
+        {
+            var entityType = _dbContext.Model.GetEntityTypes()
+                .FirstOrDefault(e => e.ClrType.Name == policy.EntityName
+                    && e.GetTableName() is not null);
+            if (entityType is null)
+                continue;
+
+            var cutoff = utcNow.AddDays(-policy.Days);
+            deleted += await (Task<int>)DeleteRowsMethod
+                .MakeGenericMethod(entityType.ClrType)
+                .Invoke(this, [cutoff, batchSize, cancellationToken])!;
+        }
+
+        return deleted;
+    }
+
+    /// <summary>
+    /// Poda genérica por <c>CreateDateTime</c>: invocada por reflection
+    /// porque o tipo da entidade só é conhecido em runtime (tabela nova
+    /// não exige código novo — só a política do admin).
+    /// </summary>
+    private Task<int> DeleteRowsAsync<TEntity>(
+        DateTime cutoff, int batchSize, CancellationToken cancellationToken)
+        where TEntity : class
+        => _dbContext.Set<TEntity>()
+            .Where(e => EF.Property<DateTime>(e, "CreateDateTime") < cutoff)
+            .Take(batchSize)
+            .ExecuteDeleteAsync(cancellationToken);
+
+    private static readonly System.Reflection.MethodInfo DeleteRowsMethod =
+        typeof(CleanupService).GetMethod(
+            nameof(DeleteRowsAsync),
+            System.Reflection.BindingFlags.NonPublic
+            | System.Reflection.BindingFlags.Instance)!;
 
     private async Task<IReadOnlyDictionary<RetentionDataType, int>> LoadRetentionDaysAsync(
         CancellationToken cancellationToken)

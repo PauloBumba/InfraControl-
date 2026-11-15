@@ -52,12 +52,13 @@ public sealed record CleanupResult(
     int MonitoringEventsDeleted = 0,
     int InvitationsDeleted = 0,
     int UniFiSyncRunsDeleted = 0,
-    int OccurrenceTransitionsDeleted = 0)
+    int OccurrenceTransitionsDeleted = 0,
+    int TableRowsDeleted = 0)
 {
     public int TotalDeleted => OutboxDeleted + ProcessedDeleted + AuditDeleted
         + MonitoringDeleted + NotificationDeleted + RemoteSessionDeleted + DiscoveryDeleted
         + MonitoringEventsDeleted + InvitationsDeleted + UniFiSyncRunsDeleted
-        + OccurrenceTransitionsDeleted;
+        + OccurrenceTransitionsDeleted + TableRowsDeleted;
 }
 
 public interface ICleanupService

@@ -306,6 +306,68 @@ public sealed class CleanupServiceTests
         (await context.OccurrenceTransitions.CountAsync()).Should().Be(1);
     }
 
+    [Fact]
+    public async Task CleanupAsync_ShouldPruneTableRetentionPolicy_RegardlessOfDataType()
+    {
+        var utcNow = new DateTime(2026, 11, 15, 12, 0, 0, DateTimeKind.Utc);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.EnsureCreatedAsync();
+
+        // Política genérica de tabela: 10 dias. O tipo explícito
+        // OccurrenceTransitions usa 90d — a linha de 20d só pode ter
+        // sido apagada pela poda genérica.
+        await context.TableRetentionPolicies.AddAsync(
+            TableRetentionPolicy.Create("OccurrenceTransition", 10));
+
+        var oldTransition = OccurrenceTransition.Create(
+            "alert:2", null, OccurrenceState.Alert,
+            OccurrenceDecision.TransitionAccepted, "AlertOpened", Guid.NewGuid());
+        var recentTransition = OccurrenceTransition.Create(
+            "alert:2", OccurrenceState.Alert, OccurrenceState.Resolved,
+            OccurrenceDecision.TransitionAccepted, "AlertResolved", Guid.NewGuid());
+        await context.OccurrenceTransitions.AddRangeAsync(oldTransition, recentTransition);
+        await context.SaveChangesAsync();
+
+        context.Entry(oldTransition).Property(nameof(Entity.CreateDateTime))
+            .CurrentValue = utcNow.AddDays(-20);
+        context.Entry(recentTransition).Property(nameof(Entity.CreateDateTime))
+            .CurrentValue = utcNow.AddDays(-1);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var cleanup = scope.ServiceProvider.GetRequiredService<ICleanupService>();
+        var result = await cleanup.CleanupAsync(utcNow);
+
+        result.TableRowsDeleted.Should().Be(1);
+        result.OccurrenceTransitionsDeleted.Should().Be(0);
+        (await context.OccurrenceTransitions.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CleanupAsync_ShouldSkipTableRetention_WhenEntityNotInModel()
+    {
+        var utcNow = new DateTime(2026, 11, 15, 12, 0, 0, DateTimeKind.Utc);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.EnsureCreatedAsync();
+
+        await context.TableRetentionPolicies.AddAsync(
+            TableRetentionPolicy.Create("EntidadeQueNaoExiste", 10));
+        await context.SaveChangesAsync();
+
+        var cleanup = scope.ServiceProvider.GetRequiredService<ICleanupService>();
+        var result = await cleanup.CleanupAsync(utcNow);
+
+        result.TableRowsDeleted.Should().Be(0);
+    }
+
     private static ServiceProvider BuildProvider(SqliteConnection connection)
     {
         var services = new ServiceCollection();

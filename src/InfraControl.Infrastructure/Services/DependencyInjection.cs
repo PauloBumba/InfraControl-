@@ -660,6 +660,13 @@ public static class DependencyInjection
 
         // Retention / cleanup
         services.Configure<RetentionOptions>(configuration.GetSection("Retention"));
+        // Retenção genérica por tabela (metodologia 2026-11-15): store e
+        // catálogo EF registrados manualmente (não seguem o par
+        // I*Repository/*Repository do auto-registro).
+        services.AddScoped<Application.Operations.Retention.Ports.ITableRetentionStore,
+            Repositories.TableRetentionStore>();
+        services.AddScoped<Application.Operations.Retention.Ports.IRetentionTableCatalog,
+            Repositories.RetentionTableCatalog>();
 
         // Performance (Dia 5 — docs/20): alerta de request lento
         services.Configure<PerformanceOptions>(configuration.GetSection("Performance"));

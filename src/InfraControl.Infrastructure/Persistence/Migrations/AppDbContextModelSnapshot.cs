@@ -4329,6 +4329,40 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("switch_port_vlans", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.TableRetentionPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_datetime");
+
+                    b.Property<int>("Days")
+                        .HasColumnType("integer")
+                        .HasColumnName("days");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("entity_name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_datetime");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntityName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_table_retention_policies_entity_name");
+
+                    b.ToTable("table_retention_policies", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskAssignee", b =>
                 {
                     b.Property<Guid>("TaskId")

@@ -4,11 +4,15 @@ import { Button } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
 import {
   deleteRetentionPolicy,
+  deleteTableRetention,
   exportRetentionPolicies,
   getRetentionPolicies,
+  getRetentionTables,
   importRetentionPolicies,
   upsertRetentionPolicy,
+  upsertTableRetention,
   type RetentionPolicyItem,
+  type RetentionTableItem,
 } from "@/services/api/retention";
 
 /** Rótulos pt-BR dos tipos de dado do cleanup (RetentionDataType). */
@@ -72,7 +76,24 @@ export function RetentionPage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [imported, setImported] = useState<number | null>(null);
+  const [tables, setTables] = useState<RetentionTableItem[]>([]);
+  const [tableDrafts, setTableDrafts] = useState<Record<string, number | null>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadTables = useCallback(async () => {
+    try {
+      const list = await getRetentionTables();
+      setTables(list);
+      setTableDrafts(
+        Object.fromEntries(
+          list.filter((t) => t.policyDays != null).map((t) => [t.entityName, t.policyDays]),
+        ),
+      );
+    } catch {
+      // Tabelas são complemento — falha não derruba a tela principal.
+      setTables([]);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,12 +102,13 @@ export function RetentionPage() {
       const list = await getRetentionPolicies();
       setPolicies(list);
       setDrafts(Object.fromEntries(list.map((p) => [p.dataType, p.days])));
+      await loadTables();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar políticas.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadTables]);
 
   useEffect(() => {
     void load();
@@ -122,6 +144,41 @@ export function RetentionPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao restaurar padrão.");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const saveTable = async (entityName: string) => {
+    const days = tableDrafts[entityName];
+    if (days == null || days < 1) {
+      setError("Informe um número de dias maior que zero.");
+      return;
+    }
+    setSaving(`table:${entityName}`);
+    setError(null);
+    setSaved(null);
+    try {
+      await upsertTableRetention(entityName, days);
+      setSaved(`table:${entityName}`);
+      await loadTables();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao salvar política da tabela.");
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const resetTable = async (entityName: string) => {
+    setSaving(`table:${entityName}`);
+    setError(null);
+    setSaved(null);
+    try {
+      await deleteTableRetention(entityName);
+      setSaved(`table:${entityName}`);
+      await loadTables();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao remover política da tabela.");
     } finally {
       setSaving(null);
     }
@@ -339,6 +396,128 @@ export function RetentionPage() {
                     </td>
                   </tr>
                 )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && tables.length > 0 && (
+        <div className="uni-panel" style={{ padding: 16, marginTop: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>
+            <i className="pi pi-database" style={{ marginRight: 6 }} />
+            Retenção por tabela
+          </h3>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#6b7280" }}>
+            Tabelas descobertas automaticamente do modelo. Atribua os dias e o
+            cleanup poda linhas com CreateDateTime anterior ao corte — tabela
+            nova já aparece aqui sem mudança de código.
+          </p>
+          <div style={{ overflowX: "auto", maxHeight: 420, overflowY: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                fontSize: 13,
+                borderCollapse: "collapse",
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: "1px solid #e5e7eb",
+                    textAlign: "left",
+                    position: "sticky",
+                    top: 0,
+                    background: "#fff",
+                  }}
+                >
+                  <th style={{ padding: "8px 12px 8px 0", fontWeight: 600 }}>
+                    Tabela
+                  </th>
+                  <th style={{ padding: "8px 12px 8px 0", fontWeight: 600 }}>
+                    Entidade
+                  </th>
+                  <th style={{ padding: "8px 12px 8px 0", fontWeight: 600 }}>
+                    Dias
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 0 8px 8px",
+                      fontWeight: 600,
+                      textAlign: "right",
+                    }}
+                  >
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tables.map((t) => (
+                  <tr
+                    key={t.entityName}
+                    style={{ borderBottom: "1px solid #f3f4f6" }}
+                  >
+                    <td style={{ padding: "8px 12px 8px 0" }}>{t.tableName}</td>
+                    <td style={{ padding: "8px 12px 8px 0", color: "#6b7280" }}>
+                      {t.entityName}
+                      {t.policyDays == null && (
+                        <StatusChip
+                          label="Sem retenção"
+                          background="#fef2f2"
+                          color="#b91c1c"
+                          style={{ marginLeft: 8 }}
+                        />
+                      )}
+                    </td>
+                    <td style={{ padding: "8px 12px 8px 0" }}>
+                      <input
+                        type="number"
+                        value={tableDrafts[t.entityName] ?? ""}
+                        onChange={(e) =>
+                          setTableDrafts((d) => ({
+                            ...d,
+                            [t.entityName]:
+                              e.target.value === "" ? null : Number(e.target.value),
+                          }))
+                        }
+                        min={1}
+                        max={3650}
+                        placeholder="—"
+                        style={inputStyle}
+                        aria-label={`Dias de retenção — ${t.entityName}`}
+                      />
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 0 8px 8px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <Button
+                        variant="ghost"
+                        icon="pi pi-save"
+                        title="Salvar dias de retenção"
+                        aria-label={`Salvar retenção de ${t.entityName}`}
+                        disabled={
+                          tableDrafts[t.entityName] == null ||
+                          saving === `table:${t.entityName}`
+                        }
+                        onClick={() => void saveTable(t.entityName)}
+                      />
+                      {t.policyDays != null && (
+                        <Button
+                          variant="ghost"
+                          icon="pi pi-trash"
+                          title="Remover retenção desta tabela"
+                          aria-label={`Remover retenção de ${t.entityName}`}
+                          disabled={saving === `table:${t.entityName}`}
+                          onClick={() => void resetTable(t.entityName)}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

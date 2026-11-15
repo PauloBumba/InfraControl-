@@ -60,3 +60,35 @@ export async function importRetentionPolicies(
   );
   return data?.imported ?? 0;
 }
+
+/** Tabela descoberta do EF model + política de dias (retenção genérica). */
+export interface RetentionTableItem {
+  entityName: string;
+  tableName: string;
+  policyDays: number | null;
+}
+
+export async function getRetentionTables(): Promise<RetentionTableItem[]> {
+  const data = await api.get<RetentionTableItem[] | null>(
+    "/operations/retention-policies/tables",
+  );
+  return data ?? [];
+}
+
+export async function upsertTableRetention(
+  entityName: string,
+  days: number,
+): Promise<RetentionTableItem> {
+  const data = await api.put<RetentionTableItem | null>(
+    `/operations/retention-policies/tables/${encodeURIComponent(entityName)}`,
+    { days },
+  );
+  if (!data) throw new Error("Resposta vazia do servidor.");
+  return data;
+}
+
+export async function deleteTableRetention(entityName: string): Promise<void> {
+  await api.delete<null>(
+    `/operations/retention-policies/tables/${encodeURIComponent(entityName)}`,
+  );
+}
