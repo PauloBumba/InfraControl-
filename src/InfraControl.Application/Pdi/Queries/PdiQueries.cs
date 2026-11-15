@@ -30,8 +30,14 @@ public sealed class ListPdisQueryHandler(IPdiRepository repository, ICurrentUser
                 ?? throw new UnauthorizedAccessException(
                     "Usuário autenticado sem identificação — não é possível listar o PDI.");
 
+            // Dono vê o próprio plano; gestor vê também os planos da
+            // equipe que gerencia (ele avalia/acompinha — docs/30 §15.3).
             var own = await repository.ListWithOwnersAsync(ownUserId, cancellationToken);
-            return own
+            var managed = await repository.ListByManagerAsync(ownUserId, cancellationToken);
+
+            return own.Concat(managed)
+                .GroupBy(item => item.Plan.UserId)
+                .Select(group => group.First())
                 .Select(item => PdiDto.From(
                     item.Plan, item.OwnerName, item.OwnerEmail, item.ManagerName))
                 .ToArray();

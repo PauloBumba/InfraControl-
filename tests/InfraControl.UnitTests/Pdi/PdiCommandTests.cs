@@ -526,7 +526,7 @@ public sealed class PdiCommandTests
             .Which.Type.Should().Be("Created");
     }
 
-    private static AppDbContext NewContext(SqliteConnection connection)
+    internal static AppDbContext NewContext(SqliteConnection connection)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
@@ -534,14 +534,14 @@ public sealed class PdiCommandTests
         return new AppDbContext(options);
     }
 
-    private static UpsertPdiCommandHandler UpsertHandler(
+    internal static UpsertPdiCommandHandler UpsertHandler(
         AppDbContext context, FakeCurrentUser user, params string[] roles)
         => new(
             new PdiRepository(context),
             roles.Length > 0 ? new FakeCurrentUser(user.UserId, roles) : user,
             NullLogger<UpsertPdiCommandHandler>.Instance);
 
-    private static ListPdisQueryHandler ListHandler(
+    internal static ListPdisQueryHandler ListHandler(
         AppDbContext context, Guid? userId, params string[] roles)
         => new(new PdiRepository(context), new FakeCurrentUser(userId, roles));
 
@@ -549,7 +549,7 @@ public sealed class PdiCommandTests
         AppDbContext context, Guid? userId, params string[] roles)
         => new(new PdiRepository(context), new FakeCurrentUser(userId, roles));
 
-    private static async Task<User> SeedUserAsync(
+    internal static async Task<User> SeedUserAsync(
         AppDbContext context, string email, string displayName)
     {
         var user = User.Create(email, displayName);
@@ -558,18 +558,62 @@ public sealed class PdiCommandTests
         return user;
     }
 
-    private static class SeedUserIds
+    internal static class SeedUserIds
     {
         public static FakeCurrentUser New()
             => new(Guid.NewGuid(), "Admin");
     }
 
-    private sealed class FakeCurrentUser(Guid? userId, params string[] roles)
+    internal sealed class FakeCurrentUser(Guid? userId, params string[] roles)
         : ICurrentUserContext
     {
         public Guid? UserId { get; } = userId;
         public string? UserName => $"ator-{UserId}@exemplo.test";
         public bool IsAuthenticated => true;
         public IReadOnlyCollection<string> Roles { get; } = roles;
+    }
+}
+
+public sealed class PdiListVisibilityTests
+{
+    [Fact]
+    public async Task List_AsManager_ShouldReturnOwnPlusManagedPlans()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var context = PdiCommandTests.NewContext(connection);
+        await context.Database.EnsureCreatedAsync();
+
+        var manager = await PdiCommandTests.SeedUserAsync(
+            context, "gestor@exemplo.test", "Gestor");
+        var member = await PdiCommandTests.SeedUserAsync(
+            context, "membro@exemplo.test", "Membro");
+        var outsider = await PdiCommandTests.SeedUserAsync(
+            context, "outro@exemplo.test", "Outro");
+        var admin = PdiCommandTests.SeedUserIds.New();
+        var adminHandler = PdiCommandTests.UpsertHandler(context, admin, ["Admin"]);
+        var target = new DateOnly(2027, 6, 30);
+
+        // PDI do membro gerenciado pelo gestor; do outsider sem gestor.
+        await adminHandler.Handle(
+            new UpsertPdiCommand(member.Id, "Plano do membro", target, "Draft",
+                ManagerId: manager.Id), CancellationToken.None);
+        await adminHandler.Handle(
+            new UpsertPdiCommand(outsider.Id, "Plano do outsider", target, "Draft"),
+            CancellationToken.None);
+
+        var asManager = await PdiCommandTests.ListHandler(
+            context, manager.Id, ["Operator"]).Handle(
+            new ListPdisQuery(), CancellationToken.None);
+
+        // Gestor não tem PDI próprio, mas vê o da equipe.
+        asManager.Should().ContainSingle()
+            .Which.UserId.Should().Be(member.Id);
+
+        var asOutsider = await PdiCommandTests.ListHandler(
+            context, outsider.Id, ["Operator"]).Handle(
+            new ListPdisQuery(), CancellationToken.None);
+        asOutsider.Should().ContainSingle()
+            .Which.UserId.Should().Be(outsider.Id);
     }
 }
