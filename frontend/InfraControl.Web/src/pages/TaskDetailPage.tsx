@@ -6,6 +6,8 @@ import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Can } from "@/components/auth/Can";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { FormField } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
@@ -284,6 +286,13 @@ export function TaskDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Push operacional (estado/SLA da task) + polling opt-in.
+  const refreshQuiet = useCallback(() => {
+    void load();
+  }, [load]);
+  useOperationalRefresh(refreshQuiet);
+  useAutoRefresh(refreshQuiet);
 
   // Vocabulário para selects de apoio — falha (403 de Viewer em users,
   // rede) silencia e a UI cai para ids curtos.

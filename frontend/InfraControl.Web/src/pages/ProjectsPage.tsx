@@ -9,6 +9,8 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAppSelector } from "@/app/store/hooks";
@@ -287,6 +289,13 @@ export function ProjectsPage() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  // Push operacional (status do projeto) + polling opt-in.
+  const refreshProjects = useCallback(() => {
+    void loadProjects();
+  }, [loadProjects]);
+  useOperationalRefresh(refreshProjects);
+  useAutoRefresh(refreshProjects);
 
   useEffect(() => {
     listUsers()

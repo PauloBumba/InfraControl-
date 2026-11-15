@@ -34,6 +34,8 @@ import {
   PdiOwnDashboardPanel,
 } from "@/components/pdi/PdiDashboardPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
@@ -159,6 +161,13 @@ export function PdiPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Push operacional (PDI criado/atualizado) + polling opt-in.
+  const refreshQuiet = useCallback(() => {
+    void load();
+  }, [load]);
+  useOperationalRefresh(refreshQuiet);
+  useAutoRefresh(refreshQuiet);
 
   const ownPdiId = !isAdmin ? (ownUserId ?? null) : null;
 

@@ -7,6 +7,8 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { EvidenceMediaPreview } from "@/components/ui/EvidenceMediaPreview";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { ProjectConclusionSection } from "@/components/projects/ProjectConclusionSection";
 import {
@@ -304,6 +306,13 @@ export function ProjectDetailPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Push operacional (status/evidências do projeto) + polling opt-in.
+  const refreshQuiet = useCallback(() => {
+    void refresh();
+  }, [refresh]);
+  useOperationalRefresh(refreshQuiet);
+  useAutoRefresh(refreshQuiet);
 
   const handleSubmitApproval = async () => {
     if (!id) return;
