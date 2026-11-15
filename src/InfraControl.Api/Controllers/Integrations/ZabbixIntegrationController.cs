@@ -201,4 +201,19 @@ public sealed class ZabbixIntegrationController(
         var result = await sender.Send(new GetZabbixSummaryQuery(), cancellationToken);
         return Ok(ApiResponse.Ok(result));
     }
+
+    /// <summary>
+    /// Eventos Zabbix ingeridos por dia/severidade/status (janela ?days=,
+    /// padrão 14, dias em Brasília) — gráfico da tela de integração.
+    /// </summary>
+    [HttpGet("event-stats")]
+    [Authorize]
+    public async Task<IActionResult> GetEventStats(
+        [FromQuery] int days = 14,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await sender.Send(
+            new GetZabbixEventStatsQuery(days), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
 }

@@ -100,3 +100,24 @@ export function setPreference(
   });
 }
 
+
+/**
+ * Stats de entregas por dia/canal/status (GET /notifications/delivery-stats,
+ * Operate) — gráficos das telas de WhatsApp, E-mail e Integrações.
+ * `date` = yyyy-MM-dd já no fuso de Brasília; channel/status em texto.
+ */
+export interface NotificationDeliveryStatPoint {
+  date: string;
+  channel: string;
+  status: string;
+  count: number;
+}
+
+export interface NotificationDeliveryStats {
+  points: NotificationDeliveryStatPoint[];
+  days: number;
+}
+
+export function getDeliveryStats(days = 14): Promise<NotificationDeliveryStats | null> {
+  return api.get<NotificationDeliveryStats>(`/notifications/delivery-stats?days=${days}`);
+}

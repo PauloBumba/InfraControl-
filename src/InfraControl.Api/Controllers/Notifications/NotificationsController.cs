@@ -6,6 +6,7 @@ using InfraControl.Application.Notifications.Feed.Queries;
 using InfraControl.Application.Notifications.Preferences.Commands;
 using InfraControl.Application.Notifications.Preferences.Queries;
 using InfraControl.Application.Notifications.Recipients.Queries;
+using InfraControl.Application.Notifications.Stats;
 using InfraControl.BuildingBlocks.Application.Response;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -104,4 +105,15 @@ public sealed class NotificationsController(IMediator sender) : BaseController
     public async Task<IActionResult> GetEventCatalog(CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new GetNotificationEventCatalogQuery(), cancellationToken)));
+
+    /// <summary>
+    /// Entregas por dia/canal/status (janela ?days=, padrão 14) — gráficos
+    /// das telas de WhatsApp, E-mail e Integrações.
+    /// </summary>
+    [HttpGet("delivery-stats")]
+    public async Task<IActionResult> GetDeliveryStats(
+        [FromQuery] int days = 14,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetNotificationDeliveryStatsQuery(days), cancellationToken)));
 }

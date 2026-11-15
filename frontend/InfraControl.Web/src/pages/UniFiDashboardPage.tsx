@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Column } from "primereact/column";
+import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -41,9 +43,37 @@ export function UniFiDashboardPage() {
 
   const syncRuns = useQuery({
     queryKey: ["unifi-sync-runs"],
-    queryFn: () => listUniFiSyncRuns(10),
+    queryFn: () => listUniFiSyncRuns(30),
     refetchInterval: 60_000,
   });
+
+  const stateEntries = useMemo(
+    () =>
+      Object.entries(dashboard.data?.deviceStates ?? {}).sort(
+        (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+      ),
+    [dashboard.data],
+  );
+
+  const stateChart = useMemo(
+    () => ({
+      labels: stateEntries.map(([state]) => state),
+      values: stateEntries.map(([, count]) => count),
+    }),
+    [stateEntries],
+  );
+
+  const syncChart = useMemo(() => {
+    const runs = [...(syncRuns.data ?? [])].reverse().slice(-15);
+    return {
+      labels: runs.map((run) => formatDateTimeBR(run.startedAtUtc)),
+      datasets: [
+        { label: "Criados", data: runs.map((r) => r.created), backgroundColor: "#16a34a", borderColor: "#16a34a" },
+        { label: "Atualizados", data: runs.map((r) => r.updated), backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
+        { label: "Erros", data: runs.map((r) => r.errors), backgroundColor: "#dc2626", borderColor: "#dc2626" },
+      ],
+    };
+  }, [syncRuns.data]);
 
   if (dashboard.isLoading) return <LoadingBlock />;
   if (dashboard.isError)
@@ -57,9 +87,6 @@ export function UniFiDashboardPage() {
   const d = dashboard.data;
   if (!d) return <LoadingBlock />;
 
-  const stateEntries = Object.entries(d.deviceStates).sort(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-  );
   const unlinked = correlation.data?.unlinked ?? [];
 
   return (
@@ -129,6 +156,44 @@ export function UniFiDashboardPage() {
           value={d.recentSyncErrors}
           sub={d.recentSyncErrors > 0 ? "audit — ver Auditoria" : undefined}
         />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {d.controllerReachable && stateEntries.length > 0 && (
+          <div className="uni-panel" style={{ padding: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+              Dispositivos por estado
+            </div>
+            <MetricChart
+              type="doughnut"
+              height={200}
+              labels={stateChart.labels}
+              values={stateChart.values}
+              ariaLabel="Dispositivos por estado"
+            />
+          </div>
+        )}
+        {!syncRuns.isLoading && !syncRuns.isError && syncChart.labels.length > 0 && (
+          <div className="uni-panel" style={{ padding: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+              Sincronizações — criados / atualizados / erros
+            </div>
+            <MetricChart
+              type="bar"
+              height={200}
+              labels={syncChart.labels}
+              datasets={syncChart.datasets}
+              stacked
+              ariaLabel="Resultado das sincronizações UniFi"
+            />
+          </div>
+        )}
       </div>
 
       <section className="uni-settings-section">

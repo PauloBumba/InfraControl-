@@ -7,6 +7,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Button } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { DeliveryStatsCharts } from "@/components/notifications/DeliveryStatsCharts";
 import { mutationErrorMessage } from "@/hooks/queries";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -319,6 +320,13 @@ export function EmailSettingsPage() {
             Último erro: {settings.lastTestError}
           </div>
         )}
+      </div>
+
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          Entregas de e-mail — últimos 14 dias
+        </div>
+        <DeliveryStatsCharts channel="Email" days={14} />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { FormField, FormError } from "@/components/ui/FormField";
@@ -15,6 +15,7 @@ import {
 } from "@/services/api/unifi";
 import { listDevices } from "@/services/api/inventory";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { MetricChart } from "@/components/ui/MetricChart";
 import { mutationErrorMessage } from "@/hooks/queries";
 import {
   getUnifiConfig,
@@ -23,6 +24,7 @@ import {
   syncUnifiInventory,
   testUnifiConnection,
   type UniFiSyncResult,
+  type UniFiSyncRun,
   type UniFiTestResult,
 } from "@/services/api/unifi";
 
@@ -373,7 +375,9 @@ export function IntegrationsPage() {
 
       {syncRuns.data && syncRuns.data.length > 0 && (
         <div className="uni-settings-section" style={{ maxWidth: 760 }}>
-          <h3>Histórico de sincronizações</h3>
+          <h3>Atividade das sincronizações</h3>
+          <SyncRunsChart runs={syncRuns.data} />
+          <h3 style={{ marginTop: 16 }}>Histórico de sincronizações</h3>
           <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", color: "#64748b" }}>
@@ -442,6 +446,32 @@ export function IntegrationsPage() {
 
 const histTh: CSSProperties = { padding: "6px 8px", borderBottom: "1px solid #e5e7eb" };
 const histTd: CSSProperties = { padding: "6px 8px" };
+
+/** Barras por execução: criados/atualizados/erros das últimas 15 syncs. */
+function SyncRunsChart({ runs }: { runs: UniFiSyncRun[] }) {
+  const chart = useMemo(() => {
+    const slice = [...runs].reverse().slice(-15);
+    return {
+      labels: slice.map((run) => formatDateTimeBR(run.startedAtUtc)),
+      datasets: [
+        { label: "Criados", data: slice.map((r) => r.created), backgroundColor: "#16a34a", borderColor: "#16a34a" },
+        { label: "Atualizados", data: slice.map((r) => r.updated), backgroundColor: "#3b82f6", borderColor: "#3b82f6" },
+        { label: "Erros", data: slice.map((r) => r.errors), backgroundColor: "#dc2626", borderColor: "#dc2626" },
+      ],
+    };
+  }, [runs]);
+
+  return (
+    <MetricChart
+      type="bar"
+      height={180}
+      labels={chart.labels}
+      datasets={chart.datasets}
+      stacked
+      ariaLabel="Atividade das sincronizações UniFi"
+    />
+  );
+}
 
 const inputStyle: CSSProperties = {
   padding: "7px 10px",

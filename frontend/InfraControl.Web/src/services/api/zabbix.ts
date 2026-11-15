@@ -281,3 +281,23 @@ export function getZabbixHostSeries(query: {
     { series: [] },
   );
 }
+
+/** Evento Zabbix agregado por dia/severidade/status (GET /integrations/zabbix/event-stats). */
+export interface ZabbixEventStatPoint {
+  date: string;
+  severity: number;
+  status: string;
+  count: number;
+}
+
+export interface ZabbixEventStats {
+  points: ZabbixEventStatPoint[];
+  days: number;
+}
+
+export function getZabbixEventStats(days = 14): Promise<ZabbixEventStats> {
+  return required(
+    api.get<ZabbixEventStats>(`/integrations/zabbix/event-stats?days=${days}`),
+    { points: [], days }
+  );
+}

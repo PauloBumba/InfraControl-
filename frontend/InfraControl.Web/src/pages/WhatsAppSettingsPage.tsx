@@ -8,6 +8,7 @@ import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { DeliveryStatsCharts } from "@/components/notifications/DeliveryStatsCharts";
 import { mutationErrorMessage } from "@/hooks/queries";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -694,6 +695,14 @@ export function WhatsAppSettingsPage() {
               style={{ marginTop: 12, border: "1px solid #fecaca" }}
             />
           ))}
+      </div>
+
+      {/* ── Entregas do canal (dados reais) ─────────────────────── */}
+      <div className="uni-panel" style={panelStyle}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          Entregas WhatsApp — últimos 14 dias
+        </div>
+        <DeliveryStatsCharts channel="WhatsApp" days={14} />
       </div>
     </div>
   );

@@ -204,7 +204,7 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
         var kind = Classify(message.Title);
         var subject = ExtractSubject(message.Message, message.Title);
         var severity = ParseSeverity(message.Message, message.Title);
-        var stamp = message.CreatedAt.ToString("dd/MM/yyyy HH:mm");
+        var stamp = ToSaoPaulo(message.CreatedAt).ToString("dd/MM/yyyy HH:mm");
 
         var lines = new List<string>();
 
@@ -231,6 +231,22 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
 
         lines.Add($"🕐 {stamp}");
         return string.Join("\n", lines);
+    }
+
+    /// <summary>Fuso fixo da mensagem — WhatsApp sempre mostra horário de Brasília.</summary>
+    private static readonly TimeZoneInfo SaoPauloTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+
+    /// <summary>
+    /// CreatedAt chega em UTC (timestamptz); a mensagem mostra o horário de
+    /// Brasília — sem isto o WhatsApp exibia 3h à frente.
+    /// </summary>
+    private static DateTime ToSaoPaulo(DateTime createdAt)
+    {
+        var utc = createdAt.Kind == DateTimeKind.Utc
+            ? createdAt
+            : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, SaoPauloTimeZone);
     }
 
     private enum EventKind { AlertCritical, Alert, Incident, Resolved, Generic }

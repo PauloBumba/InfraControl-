@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -12,7 +12,9 @@ import { DataTablePanel } from "@/components/ui/DataTablePanel";
 import { Column } from "primereact/column";
 import { mutationErrorMessage } from "@/hooks/queries";
 import { formatDateTime } from "@/utils/format";
+import { MetricChart } from "@/components/ui/MetricChart";
 import {
+  getZabbixEventStats,
   getZabbixProblems,
   getZabbixSummary,
   type ZabbixProblemView,
@@ -167,6 +169,8 @@ export function ZabbixOverviewPage() {
         </div>
       )}
 
+      <EventStatsPanel />
+
       <FilterBar>
         <div className="flex align-items-center gap-2 flex-wrap">
           <SelectField
@@ -249,6 +253,67 @@ export function ZabbixOverviewPage() {
             style={{ width: 120 }}
           />
         </DataTablePanel>
+      )}
+    </div>
+  );
+}
+
+const SEVERITY_COLORS = ["#64748b", "#16a34a", "#2563eb", "#d97706", "#ea580c", "#dc2626"];
+
+/** Eventos Zabbix ingeridos por dia, empilhados por severidade (status Problem). */
+function EventStatsPanel() {
+  const stats = useQuery({
+    queryKey: ["zabbix-event-stats", 14],
+    queryFn: () => getZabbixEventStats(14),
+    staleTime: 30_000,
+  });
+
+  const { labels, datasets } = useMemo(() => {
+    const points = (stats.data?.points ?? []).filter((p) => p.status === "Problem");
+    const dates = [...new Set(points.map((p) => p.date))].sort();
+    const severities = [...new Set(points.map((p) => p.severity))].sort((a, b) => a - b);
+
+    const ds = severities.map((severity) => ({
+      label: SEVERITY_NAMES[severity] ?? `Sev ${severity}`,
+      data: dates.map((date) =>
+        points
+          .filter((p) => p.date === date && p.severity === severity)
+          .reduce((sum, p) => sum + p.count, 0),
+      ),
+      backgroundColor: SEVERITY_COLORS[severity] ?? "#64748b",
+      borderColor: SEVERITY_COLORS[severity] ?? "#64748b",
+      stack: "events",
+    }));
+
+    return {
+      labels: dates.map((iso) => {
+        const [, m, d] = iso.split("-");
+        return `${d}/${m}`;
+      }),
+      datasets: ds,
+    };
+  }, [stats.data]);
+
+  return (
+    <div className="uni-panel" style={{ padding: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+        Eventos por dia — últimos 14 dias (por severidade)
+      </div>
+      {stats.isLoading ? (
+        <LoadingBlock />
+      ) : labels.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#94a3b8", padding: "12px 0" }}>
+          Nenhum evento ingerido no período.
+        </div>
+      ) : (
+        <MetricChart
+          type="bar"
+          height={200}
+          labels={labels}
+          datasets={datasets}
+          stacked
+          ariaLabel="Eventos Zabbix por dia e severidade"
+        />
       )}
     </div>
   );

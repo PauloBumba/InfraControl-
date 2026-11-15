@@ -7,6 +7,7 @@ import { getUnifiConfig } from "@/services/api/unifi";
 import { getZabbixConfig } from "@/services/api/zabbix";
 import { getWhatsAppSettings } from "@/services/api/whatsapp";
 import { getEmailConfig } from "@/services/api/email";
+import { DeliveryStatsCharts } from "@/components/notifications/DeliveryStatsCharts";
 
 /**
  * Hub de Integrações (F54-extra): `/integrations` era a página de config
@@ -165,6 +166,13 @@ export function IntegrationsHubPage() {
           );
         })}
       </div>
+
+      <section className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          Entregas de notificação por canal — últimos 14 dias
+        </div>
+        <DeliveryStatsCharts days={14} />
+      </section>
     </div>
   );
 }
