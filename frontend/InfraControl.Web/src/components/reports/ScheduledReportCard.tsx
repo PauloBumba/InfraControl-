@@ -16,14 +16,15 @@ const WEEKDAYS = [
 /**
  * Agenda do relatório geral por e-mail (Admin): o admin define a lista de
  * destinatários e a periodicidade; o ScheduledReportWorker envia o
- * relatório a TODOS os e-mails configurados no horário UTC agendado.
+ * relatório a TODOS os e-mails configurados no horário de Brasília agendado.
  */
 export function ScheduledReportCard() {
   const [schedule, setSchedule] = useState<ScheduledReport | null>(null);
   const [recipientsText, setRecipientsText] = useState("");
-  const [frequency, setFrequency] = useState<"Daily" | "Weekly">("Daily");
+  const [frequency, setFrequency] = useState<"Daily" | "Weekly" | "Monthly">("Daily");
   const [sendTime, setSendTime] = useState("08:00");
   const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [dayOfMonth, setDayOfMonth] = useState(1);
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export function ScheduledReportCard() {
         setFrequency(data.frequency);
         setSendTime(data.sendTimeUtc ?? "08:00");
         setDayOfWeek(data.dayOfWeek ?? 1);
+        setDayOfMonth(data.dayOfMonth ?? 1);
         setIsActive(data.isActive);
       })
       .catch((caught) => {
@@ -64,6 +66,7 @@ export function ScheduledReportCard() {
         frequency,
         sendTimeUtc: sendTime,
         dayOfWeek: frequency === "Weekly" ? dayOfWeek : null,
+        dayOfMonth: frequency === "Monthly" ? dayOfMonth : null,
         isActive,
       });
       if (saved) {
@@ -134,11 +137,12 @@ export function ScheduledReportCard() {
           Frequência
           <select
             value={frequency}
-            onChange={(e) => setFrequency(e.target.value as "Daily" | "Weekly")}
+            onChange={(e) => setFrequency(e.target.value as "Daily" | "Weekly" | "Monthly")}
             style={inputStyle}
           >
             <option value="Daily">Diário</option>
             <option value="Weekly">Semanal</option>
+            <option value="Monthly">Mensal</option>
           </select>
         </label>
 
@@ -157,8 +161,22 @@ export function ScheduledReportCard() {
           </label>
         )}
 
+        {frequency === "Monthly" && (
+          <label style={labelStyle}>
+            Dia do mês
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={dayOfMonth}
+              onChange={(e) => setDayOfMonth(Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
+              style={inputStyle}
+            />
+          </label>
+        )}
+
         <label style={labelStyle}>
-          Horário (UTC)
+          Horário (Brasília)
           <input
             type="time"
             value={sendTime}
@@ -184,11 +202,11 @@ export function ScheduledReportCard() {
       {schedule && (schedule.nextRunAtUtc || schedule.lastSentAtUtc) && (
         <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
           {schedule.nextRunAtUtc && (
-            <span>Próximo envio: {formatDateTime(new Date(schedule.nextRunAtUtc))} UTC</span>
+            <span>Próximo envio: {formatDateTime(new Date(schedule.nextRunAtUtc))} (Brasília)</span>
           )}
           {schedule.lastSentAtUtc && (
             <span style={{ marginLeft: 16 }}>
-              Último envio: {formatDateTime(new Date(schedule.lastSentAtUtc))} UTC
+              Último envio: {formatDateTime(new Date(schedule.lastSentAtUtc))} (Brasília)
             </span>
           )}
         </div>

@@ -47,6 +47,9 @@ public sealed class ScheduledReportConfiguration
         builder.Property(x => x.DayOfWeek)
             .HasColumnName("day_of_week");
 
+        builder.Property(x => x.DayOfMonth)
+            .HasColumnName("day_of_month");
+
         builder.Property(x => x.IsActive)
             .HasColumnName("is_active")
             .IsRequired();

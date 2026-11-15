@@ -405,9 +405,10 @@ export interface ScheduledReport {
   id: string | null;
   kind: string;
   recipients: string[];
-  frequency: "Daily" | "Weekly";
+  frequency: "Daily" | "Weekly" | "Monthly";
   sendTimeUtc: string | null;
   dayOfWeek: number | null;
+  dayOfMonth: number | null;
   isActive: boolean;
   lastSentAtUtc: string | null;
   nextRunAtUtc: string | null;
@@ -416,9 +417,10 @@ export interface ScheduledReport {
 
 export interface ScheduledReportInput {
   recipients: string[];
-  frequency: "Daily" | "Weekly";
+  frequency: "Daily" | "Weekly" | "Monthly";
   sendTimeUtc: string;
   dayOfWeek: number | null;
+  dayOfMonth: number | null;
   isActive: boolean;
 }
 
@@ -427,7 +429,7 @@ export async function getScheduledReport(): Promise<ScheduledReport> {
   const data = await api.get<ScheduledReport>("/reports/schedule");
   return data ?? {
     id: null, kind: "General", recipients: [], frequency: "Daily",
-    sendTimeUtc: null, dayOfWeek: null, isActive: false,
+    sendTimeUtc: null, dayOfWeek: null, dayOfMonth: null, isActive: false,
     lastSentAtUtc: null, nextRunAtUtc: null, lastError: null,
   };
 }

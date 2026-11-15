@@ -17,6 +17,7 @@ public sealed record ScheduledReportDto(
     string Frequency,
     string? SendTimeUtc,
     int? DayOfWeek,
+    int? DayOfMonth,
     bool IsActive,
     DateTime? LastSentAtUtc,
     DateTime? NextRunAtUtc,
@@ -27,12 +28,13 @@ public sealed record ScheduledReportUpsertInput(
     string Frequency,
     string SendTimeUtc,
     int? DayOfWeek,
+    int? DayOfMonth,
     bool IsActive);
 
 public static class ScheduledReportMapping
 {
     public static ScheduledReportDto Map(ScheduledReport? report) => report is null
-        ? new(null, ScheduledReport.GeneralKind, [], "Daily", null, null,
+        ? new(null, ScheduledReport.GeneralKind, [], "Daily", null, null, null,
             false, null, null, null)
         : new(
             report.Id,
@@ -41,29 +43,31 @@ public static class ScheduledReportMapping
             report.Frequency.ToString(),
             report.SendTimeUtc.ToString("HH:mm"),
             report.DayOfWeek,
+            report.DayOfMonth,
             report.IsActive,
             report.LastSentAtUtc,
             report.NextRunAtUtc,
             report.LastError);
 
-    public static (ReportFrequency Frequency, TimeOnly Time, int? DayOfWeek) Parse(
+    public static (ReportFrequency Frequency, TimeOnly Time, int? DayOfWeek, int? DayOfMonth) Parse(
         ScheduledReportUpsertInput input)
     {
         var frequency = input.Frequency?.Trim() switch
         {
             "Daily" => ReportFrequency.Daily,
             "Weekly" => ReportFrequency.Weekly,
+            "Monthly" => ReportFrequency.Monthly,
             var other => throw new ArgumentException(
-                $"Frequência inválida: '{other}'. Use Daily ou Weekly.",
+                $"Frequência inválida: '{other}'. Use Daily, Weekly ou Monthly.",
                 nameof(input)),
         };
 
         if (!TimeOnly.TryParseExact(
                 input.SendTimeUtc, "HH:mm", out var time))
             throw new ArgumentException(
-                "Horário inválido — use HH:mm (UTC).", nameof(input));
+                "Horário inválido — use HH:mm (horário de Brasília).", nameof(input));
 
-        return (frequency, time, input.DayOfWeek);
+        return (frequency, time, input.DayOfWeek, input.DayOfMonth);
     }
 }
 
@@ -102,7 +106,7 @@ public sealed class UpsertScheduledReportCommandHandler(
     public async Task<ScheduledReportDto> Handle(
         UpsertScheduledReportCommand request, CancellationToken cancellationToken)
     {
-        var (frequency, time, dayOfWeek) =
+        var (frequency, time, dayOfWeek, dayOfMonth) =
             ScheduledReportMapping.Parse(request.Input);
 
         var report = await repository.GetByKindAsync(
@@ -111,14 +115,14 @@ public sealed class UpsertScheduledReportCommandHandler(
         if (report is null)
         {
             report = ScheduledReport.Create(
-                request.Input.Recipients, frequency, time, dayOfWeek,
+                request.Input.Recipients, frequency, time, dayOfWeek, dayOfMonth,
                 request.Input.IsActive);
             await repository.AddAsync(report, cancellationToken);
         }
         else
         {
             report.Update(
-                request.Input.Recipients, frequency, time, dayOfWeek,
+                request.Input.Recipients, frequency, time, dayOfWeek, dayOfMonth,
                 request.Input.IsActive);
         }
 

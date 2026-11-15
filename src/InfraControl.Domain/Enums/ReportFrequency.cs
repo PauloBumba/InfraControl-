@@ -8,5 +8,7 @@ namespace InfraControl.Domain.Enums;
 public enum ReportFrequency
 {
     Daily = 0,
-    Weekly = 1
+    Weekly = 1,
+    /// <summary>Mensal — dia do mês em <see cref="Entities.ScheduledReport.DayOfMonth"/> (horário de Brasília).</summary>
+    Monthly = 2
 }

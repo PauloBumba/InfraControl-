@@ -3953,6 +3953,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("create_date_time");
 
+                    b.Property<int?>("DayOfMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("day_of_month");
+
                     b.Property<int?>("DayOfWeek")
                         .HasColumnType("integer")
                         .HasColumnName("day_of_week");

@@ -30,8 +30,11 @@ public sealed class ScheduledReport : Entity
     /// <summary>Hora do envio em UTC (TimeOnly — persistido como time).</summary>
     public TimeOnly SendTimeUtc { get; private set; } = new(8, 0);
 
-    /// <summary>Dia da semana para Weekly (0=domingo…6=sábado); null em Daily.</summary>
+    /// <summary>Dia da semana para Weekly (0=domingo…6=sábado); null em Daily/Monthly.</summary>
     public int? DayOfWeek { get; private set; }
+
+    /// <summary>Dia do mês para Monthly (1–31; mês menor usa o último dia); null nos demais.</summary>
+    public int? DayOfMonth { get; private set; }
 
     public bool IsActive { get; private set; } = true;
 
@@ -49,10 +52,11 @@ public sealed class ScheduledReport : Entity
         ReportFrequency frequency,
         TimeOnly sendTimeUtc,
         int? dayOfWeek,
+        int? dayOfMonth,
         bool isActive)
     {
         var report = new ScheduledReport();
-        report.Update(recipients, frequency, sendTimeUtc, dayOfWeek, isActive);
+        report.Update(recipients, frequency, sendTimeUtc, dayOfWeek, dayOfMonth, isActive);
         report.NextRunAtUtc = report.ComputeNextRun(
             AppTimeProvider.Current.GetUtcNow().UtcDateTime);
         return report;
@@ -63,6 +67,7 @@ public sealed class ScheduledReport : Entity
         ReportFrequency frequency,
         TimeOnly sendTimeUtc,
         int? dayOfWeek,
+        int? dayOfMonth,
         bool isActive)
     {
         var normalized = NormalizeRecipients(recipients);
@@ -79,13 +84,26 @@ public sealed class ScheduledReport : Entity
         else if (dayOfWeek is not null)
         {
             throw new ArgumentException(
-                "Relatório diário não usa dia da semana.", nameof(dayOfWeek));
+                "Somente relatório semanal usa dia da semana.", nameof(dayOfWeek));
+        }
+
+        if (frequency == ReportFrequency.Monthly)
+        {
+            if (dayOfMonth is null or < 1 or > 31)
+                throw new ArgumentException(
+                    "Relatório mensal exige um dia do mês válido (1–31).", nameof(dayOfMonth));
+        }
+        else if (dayOfMonth is not null)
+        {
+            throw new ArgumentException(
+                "Somente relatório mensal usa dia do mês.", nameof(dayOfMonth));
         }
 
         RecipientsJson = JsonSerializer.Serialize(normalized);
         Frequency = frequency;
         SendTimeUtc = sendTimeUtc;
         DayOfWeek = frequency == ReportFrequency.Weekly ? dayOfWeek : null;
+        DayOfMonth = frequency == ReportFrequency.Monthly ? dayOfMonth : null;
         IsActive = isActive;
 
         // Reagenda a partir de agora — mudança de agenda não dispara envio retroativo.
@@ -117,32 +135,76 @@ public sealed class ScheduledReport : Entity
         Touch();
     }
 
-    /// <summary>Próximo disparo estritamente após <paramref name="after"/> (UTC).</summary>
+    /// <summary>
+    /// Próximo disparo estritamente após <paramref name="afterUtc"/> (UTC).
+    /// SendTimeUtc é o horário de parede de Brasília digitado pelo admin —
+    /// converte para o instante UTC real (America/Sao_Paulo).
+    /// </summary>
     public DateTime ComputeNextRun(DateTime afterUtc)
     {
         var after = DateTime.SpecifyKind(afterUtc, DateTimeKind.Utc);
+        var afterBr = TimeZoneInfo.ConvertTimeFromUtc(after, SaoPauloTimeZone);
 
         if (Frequency == ReportFrequency.Daily)
         {
-            var candidate = after.Date.Add(SendTimeUtc.ToTimeSpan());
-            return candidate <= after ? candidate.AddDays(1) : candidate;
+            var candidateBr = afterBr.Date.Add(SendTimeUtc.ToTimeSpan());
+            var candidate = SaoPauloToUtc(candidateBr);
+            if (candidate <= after)
+            {
+                candidateBr = candidateBr.AddDays(1);
+                candidate = SaoPauloToUtc(candidateBr);
+            }
+            return candidate;
         }
 
-        // Weekly: próximo DayOfWeek no SendTimeUtc (0–6).
-        for (var i = 0; i < 8; i++)
+        if (Frequency == ReportFrequency.Weekly)
         {
-            var day = after.Date.AddDays(i);
-            if ((int)day.DayOfWeek != DayOfWeek)
-                continue;
+            // Próximo DayOfWeek no SendTimeUtc (0–6), dias contados em Brasília.
+            for (var i = 0; i < 8; i++)
+            {
+                var dayBr = afterBr.Date.AddDays(i);
+                if ((int)dayBr.DayOfWeek != DayOfWeek)
+                    continue;
 
-            var candidate = day.Add(SendTimeUtc.ToTimeSpan());
-            if (candidate > after)
-                return candidate;
+                var candidate = SaoPauloToUtc(dayBr.Add(SendTimeUtc.ToTimeSpan()));
+                if (candidate > after)
+                    return candidate;
+            }
         }
 
-        // Inalcançável (loop cobre 8 dias), fallback defensivo.
-        return after.AddDays(7);
+        if (Frequency == ReportFrequency.Monthly)
+        {
+            // DayOfMonth no SendTimeUtc de Brasília; mês sem o dia → último dia.
+            var year = afterBr.Year;
+            var month = afterBr.Month;
+            for (var i = 0; i < 14; i++)
+            {
+                var dayCount = DateTime.DaysInMonth(year, month);
+                var day = Math.Min(DayOfMonth ?? 1, dayCount);
+                var candidateBr = new DateTime(year, month, day)
+                    .Add(SendTimeUtc.ToTimeSpan());
+                var candidate = SaoPauloToUtc(candidateBr);
+                if (candidate > after)
+                    return candidate;
+
+                month++;
+                if (month > 12) { month = 1; year++; }
+            }
+        }
+
+        // Inalcançável (loops cobrem o horizonte), fallback defensivo.
+        return after.AddDays(8);
     }
+
+    /// <summary>Fuso fixo da agenda — o horário digitado é sempre de Brasília.</summary>
+    private static readonly TimeZoneInfo SaoPauloTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+
+    /// <summary>Horário de parede de Brasília → instante UTC.</summary>
+    private static DateTime SaoPauloToUtc(DateTime saoPauloWallTime)
+        => TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(saoPauloWallTime, DateTimeKind.Unspecified),
+            SaoPauloTimeZone);
 
     private static List<string> NormalizeRecipients(IReadOnlyList<string> recipients)
     {

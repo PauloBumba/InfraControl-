@@ -1,4 +1,5 @@
 using InfraControl.Application.Alerts.Ports;
+using InfraControl.Application.Company.Ports;
 using InfraControl.Application.Discovery.Runs.Ports;
 using InfraControl.Application.Incidents.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
@@ -18,7 +19,11 @@ public sealed record GeneralReportContent(
     int OpenAlerts,
     int DiscoveryRunsLast24h,
     int DiscoveryRunsFailedLast24h,
-    int DiscoveryRunsCompletedLast24h);
+    int DiscoveryRunsCompletedLast24h,
+    /// <summary>Nome exibido no cabeçalho/rodapé (empresa ou "InfraControl").</summary>
+    string CompanyName,
+    /// <summary>Linha de dados institucionais (CNPJ, endereço, fone, e-mail).</summary>
+    string? CompanyDetails);
 
 /// <summary>
 /// Monta o relatório geral + assunto/corpo do e-mail. Registrado como
@@ -29,7 +34,8 @@ public sealed class GeneralReportBuilder(
     IDeviceRepository devices,
     IIncidentRepository incidents,
     IAlertRepository alerts,
-    IDiscoveryRunRepository discoveryRuns)
+    IDiscoveryRunRepository discoveryRuns,
+    ICompanySettingsRepository companySettings)
 {
     private static readonly IncidentStatus[] OpenIncidentStatuses =
     [
@@ -60,6 +66,11 @@ public sealed class GeneralReportBuilder(
         var failed = allRuns.Items.Count(r => r.Status == DiscoveryRunStatus.Failed);
         var completed = allRuns.Items.Count(r => r.Status == DiscoveryRunStatus.Completed);
 
+        var company = await companySettings.GetAsync(cancellationToken);
+        var companyName = string.IsNullOrWhiteSpace(company?.Name)
+            ? "InfraControl" : company!.Name;
+        var companyDetails = BuildCompanyDetails(company);
+
         return new GeneralReportContent(
             DateTime.UtcNow,
             allDevices.Count,
@@ -68,14 +79,56 @@ public sealed class GeneralReportBuilder(
             openAlerts.TotalCount,
             allRuns.TotalCount,
             failed,
-            completed);
+            completed,
+            companyName,
+            companyDetails);
     }
+
+    /// <summary>Linha única com os dados institucionais cadastrados (CNPJ, endereço, fone, e-mail, site).</summary>
+    private static string? BuildCompanyDetails(
+        Domain.Entities.CompanySettings? company)
+    {
+        if (company is null) return null;
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(company.LegalName)) parts.Add(company.LegalName);
+        if (!string.IsNullOrWhiteSpace(company.Cnpj)) parts.Add($"CNPJ {company.Cnpj}");
+        var address = string.Join(", ", new[]
+            {
+                company.Street, company.Number, company.Complement,
+                company.District, company.City, company.State, company.ZipCode
+            }
+            .Where(part => !string.IsNullOrWhiteSpace(part)));
+        if (!string.IsNullOrWhiteSpace(address)) parts.Add(address);
+        if (!string.IsNullOrWhiteSpace(company.Phone)) parts.Add(company.Phone);
+        if (!string.IsNullOrWhiteSpace(company.Email)) parts.Add(company.Email);
+        if (!string.IsNullOrWhiteSpace(company.Website)) parts.Add(company.Website);
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    private static readonly TimeZoneInfo SaoPauloTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+
+    private static DateTime ToSaoPaulo(DateTime utc)
+        => TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(utc, DateTimeKind.Utc), SaoPauloTimeZone);
 
     public static (string Subject, string HtmlBody, string TextBody) ComposeEmail(
         GeneralReportContent report)
     {
+        var generatedAtBr = ToSaoPaulo(report.GeneratedAtUtc);
         var subject =
-            $"InfraControl — Relatório geral {report.GeneratedAtUtc:dd/MM/yyyy HH:mm} UTC";
+            $"{report.CompanyName} — Relatório geral {generatedAtBr:dd/MM/yyyy HH:mm}";
+
+        var headerLines = new List<string> { report.CompanyName };
+        if (!string.IsNullOrWhiteSpace(report.CompanyDetails))
+            headerLines.Add(report.CompanyDetails!);
+        var headerText = string.Join('\n', headerLines);
+
+        var footerText =
+            $"{report.CompanyName}" +
+            (!string.IsNullOrWhiteSpace(report.CompanyDetails)
+                ? $" — {report.CompanyDetails}" : "") +
+            $"\nRelatório automático · gerado em {generatedAtBr:dd/MM/yyyy HH:mm} (horário de Brasília)";
 
         var typeLines = report.DevicesByType
             .OrderByDescending(kv => kv.Value)
@@ -84,8 +137,8 @@ public sealed class GeneralReportBuilder(
 
         var lines = new List<string>
         {
-            "Relatório geral da infraestrutura — InfraControl",
-            $"Gerado em: {report.GeneratedAtUtc:dd/MM/yyyy HH:mm} UTC",
+            headerText,
+            $"Relatório geral da infraestrutura — {generatedAtBr:dd/MM/yyyy HH:mm} (horário de Brasília)",
             "",
             "INVENTÁRIO",
             $"  • Devices totais: {report.TotalDevices}",
@@ -100,8 +153,7 @@ public sealed class GeneralReportBuilder(
             $"  • Discovery runs (24h): {report.DiscoveryRunsLast24h} " +
                 $"({report.DiscoveryRunsCompletedLast24h} ok, {report.DiscoveryRunsFailedLast24h} falhas)",
             "",
-            "Este é um relatório automático gerado pela agenda configurada " +
-            "em Relatórios → Relatório agendado.",
+            footerText,
         ]);
         var text = string.Join('\n', lines);
 
@@ -112,11 +164,20 @@ public sealed class GeneralReportBuilder(
                 $"<td style='padding:4px 12px;text-align:right'>{kv.Value}</td></tr>")
             .Aggregate("", (acc, row) => acc + row);
 
+        var headerHtml =
+            "<div style='border-bottom:2px solid #0f172a;padding-bottom:8px;margin-bottom:16px'>" +
+            $"<h2 style='margin:0;font-size:18px'>{report.CompanyName}</h2>" +
+            (!string.IsNullOrWhiteSpace(report.CompanyDetails)
+                ? $"<p style='margin:2px 0 0;color:#64748b;font-size:12px'>{report.CompanyDetails}</p>"
+                : "") +
+            "</div>";
+
         var html =
             "<div style='font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1e293b'>" +
-            "<h2 style='margin:0 0 8px'>Relatório geral — InfraControl</h2>" +
+            headerHtml +
+            "<h3 style='margin:0 0 8px'>Relatório geral — Infraestrutura</h3>" +
             $"<p style='margin:0 0 16px;color:#64748b'>Gerado em " +
-            $"{report.GeneratedAtUtc:dd/MM/yyyy HH:mm} UTC</p>" +
+            $"{generatedAtBr:dd/MM/yyyy HH:mm} (horário de Brasília)</p>" +
             "<h3 style='margin:16px 0 8px'>Inventário</h3>" +
             "<table style='border-collapse:collapse'>" +
             $"<tr><td style='padding:4px 12px'><b>Devices totais</b></td>" +
@@ -133,8 +194,11 @@ public sealed class GeneralReportBuilder(
             $"<td style='padding:4px 12px;text-align:right'>{report.DiscoveryRunsLast24h} " +
             $"({report.DiscoveryRunsCompletedLast24h} ok, {report.DiscoveryRunsFailedLast24h} falhas)</td></tr>" +
             "</table>" +
-            "<p style='margin-top:24px;color:#94a3b8;font-size:12px'>" +
-            "Relatório automático da agenda em Relatórios → Relatório agendado.</p>" +
+            "<p style='margin-top:24px;padding-top:8px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px'>" +
+            $"{report.CompanyName}" +
+            (!string.IsNullOrWhiteSpace(report.CompanyDetails)
+                ? $" — {report.CompanyDetails}" : "") +
+            $"<br>Relatório automático · gerado em {generatedAtBr:dd/MM/yyyy HH:mm} (horário de Brasília).</p>" +
             "</div>";
 
         return (subject, html, text);
