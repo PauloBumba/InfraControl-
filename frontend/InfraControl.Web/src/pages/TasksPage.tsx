@@ -122,6 +122,14 @@ export function TasksPage() {
   const [kindFilter, setKindFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
 
+  // Busca ao digitar (debounce 400ms) — o termo aplicado dispara a recarga.
+  useEffect(() => {
+    const trimmed = termInput.trim();
+    if (trimmed === term) return;
+    const timer = setTimeout(() => setTerm(trimmed), 400);
+    return () => clearTimeout(timer);
+  }, [termInput, term]);
+
   // pageSize no clamp máximo do handler (1..100) — o quadro não pagina.
   // rootOnly (F23-T004/P4a): subtarefas ficam dentro do detalhe do pai —
   // o quadro mostra só as tasks raiz.

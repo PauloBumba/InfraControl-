@@ -52,6 +52,7 @@ public sealed class NotificationFeedRepository(AppDbContext dbContext)
         IReadOnlyCollection<string> roles,
         int page,
         int pageSize,
+        bool includeResolved,
         CancellationToken cancellationToken = default)
     {
         var roleList = roles.ToArray();
@@ -62,6 +63,13 @@ public sealed class NotificationFeedRepository(AppDbContext dbContext)
                 recipient.NotificationId == notification.Id &&
                 (recipient.UserId == userId ||
                  (recipient.Role != null && roleList.Contains(recipient.Role)))));
+
+        // Feed default esconde notificações de eventos já resolvidos
+        // (*ResolvedDomainEvent: Alert/Incident/Task resolvidos) — o
+        // toggle "ver resolvidas" do cliente passa includeResolved=true.
+        if (!includeResolved)
+            query = query.Where(notification =>
+                !notification.EventType.EndsWith("ResolvedDomainEvent"));
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

@@ -69,9 +69,13 @@ export interface NotificationFeedItem {
  * recentes primeiro com desempate por id (paginação estável). Qualquer
  * papel logado passa no gate (ADR-016 `RoleAccess.Read`); anônimo → 401.
  */
-export async function listFeed(page = 1, pageSize = 20): Promise<Paged<NotificationFeedItem>> {
+export async function listFeed(
+  page = 1,
+  pageSize = 20,
+  includeResolved = false,
+): Promise<Paged<NotificationFeedItem>> {
   const data = await api.get<Paged<NotificationFeedItem>>(
-    `/notifications?page=${page}&pageSize=${pageSize}`,
+    `/notifications?page=${page}&pageSize=${pageSize}&includeResolved=${includeResolved}`,
   );
   return data ?? { items: [], totalCount: 0, page, pageSize };
 }

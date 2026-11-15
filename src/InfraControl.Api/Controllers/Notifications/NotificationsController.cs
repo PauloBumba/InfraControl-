@@ -32,9 +32,10 @@ public sealed class NotificationsController(IMediator sender) : BaseController
     public async Task<IActionResult> GetFeed(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] bool includeResolved = false,
         CancellationToken cancellationToken = default)
         => Ok(ApiResponse.Ok(await sender.Send(
-            new GetNotificationFeedQuery(page, pageSize),
+            new GetNotificationFeedQuery(page, pageSize, includeResolved),
             cancellationToken)));
 
     [HttpGet("{notificationId:guid}")]
