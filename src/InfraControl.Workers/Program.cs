@@ -82,6 +82,8 @@ builder.Services.AddHostedService<CleanupWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.Backup.BackupWorker>();
 builder.Services.AddHostedService<MonitoringPollingWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.UnifiSyncWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.DiscoveryWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.ScheduledReportWorker>();
 
 // Observabilidade (profile obs): MESMO pipeline OTLP da API — traces dos
 // commands MediatR (ObservabilityBehavior), spans de consumers MassTransit

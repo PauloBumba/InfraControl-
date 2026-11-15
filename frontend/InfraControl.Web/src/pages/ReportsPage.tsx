@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ScheduledReportCard } from "@/components/reports/ScheduledReportCard";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
@@ -467,6 +468,8 @@ export function ReportsPage() {
           )}
         </div>
       )}
+
+      {canAdminister && <ScheduledReportCard />}
 
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>

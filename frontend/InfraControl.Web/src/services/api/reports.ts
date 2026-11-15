@@ -398,3 +398,43 @@ export function summarizeGerencialReport(
     `/reports/gerencial/ai-interpretation${buildQuery(from, to)}`,
   ) as Promise<{ summary: string; provider: string; model: string; usedFallback: boolean; durationMs: number }>;
 }
+
+// ============ Relatório geral agendado por e-mail ============
+
+export interface ScheduledReport {
+  id: string | null;
+  kind: string;
+  recipients: string[];
+  frequency: "Daily" | "Weekly";
+  sendTimeUtc: string | null;
+  dayOfWeek: number | null;
+  isActive: boolean;
+  lastSentAtUtc: string | null;
+  nextRunAtUtc: string | null;
+  lastError: string | null;
+}
+
+export interface ScheduledReportInput {
+  recipients: string[];
+  frequency: "Daily" | "Weekly";
+  sendTimeUtc: string;
+  dayOfWeek: number | null;
+  isActive: boolean;
+}
+
+/** `GET /api/v1/reports/schedule` — agenda do relatório geral (ou null-safe default). */
+export async function getScheduledReport(): Promise<ScheduledReport> {
+  const data = await api.get<ScheduledReport>("/reports/schedule");
+  return data ?? {
+    id: null, kind: "General", recipients: [], frequency: "Daily",
+    sendTimeUtc: null, dayOfWeek: null, isActive: false,
+    lastSentAtUtc: null, nextRunAtUtc: null, lastError: null,
+  };
+}
+
+/** `PUT /api/v1/reports/schedule` — upsert da agenda (Admin). */
+export async function upsertScheduledReport(
+  input: ScheduledReportInput,
+): Promise<ScheduledReport | null> {
+  return api.put<ScheduledReport>("/reports/schedule", input);
+}
