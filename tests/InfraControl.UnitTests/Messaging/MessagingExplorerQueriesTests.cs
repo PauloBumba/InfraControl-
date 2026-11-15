@@ -2,6 +2,7 @@ using FluentAssertions;
 using InfraControl.Application.Messaging.Explorer;
 using InfraControl.Application.Messaging.Ports;
 using InfraControl.Domain.Access;
+using InfraControl.Domain.Enums;
 using Xunit;
 
 namespace InfraControl.UnitTests.Messaging;

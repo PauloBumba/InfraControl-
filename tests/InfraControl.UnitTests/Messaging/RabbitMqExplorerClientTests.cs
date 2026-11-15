@@ -133,8 +133,9 @@ public sealed class RabbitMqExplorerClientTests
         result.Items.Should().HaveCount(173);
 
         var toWorker = result.Items.Single(
-            b => b.Destination == "AiInferenceWorker" && b.DestinationType == "queue");
-        toWorker.Source.Should().BeEmpty();
+            b => b.Destination == "AiInferenceWorker"
+                && b.DestinationType == "queue"
+                && string.IsNullOrEmpty(b.Source));
         toWorker.RoutingKey.Should().Be("AiInferenceWorker");
 
         var eventBinding = result.Items.Single(
@@ -151,13 +152,12 @@ public sealed class RabbitMqExplorerClientTests
         var result = await client.GetConnectionsAsync();
 
         result.Reachable.Should().BeTrue();
-        result.Items.Should().HaveCount(1);
-        var connection = result.Items.Single();
-        connection.User.Should().Be("infracontrol");
-        connection.State.Should().Be("running");
-        connection.Channels.Should().Be(1);
-        connection.Name.Should().Contain("->");
-        connection.ConnectedAt.Should().NotBeNull();
+        // Payload real do broker dev: api + workers = 2 conexões.
+        result.Items.Should().HaveCount(2);
+        result.Items.Should().OnlyContain(c => c.User == "infracontrol" && c.State == "running");
+        result.Items.Should().OnlyContain(c => c.ConnectedAt.HasValue);
+        result.Items.Should().Contain(c => c.Channels == 1);
+        result.Items.Should().Contain(c => c.Name.Contains("->"));
     }
 
     [Fact]
