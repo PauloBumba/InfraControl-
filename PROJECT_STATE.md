@@ -17,6 +17,8 @@
 Uma única Task principal deve estar em `IN_PROGRESS` por vez, salvo autorização explícita para trabalho paralelo.
 
 ## Estado atual
+- [x] **F55 Messaging Operations Center completo (T000–T010)** <!-- 2026-11-15: auditoria RabbitMQ/workers/outbox/inbox registrada; IRabbitMqManagementClient (Basic auth backend, timeout+retry+circuit, Reachable+reason); Overview/Queues/Exchanges/Bindings/Connections (cache 10–15s, tag messaging); Workers (containers × consumer-groups + CPU/mem Docker) com pause/resume broker-level auditado (MessagingQueuePause persiste conexões p/ resume); Message Explorer com filtros + payload sanitizado + timeline; Retry/DLQ + replay não-destrutivo idempotente; Message Flow (estágios reais); Audit view. Frontend `/messaging` com 10 abas, gating Admin. Métricas `infracontrol_messaging_*` via OTel (gauges queue_ready/unacked/worker_status poll 30s; counters processed/failed/retry + histogram duration). Builds 0 erros, unit 48/48 Messaging, front 504/504, tsc 0. Docs em docs/06 §Messaging Operations Center. -->
+
 
 - [x] Visão do produto definida
 - [x] Arquitetura principal definida
