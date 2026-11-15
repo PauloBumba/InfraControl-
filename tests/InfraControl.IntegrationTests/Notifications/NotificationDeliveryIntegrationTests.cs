@@ -98,7 +98,12 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
         var userId = await SeedUserAsync(context, "retry-due@exemplo.test");
         var notification = Domain.Entities.Notification.Create(
             Guid.NewGuid(), "UserCreatedDomainEvent", "Título", "Mensagem.");
-        context.Notifications.Add(notification);
+        // Cada delivery precisa da própria notificação: ux_notification_
+        // deliveries_dedup (NotificationId+UserId+Channel) — duas deliveries
+        // do mesmo triplo violam a unique (F53-T007 / idx de 9e8db39).
+        var deadNotification = Domain.Entities.Notification.Create(
+            Guid.NewGuid(), "UserCreatedDomainEvent", "Título", "Mensagem.");
+        context.Notifications.AddRange(notification, deadNotification);
         await context.SaveChangesAsync();
 
         var due = Domain.Entities.NotificationDelivery.Create(
@@ -106,7 +111,7 @@ public sealed class NotificationDeliveryIntegrationTests : BaseIntegrationTest
         due.RegisterFailedAttempt(
             "erro transitório", DateTime.UtcNow.AddDays(-1), 5, TimeSpan.FromSeconds(30));
         var dead = Domain.Entities.NotificationDelivery.Create(
-            notification.Id, userId, NotificationChannel.Email);
+            deadNotification.Id, userId, NotificationChannel.Email);
         for (var i = 0; i < 5; i++)
             dead.RegisterFailedAttempt(
                 "falha permanente", DateTime.UtcNow.AddDays(-1), 5, TimeSpan.FromSeconds(30));

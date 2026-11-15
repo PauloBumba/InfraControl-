@@ -18,6 +18,7 @@ import {
   getTopology,
   listVlans,
   type TopologyGraph,
+  type TopologyEdgeItem,
   type TopologyNodeItem,
   type VlanItem,
 } from "@/services/api/network";
@@ -63,8 +64,8 @@ import { formatDateTime, formatPortDuplex, formatPortSpeed, formatUptime } from 
  * camada.
  *
  * F53-T004 — busca (nome/IP) e filtros combináveis (categoria ∧ local ∧
- * VLAN ∧ só problemas): `filteredDeviceIds` dimensiona as faixas e
- * `visibleDeviceIds` (filtrados ∧ camada aberta) o que desenha; VLAN do
+ * VLAN ∧ só problemas): `filteredDeviceIds` dimensiona as faixas; faixa
+ * recolhida mantém só o cabeçalho (sem slots/arestas/ghosts); VLAN do
  * device = união das VLANs nas pontas das Connections dele; destaque do
  * selecionado: conexões com traço forte, vizinhos com anel `#93c5fd`,
  * resto esmaecido.
@@ -77,6 +78,14 @@ import { formatDateTime, formatPortDuplex, formatPortSpeed, formatUptime } from 
  * velocidade/duplex, VLANs, estado da porta (`linkUp`), origem e
  * confiança — onde o contrato não tem dado (tipo da conexão) a tela
  * mostra "—" (nunca inventado). Falha de integração degrada só a linha.
+ *
+ * F53-T006 — visão física ↔ lógica: toggle `aria-pressed` no cabeçalho
+ * do mapa; no lógico as faixas são `VLAN N — Nome` (+ "Sem VLAN"),
+ * device em várias VLANs aparece em cada faixa (chave `band|node`),
+ * aresta só nas faixas das VLANs dela (sem VLAN fica na física — sem
+ * dado não há como posicionar); seleção, filtros, colapso e pan/zoom
+ * são preservados; colapso lógico usa chaves `vlan:N` no mesmo
+ * `collapsedLayers`.
  */
 
 const typeMeta: Record<string, { color: string; icon: string; emoji: string }> = {
@@ -208,6 +217,8 @@ export function TopologyPage() {
   const [zoom, setZoom] = useState(100);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [collapsedLayers, setCollapsedLayers] = useState<Set<string>>(() => new Set());
+  /** F53-T006 — forma das faixas do mapa: camadas (físico) ou VLANs (lógico). */
+  const [viewMode, setViewMode] = useState<"physical" | "logical">("physical");
   const [dragging, setDragging] = useState(false);
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState("all");
@@ -356,27 +367,22 @@ export function TopologyPage() {
     return new Set(groups.filter(matches).map((group) => group.deviceId));
   }, [groups, filter, search, locationFilter, vlanFilter, problemsOnly, vlanByDevice]);
 
-  /** F53-T003/T004 — filtrados ∧ camada não recolhida: o que desenha. */
-  const visibleDeviceIds = useMemo(
-    () =>
-      new Set(
-        groups
-          .filter(
-            (group) =>
-              filteredDeviceIds.has(group.deviceId) &&
-              !collapsedLayers.has(layerKeyOf(group.layer)),
-          )
-          .map((group) => group.deviceId),
-      ),
-    [groups, filteredDeviceIds, collapsedLayers],
-  );
-
   /**
    * F53-T003 — faixas por camada no lugar da grade fixa de 7 colunas:
    * Camada 1 no topo até "Sem hierarquia" embaixo; dentro da faixa os
    * devices seguem a ordem tipo → nome em colunas, com interfaces em
    * satélite. Faixa recolhida ocupa só o cabeçalho. F53-T004: faixas
    * seguem os filtros (a recolhida mantém a faixa com o toggle).
+   *
+   * F53-T006 — o mesmo layout muda de forma (física ↔ lógica) sem
+   * perder filtros/seleção/pan: no lógico as faixas são as VLANs do
+   * dispositivo (união das pontas em `vlanByDevice`) + "Sem VLAN"; um
+   * switch em várias VLANs ocupa um slot em cada faixa (posição
+   * prefixada `${bandKey}|${id}`, então as cópias não colidem). Aresta
+   * entra só nas faixas das VLANs dela; sem VLAN não há como posicionar
+   * → fica só na física. Faixa recolhida não gera slots nem arestas.
+   * As chaves lógicas (`vlan:N`) não colidem com as de camada no mesmo
+   * `collapsedLayers`.
    */
   const layout = useMemo(() => {
     const cols = 7;
@@ -384,49 +390,160 @@ export function TopologyPage() {
     const slotH = 116;
     const padX = 74;
     const headerH = 30;
-    const nodePos = new Map<string, { x: number; y: number }>();
+    const positions = new Map<string, { x: number; y: number }>();
     const nodeDevice = new Map<string, string>();
-    const slots: { group: DeviceGroup; cx: number; cy: number }[] = [];
+    const slots: { group: DeviceGroup; bandKey: string; cx: number; cy: number }[] = [];
+    const ghostSlots: { ghost: TopologyNodeItem; x: number; y: number }[] = [];
     const bands: { key: string; label: string; title: string; headerY: number; collapsed: boolean }[] = [];
+    const edgesByBand = new Map<string, TopologyEdgeItem[]>();
 
     const filteredGroups = groups.filter((group) => filteredDeviceIds.has(group.deviceId));
-    const layerValues = [...new Set(filteredGroups.map((group) => group.layer))].sort(
-      (a, b) => (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER),
-    );
+
+    // `nodeDevice` cobre todos os filtrados (inclusive recolhidos):
+    // seleção de aresta, vizinhos e o painel seguem sabendo de qual
+    // device cada interface é, mesmo com a faixa fechada.
+    filteredGroups.forEach((group) => {
+      group.nodes.forEach((node) => nodeDevice.set(node.id, group.deviceId));
+    });
+
+    const groupById = new Map(filteredGroups.map((group) => [group.deviceId, group]));
+    const vlanSetOf = (deviceId: string) => vlanByDevice.get(deviceId);
+    const ghostNodesAll = graph?.nodes.filter((node) => node.isGhost) ?? [];
+
+    // Forma das faixas por modo: camadas (físico) ou VLANs (lógico).
+    const bandDefs: {
+      key: string;
+      label: string;
+      vlan: number | null;
+      match: (group: DeviceGroup) => boolean;
+    }[] = [];
+    if (viewMode === "physical") {
+      const layerValues = [...new Set(filteredGroups.map((group) => group.layer))].sort(
+        (a, b) => (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER),
+      );
+      layerValues.forEach((layer) => {
+        bandDefs.push({
+          key: layerKeyOf(layer),
+          label: layer === null ? "Sem hierarquia" : `Camada ${layer}`,
+          vlan: null,
+          match: (group) => group.layer === layer,
+        });
+      });
+    } else {
+      const vlanNumbers = [
+        ...new Set(filteredGroups.flatMap((group) => [...(vlanSetOf(group.deviceId) ?? [])])),
+      ].sort((a, b) => a - b);
+      vlanNumbers.forEach((number) => {
+        const name = vlans.find((entry) => entry.vlanNumber === number)?.name;
+        bandDefs.push({
+          key: `vlan:${number}`,
+          label: name ? `VLAN ${number} — ${name}` : `VLAN ${number}`,
+          vlan: number,
+          match: (group) => vlanSetOf(group.deviceId)?.has(number) ?? false,
+        });
+      });
+      if (filteredGroups.some((group) => !vlanSetOf(group.deviceId)?.size)) {
+        bandDefs.push({
+          key: "vlan:none",
+          label: "Sem VLAN",
+          vlan: null,
+          match: (group) => !vlanSetOf(group.deviceId)?.size,
+        });
+      }
+    }
+
+    const positionKey = (bandKey: string, id: string) =>
+      viewMode === "logical" ? `${bandKey}|${id}` : id;
+
+    const inBand = (deviceId: string, def: (typeof bandDefs)[number]) => {
+      const group = groupById.get(deviceId);
+      return !!group && def.match(group);
+    };
+
+    // Arestas por faixa (só a visão lógica precisa — a física desenha
+    // uma vez, com as pontas livremente em faixas diferentes): as duas
+    // pontas precisam estar na faixa; com VLAN na aresta, só nas faixas
+    // dela; sem VLAN, onde as pontas estiverem. Ghost acompanha o dono
+    // (só a ponta local gerenciada decide).
+    if (viewMode === "logical") {
+      const edgeVlans = (edge: TopologyEdgeItem) => {
+        const set = new Set<number>();
+        edge.sourceVlans?.forEach((vlan) => set.add(vlan.number));
+        edge.targetVlans?.forEach((vlan) => set.add(vlan.number));
+        return set;
+      };
+      for (const def of bandDefs) {
+        if (collapsedLayers.has(def.key)) continue; // sem corpo, sem aresta
+        edgesByBand.set(
+          def.key,
+          (graph?.edges ?? []).filter((edge) => {
+            const sourceDevice = nodeDevice.get(edge.sourceInterfaceId);
+            if (!sourceDevice || !inBand(sourceDevice, def)) return false;
+            if (!edge.isGhost) {
+              const targetDevice = nodeDevice.get(edge.targetInterfaceId);
+              if (!targetDevice || !inBand(targetDevice, def)) return false;
+            }
+            const vlansOfEdge = edgeVlans(edge);
+            if (vlansOfEdge.size > 0) {
+              return def.vlan != null && vlansOfEdge.has(def.vlan);
+            }
+            return true;
+          }),
+        );
+      }
+    }
 
     let y = 10;
-    for (const layer of layerValues) {
-      const key = layerKeyOf(layer);
-      const label = layer === null ? "Sem hierarquia" : `Camada ${layer}`;
-      const members = filteredGroups.filter((group) => group.layer === layer);
+    for (const def of bandDefs) {
+      const members = filteredGroups.filter(def.match);
       const headerY = y + 18;
       const bodyTop = y + headerH;
+      const collapsed = collapsedLayers.has(def.key);
 
-      members.forEach((group, index) => {
-        const cx = padX + (index % cols) * slotW;
-        const cy = bodyTop + Math.floor(index / cols) * slotH + 46;
-        group.nodes.forEach((node, nodeIndex) => {
-          nodeDevice.set(node.id, group.deviceId);
-          if (group.nodes.length === 1) {
-            nodePos.set(node.id, { x: cx, y: cy });
-          } else {
-            const angle = -Math.PI / 2 + (nodeIndex * 2 * Math.PI) / group.nodes.length;
-            nodePos.set(node.id, {
-              x: cx + Math.cos(angle) * 30,
-              y: cy + Math.sin(angle) * 30,
-            });
-          }
+      if (!collapsed) {
+        members.forEach((group, index) => {
+          const cx = padX + (index % cols) * slotW;
+          const cy = bodyTop + Math.floor(index / cols) * slotH + 46;
+          group.nodes.forEach((node, nodeIndex) => {
+            if (group.nodes.length === 1) {
+              positions.set(positionKey(def.key, node.id), { x: cx, y: cy });
+            } else {
+              const angle = -Math.PI / 2 + (nodeIndex * 2 * Math.PI) / group.nodes.length;
+              positions.set(positionKey(def.key, node.id), {
+                x: cx + Math.cos(angle) * 30,
+                y: cy + Math.sin(angle) * 30,
+              });
+            }
+          });
+          slots.push({ group, bandKey: def.key, cx, cy });
         });
-        slots.push({ group, cx, cy });
-      });
+
+        // Ghosts: deslocados do slot do dono dentro desta faixa.
+        const perDevice = new Map<string, number>();
+        ghostNodesAll
+          .filter((ghost) => members.some((m) => m.deviceId === ghost.deviceId))
+          .forEach((ghost) => {
+            const slot = slots.find(
+              (s) => s.bandKey === def.key && s.group.deviceId === ghost.deviceId,
+            );
+            const base = slot ? { x: slot.cx, y: slot.cy } : { x: 48, y: 48 };
+            const index = perDevice.get(ghost.deviceId) ?? 0;
+            perDevice.set(ghost.deviceId, index + 1);
+            const pos = {
+              x: base.x + 52 + (index % 3) * 22,
+              y: base.y + 46 + Math.floor(index / 3) * 20,
+            };
+            positions.set(positionKey(def.key, ghost.id), pos);
+            ghostSlots.push({ ghost, x: pos.x, y: pos.y });
+          });
+      }
 
       const rows = Math.max(1, Math.ceil(members.length / cols));
-      const collapsed = collapsedLayers.has(key);
       const count = members.length;
       bands.push({
-        key,
-        label,
-        title: `${label} · ${count} ${count === 1 ? "device" : "devices"}`,
+        key: def.key,
+        label: def.label,
+        title: `${def.label} · ${count} ${count === 1 ? "device" : "devices"}`,
         headerY,
         collapsed,
       });
@@ -434,37 +551,69 @@ export function TopologyPage() {
     }
 
     const height = Math.max(420, y + 90);
-    return { slots, bands, nodePos, nodeDevice, height };
-  }, [groups, filteredDeviceIds, collapsedLayers]);
+    return { slots, bands, positions, nodeDevice, ghostSlots, height, edgesByBand };
+  }, [groups, filteredDeviceIds, collapsedLayers, graph, viewMode, vlans, vlanByDevice]);
 
-  /** F29-5: nós ghost (vizinho não gerenciado) — fora dos clusters. */
-  const ghostNodes = useMemo(
-    () => graph?.nodes.filter((node) => node.isGhost) ?? [],
-    [graph],
-  );
-
-  /** Posição dos ghosts: deslocados do slot do device local que os descobriu. */
-  const ghostPos = useMemo(() => {
-    const map = new Map<string, { x: number; y: number }>();
-    const perDevice = new Map<string, number>();
-    ghostNodes.forEach((ghost) => {
-      const slot = layout.slots.find((s) => s.group.deviceId === ghost.deviceId);
-      const base = slot ? { x: slot.cx, y: slot.cy } : { x: 48, y: 48 };
-      const index = perDevice.get(ghost.deviceId) ?? 0;
-      perDevice.set(ghost.deviceId, index + 1);
-      map.set(ghost.id, {
-        x: base.x + 52 + (index % 3) * 22,
-        y: base.y + 46 + Math.floor(index / 3) * 20,
-      });
-    });
-    return map;
-  }, [ghostNodes, layout]);
-
-  /** Posição de um node (real no cluster, ou ghost avulso). */
+  /**
+   * Posição de um node (real no cluster, ou ghost avulso). Na visão
+   * lógica a chave é prefixada pela faixa — o mesmo device ocupa um
+   * slot por VLAN e cada cópia tem sua posição.
+   */
   const positionOf = useCallback(
-    (interfaceId: string) => layout.nodePos.get(interfaceId) ?? ghostPos.get(interfaceId),
-    [layout, ghostPos],
+    (interfaceId: string, bandKey?: string) =>
+      layout.positions.get(
+        viewMode === "logical" && bandKey ? `${bandKey}|${interfaceId}` : interfaceId,
+      ),
+    [layout, viewMode],
   );
+
+  /**
+   * F53-T006 — uma Connection desenhada: `bandKey` posiciona as pontas
+   * na faixa lógica (física chama sem faixa); `elementKey` garante chave
+   * única quando a mesma aresta aparece em mais de uma faixa.
+   */
+  const renderEdge = (edge: TopologyEdgeItem, bandKey?: string, elementKey?: string) => {
+    const from = positionOf(edge.sourceInterfaceId, bandKey);
+    const to = positionOf(edge.targetInterfaceId, bandKey);
+    if (!from || !to) return null;
+    const sourceDevice = layout.nodeDevice.get(edge.sourceInterfaceId);
+    const targetDevice = edge.isGhost
+      ? edge.targetInterfaceId // ghost não tem device próprio no mapa
+      : layout.nodeDevice.get(edge.targetInterfaceId);
+    if (!sourceDevice || !targetDevice) return null;
+
+    const isHighlighted =
+      (selectedDeviceId !== null &&
+        (sourceDevice === selectedDeviceId || targetDevice === selectedDeviceId)) ||
+      selectedEdgeId === edge.id;
+    const isDimmed =
+      (selectedDeviceId !== null && !isHighlighted) ||
+      (selectedEdgeId !== null && !isHighlighted);
+
+    return (
+      <g key={elementKey ?? edge.id}>
+        <line
+          x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+          stroke={selectedEdgeId === edge.id ? "#3b82f6" : edge.isGhost ? "#a78bfa" : "#94a3b8"}
+          strokeWidth={isHighlighted ? 2.2 : 1.2}
+          strokeDasharray={edge.isGhost ? "4 3" : undefined}
+          opacity={isDimmed ? 0.12 : isHighlighted ? 0.95 : 0.5}
+        />
+        {/* hit-area invisível: a linha visível tem 1,2px de alvo */}
+        <line
+          x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+          stroke="transparent" strokeWidth={12}
+          style={{ cursor: "pointer" }}
+          onClick={(event) => {
+            if (didDragRef.current) return;
+            event.stopPropagation();
+            setSelectedEdgeId(edge.id);
+            setSelectedDeviceId(null);
+          }}
+        />
+      </g>
+    );
+  };
 
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -883,7 +1032,7 @@ export function TopologyPage() {
         ))}
       </div>
 
-      {/* F53-T004 — filtros combináveis (AND sobre o mesmo visibleDeviceIds) */}
+      {/* F53-T004 — filtros combináveis (AND sobre o mesmo filteredDeviceIds) */}
       {graph && graph.nodes.length > 0 && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input
@@ -958,6 +1107,38 @@ export function TopologyPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: "1px solid #f3f4f6" }}>
             <h2 style={{ fontSize: 13, fontWeight: 600 }}>Mapa de Rede</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {/* F53-T006 — física ↔ lógica: mesmos filtros/seleção/pan,
+                  só a forma das faixas muda. */}
+              <div
+                role="group"
+                aria-label="Visão do mapa"
+                style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 4, overflow: "hidden", marginRight: 2 }}
+              >
+                <button
+                  aria-pressed={viewMode === "physical"}
+                  onClick={() => setViewMode("physical")}
+                  style={{
+                    padding: "3px 8px", border: "none", borderRight: "1px solid #e5e7eb",
+                    background: viewMode === "physical" ? "#eff6ff" : "white",
+                    color: viewMode === "physical" ? "#1d4ed8" : "#6b7280",
+                    fontSize: 10, fontWeight: viewMode === "physical" ? 600 : 500, cursor: "pointer",
+                  }}
+                >
+                  Física
+                </button>
+                <button
+                  aria-pressed={viewMode === "logical"}
+                  onClick={() => setViewMode("logical")}
+                  style={{
+                    padding: "3px 8px", border: "none",
+                    background: viewMode === "logical" ? "#eff6ff" : "white",
+                    color: viewMode === "logical" ? "#1d4ed8" : "#6b7280",
+                    fontSize: 10, fontWeight: viewMode === "logical" ? 600 : 500, cursor: "pointer",
+                  }}
+                >
+                  Lógica
+                </button>
+              </div>
               <button aria-label="Diminuir zoom" onClick={() => setZoom(z => Math.max(z - 10, 50))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-minus" style={{ fontSize: 9 }} /></button>
               <span style={{ fontSize: 10, fontWeight: 500, minWidth: 28, textAlign: "center" }}>{zoom}%</span>
               <button aria-label="Aumentar zoom" onClick={() => setZoom(z => Math.min(z + 10, 150))} style={{ width: 22, height: 22, borderRadius: 4, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><i className="pi pi-plus" style={{ fontSize: 9 }} /></button>
@@ -971,10 +1152,11 @@ export function TopologyPage() {
             </div>
           </div>
 
-          {/* F53-T003 — toggles de recolhimento por faixa de camada */}
+          {/* F53-T003 — toggles de recolhimento por faixa (camada no
+              físico, VLAN no lógico — F53-T006) */}
           {graph && graph.nodes.length > 0 && layout.bands.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "8px 16px", borderBottom: "1px solid #f3f4f6" }}>
-              <span style={{ fontSize: 10, color: "#9ca3af" }}>Camadas</span>
+              <span style={{ fontSize: 10, color: "#9ca3af" }}>{viewMode === "physical" ? "Camadas" : "VLANs"}</span>
               {layout.bands.map((band) => (
                 <button
                   key={band.key}
@@ -1055,55 +1237,20 @@ export function TopologyPage() {
 
                   {/* Edges — Connections sem tipo no contrato: traço neutro.
                       Seleção: device → destaca as conexões dele; edge → destaca
-                      só ela; o resto perde opacidade (foco visual). */}
-                  {graph.edges.map((edge) => {
-                    const from = positionOf(edge.sourceInterfaceId);
-                    const to = positionOf(edge.targetInterfaceId);
-                    if (!from || !to) return null;
-                    const sourceDevice = layout.nodeDevice.get(edge.sourceInterfaceId);
-                    const targetDevice = edge.isGhost
-                      ? edge.targetInterfaceId // ghost não tem device próprio no mapa
-                      : layout.nodeDevice.get(edge.targetInterfaceId);
-                    if (!sourceDevice || !targetDevice) return null;
-                    if (!visibleDeviceIds.has(sourceDevice) || (!edge.isGhost && !visibleDeviceIds.has(targetDevice))) return null;
+                      só ela; o resto perde opacidade (foco visual). F53-T006:
+                      físico desenha tudo de uma vez; lógico desenha por faixa
+                      (mesma aresta pode aparecer em mais de uma VLAN). */}
+                  {viewMode === "physical"
+                    ? graph.edges.map((edge) => renderEdge(edge))
+                    : layout.bands.flatMap((band) =>
+                        (layout.edgesByBand.get(band.key) ?? []).map((edge) =>
+                          renderEdge(edge, band.key, `${band.key}|${edge.id}`),
+                        ),
+                      )}
 
-                    const isHighlighted =
-                      (selectedDeviceId !== null &&
-                        (sourceDevice === selectedDeviceId ||
-                          targetDevice === selectedDeviceId)) ||
-                      selectedEdgeId === edge.id;
-                    const isDimmed =
-                      (selectedDeviceId !== null && !isHighlighted) ||
-                      (selectedEdgeId !== null && !isHighlighted);
-
-                    return (
-                      <g key={edge.id}>
-                        <line
-                          x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                          stroke={selectedEdgeId === edge.id ? "#3b82f6" : edge.isGhost ? "#a78bfa" : "#94a3b8"}
-                          strokeWidth={isHighlighted ? 2.2 : 1.2}
-                          strokeDasharray={edge.isGhost ? "4 3" : undefined}
-                          opacity={isDimmed ? 0.12 : isHighlighted ? 0.95 : 0.5}
-                        />
-                        {/* hit-area invisível: a linha visível tem 1,2px de alvo */}
-                        <line
-                          x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                          stroke="transparent" strokeWidth={12}
-                          style={{ cursor: "pointer" }}
-                          onClick={(event) => {
-                            if (didDragRef.current) return;
-                            event.stopPropagation();
-                            setSelectedEdgeId(edge.id);
-                            setSelectedDeviceId(null);
-                          }}
-                        />
-                      </g>
-                    );
-                  })}
-
-                  {/* Nodes = interfaces */}
+                  {/* Nodes = interfaces — F53-T006: no lógico o mesmo
+                      device ocupa um slot por faixa (chave `band|device`). */}
                   {layout.slots
-                    .filter((slot) => visibleDeviceIds.has(slot.group.deviceId))
                     .map((slot) => {
                       const { group } = slot;
                       const meta = typeMeta[group.deviceType] ?? { color: "#94a3b8", icon: "pi pi-question", emoji: "❓" };
@@ -1118,7 +1265,7 @@ export function TopologyPage() {
                         (selectedEdge !== null && !isInSelectedEdge);
                       return (
                         <g
-                          key={group.deviceId}
+                          key={`${slot.bandKey}|${group.deviceId}`}
                           opacity={dimmed ? 0.32 : 1}
                           style={{ cursor: "pointer" }}
                           onClick={(event) => {
@@ -1150,7 +1297,7 @@ export function TopologyPage() {
                           </text>
 
                           {group.nodes.map((node) => {
-                            const pos = layout.nodePos.get(node.id);
+                            const pos = positionOf(node.id, slot.bandKey);
                             if (!pos) return null;
                             const color = statusColor(group.status);
                             return (
@@ -1183,12 +1330,11 @@ export function TopologyPage() {
                       );
                     })}
                   {/* F29-5: nós ghost — vizinho LLDP/CDP não gerenciado,
-                      renderizado tracejado com o rótulo da porta remota. */}
-                  {ghostNodes
-                    .filter((ghost) => visibleDeviceIds.has(ghost.deviceId))
-                    .map((ghost) => {
-                    const pos = ghostPos.get(ghost.id);
-                    if (!pos) return null;
+                      renderizado tracejado com o rótulo da porta remota.
+                      F53-T006: um ghost por faixa do dono (posição já
+                      resolvida no layout). */}
+                  {layout.ghostSlots.map(({ ghost, x, y }) => {
+                    const pos = { x, y };
                     const isSelected = selectedEdgeId !== null &&
                       selectedEdge?.targetInterfaceId === ghost.id;
                     return (

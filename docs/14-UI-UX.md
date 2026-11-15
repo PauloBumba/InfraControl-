@@ -98,7 +98,8 @@ demais) e dados 100% reais:
 - **TopologyEmbed** — `UniFiTopologyMap` (topologia UniFi ao vivo,
   `getUnifiTopology`) em painel resumido com link para `/unifi`. O mapa
   interno da F53 (`/network/topology`) ainda não foi embutido — a F53
-  está em andamento na árvore; integrar quando o contrato estabilizar.
+  concluiu (2026-11-14, contrato estável); embed é candidato a
+  complemento (pendência registrada na F54-T007).
 - **UniFiSummaryPanel** — `getUniFiDashboard`: sites/switches/APs/
   clientes/portas up/offline, saúde do controller e staleness do sync.
 - **EventsCenter** — feed unificado: `listAlerts` (todos os status,
@@ -107,3 +108,57 @@ demais) e dados 100% reais:
   separado ("Eventos Recentes").
 - Services novos: `getFleetStatusOverview` (inventory), `getZabbixHostItems`/
   `getZabbixHostSeries` (zabbix), `getMonitoringAvailability` (monitoring).
+
+## Topologia (Fase 53 — mapa interativo estilo UniFi)
+
+`/network/topology` (`pages/TopologyPage.tsx`) — mapa SVG único que
+serve as duas visões, sem mutations; contrato em `GET /network/topology`
+(`TopologyQuery`, F53-T002). Origem/confiança vivem em `connections`
+(migração `AddConnectionOrigin`, F53-T001).
+
+### Hierarquia e faixas (F53-T003)
+
+- Layout em faixas por `layer` — BFS multi-raiz no backend a partir de
+  Router/Firewall sobre as Connections reais; sem caminho → "Sem
+  hierarquia". Devices tipo→nome em colunas, interfaces em satélite;
+  faixa recolhida ocupa só o cabeçalho (`aria-expanded` na barra do
+  mapa) e some da altura do SVG.
+- Pan por arrasto (clique pós-arrasto suprimido acima de 4px), zoom
+  50–150% e "Centralizar" reseta pan+zoom (100%); viewport fixo em
+  640px com overflow hidden.
+
+### Filtros e destaque (F53-T004)
+
+- Busca (nome/IP), categoria, localização, VLAN e "só problemas" —
+  combinação AND; `filteredDeviceIds` dimensiona as faixas (faixa sem
+  nenhum device passando some, mantendo o toggle).
+- VLAN do device = união das VLANs nas pontas das Connections dele.
+- Selecionado: conexões com traço forte, vizinhos com anel `#93c5fd`,
+  resto esmaecido (0.12).
+
+### Visão física ↔ lógica (F53-T006)
+
+- Toggle **Física | Lógica** (`aria-pressed`) no cabeçalho do mapa;
+  barra de faixas rotula "Camadas" (físico) / "VLANs" (lógico). Troca
+  preserva filtros, seleção, colapso e pan/zoom.
+- Lógico: faixas `VLAN N — Nome` (+ "Sem VLAN"); device em várias
+  VLANs ocupa um slot em cada faixa (chave `band|node`, cópias não
+  colidem). Aresta só nas faixas das VLANs dela; sem VLAN ou pontas em
+  faixas disjuntas (ex. r1{10} ↔ fw{20}) a Connection fica só na
+  visão física — sem dado não há como posicionar. Colapso lógico usa
+  chaves `vlan:N` no mesmo `collapsedLayers` das camadas.
+
+### Painéis de detalhe (F53-T005)
+
+- **Device (11.5)** — ficha do inventário (MAC, série, modelo,
+  fabricante, VLAN, local) + `system-info` (uptime) + último poll +
+  alertas recentes + Zabbix (match exato host/nome/ip → até 5 leituras
+  úteis) + vínculo UniFi por MAC + portas do switch com o que está
+  conectado (match da interface nas duas pontas; ghost = "Vizinho não
+  gerenciado · porta remota").
+- **Conexão (11.3)** — portas das pontas (ghost mostra a porta remota),
+  velocidade/duplex, VLANs, estado da porta (`linkUp`) e origem ×
+  confiança (`manual`/`lldp`/`cdp`/`unifi` × `confirmed`/`estimated`).
+- Honestidade: tipo da conexão = "—" (sem dado no contrato — nunca
+  inventado); falha de integração degrada só a linha (loading "…",
+  sem dado "—"), nunca o painel inteiro.

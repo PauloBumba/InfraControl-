@@ -180,3 +180,67 @@ public sealed class UpdateIncidentCommandHandler(
         return parsed;
     }
 }
+
+/// <summary>
+/// Atribui o responsável pela tratativa do incidente (quem está
+/// resolvendo). Usuário inexistente → 404 pt-BR.
+/// </summary>
+public sealed record AssignIncidentCommand(Guid IncidentId, Guid UserId)
+    : BaseCommand<IncidentDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class AssignIncidentCommandHandler(IIncidentRepository repository)
+    : IRequestHandler<AssignIncidentCommand, IncidentDto>
+{
+    public async Task<IncidentDto> Handle(
+        AssignIncidentCommand request, CancellationToken cancellationToken)
+    {
+        var incident = await repository.GetByIdAsync(request.IncidentId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Incidente '{request.IncidentId}' não encontrado.");
+
+        if (!await repository.UserExistsAsync(request.UserId, cancellationToken))
+            throw new KeyNotFoundException(
+                $"Usuário '{request.UserId}' não encontrado.");
+
+        incident.Assign(request.UserId);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        var names = await repository.GetUserNamesAsync(
+            incident.AssignedToId is { } id ? [id] : [], cancellationToken);
+
+        return IncidentDto.From(
+            incident,
+            assignedToName: incident.AssignedToId is { } assigned
+                ? names.GetValueOrDefault(assigned)
+                : null);
+    }
+}
+
+/// <summary>Remove o responsável do incidente.</summary>
+public sealed record UnassignIncidentCommand(Guid IncidentId)
+    : BaseCommand<IncidentDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Operate;
+}
+
+public sealed class UnassignIncidentCommandHandler(IIncidentRepository repository)
+    : IRequestHandler<UnassignIncidentCommand, IncidentDto>
+{
+    public async Task<IncidentDto> Handle(
+        UnassignIncidentCommand request, CancellationToken cancellationToken)
+    {
+        var incident = await repository.GetByIdAsync(request.IncidentId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Incidente '{request.IncidentId}' não encontrado.");
+
+        incident.Unassign();
+        await repository.SaveChangesAsync(cancellationToken);
+
+        return IncidentDto.From(incident);
+    }
+}

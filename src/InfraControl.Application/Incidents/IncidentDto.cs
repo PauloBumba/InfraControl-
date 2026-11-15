@@ -14,12 +14,15 @@ public sealed record IncidentDto(
     Guid[] AlertIds,
     string? RootCause = null,
     string? ResolutionCode = null,
-    string? ResolutionNote = null)
+    string? ResolutionNote = null,
+    Guid? AssignedToId = null,
+    string? AssignedToName = null)
 {
     internal static IncidentDto From(
         Domain.Entities.Incident incident,
         int alertCount = 0,
-        IReadOnlyCollection<Guid>? alertIds = null)
+        IReadOnlyCollection<Guid>? alertIds = null,
+        string? assignedToName = null)
         => new(
             incident.Id,
             incident.Title,
@@ -33,5 +36,7 @@ public sealed record IncidentDto(
             alertIds?.ToArray() ?? [],
             incident.RootCause,
             incident.ResolutionCode?.ToString(),
-            incident.ResolutionNote);
+            incident.ResolutionNote,
+            incident.AssignedToId,
+            assignedToName);
 }

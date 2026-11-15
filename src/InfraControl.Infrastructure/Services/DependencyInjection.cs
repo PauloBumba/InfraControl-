@@ -4,7 +4,10 @@ using InfraControl.Application.Notifications.Webhook;
 using InfraControl.Application.Notifications.Slack;
 using InfraControl.Application.Notifications.Telegram;
 using InfraControl.Application.Notifications.WhatsApp;
+using InfraControl.Application.Messaging.Ports;
 using Microsoft.Extensions.Http.Resilience;
+using System.Net.Http.Headers;
+using System.Text;
 using InfraControl.Application.Alerts;
 using InfraControl.Application.AI;
 using InfraControl.Application.AI.Context;
@@ -325,6 +328,24 @@ public static class DependencyInjection
         services.AddScoped<IEmailEnvOptionsAccessor, EmailEnvOptionsAccessor>();
         services.AddScoped<IEmailOptionsResolver, EmailOptionsResolver>();
 
+        // Relatório geral agendado por e-mail — mesmo SMTP efetivo dos
+        // demais canais; sem SMTP configurado cai no adaptador de log.
+        services.AddScoped<LoggingReportEmailSender>();
+        services.AddScoped<SmtpReportEmailSender>();
+        services.AddScoped<IReportEmailSender>(provider =>
+        {
+            var resolver = provider.GetRequiredService<IEmailOptionsResolver>();
+            var email = resolver.ResolveAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return email.IsSmtpConfigured
+                ? provider.GetRequiredService<SmtpReportEmailSender>()
+                : provider.GetRequiredService<LoggingReportEmailSender>();
+        });
+
+        // Relatório geral agendado — builder usado direto pelo worker.
+        services.AddScoped<InfraControl.Application.Reports.Scheduled.GeneralReportBuilder>();
+
         // F33-T005/ADR-059 decisão 7: cartão PNG (SkiaSharp) + série
         // histórica do Zabbix; sem dado a mensagem degrada para texto.
         services.AddSingleton<IIncidentImageRenderer, SkiaIncidentImageRenderer>();
@@ -413,6 +434,28 @@ public static class DependencyInjection
                 return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
             },
         });
+
+        // F55-T001: Management API do RabbitMQ — backend-only (o navegador
+        // nunca fala com o broker), Basic auth das credenciais já existentes
+        // em env (RabbitMQ:User/Password), timeout curto + resiliência leve.
+        services.AddHttpClient(Infrastructure.Messaging.RabbitMqManagementClient.HttpClientName,
+            client =>
+            {
+                client.BaseAddress = new Uri(
+                    configuration["RabbitMQ:Management:BaseUrl"] ?? "http://rabbitmq:15672");
+                client.Timeout = TimeSpan.FromSeconds(5);
+                var user = configuration["RabbitMQ:User"] ?? "infracontrol";
+                var password = configuration["RabbitMQ:Password"] ?? "infracontrol_dev_2026";
+                var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{password}"));
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Basic", token);
+            })
+            .AddResilienceHandler("rabbitmq-mgmt", static (builder, _) =>
+                Infrastructure.Messaging.RabbitMqManagementClient.ConfigureResilience(builder));
+        services.AddScoped<Application.Messaging.Ports.IRabbitMqManagementClient,
+            Infrastructure.Messaging.RabbitMqManagementClient>();
+        services.AddScoped<Application.Messaging.Ports.IMessagingStatsStore,
+            Repositories.MessagingStatsStore>();
 
         services.AddScoped<Application.Notifications.Transitions.IOccurrenceTransitionGate,
             Application.Notifications.Transitions.OccurrenceTransitionGate>();

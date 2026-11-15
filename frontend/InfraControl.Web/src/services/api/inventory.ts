@@ -384,10 +384,12 @@ export async function listDeviceMacs(
 
 /** Item da busca global (F2-T007 — `GlobalSearchItemDto`). */
 export interface GlobalSearchItem {
-  type: "location" | "rack" | "device" | "interface" | "mac" | "ip";
+  type: "location" | "rack" | "device" | "interface" | "mac" | "ip" | "network";
   id: string;
   name: string;
   subtitle: string | null;
+  /** Rota explícita p/ itens que não são entidade do inventário (ex.: network → Explorer). */
+  target?: string | null;
 }
 
 export interface GlobalSearchResult {

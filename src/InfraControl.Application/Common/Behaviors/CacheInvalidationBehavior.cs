@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.BuildingBlocks.Application;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +17,11 @@ public sealed class CacheInvalidationBehavior<TRequest, TResponse>(
         CancellationToken cancellationToken)
     {
         var response = await next();
-        if (request is not ICacheInvalidatingRequest invalidatingRequest)
+        // ICacheInvalidatingCommand (BuildingBlocks) é a interface que todo
+        // BaseCommand já implementa — ICacheInvalidatingRequest é só um
+        // marcador derivado que quase nenhum command declara. Checar a base
+        // é o que faz a invalidação por tag funcionar de verdade.
+        if (request is not ICacheInvalidatingCommand invalidatingRequest)
             return response;
 
         // F1: os valores de CacheKeysToInvalidate são TAGS (não chaves

@@ -130,6 +130,25 @@ public sealed class IncidentRepository(AppDbContext dbContext)
             .Select(incident => incident.Id)
             .ToListAsync(cancellationToken);
 
+    public Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => dbContext.DomainUsers.AnyAsync(user => user.Id == userId, cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(user => user.Id, user => user.DisplayName);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

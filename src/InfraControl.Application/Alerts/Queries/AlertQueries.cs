@@ -45,7 +45,8 @@ public sealed class SearchAlertsQueryHandler(IAlertRepository repository)
                 item.Alert.ResolvedAt,
                 item.Alert.OperatorNote,
                 item.Alert.ResolutionCode?.ToString(),
-                item.Alert.ResolutionNote)).ToArray(),
+                item.Alert.ResolutionNote,
+                item.AssignedToName)).ToArray(),
             result.TotalCount,
             result.Page,
             result.PageSize);

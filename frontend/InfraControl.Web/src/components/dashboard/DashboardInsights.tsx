@@ -522,7 +522,7 @@ export function EventsCenter() {
       const feed: FeedItem[] = [];
       let anyOk = false;
       try {
-        const page = await listAlerts({ pageSize: 10 });
+        const page = await listAlerts({ status: "open", pageSize: 10 });
         anyOk = true;
         for (const a of page.items as AlertItem[]) {
           feed.push({
@@ -537,7 +537,7 @@ export function EventsCenter() {
         }
       } catch { /* alertas indisponíveis — segue com o que houver */ }
       try {
-        const problems = await getZabbixProblems({ includeRecovered: true });
+        const problems = await getZabbixProblems({ includeRecovered: false });
         anyOk = true;
         for (const p of problems.items.slice(0, 10) as ZabbixProblemView[]) {
           feed.push({

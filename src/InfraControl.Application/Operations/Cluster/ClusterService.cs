@@ -100,7 +100,6 @@ public sealed record CheckServiceInstanceHealthCommand(Guid Id)
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
     public string AuditResource => "ServiceInstance";
-    public IReadOnlyCollection<string> CacheKeysToInvalidate => [];
 }
 
 /// <summary>Probe de saúde de TODAS as instâncias ativas.</summary>

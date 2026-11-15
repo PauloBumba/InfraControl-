@@ -87,6 +87,24 @@ public sealed class IncidentsController(ISender sender) : BaseController
                 id, model.Title, model.Description, model.Severity, model.RootCause),
             cancellationToken)));
 
+    /// <summary>Atribui o responsável pela tratativa do incidente.</summary>
+    [HttpPost("{id:guid}/assign")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> Assign(
+        Guid id,
+        [FromBody] AssignIncidentViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new AssignIncidentCommand(id, model.UserId), cancellationToken)));
+
+    /// <summary>Remove o responsável do incidente.</summary>
+    [HttpPost("{id:guid}/unassign")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> Unassign(
+        Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UnassignIncidentCommand(id), cancellationToken)));
+
     private static IncidentSeverity ParseSeverity(string? severity)
     {
         if (string.IsNullOrWhiteSpace(severity)

@@ -22,4 +22,6 @@ public sealed record AlertDto(
     string? OperatorNote = null,
     // F52-T003 — baixa justificada (null na resolução automática).
     string? ResolutionCode = null,
-    string? ResolutionNote = null);
+    string? ResolutionNote = null,
+    // Responsável do incidente vinculado (quem está tratando o alerta).
+    string? AssignedToName = null);

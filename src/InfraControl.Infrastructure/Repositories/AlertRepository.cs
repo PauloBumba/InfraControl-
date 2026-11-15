@@ -77,7 +77,52 @@ public sealed class AlertRepository(AppDbContext dbContext)
             .ToListAsync(cancellationToken);
         var total = await query.CountAsync(cancellationToken);
 
-        return new PagedResult<AlertWithDevice>(items, total, page, pageSize);
+        var assignees = await GetAssignedToNamesAsync(
+            items.Select(item => item.Alert.Id).ToArray(), cancellationToken);
+        var named = items
+            .Select(item => assignees.TryGetValue(item.Alert.Id, out var name)
+                ? item with { AssignedToName = name }
+                : item)
+            .ToArray();
+
+        return new PagedResult<AlertWithDevice>(named, total, page, pageSize);
+    }
+
+    /// <summary>
+    /// Nome do responsável do incidente vinculado a cada alerta da página.
+    /// Alerta pode ter N incidentes — prefere o não resolvido mais recente.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, string>> GetAssignedToNamesAsync(
+        IReadOnlyCollection<Guid> alertIds,
+        CancellationToken cancellationToken)
+    {
+        if (alertIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var rows = await (
+            from link in dbContext.IncidentAlerts.AsNoTracking()
+            join incident in dbContext.Incidents.AsNoTracking()
+                on link.IncidentId equals incident.Id
+            join user in dbContext.DomainUsers.AsNoTracking()
+                on incident.AssignedToId equals user.Id
+            where alertIds.Contains(link.AlertId)
+            select new
+            {
+                link.AlertId,
+                incident.Status,
+                incident.CreateDateTime,
+                user.DisplayName,
+            }).ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(row => row.AlertId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(row => row.Status == IncidentStatus.Resolved ? 0 : 1)
+                    .ThenByDescending(row => row.CreateDateTime)
+                    .First()
+                    .DisplayName);
     }
 
     public async Task<IReadOnlyList<OpenAlertCount>> GetOpenCountsByDeviceAsync(

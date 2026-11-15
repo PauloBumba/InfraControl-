@@ -14,6 +14,7 @@ public sealed record GetReportHistoryQuery(
     : BaseQuery<ReportHistoryDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetReportHistoryQueryHandler(

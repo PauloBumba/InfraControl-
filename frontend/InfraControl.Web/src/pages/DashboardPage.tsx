@@ -168,12 +168,15 @@ export function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [devicePage, alertPage, incidentPage, openIncidentPage, clientPage, taskPage] = await Promise.all([
+      const [devicePage, alertPage, incidentPage, allIncidentPage, openIncidentPage, clientPage, taskPage] = await Promise.all([
         listDevices({ pageSize: 6 }),
         listAlerts({ status: "open", pageSize: 100 }),
-        listIncidents({ pageSize: 5 }),
-        // M7: "active" = != Resolved no servidor — o totalCount é o número
-        // real de abertos (filtrar no front sobre a 1ª página mentia o KPI).
+        // Widget "Incidentes Recentes": só não resolvidos — resolvido não
+        // aparece na tela principal (fica na listagem /incidents).
+        listIncidents({ status: "active", pageSize: 5 }),
+        // KPI "Incidentes": total geral do servidor (o "N em aberto" ao lado
+        // vem do totalCount ativo — filtrar no front mentia o número, M7).
+        listIncidents({ pageSize: 1 }),
         listIncidents({ status: "active", pageSize: 1 }),
         listClients("", 1, 5),
         listTasks({ pageSize: 100 }),
@@ -183,7 +186,7 @@ export function DashboardPage() {
       setOpenAlerts(alertPage.items);
       setOpenAlertTotal(alertPage.totalCount);
       setIncidents(incidentPage.items);
-      setIncidentTotal(incidentPage.totalCount);
+      setIncidentTotal(allIncidentPage.totalCount);
       setOpenIncidentTotal(openIncidentPage.totalCount);
       setClients(clientPage.items);
       setClientTotal(clientPage.totalCount);

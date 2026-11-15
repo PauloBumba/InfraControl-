@@ -37,6 +37,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<WhatsAppIntegrationSetting> WhatsAppIntegrationSettings => Set<WhatsAppIntegrationSetting>();
 
     public DbSet<EmailIntegrationSetting> EmailIntegrationSettings => Set<EmailIntegrationSetting>();
+    public DbSet<ScheduledReport> ScheduledReports => Set<ScheduledReport>();
     public DbSet<ZabbixHost> ZabbixHosts => Set<ZabbixHost>();
     public DbSet<UniFiSite> UniFiSites => Set<UniFiSite>();
     public DbSet<AiProvider> AiProviders => Set<AiProvider>();

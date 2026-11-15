@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Column } from "primereact/column";
 import type { DataTablePageEvent } from "primereact/datatable";
@@ -29,15 +29,18 @@ import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import {
   acknowledgeIncident,
+  assignIncident,
   changeIncidentStatus,
   createIncident,
   generateIncidentKnowledge,
   investigateIncident,
   listIncidents,
+  unassignIncident,
   updateIncident,
   type IncidentItem,
   type InvestigationResult,
 } from "@/services/api/incidents";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 
 /**
  * F17-T003 + ADR-030 Fase 5 — IncidentsPage com React Query
@@ -138,6 +141,12 @@ export function IncidentsPage() {
   const [investigation, setInvestigation] = useState<InvestigationResult | null>(null);
   const [investigationError, setInvestigationError] = useState<string | null>(null);
 
+  // Responsável pela tratativa — vocabulário de usuários (mesmo padrão do
+  // TaskDetailPage: falha silenciosa, UI cai para "não atribuído").
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [assignTarget, setAssignTarget] = useState<IncidentItem | null>(null);
+  const [assignUserId, setAssignUserId] = useState("");
+
   const effectiveStatusFilter = statusFilter === "Resolved" ? "" : statusFilter;
   const incidents = usePagedQuery<IncidentItem>(["incidents", page, effectiveStatusFilter], () =>
     listIncidents({
@@ -155,6 +164,12 @@ export function IncidentsPage() {
   }, [queryClient]);
   useOperationalRefresh(refreshIncidents);
   useAutoRefresh(refreshIncidents);
+
+  useEffect(() => {
+    void listUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, []);
 
   const createMutation = useCreateMutation({
     invalidate: ["incidents"],
@@ -214,6 +229,34 @@ export function IncidentsPage() {
     },
     onError: (error) => setActionError(mutationErrorMessage(error)),
   });
+  const assignMutation = useUpdateMutation({
+    invalidate: ["incidents"],
+    mutationFn: (input: { id: string; userId: string | null }) =>
+      input.userId === null
+        ? unassignIncident(input.id)
+        : assignIncident(input.id, input.userId),
+    onSuccess: (_data, vars) => {
+      setActionError(null);
+      setNotice(vars.userId === null ? "Responsável removido." : "Responsável atribuído.");
+      setAssignTarget(null);
+      setAssignUserId("");
+    },
+    onError: (error) => setActionError(mutationErrorMessage(error)),
+  });
+
+  function openAssign(incident: IncidentItem) {
+    setAssignTarget(incident);
+    setAssignUserId(incident.assignedToId ?? "");
+  }
+
+  function submitAssign() {
+    if (!assignTarget) return;
+    assignMutation.mutate({
+      id: assignTarget.id,
+      userId: assignUserId || null,
+    });
+  }
+
   // Fase C (ADR-053) — investigação não altera estado do servidor, só
   // devolve análise; sem invalidação de lista.
   // ADR-061 §3 (H7): mutation única compartilhada — o guard de id (REF
@@ -564,6 +607,55 @@ export function IncidentsPage() {
         </div>
       </Dialog>
 
+      <Dialog
+        visible={assignTarget !== null}
+        onHide={() => setAssignTarget(null)}
+        header="Responsável do incidente"
+        width={420}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAssignTarget(null)}
+              disabled={assignMutation.isPending}
+              style={{ padding: "6px 14px" }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={submitAssign}
+              disabled={assignMutation.isPending}
+              style={{ padding: "6px 14px" }}
+            >
+              {assignMutation.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {assignTarget && (
+            <div style={{ fontSize: 12, color: "#64748b" }}>{assignTarget.title}</div>
+          )}
+          <FormField label="Responsável pela tratativa">
+            <SelectField
+              value={assignUserId}
+              onChange={setAssignUserId}
+              options={[
+                { value: "", label: "— Sem responsável —" },
+                ...users.map((user) => ({
+                  value: user.userId,
+                  label: user.displayName || user.email,
+                })),
+              ]}
+              disabled={assignMutation.isPending}
+            />
+          </FormField>
+        </div>
+      </Dialog>
+
       {investigating && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "white", border: "1px solid #e5e7eb", borderRadius: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -641,6 +733,20 @@ export function IncidentsPage() {
               <Column header="Título" body={(incident: IncidentItem) => <IncidentSummary incident={incident} />} />
               <Column header="Severidade" body={(incident: IncidentItem) => <IncidentSeverity incident={incident} />} style={{ width: 100 }} />
               <Column header="Status" body={(incident: IncidentItem) => <IncidentStatus incident={incident} />} style={{ width: 125 }} />
+              <Column
+                header="Responsável"
+                body={(incident: IncidentItem) =>
+                  incident.assignedToName ? (
+                    <span style={{ fontSize: 12, color: "#334155" }}>
+                      <i className="pi pi-user" style={{ marginRight: 4, color: "#64748b" }} />
+                      {incident.assignedToName}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#cbd5e1" }}>—</span>
+                  )
+                }
+                style={{ width: 160 }}
+              />
               <Column header="Aberto em" body={(incident: IncidentItem) => formatDateTime(new Date(incident.openedAt))} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
               <Column header="Resolvido em" body={(incident: IncidentItem) => incident.resolvedAt ? formatDateTime(new Date(incident.resolvedAt)) : "—"} style={{ fontSize: 12, color: "#64748b", width: 155 }} />
               <Column
@@ -675,6 +781,14 @@ export function IncidentsPage() {
                       >
                         <i className="pi pi-file-edit" />
                       </Button>
+                      <Button
+                        variant="ghost"
+                        title={incident.assignedToName ? `Responsável: ${incident.assignedToName}` : "Atribuir responsável"}
+                        onClick={() => openAssign(incident)}
+                        style={{ padding: "4px 8px" }}
+                      >
+                        <i className={`pi ${incident.assignedToName ? "pi-user" : "pi-user-plus"}`} />
+                      </Button>
                       {incident.status === "Open" && (
                         <Button
                           variant="ghost"
@@ -706,6 +820,7 @@ export function IncidentsPage() {
             <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
               Aberto {formatDateTime(new Date(incident.openedAt))}
               {incident.resolvedAt && ` · Resolvido ${formatDateTime(new Date(incident.resolvedAt))}`}
+              {incident.assignedToName && ` · Resp. ${incident.assignedToName}`}
             </div>
             <Can level="operate">
               <div className="flex gap-1 align-items-center" style={{ marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
@@ -734,6 +849,15 @@ export function IncidentsPage() {
                   style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
                 >
                   <i className="pi pi-file-edit" /> Artigo (IA)
+                </Button>
+                <Button
+                  variant="ghost"
+                  title={incident.assignedToName ? `Responsável: ${incident.assignedToName}` : "Atribuir responsável"}
+                  onClick={() => openAssign(incident)}
+                  style={{ padding: "4px 8px", whiteSpace: "nowrap" }}
+                >
+                  <i className={`pi ${incident.assignedToName ? "pi-user" : "pi-user-plus"}`} />{" "}
+                  {incident.assignedToName ?? "Responsável"}
                 </Button>
                 {incident.status === "Open" && (
                   <Button

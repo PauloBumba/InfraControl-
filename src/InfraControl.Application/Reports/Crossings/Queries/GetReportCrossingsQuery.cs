@@ -16,6 +16,7 @@ public sealed record GetReportCrossingsQuery(
     : BaseQuery<ReportCrossingsDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetReportCrossingsQueryHandler(

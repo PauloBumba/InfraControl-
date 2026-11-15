@@ -360,6 +360,15 @@ function AlertRow({
           {formatDateTime(new Date(alert.openedAt))}
           {alert.resolvedAt ? ` → ${formatDateTime(new Date(alert.resolvedAt))}` : ""}
         </span>
+        {alert.assignedToName && (
+          <span
+            style={{ fontSize: 10, color: "#475569" }}
+            title={`Responsável: ${alert.assignedToName}`}
+          >
+            <i className="pi pi-user" style={{ marginRight: 3 }} />
+            Resp. {alert.assignedToName}
+          </span>
+        )}
         <Can level="operate">
           <div style={{ display: "flex", gap: 4 }}>
             {alert.status !== "Resolved" && (

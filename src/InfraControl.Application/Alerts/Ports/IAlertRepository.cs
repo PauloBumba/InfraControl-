@@ -52,7 +52,10 @@ public interface IAlertRepository : IRepository<Alert>
 /// Alert com o device já carregado (projeção do search). DeviceName null
 /// quando o alerta externo não mapeou device (ADR-027).
 /// </summary>
-public sealed record AlertWithDevice(Alert Alert, string? DeviceName);
+public sealed record AlertWithDevice(
+    Alert Alert,
+    string? DeviceName,
+    string? AssignedToName = null);
 
 /// <summary>F54-T001: alertas Open agregados por device e severidade.</summary>
 public sealed record OpenAlertCount(Guid DeviceId, AlertSeverity Severity, int Count);

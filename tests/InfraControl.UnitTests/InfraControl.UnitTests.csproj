@@ -38,6 +38,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- F55-T001: payload REAL da Management API do RabbitMQ (broker dev) -->
+    <None Include="Messaging/Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\InfraControl.Domain\InfraControl.Domain.csproj" />
     <ProjectReference Include="..\..\src\InfraControl.Application\InfraControl.Application.csproj" />
     <ProjectReference Include="..\..\src\InfraControl.Contracts\InfraControl.Contracts.csproj" />

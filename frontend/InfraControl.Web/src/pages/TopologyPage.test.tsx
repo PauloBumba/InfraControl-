@@ -648,3 +648,152 @@ describe("TopologyPage — painel de detalhes (F53-T005)", () => {
     expect(within(ghostPanel).getByText("Gi1/0/48")).toBeInTheDocument();
   });
 });
+
+/**
+ * F53-T006 — visão física ↔ lógica: alternância sem perder a organização
+ * (mesmo mapa, filtros, seleção e pan/zoom). Lógico = faixas por VLAN
+ * (união das pontas das Connections) + "Sem VLAN"; device em várias
+ * VLANs aparece em cada faixa; aresta só entra nas faixas das VLANs
+ * dela — sem dado de VLAN não dá pra posicionar (fica na física).
+ */
+describe("TopologyPage — visão física ↔ lógica (F53-T006)", () => {
+  const logicalGraph = {
+    nodes: [
+      { id: "if-r1", deviceId: "dev-router", name: "ge-0/0/0", deviceName: "router-core", deviceType: "Router", ip: "192.0.2.1", status: "up" as const, isGhost: false, port: null, layer: 1 },
+      { id: "if-f1", deviceId: "dev-fw", name: "eth0", deviceName: "fw-edge", deviceType: "Firewall", ip: "192.0.2.2", status: "up" as const, isGhost: false, port: null, layer: 1 },
+      { id: "if-s1", deviceId: "dev-sw", name: "Gi0/1", deviceName: "sw-access", deviceType: "Switch", ip: "192.0.2.3", status: "up" as const, isGhost: false, port: null, layer: 2 },
+      { id: "if-h1", deviceId: "dev-host", name: "eth0", deviceName: "host-solt", deviceType: "Server", ip: "192.0.2.4", status: null, isGhost: false, port: null, layer: null },
+    ],
+    edges: [
+      { id: "e1", sourceInterfaceId: "if-r1", targetInterfaceId: "if-s1", isGhost: false, sourceVlans: [{ number: 10, name: "Dados" }], targetVlans: [{ number: 10, name: "Dados" }] },
+      { id: "e2", sourceInterfaceId: "if-f1", targetInterfaceId: "if-s1", isGhost: false, sourceVlans: [{ number: 20, name: "Voz" }], targetVlans: [{ number: 20, name: "Voz" }] },
+      { id: "e3", sourceInterfaceId: "if-r1", targetInterfaceId: "if-f1", isGhost: false },
+    ],
+  };
+
+  const mkDevice = (over: Partial<DeviceItem> & { id: string }): DeviceItem => ({
+    locationId: "loc-1",
+    rackId: null,
+    type: "Other",
+    name: over.id,
+    ip: null,
+    mac: null,
+    serial: null,
+    model: null,
+    vendor: null,
+    vlanId: null,
+    description: null,
+    monitoringChecks: [],
+    profileIsCustom: false,
+    ...over,
+  });
+
+  beforeEach(() => {
+    topologyMock.mockReset();
+    vi.mocked(listDevices).mockReset();
+    vi.mocked(listLocations).mockReset();
+    vi.mocked(listVlans).mockReset();
+    mockDetailDefaults();
+    localStorage.clear();
+
+    topologyMock.mockResolvedValue(logicalGraph);
+    vi.mocked(listDevices).mockResolvedValue({
+      items: [
+        mkDevice({ id: "dev-router", name: "router-core", type: "Router", ip: "192.0.2.1" }),
+        mkDevice({ id: "dev-fw", name: "fw-edge", type: "Firewall", ip: "192.0.2.2" }),
+        mkDevice({ id: "dev-sw", name: "sw-access", type: "Switch", ip: "192.0.2.3" }),
+        mkDevice({ id: "dev-host", name: "host-solt", type: "Server", ip: "192.0.2.4" }),
+      ],
+      totalCount: 4, page: 1, pageSize: 20,
+    });
+    vi.mocked(listLocations).mockResolvedValue({
+      items: [{ id: "loc-1", name: "Datacenter", description: null }],
+      totalCount: 1, page: 1, pageSize: 20,
+    });
+    vi.mocked(listVlans).mockResolvedValue({
+      items: [
+        { id: "v10", name: "Dados", vlanNumber: 10, description: null },
+        { id: "v20", name: "Voz", vlanNumber: 20, description: null },
+      ],
+      totalCount: 2, page: 1, pageSize: 20,
+    });
+  });
+
+  const renderPage = () =>
+    render(
+      <MemoryRouter>
+        <TopologyPage />
+      </MemoryRouter>,
+    );
+
+  it("should switch between physical layer bands and VLAN bands and back", async () => {
+    renderPage();
+    const mapa = await screen.findByTestId("topology-map");
+
+    // Física (default): faixas por camada, nenhuma faixa de VLAN.
+    expect(within(mapa).getByText("Camada 1 · 2 devices")).toBeInTheDocument();
+    expect(within(mapa).getByText("Sem hierarquia · 1 device")).toBeInTheDocument();
+    expect(within(mapa).queryByText("VLAN 10 — Dados · 2 devices")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lógica" }));
+    expect(await within(mapa).findByText("VLAN 10 — Dados · 2 devices")).toBeInTheDocument();
+    expect(within(mapa).getByText("VLAN 20 — Voz · 2 devices")).toBeInTheDocument();
+    expect(within(mapa).getByText("Sem VLAN · 1 device")).toBeInTheDocument();
+    expect(within(mapa).queryByText(/Camada 1/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Lógica" })).toHaveAttribute("aria-pressed", "true");
+
+    // Volta para a física com a organização original intacta.
+    fireEvent.click(screen.getByRole("button", { name: "Física" }));
+    expect(await within(mapa).findByText("Camada 1 · 2 devices")).toBeInTheDocument();
+    expect(within(mapa).queryByText("VLAN 10 — Dados · 2 devices")).toBeNull();
+    expect(screen.getByRole("button", { name: "Física" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("should repeat a multi-VLAN switch in each band and draw only placed links", async () => {
+    const { container } = renderPage();
+    const mapa = await screen.findByTestId("topology-map");
+    await screen.findByText("sw-access");
+
+    // Física: as 3 Connections aparecem.
+    expect(container.querySelectorAll('line[stroke="#94a3b8"]')).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole("button", { name: "Lógica" }));
+    await within(mapa).findByText("VLAN 10 — Dados · 2 devices");
+
+    // Switch nas duas faixas (VLAN 10 e VLAN 20); host só em "Sem VLAN".
+    expect(within(mapa).getAllByText("sw-access")).toHaveLength(2);
+    expect(within(mapa).getAllByText("host-solt")).toHaveLength(1);
+
+    // e1 no VLAN 10, e2 no VLAN 20; e3 sem VLAN com pontas em faixas
+    // diferentes (r1{10} × fw{20}) não tem onde ficar — só na física.
+    expect(container.querySelectorAll('line[stroke="#94a3b8"]')).toHaveLength(2);
+  });
+
+  it("should collapse one VLAN band without hiding the switch's copy elsewhere, keeping the selection", async () => {
+    renderPage();
+    const mapa = await screen.findByTestId("topology-map");
+    await screen.findByText("sw-access");
+
+    // Seleção feita na física sobrevive à troca de visão.
+    fireEvent.click(screen.getByText("sw-access"));
+    expect(screen.getByText("Detalhes")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lógica" }));
+    await within(mapa).findByText("VLAN 10 — Dados · 2 devices");
+    expect(screen.getByText("Detalhes")).toBeInTheDocument();
+    expect(within(mapa).getAllByText("sw-access")).toHaveLength(2);
+
+    // Colapsa o VLAN 10: cópia do switch no VLAN 20 continua visível.
+    const toggle = screen.getByRole("button", { name: "VLAN 10 — Dados" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(mapa).getAllByText("sw-access")).toHaveLength(1);
+    expect(within(mapa).queryByText("router-core")).toBeNull();
+    expect(within(mapa).getByText("fw-edge")).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(within(mapa).getAllByText("sw-access")).toHaveLength(2);
+    expect(within(mapa).getByText("router-core")).toBeInTheDocument();
+  });
+});

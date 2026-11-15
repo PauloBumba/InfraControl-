@@ -32,6 +32,8 @@ export interface AlertItem {
   resolutionCode?: string | null;
   /** F52-T003 — justificativa da baixa manual (máx. 500). */
   resolutionNote?: string | null;
+  /** Responsável do incidente vinculado (quem está tratando). */
+  assignedToName?: string | null;
 }
 
 /** `PagedResult<T>` — o campo `data` do envelope. */

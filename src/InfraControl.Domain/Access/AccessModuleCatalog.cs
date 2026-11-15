@@ -35,6 +35,7 @@ public static class AccessModuleCatalog
         new("inventory", "Inventário", ["inventory"], ["Inventory", "Devices", "RemoteAccess"]),
         new("invitations", "Convites", ["invitations"], ["Identity.Invitations"]),
         new("knowledge", "Conhecimento", ["knowledge"], ["Knowledge"]),
+        new("messaging", "Mensageria", ["messaging"], ["Messaging"]),
         new("monitoring", "Monitoramento", ["monitoring"], ["Monitoring", "Alerts"]),
         new("network", "Rede", ["network"], ["Network"]),
         new("notifications", "Notificações", ["notifications"], ["Notifications"]),

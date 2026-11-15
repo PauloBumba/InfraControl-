@@ -373,7 +373,7 @@ export function OperationsCenterPage() {
 
   const { data: incidents = EMPTY_INCIDENTS } = useQuery({
     queryKey: ["ops-incidents"],
-    queryFn: () => listIncidents({ page: 1, pageSize: 100 }),
+    queryFn: () => listIncidents({ status: "active", page: 1, pageSize: 100 }),
     select: (data) => data.items ?? EMPTY_INCIDENTS,
     refetchInterval: 30000,
   });

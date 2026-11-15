@@ -57,6 +57,16 @@ public interface IIncidentRepository : IRepository<Incident>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Usuário existe (validação de responsável antes de atribuir).</summary>
+    Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Nomes de exibição dos responsáveis (left join em DomainUsers —
+    /// usuário excluído some do dicionário).
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

@@ -9,7 +9,8 @@ import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { SelectField } from "@/components/ui/SelectField";
 import { SwitchField } from "@/components/ui/SwitchField";
-import { InlineMessages, useInlineMessages } from "@/components/ui/InlineMessages";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -71,7 +72,8 @@ export function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { messagesRef, showMessage } = useInlineMessages();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("users");
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
@@ -113,10 +115,11 @@ export function UsersPage() {
     setError(null);
     try {
       await action();
-      showMessage({ severity: "success", summary: success });
+      setActionError(null);
+      setNotice(success);
       await load();
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível atualizar o usuário.", detail: errorMessage(caught) });
+      setActionError(`Não foi possível atualizar o usuário. ${errorMessage(caught)}`);
     } finally {
       setBusyUserId(null);
     }
@@ -136,7 +139,7 @@ export function UsersPage() {
       setInviting(false);
       setInviteEmail("");
       setInviteRole("Viewer");
-      showMessage({ severity: "success", summary: "Convite criado", detail: "O link sai por e-mail (hoje registrado no log do backend)." });
+      setNotice("Convite criado — o link sai por e-mail (hoje registrado no log do backend).");
     } catch (caught) {
       setInviteError(errorMessage(caught));
     } finally {
@@ -164,7 +167,7 @@ export function UsersPage() {
     try {
       await updateUser(editingUser.userId, displayName, email);
       setEditingUser(null);
-      showMessage({ severity: "success", summary: `${displayName} atualizado.` });
+      setNotice(`${displayName} atualizado.`);
       await load();
     } catch (caught) {
       setEditError(errorMessage(caught));
@@ -182,10 +185,10 @@ export function UsersPage() {
     try {
       await deleteUser(deletingUser.userId);
       setDeletingUser(null);
-      showMessage({ severity: "success", summary: `${deletingUser.displayName} excluído.` });
+      setNotice(`${deletingUser.displayName} excluído.`);
       await load();
     } catch (caught) {
-      showMessage({ severity: "error", summary: "Não foi possível excluir o usuário.", detail: errorMessage(caught) });
+      setActionError(`Não foi possível excluir o usuário. ${errorMessage(caught)}`);
       setDeletingUser(null);
     }
   }
@@ -220,7 +223,7 @@ export function UsersPage() {
       total={users.length}
       loading={loading}
       note={`${USER_ROLES.length} roles`}
-      notice={<InlineMessages ref={messagesRef} />}
+      notice={notice ? <NoticeBanner message={notice} onDismiss={() => setNotice(null)} /> : undefined}
       error={error}
       onRetry={() => void load()}
       actions={
@@ -242,6 +245,8 @@ export function UsersPage() {
         </div>
       }
     >
+
+      {actionError && <ErrorBanner message={actionError} />}
 
       {inviting && (
         <Dialog

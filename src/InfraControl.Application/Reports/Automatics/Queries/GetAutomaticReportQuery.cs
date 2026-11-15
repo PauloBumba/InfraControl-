@@ -15,6 +15,7 @@ public sealed record GetAutomaticReportQuery(string Cadence = "mensal")
     : BaseQuery<AutomaticReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed record AutomaticReportDto(

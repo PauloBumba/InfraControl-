@@ -12,6 +12,7 @@ public sealed record GetTasksReportQuery(DateOnly? From = null, DateOnly? To = n
     : BaseQuery<TasksReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetTasksReportQueryHandler(IModuleReportsRepository repository)
@@ -29,6 +30,7 @@ public sealed record GetPdiReportQuery(DateOnly? From = null, DateOnly? To = nul
     : BaseQuery<PdiReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetPdiReportQueryHandler(IModuleReportsRepository repository)
@@ -46,6 +48,7 @@ public sealed record GetKnowledgeReportQuery(DateOnly? From = null, DateOnly? To
     : BaseQuery<KnowledgeReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetKnowledgeReportQueryHandler(IModuleReportsRepository repository)
@@ -63,6 +66,7 @@ public sealed record GetGerencialReportQuery(DateOnly? From = null, DateOnly? To
     : BaseQuery<GerencialReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetGerencialReportQueryHandler(IModuleReportsRepository repository)
