@@ -107,7 +107,13 @@ public sealed class GeminiProvider : IAiProvider
         };
 
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException(
+                $"Gemini respondeu {(int)response.StatusCode} ({response.ReasonPhrase}): "
+                + Truncate(errorBody, 400));
+        }
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         GeminiResponse? parsed;
@@ -209,11 +215,31 @@ public sealed class GeminiProvider : IAiProvider
                     $"Provider '{Name}' está inativo no cadastro.");
             }
 
-            return (connection.BaseUrl.TrimEnd('/'), connection.ApiKeyPlain);
+            return (NormalizeBaseUrl(connection.BaseUrl), connection.ApiKeyPlain);
         }
 
-        return (_options.BaseUrl?.TrimEnd('/') ?? string.Empty, _options.ApiKey);
+        return (NormalizeBaseUrl(_options.BaseUrl ?? string.Empty), _options.ApiKey);
     }
+
+    /// <summary>
+    /// O admin pode colar só o host (<c>generativelanguage.googleapis.com</c>)
+    /// — a API exige o path de versão. Sem path, assume <c>/v1beta</c>
+    /// (mesmo default de <c>AiGeminiOptions</c>).
+    /// </summary>
+    private static string NormalizeBaseUrl(string baseUrl)
+    {
+        var trimmed = baseUrl.Trim().TrimEnd('/');
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+            && (string.IsNullOrEmpty(uri.AbsolutePath) || uri.AbsolutePath == "/"))
+        {
+            return trimmed + "/v1beta";
+        }
+
+        return trimmed;
+    }
+
+    private static string Truncate(string value, int maxLength)
+        => value.Length <= maxLength ? value : value[..maxLength] + "…";
 
     // DTOs internos (camelCase — JsonSerializerDefaults.Web)
     private sealed class GeminiResponse

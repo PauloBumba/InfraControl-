@@ -97,6 +97,9 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
         CancellationToken cancellationToken = default)
     {
         var baseUrl = request.BaseUrl.Trim().TrimEnd('/');
+        // Gemini exige o path de versão — admin pode colar só o host.
+        if (request.Protocol == AiProtocol.Gemini)
+            baseUrl = NormalizeGeminiBaseUrl(baseUrl);
 
         // Fase 1 — conectividade: qualquer resposta HTTP prova que o
         // endereço existe; exceção de rede/timeout = inalcançável.
@@ -476,6 +479,18 @@ public sealed class AiConnectionValidator : IAiConnectionValidator, IDisposable
             : message.Contains("Connection refused", StringComparison.OrdinalIgnoreCase)
                 ? "a conexão foi recusada (porta fechada ou serviço parado)"
                 : Truncate(message, 200);
+    }
+
+    /// <summary>Host puro → acrescenta <c>/v1beta</c> (path de versão da API Gemini).</summary>
+    private static string NormalizeGeminiBaseUrl(string baseUrl)
+    {
+        if (Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
+            && (string.IsNullOrEmpty(uri.AbsolutePath) || uri.AbsolutePath == "/"))
+        {
+            return baseUrl + "/v1beta";
+        }
+
+        return baseUrl;
     }
 
     private static string Truncate(string value, int maxLength)

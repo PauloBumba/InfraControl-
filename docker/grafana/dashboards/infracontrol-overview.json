@@ -673,6 +673,149 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 50,
+      "type": "timeseries",
+      "title": "IA — requests/s por provider",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 60
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (ai_provider) (rate(ai_requests_total[5m]))",
+          "legendFormat": "{{ai_provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "IA — duração média por provider (ms)",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 60
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (ai_provider) (rate(ai_request_duration_milliseconds_sum[5m])) / sum by (ai_provider) (rate(ai_request_duration_milliseconds_count[5m]))",
+          "legendFormat": "{{ai_provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "IA — erros/s por provider",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 60
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (ai_provider) (rate(ai_requests_total{ai_success=\"false\"}[5m]))",
+          "legendFormat": "{{ai_provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 53,
+      "type": "timeseries",
+      "title": "IA — tokens/s por provider",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 68
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (ai_provider) (rate(ai_tokens_prompt_total[5m]))",
+          "legendFormat": "{{ai_provider}} prompt"
+        },
+        {
+          "expr": "sum by (ai_provider) (rate(ai_tokens_completion_total[5m]))",
+          "legendFormat": "{{ai_provider}} completion"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 54,
+      "type": "timeseries",
+      "title": "IA — duração P50/P95 por provider (ms)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 68
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (ai_provider, le) (rate(ai_request_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{ai_provider}} p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (ai_provider, le) (rate(ai_request_duration_milliseconds_bucket[5m])))",
+          "legendFormat": "{{ai_provider}} p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      }
     }
   ]
 }

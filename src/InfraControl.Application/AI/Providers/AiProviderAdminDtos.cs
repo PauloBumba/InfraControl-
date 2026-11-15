@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InfraControl.Application.AI.Providers.Ports;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.Domain.Entities;
@@ -21,6 +22,7 @@ public sealed record AiProviderDto(
     bool ApiKeySet,
     string? ApiKeyMasked,
     IReadOnlyList<string> Models,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<AiProviderProtocol>))]
     AiProviderProtocol Protocol);
 
 /// <summary>Rota capacidade → provider (sem linha = capacidade cai no config, D3-A).</summary>
@@ -54,7 +56,10 @@ public sealed record AiCapabilityTestResultDto(
     string Provider,
     string Model,
     bool UsedFallback,
-    long DurationMs);
+    long DurationMs,
+    // Erro do teste por provider (provider/modelo sem rota, exceção do
+    // adaptador) — null = sucesso. Nunca inventa texto de IA.
+    string? Error = null);
 
 internal static class AiProviderAdminMapper
 {

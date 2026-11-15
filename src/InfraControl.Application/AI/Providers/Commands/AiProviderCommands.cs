@@ -367,6 +367,86 @@ public sealed record TestAiCapabilityMessageCommand(string Capability)
         RoleAccess.Administer;
 }
 
+/// <summary>
+/// "Testar mensagem" de um provider específico (molde WhatsApp/Email
+/// "testar envio"): envia um prompt mínimo direto pelo adaptador do
+/// cadastro — prova que URL+chave+modelo respondem de verdade, sem
+/// depender da rota de capacidade configurada.
+/// </summary>
+public sealed record TestAiProviderMessageCommand(Guid Id)
+    : BaseCommand<AiCapabilityTestResultDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
+}
+
+public sealed class TestAiProviderMessageCommandHandler(
+    IAiProviderRepository repository,
+    IAiProviderRegistry registry,
+    ICurrentUserContext currentUser)
+    : IRequestHandler<TestAiProviderMessageCommand, AiCapabilityTestResultDto>
+{
+    public async Task<AiCapabilityTestResultDto> Handle(
+        TestAiProviderMessageCommand request, CancellationToken cancellationToken)
+    {
+        var provider = await repository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException($"Provider '{request.Id}' não encontrado.");
+
+        var model = provider.Models.FirstOrDefault()
+            ?? throw new ArgumentException(
+                $"Provider '{provider.Name}' não tem modelo cadastrado — preencha o campo Modelos ou use 'Listar modelos'.",
+                nameof(request));
+
+        IAiProvider adapter;
+        try
+        {
+            adapter = registry.Get(provider.Name);
+        }
+        catch (AiProviderNotConfiguredException ex)
+        {
+            return new AiCapabilityTestResultDto(
+                Text: string.Empty,
+                Provider: provider.Name,
+                Model: model,
+                UsedFallback: false,
+                DurationMs: 0,
+                Error: ex.Message);
+        }
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var result = await adapter.CompleteAsync(
+                new AiCompletionRequest(
+                    AiCapability.Copilot,
+                    "Responda apenas com a palavra: ok",
+                    SystemPrompt: "Você é um assistente de teste de configuração. Responda de forma mínima.",
+                    Model: model,
+                    Actor: currentUser.UserName),
+                cancellationToken);
+            watch.Stop();
+
+            return new AiCapabilityTestResultDto(
+                result.Text,
+                provider.Name,
+                model,
+                UsedFallback: false,
+                watch.ElapsedMilliseconds);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            watch.Stop();
+            return new AiCapabilityTestResultDto(
+                Text: string.Empty,
+                Provider: provider.Name,
+                Model: model,
+                UsedFallback: false,
+                watch.ElapsedMilliseconds,
+                Error: ex.Message);
+        }
+    }
+}
+
 public sealed class TestAiCapabilityMessageCommandHandler(
     IAiGateway gateway,
     ICurrentUserContext currentUser)
