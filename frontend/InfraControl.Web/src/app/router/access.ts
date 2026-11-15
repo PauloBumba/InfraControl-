@@ -12,7 +12,9 @@ import { type AccessLevel, roleGrants } from "@/types/roles";
  */
 export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/users": "administer",
-  "/invitations": "administer",
+  // Qualquer autenticado vê os PRÓPRIOS convites (/invitations/me +
+  // accept/reject — [Authorize] no backend); gestão admin fica na página.
+  "/invitations": "read",
   "/audit": "administer",
   "/settings": "administer",
   "/integrations": "administer",

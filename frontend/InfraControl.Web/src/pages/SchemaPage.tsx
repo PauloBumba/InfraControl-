@@ -7,6 +7,7 @@ import {
   type SchemaEntity,
 } from "@/services/api/schema";
 import { ErDiagram } from "@/components/schema/ErDiagram";
+import { FullErDiagram } from "@/components/schema/FullErDiagram";
 import { SelectButton } from "primereact/selectbutton";
 
 /**
@@ -21,6 +22,7 @@ export function SchemaPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<SchemaEntity | null>(null);
   const [view, setView] = useState<"list" | "diagram">("list");
+  const [diagramMode, setDiagramMode] = useState<"full" | "focus">("full");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,37 +95,57 @@ export function SchemaPage() {
         </div>
       }
     >
-      {!loading && view === "diagram" && diagramCenter && (
+      {!loading && view === "diagram" && (
         <div className="uni-panel" style={{ padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "#64748b" }}>
-              Entidade central:
-            </span>
-            <select
-              className="uni-login-input"
-              style={{ maxWidth: 280 }}
-              value={diagramCenter.entityName}
-              onChange={(e) => {
-                const found = entities.find((x) => x.entityName === e.target.value);
-                if (found) setSelected(found);
-              }}
-              aria-label="Entidade central do diagrama"
-            >
-              {entities.map((e) => (
-                <option key={e.entityName} value={e.entityName}>
-                  {e.entityName} ({e.tableName})
-                </option>
-              ))}
-            </select>
-            <span style={{ fontSize: 11, color: "#94a3b8" }}>
-              Clique numa entidade vizinha para recentralizar · PK = chave primária · ⧉ = FK
-            </span>
+            <SelectButton
+              className="uni-select-button"
+              value={diagramMode}
+              options={[
+                { label: "DER completo", value: "full" },
+                { label: "Por entidade", value: "focus" },
+              ]}
+              optionLabel="label"
+              optionValue="value"
+              allowEmpty={false}
+              onChange={(e) => setDiagramMode(e.value)}
+            />
+            {diagramMode === "focus" && (
+              <>
+                <span style={{ fontSize: 12, color: "#64748b" }}>
+                  Entidade central:
+                </span>
+                <select
+                  className="uni-login-input"
+                  style={{ maxWidth: 280 }}
+                  value={diagramCenter?.entityName ?? ""}
+                  onChange={(e) => {
+                    const found = entities.find((x) => x.entityName === e.target.value);
+                    if (found) setSelected(found);
+                  }}
+                  aria-label="Entidade central do diagrama"
+                >
+                  {entities.map((e) => (
+                    <option key={e.entityName} value={e.entityName}>
+                      {e.entityName} ({e.tableName})
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                  Clique numa entidade vizinha para recentralizar · PK = chave primária · ⧉ = FK
+                </span>
+              </>
+            )}
           </div>
-          <ErDiagram
-            entities={entities}
-            center={diagramCenter}
-            onSelect={setSelected}
-          />
+          {diagramMode === "full" ? (
+            <FullErDiagram entities={entities} />
+          ) : diagramCenter ? (
+            <ErDiagram
+              entities={entities}
+              center={diagramCenter}
+              onSelect={setSelected}
+            />
+          ) : null}
         </div>
       )}
       {!loading && view === "list" && (

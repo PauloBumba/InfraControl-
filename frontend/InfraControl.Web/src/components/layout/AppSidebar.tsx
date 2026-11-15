@@ -115,6 +115,11 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
       command: () => routerNavigate("/account?tab=security"),
     },
     {
+      label: "Meus convites",
+      icon: "pi pi-send",
+      command: () => routerNavigate("/invitations"),
+    },
+    {
       label: theme === "dark" ? "Tema claro" : "Tema escuro",
       icon: theme === "dark" ? "pi pi-sun" : "pi pi-moon",
       command: handleToggleTheme,
