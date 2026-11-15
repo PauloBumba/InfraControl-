@@ -157,6 +157,29 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
         return await base.SaveChangesAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+        {
+            // Corrida de INSERT em unique index: o tracker fica limpo para o
+            // escopo seguir (ex.: AuditBehavior grava a auditoria depois).
+            ChangeTracker.Clear();
+            return false;
+        }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException exception)
+        => exception.InnerException is Npgsql.PostgresException
+        {
+            SqlState: Npgsql.PostgresErrorCodes.UniqueViolation
+        };
+
     private void ApplyAuditFields()
     {
         var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;

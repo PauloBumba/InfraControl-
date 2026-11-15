@@ -2,6 +2,7 @@ using InfraControl.Application.Notifications.Transitions.Ports;
 using InfraControl.Domain.Entities;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace InfraControl.Infrastructure.Repositories;
 
@@ -43,5 +44,21 @@ public sealed class OccurrenceRepository(AppDbContext dbContext)
         {
             return false;
         }
+        catch (DbUpdateException exception) when (IsOccurrenceKeyViolation(exception))
+        {
+            // Corrida de INSERT na chave única (dois consumers criam a
+            // mesma ocorrência): equivalente ao conflito de concorrência —
+            // o gate desfaz os pendentes, relê o estado persistido e
+            // reavalia. Sem isto o 23505 subia como DbUpdateException,
+            // o consumer ia para a fila de erro e a notificação se perdia.
+            return false;
+        }
     }
+
+    private static bool IsOccurrenceKeyViolation(DbUpdateException exception)
+        => exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "ux_occurrences_key"
+        };
 }

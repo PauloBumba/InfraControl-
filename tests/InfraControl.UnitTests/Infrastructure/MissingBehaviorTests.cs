@@ -284,6 +284,11 @@ public sealed class MissingBehaviorTests
             SaveCalls++;
             return Task.FromResult(1);
         }
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
         public void Dispose() { }
     }
 }

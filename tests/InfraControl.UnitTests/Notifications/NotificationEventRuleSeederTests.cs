@@ -44,6 +44,12 @@ public sealed class NotificationEventRuleSeederTests : IDisposable
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => context.SaveChangesAsync(cancellationToken);
 
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         public void Dispose()
         {
         }

@@ -556,6 +556,13 @@ public sealed class ZabbixWhatsAppChartFactoryTests
             IReadOnlyList<string> itemIds, int history,
             DateTime fromUtc, DateTime toUtc, int limit,
             CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>([]);
+            // A fábrica consulta as tabelas 3 e 0 — o fake devolve a mesma
+            // série nas duas; o dedup por clock do factory colapsa.
+            => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>(
+                itemIds
+                    .SelectMany(id => History.TryGetValue(id, out var values)
+                        ? values
+                        : (IReadOnlyList<ZabbixHistoryValueDto>)[])
+                    .ToList());
     }
 }

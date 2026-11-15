@@ -62,6 +62,12 @@ public sealed class AiToolExecutorTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(0);
 
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         public void Dispose() { }
     }
 
