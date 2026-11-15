@@ -37,6 +37,7 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/messaging": "operate",
   "/settings/backup": "administer",
   "/settings/retention": "administer",
+  "/settings/schema": "administer",
   // UniFi ao vivo: consulta (Operate) — Operator + Admin.
   "/unifi": "operate",
   "/unifi/dashboard": "operate",

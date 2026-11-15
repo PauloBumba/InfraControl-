@@ -667,6 +667,10 @@ public static class DependencyInjection
             Repositories.TableRetentionStore>();
         services.AddScoped<Application.Operations.Retention.Ports.IRetentionTableCatalog,
             Repositories.RetentionTableCatalog>();
+        // Dicionário de dados dinâmico (schema browser) — mesmo padrão
+        // manual: não segue o par I*Repository/*Repository.
+        services.AddScoped<Application.Operations.Schema.Ports.ISchemaCatalog,
+            Repositories.SchemaCatalog>();
 
         // Performance (Dia 5 — docs/20): alerta de request lento
         services.Configure<PerformanceOptions>(configuration.GetSection("Performance"));

@@ -102,17 +102,17 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps) {
     {
       label: "Ver Meus Dados",
       icon: "pi pi-id-card",
-      command: () => routerNavigate("/account"),
+      command: () => routerNavigate("/account?tab=view"),
     },
     {
       label: "Meu perfil",
       icon: "pi pi-user",
-      command: () => routerNavigate("/account"),
+      command: () => routerNavigate("/account?tab=edit"),
     },
     {
       label: "Alterar senha",
       icon: "pi pi-key",
-      command: () => routerNavigate("/account"),
+      command: () => routerNavigate("/account?tab=security"),
     },
     {
       label: theme === "dark" ? "Tema claro" : "Tema escuro",

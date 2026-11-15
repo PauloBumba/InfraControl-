@@ -32,10 +32,10 @@ import { changePassword, updateProfile } from "@/services/api/auth";
 const changePasswordMock = vi.mocked(changePassword);
 const updateProfileMock = vi.mocked(updateProfile);
 
-function renderPage() {
+function renderPage(tab: "view" | "edit" | "security" = "view") {
   return render(
     <Provider store={store}>
-      <MemoryRouter initialEntries={["/account"]}>
+      <MemoryRouter initialEntries={[`/account?tab=${tab}`]}>
         <AccountPage />
       </MemoryRouter>
     </Provider>,
@@ -58,7 +58,7 @@ beforeEach(() => {
 describe("AccountPage", () => {
   it("should block submission when the new password breaks the policy", async () => {
     changePasswordMock.mockResolvedValue(undefined);
-    renderPage();
+    renderPage("security");
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Senha atual"), "Atual!123456");
@@ -72,7 +72,7 @@ describe("AccountPage", () => {
 
   it("should block submission when confirmation does not match", async () => {
     changePasswordMock.mockResolvedValue(undefined);
-    renderPage();
+    renderPage("security");
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Senha atual"), "Atual!123456");
@@ -86,7 +86,7 @@ describe("AccountPage", () => {
 
   it("should show the pt-BR reason from the envelope when the current password is wrong", async () => {
     changePasswordMock.mockRejectedValue(new AuthApiError("Senha atual incorreta.", 400));
-    renderPage();
+    renderPage("security");
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Senha atual"), "Errada!12345");
@@ -99,7 +99,7 @@ describe("AccountPage", () => {
 
   it("should show the live policy checklist and confirmation hint (F52-T007)", async () => {
     changePasswordMock.mockResolvedValue(undefined);
-    renderPage();
+    renderPage("security");
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Senha atual"), "Atual!123456");
@@ -124,7 +124,7 @@ describe("AccountPage", () => {
     changePasswordMock.mockResolvedValue(undefined);
     render(
       <Provider store={store}>
-        <MemoryRouter initialEntries={["/account"]}>
+        <MemoryRouter initialEntries={["/account?tab=security"]}>
           <Routes>
             <Route path="/account" element={<AccountPage />} />
             <Route path="/login" element={<div>tela de login</div>} />
@@ -159,7 +159,7 @@ describe("AccountPage", () => {
 describe("AccountPage — perfil (F29-T002)", () => {
   it("should prefill the profile form with the signed-in display name", async () => {
     updateProfileMock.mockResolvedValue({ displayName: "Ana", fullName: null, avatarPath: null });
-    renderPage();
+    renderPage("edit");
 
     expect(await screen.findByLabelText("Nome de operador")).toHaveValue("Ana");
     // Nome completo é o campo SEPARADO (F38) e nasce em branco aqui.
@@ -173,7 +173,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
 
   it("should send only the new display name", async () => {
     updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null, avatarPath: null });
-    renderPage();
+    renderPage("edit");
 
     const user = userEvent.setup();
     const field = await screen.findByLabelText("Nome de operador");
@@ -198,7 +198,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
       fullName: "Ana Maria da Silva",
       avatarPath: null,
     });
-    renderPage();
+    renderPage("edit");
 
     const user = userEvent.setup();
     const field = await screen.findByLabelText("Nome completo");
@@ -219,7 +219,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
     updateProfileMock.mockRejectedValue(
       new AuthApiError("O nome de exibição é obrigatório.", 400),
     );
-    renderPage();
+    renderPage("edit");
 
     const user = userEvent.setup();
     const field = await screen.findByLabelText("Nome de operador");
@@ -241,7 +241,7 @@ describe("AccountPage — perfil (F29-T002)", () => {
   it("should keep the user signed in after saving the profile", async () => {
     updateProfileMock.mockResolvedValue({ displayName: "Ana Maria", fullName: null, avatarPath: null });
     changePasswordMock.mockReset();
-    renderPage();
+    renderPage("edit");
 
     const user = userEvent.setup();
     const field = await screen.findByLabelText("Nome de operador");

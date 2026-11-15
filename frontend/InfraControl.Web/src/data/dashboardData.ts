@@ -112,6 +112,7 @@ export const secondaryNavigation: NavGroup[] = [
       { label: "Cluster", icon: "pi pi-server", route: "/admin/cluster" },
       { label: "Backup", icon: "pi pi-database", route: "/settings/backup" },
       { label: "Retenção de dados", icon: "pi pi-clock", route: "/settings/retention" },
+      { label: "Esquema do banco", icon: "pi pi-table", route: "/settings/schema" },
       { label: "Logs", icon: "pi pi-list", route: "/logs" },
       { label: "Health", icon: "pi pi-heart", route: "/status" },
       { label: "Configurações", icon: "pi pi-cog", route: "/settings" },

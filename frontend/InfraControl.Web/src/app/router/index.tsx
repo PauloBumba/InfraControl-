@@ -40,6 +40,7 @@ const CompanySettingsPage = lazy(() => import("@/pages/CompanySettingsPage").the
 const AccessPoliciesPage = lazy(() => import("@/pages/AccessPoliciesPage").then(m => ({ default: m.AccessPoliciesPage })));
 const BackupSettingsPage = lazy(() => import("@/pages/BackupSettingsPage").then(m => ({ default: m.BackupSettingsPage })));
 const RetentionPage = lazy(() => import("@/pages/RetentionPage").then(m => ({ default: m.RetentionPage })));
+const SchemaPage = lazy(() => import("@/pages/SchemaPage").then(m => ({ default: m.SchemaPage })));
 const AccessRolesPage = lazy(() => import("@/pages/AccessRolesPage").then(m => ({ default: m.AccessRolesPage })));
 const ClusterPage = lazy(() => import("@/pages/ClusterPage").then(m => ({ default: m.ClusterPage })));
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
@@ -437,6 +438,12 @@ function AppContent() {
           <Route path="/settings/retention" element={
             <ProtectedRoute>
               <RetentionPage />
+            </ProtectedRoute>
+          } />
+          {/* Dicionário de dados dinâmico — esquema/relacionamentos (Administer). */}
+          <Route path="/settings/schema" element={
+            <ProtectedRoute>
+              <SchemaPage />
             </ProtectedRoute>
           } />
           {/* Perfis de acesso customizados do admin. */}
