@@ -32,21 +32,12 @@ public sealed class SearchAlertsQueryHandler(IAlertRepository repository)
             request.DeviceId, status, page, pageSize, cancellationToken);
 
         return new PagedResult<AlertDto>(
-            result.Items.Select(item => new AlertDto(
-                item.Alert.Id,
-                item.Alert.DeviceId,
+            result.Items.Select(item => AlertDto.From(
+                item.Alert,
                 item.DeviceName,
-                item.Alert.Kind?.ToString(),
-                item.Alert.Severity.ToString(),
-                item.Alert.Status.ToString(),
-                item.Alert.Source.ToString(),
-                item.Alert.Message,
-                item.Alert.CreateDateTime,
-                item.Alert.ResolvedAt,
-                item.Alert.OperatorNote,
-                item.Alert.ResolutionCode?.ToString(),
-                item.Alert.ResolutionNote,
-                item.AssignedToName)).ToArray(),
+                item.AssignedToName,
+                item.LinkedIncidentId,
+                item.LinkedIncidentTitle)).ToArray(),
             result.TotalCount,
             result.Page,
             result.PageSize);

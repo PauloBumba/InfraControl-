@@ -10,4 +10,8 @@ public interface IRemoteSessionRepository : IRepository<RemoteSession>
     /// <summary>Sessões do device, mais recentes primeiro (F11-T001).</summary>
     Task<IReadOnlyList<RemoteSession>> GetRecentByDeviceAsync(
         Guid deviceId, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Nome de exibição dos usuários (id → DisplayName) das sessões.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default);
 }

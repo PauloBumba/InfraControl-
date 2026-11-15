@@ -32,8 +32,13 @@ export interface AlertItem {
   resolutionCode?: string | null;
   /** F52-T003 — justificativa da baixa manual (máx. 500). */
   resolutionNote?: string | null;
-  /** Responsável do incidente vinculado (quem está tratando). */
+  /** Responsável do alerta (atribuído) ou do incidente vinculado. */
   assignedToName?: string | null;
+  /** Id do responsável atribuído direto ao alerta (null = sem dono próprio). */
+  assignedToId?: string | null;
+  /** Incidente vinculado (N:N) — alerta ≠ incidente; relação explícita. */
+  linkedIncidentId?: string | null;
+  linkedIncidentTitle?: string | null;
 }
 
 /** `PagedResult<T>` — o campo `data` do envelope. */
@@ -86,4 +91,17 @@ export async function resolveAlert(
     code,
     note,
   });
+}
+
+/**
+ * `POST /monitoring/alerts/{id}/assign` (Operate): atribui ou transfere
+ * o responsável pelo alerta. Reatribuir = transferência.
+ */
+export async function assignAlert(id: string, userId: string): Promise<AlertItem | null> {
+  return api.post<AlertItem>(`/monitoring/alerts/${id}/assign`, { userId });
+}
+
+/** `POST /monitoring/alerts/{id}/unassign` (Operate): remove o responsável. */
+export async function unassignAlert(id: string): Promise<AlertItem | null> {
+  return api.post<AlertItem>(`/monitoring/alerts/${id}/unassign`);
 }

@@ -48,6 +48,13 @@ public sealed class Alert : AggregateRoot
     public ResolutionCode? ResolutionCode { get; private set; }
     public string? ResolutionNote { get; private set; }
 
+    /// <summary>
+    /// Responsável pela tratativa do alerta (Operador/Admin). Atribuir de
+    /// novo transfere; null = sem responsável. Independente do responsável
+    /// do incidente vinculado.
+    /// </summary>
+    public Guid? AssignedToId { get; private set; }
+
     private Alert() { }
 
     public static Alert Create(
@@ -221,4 +228,18 @@ public sealed class Alert : AggregateRoot
         if (OperatorNote != trimmed)
             OperatorNote = trimmed;
     }
+
+    /// <summary>
+    /// Atribui (ou transfere) o responsável pelo alerta. Guid.Empty →
+    /// 400 pt-BR; redefinir o mesmo responsável é no-op.
+    /// </summary>
+    public void Assign(Guid userId)
+    {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("O responsável não pode ser vazio.", nameof(userId));
+
+        AssignedToId = userId;
+    }
+
+    public void Unassign() => AssignedToId = null;
 }

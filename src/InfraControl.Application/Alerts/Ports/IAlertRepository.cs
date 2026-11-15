@@ -45,6 +45,14 @@ public interface IAlertRepository : IRepository<Alert>
     Task<IReadOnlyList<OpenAlertCount>> GetOpenCountsByDeviceAsync(
         CancellationToken cancellationToken = default);
 
+    /// <summary>Usuário existe (para atribuição de responsável).</summary>
+    Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Nome de exibição dos usuários (id → DisplayName).</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -55,7 +63,9 @@ public interface IAlertRepository : IRepository<Alert>
 public sealed record AlertWithDevice(
     Alert Alert,
     string? DeviceName,
-    string? AssignedToName = null);
+    string? AssignedToName = null,
+    Guid? LinkedIncidentId = null,
+    string? LinkedIncidentTitle = null);
 
 /// <summary>F54-T001: alertas Open agregados por device e severidade.</summary>
 public sealed record OpenAlertCount(Guid DeviceId, AlertSeverity Severity, int Count);

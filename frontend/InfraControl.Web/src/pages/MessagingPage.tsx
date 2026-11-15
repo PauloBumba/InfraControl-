@@ -4,6 +4,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Button } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { MetricChart } from "@/components/ui/MetricChart";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import {
   getMessagingBindings,
@@ -163,6 +164,39 @@ function OverviewTab() {
         <Kpi label="Suprimidas" value={a.deliveriesSuppressed} />
         <Kpi label="Publish/s" value={b.publishRatePerSecond?.toFixed(1) ?? "—"} hint="broker" />
         <Kpi label="Deliver/s" value={b.deliverRatePerSecond?.toFixed(1) ?? "—"} hint="broker" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12, marginTop: 14 }}>
+        <div className="uni-panel" style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+            Deliveries por status
+          </div>
+          <MetricChart
+            type="bar"
+            height={200}
+            labels={["Pendentes", "Processando", "Enviadas", "Falhas", "Retry", "DLQ", "Suprimidas", "Canceladas"]}
+            values={[
+              a.deliveriesPending, a.deliveriesProcessing, a.deliveriesSent,
+              a.deliveriesFailed, a.deliveriesRetryDue, a.deliveriesDlq,
+              a.deliveriesSuppressed, a.deliveriesCancelled,
+            ]}
+            label="Deliveries"
+            ariaLabel="Deliveries por status"
+          />
+        </div>
+        <div className="uni-panel" style={{ padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+            Outbox e Inbox
+          </div>
+          <MetricChart
+            type="bar"
+            height={200}
+            labels={["Outbox pendentes", "Outbox esgotados", "Outbox processados", "Inbox processados"]}
+            values={[a.outboxPending, a.outboxExhausted, a.outboxProcessedTotal, a.inboxProcessedTotal]}
+            label="Mensagens"
+            ariaLabel="Outbox e Inbox"
+          />
+        </div>
       </div>
     </div>
   );

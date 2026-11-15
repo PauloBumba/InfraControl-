@@ -664,7 +664,7 @@ export function TaskDetailPage() {
   const activePause = pauses.find((pause) => pause.endAt == null);
 
   const userName = (userId: string): string =>
-    users.find((user) => user.userId === userId)?.displayName || shortId(userId);
+    users.find((user) => user.userId === userId)?.displayName || "—";
   const deviceName = (deviceId: string): string =>
     devices.find((device) => device.id === deviceId)?.name || shortId(deviceId);
   const incidentTitle = (incidentId: string): string =>

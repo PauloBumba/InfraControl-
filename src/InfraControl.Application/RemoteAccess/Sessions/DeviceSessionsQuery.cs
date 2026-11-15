@@ -11,6 +11,7 @@ namespace InfraControl.Application.RemoteAccess.Sessions;
 public sealed record RemoteSessionDto(
     Guid Id,
     Guid UserId,
+    string? UserName,
     string Protocol,
     string Status,
     string? FailureReason,
@@ -46,9 +47,13 @@ public sealed class GetRemoteSessionQueryHandler(IRemoteSessionRepository sessio
             throw new KeyNotFoundException(
                 $"Sessão de acesso remoto '{request.SessionId}' não encontrada.");
 
+        var names = await sessionRepository.GetUserNamesAsync(
+            [session.UserId], cancellationToken);
+
         return new RemoteSessionDto(
             session.Id,
             session.UserId,
+            names.GetValueOrDefault(session.UserId),
             session.Protocol.ToString(),
             session.Status.ToString(),
             session.FailureReason,
@@ -93,6 +98,9 @@ public sealed class GetDeviceSessionsQueryHandler(
         var sessions = await sessionRepository.GetRecentByDeviceAsync(
             device.Id, request.Limit, cancellationToken);
 
+        var names = await sessionRepository.GetUserNamesAsync(
+            sessions.Select(session => session.UserId).ToArray(), cancellationToken);
+
         return new DeviceSessionsDto(
             device.Id,
             device.Name,
@@ -100,6 +108,7 @@ public sealed class GetDeviceSessionsQueryHandler(
                 .Select(session => new RemoteSessionDto(
                     session.Id,
                     session.UserId,
+                    names.GetValueOrDefault(session.UserId),
                     session.Protocol.ToString(),
                     session.Status.ToString(),
                     session.FailureReason,

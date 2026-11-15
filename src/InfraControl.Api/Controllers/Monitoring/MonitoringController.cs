@@ -163,6 +163,27 @@ public sealed class MonitoringController(ISender sender) : BaseController
             cancellationToken)));
 
     /// <summary>
+    /// Atribui (ou transfere) o responsável pela tratativa do alerta —
+    /// Operate; usuário inexistente → 404 pt-BR.
+    /// </summary>
+    [HttpPost("alerts/{id:guid}/assign")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> AssignAlert(
+        Guid id,
+        [FromBody] AssignAlertViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new AssignAlertCommand(id, model.UserId), cancellationToken)));
+
+    /// <summary>Remove o responsável do alerta.</summary>
+    [HttpPost("alerts/{id:guid}/unassign")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnassignAlert(
+        Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UnassignAlertCommand(id), cancellationToken)));
+
+    /// <summary>
     /// F52-T003 — baixa justificada do alerta (padrão ServiceNow):
     /// código + justificativa obrigatórios; a resolução automática
     /// pós-check não passa por aqui.

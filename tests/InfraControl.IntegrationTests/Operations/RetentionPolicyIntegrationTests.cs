@@ -22,8 +22,8 @@ public sealed class RetentionPolicyIntegrationTests : BaseIntegrationTest
 
         var policies = await mediator.Send(new GetRetentionPoliciesQuery());
 
-        // 10 do cleanup + Backups (BackupSettings) + 3 gerenciados (F50).
-        policies.Should().HaveCount(14);
+        // 11 do cleanup + Backups (BackupSettings) + 3 gerenciados (F50).
+        policies.Should().HaveCount(15);
         policies
             .Where(p => p.DataType != "Backups")
             .Should().OnlyContain(p => p.Source == "Config");

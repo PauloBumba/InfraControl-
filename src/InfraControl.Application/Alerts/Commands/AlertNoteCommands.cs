@@ -40,19 +40,13 @@ public sealed class SetAlertOperatorNoteCommandHandler(
         alert.SetOperatorNote(request.Note);
         await repository.SaveChangesAsync(cancellationToken);
 
-        return new AlertDto(
-            alert.Id,
-            alert.DeviceId,
-            DeviceName: null, // a anotação não depende do join do device
-            alert.Kind?.ToString(),
-            alert.Severity.ToString(),
-            alert.Status.ToString(),
-            alert.Source.ToString(),
-            alert.Message,
-            alert.CreateDateTime,
-            alert.ResolvedAt,
-            alert.OperatorNote,
-            alert.ResolutionCode?.ToString(),
-            alert.ResolutionNote);
+        var names = await repository.GetUserNamesAsync(
+            alert.AssignedToId is { } id ? [id] : [], cancellationToken);
+
+        return AlertDto.From(
+            alert,
+            assignedToName: alert.AssignedToId is { } assigned
+                ? names.GetValueOrDefault(assigned)
+                : null);
     }
 }

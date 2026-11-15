@@ -3,9 +3,12 @@ import {
   listAlerts,
   resolveAlert,
   setAlertNote,
+  assignAlert,
+  unassignAlert,
   type AlertItem,
   type AlertStatusFilter,
 } from "@/services/api/alerts";
+import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import { formatDateTime } from "@/utils/format";
 import { Can } from "@/components/auth/Can";
 import { Dialog } from "@/components/ui/Dialog";
@@ -85,6 +88,13 @@ export function AlertsPage() {
   const [resolveSaving, setResolveSaving] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
 
+  // Atribuição/transferência do responsável pelo alerta (Operate).
+  const [assignTarget, setAssignTarget] = useState<AlertItem | null>(null);
+  const [assignUserId, setAssignUserId] = useState("");
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignUsers, setAssignUsers] = useState<AdminUser[]>([]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -159,6 +169,47 @@ export function AlertsPage() {
     }
   }
 
+  function openAssign(alert: AlertItem) {
+    setAssignTarget(alert);
+    setAssignUserId(alert.assignedToId ?? "");
+    setAssignError(null);
+    if (assignUsers.length === 0) {
+      void listUsers()
+        .then(setAssignUsers)
+        .catch(() => setAssignUsers([]));
+    }
+  }
+
+  async function submitAssign() {
+    if (!assignTarget || !assignUserId) return;
+    setAssignSaving(true);
+    setAssignError(null);
+    try {
+      await assignAlert(assignTarget.id, assignUserId);
+      setAssignTarget(null);
+      await load();
+    } catch (caught) {
+      setAssignError(errorMessage(caught));
+    } finally {
+      setAssignSaving(false);
+    }
+  }
+
+  async function submitUnassign() {
+    if (!assignTarget) return;
+    setAssignSaving(true);
+    setAssignError(null);
+    try {
+      await unassignAlert(assignTarget.id);
+      setAssignTarget(null);
+      await load();
+    } catch (caught) {
+      setAssignError(errorMessage(caught));
+    } finally {
+      setAssignSaving(false);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
@@ -198,6 +249,7 @@ export function AlertsPage() {
               alert={alert}
               onNote={() => openNote(alert)}
               onResolve={() => openResolve(alert)}
+              onAssign={() => openAssign(alert)}
             />
           ))}
           {!loading && items.length === 0 && (
@@ -312,6 +364,70 @@ export function AlertsPage() {
           <FormError message={resolveError ?? ""} />
         </div>
       </Dialog>
+      <Dialog
+        visible={assignTarget !== null}
+        onHide={() => setAssignTarget(null)}
+        header={assignTarget?.assignedToId ? "Transferir alerta" : "Atribuir alerta"}
+        width={420}
+        footer={
+          <>
+            {assignTarget?.assignedToId && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void submitUnassign()}
+                disabled={assignSaving}
+                style={{ padding: "6px 14px", marginRight: "auto" }}
+              >
+                Remover responsável
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAssignTarget(null)}
+              disabled={assignSaving}
+              style={{ padding: "6px 14px" }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void submitAssign()}
+              disabled={assignSaving || !assignUserId}
+              style={{ padding: "6px 14px" }}
+            >
+              {assignSaving ? "Salvando…" : "Salvar"}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {assignTarget && (
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              {assignTarget.deviceName ?? "Sem device"} · {assignTarget.check ?? assignTarget.source}
+              {" — "}
+              {assignTarget.assignedToName
+                ? `Responsável atual: ${assignTarget.assignedToName}`
+                : "Sem responsável"}
+            </div>
+          )}
+          <FormField label="Responsável">
+            <SelectField
+              value={assignUserId}
+              onChange={setAssignUserId}
+              options={assignUsers.map((user) => ({
+                value: user.userId,
+                label: user.displayName || user.email,
+              }))}
+              placeholder="Selecione o usuário"
+              disabled={assignSaving}
+            />
+          </FormField>
+          <FormError message={assignError ?? ""} />
+        </div>
+      </Dialog>
     </ListPageShell>
   );
 }
@@ -320,10 +436,12 @@ function AlertRow({
   alert,
   onNote,
   onResolve,
+  onAssign,
 }: {
   alert: AlertItem;
   onNote: () => void;
   onResolve: () => void;
+  onAssign: () => void;
 }) {
   const severity = severityConfig[alert.severity] ?? {
     label: alert.severity, bg: "#f1f5f9", color: "#64748b", icon: "pi pi-info-circle",
@@ -343,6 +461,15 @@ function AlertRow({
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
             <i className="pi pi-sticky-note" style={{ marginRight: 4 }} />
             {alert.operatorNote}
+          </div>
+        )}
+        {alert.linkedIncidentId && (
+          <div style={{ fontSize: 11, color: "#7c3aed", marginTop: 2 }}>
+            <i className="pi pi-exclamation-triangle" style={{ marginRight: 4 }} />
+            Incidente vinculado:{" "}
+            <a href="/incidents" style={{ color: "#7c3aed", fontWeight: 600 }}>
+              {alert.linkedIncidentTitle ?? "ver incidentes"}
+            </a>
           </div>
         )}
         {alert.resolutionCode && (
@@ -394,6 +521,27 @@ function AlertRow({
                 Resolver
               </button>
             )}
+            <button
+              type="button"
+              onClick={onAssign}
+              aria-label="Atribuir"
+              title={alert.assignedToId ? "Transferir responsável" : "Atribuir responsável"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                border: "1px solid #e5e7eb",
+                background: "white",
+                borderRadius: 6,
+                padding: "2px 8px",
+                fontSize: 11,
+                color: "#475569",
+                cursor: "pointer",
+              }}
+            >
+              <i className="pi pi-user-plus" style={{ fontSize: 10 }} />
+              {alert.assignedToId ? "Transferir" : "Atribuir"}
+            </button>
             <button
               type="button"
               onClick={onNote}
