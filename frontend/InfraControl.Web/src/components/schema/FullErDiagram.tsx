@@ -3,6 +3,7 @@ import dagre from "@dagrejs/dagre";
 import { Button } from "@/components/ui/Button";
 import type { SchemaEntity } from "@/services/api/schema";
 import { ErEntityTip, useErTooltip } from "./ErTooltip";
+import { useErNodeDrag } from "./useErNodeDrag";
 
 /**
  * DER completo estilo MySQL Workbench: TODAS as entidades e TODOS os
@@ -43,11 +44,35 @@ interface GroupedEdge {
   labels: string[];
 }
 
+const PAD = 40;
+
+/** Ponta da aresta no lado da caixa voltado para o destino (suporta
+ *  layout manual — o destino pode estar em qualquer direção). */
+function edgeEnds(a: PlacedNode, b: PlacedNode) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    const dir = dx >= 0 ? 1 : -1;
+    return {
+      p1: { x: a.x + dir * (a.w / 2), y: a.y },
+      p2: { x: b.x - dir * (b.w / 2), y: b.y },
+      horizontal: true,
+    };
+  }
+  const dir = dy >= 0 ? 1 : -1;
+  return {
+    p1: { x: a.x, y: a.y + dir * (a.h / 2) },
+    p2: { x: b.x, y: b.y - dir * (b.h / 2) },
+    horizontal: false,
+  };
+}
+
 export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
   const [zoom, setZoom] = useState(1);
-  const { tip, handlers: tipHandlers, boxRef } = useErTooltip();
+  const drag = useErNodeDrag("infracontrol:der:full");
+  const { tip, handlers: tipHandlers, boxRef } = useErTooltip(drag.dragging !== null);
 
-  const { nodes, edges, width, height } = useMemo(() => {
+  const { baseNodes, edges } = useMemo(() => {
     const byName = new Map(entities.map((e) => [e.entityName, e]));
     const g = new dagre.graphlib.Graph();
     g.setGraph({ rankdir: "LR", nodesep: 24, ranksep: 90, marginx: 20, marginy: 20 });
@@ -82,26 +107,45 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
 
     dagre.layout(g);
 
-    const placed: PlacedNode[] = entities.map((e) => {
-      const pos = g.node(e.entityName);
-      return { entity: e, x: pos.x, y: pos.y, w: BOX_W, h: boxHeight(e) };
-    });
-
-    const graph = g.graph();
     return {
-      nodes: placed,
+      baseNodes: entities.map((e) => {
+        const pos = g.node(e.entityName);
+        return { entity: e, x: pos.x, y: pos.y, w: BOX_W, h: boxHeight(e) };
+      }),
       edges: grouped,
-      width: graph.width ?? 1200,
-      height: graph.height ?? 800,
     };
   }, [entities]);
+
+  // Aplica os offsets do layout manual salvo pelo usuário.
+  const nodes = useMemo(
+    () =>
+      baseNodes.map((n) => {
+        const o = drag.offsets[n.entity.entityName];
+        return o ? { ...n, x: n.x + o.dx, y: n.y + o.dy } : n;
+      }),
+    [baseNodes, drag.offsets],
+  );
 
   const nodeByName = useMemo(
     () => new Map(nodes.map((n) => [n.entity.entityName, n])),
     [nodes],
   );
 
-  const PAD = 40;
+  // Bounds dinâmicos: nós arrastados para fora do layout original
+  // continuam visíveis (o viewBox cresce com eles).
+  const bounds = nodes.reduce(
+    (acc, n) => ({
+      minX: Math.min(acc.minX, n.x - n.w / 2 - PAD),
+      maxX: Math.max(acc.maxX, n.x + n.w / 2 + PAD),
+      minY: Math.min(acc.minY, n.y - n.h / 2 - PAD),
+      maxY: Math.max(acc.maxY, n.y + n.h / 2 + PAD),
+    }),
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
+  );
+  const vbX = Number.isFinite(bounds.minX) ? bounds.minX : 0;
+  const vbY = Number.isFinite(bounds.minY) ? bounds.minY : 0;
+  const vbW = Math.max(400, (bounds.maxX ?? 800) - vbX);
+  const vbH = Math.max(300, (bounds.maxY ?? 600) - vbY);
 
   return (
     <div>
@@ -113,8 +157,14 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
           <i className="pi pi-search-minus" /> Zoom −
         </Button>
         <Button variant="ghost" onClick={() => setZoom(1)}>Ajustar</Button>
+        <Button variant="ghost" onClick={drag.save} disabled={!drag.dirty}>
+          <i className="pi pi-save" /> {drag.savedFlash ? "Salvo!" : "Salvar layout"}
+        </Button>
+        <Button variant="ghost" onClick={drag.reset} disabled={Object.keys(drag.offsets).length === 0 && !drag.dirty}>
+          <i className="pi pi-undo" /> Restaurar
+        </Button>
         <span style={{ fontSize: 11, color: "#94a3b8" }}>
-          {entities.length} tabelas · {edges.length} relacionamentos · role para navegar
+          {entities.length} tabelas · {edges.length} relacionamentos · arraste para mover · role para navegar
         </span>
       </div>
       <div
@@ -130,9 +180,9 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
       >
         <ErEntityTip tip={tip} />
         <svg
-          width={(width + PAD * 2) * zoom}
-          height={(height + PAD * 2) * zoom}
-          viewBox={`0 0 ${width + PAD * 2} ${height + PAD * 2}`}
+          width={vbW * zoom}
+          height={vbH * zoom}
+          viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
           style={{ display: "block" }}
           role="img"
           aria-label="Diagrama entidade-relacionamento completo"
@@ -142,21 +192,21 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
               <path d="M0,0 L8,4 L0,8 z" fill="#94a3b8" />
             </marker>
           </defs>
-          <g transform={`translate(${PAD},${PAD})`}>
-            {/* arestas primeiro (ficam atrás das caixas) */}
+          {/* arestas primeiro (ficam atrás das caixas) */}
             {edges.map((edge) => {
               const a = nodeByName.get(edge.from);
               const b = nodeByName.get(edge.to);
               if (!a || !b) return null;
-              const x1 = a.x + a.w / 2;
-              const y1 = a.y;
-              const x2 = b.x - b.w / 2;
-              const y2 = b.y;
-              const mx = (x1 + x2) / 2;
+              const { p1, p2, horizontal } = edgeEnds(a, b);
+              const mx = (p1.x + p2.x) / 2;
+              const my = (p1.y + p2.y) / 2;
+              const d = horizontal
+                ? `M ${p1.x} ${p1.y} C ${mx} ${p1.y}, ${mx} ${p2.y}, ${p2.x} ${p2.y}`
+                : `M ${p1.x} ${p1.y} C ${p1.x} ${my}, ${p2.x} ${my}, ${p2.x} ${p2.y}`;
               return (
                 <g key={`${edge.from}-${edge.to}`}>
                   <path
-                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    d={d}
                     fill="none"
                     stroke="#94a3b8"
                     strokeWidth={1.2}
@@ -164,7 +214,7 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
                   />
                   <text
                     x={mx}
-                    y={(y1 + y2) / 2 - 4}
+                    y={(p1.y + p2.y) / 2 - 4}
                     textAnchor="middle"
                     fontSize={8.5}
                     fill="#64748b"
@@ -180,8 +230,14 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
             {nodes.map((n) => {
               const rows = n.entity.properties.slice(0, MAX_ROWS);
               const hidden = n.entity.properties.length - rows.length;
+              const isDragging = drag.dragging === n.entity.entityName;
               return (
-                <g key={n.entity.entityName} {...tipHandlers(n.entity)}>
+                <g
+                  key={n.entity.entityName}
+                  {...tipHandlers(n.entity)}
+                  onPointerDown={(e) => drag.beginDrag(e, n.entity.entityName)}
+                  style={{ cursor: isDragging ? "grabbing" : "grab" }}
+                >
                   <rect
                     x={n.x - n.w / 2}
                     y={n.y - n.h / 2}
@@ -253,7 +309,6 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
                 </g>
               );
             })}
-          </g>
         </svg>
       </div>
     </div>

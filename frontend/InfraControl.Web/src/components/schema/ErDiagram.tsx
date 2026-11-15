@@ -1,6 +1,8 @@
 import { useMemo } from "react";
+import { Button } from "@/components/ui/Button";
 import type { SchemaEntity, SchemaProperty } from "@/services/api/schema";
 import { ErEntityTip, useErTooltip } from "./ErTooltip";
+import { useErNodeDrag } from "./useErNodeDrag";
 
 /**
  * DER (diagrama entidade-relacionamento) da entidade selecionada:
@@ -115,11 +117,13 @@ function edgePath(a: Node, b: Node) {
   return { d: `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`, mid: { x: mx, y: my } };
 }
 
-function EntityBox({ node, isCenter, onSelect, tipHandlers }: {
+function EntityBox({ node, isCenter, onSelect, tipHandlers, onPointerDown, isDragging }: {
   node: Node;
   isCenter: boolean;
   onSelect: (e: SchemaEntity) => void;
   tipHandlers: ReturnType<typeof useErTooltip>["handlers"];
+  onPointerDown: (e: React.PointerEvent<SVGGElement>) => void;
+  isDragging: boolean;
 }) {
   const { entity, x, y, w, h } = node;
   const rows = entity.properties.slice(0, MAX_ROWS);
@@ -127,8 +131,9 @@ function EntityBox({ node, isCenter, onSelect, tipHandlers }: {
   return (
     <g
       {...tipHandlers(entity)}
+      onPointerDown={onPointerDown}
       onClick={() => !isCenter && onSelect(entity)}
-      style={{ cursor: isCenter ? "default" : "pointer" }}
+      style={{ cursor: isDragging ? "grabbing" : isCenter ? "default" : "grab" }}
     >
       <rect
         x={x - w / 2}
@@ -207,8 +212,18 @@ export function ErDiagram({ entities, center, onSelect }: {
   center: SchemaEntity;
   onSelect: (e: SchemaEntity) => void;
 }) {
-  const { tip, handlers: tipHandlers, boxRef } = useErTooltip();
-  const { nodes, edges } = useMemo(() => buildGraph(entities, center), [entities, center]);
+  const drag = useErNodeDrag("infracontrol:der:focus");
+  const { tip, handlers: tipHandlers, boxRef } = useErTooltip(drag.dragging !== null);
+  const { nodes, edges } = useMemo(() => {
+    const graph = buildGraph(entities, center);
+    return {
+      edges: graph.edges,
+      nodes: graph.nodes.map((n) => {
+        const o = drag.offsets[n.entity.entityName];
+        return o ? { ...n, x: n.x + o.dx, y: n.y + o.dy } : n;
+      }),
+    };
+  }, [entities, center, drag.offsets]);
   const nodeByEntity = useMemo(
     () => new Map(nodes.map((n) => [n.entity.entityName, n])),
     [nodes],
@@ -238,7 +253,19 @@ export function ErDiagram({ entities, center, onSelect }: {
   const vbH = Math.max(300, bounds.maxY - bounds.minY);
 
   return (
-    <div ref={boxRef} style={{ position: "relative", overflow: "auto", maxHeight: 620, background: "#f8fafc", borderRadius: 8 }}>
+    <div>
+      <div className="flex align-items-center gap-2" style={{ marginBottom: 6 }}>
+        <Button variant="ghost" onClick={drag.save} disabled={!drag.dirty}>
+          <i className="pi pi-save" /> {drag.savedFlash ? "Salvo!" : "Salvar layout"}
+        </Button>
+        <Button variant="ghost" onClick={drag.reset} disabled={Object.keys(drag.offsets).length === 0 && !drag.dirty}>
+          <i className="pi pi-undo" /> Restaurar
+        </Button>
+        <span style={{ fontSize: 11, color: "#94a3b8" }}>
+          arraste para mover · clique numa vizinha para recentralizar
+        </span>
+      </div>
+      <div ref={boxRef} style={{ position: "relative", overflow: "auto", maxHeight: 620, background: "#f8fafc", borderRadius: 8 }}>
       <ErEntityTip tip={tip} />
       <svg
         viewBox={`${bounds.minX} ${bounds.minY} ${vbW} ${vbH}`}
@@ -271,11 +298,16 @@ export function ErDiagram({ entities, center, onSelect }: {
             key={n.entity.entityName}
             node={n}
             isCenter={n.entity.entityName === center.entityName}
-            onSelect={onSelect}
+            onSelect={(e) => {
+              if (!drag.didMove()) onSelect(e);
+            }}
             tipHandlers={tipHandlers}
+            onPointerDown={(e) => drag.beginDrag(e, n.entity.entityName)}
+            isDragging={drag.dragging === n.entity.entityName}
           />
         ))}
       </svg>
+      </div>
     </div>
   );
 }

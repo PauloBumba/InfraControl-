@@ -15,18 +15,22 @@ interface TipState {
   y: number;
 }
 
-export function useErTooltip() {
+export function useErTooltip(disabled = false) {
   const [tip, setTip] = useState<TipState | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
 
   const handlers = useCallback(
     (entity: SchemaEntity) => ({
       onMouseEnter: (e: MouseEvent<SVGGElement>) => {
+        if (disabledRef.current) return;
         const rect = boxRef.current?.getBoundingClientRect();
         if (!rect) return;
         setTip({ entity, x: e.clientX - rect.left, y: e.clientY - rect.top });
       },
       onMouseMove: (e: MouseEvent<SVGGElement>) => {
+        if (disabledRef.current) return;
         const rect = boxRef.current?.getBoundingClientRect();
         if (!rect) return;
         setTip((prev) =>
@@ -35,7 +39,9 @@ export function useErTooltip() {
             : prev,
         );
       },
-      onMouseLeave: () => setTip(null),
+      onMouseLeave: () => {
+        if (!disabledRef.current) setTip(null);
+      },
     }),
     [],
   );
