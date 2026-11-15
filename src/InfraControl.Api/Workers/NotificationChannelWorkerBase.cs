@@ -28,9 +28,27 @@ public abstract class NotificationChannelWorkerBase(
         description: "Deliveries processadas por canal e resultado.");
 
     private void RecordDelivery(string result)
-        => Deliveries.Add(1,
+    {
+        Deliveries.Add(1,
             new KeyValuePair<string, object?>("channel", channel.ToString()),
             new KeyValuePair<string, object?>("result", result));
+
+        // F55-T010: mesmas contagens no metro InfraControl.Messaging.
+        var ch = channel.ToString();
+        switch (result)
+        {
+            case "sent":
+                Application.Messaging.MessagingMetrics.Processed("delivery", ch);
+                break;
+            case "dlq":
+                Application.Messaging.MessagingMetrics.Failed("delivery", ch);
+                break;
+            default:
+                Application.Messaging.MessagingMetrics.Failed("delivery", ch);
+                Application.Messaging.MessagingMetrics.Retry("delivery", ch);
+                break;
+        }
+    }
 
     /// <summary>F9-T009: 5 tentativas (30s/60s/120s/240s) — depois, DLQ.</summary>
     public const int MaxAttempts = 5;

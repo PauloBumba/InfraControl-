@@ -84,6 +84,9 @@ builder.Services.AddHostedService<MonitoringPollingWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.UnifiSyncWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.DiscoveryWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.ScheduledReportWorker>();
+// F55-T010: gauges infracontrol_messaging_queue_* alimentados pelo broker.
+builder.Services.AddHostedService<InfraControl.Workers.Messaging.MessagingBrokerMetricsWorker>();
+InfraControl.Application.Messaging.MessagingMetrics.RegisterGauges();
 
 // Observabilidade (profile obs): MESMO pipeline OTLP da API — traces dos
 // commands MediatR (ObservabilityBehavior), spans de consumers MassTransit

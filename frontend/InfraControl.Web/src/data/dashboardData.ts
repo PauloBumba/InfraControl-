@@ -80,6 +80,7 @@ export const secondaryNavigation: NavGroup[] = [
       { label: "Projetos", icon: "pi pi-briefcase", route: "/projects" },
       { label: "SLA/SLO", icon: "pi pi-chart-line", route: "/sla" },
       { label: "Notificações", icon: "pi pi-envelope", route: "/notifications" },
+      { label: "Mensageria", icon: "pi pi-send", route: "/messaging" },
       { label: "Acesso Remoto", icon: "pi pi-external-link", route: "/remote" },
     ],
   },

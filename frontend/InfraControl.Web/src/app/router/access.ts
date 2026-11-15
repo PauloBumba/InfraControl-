@@ -32,6 +32,9 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/admin/access-policies": "read",
   "/admin/access-roles": "administer",
   "/admin/cluster": "administer",
+  // F55 — Messaging Operations Center: leituras Operate; pause/resume/replay
+  // exigem Administer no backend (a UI mostra os botões só para administer).
+  "/messaging": "operate",
   "/settings/backup": "administer",
   "/settings/retention": "administer",
   // UniFi ao vivo: consulta (Operate) — Operator + Admin.

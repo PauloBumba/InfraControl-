@@ -55,6 +55,7 @@ const DeviceDetailPage = lazy(() => import("@/pages/DeviceDetailPage").then(m =>
 const UsersPage = lazy(() => import("@/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 const InvitationsPage = lazy(() => import("@/pages/InvitationsPage").then(m => ({ default: m.InvitationsPage })));
 const AuditPage = lazy(() => import("@/pages/AuditPage").then(m => ({ default: m.AuditPage })));
+const MessagingPage = lazy(() => import("@/pages/MessagingPage").then(m => ({ default: m.MessagingPage })));
 const IncidentsPage = lazy(() => import("@/pages/IncidentsPage").then(m => ({ default: m.IncidentsPage })));
 const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const LocationsPage = lazy(() => import("@/pages/LocationsPage").then(m => ({ default: m.LocationsPage })));
@@ -448,6 +449,11 @@ function AppContent() {
           <Route path="/admin/cluster" element={
             <ProtectedRoute>
               <ClusterPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/messaging" element={
+            <ProtectedRoute>
+              <MessagingPage />
             </ProtectedRoute>
           } />
           <Route path="/status" element={
