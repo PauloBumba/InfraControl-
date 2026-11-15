@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { SchemaEntity, SchemaProperty } from "@/services/api/schema";
+import { ErEntityTip, useErTooltip } from "./ErTooltip";
 
 /**
  * DER (diagrama entidade-relacionamento) da entidade selecionada:
@@ -114,16 +115,18 @@ function edgePath(a: Node, b: Node) {
   return { d: `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`, mid: { x: mx, y: my } };
 }
 
-function EntityBox({ node, isCenter, onSelect }: {
+function EntityBox({ node, isCenter, onSelect, tipHandlers }: {
   node: Node;
   isCenter: boolean;
   onSelect: (e: SchemaEntity) => void;
+  tipHandlers: ReturnType<typeof useErTooltip>["handlers"];
 }) {
   const { entity, x, y, w, h } = node;
   const rows = entity.properties.slice(0, MAX_ROWS);
   const hidden = entity.properties.length - rows.length;
   return (
     <g
+      {...tipHandlers(entity)}
       onClick={() => !isCenter && onSelect(entity)}
       style={{ cursor: isCenter ? "default" : "pointer" }}
     >
@@ -204,6 +207,7 @@ export function ErDiagram({ entities, center, onSelect }: {
   center: SchemaEntity;
   onSelect: (e: SchemaEntity) => void;
 }) {
+  const { tip, handlers: tipHandlers, boxRef } = useErTooltip();
   const { nodes, edges } = useMemo(() => buildGraph(entities, center), [entities, center]);
   const nodeByEntity = useMemo(
     () => new Map(nodes.map((n) => [n.entity.entityName, n])),
@@ -234,7 +238,8 @@ export function ErDiagram({ entities, center, onSelect }: {
   const vbH = Math.max(300, bounds.maxY - bounds.minY);
 
   return (
-    <div style={{ overflow: "auto", maxHeight: 620, background: "#f8fafc", borderRadius: 8 }}>
+    <div ref={boxRef} style={{ position: "relative", overflow: "auto", maxHeight: 620, background: "#f8fafc", borderRadius: 8 }}>
+      <ErEntityTip tip={tip} />
       <svg
         viewBox={`${bounds.minX} ${bounds.minY} ${vbW} ${vbH}`}
         style={{ width: "100%", minWidth: 480, display: "block" }}
@@ -267,6 +272,7 @@ export function ErDiagram({ entities, center, onSelect }: {
             node={n}
             isCenter={n.entity.entityName === center.entityName}
             onSelect={onSelect}
+            tipHandlers={tipHandlers}
           />
         ))}
       </svg>

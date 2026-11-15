@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import dagre from "@dagrejs/dagre";
 import { Button } from "@/components/ui/Button";
 import type { SchemaEntity } from "@/services/api/schema";
+import { ErEntityTip, useErTooltip } from "./ErTooltip";
 
 /**
  * DER completo estilo MySQL Workbench: TODAS as entidades e TODOS os
@@ -44,6 +45,7 @@ interface GroupedEdge {
 
 export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
   const [zoom, setZoom] = useState(1);
+  const { tip, handlers: tipHandlers, boxRef } = useErTooltip();
 
   const { nodes, edges, width, height } = useMemo(() => {
     const byName = new Map(entities.map((e) => [e.entityName, e]));
@@ -116,7 +118,9 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
         </span>
       </div>
       <div
+        ref={boxRef}
         style={{
+          position: "relative",
           overflow: "auto",
           maxHeight: 640,
           background: "#f8fafc",
@@ -124,6 +128,7 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
           border: "1px solid #e5e7eb",
         }}
       >
+        <ErEntityTip tip={tip} />
         <svg
           width={(width + PAD * 2) * zoom}
           height={(height + PAD * 2) * zoom}
@@ -176,7 +181,7 @@ export function FullErDiagram({ entities }: { entities: SchemaEntity[] }) {
               const rows = n.entity.properties.slice(0, MAX_ROWS);
               const hidden = n.entity.properties.length - rows.length;
               return (
-                <g key={n.entity.entityName}>
+                <g key={n.entity.entityName} {...tipHandlers(n.entity)}>
                   <rect
                     x={n.x - n.w / 2}
                     y={n.y - n.h / 2}
