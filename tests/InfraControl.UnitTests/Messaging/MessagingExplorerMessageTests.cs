@@ -61,6 +61,14 @@ public sealed class MessagingExplorerTests
 
         public Task<NotificationDelivery?> GetDeliveryAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult(Deliveries.FirstOrDefault(d => d.Id == id));
+
+        public Task<PagedResult<NotificationDelivery>> SearchFailureDeliveriesAsync(
+            MessagingDeliveryFilter f, bool deadLetter, CancellationToken ct = default)
+            => Task.FromResult(new PagedResult<NotificationDelivery>(
+                Deliveries.Where(d => d.Status == DeliveryStatus.Failed
+                    && (deadLetter ? d.NextAttemptAt == null : d.NextAttemptAt != null))
+                    .ToArray(),
+                Deliveries.Count(d => d.Status == DeliveryStatus.Failed), f.Page, f.PageSize));
     }
 
     [Fact]

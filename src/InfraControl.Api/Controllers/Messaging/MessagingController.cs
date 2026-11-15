@@ -1,4 +1,5 @@
 using InfraControl.Application.Messaging.Explorer;
+using InfraControl.Application.Messaging.Failures;
 using InfraControl.Application.Messaging.Overview;
 using InfraControl.Application.Messaging.Workers;
 using MediatR;
@@ -116,6 +117,43 @@ public sealed class MessagingController(ISender sender) : BaseController
             deliveryId, notificationId, channel, status, minAttempts,
             fromUtc, toUtc,
             Math.Max(1, page), Math.Clamp(pageSize, 1, 100)), cancellationToken)));
+
+    // ---- F55-T005: Retry + DLQ + replay ---------------------------------
+
+    [HttpGet("retries")]
+    [Authorize]
+    public async Task<IActionResult> SearchRetries(
+        [FromQuery] Guid? deliveryId, [FromQuery] Guid? notificationId,
+        [FromQuery] string? channel, [FromQuery] int? minAttempts,
+        [FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(new SearchMessagingRetriesQuery(
+            deliveryId, notificationId, channel, minAttempts, fromUtc, toUtc,
+            Math.Max(1, page), Math.Clamp(pageSize, 1, 100)), cancellationToken)));
+
+    [HttpGet("dlq")]
+    [Authorize]
+    public async Task<IActionResult> SearchDlq(
+        [FromQuery] Guid? deliveryId, [FromQuery] Guid? notificationId,
+        [FromQuery] string? channel, [FromQuery] int? minAttempts,
+        [FromQuery] DateTime? fromUtc, [FromQuery] DateTime? toUtc,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(new SearchMessagingDlqQuery(
+            deliveryId, notificationId, channel, minAttempts, fromUtc, toUtc,
+            Math.Max(1, page), Math.Clamp(pageSize, 1, 100)), cancellationToken)));
+
+    /// <summary>Replay seletivo de UMA delivery Failed (Administer, auditado).</summary>
+    [HttpPost("deliveries/{id:guid}/replay")]
+    [Authorize]
+    public async Task<IActionResult> ReplayDelivery(
+        Guid id, [FromBody] MessagingReplayRequest? body,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new ReplayNotificationDeliveryCommand(id, body?.Reason), cancellationToken)));
 }
 
 public sealed record MessagingQueuePauseRequest(string? Reason);
+
+public sealed record MessagingReplayRequest(string? Reason);

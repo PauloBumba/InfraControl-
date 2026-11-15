@@ -102,4 +102,31 @@ public sealed class MessagingExplorerStore(AppDbContext dbContext)
         Guid id, CancellationToken cancellationToken = default)
         => dbContext.NotificationDeliveries.AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
+
+    public async Task<PagedResult<NotificationDelivery>> SearchFailureDeliveriesAsync(
+        MessagingDeliveryFilter filter, bool deadLetter,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.NotificationDeliveries.AsNoTracking()
+            .Where(d => d.Status == Domain.Enums.DeliveryStatus.Failed);
+
+        query = deadLetter
+            ? query.Where(d => d.NextAttemptAt == null)
+            : query.Where(d => d.NextAttemptAt != null);
+
+        if (filter.DeliveryId is { } id) query = query.Where(d => d.Id == id);
+        if (filter.NotificationId is { } nid) query = query.Where(d => d.NotificationId == nid);
+        if (filter.MinAttempts is { } min) query = query.Where(d => d.AttemptCount >= min);
+        if (filter.FromUtc is { } from) query = query.Where(d => d.CreateDateTime >= from);
+        if (filter.ToUtc is { } to) query = query.Where(d => d.CreateDateTime <= to);
+
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(d => deadLetter ? d.UpdateDateTime : d.NextAttemptAt)
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<NotificationDelivery>(items, total, filter.Page, filter.PageSize);
+    }
 }

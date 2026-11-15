@@ -122,6 +122,22 @@ public sealed class NotificationDelivery : Entity
         NextAttemptAt = now + TimeSpan.FromTicks(backoff.Ticks * factor);
     }
 
+    /// <summary>
+    /// F55-T005: requeue seguro de uma delivery Failed (retry agendado ou
+    /// DLQ) de volta para Pending com NextAttemptAt=agora — o worker do
+    /// canal reenvia respeitando idempotência do canal. AttemptCount e
+    /// LastError são preservados como histórico; não cria delivery nova.
+    /// </summary>
+    public void RequeueForReplay(DateTime now)
+    {
+        if (Status != DeliveryStatus.Failed)
+            throw new InvalidOperationException(
+                $"Apenas deliveries Failed podem ser reprocessadas (estado atual: {Status}).");
+
+        Status = DeliveryStatus.Pending;
+        NextAttemptAt = now;
+    }
+
     public void MarkFailed(string error)
     {
         Status = DeliveryStatus.Failed;

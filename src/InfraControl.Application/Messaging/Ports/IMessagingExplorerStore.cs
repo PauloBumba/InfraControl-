@@ -50,4 +50,13 @@ public interface IMessagingExplorerStore
 
     Task<NotificationDelivery?> GetDeliveryAsync(
         Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// F55-T005: deliveries Failed separando retry agendado
+    /// (<paramref name="deadLetter"/>=false, NextAttemptAt futuro) de DLQ
+    /// (<paramref name="deadLetter"/>=true, sem próxima tentativa).
+    /// </summary>
+    Task<PagedResult<NotificationDelivery>> SearchFailureDeliveriesAsync(
+        MessagingDeliveryFilter filter, bool deadLetter,
+        CancellationToken cancellationToken = default);
 }
