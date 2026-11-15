@@ -10,6 +10,7 @@ import { FormField } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { EvidenceMediaPreview } from "@/components/ui/EvidenceMediaPreview";
 import { formatDateTime } from "@/utils/format";
 import { RESOLUTION_CODE_OPTIONS } from "@/utils/resolutionCodes";
 import { ApiError } from "@/services/api/client";
@@ -59,6 +60,7 @@ import {
   updateTaskImpediment,
   updateTaskPhase,
   updateTaskPlanning,
+  taskEvidencePreviewUrl,
   updateTaskResult,
   uploadTaskEvidence,
   type TaskComment,
@@ -1223,8 +1225,8 @@ export function TaskDetailPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {evidences.map((evidence) => (
+                  <div key={evidence.id} style={{ display: "grid", gap: 4 }}>
                   <div
-                    key={evidence.id}
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
                     <button
@@ -1262,6 +1264,12 @@ export function TaskDetailPage() {
                         <i className="pi pi-trash" style={{ fontSize: 10 }} />
                       </Button>
                     </Can>
+                  </div>
+                  <EvidenceMediaPreview
+                    src={taskEvidencePreviewUrl(evidence.id)}
+                    contentType={evidence.contentType}
+                    fileName={evidence.fileName}
+                  />
                   </div>
                 ))}
               </div>

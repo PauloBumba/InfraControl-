@@ -538,9 +538,18 @@ public sealed class TasksController(ISender sender) : BaseController
         var download = await sender.Send(
             new GetTaskEvidenceDownloadQuery(evidenceId), cancellationToken);
 
+        // ?inline=true → Content-Disposition inline + range processing:
+        // permite <img>/<video> na plataforma sem forçar download.
+        var inline = string.Equals(
+            Request.Query["inline"], "true", StringComparison.OrdinalIgnoreCase);
+
         // Content-Disposition com o nome original (encoded); o corpo veio
         // da porta de storage (ADR-033).
-        return File(download.Content, download.ContentType, download.FileName);
+        return File(
+            download.Content,
+            download.ContentType,
+            inline ? null : download.FileName,
+            enableRangeProcessing: true);
     }
 
     [HttpDelete("evidences/{evidenceId:guid}")]

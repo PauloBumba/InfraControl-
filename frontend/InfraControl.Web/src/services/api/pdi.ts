@@ -764,6 +764,12 @@ export async function reviewPdiEvidence(
   });
 }
 
+/** URL autenticada para preview inline (img/video) — cookies same-origin. */
+export function pdiEvidencePreviewUrl(evidenceId: string): string {
+  const base = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+  return `${base}/pdi/evidences/${evidenceId}/download?inline=true`;
+}
+
 /** Download autenticado — blob → objectURL → clique no link temporário. */
 export async function downloadPdiEvidence(
   id: string,

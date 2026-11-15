@@ -4,6 +4,7 @@ import { useAppSelector } from "@/app/store/hooks";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { EvidenceMediaPreview } from "@/components/ui/EvidenceMediaPreview";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -979,6 +980,13 @@ export function ProjectDetailPage() {
                   </div>
                   {item.status === "Rejected" && item.rejectionReason && (
                     <div style={{ color: "#b91c1c", fontSize: 12 }}>Motivo: {item.rejectionReason}</div>
+                  )}
+                  {id && (
+                    <EvidenceMediaPreview
+                      src={projectEvidencePreviewUrl(id, item.id)}
+                      contentType={item.contentType}
+                      fileName={item.fileName}
+                    />
                   )}
                   {(canPreviewEvidence(item) || canOperate) && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 6, borderTop: "1px solid #f1f5f9" }}>

@@ -493,6 +493,12 @@ export function uploadTaskEvidence(
   return api.post<TaskEvidence>(`/tasks/${taskId}/evidences`, form);
 }
 
+/** URL autenticada para preview inline (img/video) — cookies same-origin. */
+export function taskEvidencePreviewUrl(evidenceId: string): string {
+  const base = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+  return `${base}/tasks/evidences/${evidenceId}/download?inline=true`;
+}
+
 /**
  * `GET /tasks/evidences/{id}/download` (leitura) — baixa o binário e
  * salva no disco do usuário com o nome original (blob + `download`).

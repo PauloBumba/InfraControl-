@@ -75,7 +75,16 @@ public sealed class PdiEvidenceController(ISender sender) : BaseController
         var download = await sender.Send(
             new DownloadPdiEvidenceQuery(id), cancellationToken);
 
+        // ?inline=true → Content-Disposition inline + range: <img>/<video>
+        // na plataforma sem forçar download (mesmo padrão do projeto).
+        var inline = string.Equals(
+            Request.Query["inline"], "true", StringComparison.OrdinalIgnoreCase);
+
         Response.Headers.XContentTypeOptions = "nosniff";
-        return File(download.Content, download.ContentType, download.FileName);
+        return File(
+            download.Content,
+            download.ContentType,
+            inline ? null : download.FileName,
+            enableRangeProcessing: true);
     }
 }
