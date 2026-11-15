@@ -47,11 +47,15 @@ public static class MessagingMetrics
     public static void Duration(string source, double seconds, string? channel = null)
         => ProcessingDuration.Record(seconds, Tags(source, channel));
 
-    private static IEnumerable<KeyValuePair<string, object?>> Tags(
+    private static KeyValuePair<string, object?>[] Tags(
         string source, string? channel)
     {
-        yield return Tag("source", source);
-        if (!string.IsNullOrEmpty(channel)) yield return Tag("channel", channel);
+        var tags = new List<KeyValuePair<string, object?>>
+        {
+            Tag("source", source)
+        };
+        if (!string.IsNullOrEmpty(channel)) tags.Add(Tag("channel", channel));
+        return tags.ToArray();
     }
 
     private static KeyValuePair<string, object?> Tag(string key, string value)
