@@ -26,6 +26,7 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
         var monitoringEventsDeleted = await DeleteMonitoringEventsAsync(Cutoff(days, RetentionDataType.MonitoringEvents, _options.MonitoringEventsDays, utcNow), batchSize, cancellationToken);
         var unifiSyncRunsDeleted = await DeleteUniFiSyncRunsAsync(Cutoff(days, RetentionDataType.UniFiSyncRuns, _options.UniFiSyncRunsDays, utcNow), batchSize, cancellationToken);
         var invitationsDeleted = await DeleteInvitationsAsync(Cutoff(days, RetentionDataType.Invitations, _options.InvitationsDays, utcNow), batchSize, cancellationToken);
+        var occurrenceTransitionsDeleted = await DeleteOccurrenceTransitionsAsync(Cutoff(days, RetentionDataType.OccurrenceTransitions, _options.OccurrenceTransitionsDays, utcNow), batchSize, cancellationToken);
 
         return new CleanupResult(
             outboxDeleted,
@@ -37,7 +38,8 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             discoveryDeleted,
             monitoringEventsDeleted,
             invitationsDeleted,
-            UniFiSyncRunsDeleted: unifiSyncRunsDeleted);
+            UniFiSyncRunsDeleted: unifiSyncRunsDeleted,
+            OccurrenceTransitionsDeleted: occurrenceTransitionsDeleted);
     }
 
     private async Task<int> DeleteOutboxAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
@@ -206,6 +208,28 @@ public sealed class CleanupService(AppDbContext dbContext, IOptions<RetentionOpt
             return 0;
 
         return await _dbContext.UniFiSyncRuns
+            .Where(m => ids.Contains(m.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Poda o histórico append-only de transições de ocorrência (F55) —
+    /// a <see cref="Domain.Entities.Occurrence"/> atual é estado de dedup e
+    /// NÃO é tocada; só as transições antigas saem.
+    /// </summary>
+    private async Task<int> DeleteOccurrenceTransitionsAsync(DateTime cutoff, int batchSize, CancellationToken cancellationToken)
+    {
+        var ids = await _dbContext.OccurrenceTransitions
+            .Where(m => m.CreateDateTime < cutoff)
+            .OrderBy(m => m.CreateDateTime)
+            .Select(m => m.Id)
+            .Take(batchSize)
+            .ToListAsync(cancellationToken);
+
+        if (ids.Count == 0)
+            return 0;
+
+        return await _dbContext.OccurrenceTransitions
             .Where(m => ids.Contains(m.Id))
             .ExecuteDeleteAsync(cancellationToken);
     }

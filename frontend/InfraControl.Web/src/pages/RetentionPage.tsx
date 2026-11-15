@@ -23,6 +23,7 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   MonitoringEvents: "Eventos de monitoramento",
   Invitations: "Convites",
   UniFiSyncRuns: "Sincronizações UniFi",
+  OccurrenceTransitions: "Transições de ocorrências (histórico)",
   Backups: "Arquivos de backup",
   Grafana: "Métricas do Grafana",
   Zabbix: "Histórico do Zabbix",

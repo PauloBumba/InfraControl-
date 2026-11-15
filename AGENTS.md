@@ -73,3 +73,27 @@ Sempre apresentar:
 - resultado;
 - pendências;
 - próximo passo.
+
+## Metodologia do usuário — governança contínua (2026-11-15)
+
+Ao criar ou alterar qualquer slice, aplicar SEMPRE:
+
+1. **Nova tabela/entidade que cresce** → decidir retenção na hora:
+   - histórico/append-only ou log → novo `RetentionDataType` +
+     `RetentionOptions.*Days` + método `Delete*Async` no `CleanupService`
+     + caso em `GetRetentionPoliciesQuery.ConfigDays` + label em
+     `RetentionPage.tsx` (`DATA_TYPE_LABELS`);
+   - estado/configuração pequena (ex.: `MessagingQueuePause`) → N/A
+     documentado no enum/comentário;
+   - sistema externo/banco da stack → tipo "managed" (registrado, sem poda).
+   - `CleanupResult.TotalDeleted` deve incluir TODO campo novo — já houve
+     bug de soma incompleta.
+2. **Novo módulo/endpoint** → declarar nível explicitamente:
+   leitura `RoleAccess.Operate` (Operator+Admin), gestão `Administer`
+   (só Admin); frontend espelha em `ROUTE_ACCESS`/`access.ts` e esconde
+   controles admin — backend é sempre a autoridade.
+3. **Novos perfis** → já são dinâmicos: `AccessRole`/`AccessPolicy`
+   (ADR-066, `/admin/access-roles` + `/admin/access-policies`). Não
+   hardcodar perfil novo em código; estender a matriz pela UI/admin.
+4. **Auditoria** → comando mutável sensível usa `IAuditableRequest` +
+   `AuditBehavior`; ações admin destrutivas exigem confirmação no front.

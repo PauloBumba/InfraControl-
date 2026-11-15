@@ -68,7 +68,7 @@ public sealed class RetentionExtendedTypesTests : IDisposable
         var dtos = await QueryHandler(context).Handle(
             new GetRetentionPoliciesQuery(), CancellationToken.None);
 
-        dtos.Should().HaveCount(14);
+        dtos.Should().HaveCount(15);
         dtos.Single(d => d.DataType == "Grafana")
             .Should().BeEquivalentTo(
                 new RetentionPolicyDto("Grafana", 30, "Config"));
@@ -141,7 +141,7 @@ public sealed class RetentionExtendedTypesTests : IDisposable
         var export = await ExportHandler(context).Handle(
             new ExportRetentionPoliciesQuery(), CancellationToken.None);
 
-        export.Policies.Should().HaveCount(14);
+        export.Policies.Should().HaveCount(15);
         export.Policies.Single(p => p.DataType == "AuditEntries").Days.Should().Be(45);
         export.Policies.Single(p => p.DataType == "Backups").Days.Should().Be(20);
     }

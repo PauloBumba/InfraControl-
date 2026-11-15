@@ -83,6 +83,7 @@ public sealed class GetRetentionPoliciesQueryHandler(
         RetentionDataType.MonitoringEvents => options.MonitoringEventsDays,
         RetentionDataType.Invitations => options.InvitationsDays,
         RetentionDataType.UniFiSyncRuns => options.UniFiSyncRunsDays,
+        RetentionDataType.OccurrenceTransitions => options.OccurrenceTransitionsDays,
         RetentionDataType.Grafana => options.GrafanaDays,
         RetentionDataType.Zabbix => options.ZabbixDays,
         RetentionDataType.Databases => options.DatabasesDays,

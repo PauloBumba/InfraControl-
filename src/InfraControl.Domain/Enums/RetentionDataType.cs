@@ -19,6 +19,10 @@ public enum RetentionDataType
     MonitoringEvents,
     Invitations,
     UniFiSyncRuns,
+    /// <summary>Histórico append-only de transições de ocorrência (F55 —
+    /// cresce a cada evento; a <see cref="Occurrence"/> atual é estado e
+    /// não é podada).</summary>
+    OccurrenceTransitions,
     Backups,
     Grafana,
     Zabbix,

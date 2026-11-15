@@ -271,6 +271,41 @@ public sealed class CleanupServiceTests
         context.ChangeTracker.Clear();
     }
 
+    [Fact]
+    public async Task CleanupAsync_ShouldPruneOldOccurrenceTransitions_AndKeepRecent()
+    {
+        var utcNow = new DateTime(2026, 11, 15, 12, 0, 0, DateTimeKind.Utc);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var provider = BuildProvider(connection);
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.EnsureCreatedAsync();
+
+        var oldTransition = OccurrenceTransition.Create(
+            "alert:1", null, OccurrenceState.Alert,
+            OccurrenceDecision.TransitionAccepted, "AlertOpened", Guid.NewGuid());
+        var recentTransition = OccurrenceTransition.Create(
+            "alert:1", OccurrenceState.Alert, OccurrenceState.Resolved,
+            OccurrenceDecision.TransitionAccepted, "AlertResolved", Guid.NewGuid());
+        await context.OccurrenceTransitions.AddRangeAsync(oldTransition, recentTransition);
+        await context.SaveChangesAsync();
+
+        context.Entry(oldTransition).Property(nameof(Entity.CreateDateTime))
+            .CurrentValue = utcNow.AddDays(-120);
+        context.Entry(recentTransition).Property(nameof(Entity.CreateDateTime))
+            .CurrentValue = utcNow.AddDays(-1);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        var cleanup = scope.ServiceProvider.GetRequiredService<ICleanupService>();
+        var result = await cleanup.CleanupAsync(utcNow);
+
+        result.OccurrenceTransitionsDeleted.Should().Be(1);
+        result.TotalDeleted.Should().Be(1);
+        (await context.OccurrenceTransitions.CountAsync()).Should().Be(1);
+    }
+
     private static ServiceProvider BuildProvider(SqliteConnection connection)
     {
         var services = new ServiceCollection();
