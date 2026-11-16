@@ -37,6 +37,7 @@ public sealed class NotificationEventCatalogTests
             nameof(TaskItemCreatedDomainEvent),
             nameof(TaskAssigneeCreatedDomainEvent),
             nameof(TaskResolvedDomainEvent),
+            nameof(TaskSlaBreachedDomainEvent),
             nameof(ProjectStatusChangedDomainEvent),
         ];
 

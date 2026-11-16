@@ -67,6 +67,7 @@ public sealed class NotificationEventRuleSeederTests : IDisposable
         rules.Select(r => r.EventType).Should().BeEquivalentTo(new[]
         {
             nameof(TaskResolvedDomainEvent),
+            nameof(TaskSlaBreachedDomainEvent),
             nameof(ProjectStatusChangedDomainEvent),
         });
         rules.Should().OnlyContain(r => r.Enabled);
@@ -83,7 +84,7 @@ public sealed class NotificationEventRuleSeederTests : IDisposable
         await seeder.SeedAsync();
 
         var count = await context.NotificationEventRules.CountAsync();
-        count.Should().Be(2);
+        count.Should().Be(3);
     }
 
     [Fact]
