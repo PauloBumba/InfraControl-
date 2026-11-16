@@ -232,6 +232,9 @@ services:
     restart: unless-stopped
     networks:
       - infracontrol
+      # remote_access: alcança o guacamole-db (network separada) — o
+      # campo Server do Adminer aceita qualquer hostname da malha.
+      - remote_access
 
   # ---------------- profile: app ----------------
   api:

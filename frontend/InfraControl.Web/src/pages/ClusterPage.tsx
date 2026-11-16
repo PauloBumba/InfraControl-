@@ -9,6 +9,8 @@ import { SwitchField } from "@/components/ui/SwitchField";
 import { FormField } from "@/components/ui/FormField";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
+import { useToast } from "@/components/ui/ToastProvider";
+import { MetricChart } from "@/components/ui/MetricChart";
 import {
   checkAllInstances,
   checkServiceInstance,
@@ -202,6 +204,13 @@ function formatMs(ms: number | null | undefined): string {
 }
 
 export function ClusterPage() {
+  const toast = useToast();
+  // Feedback de comando: toast no canto + volta ao topo para o usuário
+  // ver a confirmação mesmo com a tabela de containers rolada para baixo.
+  const commandFeedback = useCallback((message: string) => {
+    toast.success(message);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [toast]);
   const [overview, setOverview] = useState<ClusterOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [probing, setProbing] = useState(false);
@@ -299,6 +308,7 @@ export function ClusterPage() {
     setError(null);
     try {
       setOverview(await checkAllInstances());
+      commandFeedback("Verificação de todas as instâncias concluída.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao verificar instâncias.");
     } finally {
@@ -348,6 +358,7 @@ export function ClusterPage() {
       });
       setDialogOpen(false);
       await load();
+      commandFeedback(editing ? "Instância atualizada." : "Instância criada.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao salvar instância.");
     } finally {
@@ -359,6 +370,7 @@ export function ClusterPage() {
     try {
       await deleteServiceInstance(i.id);
       await load();
+      commandFeedback(`Réplica "${i.name}" removida.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao remover réplica.");
     }
@@ -400,6 +412,8 @@ export function ClusterPage() {
     try {
       await dockerContainerAction(c.name, action);
       await loadDocker();
+      const labels = { start: "iniciado", stop: "parado", restart: "reiniciado" } as const;
+      commandFeedback(`Container "${c.name}" ${labels[action]}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha na ação do container.");
     } finally {
@@ -419,6 +433,7 @@ export function ClusterPage() {
       setScaleDialog((s) => ({ ...s, open: false, saving: false }));
       await loadDocker();
       await load();
+      commandFeedback(`Serviço "${scaleDialog.service}" escalado para ${scaleDialog.replicas} réplica(s).`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao escalar serviço.");
       setScaleDialog((s) => ({ ...s, saving: false }));
@@ -436,6 +451,7 @@ export function ClusterPage() {
       await removeDockerContainer(removeDialog.name, removeDialog.reason, removeDialog.confirm);
       setRemoveDialog((s) => ({ ...s, open: false, removing: false }));
       await loadDocker();
+      commandFeedback(`Container "${removeDialog.name}" removido.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao remover container.");
       setRemoveDialog((s) => ({ ...s, removing: false }));
@@ -465,6 +481,7 @@ export function ClusterPage() {
       );
       setLimitsDialog((s) => ({ ...s, open: false, saving: false }));
       await loadDocker();
+      commandFeedback(`Limites de recursos de "${c.name}" atualizados.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao aplicar limites.");
       setLimitsDialog((s) => ({ ...s, saving: false }));
@@ -846,6 +863,48 @@ export function ClusterPage() {
               <div style={{ fontSize: 12, color: "#64748b" }}>P50 / P95 / P99</div>
             </Box>
           </div>
+          {traffic.timeline.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <i className="pi pi-chart-line" /> Requisições por minuto
+              </div>
+              <MetricChart
+                type="line"
+                height={180}
+                labels={traffic.timeline.map((m) =>
+                  new Date(m.minuteUtc).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "America/Sao_Paulo",
+                  }),
+                )}
+                datasets={[
+                  {
+                    label: "Requisições",
+                    data: traffic.timeline.map((m) => m.requests),
+                    backgroundColor: "rgba(59,130,246,0.15)",
+                    borderColor: "#3b82f6",
+                  },
+                  {
+                    label: "Erros",
+                    data: traffic.timeline.map((m) => m.errors),
+                    backgroundColor: "rgba(220,38,38,0.15)",
+                    borderColor: "#dc2626",
+                  },
+                ]}
+                ariaLabel="Requisições por minuto na janela de tráfego"
+              />
+            </div>
+          )}
           {(traffic.instances?.length ?? 0) > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div

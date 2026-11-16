@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { HealthBar, type HealthItem } from "@/components/dashboard/HealthBar";
 import { DeviceHealthCard } from "@/components/dashboard/DeviceHealthCard";
+import { IntegrationActivitySection } from "@/components/dashboard/IntegrationActivitySection";
 import {
   EventsCenter,
   FleetStatusStrip,
@@ -401,6 +402,10 @@ export function DashboardPage() {
       {/* F54-T003 — gráficos com seletor de período (1h/24h/7d/30d);
           cada gráfico some quando não há dado real */}
       <PerformanceSection />
+
+      {/* Atividade real das integrações: eventos Zabbix por
+          severidade/dia + resultado das syncs UniFi */}
+      <IntegrationActivitySection />
 
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div className="uni-dash-stats">

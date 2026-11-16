@@ -21,6 +21,7 @@ const TopologyPage = lazy(() => import("@/pages/TopologyPage").then(m => ({ defa
 const DevicesPage = lazy(() => import("@/pages/DevicesPage").then(m => ({ default: m.DevicesPage })));
 const ClientsPage = lazy(() => import("@/pages/ClientsPage").then(m => ({ default: m.ClientsPage })));
 const NetworkExplorerPage = lazy(() => import("@/pages/NetworkExplorerPage").then(m => ({ default: m.NetworkExplorerPage })));
+const InfraMapPage = lazy(() => import("@/pages/InfraMapPage").then(m => ({ default: m.InfraMapPage })));
 const InsightsPage = lazy(() => import("@/pages/InsightsPage").then(m => ({ default: m.InsightsPage })));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage").then(m => ({ default: m.AlertsPage })));
 const UniFiLivePage = lazy(() => import("@/pages/UniFiLivePage").then(m => ({ default: m.UniFiLivePage })));
@@ -316,6 +317,11 @@ function AppContent() {
           <Route path="/network/explorer" element={
             <ProtectedRoute>
               <NetworkExplorerPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/network/map" element={
+            <ProtectedRoute>
+              <InfraMapPage />
             </ProtectedRoute>
           } />
           <Route path="/wifi" element={

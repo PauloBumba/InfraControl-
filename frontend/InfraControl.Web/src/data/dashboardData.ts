@@ -29,6 +29,7 @@ export const navigation: NavGroup[] = [
     icon: "pi pi-share-alt",
     items: [
       { label: "Topologia", icon: "pi pi-directions", route: "/topology" },
+      { label: "Mapa ERD", icon: "pi pi-sitemap", route: "/network/map" },
       { label: "WiFi", icon: "pi pi-wifi", route: "/wifi" },
       { label: "Clientes", icon: "pi pi-users", route: "/clients" },
       { label: "Explorer", icon: "pi pi-search", route: "/network/explorer" },
