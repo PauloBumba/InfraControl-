@@ -440,3 +440,59 @@ export async function upsertScheduledReport(
 ): Promise<ScheduledReport | null> {
   return api.put<ScheduledReport>("/reports/schedule", input);
 }
+
+/**
+ * Evolução/desempenho por usuário — tasks, projetos, PDI e conhecimento
+ * consolidados por pessoa. Administer. Backend: GET /reports/user-evolution
+ * e GET /reports/user-evolution/export (PDF/XLSX).
+ */
+export interface UserEvolutionRow {
+  userId: string;
+  name: string;
+  email: string;
+  tasksCreated: number;
+  tasksCompleted: number;
+  tasksOverdue: number;
+  tasksInProgress: number;
+  projectsLed: number;
+  projectsMember: number;
+  projectsCompleted: number;
+  pdiStatus: string | null;
+  pdiProgressPercent: number | null;
+  pdiTargetDate: string | null;
+  knowledgeArticles: number;
+}
+
+export interface UserEvolutionReport {
+  from: string | null;
+  to: string | null;
+  users: UserEvolutionRow[];
+}
+
+export async function getUserEvolutionReport(
+  from?: string | null,
+  to?: string | null,
+): Promise<UserEvolutionReport> {
+  return (await api.get<UserEvolutionReport>(
+    `/reports/user-evolution${reportQuery(from, to)}`,
+  )) as UserEvolutionReport;
+}
+
+/** Export PDF/XLSX — blob → objectURL → clique no link temporário. */
+export async function exportUserEvolutionReport(
+  from?: string | null,
+  to?: string | null,
+  format: "pdf" | "xlsx" = "pdf",
+): Promise<void> {
+  const blob = await api.download(
+    `/reports/user-evolution/export${buildQuery(from, to, format)}`,
+  );
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `relatorio-evolucao-usuarios.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

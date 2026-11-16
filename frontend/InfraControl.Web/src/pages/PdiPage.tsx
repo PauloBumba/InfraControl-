@@ -32,6 +32,7 @@ import {
   PdiAdminDashboardPanel,
   PdiManagerDashboardPanel,
   PdiOwnDashboardPanel,
+  PdiStatusChart,
 } from "@/components/pdi/PdiDashboardPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
@@ -473,6 +474,11 @@ export function PdiPage() {
         <PdiAdminDashboardPanel dashboard={adminDashboard} />
       )}
       {!loading && managerPanel}
+      {!loading && items.length > 0 && (
+        <PdiStatusChart
+          plans={isAdmin ? items : [...managedItems, ...(ownPdi ? [ownPdi] : [])]}
+        />
+      )}
 
       {items.length > 0 && (
         <SearchInput
@@ -495,7 +501,6 @@ export function PdiPage() {
               ? "Nenhum PDI encontrado para a busca."
               : 'Nenhum PDI cadastrado — use "Novo PDI".'
           }
-          size="small"
         >
           <Column header="Usuário" body={userCell} sortable sortField="ownerName" style={{ minWidth: 200 }} />
           <Column
@@ -530,7 +535,6 @@ export function PdiPage() {
               rows={10}
               rowsPerPageOptions={[10, 20, 50]}
               emptyMessage="Nenhum plano da equipe encontrado para a busca."
-              size="small"
             >
               <Column header="Membro" body={userCell} sortable sortField="ownerName" style={{ minWidth: 200 }} />
               <Column

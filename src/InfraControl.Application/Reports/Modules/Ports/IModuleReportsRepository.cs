@@ -20,4 +20,9 @@ public interface IModuleReportsRepository
 
     Task<GerencialReportDto> GetGerencialReportAsync(
         DateOnly? from, DateOnly? to, CancellationToken cancellationToken = default);
+
+    /// <summary>Evolução/desempenho por usuário (admin) — tasks,
+    /// projetos, PDI e conhecimento consolidados por pessoa.</summary>
+    Task<UserEvolutionReportDto> GetUserEvolutionReportAsync(
+        DateOnly? from, DateOnly? to, CancellationToken cancellationToken = default);
 }
