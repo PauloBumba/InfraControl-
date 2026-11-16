@@ -37,10 +37,13 @@ public sealed class SnmpHealthProviderTests
     private const string HpMemoryOid = "1.3.6.1.4.1.11.2.14.11.5.1.1.2.1.1.1.6.1";
     private const string HpTemperatureOid = "1.3.6.1.4.1.11.2.14.11.1.2.8.1.1.9.0";
 
-    // OIDs docs/42 §C (L172-174) — Aruba (ARUBAWIRED-SYSTEMINFO-MIB)
+    // OIDs docs/42 §C (L172-174) — Aruba (ARUBAWIRED-SYSTEMINFO-MIB /
+    // ARUBAWIRED-TEMPSENSOR-MIB). São COLUNAS de tabela: o walk devolve
+    // instâncias "oid.<índices>", não o OID base.
     private const string ArubaCpuInstantOid = "1.3.6.1.4.1.47196.4.1.1.3.22.1.0.1.1.3";
     private const string ArubaCpu1mOid = "1.3.6.1.4.1.47196.4.1.1.3.22.1.0.1.1.10";
     private const string ArubaMemoryOid = "1.3.6.1.4.1.47196.4.1.1.3.22.1.0.1.1.4";
+    private const string ArubaTemperatureOid = "1.3.6.1.4.1.47196.4.1.1.3.11.3.1.1.7";
 
     // OIDs docs/42 §C (L172-174) — TP-Link (TPLINK-SYSMONITOR)
     private const string TpLinkCpu5sOid = "1.3.6.1.4.1.11863.6.4.1.1.1.1.2";
@@ -318,7 +321,36 @@ public sealed class SnmpHealthProviderTests
     }
 
     [Fact]
-    public async Task Aruba_ShouldUseArubaOids_AndReportNoTemperature()
+    public async Task Aruba_ShouldUseArubaOids_AndReportIndexedInstances()
+    {
+        // Colunas de tabela voltam como "oid.<índices>" — ex.: sensor de
+        // temperatura do chassi (grupo 1, slot 1, sensor 1).
+        var client = new FakeSnmpClient(oid => oid switch
+        {
+            ArubaCpuInstantOid =>
+            [
+                new SnmpVariable(ArubaCpuInstantOid + ".1.1.3", "18"),
+                new SnmpVariable(ArubaCpuInstantOid + ".1.1.9", "41")
+            ],
+            ArubaMemoryOid => [new SnmpVariable(ArubaMemoryOid + ".1.1.3", "20")],
+            ArubaTemperatureOid => [new SnmpVariable(ArubaTemperatureOid + ".1.1.1.1.1", "36")],
+            _ => []
+        });
+        var provider = new SnmpHealthMonitoringProvider(client, RepositoryFor(DeviceWith("Aruba")));
+
+        var result = await provider.CheckAsync(Target);
+
+        result.Succeeded.Should().BeTrue();
+        var values = result.Values!;
+        // Entre instâncias vale o MAIOR valor — o módulo/sensor mais
+        // carregado é o que importa para saúde.
+        values["cpuPercent"].Should().Be("41");
+        values["memoryPercent"].Should().Be("20");
+        values["temperatureCelsius"].Should().Be("36");
+    }
+
+    [Fact]
+    public async Task Aruba_WithoutTempSensor_ShouldOmitTemperature_NeverZero()
     {
         var client = new FakeSnmpClient(oid => oid switch
         {
@@ -331,12 +363,7 @@ public sealed class SnmpHealthProviderTests
         var result = await provider.CheckAsync(Target);
 
         result.Succeeded.Should().BeTrue();
-        var values = result.Values!;
-        values["cpuPercent"].Should().Be("23");
-        values["memoryPercent"].Should().Be("20");
-        // docs/42 L174: Aruba não tem OID de temperatura na tabela
-        // ("via MIBs de hardware") — a chave não existe, nunca 0.
-        values.Should().NotContainKey("temperatureCelsius");
+        result.Values!.Should().NotContainKey("temperatureCelsius");
     }
 
     [Fact]

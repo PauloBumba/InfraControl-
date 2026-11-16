@@ -88,7 +88,9 @@ public sealed class SnmpHealthMonitoringProvider(
         MemoryPercentOids: ["1.3.6.1.4.1.47196.4.1.1.3.22.1.0.1.1.4"],
         MemoryTotalOids: [],
         MemoryFreeOids: [],
-        TemperatureOids: []);    // docs/42 L174: "via MIBs de hardware" — sem OID na tabela
+        // ARUBAWIRED-TEMPSENSOR-MIB: arubaWiredTempSensorTemperature — coluna
+        // da tabela de sensores (instâncias indexadas por grupo/slot/sensor).
+        TemperatureOids: ["1.3.6.1.4.1.47196.4.1.1.3.11.3.1.1.7"]);
 
     private static readonly VendorHealthOids TpLinkOids = new(
         CpuOids:
@@ -252,16 +254,44 @@ public sealed class SnmpHealthMonitoringProvider(
                 continue;
             }
 
+            // Match exato = escalar. OIDs que são COLUNA de tabela (Aruba
+            // ARUBAWIRED-SYSTEMINFO-MIB/TEMPSENSOR-MIB, HP iLO) voltam do walk
+            // como instâncias "oid.<índices>" — sem o prefixo o valor nunca
+            // casava e a métrica ficava sempre ausente. Entre as instâncias
+            // vale o MAIOR valor: para saúde, o pior módulo/sensor é o que
+            // importa (CPU do módulo mais ocupado, sensor mais quente).
+            string? bestInstance = null;
+            decimal bestInstanceValue = decimal.MinValue;
+            var hasInstance = false;
+
             foreach (var variable in sample)
             {
-                if (!string.Equals(variable.Oid.TrimStart('.'), oid, StringComparison.Ordinal))
+                var variableOid = variable.Oid.TrimStart('.');
+                if (string.Equals(variableOid, oid, StringComparison.Ordinal))
+                {
+                    if (string.IsNullOrWhiteSpace(variable.Value))
+                        break;
+
+                    return (variable.Value.Trim(), failure);
+                }
+
+                if (!variableOid.StartsWith(oid + ".", StringComparison.Ordinal)
+                    || string.IsNullOrWhiteSpace(variable.Value)
+                    || !TryParseDecimal(variable.Value, out var instanceValue))
+                {
                     continue;
+                }
 
-                if (string.IsNullOrWhiteSpace(variable.Value))
-                    break;
-
-                return (variable.Value.Trim(), failure);
+                if (!hasInstance || instanceValue > bestInstanceValue)
+                {
+                    hasInstance = true;
+                    bestInstanceValue = instanceValue;
+                    bestInstance = variable.Value.Trim();
+                }
             }
+
+            if (hasInstance)
+                return (bestInstance, failure);
         }
 
         return (null, failure);

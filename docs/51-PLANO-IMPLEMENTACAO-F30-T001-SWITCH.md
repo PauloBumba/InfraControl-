@@ -99,8 +99,11 @@ suportados**. O resolve passou a casar por **token inteiro** (`HP`, `HPE`,
 contendo o par.
 
 **Comportamentos honestos travados em teste**:
-- **Aruba não tem OID de temperatura** na tabela (docs/42 L174: "via MIBs de
-  hardware") ⇒ a chave não existe, nunca `0`.
+- **Temperatura Aruba**: resolvida depois via `ARUBAWIRED-TEMPSENSOR-MIB`
+  (`1.3.6.1.4.1.47196.4.1.1.3.11.3.1.1.7`); sensor ausente ⇒ chave ausente.
+- **OIDs de coluna de tabela** (Aruba systeminfo/tempsensor, HP iLO): o walk
+  devolve instâncias `oid.<índices>` — o match passou a aceitar prefixo e
+  vale o **maior** valor entre instâncias (pior módulo/sensor).
 - **Temperatura TP-Link vem como OctetString** sem decodificação documentada ⇒
   omitida, não vira número inventado.
 - **Fallback de candidato** (Aruba instant → 1m) com o walk registrado.
