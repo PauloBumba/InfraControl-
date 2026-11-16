@@ -61,7 +61,7 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
 
         public Task<IncidentChartData?> TryCreateAsync(
             Guid? deviceId, string title, string message, string eventType, DateTime eventAtUtc,
-            CancellationToken cancellationToken = default)
+            Guid? aggregateId = null, CancellationToken cancellationToken = default)
         {
             LastDeviceId = deviceId;
             LastMessage = message;
@@ -231,7 +231,7 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
     }
 
     [Fact]
-    public async Task ProcessPending_WhenChartFactoryThrows_ShouldSendWithoutChart()
+    public async Task ProcessPending_WhenChartFactoryThrows_ShouldSendFallbackCard()
     {
         var factory = new FakeChartFactory { Throw = true };
         var (context, worker, dispatcher, _) = await CreateAsync(chartFactory: factory);
@@ -239,19 +239,23 @@ public sealed class NotificationWhatsAppWorkerTests : IDisposable
         var processed = await worker.ProcessPendingAsync(CancellationToken.None);
 
         processed.Should().Be(1,
-            "falha do gráfico nunca bloqueia o envio — degrada para texto");
+            "falha do gráfico nunca bloqueia o envio — cai no cartão de fallback");
         dispatcher.Sent.Should().ContainSingle();
-        dispatcher.Sent[0].Chart.Should().BeNull();
+        dispatcher.Sent[0].Chart.Should().NotBeNull(
+            "toda mensagem WhatsApp sai como card, mesmo sem série");
+        dispatcher.Sent[0].Chart!.Series.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task ProcessPending_WithoutChartFactory_ShouldSendWithoutChart()
+    public async Task ProcessPending_WithoutChartFactory_ShouldSendFallbackCard()
     {
         var (context, worker, dispatcher, _) = await CreateAsync();
 
         var processed = await worker.ProcessPendingAsync(CancellationToken.None);
 
         processed.Should().Be(1);
-        dispatcher.Sent[0].Chart.Should().BeNull();
+        dispatcher.Sent[0].Chart.Should().NotBeNull(
+            "sem fábrica, o fallback ainda garante o formato card");
+        dispatcher.Sent[0].Chart!.Series.Should().BeEmpty();
     }
 }

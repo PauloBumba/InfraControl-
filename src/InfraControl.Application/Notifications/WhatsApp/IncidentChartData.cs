@@ -28,7 +28,9 @@ public sealed record IncidentChartData(
     IReadOnlyList<ChartSeriesPoint> Series,
     double? LimitValue = null,
     string Unit = "",
-    string? LocationLabel = null)
+    string? LocationLabel = null,
+    string? HostLabel = null,
+    string? MetricLabel = null)
 {
     public double? CurrentValue => Series.Count > 0 ? Series[^1].Value : null;
     public double? MinValue => Series.Count > 0 ? Series.Min(point => point.Value) : null;
@@ -55,5 +57,6 @@ public interface IWhatsAppChartFactory
         string message,
         string eventType,
         DateTime eventAtUtc,
+        Guid? aggregateId = null,
         CancellationToken cancellationToken = default);
 }

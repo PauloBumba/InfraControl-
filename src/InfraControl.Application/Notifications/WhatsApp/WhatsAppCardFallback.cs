@@ -26,7 +26,8 @@ public static class WhatsAppCardFallback
         string message,
         string eventType,
         DateTime eventAtUtc,
-        string? deviceLabel = null)
+        string? deviceLabel = null,
+        string? hostLabel = null)
     {
         var subject = ExtractSubject(title, message);
         var severity = SeverityFromText($"{subject} {title} {message}");
@@ -36,7 +37,8 @@ public static class WhatsAppCardFallback
             deviceLabel,
             severity,
             eventAtUtc,
-            Series: []);
+            Series: [],
+            HostLabel: hostLabel);
     }
 
     /// <summary>

@@ -66,7 +66,7 @@ public sealed class NotificationWhatsAppWorker(
         {
             return await factory.TryCreateAsync(
                 item.DeviceId, item.Title, item.Message, item.EventType, item.CreatedAt,
-                cancellationToken);
+                item.AggregateId, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -94,14 +94,16 @@ public sealed class NotificationWhatsAppWorker(
         CancellationToken cancellationToken)
     {
         string? deviceLabel = null;
+        string? hostLabel = null;
         if (item.DeviceId is { } deviceId && deviceId != Guid.Empty)
         {
             try
             {
-                deviceLabel = (await services
-                        .GetRequiredService<IDeviceRepository>()
-                        .GetByIdAsync(deviceId, cancellationToken))
-                    ?.Name;
+                var device = await services
+                    .GetRequiredService<IDeviceRepository>()
+                    .GetByIdAsync(deviceId, cancellationToken);
+                deviceLabel = device?.Name;
+                hostLabel = device?.Ip;
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -112,6 +114,7 @@ public sealed class NotificationWhatsAppWorker(
         }
 
         return WhatsAppCardFallback.Build(
-            item.Title, item.Message, item.EventType, item.CreatedAt, deviceLabel);
+            item.Title, item.Message, item.EventType, item.CreatedAt,
+            deviceLabel, hostLabel);
     }
 }

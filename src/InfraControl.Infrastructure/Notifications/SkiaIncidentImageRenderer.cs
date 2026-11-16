@@ -77,10 +77,15 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
         var deviceLabel = data.DeviceLabel ?? "Dispositivo";
         canvas.DrawText(deviceLabel, Padding, 155, deviceFont, foregroundPaint);
 
+        var locationParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(data.LocationLabel))
+            locationParts.Add(data.LocationLabel);
+        if (!string.IsNullOrWhiteSpace(data.HostLabel))
+            locationParts.Add(data.HostLabel);
+        if (locationParts.Count > 0)
         {
             using var locationFont = new SKFont(SKTypeface.Default, 16);
-            var locationText = $"· {data.LocationLabel}";
+            var locationText = $"· {string.Join(" · ", locationParts)}";
             var locationX = Padding + deviceFont.MeasureText(deviceLabel, foregroundPaint) + 12;
             canvas.DrawText(locationText, locationX, 153, locationFont, mutedPaint);
         }
@@ -121,6 +126,14 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
     private static void DrawSeries(SKCanvas canvas, IncidentChartData data, SKColor accent)
     {
         var area = new SKRect(112, 380, Width - Padding, 658);
+        if (!string.IsNullOrWhiteSpace(data.MetricLabel))
+        {
+            using var metricFont = new SKFont(SKTypeface.Default, 13);
+            using var metricPaint = new SKPaint { Color = Muted, IsAntialias = true };
+            var metricText = $"MÉTRICA · {data.MetricLabel}";
+            canvas.DrawText(metricText, area.Left, area.Top - 12,
+                metricFont, metricPaint);
+        }
         using var gridPaint = new SKPaint
         {
             Color = Grid, IsAntialias = true, StrokeWidth = 1

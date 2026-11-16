@@ -225,6 +225,15 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
         lines.Add($"*{subject}*");
         lines.Add("────────────────");
 
+        // Pedido do usuário: toda mensagem leva device + IP/host + evento.
+        if (message.Chart is { } card)
+        {
+            var deviceParts = new[] { card.DeviceLabel, card.HostLabel }
+                .Where(part => !string.IsNullOrWhiteSpace(part));
+            if (deviceParts.Any())
+                lines.Add($"🖥️ {string.Join(" · ", deviceParts)}");
+        }
+
         if (kind is EventKind.AlertCritical or EventKind.Alert or EventKind.Incident
             && !string.IsNullOrWhiteSpace(severity))
             lines.Add($"Severidade: *{severity}*");

@@ -817,5 +817,19 @@
         "overrides": []
       }
     }
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "hide": 0,
+        "label": "Data source",
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  }
 }

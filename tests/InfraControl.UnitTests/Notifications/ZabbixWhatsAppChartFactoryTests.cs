@@ -1,15 +1,18 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Integrations.Zabbix.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Monitoring.Events.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.BuildingBlocks.Domain;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace InfraControl.UnitTests.Notifications;
 
@@ -71,7 +74,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
     }
 
     [Fact]
-    public async Task TryCreateAsync_WhenNoEnabledItem_ShouldReturnNull()
+    public async Task TryCreateAsync_WhenNoEnabledItem_ShouldReturnPartialCard()
     {
         var device = CreateDevice(name: "sw-01");
         var factory = CreateFactory(out _, out var zabbix, device);
@@ -85,11 +88,14 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         var chart = await factory.TryCreateAsync(
             device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
 
-        chart.Should().BeNull();
+        chart.Should().NotBeNull("host encontrado vira cartão sem série");
+        chart!.Series.Should().BeEmpty();
+        chart.DeviceLabel.Should().Be("sw-01");
+        chart.HostLabel.Should().Be("10.0.0.1");
     }
 
     [Fact]
-    public async Task TryCreateAsync_WhenHistoryEmpty_ShouldReturnNull()
+    public async Task TryCreateAsync_WhenHistoryEmpty_ShouldReturnPartialCard()
     {
         var device = CreateDevice(name: "sw-01");
         var factory = CreateFactory(out _, out var zabbix, device);
@@ -101,9 +107,12 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         ];
 
         var chart = await factory.TryCreateAsync(
-            device.Id, "Título", "", "IncidentCreatedDomainEvent", EventAt);
+            device.Id, "CPU utilization high", "", "IncidentCreatedDomainEvent", EventAt);
 
-        chart.Should().BeNull("série vazia = cartão sem valor → degrada para texto");
+        chart.Should().NotBeNull("item casou mas sem histórico = cartão sem série");
+        chart!.Series.Should().BeEmpty();
+        chart.MetricLabel.Should().Contain("system.cpu.util",
+            "a métrica identificada continua visível no cartão");
     }
 
     [Fact]
@@ -188,7 +197,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
     }
 
     [Fact]
-    public async Task TryCreateAsync_WhenNoItemMatchesAlert_ShouldReturnNull()
+    public async Task TryCreateAsync_WhenNoItemMatchesAlert_ShouldReturnPartialCard()
     {
         var device = CreateDevice(name: "sw-01");
         var factory = CreateFactory(out _, out var zabbix, device);
@@ -202,11 +211,13 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         var chart = await factory.TryCreateAsync(
             device.Id, "Alerta de disco cheio", "", "IncidentCreatedDomainEvent", EventAt);
 
-        chart.Should().BeNull("um gráfico de CPU seria enganoso para alerta de disco");
+        chart.Should().NotBeNull("sem item seguro = cartão sem série, nunca gráfico enganoso");
+        chart!.Series.Should().BeEmpty();
+        chart.MetricLabel.Should().BeNull();
     }
 
     [Fact]
-    public async Task TryCreateAsync_WhenItemMatchIsAmbiguous_ShouldReturnNull()
+    public async Task TryCreateAsync_WhenItemMatchIsAmbiguous_ShouldReturnPartialCard()
     {
         var device = CreateDevice(name: "sw-01");
         var factory = CreateFactory(out _, out var zabbix, device);
@@ -222,7 +233,8 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         var chart = await factory.TryCreateAsync(
             device.Id, "CPU utilization high", "", "IncidentCreatedDomainEvent", EventAt);
 
-        chart.Should().BeNull("não há informação suficiente para escolher entre séries equivalentes");
+        chart.Should().NotBeNull("ambiguidade não inventa série — cartão sai sem gráfico");
+        chart!.Series.Should().BeEmpty();
     }
 
     [Fact]
@@ -285,7 +297,7 @@ public sealed class ZabbixWhatsAppChartFactoryTests
     }
 
     [Fact]
-    public async Task TryCreateAsync_AvailabilityAlert_WithoutIcmpItems_ShouldReturnNull()
+    public async Task TryCreateAsync_AvailabilityAlert_WithoutIcmpItems_ShouldReturnPartialCard()
     {
         var device = CreateDevice(name: "TEL 1565 - TI (1º andar)");
         var factory = CreateFactory(out _, out var zabbix, device);
@@ -303,7 +315,9 @@ public sealed class ZabbixWhatsAppChartFactoryTests
             "IncidentCreatedDomainEvent",
             EventAt);
 
-        chart.Should().BeNull("sem item de disponibilidade, gráfico de CPU seria enganoso");
+        chart.Should().NotBeNull("sem item de disponibilidade = cartão sem série, nunca CPU enganosa");
+        chart!.Series.Should().BeEmpty();
+        chart.MetricLabel.Should().BeNull();
     }
 
     [Fact]
@@ -386,6 +400,221 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         chart.Unit.Should().Be("%");
     }
 
+    [Fact]
+    public async Task TryCreateAsync_TemperatureAlert_ShouldPreferTemperatureItem()
+    {
+        var device = CreateDevice(name: "sw-01", ip: "10.0.0.9");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+            new ZabbixItemDto("101", "10", "Temperature", "sensor.temp",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "°C"),
+        ];
+        zabbix.History["101"] =
+        [
+            new ZabbixHistoryValueDto("101", EventAt, "62.5"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'Temperatura acima de 60°C' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.Unit.Should().Be("°C", "alerta de temperatura mostra a série de temperatura");
+        chart.Series.Should().ContainSingle(point => point.Value == 62.5);
+        chart.MetricLabel.Should().Contain("sensor.temp");
+        chart.HostLabel.Should().Be("10.0.0.9", "device com IP usa o IP como host label");
+        chart.DeviceLabel.Should().Be("sw-01");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_SnmpAlert_ShouldPreferSnmpItem()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+            new ZabbixItemDto("102", "10", "Interface ether1 status",
+                "snmp.get[ifOperStatus.1]",
+                Type: 0, Enabled: true, Unsupported: false),
+        ];
+        zabbix.History["102"] =
+        [
+            new ZabbixHistoryValueDto("102", EventAt, "2"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'SNMP ether1 status down' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.MetricLabel.Should().Contain("snmp.get",
+            "alerta SNMP mostra a informação/OID do item correspondente");
+        chart.Series.Should().ContainSingle(point => point.Value == 2);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_AvailabilityAlert_ShouldPreferPingLossOverCpu()
+    {
+        var device = CreateDevice(name: "TEL 1565 - TI (1º andar)");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "TEL 1565 - TI (1º andar)"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+            new ZabbixItemDto("101", "10", "ICMP ping", "icmpping",
+                Type: 0, Enabled: true, Unsupported: false),
+            new ZabbixItemDto("102", "10", "ICMP ping loss", "icmppingloss",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["102"] =
+        [
+            new ZabbixHistoryValueDto("102", EventAt, "100"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt, "5"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'TEL 1565 - TI (1º andar) fora do ar' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.Unit.Should().Be("%");
+        chart.Series.Should().ContainSingle(point => point.Value == 100,
+            "alerta de disponibilidade usa o item de perda de pacotes");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_DeviceWithoutIp_ShouldUseZabbixInterfaceIp()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01", ip: "192.168.1.50"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt, "42"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "", "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.HostLabel.Should().Be("192.168.1.50",
+            "sem IP no inventário, usa o IP da interface Zabbix");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_AggregateResolvesExactZabbixHost()
+    {
+        // Caso real: alerta "Linux: Load average is too high" sem device —
+        // o prefixo "Linux:" é nome de TEMPLATE, não host. O aggregate
+        // (Alert → MonitoringEvent.SourceContextJson.HostIds) aponta o
+        // host Zabbix verdadeiro (10084 = "Zabbix server").
+        var monitoringEvent = MonitoringEvent.CreateProblem(
+            MonitoringSource.Zabbix, "361", deviceId: null, checkType: null,
+            severity: 4, EventAt, "Linux: Load average is too high",
+            rawPayload: null,
+            sourceContextJson: """{"TriggerId":"22395","HostIds":["10084"],"HostGroupIds":["4"],"Tags":[]}""");
+        var alert = Alert.CreateExternal(
+            monitoringEvent.Id, "361", deviceId: null, kind: null,
+            AlertSeverity.Critical, "Linux: Load average is too high",
+            MonitoringSource.Zabbix);
+
+        var factory = CreateFactory(out _, out var zabbix, device: null,
+            alert: alert, monitoringEvent: monitoringEvent);
+        zabbix.Hosts.Add(Host(hostId: "10084", name: "Zabbix server", ip: "192.168.1.10"));
+        zabbix.Items["10084"] =
+        [
+            new ZabbixItemDto("300", "10084", "Load average (1m)", "system.cpu.load",
+                Type: 0, Enabled: true, Unsupported: false),
+        ];
+        zabbix.History["300"] =
+        [
+            new ZabbixHistoryValueDto("300", EventAt, "8.5"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            deviceId: null,
+            "Alerta Alto criado",
+            "O alerta 'Linux: Load average is too high' foi aberto (ALTO).",
+            "AlertCreatedDomainEvent",
+            EventAt,
+            aggregateId: alert.Id);
+
+        chart.Should().NotBeNull();
+        chart!.DeviceLabel.Should().Be("Zabbix server",
+            "o cartão mostra o host Zabbix real do evento, não o prefixo do template");
+        chart.HostLabel.Should().Be("192.168.1.10");
+        chart.Series.Should().ContainSingle(point => point.Value == 8.5);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WindowTie_ShouldPickDeterministicPrimary()
+    {
+        // "Load average 1m/5m/15m" — mesmo item, janelas diferentes:
+        // não é ambiguidade de métrica; escolhe a key ordinal menor (avg1).
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("301", "10", "Load average (1m avg)",
+                "system.cpu.load[all,avg1]", Type: 0, Enabled: true, Unsupported: false),
+            new ZabbixItemDto("302", "10", "Load average (5m avg)",
+                "system.cpu.load[all,avg5]", Type: 0, Enabled: true, Unsupported: false),
+            new ZabbixItemDto("303", "10", "Load average (15m avg)",
+                "system.cpu.load[all,avg15]", Type: 0, Enabled: true, Unsupported: false),
+        ];
+        zabbix.History["301"] =
+        [
+            new ZabbixHistoryValueDto("301", EventAt, "4.2"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id,
+            "Alerta Critical criado",
+            "O alerta 'Load average is too high' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.MetricLabel.Should().Contain("avg1",
+            "entre janelas do mesmo item, a primária (avg1) vence de forma determinística");
+        chart.Series.Should().ContainSingle(point => point.Value == 4.2);
+    }
+
+    [Fact]
+    public async Task ParseHostIds_ShouldExtractIdsFromSourceContext()
+    {
+        ZabbixWhatsAppChartFactory.ParseHostIds(
+            """{"TriggerId":"1","HostIds":["10084","10846"],"Tags":[]}""")
+            .Should().Equal("10084", "10846");
+
+        ZabbixWhatsAppChartFactory.ParseHostIds(null).Should().BeEmpty();
+        ZabbixWhatsAppChartFactory.ParseHostIds("não é json").Should().BeEmpty();
+        ZabbixWhatsAppChartFactory.ParseHostIds("""{"HostIds":"10084"}""")
+            .Should().BeEmpty("HostIds precisa ser array");
+    }
+
     private static Device CreateDevice(string name = "sw-01", string? ip = null)
         => Device.Create(Guid.NewGuid(), name, DeviceType.Switch, ip: ip);
 
@@ -402,12 +631,27 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         out FakeDeviceRepository devices,
         out FakeZabbixClient zabbix,
         Device? device,
-        FakeLocationRepository? locations = null)
+        FakeLocationRepository? locations = null,
+        Alert? alert = null,
+        MonitoringEvent? monitoringEvent = null)
     {
         devices = new FakeDeviceRepository(device);
         zabbix = new FakeZabbixClient();
+
+        var alertRepository = new Mock<IAlertRepository>();
+        alertRepository
+            .Setup(repository => repository.GetByIdAsync(
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(alert);
+        var monitoringEventRepository = new Mock<IMonitoringEventRepository>();
+        monitoringEventRepository
+            .Setup(repository => repository.GetByIdAsync(
+                It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(monitoringEvent);
+
         return new ZabbixWhatsAppChartFactory(
             devices, locations ?? new FakeLocationRepository(), zabbix,
+            alertRepository.Object, monitoringEventRepository.Object,
             NullLogger<ZabbixWhatsAppChartFactory>.Instance);
     }
 
