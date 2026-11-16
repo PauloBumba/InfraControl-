@@ -1,18 +1,20 @@
 namespace InfraControl.Api.ViewModels.Sla;
 
-/// <summary>Criação de SLO (F8-T005).</summary>
+/// <summary>Criação de SLO (F8-T005 + ADR-068: monitoringCheckIds opcionais).</summary>
 public sealed record CreateSloViewModel(
     string Name,
     decimal TargetPercent,
     int WindowDays,
-    Guid ServiceId);
+    Guid ServiceId,
+    IReadOnlyCollection<Guid>? MonitoringCheckIds = null);
 
-/// <summary>Atualização de SLO (F8-T005).</summary>
+/// <summary>Atualização de SLO (F8-T005 + ADR-068: monitoringCheckIds = replace; null mantém).</summary>
 public sealed record UpdateSloViewModel(
     string Name,
     decimal TargetPercent,
     int WindowDays,
-    Guid ServiceId);
+    Guid ServiceId,
+    IReadOnlyCollection<Guid>? MonitoringCheckIds = null);
 
 /// <summary>Registro de medição de SLO (F8-T006).</summary>
 public sealed record RecordSloMeasurementViewModel(

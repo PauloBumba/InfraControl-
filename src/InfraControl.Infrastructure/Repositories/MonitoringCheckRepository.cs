@@ -30,6 +30,18 @@ public sealed class MonitoringCheckRepository(AppDbContext dbContext)
                 check => check.DeviceId == deviceId && check.Kind == kind,
                 cancellationToken);
 
+    public async Task<IReadOnlyList<MonitoringCheck>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        return await dbContext.MonitoringChecks
+            .AsNoTracking()
+            .Where(check => ids.Contains(check.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<MonitoringCheck>> GetByDeviceAsync(
         Guid deviceId, CancellationToken cancellationToken = default)
     {
@@ -42,6 +54,14 @@ public sealed class MonitoringCheckRepository(AppDbContext dbContext)
         // string — lista pequena (máx. 20), sort em memória.
         return rows.OrderBy(check => check.Kind).ToList();
     }
+
+    public async Task<IReadOnlyList<MonitoringCheck>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+        => await dbContext.MonitoringChecks
+            .AsNoTracking()
+            .OrderBy(check => check.DeviceId)
+            .ThenBy(check => check.Kind)
+            .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<MonitoringCheck>> GetEnabledAsync(
         CancellationToken cancellationToken = default)

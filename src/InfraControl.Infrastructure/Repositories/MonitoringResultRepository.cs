@@ -85,4 +85,26 @@ public sealed class MonitoringResultRepository(AppDbContext dbContext)
                 row.MinuteBucket, row.Total, row.Succeeded))
             .ToList();
     }
+
+    public async Task<IReadOnlyList<DeviceKindPollCount>> GetSuccessCountsByDeviceKindAsync(
+        DateTime sinceUtc, CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.MonitoringResults
+            .AsNoTracking()
+            .Where(result => result.CreateDateTime >= sinceUtc)
+            .GroupBy(result => new { result.DeviceId, result.Kind })
+            .Select(group => new
+            {
+                group.Key.DeviceId,
+                group.Key.Kind,
+                Total = group.Count(),
+                Succeeded = group.Sum(result => result.Succeeded ? 1 : 0),
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new DeviceKindPollCount(
+                row.DeviceId, row.Kind, row.Total, row.Succeeded))
+            .ToList();
+    }
 }

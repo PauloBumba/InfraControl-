@@ -4233,6 +4233,29 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("slo_budgets", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.SloCheckBinding", b =>
+                {
+                    b.Property<Guid>("SloId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("slo_id");
+
+                    b.Property<Guid>("MonitoringCheckId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("monitoring_check_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SloId", "MonitoringCheckId");
+
+                    b.HasIndex("MonitoringCheckId");
+
+                    b.ToTable("slo_check_bindings", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.SloMeasurement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6338,6 +6361,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("InfraControl.Domain.Entities.SloBudget", b =>
                 {
+                    b.HasOne("InfraControl.Domain.Entities.Slo", null)
+                        .WithMany()
+                        .HasForeignKey("SloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SloCheckBinding", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.MonitoringCheck", null)
+                        .WithMany()
+                        .HasForeignKey("MonitoringCheckId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("InfraControl.Domain.Entities.Slo", null)
                         .WithMany()
                         .HasForeignKey("SloId")

@@ -12,6 +12,7 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { MeterGroup } from "primereact/metergroup";
 import { Can } from "@/components/auth/Can";
 import { formatDateTime } from "@/utils/format";
+import { listMonitoringChecks, type MonitoringCheckOption } from "@/services/api/monitoring";
 import {
   createService,
   createSlaPolicy,
@@ -106,6 +107,7 @@ const emptyValues = {
   windowDays: "30",
   serviceId: "",
   isDefault: false,
+  checkIds: [] as string[],
 };
 
 export function SlaPage() {
@@ -125,6 +127,10 @@ export function SlaPage() {
   );
   const budgets = useListQuery<SloBudgetItem>(["slaBudgets"], () =>
     listServiceBudgets({ pageSize: PAGE_SIZE }).then((page) => page.items),
+  );
+  // ADR-068: checks disponíveis para o multi-selecionador do SLO.
+  const monitoringChecks = useListQuery<MonitoringCheckOption>(["monitoringChecks"], () =>
+    listMonitoringChecks().then((items) => items ?? []),
   );
 
   const [notice, setNotice] = useState<string | null>(null);
@@ -186,13 +192,13 @@ export function SlaPage() {
 
   const sloCreate = useCreateMutation({
     invalidate: ["slaSlos"],
-    mutationFn: (input: { name: string; targetPercent: number; windowDays: number; serviceId: string }) =>
+    mutationFn: (input: { name: string; targetPercent: number; windowDays: number; serviceId: string; monitoringCheckIds: string[] }) =>
       createSlo(input),
     onSuccess: () => setNotice("SLO criado."),
   });
   const sloUpdate = useUpdateMutation({
     invalidate: ["slaSlos"],
-    mutationFn: (input: { id: string; name: string; targetPercent: number; windowDays: number; serviceId: string }) => {
+    mutationFn: (input: { id: string; name: string; targetPercent: number; windowDays: number; serviceId: string; monitoringCheckIds: string[] }) => {
       const { id, ...rest } = input;
       return updateSlo(id, rest);
     },
@@ -245,6 +251,7 @@ export function SlaPage() {
         targetPercent: String(slo.targetPercent),
         windowDays: String(slo.windowDays),
         serviceId: slo.serviceId,
+        checkIds: slo.monitoringCheckIds ?? [],
       });
     }
     resetFormError();
@@ -300,7 +307,13 @@ export function SlaPage() {
           failForm("A janela deve ser um número positivo (dias).", "windowDays");
           return;
         }
-        const input = { name, targetPercent: target, windowDays: window, serviceId: values.serviceId };
+        const input = {
+          name,
+          targetPercent: target,
+          windowDays: window,
+          serviceId: values.serviceId,
+          monitoringCheckIds: values.checkIds,
+        };
         if (form.mode === "create") await sloCreate.mutateAsync(input);
         else if (form.target) await sloUpdate.mutateAsync({ id: form.target.id, ...input });
       }
@@ -561,6 +574,14 @@ export function SlaPage() {
               <Column header="Última medição" body={(slo: SloItem) => <MeasurementCell slo={slo} />} style={{ width: 170 }} />
               <Column header="Error budget" body={(slo: SloItem) => <BudgetCell slo={slo} />} style={{ width: 110 }} />
               <Column
+                header="Checks"
+                body={(slo: SloItem) =>
+                  slo.monitoringCheckIds?.length
+                    ? <span title="Medição automática horária (ADR-068)">{slo.monitoringCheckIds.length} auto</span>
+                    : <span style={{ color: "#94a3b8" }}>manual</span>}
+                style={{ width: 80 }}
+              />
+              <Column
                 header=""
                 style={{ width: 150 }}
                 body={(slo: SloItem) => (
@@ -583,9 +604,14 @@ export function SlaPage() {
               <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>
                 {serviceName(slo.serviceId)} · janela de {slo.windowDays} dias
               </div>
-              <div style={{ fontSize: 12, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, marginBottom: 4 }}>
                 <MeasurementCell slo={slo} />
                 <BudgetCell slo={slo} />
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 8 }}>
+                {slo.monitoringCheckIds?.length
+                  ? `${slo.monitoringCheckIds.length} check(s) — medição automática`
+                  : "Sem checks — só medição manual"}
               </div>
               <Can level="operate">
                 <div className="flex gap-1">
@@ -748,6 +774,70 @@ export function SlaPage() {
                     options={services.items.map((service) => ({ value: service.id, label: service.name }))}
                     style={{ width: "100%" }}
                   />
+                </FormField>
+                <FormField label="Checks medidos (disponibilidade automática)" error={null}>
+                  <div
+                    style={{
+                      maxHeight: 180, overflowY: "auto",
+                      border: "1px solid #e2e8f0", borderRadius: 6, padding: 8,
+                      display: "flex", flexDirection: "column", gap: 6,
+                    }}
+                  >
+                    {(() => {
+                      const byDevice = new Map<string, MonitoringCheckOption[]>();
+                      for (const check of monitoringChecks.items) {
+                        const list = byDevice.get(check.deviceName) ?? [];
+                        list.push(check);
+                        byDevice.set(check.deviceName, list);
+                      }
+                      if (byDevice.size === 0) {
+                        return (
+                          <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                            Nenhum check de monitoramento cadastrado.
+                          </span>
+                        );
+                      }
+                      return [...byDevice.entries()].map(([deviceName, checks]) => (
+                        <div key={deviceName}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 2 }}>
+                            {deviceName}
+                          </div>
+                          {checks.map((check) => (
+                            <label
+                              key={check.id}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                fontSize: 12, color: "#334155", cursor: "pointer",
+                                padding: "2px 0",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={values.checkIds.includes(check.id)}
+                                onChange={(event) =>
+                                  setValues((current) => ({
+                                    ...current,
+                                    checkIds: event.target.checked
+                                      ? [...current.checkIds, check.id]
+                                      : current.checkIds.filter((id) => id !== check.id),
+                                  }))}
+                              />
+                              {check.kind}
+                              {check.deviceIp && (
+                                <span style={{ color: "#94a3b8" }}>{check.deviceIp}</span>
+                              )}
+                              {!check.enabled && (
+                                <span style={{ fontSize: 10, color: "#d97706" }}>desabilitado</span>
+                              )}
+                            </label>
+                          ))}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                    O job horário mede a % de checks com sucesso na janela. Sem seleção = só medições manuais.
+                  </span>
                 </FormField>
               </>
             )}

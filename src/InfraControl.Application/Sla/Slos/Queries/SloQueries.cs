@@ -1,4 +1,5 @@
 using InfraControl.Application.Common.Interfaces;
+using InfraControl.Application.Sla.Slos.Bindings.Ports;
 using InfraControl.Application.Sla.Slos.Budgets.Ports;
 using InfraControl.Application.Sla.Slos.Measurements.Ports;
 using InfraControl.Application.Sla.Slos.Ports;
@@ -24,7 +25,8 @@ public sealed record SearchSlosQuery(
 public sealed class SearchSlosQueryHandler(
     ISloRepository repository,
     ISloMeasurementRepository measurements,
-    ISloBudgetRepository budgets)
+    ISloBudgetRepository budgets,
+    ISloCheckBindingRepository checkBindings)
     : IRequestHandler<SearchSlosQuery, PagedResult<SloDto>>
 {
     public async Task<PagedResult<SloDto>> Handle(
@@ -38,7 +40,7 @@ public sealed class SearchSlosQueryHandler(
             term, request.ServiceId, page, pageSize, cancellationToken);
 
         var enriched = await EnrichAsync(
-            result.Items, measurements, budgets, cancellationToken);
+            result.Items, measurements, budgets, checkBindings, cancellationToken);
 
         return new PagedResult<SloDto>(
             enriched,
@@ -52,6 +54,7 @@ public sealed class SearchSlosQueryHandler(
         IReadOnlyCollection<Slo> slos,
         ISloMeasurementRepository measurements,
         ISloBudgetRepository budgets,
+        ISloCheckBindingRepository checkBindings,
         CancellationToken cancellationToken)
     {
         if (slos.Count == 0)
@@ -67,6 +70,8 @@ public sealed class SearchSlosQueryHandler(
             ids, sinceUtc, cancellationToken);
         var latestBudgets = await budgets.GetLatestBySloIdsAsync(
             ids, cancellationToken);
+        var boundChecks = await checkBindings.GetCheckIdsBySloIdsAsync(
+            ids, cancellationToken);
 
         return slos.Select(slo =>
         {
@@ -79,7 +84,8 @@ public sealed class SearchSlosQueryHandler(
                 measurement?.ValuePercent,
                 measurement?.MeasuredAtUtc,
                 budget?.ConsumedPercent,
-                budget?.PeriodEndUtc);
+                budget?.PeriodEndUtc,
+                boundChecks.TryGetValue(slo.Id, out var checks) ? checks : []);
         }).ToArray();
     }
 }
@@ -93,7 +99,8 @@ public sealed record GetSloQuery(Guid Id) : IQuery<SloDto>, IAuthorizedRequest
 public sealed class GetSloQueryHandler(
     ISloRepository repository,
     ISloMeasurementRepository measurements,
-    ISloBudgetRepository budgets)
+    ISloBudgetRepository budgets,
+    ISloCheckBindingRepository checkBindings)
     : IRequestHandler<GetSloQuery, SloDto>
 {
     public async Task<SloDto> Handle(GetSloQuery request, CancellationToken cancellationToken)
@@ -102,7 +109,7 @@ public sealed class GetSloQueryHandler(
             ?? throw new KeyNotFoundException($"SLO '{request.Id}' não encontrado.");
 
         var enriched = await SearchSlosQueryHandler.EnrichAsync(
-            [slo], measurements, budgets, cancellationToken);
+            [slo], measurements, budgets, checkBindings, cancellationToken);
         return enriched[0];
     }
 }

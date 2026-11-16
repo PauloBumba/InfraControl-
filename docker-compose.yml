@@ -478,6 +478,8 @@ services:
       Backup__AdditionalTargets__0__ConnectionString: "Host=guacamole-db;Port=5432;Database=guacamole;Username=guacamole;Password=${GUACAMOLE_DB_PASSWORD:-guacamole_dev_password_2026}"
       Backup__AdditionalTargets__0__FileNamePrefix: guacamole
       UnifiSync__IntervalMinutes: ${UNIFI_SYNC_INTERVAL_MINUTES:-30}
+      # ADR-068: medição horária de SLO por checks (clamp 15–1440 no worker).
+      SloMeasurement__IntervalMinutes: ${SLO_MEASUREMENT_INTERVAL_MINUTES:-60}
     volumes:
       - postgres_backups:/app/backups
     # Worker não escuta porta; o sinal de saúde é a presença do processo.

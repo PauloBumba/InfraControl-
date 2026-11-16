@@ -36,7 +36,22 @@ public interface IMonitoringResultRepository : IRepository<MonitoringResult>
     /// </summary>
     Task<IReadOnlyList<MonitoringAvailabilityCell>> GetAvailabilityCellsAsync(
         DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// ADR-068: polls agregados por (DeviceId, Kind) desde <paramref name="sinceUtc"/>
+    /// — base do cálculo de disponibilidade dos SLOs vinculados a checks
+    /// (o pareamento check↔par é resolvido em memória pelo worker).
+    /// </summary>
+    Task<IReadOnlyList<DeviceKindPollCount>> GetSuccessCountsByDeviceKindAsync(
+        DateTime sinceUtc, CancellationToken cancellationToken = default);
 }
+
+/// <summary>Agregado de polls de um par (DeviceId, Kind) na janela.</summary>
+public sealed record DeviceKindPollCount(
+    Guid DeviceId,
+    Domain.Enums.CheckKind Kind,
+    int Total,
+    int Succeeded);
 
 /// <summary>Célula agregada de 5 min: polls totais e com sucesso.</summary>
 public sealed record MonitoringAvailabilityCell(

@@ -64,6 +64,15 @@ public sealed class MonitoringController(ISender sender) : BaseController
 
     // ── CRUD de MonitoringCheck (ADR-030 §1) ──────────────────────────────
 
+    /// <summary>Todos os checks com nome do device — picker do SLO (ADR-068).</summary>
+    [HttpGet("checks")]
+    [Authorize]
+    public async Task<IActionResult> SearchChecks(
+        [FromQuery] string? term,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchMonitoringChecksQuery(term), cancellationToken)));
+
     /// <summary>Uma check por id (ADR-030 §2 — get by id).</summary>
     [HttpGet("checks/{checkId:guid}")]
     [Authorize]

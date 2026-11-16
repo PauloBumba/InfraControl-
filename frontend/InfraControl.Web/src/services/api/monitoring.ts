@@ -68,3 +68,22 @@ export function getMonitoringAvailability(query: {
     `/monitoring/results/availability${qs ? `?${qs}` : ""}`,
   );
 }
+
+/**
+ * ADR-068 — `GET /monitoring/checks?term=`: todos os checks com nome do
+ * device, fonte do multi-selecionador do formulário de SLO.
+ */
+export interface MonitoringCheckOption {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  deviceIp: string;
+  /** CheckKind em PascalCase (Ping/Http/Snmp/…). */
+  kind: string;
+  enabled: boolean;
+}
+
+export function listMonitoringChecks(term?: string): Promise<MonitoringCheckOption[] | null> {
+  const qs = term ? `?term=${encodeURIComponent(term)}` : "";
+  return api.get<MonitoringCheckOption[]>(`/monitoring/checks${qs}`);
+}

@@ -61,6 +61,7 @@ public sealed class MonitoringCheckCommandTests : IDisposable
     private static DeleteMonitoringCheckCommandHandler DeleteHandler(AppDbContext context)
         => new(
             new MonitoringCheckRepository(context),
+            new SloCheckBindingRepository(context),
             NullLogger<DeleteMonitoringCheckCommandHandler>.Instance);
 
     private static GetMonitoringCheckQueryHandler GetHandler(AppDbContext context)
@@ -164,6 +165,29 @@ public sealed class MonitoringCheckCommandTests : IDisposable
             new DeleteMonitoringCheckCommand(created.Id), CancellationToken.None);
 
         context.MonitoringChecks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Delete_CheckBoundToSlo_ShouldThrowConflictPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var deviceId = await SeedDeviceAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateMonitoringCheckCommand(deviceId, "Ping"), CancellationToken.None);
+
+        var service = Service.Create("ERP");
+        var slo = Slo.Create("Uptime", 99.9m, 30, service.Id);
+        context.Services.Add(service);
+        context.Slos.Add(slo);
+        context.SloCheckBindings.Add(SloCheckBinding.Create(slo.Id, created.Id));
+        await context.SaveChangesAsync();
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteMonitoringCheckCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o check: ele está vinculado a um SLO.");
+        context.MonitoringChecks.Should().ContainSingle();
     }
 
     [Fact]

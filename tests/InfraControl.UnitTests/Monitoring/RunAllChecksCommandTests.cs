@@ -154,6 +154,10 @@ public sealed class RunAllChecksCommandTests : IDisposable
         public Task<IReadOnlyList<MonitoringAvailabilityCell>> GetAvailabilityCellsAsync(
             DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
             => inner.GetAvailabilityCellsAsync(fromUtc, toUtc, cancellationToken);
+
+        public Task<IReadOnlyList<DeviceKindPollCount>> GetSuccessCountsByDeviceKindAsync(
+            DateTime sinceUtc, CancellationToken cancellationToken = default)
+            => inner.GetSuccessCountsByDeviceKindAsync(sinceUtc, cancellationToken);
     }
 
     private static RunAllChecksCommandHandler Handler(

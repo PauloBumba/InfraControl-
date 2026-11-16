@@ -569,6 +569,32 @@ período aberto; se presente deve ser posterior ao início) e
 - `DELETE /api/v1/sla/slos/{id}` bloqueia com 409 também com orçamentos
   (pré-check + FK `Restrict`).
 
+### SloCheckBinding (ADR-068)
+
+Junção N:N entre `Slo` e `MonitoringCheck` — declara **o que o SLO
+mede**. Tabela `slo_check_bindings`: PK composta `(slo_id,
+monitoring_check_id)`, FK `Restrict` nos dois lados (excluir SLO ou
+check com vínculo é bloqueado — pré-check 409 + backstop). O
+`SloMeasurementWorker` (Workers, a cada
+`SloMeasurement:IntervalMinutes`, default 60 min, clamp 15–1440)
+calcula `ValuePercent = succeeded/total × 100` dos `MonitoringResult`
+dos pares `(DeviceId, Kind)` das checks **habilitadas** vinculadas,
+restrito à `WindowDays` do SLO, e grava um `SloMeasurement` por ciclo
+(idempotente: SLO já medido dentro do intervalo é pulado; janela sem
+polls não gera medição — "sem dado" nunca vira 100%). Checks
+desabilitadas entram no vínculo mas ficam fora do cálculo (não geram
+polls novos). `SloBudget` segue manual neste slice.
+
+- `POST/PUT /api/v1/sla/slos` aceitam `monitoringCheckIds`
+  (`SlaManage`): no create, lista define os vínculos; no update,
+  `null`/ausente **mantém** os vínculos, lista vazia limpa, lista
+  substitui o conjunto inteiro — id desconhecido → 400 pt-BR.
+- `GET /api/v1/monitoring/checks?term=` (`Read`) — todos os checks com
+  `deviceName`/`deviceIp`/`kind`/`enabled`, fonte do picker do form.
+- `SloDto.monitoringCheckIds` devolve os vínculos na listagem/detalhe.
+- `DELETE /api/v1/monitoring/checks/{id}` bloqueia com 409 quando o
+  check está vinculado a um SLO.
+
 ## Knowledge Base
 
 Artigos:

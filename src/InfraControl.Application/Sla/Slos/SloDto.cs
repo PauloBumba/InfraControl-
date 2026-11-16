@@ -18,4 +18,6 @@ public sealed record SloDto(
     /// <summary>Percentual do error budget já consumido (0–100).</summary>
     decimal? BudgetConsumedPercent = null,
     /// <summary>Fim do período do orçamento vigente (null = aberto).</summary>
-    DateTime? BudgetPeriodEndUtc = null);
+    DateTime? BudgetPeriodEndUtc = null,
+    /// <summary>Checks de monitoramento medidos por este SLO (ADR-068; vazio = só manual).</summary>
+    IReadOnlyList<Guid>? MonitoringCheckIds = null);
