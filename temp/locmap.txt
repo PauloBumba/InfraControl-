@@ -1,0 +1,42 @@
+1º Andar|f00d0000-0000-4000-8000-000000000001
+2º Andar|f00d0000-0000-4000-8000-000000000002
+3º Andar|f00d0000-0000-4000-8000-000000000003
+Almoxarifado|1a6831fa-7f37-4758-b8a6-1fa261b8953d
+Auditoria|7797d76c-46b7-4693-8b29-c573e393f2f2
+Centro Cirurgico|7d3e9ec7-92f2-4139-b7ce-7380ea3f2b25
+Centro de Especialidades|ca5cb6f2-c93b-4466-825a-027fcfe165ec
+CME|c75a6aaa-f3cb-4072-a3a0-f0cac0985bb5
+Comercial|57030070-9890-4a96-af0d-017c3231f6ac
+Comissoes|c7b49ab4-1ae8-4349-a815-c30f3a465b67
+Compras|d71f40b0-c482-40ab-bd6b-7be574074f91
+Contabilidade|a18c101c-59f6-4de1-9b6d-6eb085f4f264
+CPD|f85d95a4-5d91-4257-99bd-1cb02fd3e853
+Departamento Pessoal|e10d9e52-2e51-4dfc-b594-0293d0be0b1d
+Farmácia|b2d97b5f-b2d9-4c81-a5d6-056f821d3f48
+Farmacia HSSM|8cf72c7a-e6dd-4473-a3d3-14ebce5900e9
+Financeiro|fee4f0b6-b130-43af-8814-1232317bca5a
+Laboratório|05660838-f391-4869-80f6-685ddf8d2f53
+Laudos|e486a865-c976-4d96-a262-3fcd9f7f1c5f
+Manutenção|408aaf28-3404-4ef2-87eb-5ca73cb9578e
+Marketing|c813dd55-e250-41ce-9d22-3608fc9499de
+NIR CE|139fef08-9e38-4a0f-91ea-006423e72dcc
+Nutrição|5de3b0e8-f4f0-46cf-bdbb-cc764ff7e31f
+OPME|9548ace7-b13f-45d5-beb7-bd51e2c44cfc
+Pastoral|e1613c68-e97d-42fb-97ca-4174e2b96a8a
+Pronto Socorro|8a327262-5557-4dc6-9fb9-cf8c42cca433
+Pronto-Socorro|f00d0000-0000-4000-8000-000000000004
+Raio-X|4087d3aa-137a-4af3-b474-2fde52ea26aa
+Recepção Central|d2cd85ac-cab2-4842-a62e-d62c0149308a
+Recursos Humanos|f3ef02ab-14d9-4132-860d-af0ab792f6ce
+Sanificacao|d7372619-c93d-4dc1-89d3-cae6cf4916c0
+Secretaria|97c97b5f-a587-4b33-b92b-a5ac36138e67
+Setor 1|4b20ffdf-a89d-4691-af0c-84d5defbee4e
+Setor 2|e6195b9e-303e-48a7-94f6-a94e865a8394
+Setor 3|2a2b220d-c78c-4417-afeb-f481ccc1b9ef
+Setor 4|9381fe80-ae79-4a88-9238-cc301915f58c
+TI|5c863974-2d59-4b33-83e2-2aa97e56e135
+Tomografia|afd5fd9c-da51-4980-9b86-0456944fd28a
+Ultrassom|b041c18a-bf09-4d86-a713-1aae747212cb
+UniFi|4c2df4ba-ef35-4f19-89a9-41b31c41b31f
+UTI 1|4fa7f642-3116-4d02-a4fd-a5908342d05d
+UTI 2|c696c663-5a8b-47af-9e17-62b8bba9e992

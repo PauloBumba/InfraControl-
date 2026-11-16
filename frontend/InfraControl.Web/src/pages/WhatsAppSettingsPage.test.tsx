@@ -22,6 +22,7 @@ vi.mock("@/services/api/whatsapp", () => ({
   createWhatsAppInstance: vi.fn(),
   listWhatsAppGroups: vi.fn(),
   sendWhatsAppTest: vi.fn(),
+  sendWhatsAppTestCard: vi.fn(),
 }));
 
 const settingsMock = vi.mocked(getWhatsAppSettings);
@@ -45,6 +46,13 @@ const baseSettings: WhatsAppSettings = {
   lastTestError: null,
   updatedAtUtc: null,
   notificationsEnabled: false,
+  cardIncidentEnabled: true,
+  cardWarningEnabled: true,
+  cardResolutionEnabled: true,
+  cardWindowHours: 2,
+  cardIncidentColor: null,
+  cardWarningColor: null,
+  cardResolutionColor: null,
 };
 
 function renderPage() {
@@ -185,6 +193,15 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
       groupId: "120363000000000000@g.us",
       phone: "5511999990000",
       notificationsEnabled: false,
+      cardSettings: {
+        incidentEnabled: true,
+        warningEnabled: true,
+        resolutionEnabled: true,
+        windowHours: 2,
+        incidentColor: null,
+        warningColor: null,
+        resolutionColor: null,
+      },
     });
   });
 
@@ -249,6 +266,15 @@ describe("WhatsAppSettingsPage (ADR-062)", () => {
       groupId: null,
       phone: null,
       notificationsEnabled: false,
+      cardSettings: {
+        incidentEnabled: true,
+        warningEnabled: true,
+        resolutionEnabled: true,
+        windowHours: 2,
+        incidentColor: null,
+        warningColor: null,
+        resolutionColor: null,
+      },
     });
   });
 

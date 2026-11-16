@@ -1,0 +1,39 @@
+Comercial|Comercial
+Comissões|Comissoes
+Contabilidade|Contabilidade
+Coordenação Centro Cirúrgico|Centro Cirurgico
+Departamento Pessoal|Departamento Pessoal
+Farmácia Central|Farmácia
+Farmácia Comercial|Farmácia
+Farmácia Satélite|Farmácia
+Laboratório|Laboratório
+Manutenção|Manutenção
+NIR|NIR CE
+Nutrição|Nutrição
+OPME|OPME
+Pastoral|Pastoral
+Posto de Enfermagem Setor 1|Setor 1
+Posto de Enfermagem Setor 2|Setor 2
+Posto de Enfermagem Setor 3|Setor 3
+Posto Enfermagem Setor 4|Setor 4
+Qualidade/Marketing|Marketing
+Quartos Plantonistas UTI 2|UTI 2
+Recepção 1500|Recepção Central
+Recepção 1522|Recepção Central
+Recepção 1580|Recepção Central
+Recepção PS 1506|Pronto Socorro
+Recepção PS 1550|Pronto Socorro
+Recursos Humanos|Recursos Humanos
+Sala dos Médicos Setor 1|Setor 1
+Sanificação|Sanificacao
+Secretaria Jurídica Administrativa|Secretaria
+Supervisão Enfermagem Setor 1|Setor 1
+Tomografia — Sala de Comando|Tomografia
+UTI 1|UTI 1
+UTI 2|UTI 2
+HSDS_NUTRICAO|Nutrição
+HSDS_CAM_LAUDOS|Laudos
+HSDS_CAM_CORREDOR_LAUDOS|Laudos
+HSDS_CANON_TOMOGRAFIA_A3|Tomografia
+SW_Laudos|Laudos
+AP_Tomografia/Ultrassonografia|Tomografia

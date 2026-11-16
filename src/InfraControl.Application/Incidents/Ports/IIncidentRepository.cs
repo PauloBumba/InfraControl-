@@ -57,8 +57,19 @@ public interface IIncidentRepository : IRepository<Incident>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Criação/resolução de incidentes TOCADOS no período — séries do
+    /// dashboard (F54-T003 / docs/69).
+    /// </summary>
+    Task<IReadOnlyList<IncidentTimestampRow>> ListTimestampsBetweenAsync(
+        DateTime fromUtc, DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>Linha de carimbos de incidente para a série do dashboard.</summary>
+public sealed record IncidentTimestampRow(DateTime CreatedAt, DateTime? ResolvedAt);
 
 /// <summary>Incident do search com a contagem de alerts vinculados.</summary>
 public sealed record IncidentWithAlertCount(Incident Incident, int AlertCount);

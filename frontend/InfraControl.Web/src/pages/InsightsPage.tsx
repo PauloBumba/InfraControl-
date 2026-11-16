@@ -192,6 +192,8 @@ export function InsightsPage() {
         <div className="uni-panel-body">
           {loading ? (
             <LoadingBlock />
+          ) : data?.dpiError ? (
+            <p style={{ fontSize: 13, color: "#94a3b8" }}>{data.dpiError}</p>
           ) : (
             <EntityView<UnifiDpiAppItem>
               mode={dpiView}
@@ -234,6 +236,8 @@ export function InsightsPage() {
           <div className="uni-panel-body">
             {loading ? (
               <LoadingBlock />
+            ) : data?.trafficError ? (
+              <p style={{ fontSize: 13, color: "#94a3b8" }}>{data.trafficError}</p>
             ) : (
               <EntityView<UnifiClientTrafficItem>
                 mode={trafficView}

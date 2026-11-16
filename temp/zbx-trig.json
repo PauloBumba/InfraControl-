@@ -1,0 +1,1606 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "triggerid":  "33740",
+                       "description":  "Generico: Interface port 1: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52356}\u003c0 and {52357}\u003e0\r\nand (\r\n{52358}=6 or\r\n{52358}=7 or\r\n{52358}=11 or\r\n{52358}=62 or\r\n{52358}=69 or\r\n{52358}=117\r\n)\r\nand\r\n({52359}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33741",
+                       "description":  "Generico: Interface port 2: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52361}\u003c0 and {52362}\u003e0\r\nand (\r\n{52363}=6 or\r\n{52363}=7 or\r\n{52363}=11 or\r\n{52363}=62 or\r\n{52363}=69 or\r\n{52363}=117\r\n)\r\nand\r\n({52364}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33742",
+                       "description":  "Generico: Interface port 3: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52366}\u003c0 and {52367}\u003e0\r\nand (\r\n{52368}=6 or\r\n{52368}=7 or\r\n{52368}=11 or\r\n{52368}=62 or\r\n{52368}=69 or\r\n{52368}=117\r\n)\r\nand\r\n({52369}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33743",
+                       "description":  "Generico: Interface port 4: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52371}\u003c0 and {52372}\u003e0\r\nand (\r\n{52373}=6 or\r\n{52373}=7 or\r\n{52373}=11 or\r\n{52373}=62 or\r\n{52373}=69 or\r\n{52373}=117\r\n)\r\nand\r\n({52374}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33744",
+                       "description":  "Generico: Interface port 5: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52376}\u003c0 and {52377}\u003e0\r\nand (\r\n{52378}=6 or\r\n{52378}=7 or\r\n{52378}=11 or\r\n{52378}=62 or\r\n{52378}=69 or\r\n{52378}=117\r\n)\r\nand\r\n({52379}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33745",
+                       "description":  "Generico: Interface port 6: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52381}\u003c0 and {52382}\u003e0\r\nand (\r\n{52383}=6 or\r\n{52383}=7 or\r\n{52383}=11 or\r\n{52383}=62 or\r\n{52383}=69 or\r\n{52383}=117\r\n)\r\nand\r\n({52384}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33746",
+                       "description":  "Generico: Interface port 7: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52386}\u003c0 and {52387}\u003e0\r\nand (\r\n{52388}=6 or\r\n{52388}=7 or\r\n{52388}=11 or\r\n{52388}=62 or\r\n{52388}=69 or\r\n{52388}=117\r\n)\r\nand\r\n({52389}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33747",
+                       "description":  "Generico: Interface port 8: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52391}\u003c0 and {52392}\u003e0\r\nand (\r\n{52393}=6 or\r\n{52393}=7 or\r\n{52393}=11 or\r\n{52393}=62 or\r\n{52393}=69 or\r\n{52393}=117\r\n)\r\nand\r\n({52394}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33748",
+                       "description":  "Generico: Interface port 9: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52396}\u003c0 and {52397}\u003e0\r\nand (\r\n{52398}=6 or\r\n{52398}=7 or\r\n{52398}=11 or\r\n{52398}=62 or\r\n{52398}=69 or\r\n{52398}=117\r\n)\r\nand\r\n({52399}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33749",
+                       "description":  "Generico: Interface port 10: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52401}\u003c0 and {52402}\u003e0\r\nand (\r\n{52403}=6 or\r\n{52403}=7 or\r\n{52403}=11 or\r\n{52403}=62 or\r\n{52403}=69 or\r\n{52403}=117\r\n)\r\nand\r\n({52404}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33750",
+                       "description":  "Generico: Interface port 11: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52406}\u003c0 and {52407}\u003e0\r\nand (\r\n{52408}=6 or\r\n{52408}=7 or\r\n{52408}=11 or\r\n{52408}=62 or\r\n{52408}=69 or\r\n{52408}=117\r\n)\r\nand\r\n({52409}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33751",
+                       "description":  "Generico: Interface port 12: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52411}\u003c0 and {52412}\u003e0\r\nand (\r\n{52413}=6 or\r\n{52413}=7 or\r\n{52413}=11 or\r\n{52413}=62 or\r\n{52413}=69 or\r\n{52413}=117\r\n)\r\nand\r\n({52414}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33752",
+                       "description":  "Generico: Interface port 13: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52416}\u003c0 and {52417}\u003e0\r\nand (\r\n{52418}=6 or\r\n{52418}=7 or\r\n{52418}=11 or\r\n{52418}=62 or\r\n{52418}=69 or\r\n{52418}=117\r\n)\r\nand\r\n({52419}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33753",
+                       "description":  "Generico: Interface port 14: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52421}\u003c0 and {52422}\u003e0\r\nand (\r\n{52423}=6 or\r\n{52423}=7 or\r\n{52423}=11 or\r\n{52423}=62 or\r\n{52423}=69 or\r\n{52423}=117\r\n)\r\nand\r\n({52424}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33754",
+                       "description":  "Generico: Interface port 15: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52426}\u003c0 and {52427}\u003e0\r\nand (\r\n{52428}=6 or\r\n{52428}=7 or\r\n{52428}=11 or\r\n{52428}=62 or\r\n{52428}=69 or\r\n{52428}=117\r\n)\r\nand\r\n({52429}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33755",
+                       "description":  "Generico: Interface port 16: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52431}\u003c0 and {52432}\u003e0\r\nand (\r\n{52433}=6 or\r\n{52433}=7 or\r\n{52433}=11 or\r\n{52433}=62 or\r\n{52433}=69 or\r\n{52433}=117\r\n)\r\nand\r\n({52434}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33756",
+                       "description":  "Generico: Interface port 17: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52436}\u003c0 and {52437}\u003e0\r\nand (\r\n{52438}=6 or\r\n{52438}=7 or\r\n{52438}=11 or\r\n{52438}=62 or\r\n{52438}=69 or\r\n{52438}=117\r\n)\r\nand\r\n({52439}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33757",
+                       "description":  "Generico: Interface port 18: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52441}\u003c0 and {52442}\u003e0\r\nand (\r\n{52443}=6 or\r\n{52443}=7 or\r\n{52443}=11 or\r\n{52443}=62 or\r\n{52443}=69 or\r\n{52443}=117\r\n)\r\nand\r\n({52444}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33758",
+                       "description":  "Generico: Interface port 19: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52446}\u003c0 and {52447}\u003e0\r\nand (\r\n{52448}=6 or\r\n{52448}=7 or\r\n{52448}=11 or\r\n{52448}=62 or\r\n{52448}=69 or\r\n{52448}=117\r\n)\r\nand\r\n({52449}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33759",
+                       "description":  "Generico: Interface port 20: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52451}\u003c0 and {52452}\u003e0\r\nand (\r\n{52453}=6 or\r\n{52453}=7 or\r\n{52453}=11 or\r\n{52453}=62 or\r\n{52453}=69 or\r\n{52453}=117\r\n)\r\nand\r\n({52454}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33760",
+                       "description":  "Generico: Interface port 21: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52456}\u003c0 and {52457}\u003e0\r\nand (\r\n{52458}=6 or\r\n{52458}=7 or\r\n{52458}=11 or\r\n{52458}=62 or\r\n{52458}=69 or\r\n{52458}=117\r\n)\r\nand\r\n({52459}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33761",
+                       "description":  "Generico: Interface port 22: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52461}\u003c0 and {52462}\u003e0\r\nand (\r\n{52463}=6 or\r\n{52463}=7 or\r\n{52463}=11 or\r\n{52463}=62 or\r\n{52463}=69 or\r\n{52463}=117\r\n)\r\nand\r\n({52464}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33762",
+                       "description":  "Generico: Interface port 23: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52466}\u003c0 and {52467}\u003e0\r\nand (\r\n{52468}=6 or\r\n{52468}=7 or\r\n{52468}=11 or\r\n{52468}=62 or\r\n{52468}=69 or\r\n{52468}=117\r\n)\r\nand\r\n({52469}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33763",
+                       "description":  "Generico: Interface port 24: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52471}\u003c0 and {52472}\u003e0\r\nand (\r\n{52473}=6 or\r\n{52473}=7 or\r\n{52473}=11 or\r\n{52473}=62 or\r\n{52473}=69 or\r\n{52473}=117\r\n)\r\nand\r\n({52474}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33764",
+                       "description":  "Generico: Interface AUX() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52476}\u003c0 and {52477}\u003e0\r\nand (\r\n{52478}=6 or\r\n{52478}=7 or\r\n{52478}=11 or\r\n{52478}=62 or\r\n{52478}=69 or\r\n{52478}=117\r\n)\r\nand\r\n({52479}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33765",
+                       "description":  "Generico: Interface Loopback() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52481}\u003c0 and {52482}\u003e0\r\nand (\r\n{52483}=6 or\r\n{52483}=7 or\r\n{52483}=11 or\r\n{52483}=62 or\r\n{52483}=69 or\r\n{52483}=117\r\n)\r\nand\r\n({52484}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33766",
+                       "description":  "Generico: Interface Vlan-interface1() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52486}\u003c0 and {52487}\u003e0\r\nand (\r\n{52488}=6 or\r\n{52488}=7 or\r\n{52488}=11 or\r\n{52488}=62 or\r\n{52488}=69 or\r\n{52488}=117\r\n)\r\nand\r\n({52489}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33767",
+                       "description":  "Interface port 1: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52491}\u003e({$IF.UTIL.MAX:\"port 1: Gigabit Copper\"}/100)*{52492} or\r\n{52493}\u003e({$IF.UTIL.MAX:\"port 1: Gigabit Copper\"}/100)*{52492}) and\r\n{52492}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33768",
+                       "description":  "Interface port 2: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52494}\u003e({$IF.UTIL.MAX:\"port 2: Gigabit Copper\"}/100)*{52495} or\r\n{52496}\u003e({$IF.UTIL.MAX:\"port 2: Gigabit Copper\"}/100)*{52495}) and\r\n{52495}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33769",
+                       "description":  "Interface port 3: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52497}\u003e({$IF.UTIL.MAX:\"port 3: Gigabit Copper\"}/100)*{52498} or\r\n{52499}\u003e({$IF.UTIL.MAX:\"port 3: Gigabit Copper\"}/100)*{52498}) and\r\n{52498}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33770",
+                       "description":  "Interface port 4: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52500}\u003e({$IF.UTIL.MAX:\"port 4: Gigabit Copper\"}/100)*{52501} or\r\n{52502}\u003e({$IF.UTIL.MAX:\"port 4: Gigabit Copper\"}/100)*{52501}) and\r\n{52501}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33771",
+                       "description":  "Interface port 5: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52503}\u003e({$IF.UTIL.MAX:\"port 5: Gigabit Copper\"}/100)*{52504} or\r\n{52505}\u003e({$IF.UTIL.MAX:\"port 5: Gigabit Copper\"}/100)*{52504}) and\r\n{52504}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33772",
+                       "description":  "Interface port 6: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52506}\u003e({$IF.UTIL.MAX:\"port 6: Gigabit Copper\"}/100)*{52507} or\r\n{52508}\u003e({$IF.UTIL.MAX:\"port 6: Gigabit Copper\"}/100)*{52507}) and\r\n{52507}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33773",
+                       "description":  "Interface port 7: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52509}\u003e({$IF.UTIL.MAX:\"port 7: Gigabit Copper\"}/100)*{52510} or\r\n{52511}\u003e({$IF.UTIL.MAX:\"port 7: Gigabit Copper\"}/100)*{52510}) and\r\n{52510}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33774",
+                       "description":  "Interface port 8: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52512}\u003e({$IF.UTIL.MAX:\"port 8: Gigabit Copper\"}/100)*{52513} or\r\n{52514}\u003e({$IF.UTIL.MAX:\"port 8: Gigabit Copper\"}/100)*{52513}) and\r\n{52513}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33775",
+                       "description":  "Interface port 9: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52515}\u003e({$IF.UTIL.MAX:\"port 9: Gigabit Copper\"}/100)*{52516} or\r\n{52517}\u003e({$IF.UTIL.MAX:\"port 9: Gigabit Copper\"}/100)*{52516}) and\r\n{52516}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33776",
+                       "description":  "Interface port 10: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52518}\u003e({$IF.UTIL.MAX:\"port 10: Gigabit Copper\"}/100)*{52519} or\r\n{52520}\u003e({$IF.UTIL.MAX:\"port 10: Gigabit Copper\"}/100)*{52519}) and\r\n{52519}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33777",
+                       "description":  "Interface port 11: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52521}\u003e({$IF.UTIL.MAX:\"port 11: Gigabit Copper\"}/100)*{52522} or\r\n{52523}\u003e({$IF.UTIL.MAX:\"port 11: Gigabit Copper\"}/100)*{52522}) and\r\n{52522}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33778",
+                       "description":  "Interface port 12: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52524}\u003e({$IF.UTIL.MAX:\"port 12: Gigabit Copper\"}/100)*{52525} or\r\n{52526}\u003e({$IF.UTIL.MAX:\"port 12: Gigabit Copper\"}/100)*{52525}) and\r\n{52525}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33779",
+                       "description":  "Interface port 13: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52527}\u003e({$IF.UTIL.MAX:\"port 13: Gigabit Copper\"}/100)*{52528} or\r\n{52529}\u003e({$IF.UTIL.MAX:\"port 13: Gigabit Copper\"}/100)*{52528}) and\r\n{52528}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33780",
+                       "description":  "Interface port 14: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52530}\u003e({$IF.UTIL.MAX:\"port 14: Gigabit Copper\"}/100)*{52531} or\r\n{52532}\u003e({$IF.UTIL.MAX:\"port 14: Gigabit Copper\"}/100)*{52531}) and\r\n{52531}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33781",
+                       "description":  "Interface port 15: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52533}\u003e({$IF.UTIL.MAX:\"port 15: Gigabit Copper\"}/100)*{52534} or\r\n{52535}\u003e({$IF.UTIL.MAX:\"port 15: Gigabit Copper\"}/100)*{52534}) and\r\n{52534}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33782",
+                       "description":  "Interface port 16: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52536}\u003e({$IF.UTIL.MAX:\"port 16: Gigabit Copper\"}/100)*{52537} or\r\n{52538}\u003e({$IF.UTIL.MAX:\"port 16: Gigabit Copper\"}/100)*{52537}) and\r\n{52537}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33783",
+                       "description":  "Interface port 17: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52539}\u003e({$IF.UTIL.MAX:\"port 17: Gigabit Copper\"}/100)*{52540} or\r\n{52541}\u003e({$IF.UTIL.MAX:\"port 17: Gigabit Copper\"}/100)*{52540}) and\r\n{52540}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33784",
+                       "description":  "Interface port 18: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52542}\u003e({$IF.UTIL.MAX:\"port 18: Gigabit Copper\"}/100)*{52543} or\r\n{52544}\u003e({$IF.UTIL.MAX:\"port 18: Gigabit Copper\"}/100)*{52543}) and\r\n{52543}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33785",
+                       "description":  "Interface port 19: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52545}\u003e({$IF.UTIL.MAX:\"port 19: Gigabit Copper\"}/100)*{52546} or\r\n{52547}\u003e({$IF.UTIL.MAX:\"port 19: Gigabit Copper\"}/100)*{52546}) and\r\n{52546}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33786",
+                       "description":  "Interface port 20: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52548}\u003e({$IF.UTIL.MAX:\"port 20: Gigabit Copper\"}/100)*{52549} or\r\n{52550}\u003e({$IF.UTIL.MAX:\"port 20: Gigabit Copper\"}/100)*{52549}) and\r\n{52549}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33787",
+                       "description":  "Interface port 21: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52551}\u003e({$IF.UTIL.MAX:\"port 21: Gigabit Copper\"}/100)*{52552} or\r\n{52553}\u003e({$IF.UTIL.MAX:\"port 21: Gigabit Copper\"}/100)*{52552}) and\r\n{52552}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33788",
+                       "description":  "Interface port 22: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52554}\u003e({$IF.UTIL.MAX:\"port 22: Gigabit Copper\"}/100)*{52555} or\r\n{52556}\u003e({$IF.UTIL.MAX:\"port 22: Gigabit Copper\"}/100)*{52555}) and\r\n{52555}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33789",
+                       "description":  "Interface port 23: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52557}\u003e({$IF.UTIL.MAX:\"port 23: Gigabit Copper\"}/100)*{52558} or\r\n{52559}\u003e({$IF.UTIL.MAX:\"port 23: Gigabit Copper\"}/100)*{52558}) and\r\n{52558}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33790",
+                       "description":  "Interface port 24: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52560}\u003e({$IF.UTIL.MAX:\"port 24: Gigabit Copper\"}/100)*{52561} or\r\n{52562}\u003e({$IF.UTIL.MAX:\"port 24: Gigabit Copper\"}/100)*{52561}) and\r\n{52561}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33791",
+                       "description":  "Interface AUX(): Uso de banda alto",
+                       "expression":  "({52563}\u003e({$IF.UTIL.MAX:\"AUX\"}/100)*{52564} or\r\n{52565}\u003e({$IF.UTIL.MAX:\"AUX\"}/100)*{52564}) and\r\n{52564}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33792",
+                       "description":  "Interface Loopback(): Uso de banda alto",
+                       "expression":  "({52566}\u003e({$IF.UTIL.MAX:\"Loopback\"}/100)*{52567} or\r\n{52568}\u003e({$IF.UTIL.MAX:\"Loopback\"}/100)*{52567}) and\r\n{52567}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33793",
+                       "description":  "Interface Vlan-interface1(): Uso de banda alto",
+                       "expression":  "({52569}\u003e({$IF.UTIL.MAX:\"Vlan-interface1\"}/100)*{52570} or\r\n{52571}\u003e({$IF.UTIL.MAX:\"Vlan-interface1\"}/100)*{52570}) and\r\n{52570}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33794",
+                       "description":  "Interface port 1: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73506}\u003e{$IF.ERRORS.WARN:\"port 1: Gigabit Copper\"} or {73507}\u003e{$IF.ERRORS.WARN:\"port 1: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33795",
+                       "description":  "Interface port 2: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73510}\u003e{$IF.ERRORS.WARN:\"port 2: Gigabit Copper\"} or {73511}\u003e{$IF.ERRORS.WARN:\"port 2: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33796",
+                       "description":  "Interface port 3: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73514}\u003e{$IF.ERRORS.WARN:\"port 3: Gigabit Copper\"} or {73515}\u003e{$IF.ERRORS.WARN:\"port 3: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33797",
+                       "description":  "Interface port 4: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73518}\u003e{$IF.ERRORS.WARN:\"port 4: Gigabit Copper\"} or {73519}\u003e{$IF.ERRORS.WARN:\"port 4: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33798",
+                       "description":  "Interface port 5: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73522}\u003e{$IF.ERRORS.WARN:\"port 5: Gigabit Copper\"} or {73523}\u003e{$IF.ERRORS.WARN:\"port 5: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33799",
+                       "description":  "Interface port 6: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73526}\u003e{$IF.ERRORS.WARN:\"port 6: Gigabit Copper\"} or {73527}\u003e{$IF.ERRORS.WARN:\"port 6: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33800",
+                       "description":  "Interface port 7: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73530}\u003e{$IF.ERRORS.WARN:\"port 7: Gigabit Copper\"} or {73531}\u003e{$IF.ERRORS.WARN:\"port 7: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33801",
+                       "description":  "Interface port 8: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73534}\u003e{$IF.ERRORS.WARN:\"port 8: Gigabit Copper\"} or {73535}\u003e{$IF.ERRORS.WARN:\"port 8: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33802",
+                       "description":  "Interface port 9: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73538}\u003e{$IF.ERRORS.WARN:\"port 9: Gigabit Copper\"} or {73539}\u003e{$IF.ERRORS.WARN:\"port 9: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33803",
+                       "description":  "Interface port 10: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73542}\u003e{$IF.ERRORS.WARN:\"port 10: Gigabit Copper\"} or {73543}\u003e{$IF.ERRORS.WARN:\"port 10: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33804",
+                       "description":  "Interface port 11: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73546}\u003e{$IF.ERRORS.WARN:\"port 11: Gigabit Copper\"} or {73547}\u003e{$IF.ERRORS.WARN:\"port 11: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33805",
+                       "description":  "Interface port 12: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73550}\u003e{$IF.ERRORS.WARN:\"port 12: Gigabit Copper\"} or {73551}\u003e{$IF.ERRORS.WARN:\"port 12: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33806",
+                       "description":  "Interface port 13: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73554}\u003e{$IF.ERRORS.WARN:\"port 13: Gigabit Copper\"} or {73555}\u003e{$IF.ERRORS.WARN:\"port 13: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33807",
+                       "description":  "Interface port 14: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73558}\u003e{$IF.ERRORS.WARN:\"port 14: Gigabit Copper\"} or {73559}\u003e{$IF.ERRORS.WARN:\"port 14: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33808",
+                       "description":  "Interface port 15: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73562}\u003e{$IF.ERRORS.WARN:\"port 15: Gigabit Copper\"} or {73563}\u003e{$IF.ERRORS.WARN:\"port 15: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33809",
+                       "description":  "Interface port 16: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73566}\u003e{$IF.ERRORS.WARN:\"port 16: Gigabit Copper\"} or {73567}\u003e{$IF.ERRORS.WARN:\"port 16: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33810",
+                       "description":  "Interface port 17: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73570}\u003e{$IF.ERRORS.WARN:\"port 17: Gigabit Copper\"} or {73571}\u003e{$IF.ERRORS.WARN:\"port 17: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33811",
+                       "description":  "Interface port 18: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73574}\u003e{$IF.ERRORS.WARN:\"port 18: Gigabit Copper\"} or {73575}\u003e{$IF.ERRORS.WARN:\"port 18: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33812",
+                       "description":  "Interface port 19: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73578}\u003e{$IF.ERRORS.WARN:\"port 19: Gigabit Copper\"} or {73579}\u003e{$IF.ERRORS.WARN:\"port 19: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33813",
+                       "description":  "Interface port 20: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73582}\u003e{$IF.ERRORS.WARN:\"port 20: Gigabit Copper\"} or {73583}\u003e{$IF.ERRORS.WARN:\"port 20: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33814",
+                       "description":  "Interface port 21: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73586}\u003e{$IF.ERRORS.WARN:\"port 21: Gigabit Copper\"} or {73587}\u003e{$IF.ERRORS.WARN:\"port 21: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33815",
+                       "description":  "Interface port 22: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73590}\u003e{$IF.ERRORS.WARN:\"port 22: Gigabit Copper\"} or {73591}\u003e{$IF.ERRORS.WARN:\"port 22: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33816",
+                       "description":  "Interface port 23: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73594}\u003e{$IF.ERRORS.WARN:\"port 23: Gigabit Copper\"} or {73595}\u003e{$IF.ERRORS.WARN:\"port 23: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33817",
+                       "description":  "Interface port 24: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73598}\u003e{$IF.ERRORS.WARN:\"port 24: Gigabit Copper\"} or {73599}\u003e{$IF.ERRORS.WARN:\"port 24: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33818",
+                       "description":  "Interface AUX(): Taxa de erros alta",
+                       "expression":  "{73602}\u003e{$IF.ERRORS.WARN:\"AUX\"} or {73603}\u003e{$IF.ERRORS.WARN:\"AUX\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33819",
+                       "description":  "Interface Loopback(): Taxa de erros alta",
+                       "expression":  "{73606}\u003e{$IF.ERRORS.WARN:\"Loopback\"} or {73607}\u003e{$IF.ERRORS.WARN:\"Loopback\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33820",
+                       "description":  "Interface Vlan-interface1(): Taxa de erros alta",
+                       "expression":  "{73610}\u003e{$IF.ERRORS.WARN:\"Vlan-interface1\"} or {73611}\u003e{$IF.ERRORS.WARN:\"Vlan-interface1\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33821",
+                       "description":  "Interface port 1: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 1: Gigabit Copper\"}=1 and {77120}=2 and ({77121}\u003c\u003e{77122})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33822",
+                       "description":  "Interface port 2: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 2: Gigabit Copper\"}=1 and {77123}=2 and ({77124}\u003c\u003e{77125})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33823",
+                       "description":  "Interface port 3: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 3: Gigabit Copper\"}=1 and {77126}=2 and ({77127}\u003c\u003e{77128})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33824",
+                       "description":  "Interface port 4: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 4: Gigabit Copper\"}=1 and {77129}=2 and ({77130}\u003c\u003e{77131})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33825",
+                       "description":  "Interface port 5: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 5: Gigabit Copper\"}=1 and {77132}=2 and ({77133}\u003c\u003e{77134})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33826",
+                       "description":  "Interface port 6: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 6: Gigabit Copper\"}=1 and {77135}=2 and ({77136}\u003c\u003e{77137})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33827",
+                       "description":  "Interface port 7: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 7: Gigabit Copper\"}=1 and {77138}=2 and ({77139}\u003c\u003e{77140})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33828",
+                       "description":  "Interface port 8: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 8: Gigabit Copper\"}=1 and {77141}=2 and ({77142}\u003c\u003e{77143})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33829",
+                       "description":  "Interface port 9: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 9: Gigabit Copper\"}=1 and {77144}=2 and ({77145}\u003c\u003e{77146})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33830",
+                       "description":  "Interface port 10: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 10: Gigabit Copper\"}=1 and {77147}=2 and ({77148}\u003c\u003e{77149})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33831",
+                       "description":  "Interface port 11: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 11: Gigabit Copper\"}=1 and {77150}=2 and ({77151}\u003c\u003e{77152})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33832",
+                       "description":  "Interface port 12: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 12: Gigabit Copper\"}=1 and {77153}=2 and ({77154}\u003c\u003e{77155})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33833",
+                       "description":  "Interface port 13: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 13: Gigabit Copper\"}=1 and {77156}=2 and ({77157}\u003c\u003e{77158})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33834",
+                       "description":  "Interface port 14: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 14: Gigabit Copper\"}=1 and {77159}=2 and ({77160}\u003c\u003e{77161})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33835",
+                       "description":  "Interface port 15: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 15: Gigabit Copper\"}=1 and {77162}=2 and ({77163}\u003c\u003e{77164})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33836",
+                       "description":  "Interface port 16: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 16: Gigabit Copper\"}=1 and {77165}=2 and ({77166}\u003c\u003e{77167})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33837",
+                       "description":  "Interface port 17: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 17: Gigabit Copper\"}=1 and {77168}=2 and ({77169}\u003c\u003e{77170})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33838",
+                       "description":  "Interface port 18: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 18: Gigabit Copper\"}=1 and {77171}=2 and ({77172}\u003c\u003e{77173})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33839",
+                       "description":  "Interface port 19: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 19: Gigabit Copper\"}=1 and {77174}=2 and ({77175}\u003c\u003e{77176})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33840",
+                       "description":  "Interface port 20: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 20: Gigabit Copper\"}=1 and {77177}=2 and ({77178}\u003c\u003e{77179})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33841",
+                       "description":  "Interface port 21: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 21: Gigabit Copper\"}=1 and {77180}=2 and ({77181}\u003c\u003e{77182})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33842",
+                       "description":  "Interface port 22: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 22: Gigabit Copper\"}=1 and {77183}=2 and ({77184}\u003c\u003e{77185})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33843",
+                       "description":  "Interface port 23: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 23: Gigabit Copper\"}=1 and {77186}=2 and ({77187}\u003c\u003e{77188})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33844",
+                       "description":  "Interface port 24: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 24: Gigabit Copper\"}=1 and {77189}=2 and ({77190}\u003c\u003e{77191})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33845",
+                       "description":  "Interface AUX() sem link",
+                       "expression":  "{$IFCONTROL:\"AUX\"}=1 and {77192}=2 and ({77193}\u003c\u003e{77194})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33846",
+                       "description":  "Interface Loopback() sem link",
+                       "expression":  "{$IFCONTROL:\"Loopback\"}=1 and {77195}=2 and ({77196}\u003c\u003e{77197})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33847",
+                       "description":  "Interface Vlan-interface1() sem link",
+                       "expression":  "{$IFCONTROL:\"Vlan-interface1\"}=1 and {77198}=2 and ({77199}\u003c\u003e{77200})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33861",
+                       "description":  "Generico: Interface port 1: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52774}\u003c0 and {52775}\u003e0\r\nand (\r\n{52776}=6 or\r\n{52776}=7 or\r\n{52776}=11 or\r\n{52776}=62 or\r\n{52776}=69 or\r\n{52776}=117\r\n)\r\nand\r\n({52777}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33862",
+                       "description":  "Generico: Interface port 2: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52779}\u003c0 and {52780}\u003e0\r\nand (\r\n{52781}=6 or\r\n{52781}=7 or\r\n{52781}=11 or\r\n{52781}=62 or\r\n{52781}=69 or\r\n{52781}=117\r\n)\r\nand\r\n({52782}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33863",
+                       "description":  "Generico: Interface port 3: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52784}\u003c0 and {52785}\u003e0\r\nand (\r\n{52786}=6 or\r\n{52786}=7 or\r\n{52786}=11 or\r\n{52786}=62 or\r\n{52786}=69 or\r\n{52786}=117\r\n)\r\nand\r\n({52787}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33864",
+                       "description":  "Generico: Interface port 4: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52789}\u003c0 and {52790}\u003e0\r\nand (\r\n{52791}=6 or\r\n{52791}=7 or\r\n{52791}=11 or\r\n{52791}=62 or\r\n{52791}=69 or\r\n{52791}=117\r\n)\r\nand\r\n({52792}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33865",
+                       "description":  "Generico: Interface port 5: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52794}\u003c0 and {52795}\u003e0\r\nand (\r\n{52796}=6 or\r\n{52796}=7 or\r\n{52796}=11 or\r\n{52796}=62 or\r\n{52796}=69 or\r\n{52796}=117\r\n)\r\nand\r\n({52797}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33866",
+                       "description":  "Generico: Interface port 6: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52799}\u003c0 and {52800}\u003e0\r\nand (\r\n{52801}=6 or\r\n{52801}=7 or\r\n{52801}=11 or\r\n{52801}=62 or\r\n{52801}=69 or\r\n{52801}=117\r\n)\r\nand\r\n({52802}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33867",
+                       "description":  "Generico: Interface port 7: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52804}\u003c0 and {52805}\u003e0\r\nand (\r\n{52806}=6 or\r\n{52806}=7 or\r\n{52806}=11 or\r\n{52806}=62 or\r\n{52806}=69 or\r\n{52806}=117\r\n)\r\nand\r\n({52807}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33868",
+                       "description":  "Generico: Interface port 8: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52809}\u003c0 and {52810}\u003e0\r\nand (\r\n{52811}=6 or\r\n{52811}=7 or\r\n{52811}=11 or\r\n{52811}=62 or\r\n{52811}=69 or\r\n{52811}=117\r\n)\r\nand\r\n({52812}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33869",
+                       "description":  "Generico: Interface port 9: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52814}\u003c0 and {52815}\u003e0\r\nand (\r\n{52816}=6 or\r\n{52816}=7 or\r\n{52816}=11 or\r\n{52816}=62 or\r\n{52816}=69 or\r\n{52816}=117\r\n)\r\nand\r\n({52817}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33870",
+                       "description":  "Generico: Interface port 10: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52819}\u003c0 and {52820}\u003e0\r\nand (\r\n{52821}=6 or\r\n{52821}=7 or\r\n{52821}=11 or\r\n{52821}=62 or\r\n{52821}=69 or\r\n{52821}=117\r\n)\r\nand\r\n({52822}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33871",
+                       "description":  "Generico: Interface port 11: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52824}\u003c0 and {52825}\u003e0\r\nand (\r\n{52826}=6 or\r\n{52826}=7 or\r\n{52826}=11 or\r\n{52826}=62 or\r\n{52826}=69 or\r\n{52826}=117\r\n)\r\nand\r\n({52827}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33872",
+                       "description":  "Generico: Interface port 12: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52829}\u003c0 and {52830}\u003e0\r\nand (\r\n{52831}=6 or\r\n{52831}=7 or\r\n{52831}=11 or\r\n{52831}=62 or\r\n{52831}=69 or\r\n{52831}=117\r\n)\r\nand\r\n({52832}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33873",
+                       "description":  "Generico: Interface port 13: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52834}\u003c0 and {52835}\u003e0\r\nand (\r\n{52836}=6 or\r\n{52836}=7 or\r\n{52836}=11 or\r\n{52836}=62 or\r\n{52836}=69 or\r\n{52836}=117\r\n)\r\nand\r\n({52837}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33874",
+                       "description":  "Generico: Interface port 14: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52839}\u003c0 and {52840}\u003e0\r\nand (\r\n{52841}=6 or\r\n{52841}=7 or\r\n{52841}=11 or\r\n{52841}=62 or\r\n{52841}=69 or\r\n{52841}=117\r\n)\r\nand\r\n({52842}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33875",
+                       "description":  "Generico: Interface port 15: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52844}\u003c0 and {52845}\u003e0\r\nand (\r\n{52846}=6 or\r\n{52846}=7 or\r\n{52846}=11 or\r\n{52846}=62 or\r\n{52846}=69 or\r\n{52846}=117\r\n)\r\nand\r\n({52847}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33876",
+                       "description":  "Generico: Interface port 16: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52849}\u003c0 and {52850}\u003e0\r\nand (\r\n{52851}=6 or\r\n{52851}=7 or\r\n{52851}=11 or\r\n{52851}=62 or\r\n{52851}=69 or\r\n{52851}=117\r\n)\r\nand\r\n({52852}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33877",
+                       "description":  "Generico: Interface port 17: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52854}\u003c0 and {52855}\u003e0\r\nand (\r\n{52856}=6 or\r\n{52856}=7 or\r\n{52856}=11 or\r\n{52856}=62 or\r\n{52856}=69 or\r\n{52856}=117\r\n)\r\nand\r\n({52857}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33878",
+                       "description":  "Generico: Interface port 18: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52859}\u003c0 and {52860}\u003e0\r\nand (\r\n{52861}=6 or\r\n{52861}=7 or\r\n{52861}=11 or\r\n{52861}=62 or\r\n{52861}=69 or\r\n{52861}=117\r\n)\r\nand\r\n({52862}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33879",
+                       "description":  "Generico: Interface port 19: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52864}\u003c0 and {52865}\u003e0\r\nand (\r\n{52866}=6 or\r\n{52866}=7 or\r\n{52866}=11 or\r\n{52866}=62 or\r\n{52866}=69 or\r\n{52866}=117\r\n)\r\nand\r\n({52867}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33880",
+                       "description":  "Generico: Interface port 20: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52869}\u003c0 and {52870}\u003e0\r\nand (\r\n{52871}=6 or\r\n{52871}=7 or\r\n{52871}=11 or\r\n{52871}=62 or\r\n{52871}=69 or\r\n{52871}=117\r\n)\r\nand\r\n({52872}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33881",
+                       "description":  "Generico: Interface port 21: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52874}\u003c0 and {52875}\u003e0\r\nand (\r\n{52876}=6 or\r\n{52876}=7 or\r\n{52876}=11 or\r\n{52876}=62 or\r\n{52876}=69 or\r\n{52876}=117\r\n)\r\nand\r\n({52877}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33882",
+                       "description":  "Generico: Interface port 22: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52879}\u003c0 and {52880}\u003e0\r\nand (\r\n{52881}=6 or\r\n{52881}=7 or\r\n{52881}=11 or\r\n{52881}=62 or\r\n{52881}=69 or\r\n{52881}=117\r\n)\r\nand\r\n({52882}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33883",
+                       "description":  "Generico: Interface port 23: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52884}\u003c0 and {52885}\u003e0\r\nand (\r\n{52886}=6 or\r\n{52886}=7 or\r\n{52886}=11 or\r\n{52886}=62 or\r\n{52886}=69 or\r\n{52886}=117\r\n)\r\nand\r\n({52887}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33884",
+                       "description":  "Generico: Interface port 24: Gigabit Fiber() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52889}\u003c0 and {52890}\u003e0\r\nand (\r\n{52891}=6 or\r\n{52891}=7 or\r\n{52891}=11 or\r\n{52891}=62 or\r\n{52891}=69 or\r\n{52891}=117\r\n)\r\nand\r\n({52892}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33885",
+                       "description":  "Generico: Interface AUX() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52894}\u003c0 and {52895}\u003e0\r\nand (\r\n{52896}=6 or\r\n{52896}=7 or\r\n{52896}=11 or\r\n{52896}=62 or\r\n{52896}=69 or\r\n{52896}=117\r\n)\r\nand\r\n({52897}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33886",
+                       "description":  "Generico: Interface Loopback() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52899}\u003c0 and {52900}\u003e0\r\nand (\r\n{52901}=6 or\r\n{52901}=7 or\r\n{52901}=11 or\r\n{52901}=62 or\r\n{52901}=69 or\r\n{52901}=117\r\n)\r\nand\r\n({52902}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33887",
+                       "description":  "Generico: Interface Vlan-interface1() com velocidade reduzida - verificar enlace",
+                       "expression":  "{52904}\u003c0 and {52905}\u003e0\r\nand (\r\n{52906}=6 or\r\n{52906}=7 or\r\n{52906}=11 or\r\n{52906}=62 or\r\n{52906}=69 or\r\n{52906}=117\r\n)\r\nand\r\n({52907}\u003c\u003e2)",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33888",
+                       "description":  "Interface port 1: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52909}\u003e({$IF.UTIL.MAX:\"port 1: Gigabit Copper\"}/100)*{52910} or\r\n{52911}\u003e({$IF.UTIL.MAX:\"port 1: Gigabit Copper\"}/100)*{52910}) and\r\n{52910}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33889",
+                       "description":  "Interface port 2: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52912}\u003e({$IF.UTIL.MAX:\"port 2: Gigabit Copper\"}/100)*{52913} or\r\n{52914}\u003e({$IF.UTIL.MAX:\"port 2: Gigabit Copper\"}/100)*{52913}) and\r\n{52913}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33890",
+                       "description":  "Interface port 3: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52915}\u003e({$IF.UTIL.MAX:\"port 3: Gigabit Copper\"}/100)*{52916} or\r\n{52917}\u003e({$IF.UTIL.MAX:\"port 3: Gigabit Copper\"}/100)*{52916}) and\r\n{52916}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33891",
+                       "description":  "Interface port 4: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52918}\u003e({$IF.UTIL.MAX:\"port 4: Gigabit Copper\"}/100)*{52919} or\r\n{52920}\u003e({$IF.UTIL.MAX:\"port 4: Gigabit Copper\"}/100)*{52919}) and\r\n{52919}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33892",
+                       "description":  "Interface port 5: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52921}\u003e({$IF.UTIL.MAX:\"port 5: Gigabit Copper\"}/100)*{52922} or\r\n{52923}\u003e({$IF.UTIL.MAX:\"port 5: Gigabit Copper\"}/100)*{52922}) and\r\n{52922}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33893",
+                       "description":  "Interface port 6: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52924}\u003e({$IF.UTIL.MAX:\"port 6: Gigabit Copper\"}/100)*{52925} or\r\n{52926}\u003e({$IF.UTIL.MAX:\"port 6: Gigabit Copper\"}/100)*{52925}) and\r\n{52925}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33894",
+                       "description":  "Interface port 7: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52927}\u003e({$IF.UTIL.MAX:\"port 7: Gigabit Copper\"}/100)*{52928} or\r\n{52929}\u003e({$IF.UTIL.MAX:\"port 7: Gigabit Copper\"}/100)*{52928}) and\r\n{52928}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33895",
+                       "description":  "Interface port 8: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52930}\u003e({$IF.UTIL.MAX:\"port 8: Gigabit Copper\"}/100)*{52931} or\r\n{52932}\u003e({$IF.UTIL.MAX:\"port 8: Gigabit Copper\"}/100)*{52931}) and\r\n{52931}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33896",
+                       "description":  "Interface port 9: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52933}\u003e({$IF.UTIL.MAX:\"port 9: Gigabit Copper\"}/100)*{52934} or\r\n{52935}\u003e({$IF.UTIL.MAX:\"port 9: Gigabit Copper\"}/100)*{52934}) and\r\n{52934}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33897",
+                       "description":  "Interface port 10: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52936}\u003e({$IF.UTIL.MAX:\"port 10: Gigabit Copper\"}/100)*{52937} or\r\n{52938}\u003e({$IF.UTIL.MAX:\"port 10: Gigabit Copper\"}/100)*{52937}) and\r\n{52937}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33898",
+                       "description":  "Interface port 11: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52939}\u003e({$IF.UTIL.MAX:\"port 11: Gigabit Copper\"}/100)*{52940} or\r\n{52941}\u003e({$IF.UTIL.MAX:\"port 11: Gigabit Copper\"}/100)*{52940}) and\r\n{52940}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33899",
+                       "description":  "Interface port 12: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52942}\u003e({$IF.UTIL.MAX:\"port 12: Gigabit Copper\"}/100)*{52943} or\r\n{52944}\u003e({$IF.UTIL.MAX:\"port 12: Gigabit Copper\"}/100)*{52943}) and\r\n{52943}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33900",
+                       "description":  "Interface port 13: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52945}\u003e({$IF.UTIL.MAX:\"port 13: Gigabit Copper\"}/100)*{52946} or\r\n{52947}\u003e({$IF.UTIL.MAX:\"port 13: Gigabit Copper\"}/100)*{52946}) and\r\n{52946}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33901",
+                       "description":  "Interface port 14: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52948}\u003e({$IF.UTIL.MAX:\"port 14: Gigabit Copper\"}/100)*{52949} or\r\n{52950}\u003e({$IF.UTIL.MAX:\"port 14: Gigabit Copper\"}/100)*{52949}) and\r\n{52949}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33902",
+                       "description":  "Interface port 15: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52951}\u003e({$IF.UTIL.MAX:\"port 15: Gigabit Copper\"}/100)*{52952} or\r\n{52953}\u003e({$IF.UTIL.MAX:\"port 15: Gigabit Copper\"}/100)*{52952}) and\r\n{52952}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33903",
+                       "description":  "Interface port 16: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52954}\u003e({$IF.UTIL.MAX:\"port 16: Gigabit Copper\"}/100)*{52955} or\r\n{52956}\u003e({$IF.UTIL.MAX:\"port 16: Gigabit Copper\"}/100)*{52955}) and\r\n{52955}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33904",
+                       "description":  "Interface port 17: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52957}\u003e({$IF.UTIL.MAX:\"port 17: Gigabit Copper\"}/100)*{52958} or\r\n{52959}\u003e({$IF.UTIL.MAX:\"port 17: Gigabit Copper\"}/100)*{52958}) and\r\n{52958}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33905",
+                       "description":  "Interface port 18: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52960}\u003e({$IF.UTIL.MAX:\"port 18: Gigabit Copper\"}/100)*{52961} or\r\n{52962}\u003e({$IF.UTIL.MAX:\"port 18: Gigabit Copper\"}/100)*{52961}) and\r\n{52961}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33906",
+                       "description":  "Interface port 19: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52963}\u003e({$IF.UTIL.MAX:\"port 19: Gigabit Copper\"}/100)*{52964} or\r\n{52965}\u003e({$IF.UTIL.MAX:\"port 19: Gigabit Copper\"}/100)*{52964}) and\r\n{52964}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33907",
+                       "description":  "Interface port 20: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52966}\u003e({$IF.UTIL.MAX:\"port 20: Gigabit Copper\"}/100)*{52967} or\r\n{52968}\u003e({$IF.UTIL.MAX:\"port 20: Gigabit Copper\"}/100)*{52967}) and\r\n{52967}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33908",
+                       "description":  "Interface port 21: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52969}\u003e({$IF.UTIL.MAX:\"port 21: Gigabit Copper\"}/100)*{52970} or\r\n{52971}\u003e({$IF.UTIL.MAX:\"port 21: Gigabit Copper\"}/100)*{52970}) and\r\n{52970}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33909",
+                       "description":  "Interface port 22: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52972}\u003e({$IF.UTIL.MAX:\"port 22: Gigabit Copper\"}/100)*{52973} or\r\n{52974}\u003e({$IF.UTIL.MAX:\"port 22: Gigabit Copper\"}/100)*{52973}) and\r\n{52973}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33910",
+                       "description":  "Interface port 23: Gigabit Copper(): Uso de banda alto",
+                       "expression":  "({52975}\u003e({$IF.UTIL.MAX:\"port 23: Gigabit Copper\"}/100)*{52976} or\r\n{52977}\u003e({$IF.UTIL.MAX:\"port 23: Gigabit Copper\"}/100)*{52976}) and\r\n{52976}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33911",
+                       "description":  "Interface port 24: Gigabit Fiber(): Uso de banda alto",
+                       "expression":  "({52978}\u003e({$IF.UTIL.MAX:\"port 24: Gigabit Fiber\"}/100)*{52979} or\r\n{52980}\u003e({$IF.UTIL.MAX:\"port 24: Gigabit Fiber\"}/100)*{52979}) and\r\n{52979}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33912",
+                       "description":  "Interface AUX(): Uso de banda alto",
+                       "expression":  "({52981}\u003e({$IF.UTIL.MAX:\"AUX\"}/100)*{52982} or\r\n{52983}\u003e({$IF.UTIL.MAX:\"AUX\"}/100)*{52982}) and\r\n{52982}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33913",
+                       "description":  "Interface Loopback(): Uso de banda alto",
+                       "expression":  "({52984}\u003e({$IF.UTIL.MAX:\"Loopback\"}/100)*{52985} or\r\n{52986}\u003e({$IF.UTIL.MAX:\"Loopback\"}/100)*{52985}) and\r\n{52985}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33914",
+                       "description":  "Interface Vlan-interface1(): Uso de banda alto",
+                       "expression":  "({52987}\u003e({$IF.UTIL.MAX:\"Vlan-interface1\"}/100)*{52988} or\r\n{52989}\u003e({$IF.UTIL.MAX:\"Vlan-interface1\"}/100)*{52988}) and\r\n{52988}\u003e0",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33915",
+                       "description":  "Interface port 1: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73911}\u003e{$IF.ERRORS.WARN:\"port 1: Gigabit Copper\"} or {73912}\u003e{$IF.ERRORS.WARN:\"port 1: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33916",
+                       "description":  "Interface port 2: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73915}\u003e{$IF.ERRORS.WARN:\"port 2: Gigabit Copper\"} or {73916}\u003e{$IF.ERRORS.WARN:\"port 2: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33917",
+                       "description":  "Interface port 3: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73919}\u003e{$IF.ERRORS.WARN:\"port 3: Gigabit Copper\"} or {73920}\u003e{$IF.ERRORS.WARN:\"port 3: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33918",
+                       "description":  "Interface port 4: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73923}\u003e{$IF.ERRORS.WARN:\"port 4: Gigabit Copper\"} or {73924}\u003e{$IF.ERRORS.WARN:\"port 4: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33919",
+                       "description":  "Interface port 5: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73927}\u003e{$IF.ERRORS.WARN:\"port 5: Gigabit Copper\"} or {73928}\u003e{$IF.ERRORS.WARN:\"port 5: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33920",
+                       "description":  "Interface port 6: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73931}\u003e{$IF.ERRORS.WARN:\"port 6: Gigabit Copper\"} or {73932}\u003e{$IF.ERRORS.WARN:\"port 6: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33921",
+                       "description":  "Interface port 7: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73935}\u003e{$IF.ERRORS.WARN:\"port 7: Gigabit Copper\"} or {73936}\u003e{$IF.ERRORS.WARN:\"port 7: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33922",
+                       "description":  "Interface port 8: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73939}\u003e{$IF.ERRORS.WARN:\"port 8: Gigabit Copper\"} or {73940}\u003e{$IF.ERRORS.WARN:\"port 8: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33923",
+                       "description":  "Interface port 9: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73943}\u003e{$IF.ERRORS.WARN:\"port 9: Gigabit Copper\"} or {73944}\u003e{$IF.ERRORS.WARN:\"port 9: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33924",
+                       "description":  "Interface port 10: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73947}\u003e{$IF.ERRORS.WARN:\"port 10: Gigabit Copper\"} or {73948}\u003e{$IF.ERRORS.WARN:\"port 10: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33925",
+                       "description":  "Interface port 11: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73951}\u003e{$IF.ERRORS.WARN:\"port 11: Gigabit Copper\"} or {73952}\u003e{$IF.ERRORS.WARN:\"port 11: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33926",
+                       "description":  "Interface port 12: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73955}\u003e{$IF.ERRORS.WARN:\"port 12: Gigabit Copper\"} or {73956}\u003e{$IF.ERRORS.WARN:\"port 12: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33927",
+                       "description":  "Interface port 13: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73959}\u003e{$IF.ERRORS.WARN:\"port 13: Gigabit Copper\"} or {73960}\u003e{$IF.ERRORS.WARN:\"port 13: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33928",
+                       "description":  "Interface port 14: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73963}\u003e{$IF.ERRORS.WARN:\"port 14: Gigabit Copper\"} or {73964}\u003e{$IF.ERRORS.WARN:\"port 14: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33929",
+                       "description":  "Interface port 15: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73967}\u003e{$IF.ERRORS.WARN:\"port 15: Gigabit Copper\"} or {73968}\u003e{$IF.ERRORS.WARN:\"port 15: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33930",
+                       "description":  "Interface port 16: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73971}\u003e{$IF.ERRORS.WARN:\"port 16: Gigabit Copper\"} or {73972}\u003e{$IF.ERRORS.WARN:\"port 16: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33931",
+                       "description":  "Interface port 17: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73975}\u003e{$IF.ERRORS.WARN:\"port 17: Gigabit Copper\"} or {73976}\u003e{$IF.ERRORS.WARN:\"port 17: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33932",
+                       "description":  "Interface port 18: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73979}\u003e{$IF.ERRORS.WARN:\"port 18: Gigabit Copper\"} or {73980}\u003e{$IF.ERRORS.WARN:\"port 18: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33933",
+                       "description":  "Interface port 19: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73983}\u003e{$IF.ERRORS.WARN:\"port 19: Gigabit Copper\"} or {73984}\u003e{$IF.ERRORS.WARN:\"port 19: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33934",
+                       "description":  "Interface port 20: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73987}\u003e{$IF.ERRORS.WARN:\"port 20: Gigabit Copper\"} or {73988}\u003e{$IF.ERRORS.WARN:\"port 20: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33935",
+                       "description":  "Interface port 21: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73991}\u003e{$IF.ERRORS.WARN:\"port 21: Gigabit Copper\"} or {73992}\u003e{$IF.ERRORS.WARN:\"port 21: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33936",
+                       "description":  "Interface port 22: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73995}\u003e{$IF.ERRORS.WARN:\"port 22: Gigabit Copper\"} or {73996}\u003e{$IF.ERRORS.WARN:\"port 22: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33937",
+                       "description":  "Interface port 23: Gigabit Copper(): Taxa de erros alta",
+                       "expression":  "{73999}\u003e{$IF.ERRORS.WARN:\"port 23: Gigabit Copper\"} or {74000}\u003e{$IF.ERRORS.WARN:\"port 23: Gigabit Copper\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33938",
+                       "description":  "Interface port 24: Gigabit Fiber(): Taxa de erros alta",
+                       "expression":  "{74003}\u003e{$IF.ERRORS.WARN:\"port 24: Gigabit Fiber\"} or {74004}\u003e{$IF.ERRORS.WARN:\"port 24: Gigabit Fiber\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33939",
+                       "description":  "Interface AUX(): Taxa de erros alta",
+                       "expression":  "{74007}\u003e{$IF.ERRORS.WARN:\"AUX\"} or {74008}\u003e{$IF.ERRORS.WARN:\"AUX\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33940",
+                       "description":  "Interface Loopback(): Taxa de erros alta",
+                       "expression":  "{74011}\u003e{$IF.ERRORS.WARN:\"Loopback\"} or {74012}\u003e{$IF.ERRORS.WARN:\"Loopback\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33941",
+                       "description":  "Interface Vlan-interface1(): Taxa de erros alta",
+                       "expression":  "{74015}\u003e{$IF.ERRORS.WARN:\"Vlan-interface1\"} or {74016}\u003e{$IF.ERRORS.WARN:\"Vlan-interface1\"}",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33942",
+                       "description":  "Interface port 1: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 1: Gigabit Copper\"}=1 and {77715}=2 and ({77716}\u003c\u003e{77717})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33943",
+                       "description":  "Interface port 2: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 2: Gigabit Copper\"}=1 and {77718}=2 and ({77719}\u003c\u003e{77720})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33944",
+                       "description":  "Interface port 3: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 3: Gigabit Copper\"}=1 and {77721}=2 and ({77722}\u003c\u003e{77723})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33945",
+                       "description":  "Interface port 4: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 4: Gigabit Copper\"}=1 and {77724}=2 and ({77725}\u003c\u003e{77726})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33946",
+                       "description":  "Interface port 5: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 5: Gigabit Copper\"}=1 and {77727}=2 and ({77728}\u003c\u003e{77729})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33947",
+                       "description":  "Interface port 6: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 6: Gigabit Copper\"}=1 and {77730}=2 and ({77731}\u003c\u003e{77732})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33948",
+                       "description":  "Interface port 7: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 7: Gigabit Copper\"}=1 and {77733}=2 and ({77734}\u003c\u003e{77735})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33949",
+                       "description":  "Interface port 8: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 8: Gigabit Copper\"}=1 and {77736}=2 and ({77737}\u003c\u003e{77738})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "1"
+                   },
+                   {
+                       "triggerid":  "33950",
+                       "description":  "Interface port 9: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 9: Gigabit Copper\"}=1 and {77739}=2 and ({77740}\u003c\u003e{77741})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33951",
+                       "description":  "Interface port 10: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 10: Gigabit Copper\"}=1 and {77742}=2 and ({77743}\u003c\u003e{77744})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33952",
+                       "description":  "Interface port 11: Gigabit Copper() sem link",
+                       "expression":  "{$IFCONTROL:\"port 11: Gigabit Copper\"}=1 and {77745}=2 and ({77746}\u003c\u003e{77747})",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   }
+               ],
+    "id":  2
+}

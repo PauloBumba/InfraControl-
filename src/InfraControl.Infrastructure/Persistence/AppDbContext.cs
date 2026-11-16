@@ -76,6 +76,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
     public DbSet<MonitoringResult> MonitoringResults => Set<MonitoringResult>();
     public DbSet<MonitoringEvent> MonitoringEvents => Set<MonitoringEvent>();
+    public DbSet<MonitoringProblemState> MonitoringProblemStates => Set<MonitoringProblemState>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationRecipient> NotificationRecipients => Set<NotificationRecipient>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
@@ -84,6 +85,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationRoutingPolicy> NotificationRoutingPolicies => Set<NotificationRoutingPolicy>();
     public DbSet<NotificationRoutingRule> NotificationRoutingRules => Set<NotificationRoutingRule>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<NotificationPolicySetting> NotificationPolicySettings => Set<NotificationPolicySetting>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
     public DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions => Set<KnowledgeArticleVersion>();

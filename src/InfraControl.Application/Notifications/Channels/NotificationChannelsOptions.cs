@@ -69,6 +69,14 @@ public sealed class WhatsAppChannelOptions
     /// </summary>
     public bool? NotificationsEnabled { get; set; }
 
+    /// <summary>
+    /// true somente quando <see cref="NotificationsEnabled"/> veio de uma
+    /// escolha explícita do admin na configuração persistida (banco).
+    /// false = valor derivado do fanout de ambiente — nesse caso um canal
+    /// listado explicitamente numa regra de evento continua valendo.
+    /// </summary>
+    public bool IsNotificationsEnabledExplicit { get; set; }
+
     public string Phone { get; set; } = string.Empty;
 
     /// <summary>JID do grupo (&lt;id&gt;@g.us) — prioritário sobre Phone.</summary>

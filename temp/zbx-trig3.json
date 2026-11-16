@@ -1,0 +1,1028 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "triggerid":  "33179",
+                       "description":  "HP Comware HH3C: Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33189",
+                       "description":  "HP Comware HH3C: Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33199",
+                       "description":  "HP Comware HH3C: Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33209",
+                       "description":  "HP Comware HH3C: Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33219",
+                       "description":  "HP Comware HH3C: Host foi reiniciado",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33229",
+                       "description":  "HP Comware HH3C: Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34327",
+                       "description":  "HP Comware HH3C: Board: CPU com uso alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34328",
+                       "description":  "HP Comware HH3C: Board: Memoria com uso alto",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34329",
+                       "description":  "HP Comware HH3C: A5120-EI: Firmware alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34330",
+                       "description":  "HP Comware HH3C: A5120-EI: Device substituido",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34331",
+                       "description":  "HP Comware HH3C: A5120-EI: Descricao do sistema operacional alterada",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34332",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34333",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/2(GigabitEthernet1/0/2 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34334",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/3(GigabitEthernet1/0/3 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34335",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34336",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34337",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34338",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34339",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34340",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/10(GigabitEthernet1/0/10 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34341",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34342",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34343",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34344",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34345",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34346",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34347",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34348",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34349",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34350",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34351",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34352",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34353",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34354",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface) em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34355",
+                       "description":  "HP Comware: MODULE LEVEL1 - temperatura acima do limiar critico",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34356",
+                       "description":  "HP Comware: Temperature Sensor on Board - temperatura acima do limiar critico",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34357",
+                       "description":  "HP Comware: MODULE LEVEL1 - temperatura acima do limiar de atencao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34358",
+                       "description":  "HP Comware: Temperature Sensor on Board - temperatura acima do limiar de atencao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34359",
+                       "description":  "HP Comware HH3C: MODULE LEVEL1: Temperatura baixa demais",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34360",
+                       "description":  "HP Comware HH3C: Temperature Sensor on Board: Temperatura baixa demais",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34361",
+                       "description":  "HP Comware: PowerSupply - fonte de alimentacao em estado critico (verificar PSU do slot)",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34362",
+                       "description":  "HP Comware HH3C: Fan1: Ventoinha em estado critico",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34363",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34364",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/2(GigabitEthernet1/0/2 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34365",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/3(GigabitEthernet1/0/3 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34366",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34367",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34368",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34369",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34370",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34371",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34372",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/10(GigabitEthernet1/0/10 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34373",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34374",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34375",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34376",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34377",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34378",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34379",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34380",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34381",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34382",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34383",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34384",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34385",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34386",
+                       "description":  "HP Comware: Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34387",
+                       "description":  "HP Comware: Interface Vlan-interface1(vlan 01) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34388",
+                       "description":  "HP Comware: Interface Vlan-interface126(Vlan-interface126 Interface) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34389",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34390",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/2(GigabitEthernet1/0/2 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34391",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/3(GigabitEthernet1/0/3 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34392",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34393",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34394",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34395",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34396",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34397",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34398",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/10(GigabitEthernet1/0/10 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34399",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34400",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34401",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34402",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34403",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34404",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34405",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34406",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34407",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34408",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34409",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34410",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34411",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34412",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34413",
+                       "description":  "HP Comware HH3C: Interface Vlan-interface1(vlan 01): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34414",
+                       "description":  "HP Comware HH3C: Interface Vlan-interface126(Vlan-interface126 Interface): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34415",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34416",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/2(GigabitEthernet1/0/2 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34417",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/3(GigabitEthernet1/0/3 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34418",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34419",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34420",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34421",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34422",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34423",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34424",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/10(GigabitEthernet1/0/10 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34425",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34426",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34427",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34428",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34429",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34430",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34431",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34432",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34433",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34434",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34435",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34436",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34437",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34438",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34439",
+                       "description":  "HP Comware HH3C: Interface Vlan-interface1(vlan 01): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34440",
+                       "description":  "HP Comware HH3C: Interface Vlan-interface126(Vlan-interface126 Interface): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34441",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34442",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/2(GigabitEthernet1/0/2 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34443",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/3(GigabitEthernet1/0/3 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34444",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34445",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34446",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34447",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34448",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34449",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34450",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/10(GigabitEthernet1/0/10 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34451",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34452",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34453",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34454",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34455",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34456",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34457",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34458",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34459",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34460",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34461",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34462",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34463",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34464",
+                       "description":  "HP Comware HH3C: Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34465",
+                       "description":  "HP Comware HH3C: Interface Vlan-interface1(vlan 01) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34466",
+                       "description":  "HP Comware HH3C: Interface Vlan-interface126(Vlan-interface126 Interface) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   }
+               ],
+    "id":  2
+}

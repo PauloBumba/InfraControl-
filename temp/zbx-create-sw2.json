@@ -1,0 +1,5 @@
+{"host":"sw-192-168-127-150","name":"NIR CE (192.168.127.150)","status":0,
+ "groups":[{"groupid":"24"}],
+ "templates":[{"templateid":"10564"}],
+ "interfaces":[{"type":1,"main":1,"useip":1,"ip":"192.168.127.150","dns":"","port":"10050"}],
+ "tags":[{"tag":"type","value":"switch"},{"tag":"managed-by","value":"InfraControl"},{"tag":"local","value":"NIR CE"}]}

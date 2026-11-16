@@ -146,6 +146,20 @@ public sealed class RunAllChecksCommandTests : IDisposable
             Guid deviceId, Domain.Enums.CheckKind kind, int limit,
             CancellationToken cancellationToken = default)
             => inner.GetRecentByDeviceAndKindAsync(deviceId, kind, limit, cancellationToken);
+
+        public Task<IReadOnlyList<MonitoringResult>> GetLatestPingByDeviceAsync(
+            CancellationToken cancellationToken = default)
+            => inner.GetLatestPingByDeviceAsync(cancellationToken);
+
+        public Task<IReadOnlyList<PollCountRow>> GetPollCountsByMinuteAsync(
+            DateTime fromUtc, DateTime toUtc,
+            CancellationToken cancellationToken = default)
+            => inner.GetPollCountsByMinuteAsync(fromUtc, toUtc, cancellationToken);
+
+        public Task<IReadOnlyList<PollCountRow>> GetPollCountsByHourAsync(
+            DateTime fromUtc, DateTime toUtc,
+            CancellationToken cancellationToken = default)
+            => inner.GetPollCountsByHourAsync(fromUtc, toUtc, cancellationToken);
     }
 
     private static RunAllChecksCommandHandler Handler(

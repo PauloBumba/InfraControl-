@@ -1,3 +1,4 @@
+using InfraControl.Domain.Common;
 using InfraControl.Domain.Common.Entities;
 using InfraControl.Domain.Enums;
 
@@ -58,6 +59,39 @@ public sealed class NotificationDelivery : Entity
             Channel = channel,
             Status = status
         };
+    }
+
+    /// <summary>
+    /// ADR-070/F58: adia a entrega até <paramref name="notBefore"/> —
+    /// estabilização de flapping: a delivery fica Pending mas o worker
+    /// só a lê quando NextAttemptAt vencer (query respeita o campo para
+    /// Pending também). Nunca adianta uma data já vencida.
+    /// </summary>
+    public void DeferUntil(DateTime notBefore)
+    {
+        if (Status != DeliveryStatus.Pending)
+            return;
+
+        var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+        if (notBefore <= now)
+            return;
+
+        NextAttemptAt = NextAttemptAt is { } existing && existing > notBefore
+            ? existing
+            : notBefore;
+    }
+
+    /// <summary>
+    /// ADR-070/F58: cancela a entrega sem envio (ciclo flapping ou
+    /// supersede por escalonamento) — o registro permanece para auditoria.
+    /// </summary>
+    public void Cancel()
+    {
+        if (Status is DeliveryStatus.Sent or DeliveryStatus.Cancelled)
+            return;
+
+        Status = DeliveryStatus.Cancelled;
+        NextAttemptAt = null;
     }
 
     public void MarkSent(DateTime sentAt)

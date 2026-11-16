@@ -99,4 +99,15 @@ public sealed class WhatsAppIntegrationController(ISender sender) : BaseControll
         var result = await sender.Send(new SendWhatsAppTestCommand(), cancellationToken);
         return Ok(ApiResponse.Ok(result));
     }
+
+    /// <summary>
+    /// ADR-069: envia um cartão PNG de exemplo (mesmo pipeline sendMedia)
+    /// para o destino configurado — valida o modelo visual antes de usar.
+    /// </summary>
+    [HttpPost("test-card")]
+    public async Task<IActionResult> TestCard(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new SendWhatsAppTestCardCommand(), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
 }

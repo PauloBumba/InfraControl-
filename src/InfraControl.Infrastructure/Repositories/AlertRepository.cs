@@ -22,6 +22,21 @@ public sealed class AlertRepository(AppDbContext dbContext)
 
     public void Remove(Alert entity) => dbContext.Alerts.Remove(entity);
 
+    // F54-T003: carimbos p/ as séries do dashboard — janela semi-aberta
+    // [from, to) nos dois campos, sem tracking.
+    public async Task<IReadOnlyList<AlertTimestampRow>> ListTimestampsBetweenAsync(
+        DateTime fromUtc, DateTime toUtc,
+        CancellationToken cancellationToken = default)
+        => await dbContext.Alerts
+            .AsNoTracking()
+            .Where(alert =>
+                (alert.CreateDateTime >= fromUtc && alert.CreateDateTime < toUtc)
+                || (alert.ResolvedAt != null
+                    && alert.ResolvedAt >= fromUtc && alert.ResolvedAt < toUtc))
+            .Select(alert => new AlertTimestampRow(
+                alert.CreateDateTime, alert.ResolvedAt))
+            .ToListAsync(cancellationToken);
+
     // Tracking: o avaliador chama Resolve()/Suppress()/Reopen() no
     // retorno. F6-T004: ativo = Open OU Suppressed (não-Resolved).
     public Task<Alert?> GetActiveAsync(
@@ -52,6 +67,19 @@ public sealed class AlertRepository(AppDbContext dbContext)
             .ThenByDescending(alert => alert.CreateDateTime)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    // F57: ocorrência exata do cartão WhatsApp — mensagem = nome do
+    // problema extraído da notificação; mais recente primeiro.
+    public Task<Alert?> GetLatestByDeviceAndMessageAsync(
+        Guid deviceId,
+        string message,
+        CancellationToken cancellationToken = default)
+        => dbContext.Alerts.AsNoTracking()
+            .Where(alert =>
+                alert.DeviceId == deviceId
+                && alert.Message == message)
+            .OrderByDescending(alert => alert.CreateDateTime)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResult<AlertWithDevice>> SearchAsync(
         Guid? deviceId,

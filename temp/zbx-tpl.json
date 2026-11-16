@@ -1,0 +1,1 @@
+{"output":["templateid","name"],"selectDiscoveryRules":["itemid","name","key_","status"],"selectItems":["itemid","name","key_","status"],"selectTriggers":["triggerid","description","expression","status","priority"],"templateids":["10227"]}

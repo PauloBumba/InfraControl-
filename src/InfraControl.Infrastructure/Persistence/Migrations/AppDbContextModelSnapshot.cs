@@ -1825,6 +1825,86 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("monitoring_events", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringProblemState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AlertId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alert_id");
+
+                    b.Property<string>("CorrelationKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("correlation_key");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("device_id");
+
+                    b.Property<Guid?>("IncidentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("incident_id");
+
+                    b.Property<string>("LastProblemEventId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("last_problem_event_id");
+
+                    b.Property<int>("OpenCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("open_count");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at");
+
+                    b.Property<int>("RepeatedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("repeated_count");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlertId")
+                        .HasDatabaseName("IX_monitoring_problem_states_alert_id");
+
+                    b.HasIndex("Source", "CorrelationKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_monitoring_problem_states_source_correlation_key");
+
+                    b.ToTable("monitoring_problem_states", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringResult", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4981,6 +5061,37 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)")
                         .HasColumnName("base_url");
+
+                    b.Property<string>("CardIncidentColor")
+                        .HasMaxLength(9)
+                        .HasColumnType("character varying(9)")
+                        .HasColumnName("card_incident_color");
+
+                    b.Property<bool>("CardIncidentEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("card_incident_enabled");
+
+                    b.Property<string>("CardResolutionColor")
+                        .HasMaxLength(9)
+                        .HasColumnType("character varying(9)")
+                        .HasColumnName("card_resolution_color");
+
+                    b.Property<bool>("CardResolutionEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("card_resolution_enabled");
+
+                    b.Property<string>("CardWarningColor")
+                        .HasMaxLength(9)
+                        .HasColumnType("character varying(9)")
+                        .HasColumnName("card_warning_color");
+
+                    b.Property<bool>("CardWarningEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("card_warning_enabled");
+
+                    b.Property<int>("CardWindowHours")
+                        .HasColumnType("integer")
+                        .HasColumnName("card_window_hours");
 
                     b.Property<string>("ConnectionState")
                         .HasMaxLength(32)

@@ -73,6 +73,49 @@ public sealed class GetUnifiInsightsQueryTests
     }
 
     [Fact]
+    public async Task Handle_WhenDpiFails_ShouldKeepTrafficAndMarkDpiError()
+    {
+        // F53-T002: /stat/app 404 em versões antigas do Controller não pode
+        // derrubar o painel de tráfego — a seção volta vazia com erro.
+        var clients = new[]
+        {
+            new UnifiClientTrafficDto("aa:bb:cc:dd:ee:01", "host-1", "10.0.0.1", 100, 50, null),
+        };
+
+        var client = new Mock<IUnifiApiClient>();
+        client.Setup(c => c.ListClientTrafficAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(clients);
+        client.Setup(c => c.ListDpiStatsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Response status code does not indicate success: 404."));
+
+        var handler = new GetUnifiInsightsQueryHandler(client.Object);
+        var result = await handler.Handle(
+            new GetUnifiInsightsQuery(), CancellationToken.None);
+
+        result.TrafficPerClient.Should().HaveCount(1);
+        result.DpiPerApplication.Should().BeEmpty();
+        result.DpiError.Should().NotBeNullOrWhiteSpace();
+        result.TrafficError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_WhenBothSourcesFail_ShouldThrow()
+    {
+        // F53-T002: controller inteiro fora continua sendo falha visível.
+        var client = new Mock<IUnifiApiClient>();
+        client.Setup(c => c.ListClientTrafficAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("404"));
+        client.Setup(c => c.ListDpiStatsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("404"));
+
+        var handler = new GetUnifiInsightsQueryHandler(client.Object);
+
+        await FluentActions.Invoking(() => handler.Handle(
+                new GetUnifiInsightsQuery(), CancellationToken.None))
+            .Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
     public void Query_ShouldAllowAnyAuthenticatedRoleToRead()
     {
         var query = new GetUnifiInsightsQuery();

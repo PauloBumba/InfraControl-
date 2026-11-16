@@ -29,26 +29,60 @@ public sealed class GetUnifiInsightsQueryHandler(IUnifiApiClient client)
     /// </summary>
     public const int MaxEntries = 50;
 
+    /// <summary>F53-T002: falha de UMA fonte não derruba o painel inteiro —
+    /// a seção afetada volta vazia com <c>*Error</c> preenchido. Só
+    /// <see cref="HttpRequestException"/> é capturada (erro HTTP do
+    /// Controller, ex.: /stat/app 404 em versões antigas); configuração
+    /// ausente e payload inesperado continuam propagando.</summary>
+    private const string SectionUnavailableMessage =
+        "Seção indisponível nesta versão do UniFi Controller.";
+
     public async Task<UnifiInsightsDto> Handle(
         GetUnifiInsightsQuery request, CancellationToken cancellationToken)
     {
         // Sequencial de propósito: as duas chamadas reutilizam a MESMA
         // sessão (gate de login do UnifiApiClient) — paralelizar duplicaria
         // o login em sessão expirada sem ganho (duas chamadas leves).
-        var traffic = await client.ListClientTrafficAsync(cancellationToken);
-        var dpi = await client.ListDpiStatsAsync(cancellationToken);
+        var traffic = await ProbeAsync(
+            () => client.ListClientTrafficAsync(cancellationToken));
+        var dpi = await ProbeAsync(
+            () => client.ListDpiStatsAsync(cancellationToken));
 
-        var trafficTop = traffic
+        // As duas fontes falharam → controller inteiro indisponível:
+        // propaga o erro original (502 via GlobalExceptionHandler) em vez
+        // de devolver um painel vazio que finge sucesso.
+        if (traffic.Error is not null && dpi.Error is not null)
+            throw traffic.Error!;
+
+        var trafficTop = (traffic.Value ?? [])
             .OrderByDescending(client => client.TotalBytes)
             .Take(MaxEntries)
             .ToArray();
 
-        var dpiTop = dpi
+        var dpiTop = (dpi.Value ?? [])
             .Where(app => app.TotalBytes > 0)
             .OrderByDescending(app => app.TotalBytes)
             .Take(MaxEntries)
             .ToArray();
 
-        return new UnifiInsightsDto(trafficTop, dpiTop, DateTimeOffset.UtcNow);
+        return new UnifiInsightsDto(
+            trafficTop, dpiTop, DateTimeOffset.UtcNow,
+            TrafficError: traffic.Error is null ? null : SectionUnavailableMessage,
+            DpiError: dpi.Error is null ? null : SectionUnavailableMessage);
     }
+
+    private static async Task<ProbeResult<T>> ProbeAsync<T>(
+        Func<Task<IReadOnlyList<T>>> probe)
+    {
+        try
+        {
+            return new ProbeResult<T>(await probe(), null);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ProbeResult<T>(null, ex);
+        }
+    }
+
+    private sealed record ProbeResult<T>(IReadOnlyList<T>? Value, HttpRequestException? Error);
 }

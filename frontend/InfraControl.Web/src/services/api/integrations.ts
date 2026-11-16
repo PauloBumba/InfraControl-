@@ -35,6 +35,10 @@ export interface UnifiInsights {
   dpiPerApplication: UnifiDpiAppItem[];
   /** Momento da sondagem (ISO UTC). */
   capturedAtUtc: string;
+  /** F53-T002: falha só na fonte de tráfego (painel DPI segue OK). */
+  trafficError?: string | null;
+  /** F53-T002: falha só na fonte de DPI (ex.: /stat/app ausente no Controller). */
+  dpiError?: string | null;
 }
 
 export async function getUnifiInsights(): Promise<UnifiInsights> {
@@ -97,6 +101,10 @@ export interface UnifiWifi {
   accessPoints: UnifiAccessPointItem[];
   /** Momento da sondagem (ISO UTC). */
   capturedAtUtc: string;
+  /** F53-T003: falha só na fonte de SSIDs (telemetria de AP segue OK). */
+  ssidsError?: string | null;
+  /** F53-T003: falha só na fonte de APs (SSID segue OK). */
+  accessPointsError?: string | null;
 }
 
 export async function getUnifiWifi(): Promise<UnifiWifi> {

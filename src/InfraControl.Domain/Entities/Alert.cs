@@ -132,7 +132,7 @@ public sealed class Alert : AggregateRoot
         return alert;
     }
 
-    public void Resolve()
+    public void Resolve(bool raiseResolvedEvent = true)
     {
         if (Status == AlertStatus.Resolved)
             return;
@@ -141,7 +141,12 @@ public sealed class Alert : AggregateRoot
         ResolvedAt = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
 
         // F19-T007: resolução → notificação Operator + Admin.
-        RaiseDomainEvent(new AlertResolvedDomainEvent(Id, Message, DeviceId));
+        // F57: raiseResolvedEvent=false quando o resolve é substituição
+        // por escalonamento (Warning→Critical do mesmo problema) — a
+        // mudança já é notificada pelo IncidentCreatedDomainEvent e um
+        // "Alerta resolvido" extra seria duplicata da mesma ocorrência.
+        if (raiseResolvedEvent)
+            RaiseDomainEvent(new AlertResolvedDomainEvent(Id, Message, DeviceId));
     }
 
     /// <summary>

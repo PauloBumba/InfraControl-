@@ -28,6 +28,28 @@ export interface WhatsAppSettings {
   lastTestError: string | null;
   updatedAtUtc: string | null;
   notificationsEnabled: boolean;
+  /** ADR-069 — modelo do cartão PNG por tipo de evento. */
+  cardIncidentEnabled: boolean;
+  cardWarningEnabled: boolean;
+  cardResolutionEnabled: boolean;
+  cardWindowHours: number;
+  cardIncidentColor: string | null;
+  cardWarningColor: string | null;
+  cardResolutionColor: string | null;
+}
+
+/**
+ * ADR-069 — bloco do cartão no save: quando presente, substitui todos os
+ * campos card_*; cor nula/vazia limpa o override (volta à paleta semântica).
+ */
+export interface WhatsAppCardSettingsPayload {
+  incidentEnabled: boolean;
+  warningEnabled: boolean;
+  resolutionEnabled: boolean;
+  windowHours: number;
+  incidentColor: string | null;
+  warningColor: string | null;
+  resolutionColor: string | null;
 }
 
 /** Payload de gravação — `apiKey` vazio/null mantém a chave já gravada. */
@@ -38,6 +60,7 @@ export interface WhatsAppSettingsPayload {
   groupId: string | null;
   phone: string | null;
   notificationsEnabled: boolean;
+  cardSettings: WhatsAppCardSettingsPayload;
 }
 
 export interface WhatsAppTestResult {
@@ -85,6 +108,13 @@ const EMPTY_SETTINGS: WhatsAppSettings = {
   lastTestError: null,
   updatedAtUtc: null,
   notificationsEnabled: false,
+  cardIncidentEnabled: true,
+  cardWarningEnabled: true,
+  cardResolutionEnabled: true,
+  cardWindowHours: 2,
+  cardIncidentColor: null,
+  cardWarningColor: null,
+  cardResolutionColor: null,
 };
 
 export function getWhatsAppSettings(): Promise<WhatsAppSettings> {
@@ -133,6 +163,14 @@ export function listWhatsAppGroups(): Promise<WhatsAppGroup[]> {
 export function sendWhatsAppTest(): Promise<WhatsAppTestResult> {
   return required(
     api.post<WhatsAppTestResult>("/integrations/whatsapp/test"),
+    { ok: false, error: "Resposta vazia do servidor." },
+  );
+}
+
+/** ADR-069 — envia um cartão PNG de exemplo pelo pipeline real (sendMedia). */
+export function sendWhatsAppTestCard(): Promise<WhatsAppTestResult> {
+  return required(
+    api.post<WhatsAppTestResult>("/integrations/whatsapp/test-card"),
     { ok: false, error: "Resposta vazia do servidor." },
   );
 }

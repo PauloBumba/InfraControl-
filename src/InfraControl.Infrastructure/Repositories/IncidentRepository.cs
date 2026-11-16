@@ -22,6 +22,23 @@ public sealed class IncidentRepository(AppDbContext dbContext)
 
     public void Remove(Incident entity) => dbContext.Incidents.Remove(entity);
 
+    // F54-T003: carimbos p/ as séries do dashboard — janela semi-aberta
+    // [from, to) nos dois campos, sem tracking.
+    public async Task<IReadOnlyList<IncidentTimestampRow>> ListTimestampsBetweenAsync(
+        DateTime fromUtc, DateTime toUtc,
+        CancellationToken cancellationToken = default)
+        => await dbContext.Incidents
+            .AsNoTracking()
+            .Where(incident =>
+                (incident.CreateDateTime >= fromUtc
+                    && incident.CreateDateTime < toUtc)
+                || (incident.ResolvedAt != null
+                    && incident.ResolvedAt >= fromUtc
+                    && incident.ResolvedAt < toUtc))
+            .Select(incident => new IncidentTimestampRow(
+                incident.CreateDateTime, incident.ResolvedAt))
+            .ToListAsync(cancellationToken);
+
     // Tracking: F6-T005 usa a mesma carga para SetRootCause (causa
     // provável recalculada pelo avaliador).
     public Task<Incident?> GetOpenByDeviceAsync(

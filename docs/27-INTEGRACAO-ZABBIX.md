@@ -92,7 +92,11 @@ Sempre no envelope `{isSuccess, data, errors}`:
 - **`resolved`** — OK recuperou o problem: alerta → `Resolved` e incidente
   vinculado (qualquer estado ≠ `Resolved`) → `Resolved`;
 - **`none`** — OK sem `MonitoringEvent`/`Alert` correspondente (órfão: a
-  evidência é gravada e nada mais é feito).
+  evidência é gravada e nada mais é feito);
+- **`suppressed`** — ADR-068: PROBLEM novo (eventId inédito) repetiu um
+  problema lógico ainda aberto (mesma `correlation_key` — triggerId ou
+  fallback device+nome). O `MonitoringEvent` é gravado como histórico,
+  mas nenhum `Alert`/`Incident`/notificação nasce — anti-spam de flap.
 
 ## 3. Comportamento
 

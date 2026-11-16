@@ -34,6 +34,16 @@ public sealed class WhatsAppIntegrationSetting : Entity
     public bool LastTestOk { get; private set; }
     public string? LastTestError { get; private set; }
 
+    // ADR-069: cartão visual (PNG) — toggle por tipo, janela do gráfico e
+    // cores por tipo (null = paleta semântica). Defaults = comportamento F33.
+    public bool CardIncidentEnabled { get; private set; } = true;
+    public bool CardWarningEnabled { get; private set; } = true;
+    public bool CardResolutionEnabled { get; private set; } = true;
+    public int CardWindowHours { get; private set; } = 2;
+    public string? CardIncidentColor { get; private set; }
+    public string? CardWarningColor { get; private set; }
+    public string? CardResolutionColor { get; private set; }
+
     private WhatsAppIntegrationSetting() { }
 
     public static WhatsAppIntegrationSetting Create(
@@ -106,6 +116,49 @@ public sealed class WhatsAppIntegrationSetting : Entity
     {
         GroupId = NormalizeGroupId(groupId);
         Touch();
+    }
+
+    /// <summary>
+    /// ADR-069: atualiza o modelo do cartão visual. Cores nulas/vazias
+    /// voltam à paleta semântica; janela fora de 1–24h é rejeitada.
+    /// </summary>
+    public void UpdateCardSettings(
+        bool incidentEnabled,
+        bool warningEnabled,
+        bool resolutionEnabled,
+        int windowHours,
+        string? incidentColor,
+        string? warningColor,
+        string? resolutionColor)
+    {
+        if (windowHours is < 1 or > 24)
+            throw new ArgumentOutOfRangeException(
+                nameof(windowHours), "A janela do gráfico deve ser entre 1 e 24 horas.");
+
+        CardIncidentEnabled = incidentEnabled;
+        CardWarningEnabled = warningEnabled;
+        CardResolutionEnabled = resolutionEnabled;
+        CardWindowHours = windowHours;
+        CardIncidentColor = NormalizeCardColor(incidentColor);
+        CardWarningColor = NormalizeCardColor(warningColor);
+        CardResolutionColor = NormalizeCardColor(resolutionColor);
+
+        Touch();
+    }
+
+    private static string? NormalizeCardColor(string? color)
+    {
+        var trimmed = string.IsNullOrWhiteSpace(color) ? null : color.Trim();
+        if (trimmed is null)
+            return null;
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(
+                trimmed, @"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"))
+            throw new ArgumentException(
+                "A cor do cartão deve ser hexadecimal (#RGB ou #RRGGBB).",
+                nameof(color));
+
+        return trimmed;
     }
 
     /// <summary>Registra o estado de conexão visto na Evolution (open/connecting/close).</summary>

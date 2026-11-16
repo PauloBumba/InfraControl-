@@ -1,0 +1,1021 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "itemid":  "63020",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63038",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65675",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65731",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63058",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "67708",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "67868",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84454",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "67948",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63320",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62531",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62552",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62584",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62602",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62608",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62743",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62770",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62797",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62824",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62851",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62878",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62995",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66339",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66504",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66516",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63335",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63362",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63390",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63411",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63567",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63586",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65760",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66315",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66327",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68108",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68153",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68198",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68243",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "60819",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62642",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62932",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "62945",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63239",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63673",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63709",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "67628",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63745",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63781",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63817",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63853",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63889",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63925",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63961",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "63997",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64033",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64069",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64105",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64141",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64177",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64213",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64249",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64285",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64321",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64357",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64393",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64429",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64465",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64501",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64537",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64573",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64609",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64645",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64681",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64717",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64753",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64789",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64825",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64861",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64897",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64933",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "64969",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65005",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65041",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65077",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65113",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65149",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65185",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65221",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65257",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65293",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65329",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65365",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65401",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65437",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65473",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65509",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65545",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65581",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65617",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "65748",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66462",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66528",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66555",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "66582",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "67788",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68028",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68069",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68893",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "68966",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "69210",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "70805",
+                       "name":  "Network interface discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72162",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72163",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72164",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72165",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72166",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72167",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72168",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72169",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72170",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72171",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72462",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72463",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72464",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72465",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "72466",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "77794",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "85454",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "85510",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "76452",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "76473",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "76494",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "76515",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "76536",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "77967",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "77991",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78015",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78039",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78063",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78087",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78111",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78135",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78159",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78183",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78207",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78231",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78255",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78279",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78303",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78327",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78351",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78375",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78399",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "78810",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "79068",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "79092",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "79116",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "79275",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "79452",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "79980",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "80274",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "80568",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "80673",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "80823",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83332",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83365",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83398",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83431",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83464",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83497",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83530",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83563",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83596",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83629",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83662",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83695",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83728",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83761",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83794",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83827",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83860",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83893",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83926",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83959",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "83992",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84025",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84058",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84091",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84157",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84124",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84190",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84223",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84256",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84289",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84322",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84355",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84388",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84421",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "84487",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "85067",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "85340",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "85382",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   },
+                   {
+                       "itemid":  "85361",
+                       "name":  "Network interfaces discovery",
+                       "key_":  "net.if.discovery"
+                   }
+               ],
+    "id":  2
+}

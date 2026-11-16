@@ -55,6 +55,15 @@ public sealed record ZabbixItemDto(
     bool Unsupported,
     string Unit = "");
 
+/// <summary>
+/// ADR-069: expressão/recovery de uma trigger (trigger.get) — fonte do
+/// threshold real exibido no cartão WhatsApp.
+/// </summary>
+public sealed record ZabbixTriggerDetailsDto(
+    string TriggerId,
+    string? Expression,
+    string? RecoveryExpression);
+
 public sealed record ZabbixTriggerDto(
     string TriggerId,
     string Description,

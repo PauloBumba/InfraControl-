@@ -1,0 +1,172 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "templateid":  "10227",
+                       "name":  "HP Comware HH3C by SNMP",
+                       "items":  [
+                                     {
+                                         "itemid":  "40821",
+                                         "name":  "ICMP ping",
+                                         "key_":  "icmpping",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40822",
+                                         "name":  "ICMP loss",
+                                         "key_":  "icmppingloss",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40823",
+                                         "name":  "ICMP response time",
+                                         "key_":  "icmppingsec",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40824",
+                                         "name":  "SNMP traps (fallback)",
+                                         "key_":  "snmptrap.fallback",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40825",
+                                         "name":  "System contact details",
+                                         "key_":  "system.contact[sysContact.0]",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40826",
+                                         "name":  "System description",
+                                         "key_":  "system.descr[sysDescr.0]",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "43788",
+                                         "name":  "Uptime (hardware)",
+                                         "key_":  "system.hw.uptime[hrSystemUptime.0]",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40827",
+                                         "name":  "System location",
+                                         "key_":  "system.location[sysLocation.0]",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40828",
+                                         "name":  "System name",
+                                         "key_":  "system.name",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40830",
+                                         "name":  "Uptime (network)",
+                                         "key_":  "system.net.uptime[sysUpTime.0]",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40829",
+                                         "name":  "System object ID",
+                                         "key_":  "system.objectid[sysObjectID.0]",
+                                         "status":  "0"
+                                     },
+                                     {
+                                         "itemid":  "40831",
+                                         "name":  "SNMP agent availability",
+                                         "key_":  "zabbix[host,snmp,available]",
+                                         "status":  "0"
+                                     }
+                                 ],
+                       "triggers":  [
+                                        {
+                                            "triggerid":  "21720",
+                                            "description":  "HP Comware HH3C: Indisponivel por ICMP ping",
+                                            "expression":  "{29100}=0",
+                                            "status":  "0",
+                                            "priority":  "4"
+                                        },
+                                        {
+                                            "triggerid":  "21721",
+                                            "description":  "HP Comware HH3C: Perda de ping acima do limite",
+                                            "expression":  "{29101}\u003e{$ICMP_LOSS_WARN} and {29101}\u003c100",
+                                            "status":  "0",
+                                            "priority":  "2"
+                                        },
+                                        {
+                                            "triggerid":  "21722",
+                                            "description":  "HP Comware HH3C: Tempo de resposta de ping acima do limite",
+                                            "expression":  "{29102}\u003e{$ICMP_RESPONSE_TIME_WARN}",
+                                            "status":  "0",
+                                            "priority":  "2"
+                                        },
+                                        {
+                                            "triggerid":  "21723",
+                                            "description":  "HP Comware HH3C: Nome do sistema alterado",
+                                            "expression":  "{29103}\u003c\u003e{29104} and length({29105})\u003e0",
+                                            "status":  "0",
+                                            "priority":  "1"
+                                        },
+                                        {
+                                            "triggerid":  "21724",
+                                            "description":  "HP Comware HH3C: Host foi reiniciado",
+                                            "expression":  "({49392}\u003e0 and {49393}\u003c0 and {49394}\u003c42949672.96-({49395}-{49396}))\r\nor ({49392}=0 and {49397}\u003c0 and {49398}\u003c42949672.96-({49399}-{49400}))",
+                                            "status":  "0",
+                                            "priority":  "2"
+                                        },
+                                        {
+                                            "triggerid":  "21725",
+                                            "description":  "HP Comware HH3C: Sem coleta SNMP",
+                                            "expression":  "{29107}=0",
+                                            "status":  "0",
+                                            "priority":  "2"
+                                        }
+                                    ],
+                       "discoveryRules":  [
+                                              {
+                                                  "itemid":  "63332",
+                                                  "name":  "Entity Discovery",
+                                                  "key_":  "entity.discovery",
+                                                  "status":  "0"
+                                              },
+                                              {
+                                                  "itemid":  "63333",
+                                                  "name":  "FAN Discovery",
+                                                  "key_":  "fan.discovery",
+                                                  "status":  "0"
+                                              },
+                                              {
+                                                  "itemid":  "63334",
+                                                  "name":  "Module Discovery",
+                                                  "key_":  "module.discovery",
+                                                  "status":  "0"
+                                              },
+                                              {
+                                                  "itemid":  "63335",
+                                                  "name":  "Network interfaces discovery",
+                                                  "key_":  "net.if.discovery",
+                                                  "status":  "0"
+                                              },
+                                              {
+                                                  "itemid":  "63336",
+                                                  "name":  "EtherLike-MIB Discovery",
+                                                  "key_":  "net.if.duplex.discovery",
+                                                  "status":  "0"
+                                              },
+                                              {
+                                                  "itemid":  "63337",
+                                                  "name":  "PSU Discovery",
+                                                  "key_":  "psu.discovery",
+                                                  "status":  "0"
+                                              },
+                                              {
+                                                  "itemid":  "63338",
+                                                  "name":  "Temperature Discovery",
+                                                  "key_":  "temp.discovery",
+                                                  "status":  "0"
+                                              }
+                                          ]
+                   }
+               ],
+    "id":  2
+}

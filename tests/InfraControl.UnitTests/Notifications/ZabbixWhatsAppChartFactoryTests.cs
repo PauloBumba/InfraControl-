@@ -1,9 +1,12 @@
 using FluentAssertions;
+using InfraControl.Application.Alerts.Ports;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Integrations.Zabbix;
 using InfraControl.Application.Integrations.Zabbix.Ports;
+using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Inventory.Locations.Ports;
+using InfraControl.Application.Monitoring.Events.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.BuildingBlocks.Domain;
 using InfraControl.Domain.Entities;
@@ -386,6 +389,274 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         chart.Unit.Should().Be("%");
     }
 
+    // ── ADR-069: toggles, janela, cores, threshold e duração ──────────
+
+    private static ZabbixWhatsAppChartFactory CreateReadyFactory(
+        out FakeZabbixClient zabbix, Device device)
+    {
+        var factory = CreateFactory(out _, out zabbix, device);
+        zabbix.Hosts.Add(Host(hostId: "10", name: device.Name));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt.AddMinutes(-5), "42"),
+        ];
+        return factory;
+    }
+
+    private static WhatsAppIntegrationSetting CreateSetting(
+        Action<WhatsAppIntegrationSetting>? configure = null)
+    {
+        var setting = WhatsAppIntegrationSetting.Create(
+            "http://evolution-api:8080", "cipher", "inst");
+        configure?.Invoke(setting);
+        return setting;
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WhenIncidentCardDisabled_ShouldReturnNull()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device,
+            settings: new FakeWhatsAppSettingsRepository
+            {
+                Setting = CreateSetting(s => s.UpdateCardSettings(
+                    incidentEnabled: false, warningEnabled: true,
+                    resolutionEnabled: true, windowHours: 2,
+                    incidentColor: null, warningColor: null, resolutionColor: null)),
+            });
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().BeNull("toggle do cartão de incidente desligado → texto");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WhenResolutionCardDisabled_ShouldReturnNull()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device,
+            settings: new FakeWhatsAppSettingsRepository
+            {
+                Setting = CreateSetting(s => s.UpdateCardSettings(
+                    incidentEnabled: true, warningEnabled: true,
+                    resolutionEnabled: false, windowHours: 2,
+                    incidentColor: null, warningColor: null, resolutionColor: null)),
+            });
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization", "",
+            "AlertResolvedDomainEvent", EventAt);
+
+        chart.Should().BeNull("toggle do cartão de resolvido desligado → texto");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WithCardSettings_ShouldUseWindowAndAccentColor()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateFactory(out _, out var zabbix, device,
+            settings: new FakeWhatsAppSettingsRepository
+            {
+                Setting = CreateSetting(s => s.UpdateCardSettings(
+                    incidentEnabled: true, warningEnabled: true,
+                    resolutionEnabled: true, windowHours: 6,
+                    incidentColor: "#123456", warningColor: null,
+                    resolutionColor: null)),
+            });
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt.AddMinutes(-5), "42"),
+        ];
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.AccentColor.Should().Be("#123456");
+        zabbix.HistoryCalls.Should().ContainSingle()
+            .Which.FromUtc.Should().Be(EventAt.AddHours(-6),
+                "a janela configurada substitui o default de 2h");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WithoutProblemState_ShouldOmitLimitAndDuration()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var factory = CreateReadyFactory(out _, device);
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.LimitValue.Should().BeNull();
+        chart.CycleDuration.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WithTriggerAndOpenState_ShouldFillLimitAndElapsed()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var problemStates = new FakeProblemStateRepository
+        {
+            Latest = MonitoringProblemState.CreateOpen(
+                MonitoringSource.Zabbix, "Zabbix:trigger:777", device.Id,
+                severity: 4, ProblemStatus.Incidente, Guid.NewGuid(), null,
+                "evt-1", EventAt.AddHours(-3)),
+        };
+        var factory = CreateFactory(out _, out var zabbix, device,
+            problemStates: problemStates);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt.AddMinutes(-5), "42"),
+        ];
+        zabbix.Trigger = new ZabbixTriggerDetailsDto(
+            "777", "{10944:system.cpu.util.last()} > 90", null);
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.LimitValue.Should().Be(90);
+        chart.CycleDuration.Should().Be(TimeSpan.FromHours(3),
+            "evento ativo mostra o tempo decorrido desde OpenedAt");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_Resolution_ShouldPreferRecoveryExpressionAndCycleDuration()
+    {
+        var device = CreateDevice(name: "sw-01");
+        var openedAt = EventAt.AddHours(-2);
+        var resolvedAt = EventAt.AddMinutes(-10);
+        var problemStates = new FakeProblemStateRepository
+        {
+            Latest = MonitoringProblemState.CreateOpen(
+                MonitoringSource.Zabbix, "Zabbix:trigger:778", device.Id,
+                severity: 4, ProblemStatus.Incidente, Guid.NewGuid(), null,
+                "evt-2", openedAt),
+        };
+        problemStates.Latest!.MarkResolved(resolvedAt);
+
+        var factory = CreateFactory(out _, out var zabbix, device,
+            problemStates: problemStates);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt.AddMinutes(-5), "42"),
+        ];
+        zabbix.Trigger = new ZabbixTriggerDetailsDto(
+            "778",
+            "{10944:system.cpu.util.last()} > 90",
+            "{10944:system.cpu.util.last()} < 70");
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization", "",
+            "IncidentResolvedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.Kind.Should().Be(ChartCardKind.Resolution);
+        chart.LimitValue.Should().Be(70,
+            "RESOLVIDO prefere o threshold da recovery_expression");
+        chart.CycleDuration.Should().Be(resolvedAt - openedAt);
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_WithMatchingAlert_ShouldUseThatOccurrencesState()
+    {
+        // F57: host com DOIS problemas simultâneos — o cartão deve usar o
+        // estado da ocorrência da notificação (pelo nome do problema),
+        // não o "mais recente do device".
+        var device = CreateDevice(name: "sw-01", ip: "10.0.0.9");
+        var alert = Alert.CreateExternal(
+            Guid.NewGuid(), "evt-cpu", device.Id, null,
+            AlertSeverity.Critical, "CPU utilization high",
+            MonitoringSource.Zabbix);
+        var otherAlertId = Guid.NewGuid();
+
+        var problemStates = new FakeProblemStateRepository
+        {
+            // Estado mais recente do device = OUTRO problema (disco).
+            Latest = MonitoringProblemState.CreateOpen(
+                MonitoringSource.Zabbix, "Zabbix:trigger:111", device.Id,
+                severity: 4, ProblemStatus.Incidente, otherAlertId, null,
+                "evt-disk", EventAt.AddHours(-1)),
+            // Estado da ocorrência notificada (CPU, aberta há 5h).
+            ByAlert = MonitoringProblemState.CreateOpen(
+                MonitoringSource.Zabbix, "Zabbix:trigger:999", device.Id,
+                severity: 4, ProblemStatus.Incidente, alert.Id, null,
+                "evt-cpu", EventAt.AddHours(-5)),
+        };
+        var alerts = new FakeAlertRepository { ByMessage = alert };
+        var factory = CreateFactory(out _, out var zabbix, device,
+            problemStates: problemStates, alerts: alerts);
+        zabbix.Hosts.Add(Host(hostId: "10", name: "sw-01"));
+        zabbix.Items["10"] =
+        [
+            new ZabbixItemDto("100", "10", "CPU utilization", "system.cpu.util",
+                Type: 0, Enabled: true, Unsupported: false, Unit: "%"),
+        ];
+        zabbix.History["100"] =
+        [
+            new ZabbixHistoryValueDto("100", EventAt.AddMinutes(-5), "42"),
+        ];
+        zabbix.Trigger = new ZabbixTriggerDetailsDto(
+            "999", "{10944:system.cpu.util.last()} > 90", null);
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "Alerta crítico criado",
+            "O alerta 'CPU utilization high' foi aberto (Critical).",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.CycleDuration.Should().Be(TimeSpan.FromHours(5),
+            "duração vem do estado da ocorrência (CPU), não do mais recente (disco, 1h)");
+        chart.LimitValue.Should().Be(90,
+            "threshold vem da trigger 999 do estado casado, não da 111");
+    }
+
+    [Fact]
+    public async Task TryCreateAsync_ShouldExposeDeviceIpAndTypeLabel()
+    {
+        var device = CreateDevice(name: "sw-01", ip: "10.0.0.9");
+        var factory = CreateReadyFactory(out _, device);
+
+        var chart = await factory.TryCreateAsync(
+            device.Id, "CPU utilization high", "",
+            "IncidentCreatedDomainEvent", EventAt);
+
+        chart.Should().NotBeNull();
+        chart!.DeviceIp.Should().Be("10.0.0.9");
+        chart.DeviceTypeLabel.Should().Be("Switch");
+    }
+
     private static Device CreateDevice(string name = "sw-01", string? ip = null)
         => Device.Create(Guid.NewGuid(), name, DeviceType.Switch, ip: ip);
 
@@ -402,12 +673,18 @@ public sealed class ZabbixWhatsAppChartFactoryTests
         out FakeDeviceRepository devices,
         out FakeZabbixClient zabbix,
         Device? device,
-        FakeLocationRepository? locations = null)
+        FakeLocationRepository? locations = null,
+        FakeProblemStateRepository? problemStates = null,
+        FakeWhatsAppSettingsRepository? settings = null,
+        FakeAlertRepository? alerts = null)
     {
         devices = new FakeDeviceRepository(device);
         zabbix = new FakeZabbixClient();
         return new ZabbixWhatsAppChartFactory(
-            devices, locations ?? new FakeLocationRepository(), zabbix,
+            devices, locations ?? new FakeLocationRepository(),
+            alerts ?? new FakeAlertRepository(), zabbix,
+            problemStates ?? new FakeProblemStateRepository(),
+            settings ?? new FakeWhatsAppSettingsRepository(),
             NullLogger<ZabbixWhatsAppChartFactory>.Instance);
     }
 
@@ -540,13 +817,18 @@ public sealed class ZabbixWhatsAppChartFactoryTests
             string eventId, CancellationToken cancellationToken = default)
             => Task.FromResult<ZabbixEventContextDto?>(null);
 
+        public List<(string ItemId, DateTime FromUtc, DateTime ToUtc)> HistoryCalls { get; } = [];
+
         public Task<IReadOnlyList<ZabbixHistoryValueDto>> GetHistoryAsync(
             string itemId, DateTime fromUtc, DateTime toUtc, int limit,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(
+        {
+            HistoryCalls.Add((itemId, fromUtc, toUtc));
+            return Task.FromResult(
                 History.TryGetValue(itemId, out var values)
                     ? values
                     : (IReadOnlyList<ZabbixHistoryValueDto>)[]);
+        }
 
         public Task<IReadOnlyList<ZabbixItemLastValueDto>> GetItemsLastValuesAsync(
             string hostId, CancellationToken cancellationToken = default)
@@ -557,5 +839,107 @@ public sealed class ZabbixWhatsAppChartFactoryTests
             DateTime fromUtc, DateTime toUtc, int limit,
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ZabbixHistoryValueDto>>([]);
+
+        public ZabbixTriggerDetailsDto? Trigger { get; set; }
+
+        public Task<ZabbixTriggerDetailsDto?> GetTriggerAsync(
+            string triggerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Trigger);
+    }
+
+    private sealed class FakeProblemStateRepository : IMonitoringProblemStateRepository
+    {
+        public MonitoringProblemState? Latest { get; set; }
+
+        /// <summary>Estado devolvido pelo lookup exato por AlertId (F57).</summary>
+        public MonitoringProblemState? ByAlert { get; set; }
+
+        public Task<MonitoringProblemState?> GetBySourceAndCorrelationKeyAsync(
+            MonitoringSource source, string correlationKey,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<MonitoringProblemState?>(null);
+
+        public Task<MonitoringProblemState?> GetByAlertIdAsync(
+            Guid alertId, CancellationToken cancellationToken = default)
+            => Task.FromResult(
+                ByAlert is not null && ByAlert.AlertId == alertId
+                    ? ByAlert
+                    : null);
+
+        public Task<MonitoringProblemState?> GetLatestByDeviceAsync(
+            MonitoringSource source, Guid deviceId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(
+                Latest is not null && Latest.DeviceId == deviceId ? Latest : null);
+
+        public Task<MonitoringProblemState?> GetByIdAsync(
+            Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<MonitoringProblemState?>(null);
+
+        public Task AddAsync(
+            MonitoringProblemState entity, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public void Remove(MonitoringProblemState entity) { }
+    }
+
+    private sealed class FakeAlertRepository : IAlertRepository
+    {
+        /// <summary>Alerta devolvido pelo lookup por (device, mensagem).</summary>
+        public Alert? ByMessage { get; set; }
+
+        public Task<Alert?> GetLatestByDeviceAndMessageAsync(
+            Guid deviceId, string message,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(
+                ByMessage is not null
+                && ByMessage.DeviceId == deviceId
+                && ByMessage.Message == message
+                    ? ByMessage
+                    : null);
+
+        public Task<Alert?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Alert?>(null);
+
+        public Task<Alert?> GetActiveAsync(
+            Guid deviceId, CheckKind kind,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<Alert?>(null);
+
+        public Task<Alert?> GetByExternalAsync(
+            MonitoringSource source, string externalProblemId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<Alert?>(null);
+
+        public Task<PagedResult<AlertWithDevice>> SearchAsync(
+            Guid? deviceId, AlertStatus? status, int page, int pageSize,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new PagedResult<AlertWithDevice>([], 0, page, pageSize));
+
+        public Task<IReadOnlyList<AlertTimestampRow>> ListTimestampsBetweenAsync(
+            DateTime fromUtc, DateTime toUtc,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AlertTimestampRow>>([]);
+
+        public Task AddAsync(Alert entity, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public void Remove(Alert entity) { }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class FakeWhatsAppSettingsRepository : IWhatsAppSettingsRepository
+    {
+        public WhatsAppIntegrationSetting? Setting { get; set; }
+
+        public Task<WhatsAppIntegrationSetting?> GetAsync(
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(Setting);
+
+        public Task SaveAsync(
+            WhatsAppIntegrationSetting setting, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

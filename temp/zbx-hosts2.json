@@ -1,0 +1,1 @@
+{"output":["hostid","host","name","status"],"selectParentTemplates":["templateid","name"],"selectInterfaces":["ip","port","type","main"],"limit":500}

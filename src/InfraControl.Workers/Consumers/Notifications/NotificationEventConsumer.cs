@@ -88,32 +88,80 @@ public sealed class NotificationEventConsumer(
             ? null // usa fanout padrão (inclui WhatsApp se configurado)
             : [NotificationChannel.SignalR, NotificationChannel.Email]; // SEM WhatsApp
 
-        return HandleAsync(
+        return HandleIncidentCreatedAsync(message, channels, context.CancellationToken);
+    }
+
+    /// <summary>
+    /// ADR-070/F58: criação de incidente → resolve o estado do problema
+    /// para (a) adiar as entregas pela estabilração configurada e (b)
+    /// cancelar as pendentes do alerta Warning superseded pelo
+    /// escalonamento — uma ocorrência = uma classificação só.
+    /// </summary>
+    private async Task HandleIncidentCreatedAsync(
+        IncidentCreatedDomainEvent message,
+        NotificationChannel[]? channels,
+        CancellationToken cancellationToken)
+    {
+        var state = await dbContext.MonitoringProblemStates.AsNoTracking()
+            .FirstOrDefaultAsync(
+                s => s.IncidentId == message.IncidentId, cancellationToken);
+        var policy = await GetPolicyAsync(cancellationToken);
+
+        if (state?.PreviousAlertId is { } supersededAlertId)
+            await CancelPendingDeliveriesAsync(supersededAlertId, null, cancellationToken);
+
+        await HandleAsync(
             message.EventId,
             message.EventType,
             "Incidente aberto",
             $"O incidente '{message.Title}' foi aberto ({MapIncidentSeverityPt(message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
-            context.CancellationToken,
+            cancellationToken,
             channels: channels,
-            deviceId: message.DeviceId);
+            deviceId: message.DeviceId,
+            sourceAlertId: state?.AlertId,
+            sourceIncidentId: message.IncidentId,
+            notBefore: StabilizationNotBefore(state, policy));
     }
 
     /// <summary>
     /// F19-T007: resolução do incidente (regra 7: só o InfraControl decide)
     /// → Operator + Admin. Mensagens em português para o grupo do WhatsApp.
     /// </summary>
-    public Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
-        => HandleAsync(
-            context.Message.EventId,
-            context.Message.EventType,
+    public async Task Consume(ConsumeContext<IncidentResolvedDomainEvent> context)
+    {
+        var message = context.Message;
+
+        // ADR-070/F58: ciclo flapping (resolveu dentro da estabilização)
+        // → cancela as entregas pendentes do ciclo e não notifica a
+        // resolução — "não notificar o ciclo".
+        var state = await dbContext.MonitoringProblemStates.AsNoTracking()
+            .FirstOrDefaultAsync(
+                s => s.IncidentId == message.IncidentId, context.CancellationToken);
+        if (await IsFlappingResolutionAsync(state, context.CancellationToken))
+        {
+            var cancelled = await CancelPendingDeliveriesAsync(
+                state!.AlertId, message.IncidentId, context.CancellationToken);
+            logger.LogInformation(
+                "Incidente {IncidentId} resolvido dentro da estabilização (flapping) — " +
+                "{Cancelled} entregas pendentes canceladas, notificação de resolução suprimida.",
+                message.IncidentId, cancelled);
+            return;
+        }
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
             "Incidente resolvido",
-            $"O incidente '{context.Message.Title}' foi resolvido ({MapIncidentSeverityPt(context.Message.Severity)}).",
+            $"O incidente '{message.Title}' foi resolvido ({MapIncidentSeverityPt(message.Severity)}).",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            deviceId: context.Message.DeviceId);
+            deviceId: message.DeviceId,
+            sourceAlertId: state?.AlertId,
+            sourceIncidentId: message.IncidentId);
+    }
 
     /// <summary>
     /// F33-T004/ADR-059 + decisão do usuário (2026-11-10): alerta criado
@@ -123,14 +171,34 @@ public sealed class NotificationEventConsumer(
     /// demais canais seguem normalmente. Warning (sem incidente) segue
     /// pelo fanout — inclui WhatsApp quando ativo.
     /// </summary>
-    public Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
+    public async Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
     {
         var message = context.Message;
+
+        // ADR-070/F58: alerta de monitoramento → estado do problema.
+        // Alerta superseded por escalonamento (casa só em PreviousAlertId)
+        // nunca notifica — a ocorrência já é representada pelo incidente.
+        var state = await dbContext.MonitoringProblemStates.AsNoTracking()
+            .Where(s => s.AlertId == message.AlertId || s.PreviousAlertId == message.AlertId)
+            .OrderByDescending(s => s.AlertId == message.AlertId)
+            .FirstOrDefaultAsync(context.CancellationToken);
+        if (state is not null && state.AlertId != message.AlertId)
+        {
+            logger.LogInformation(
+                "Alerta {AlertId} superseded por escalonamento — notificação de criação suprimida.",
+                message.AlertId);
+            return;
+        }
+
         NotificationChannel[]? channels = message.HasIncident
             ? [NotificationChannel.SignalR, NotificationChannel.Email]
             : null;
 
-        return HandleAsync(
+        var policy = await GetPolicyAsync(context.CancellationToken);
+        if (state?.PreviousAlertId is { } supersededAlertId)
+            await CancelPendingDeliveriesAsync(supersededAlertId, null, context.CancellationToken);
+
+        await HandleAsync(
             message.EventId,
             message.EventType,
             message.Severity == AlertSeverity.Critical
@@ -141,7 +209,10 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             deviceId: message.DeviceId,
-            channels: channels);
+            channels: channels,
+            sourceAlertId: message.AlertId,
+            sourceIncidentId: state?.IncidentId,
+            notBefore: StabilizationNotBefore(state, policy));
     }
 
     /// <summary>
@@ -172,19 +243,52 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F19-T007: alerta resolvido → Operator + Admin.
-    /// Para evitar ruído no WhatsApp, envio só por canal padrão quando houver
-    /// incidente vinculado não é garantido aqui; o worker aplica filtros.
+    /// F57/ADR-070: quando o alerta está vinculado a um incidente (N:N
+    /// incident_alerts — ex.: Critical do Zabbix), o fechamento já chega
+    /// como IncidentResolvedDomainEvent. Mandar "Alerta resolvido" ao
+    /// WhatsApp duplicaria a mesma ocorrência no grupo; o alerta segue
+    /// para SignalR+Email e o WhatsApp recebe só o cartão do incidente.
     /// </summary>
-    public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
-        => HandleAsync(
-            context.Message.EventId,
-            context.Message.EventType,
+    public async Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
+    {
+        var message = context.Message;
+
+        // ADR-070/F58: ciclo flapping → cancela pendentes do ciclo e não
+        // notifica a resolução. Lookup estrito por AlertId atual (o
+        // alerta superseded por escalonamento resolve sem evento — F57).
+        var state = await dbContext.MonitoringProblemStates.AsNoTracking()
+            .FirstOrDefaultAsync(
+                s => s.AlertId == message.AlertId, context.CancellationToken);
+        if (await IsFlappingResolutionAsync(state, context.CancellationToken))
+        {
+            var cancelled = await CancelPendingDeliveriesAsync(
+                state!.AlertId, state.IncidentId, context.CancellationToken);
+            logger.LogInformation(
+                "Alerta {AlertId} resolvido dentro da estabilização (flapping) — " +
+                "{Cancelled} entregas pendentes canceladas, notificação de resolução suprimida.",
+                message.AlertId, cancelled);
+            return;
+        }
+
+        var hasIncident = await dbContext.IncidentAlerts.AsNoTracking()
+            .AnyAsync(link => link.AlertId == message.AlertId,
+                context.CancellationToken);
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
             "Alerta resolvido",
-            $"O alerta '{context.Message.Message}' foi resolvido.",
+            $"O alerta '{message.Message}' foi resolvido.",
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            deviceId: context.Message.DeviceId);
+            channels: hasIncident
+                ? [NotificationChannel.SignalR, NotificationChannel.Email]
+                : null,
+            deviceId: message.DeviceId,
+            sourceAlertId: message.AlertId,
+            sourceIncidentId: state?.IncidentId);
+    }
 
     /// <summary>
     /// PDI criado (docs/29 §8, regra do usuário 2026-10-04): notifica o
@@ -483,7 +587,10 @@ public sealed class NotificationEventConsumer(
         CancellationToken cancellationToken,
         NotificationChannel[]? channels = null,
         Guid? deviceId = null,
-        IReadOnlyCollection<Guid>? recipientUserIds = null)
+        IReadOnlyCollection<Guid>? recipientUserIds = null,
+        Guid? sourceAlertId = null,
+        Guid? sourceIncidentId = null,
+        DateTime? notBefore = null)
     {
         // F42-T002: regra por evento — Enabled=false silencia ANTES da
         // idempotência (nada persistido); Channels preenchido substitui
@@ -511,7 +618,9 @@ public sealed class NotificationEventConsumer(
         // mensagem perdida (processed sem notification).
         // F33-T005: DeviceId do evento viaja até o worker de WhatsApp
         // (série histórica do gráfico no Zabbix).
-        var notification = Notification.Create(eventId, eventType, title, message, deviceId);
+        var notification = Notification.Create(
+            eventId, eventType, title, message, deviceId,
+            sourceAlertId, sourceIncidentId);
 
         var firstDelivery = await inboxStore.TryMarkProcessedAsync(
             eventId, ConsumerName, cancellationToken);
@@ -576,10 +685,13 @@ public sealed class NotificationEventConsumer(
         var whatsapp = await whatsAppOptionsResolver.ResolveAsync(cancellationToken);
         var fanout = effectiveChannels is null
             ? await ResolveFanoutChannelsAsync(whatsapp, cancellationToken)
-            : effectiveChannels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList();
+            : ApplyIntegrationToggles(
+                effectiveChannels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList(),
+                whatsapp);
 
         foreach (var channel in fanout)
-            await QueueDeliveriesAsync(notification, channel, whatsapp, cancellationToken);
+            await QueueDeliveriesAsync(
+                notification, channel, whatsapp, notBefore, cancellationToken);
     }
 
     /// <summary>
@@ -625,6 +737,103 @@ public sealed class NotificationEventConsumer(
 
         await Task.CompletedTask;
         return sendable;
+    }
+
+    // ---------- ADR-070/F58: política de ruído (estabilização/flapping) ----------
+
+    /// <summary>Política efetiva (linha única); null = defaults da entidade.</summary>
+    private async Task<NotificationPolicySetting?> GetPolicyAsync(
+        CancellationToken cancellationToken)
+        => await dbContext.NotificationPolicySettings.AsNoTracking()
+            .OrderByDescending(setting => setting.CreateDateTime)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <summary>
+    /// Minutos de estabilização do estado — Incidente usa a janela crítica,
+    /// Alerta a de atenção; sem linha de política valem os defaults
+    /// (5/2 — "só proteções anti-ban ligadas"). 0 = notificação imediata.
+    /// </summary>
+    private static int StabilizationMinutes(
+        MonitoringProblemState? state, NotificationPolicySetting? policy)
+    {
+        if (state is null)
+            return 0;
+
+        return state.Status == ProblemStatus.Incidente
+            ? policy?.StabilizationCriticalMinutes ?? 2
+            : policy?.StabilizationWarningMinutes ?? 5;
+    }
+
+    /// <summary>
+    /// Instante a partir do qual as entregas da criação podem sair
+    /// (OpenedAt + estabilização). Passado/0 → a entrega sai já (o
+    /// DeferUntil ignora datas vencidas — devolvemos mesmo assim).
+    /// </summary>
+    private static DateTime? StabilizationNotBefore(
+        MonitoringProblemState? state, NotificationPolicySetting? policy)
+    {
+        var minutes = StabilizationMinutes(state, policy);
+        return state is not null && minutes > 0
+            ? state.OpenedAt + TimeSpan.FromMinutes(minutes)
+            : null;
+    }
+
+    /// <summary>
+    /// Ciclo flapping: problema resolvido dentro da janela de
+    /// estabilidação → "não notificar o ciclo". Sem estado ou com a
+    /// política desligada (0) nunca é flapping.
+    /// </summary>
+    private async Task<bool> IsFlappingResolutionAsync(
+        MonitoringProblemState? state, CancellationToken cancellationToken)
+    {
+        if (state?.Status != ProblemStatus.Resolvido
+            || state.ResolvedAt is not { } resolvedAt)
+            return false;
+
+        var minutes = StabilizationMinutes(
+            state, await GetPolicyAsync(cancellationToken));
+        return minutes > 0
+            && resolvedAt - state.OpenedAt < TimeSpan.FromMinutes(minutes);
+    }
+
+    /// <summary>
+    /// Cancela as deliveries ainda Pending das notificações vinculadas à
+    /// ocorrência (SourceAlertId/SourceIncidentId) — usado no flapping
+    /// (ciclo inteiro) e no supersede por escalonamento (só o alerta
+    /// substituído). Sent/Failed/DLQ nunca são tocadas (histórico).
+    /// </summary>
+    private async Task<int> CancelPendingDeliveriesAsync(
+        Guid? alertId, Guid? incidentId, CancellationToken cancellationToken)
+    {
+        if (alertId is null && incidentId is null)
+            return 0;
+
+        var deliveries = await dbContext.NotificationDeliveries
+            .Where(d => d.Status == DeliveryStatus.Pending
+                && dbContext.Notifications.Any(n => n.Id == d.NotificationId
+                    && ((alertId != null && n.SourceAlertId == alertId)
+                        || (incidentId != null && n.SourceIncidentId == incidentId))))
+            .ToListAsync(cancellationToken);
+
+        foreach (var delivery in deliveries)
+            delivery.Cancel();
+
+        return deliveries.Count;
+    }
+
+    /// <summary>
+    /// Kill switch do WhatsApp (ADR-062): <c>NotificationsEnabled=false</c>
+    /// explícito do admin na integração remove o canal de QUALQUER fanout —
+    /// uma regra de evento com canais próprios não pode reativar o canal
+    /// desligado na tela. Valor derivado do env (WhatsApp fora do Default)
+    /// não bloqueia: regra explícita continua decidindo.
+    /// </summary>
+    private static List<NotificationChannel> ApplyIntegrationToggles(
+        List<NotificationChannel> channels, WhatsAppChannelOptions whatsapp)
+    {
+        if (whatsapp.IsNotificationsEnabledExplicit && whatsapp.NotificationsEnabled == false)
+            channels.Remove(NotificationChannel.WhatsApp);
+        return channels;
     }
 
     /// <summary>
@@ -691,7 +900,8 @@ public sealed class NotificationEventConsumer(
     /// </summary>
     private async Task QueueDeliveriesAsync(
         Notification notification, NotificationChannel channel,
-        WhatsAppChannelOptions whatsapp, CancellationToken cancellationToken)
+        WhatsAppChannelOptions whatsapp, DateTime? notBefore,
+        CancellationToken cancellationToken)
     {
         var userIds = await new NotificationRecipientRepository(dbContext)
             .ResolveUserIdsAsync(notification.Id, cancellationToken);
@@ -728,8 +938,14 @@ public sealed class NotificationEventConsumer(
                 continue;
             }
 
-            dbContext.NotificationDeliveries.Add(NotificationDelivery.Create(
-                notification.Id, userId, channel));
+            var delivery = NotificationDelivery.Create(
+                notification.Id, userId, channel);
+            // ADR-070/F58: estabilização — a entrega só vence quando
+            // NextAttemptAt chegar (query de pendentes respeita o campo
+            // para Pending); flapping cancela antes de vencer.
+            if (notBefore is { } deferUntil)
+                delivery.DeferUntil(deferUntil);
+            dbContext.NotificationDeliveries.Add(delivery);
             added = true;
 
             // Broadcast no grupo: destino único — 1 delivery por

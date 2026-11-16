@@ -33,7 +33,8 @@ public sealed class WhatsAppOptionsResolver(
             InstanceId = setting.InstanceId,
             GroupId = setting.GroupId ?? string.Empty,
             Phone = setting.Phone ?? string.Empty,
-            NotificationsEnabled = setting.NotificationsEnabled
+            NotificationsEnabled = setting.NotificationsEnabled,
+            IsNotificationsEnabledExplicit = setting.NotificationsEnabled.HasValue
         };
     }
 

@@ -246,6 +246,80 @@ public sealed class NotificationEventConsumerTests : IDisposable
             .CountAsync(d => d.Channel == NotificationChannel.SignalR)).Should().Be(0);
     }
 
+    /// <summary>
+    /// Kill switch do WhatsApp (ADR-062): NotificationsEnabled=false
+    /// explícito do admin vale também para regra com canais próprios —
+    /// a regra não reativa um canal desligado na integração.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithRuleChannelsAndWhatsAppDisabledExplicitly_ShouldNotQueueWhatsApp()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email"],
+            WhatsApp = new WhatsAppChannelOptions
+            {
+                GroupId = "120363431225988863@g.us",
+                NotificationsEnabled = false,
+                IsNotificationsEnabledExplicit = true
+            },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        context.NotificationEventRules.Add(NotificationEventRule.Create(
+            "UserCreatedDomainEvent", enabled: true, channels: "Email,WhatsApp"));
+        await context.SaveChangesAsync();
+
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "regra-whatsapp-off@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.Email)).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(0);
+    }
+
+    /// <summary>
+    /// Contrapeso: NotificationsEnabled=false derivado do env (WhatsApp
+    /// fora do Default, sem escolha explícita do admin) NÃO bloqueia uma
+    /// regra que lista WhatsApp de propósito.
+    /// </summary>
+    [Fact]
+    public async Task Consume_WithRuleChannelsAndWhatsAppEnvDisabled_ShouldStillQueueWhatsApp()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["Email"],
+            WhatsApp = new WhatsAppChannelOptions
+            {
+                GroupId = "120363431225988863@g.us",
+                NotificationsEnabled = false,
+                IsNotificationsEnabledExplicit = false
+            },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        context.NotificationEventRules.Add(NotificationEventRule.Create(
+            "UserCreatedDomainEvent", enabled: true, channels: "Email,WhatsApp"));
+        await context.SaveChangesAsync();
+
+        var userId = Guid.NewGuid();
+        await SeedUserAsync(context, userId, "regra-whatsapp-env@exemplo.test");
+
+        await consumer.HandleAsync(
+            Guid.NewGuid(), "UserCreatedDomainEvent",
+            "Usuário criado", "Mensagem.",
+            recipientUserId: userId, recipientRoles: [],
+            CancellationToken.None);
+
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp)).Should().Be(1);
+    }
+
     [Fact]
     public async Task Consume_UserCreated_ShouldQueueEmailDeliveryWithAddress()
     {

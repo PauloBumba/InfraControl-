@@ -50,6 +50,7 @@ public sealed class ZabbixIngestTests : IDisposable
                 new AlertRepository(context),
                 new IncidentRepository(context),
                 Evaluator(context),
+                new MonitoringProblemStateRepository(context),
                 context,
                 NullLogger<MonitoringEventIngestor>.Instance),
             new DeviceRepository(context),
@@ -734,5 +735,191 @@ public sealed class ZabbixIngestTests : IDisposable
 
         (await action.Should().ThrowAsync<ArgumentException>())
             .WithMessage("O eventId excede 64 caracteres.*");
+    }
+
+    // ── ADR-068/F55: máquina de estados do problema lógico ────────────────
+
+    /// <summary>
+    /// PROBLEM novo (eventId inédito) repetindo o mesmo problema lógico
+    /// aberto → outcome suppressed: evento gravado, mas nenhum Alert/
+    /// Incident/domain event novo = zero notificação. É o anti-flood.
+    /// </summary>
+    [Fact]
+    public async Task Problem_RepeatedWhileOpen_ShouldSuppressAlertIncidentAndNotifications()
+    {
+        await using var context = await CreateContextAsync();
+        await SeedDeviceAsync(context);
+        var handler = Handler(context);
+
+        var first = await handler.Handle(Problem("1000"), CancellationToken.None);
+        first.Outcome.Should().Be("created");
+
+        var repeat = await handler.Handle(Problem("1001"), CancellationToken.None);
+        repeat.Outcome.Should().Be("suppressed");
+        repeat.IncidentId.Should().Be(first.IncidentId);
+
+        var third = await handler.Handle(Problem("1002"), CancellationToken.None);
+        third.Outcome.Should().Be("suppressed");
+
+        // Histórico preservado: 3 eventos, mas 1 alerta e 1 incidente só.
+        (await context.MonitoringEvents.CountAsync()).Should().Be(3);
+        (await context.Alerts.CountAsync()).Should().Be(1);
+        (await context.Incidents.CountAsync()).Should().Be(1);
+
+        var state = await context.MonitoringProblemStates.AsNoTracking().SingleAsync();
+        state.Status.Should().Be(ProblemStatus.Incidente);
+        state.RepeatedCount.Should().Be(2);
+        state.OpenCount.Should().Be(1);
+        state.LastProblemEventId.Should().Be("1002");
+    }
+
+    /// <summary>Mesmo triggerId (contexto Zabbix) correlaciona mesmo com eventId novo.</summary>
+    [Fact]
+    public async Task Problem_SameTriggerId_ShouldShareStateEvenAcrossNames()
+    {
+        await using var context = await CreateContextAsync();
+        var eventContext = new ZabbixEventContextDto("777", ["10"], [], []);
+        var handler = Handler(context, eventContext);
+
+        var first = await handler.Handle(
+            Problem("2000", name: "Ping down"), CancellationToken.None);
+        first.Outcome.Should().Be("created");
+
+        var repeat = await handler.Handle(
+            Problem("2001", name: "Ping down (update)"), CancellationToken.None);
+        repeat.Outcome.Should().Be("suppressed");
+
+        (await context.Alerts.CountAsync()).Should().Be(1);
+        (await context.Incidents.CountAsync()).Should().Be(1);
+    }
+
+    /// <summary>Warning repetido também suprime (estado Alerta).</summary>
+    [Fact]
+    public async Task Problem_WarningRepeated_ShouldSuppressWithoutIncident()
+    {
+        await using var context = await CreateContextAsync();
+        var handler = Handler(context);
+
+        var first = await handler.Handle(
+            Problem("3000", name: "CPU alta", severity: 2), CancellationToken.None);
+        first.Outcome.Should().Be("created");
+        first.IncidentId.Should().BeNull();
+
+        var repeat = await handler.Handle(
+            Problem("3001", name: "CPU alta", severity: 2), CancellationToken.None);
+        repeat.Outcome.Should().Be("suppressed");
+
+        (await context.Alerts.CountAsync()).Should().Be(1);
+        (await context.Incidents.CountAsync()).Should().Be(0);
+
+        var state = await context.MonitoringProblemStates.AsNoTracking().SingleAsync();
+        state.Status.Should().Be(ProblemStatus.Alerta);
+        state.RepeatedCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Alerta → Incidente: Warning aberto e PROBLEM Critical seguinte do
+    /// mesmo problema lógico escala — notifica a mudança, resolve o alerta
+    /// Warning anterior e abre o incidente.
+    /// </summary>
+    [Fact]
+    public async Task Problem_EscalationAlertaToIncidente_ShouldOpenIncidentAndResolveWarning()
+    {
+        await using var context = await CreateContextAsync();
+        var handler = Handler(context);
+
+        var warning = await handler.Handle(
+            Problem("4000", name: "Disco enchendo", severity: 2), CancellationToken.None);
+        warning.Outcome.Should().Be("created");
+        warning.IncidentId.Should().BeNull();
+
+        var critical = await handler.Handle(
+            Problem("4001", name: "Disco enchendo", severity: 5), CancellationToken.None);
+        critical.Outcome.Should().Be("created");
+        critical.IncidentId.Should().NotBeNull();
+
+        var alerts = await context.Alerts.AsNoTracking().ToListAsync();
+        alerts.Should().HaveCount(2);
+        alerts.Count(a => a.Status == AlertStatus.Resolved).Should().Be(1);
+        alerts.Count(a => a.Status == AlertStatus.Open).Should().Be(1);
+
+        (await context.Incidents.CountAsync()).Should().Be(1);
+
+        var state = await context.MonitoringProblemStates.AsNoTracking().SingleAsync();
+        state.Status.Should().Be(ProblemStatus.Incidente);
+        state.IncidentId.Should().Be(critical.IncidentId);
+        state.RepeatedCount.Should().Be(0);
+    }
+
+    /// <summary>
+    /// Ciclo completo: aberto → resolvido (estado Resolvido) → novo PROBLEM
+    /// reabre e notifica de novo (OpenCount=2, novos Alert/Incident).
+    /// </summary>
+    [Fact]
+    public async Task Problem_ResolveThenReopen_ShouldNotifyAgainAsNewCycle()
+    {
+        await using var context = await CreateContextAsync();
+        var handler = Handler(context);
+
+        var first = await handler.Handle(Problem("5000"), CancellationToken.None);
+        first.Outcome.Should().Be("created");
+
+        var resolved = await handler.Handle(
+            Ok("5000", recoveryEventId: "5001"), CancellationToken.None);
+        resolved.Outcome.Should().Be("resolved");
+
+        var stateAfterOk = await context.MonitoringProblemStates.AsNoTracking().SingleAsync();
+        stateAfterOk.Status.Should().Be(ProblemStatus.Resolvido);
+        stateAfterOk.ResolvedAt.Should().NotBeNull();
+
+        var reopened = await handler.Handle(Problem("5002"), CancellationToken.None);
+        reopened.Outcome.Should().Be("created");
+        reopened.IncidentId.Should().NotBe(first.IncidentId!.Value);
+
+        var state = await context.MonitoringProblemStates.AsNoTracking().SingleAsync();
+        state.Status.Should().Be(ProblemStatus.Incidente);
+        state.OpenCount.Should().Be(2);
+        state.RepeatedCount.Should().Be(0);
+        state.ResolvedAt.Should().BeNull();
+
+        (await context.Alerts.CountAsync()).Should().Be(2);
+        (await context.Incidents.CountAsync()).Should().Be(2);
+    }
+
+    /// <summary>OK repetido não reabre nem duplica estado (idempotente).</summary>
+    [Fact]
+    public async Task Ok_Replay_ShouldKeepStateResolved()
+    {
+        await using var context = await CreateContextAsync();
+        var handler = Handler(context);
+
+        await handler.Handle(Problem("6000"), CancellationToken.None);
+        await handler.Handle(Ok("6000", recoveryEventId: "6001"), CancellationToken.None);
+        await handler.Handle(Ok("6000", recoveryEventId: "6001"), CancellationToken.None);
+
+        var state = await context.MonitoringProblemStates.AsNoTracking().SingleAsync();
+        state.Status.Should().Be(ProblemStatus.Resolvido);
+        (await context.MonitoringProblemStates.CountAsync()).Should().Be(1);
+    }
+
+    /// <summary>Problemas de hosts/nomes diferentes não compartilham estado.</summary>
+    [Fact]
+    public async Task Problem_DifferentKey_ShouldNotSuppress()
+    {
+        await using var context = await CreateContextAsync();
+        await SeedDeviceAsync(context, ip: "192.0.2.71", name: "sw-a");
+        await SeedDeviceAsync(context, ip: "192.0.2.72", name: "sw-b");
+        var handler = Handler(context);
+
+        var first = await handler.Handle(
+            Problem("7000", host: "sw-a", ip: "192.0.2.71", name: "Ping down"),
+            CancellationToken.None);
+        var second = await handler.Handle(
+            Problem("7001", host: "sw-b", ip: "192.0.2.72", name: "Ping down"),
+            CancellationToken.None);
+
+        first.Outcome.Should().Be("created");
+        second.Outcome.Should().Be("created");
+        (await context.MonitoringProblemStates.CountAsync()).Should().Be(2);
     }
 }

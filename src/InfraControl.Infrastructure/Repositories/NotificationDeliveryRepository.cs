@@ -37,7 +37,11 @@ public sealed class NotificationDeliveryRepository(AppDbContext dbContext)
         return await dbContext.NotificationDeliveries
             .AsNoTracking()
             .Where(d => d.Channel == channel && (
-                d.Status == DeliveryStatus.Pending
+                (d.Status == DeliveryStatus.Pending
+                    // ADR-070/F58: NextAttemptAt também é "não antes de"
+                    // para Pending (estabilização de flapping); retries
+                    // Failed seguem exigindo o horário vencido.
+                    && (d.NextAttemptAt == null || d.NextAttemptAt <= now))
                 || (d.Status == DeliveryStatus.Failed
                     && d.NextAttemptAt != null
                     && d.NextAttemptAt <= now)))

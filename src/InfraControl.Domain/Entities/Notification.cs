@@ -27,11 +27,23 @@ public sealed class Notification : Entity
     /// </summary>
     public Guid? DeviceId { get; private set; }
 
+    /// <summary>
+    /// ADR-070/F58: Alert/Incident de origem do evento de monitoramento —
+    /// permite localizar as entregas pendentes do ciclo do problema
+    /// (adiamento por estabilização, cancelamento de flapping e de
+    /// supersede por escalonamento). Nulos para eventos sem ocorrência
+    /// de monitoramento.
+    /// </summary>
+    public Guid? SourceAlertId { get; private set; }
+    public Guid? SourceIncidentId { get; private set; }
+
     private Notification() { }
 
     public static Notification Create(
         Guid eventId, string eventType, string title, string message,
-        Guid? deviceId = null)
+        Guid? deviceId = null,
+        Guid? sourceAlertId = null,
+        Guid? sourceIncidentId = null)
     {
         if (eventId == Guid.Empty)
             throw new ArgumentException("O evento de origem é obrigatório.", nameof(eventId));
@@ -63,7 +75,9 @@ public sealed class Notification : Entity
             EventType = eventType.Trim(),
             Title = title.Trim(),
             Message = message.Trim(),
-            DeviceId = deviceId
+            DeviceId = deviceId,
+            SourceAlertId = sourceAlertId,
+            SourceIncidentId = sourceIncidentId
         };
     }
 }

@@ -37,6 +37,12 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(x => x.DeviceId)
             .HasColumnName("device_id");
 
+        builder.Property(x => x.SourceAlertId)
+            .HasColumnName("source_alert_id");
+
+        builder.Property(x => x.SourceIncidentId)
+            .HasColumnName("source_incident_id");
+
         builder.Property(x => x.CreateDateTime)
             .HasColumnName("create_datetime")
             .IsRequired();

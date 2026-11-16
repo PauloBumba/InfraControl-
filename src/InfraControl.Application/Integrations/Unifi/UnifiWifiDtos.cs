@@ -56,4 +56,8 @@ public sealed record UnifiAccessPointDto(
 public sealed record UnifiWifiDto(
     IReadOnlyList<UnifiSsidDto> Ssids,
     IReadOnlyList<UnifiAccessPointDto> AccessPoints,
-    DateTimeOffset CapturedAtUtc);
+    DateTimeOffset CapturedAtUtc,
+    /// <summary>F53-T003: falha só na fonte de SSIDs (telemetria de AP OK).</summary>
+    string? SsidsError = null,
+    /// <summary>F53-T003: falha só na fonte de APs (SSID OK).</summary>
+    string? AccessPointsError = null);

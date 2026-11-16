@@ -83,6 +83,53 @@ public sealed class GetUnifiWifiQueryTests
     }
 
     [Fact]
+    public async Task Handle_WhenSsidsFail_ShouldKeepAccessPointsAndMarkSsidsError()
+    {
+        // F53-T003: /rest/ssidconf 400 em versões antigas não pode derrubar
+        // a telemetria dos APs — a seção volta vazia com erro.
+        var aps = new[]
+        {
+            new UnifiAccessPointDto(
+                "f0:9f:c2:11:22:33", "AP-Sala", "U7PG2", "192.168.1.11",
+                Connected: true, UptimeSeconds: 86400, CpuPercent: 12, MemPercent: 41,
+                RxBytes: 9000000, TxBytes: 4500000, Clients: 6,
+                Radios: [new UnifiRadioDto("5g", 44, 80, 23, 35)]),
+        };
+
+        var client = new Mock<IUnifiApiClient>();
+        client.Setup(c => c.ListSsidsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Response status code does not indicate success: 400."));
+        client.Setup(c => c.ListAccessPointsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(aps);
+
+        var handler = new GetUnifiWifiQueryHandler(client.Object, new FakeCacheService());
+        var result = await handler.Handle(
+            new GetUnifiWifiQuery(), CancellationToken.None);
+
+        result.Ssids.Should().BeEmpty();
+        result.AccessPoints.Should().HaveCount(1);
+        result.SsidsError.Should().NotBeNullOrWhiteSpace();
+        result.AccessPointsError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_WhenBothSourcesFail_ShouldThrow()
+    {
+        // F53-T003: controller inteiro fora continua sendo falha visível.
+        var client = new Mock<IUnifiApiClient>();
+        client.Setup(c => c.ListSsidsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("400"));
+        client.Setup(c => c.ListAccessPointsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("400"));
+
+        var handler = new GetUnifiWifiQueryHandler(client.Object, new FakeCacheService());
+
+        await FluentActions.Invoking(() => handler.Handle(
+                new GetUnifiWifiQuery(), CancellationToken.None))
+            .Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
     public void Query_ShouldAllowAnyAuthenticatedRoleToRead()
     {
         var query = new GetUnifiWifiQuery();

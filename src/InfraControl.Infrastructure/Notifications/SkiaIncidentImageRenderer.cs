@@ -27,7 +27,7 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(Background);
 
-        var accent = AccentFor(data.Kind);
+        var accent = AccentFor(data);
         DrawHeader(canvas, data, accent);
         DrawSummary(canvas, data);
         DrawSeries(canvas, data, accent);
@@ -44,6 +44,19 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
         ChartCardKind.Resolution => Resolution,
         _ => Muted
     };
+
+    /// <summary>
+    /// ADR-069: cor de destaque do cartão — override admin (#RRGGBB) tem
+    /// precedência sobre a paleta semântica; valor inválido cai no default.
+    /// </summary>
+    private static SKColor AccentFor(IncidentChartData data)
+    {
+        if (!string.IsNullOrWhiteSpace(data.AccentColor)
+            && SKColor.TryParse(data.AccentColor, out var custom))
+            return custom;
+
+        return AccentFor(data.Kind);
+    }
 
     private static void DrawHeader(SKCanvas canvas, IncidentChartData data, SKColor accent)
     {
@@ -85,6 +98,20 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
             canvas.DrawText(locationText, locationX, 153, locationFont, mutedPaint);
         }
 
+        // F57: identificação completa do equipamento — IP e tipo vêm do
+        // inventário (Device.Ip / Device.Type); linha some quando ambos
+        // ausentes (device externo sem cadastro).
+        var details = string.Join(" · ", new[]
+        {
+            string.IsNullOrWhiteSpace(data.DeviceIp) ? null : $"IP: {data.DeviceIp}",
+            string.IsNullOrWhiteSpace(data.DeviceTypeLabel) ? null : data.DeviceTypeLabel,
+        }.Where(part => part is not null));
+        if (details.Length > 0)
+        {
+            using var detailsFont = new SKFont(SKTypeface.Default, 15);
+            canvas.DrawText(details, Padding, 184, detailsFont, mutedPaint);
+        }
+
         var titleLines = WrapText(data.Title, titleFont, foregroundPaint,
             Width - (Padding * 2), maxLines: 2);
         for (var index = 0; index < titleLines.Count; index++)
@@ -99,21 +126,30 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
         using var labelPaint = new SKPaint { Color = Muted, IsAntialias = true };
         using var valuePaint = new SKPaint { Color = Foreground, IsAntialias = true };
 
-        var columnWidth = (Width - (Padding * 2)) / 3;
-        var stats = new[]
+        // ADR-069: 4º stat = duração do ciclo (DURAÇÃO no RESOLVIDO,
+        // TEMPO ABERTO nos demais) — some quando não há problem state.
+        var stats = new List<(string Label, string? Value)>
         {
-            ("ATUAL", data.CurrentValue),
-            ("MÍNIMO", data.MinValue),
-            ("MÁXIMO", data.MaxValue)
+            ("ATUAL", data.CurrentValue is { } current
+                ? FormatValue(current, data.Unit) : null),
+            ("MÍNIMO", data.MinValue is { } min
+                ? FormatValue(min, data.Unit) : null),
+            ("MÁXIMO", data.MaxValue is { } max
+                ? FormatValue(max, data.Unit) : null),
         };
+        if (data.CycleDuration is { } duration)
+        {
+            stats.Add((
+                data.Kind == ChartCardKind.Resolution ? "DURAÇÃO" : "TEMPO ABERTO",
+                FormatDuration(duration)));
+        }
 
-        for (var index = 0; index < stats.Length; index++)
+        var columnWidth = (Width - (Padding * 2)) / stats.Count;
+        for (var index = 0; index < stats.Count; index++)
         {
             var x = Padding + (columnWidth * index);
-            canvas.DrawText(stats[index].Item1, x, 292, labelFont, labelPaint);
-            canvas.DrawText(
-                stats[index].Item2 is { } value ? FormatValue(value, data.Unit) : "—",
-                x, 326, valueFont, valuePaint);
+            canvas.DrawText(stats[index].Label, x, 292, labelFont, labelPaint);
+            canvas.DrawText(stats[index].Value ?? "—", x, 326, valueFont, valuePaint);
         }
 
     }
@@ -276,6 +312,15 @@ public sealed class SkiaIncidentImageRenderer : IIncidentImageRenderer
         return string.IsNullOrWhiteSpace(unit)
             ? formatted
             : unit is "%" or "°C" ? $"{formatted}{unit}" : $"{formatted} {unit}";
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalDays >= 1)
+            return $"{(int)duration.TotalDays}d {duration.Hours:00}h";
+        if (duration.TotalHours >= 1)
+            return $"{(int)duration.TotalHours}h {duration.Minutes:00}m";
+        return $"{duration.Minutes}m";
     }
 
     private static string FormatStamp(DateTime utc)

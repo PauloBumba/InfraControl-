@@ -83,6 +83,81 @@ public sealed class EndpointSweepE2ETests(E2EHost host) : IClassFixture<E2EHost>
 
     private IServiceScope NewScope() => host.Factory.Services.CreateScope();
 
+    // ── Dashboard ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DashboardOverview_ShouldAggregateRealInventoryIntoGlobalCounts()
+    {
+        var client = await LoginAsync(E2EHost.OperatorEmail);
+        var xsrf = await XsrfAsync(client);
+
+        // Local + device reais (mesmo contrato das telas de inventário).
+        var locationResponse = await WriteAsync(client, HttpMethod.Post,
+            "/api/v1/inventory/locations",
+            new { name = $"E2E local dash {Guid.NewGuid():N}" }, xsrf);
+        locationResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var locationId = (await DataAsync(locationResponse))
+            .GetProperty("id").GetGuid();
+
+        var name = $"E2E device dash {Guid.NewGuid():N}";
+        var create = await WriteAsync(client, HttpMethod.Post,
+            "/api/v1/inventory/devices",
+            new { locationId, name, type = "Camera", ip = "10.77.0.50" }, xsrf);
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var deviceId = (await DataAsync(create)).GetProperty("id").GetGuid();
+
+        // GET /dashboard/overview: envelope + contagens vindas do banco real
+        // (F54-T002 — nenhum valor fictício; o device criado acima conta).
+        var response = await client.GetAsync("/api/v1/dashboard/overview");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var data = await DataAsync(response);
+
+        var devices = data.GetProperty("devices");
+        devices.GetProperty("total").GetInt32()
+            .Should().BeGreaterThanOrEqualTo(1, "o overview conta o inventário real");
+        devices.GetProperty("byType").TryGetProperty("Camera", out _)
+            .Should().BeTrue("a contagem por tipo alimenta o KPI por categoria");
+        data.GetProperty("alerts").GetProperty("open").GetInt32()
+            .Should().BeGreaterThanOrEqualTo(0);
+        data.GetProperty("incidents").GetProperty("active").GetInt32()
+            .Should().BeGreaterThanOrEqualTo(0);
+        data.GetProperty("generatedAtUtc").GetDateTime()
+            .Should().NotBe(default);
+
+        // Limpeza do que este teste criou.
+        var deleteDevice = await HeaderOnlyAsync(client, HttpMethod.Delete,
+            $"/api/v1/inventory/devices/{deviceId}", xsrf);
+        deleteDevice.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var deleteLocation = await HeaderOnlyAsync(client, HttpMethod.Delete,
+            $"/api/v1/inventory/locations/{locationId}", xsrf);
+        deleteLocation.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DashboardSeries_ShouldAlignBucketsAndRejectInvalidPeriod()
+    {
+        var client = await LoginAsync(E2EHost.OperatorEmail);
+
+        // Período inválido →400 pt-BR (GlobalExceptionHandler).
+        var bad = await client.GetAsync("/api/v1/dashboard/series?period=1y");
+        bad.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        // Período válido → buckets alinhados e séries do mesmo comprimento.
+        var response = await client.GetAsync("/api/v1/dashboard/series?period=24h");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var data = await DataAsync(response);
+
+        data.GetProperty("period").GetString().Should().Be("24h");
+        data.GetProperty("bucketMinutes").GetInt32().Should().Be(60);
+        var polls = data.GetProperty("polls").EnumerateArray().ToList();
+        polls.Count.Should().BeInRange(24, 25, "bucket horário nas últimas24h");
+        data.GetProperty("pollFailures").GetArrayLength().Should().Be(polls.Count);
+        data.GetProperty("alertsOpened").GetArrayLength().Should().Be(polls.Count);
+        data.GetProperty("alertsResolved").GetArrayLength().Should().Be(polls.Count);
+        data.GetProperty("incidentsOpened").GetArrayLength().Should().Be(polls.Count);
+        data.GetProperty("incidentsResolved").GetArrayLength().Should().Be(polls.Count);
+    }
+
     // ── Incidents ──────────────────────────────────────────────────────────
 
     [Fact]

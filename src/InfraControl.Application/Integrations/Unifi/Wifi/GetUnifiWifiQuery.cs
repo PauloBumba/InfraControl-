@@ -39,11 +39,43 @@ public sealed class GetUnifiWifiQueryHandler(IUnifiApiClient client, ICacheServi
         // Sequencial de propósito: as duas chamadas reutilizam a MESMA
         // sessão do gate de login do UnifiApiClient — paralelizar duplicaria
         // o login no Controller (mesma razão do Insights, §Insights).
-        var ssids = await client.ListSsidsAsync(cancellationToken);
-        var accessPoints = await client.ListAccessPointsAsync(cancellationToken);
+        // F53-T003: falha de UMA fonte não derruba a outra — a seção
+        // afetada volta vazia com *Error preenchido. Só
+        // HttpRequestException é capturada (erro HTTP do Controller);
+        // config ausente e payload inesperado continuam propagando.
+        var ssids = await ProbeAsync(() => client.ListSsidsAsync(cancellationToken));
+        var accessPoints = await ProbeAsync(() => client.ListAccessPointsAsync(cancellationToken));
 
-        var dto = new UnifiWifiDto(ssids, accessPoints, DateTimeOffset.UtcNow);
+        // As duas fontes falharam → propaga o erro original (502 via
+        // GlobalExceptionHandler) em vez de um DTO vazio fingindo sucesso.
+        if (ssids.Error is not null && accessPoints.Error is not null)
+            throw ssids.Error!;
+
+        var dto = new UnifiWifiDto(
+            ssids.Value ?? [],
+            accessPoints.Value ?? [],
+            DateTimeOffset.UtcNow,
+            SsidsError: ssids.Error is null ? null : SectionUnavailableMessage,
+            AccessPointsError: accessPoints.Error is null ? null : SectionUnavailableMessage);
         await cache.SetAsync(CacheKey, dto, CacheTtl, cancellationToken);
         return dto;
     }
+
+    private const string SectionUnavailableMessage =
+        "Seção indisponível nesta versão do UniFi Controller.";
+
+    private static async Task<ProbeResult<T>> ProbeAsync<T>(
+        Func<Task<IReadOnlyList<T>>> probe)
+    {
+        try
+        {
+            return new ProbeResult<T>(await probe(), null);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ProbeResult<T>(null, ex);
+        }
+    }
+
+    private sealed record ProbeResult<T>(IReadOnlyList<T>? Value, HttpRequestException? Error);
 }

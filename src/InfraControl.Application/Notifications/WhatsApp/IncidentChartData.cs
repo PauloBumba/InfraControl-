@@ -28,7 +28,11 @@ public sealed record IncidentChartData(
     IReadOnlyList<ChartSeriesPoint> Series,
     double? LimitValue = null,
     string Unit = "",
-    string? LocationLabel = null)
+    string? LocationLabel = null,
+    TimeSpan? CycleDuration = null,
+    string? AccentColor = null,
+    string? DeviceIp = null,
+    string? DeviceTypeLabel = null)
 {
     public double? CurrentValue => Series.Count > 0 ? Series[^1].Value : null;
     public double? MinValue => Series.Count > 0 ? Series.Min(point => point.Value) : null;

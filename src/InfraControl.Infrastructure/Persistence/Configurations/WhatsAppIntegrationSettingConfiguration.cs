@@ -61,6 +61,34 @@ public sealed class WhatsAppIntegrationSettingConfiguration
             .HasColumnName("last_test_error")
             .HasMaxLength(WhatsAppIntegrationSetting.MaxErrorLength);
 
+        builder.Property(x => x.CardIncidentEnabled)
+            .HasColumnName("card_incident_enabled")
+            .IsRequired();
+
+        builder.Property(x => x.CardWarningEnabled)
+            .HasColumnName("card_warning_enabled")
+            .IsRequired();
+
+        builder.Property(x => x.CardResolutionEnabled)
+            .HasColumnName("card_resolution_enabled")
+            .IsRequired();
+
+        builder.Property(x => x.CardWindowHours)
+            .HasColumnName("card_window_hours")
+            .IsRequired();
+
+        builder.Property(x => x.CardIncidentColor)
+            .HasColumnName("card_incident_color")
+            .HasMaxLength(9);
+
+        builder.Property(x => x.CardWarningColor)
+            .HasColumnName("card_warning_color")
+            .HasMaxLength(9);
+
+        builder.Property(x => x.CardResolutionColor)
+            .HasColumnName("card_resolution_color")
+            .HasMaxLength(9);
+
         builder.Property(x => x.CreateDateTime)
             .HasColumnName("create_date_time");
 

@@ -19,6 +19,7 @@ import {
   listWhatsAppGroups,
   saveWhatsAppSettings,
   sendWhatsAppTest,
+  sendWhatsAppTestCard,
   type WhatsAppGroup,
   type WhatsAppInstanceCreation,
   type WhatsAppQr,
@@ -84,6 +85,15 @@ export function WhatsAppSettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
+  // ADR-069 — modelo do cartão PNG (toggles por tipo, janela, cores).
+  const [cardIncidentEnabled, setCardIncidentEnabled] = useState(true);
+  const [cardWarningEnabled, setCardWarningEnabled] = useState(true);
+  const [cardResolutionEnabled, setCardResolutionEnabled] = useState(true);
+  const [cardWindowHours, setCardWindowHours] = useState(2);
+  const [cardIncidentColor, setCardIncidentColor] = useState("");
+  const [cardWarningColor, setCardWarningColor] = useState("");
+  const [cardResolutionColor, setCardResolutionColor] = useState("");
+
   const [saveError, setSaveError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -99,6 +109,7 @@ export function WhatsAppSettingsPage() {
     useState<WhatsAppSettingsPayload | null>(null);
 
   const [testResult, setTestResult] = useState<{ ok: boolean; error: string | null } | null>(null);
+  const [cardTestResult, setCardTestResult] = useState<{ ok: boolean; error: string | null } | null>(null);
 
   // Preenche o formulário quando a config chega; preserva a seleção de grupo.
   useEffect(() => {
@@ -108,6 +119,13 @@ export function WhatsAppSettingsPage() {
     setPhone(settingsQuery.data.phone ?? "");
     setNotificationsEnabled(settingsQuery.data.notificationsEnabled);
     setSelectedGroupId(settingsQuery.data.groupId ?? null);
+    setCardIncidentEnabled(settingsQuery.data.cardIncidentEnabled);
+    setCardWarningEnabled(settingsQuery.data.cardWarningEnabled);
+    setCardResolutionEnabled(settingsQuery.data.cardResolutionEnabled);
+    setCardWindowHours(settingsQuery.data.cardWindowHours);
+    setCardIncidentColor(settingsQuery.data.cardIncidentColor ?? "");
+    setCardWarningColor(settingsQuery.data.cardWarningColor ?? "");
+    setCardResolutionColor(settingsQuery.data.cardResolutionColor ?? "");
   }, [settingsQuery.data]);
 
   // Estado de conexão: poll de 5s enquanto não estiver "open" (a chamada é
@@ -129,6 +147,13 @@ export function WhatsAppSettingsPage() {
       setPhone(saved.phone ?? "");
       setNotificationsEnabled(saved.notificationsEnabled);
       setSelectedGroupId(saved.groupId ?? null);
+      setCardIncidentEnabled(saved.cardIncidentEnabled);
+      setCardWarningEnabled(saved.cardWarningEnabled);
+      setCardResolutionEnabled(saved.cardResolutionEnabled);
+      setCardWindowHours(saved.cardWindowHours);
+      setCardIncidentColor(saved.cardIncidentColor ?? "");
+      setCardWarningColor(saved.cardWarningColor ?? "");
+      setCardResolutionColor(saved.cardResolutionColor ?? "");
       setInstanceResult(null);
       queryClient.setQueryData(["whatsapp-settings"], saved);
       void queryClient.invalidateQueries({ queryKey: ["whatsapp-connection"] });
@@ -194,6 +219,16 @@ export function WhatsAppSettingsPage() {
       setTestResult({ ok: false, error: mutationErrorMessage(error as Error) }),
   });
 
+  const testCard = useMutation({
+    mutationFn: sendWhatsAppTestCard,
+    onSuccess: (result) => {
+      setCardTestResult(result);
+      void queryClient.invalidateQueries({ queryKey: ["whatsapp-settings"] });
+    },
+    onError: (error) =>
+      setCardTestResult({ ok: false, error: mutationErrorMessage(error as Error) }),
+  });
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setNotice(null);
@@ -204,6 +239,16 @@ export function WhatsAppSettingsPage() {
       groupId: selectedGroupId,
       phone: phone.trim() === "" ? null : phone.trim(),
       notificationsEnabled,
+      cardSettings: {
+        incidentEnabled: cardIncidentEnabled,
+        warningEnabled: cardWarningEnabled,
+        resolutionEnabled: cardResolutionEnabled,
+        windowHours: Math.min(24, Math.max(1, cardWindowHours || 2)),
+        incidentColor: cardIncidentColor.trim() === "" ? null : cardIncidentColor.trim(),
+        warningColor: cardWarningColor.trim() === "" ? null : cardWarningColor.trim(),
+        resolutionColor:
+          cardResolutionColor.trim() === "" ? null : cardResolutionColor.trim(),
+      },
     };
 
     if (
@@ -508,6 +553,130 @@ export function WhatsAppSettingsPage() {
 
           {saveError && <FormError message={saveError} />}
         </form>
+      </div>
+
+      {/* ── Cartão de notificação (ADR-069) ─────────────────────── */}
+      <div className="uni-panel" style={panelStyle}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+          Cartão de notificação (imagem PNG)
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>
+          Quando ativo, o evento chega como cartão com gráfico do Zabbix. Desligado,
+          o tipo cai para mensagem de texto. Salve a configuração para aplicar.
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
+          <FormField label="Janela do gráfico (horas, 1–24)">
+            <input
+              type="number"
+              min={1}
+              max={24}
+              value={cardWindowHours}
+              onChange={(event) => setCardWindowHours(Number(event.target.value))}
+              style={inputStyle}
+            />
+          </FormField>
+          <FormField label="Cor do cartão INCIDENTE (#RGB ou #RRGGBB)">
+            <input
+              value={cardIncidentColor}
+              onChange={(event) => setCardIncidentColor(event.target.value)}
+              placeholder="#dc2626"
+              style={inputStyle}
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Cor do cartão ALERTA">
+            <input
+              value={cardWarningColor}
+              onChange={(event) => setCardWarningColor(event.target.value)}
+              placeholder="#d97706"
+              style={inputStyle}
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Cor do cartão RESOLVIDO">
+            <input
+              value={cardResolutionColor}
+              onChange={(event) => setCardResolutionColor(event.target.value)}
+              placeholder="#16a34a"
+              style={inputStyle}
+              autoComplete="off"
+            />
+          </FormField>
+        </div>
+
+        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginBottom: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+            <input
+              type="checkbox"
+              checked={cardIncidentEnabled}
+              onChange={(event) => setCardIncidentEnabled(event.target.checked)}
+            />
+            Cartão de incidente
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+            <input
+              type="checkbox"
+              checked={cardWarningEnabled}
+              onChange={(event) => setCardWarningEnabled(event.target.checked)}
+            />
+            Cartão de alerta
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+            <input
+              type="checkbox"
+              checked={cardResolutionEnabled}
+              onChange={(event) => setCardResolutionEnabled(event.target.checked)}
+            />
+            Cartão de resolvido
+          </label>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <Button
+            type="button"
+            variant="info"
+            icon="pi pi-image"
+            disabled={
+              testCard.isPending ||
+              !destinationSaved ||
+              state !== "open" ||
+              (!selectedGroupId && !phone.trim())
+            }
+            onClick={() => testCard.mutate()}
+          >
+            {testCard.isPending ? "Enviando…" : "Enviar cartão de teste"}
+          </Button>
+          <span style={{ fontSize: 11, color: "#94a3b8" }}>
+            Usa o modelo salvo — salve antes de testar cores/janela novas.
+          </span>
+        </div>
+
+        {cardTestResult && (
+          <div
+            role="status"
+            style={{
+              marginTop: 10,
+              padding: "10px 12px",
+              borderRadius: 6,
+              fontSize: 12,
+              background: cardTestResult.ok ? "#f0fdf4" : "#fef2f2",
+              color: cardTestResult.ok ? "#15803d" : "#b91c1c",
+              border: `1px solid ${cardTestResult.ok ? "#bbf7d0" : "#fecaca"}`,
+            }}
+          >
+            {cardTestResult.ok
+              ? "Cartão de teste enviado — confira a imagem no WhatsApp."
+              : `Falha no cartão de teste: ${cardTestResult.error ?? "erro desconhecido"}`}
+          </div>
+        )}
       </div>
 
       {/* ── Grupos ──────────────────────────────────────────────── */}

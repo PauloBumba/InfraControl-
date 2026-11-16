@@ -64,6 +64,8 @@
 59. [Checklist de validação — caça-bugs frontend](59-CHECKLIST-VALIDACAO-CACABUGS-FRONT.md)
 60. [Checklist de validação — caça-bugs backend](60-CHECKLIST-VALIDACAO-CACABUGS-BACKEND.md)
 
+69. [F54 - Redesenho do Dashboard Principal (referencia UniFi Network)](69-DASHBOARD-UNIFI-REDESIGN.md)
+
 ## ADRs
 
 Consultar `adr/`.

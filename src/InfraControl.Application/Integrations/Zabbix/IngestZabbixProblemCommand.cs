@@ -19,7 +19,7 @@ namespace InfraControl.Application.Integrations.Zabbix;
 
 /// <summary>
 /// Resultado da ingestão: incidente afetado (ou null) + outcome em token
-/// (created|duplicate|resolved|none) — contrato documentado em docs/27.
+/// (created|duplicate|resolved|none|suppressed) — contrato documentado em docs/27.
 /// </summary>
 public sealed record ZabbixProblemResultDto(Guid? IncidentId, string Outcome)
 {
@@ -27,6 +27,9 @@ public sealed record ZabbixProblemResultDto(Guid? IncidentId, string Outcome)
     public const string Duplicate = "duplicate";
     public const string Resolved = "resolved";
     public const string None = "none";
+
+    /// <summary>ADR-068: PROBLEM repetido com o problema lógico aberto.</summary>
+    public const string Suppressed = "suppressed";
 }
 
 /// <summary>
@@ -135,6 +138,11 @@ public sealed class IngestZabbixProblemCommandHandler(
                     "Zabbix OK sem correspondência (evento {EventId}, título {Title}).",
                     eventId, title);
                 break;
+            case IngestOutcome.Suppressed:
+                logger.LogInformation(
+                    "Zabbix PROBLEM suprimido pelo estado do problema (evento {EventId}, incidente {IncidentId}).",
+                    eventId, result.IncidentId);
+                break;
         }
 
         return new(result.IncidentId, MapOutcome(result.Outcome));
@@ -145,6 +153,7 @@ public sealed class IngestZabbixProblemCommandHandler(
         IngestOutcome.Created => ZabbixProblemResultDto.Created,
         IngestOutcome.Duplicate => ZabbixProblemResultDto.Duplicate,
         IngestOutcome.Resolved => ZabbixProblemResultDto.Resolved,
+        IngestOutcome.Suppressed => ZabbixProblemResultDto.Suppressed,
         _ => ZabbixProblemResultDto.None
     };
 

@@ -119,6 +119,8 @@ public abstract class BaseIntegrationTest : IAsyncLifetime
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         // ADR-027: pipeline Zabbix → MonitoringEvent → Alert → Incident
         services.AddScoped<IMonitoringEventRepository, MonitoringEventRepository>();
+        // ADR-068: máquina de estados do problema lógico (notificação só em transição)
+        services.AddScoped<IMonitoringProblemStateRepository, MonitoringProblemStateRepository>();
         services.AddScoped<IMonitoringEventIngestor, MonitoringEventIngestor>();
         services.AddScoped<IZabbixEventContextReader, ZabbixEventContextReader>();
         services.AddScoped<IZabbixClient, FakeZabbixClient>();

@@ -1,0 +1,16 @@
+{
+  "mediatypeid": "105",
+  "script": "const p = JSON.parse(value);\nif (!p.url) { throw 'InfraControl: URL nao definida'; }\nconst request = new HttpRequest();\nrequest.addHeader('Content-Type: application/json');\nrequest.addHeader('X-Zabbix-Token: ' + p.token);\nconst body = { eventId: p.eventId, host: p.host, ip: p.ip, name: p.name,\n               severity: parseInt(p.nseverity, 10), status: p.status, occurredAt: p.occurredAt };\nif (p.recoveryEventId && p.recoveryEventId !== '') { body.recoveryEventId = p.recoveryEventId; }\nconst response = request.post(p.url, JSON.stringify(body));\nZabbix.log(4, 'InfraControl webhook [' + p.status + '] response: ' + response);\nreturn 'OK';",
+  "parameters": [
+    { "name": "url", "value": "http://api:8080/api/v1/integrations/zabbix/problems" },
+    { "name": "token", "value": "infracontrol-zabbix-dev-2026" },
+    { "name": "eventId", "value": "{EVENT.ID}" },
+    { "name": "recoveryEventId", "value": "{EVENT.RECOVERY.ID}" },
+    { "name": "host", "value": "{HOST.NAME1}" },
+    { "name": "ip", "value": "{HOST.IP}" },
+    { "name": "name", "value": "{HOST.NAME1}: {TRIGGER.NAME}" },
+    { "name": "nseverity", "value": "{EVENT.NSEVERITY}" },
+    { "name": "status", "value": "PROBLEM" },
+    { "name": "occurredAt", "value": "{EVENT.DATE}" }
+  ]
+}

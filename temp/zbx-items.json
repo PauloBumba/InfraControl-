@@ -1,0 +1,706 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "itemid":  "85399",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74719",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74720",
+                       "name":  "Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.7]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74721",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74731",
+                       "name":  "Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.18]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74732",
+                       "name":  "Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.19]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74747",
+                       "name":  "Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.5]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74748",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74749",
+                       "name":  "Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.7]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74750",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74805",
+                       "name":  "Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.5]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74806",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74553",
+                       "name":  "Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.28]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "73474",
+                       "name":  "Interface port 1: Gigabit Copper(): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.1]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "73501",
+                       "name":  "Interface port 1: Gigabit Copper(): Bits sent",
+                       "key_":  "net.if.out[ifOutOctets.1]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "73502",
+                       "name":  "Interface port 2: Gigabit Copper(): Bits sent",
+                       "key_":  "net.if.out[ifOutOctets.2]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "73503",
+                       "name":  "Interface port 3: Gigabit Copper(): Bits sent",
+                       "key_":  "net.if.out[ifOutOctets.3]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "73504",
+                       "name":  "Interface port 4: Gigabit Copper(): Bits sent",
+                       "key_":  "net.if.out[ifOutOctets.4]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74409",
+                       "name":  "Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.12]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74446",
+                       "name":  "Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.25]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74457",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74448",
+                       "name":  "Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.27]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74480",
+                       "name":  "Interface GigabitEthernet1/0/3(GigabitEthernet1/0/3 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.3]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74481",
+                       "name":  "Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.4]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74482",
+                       "name":  "Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.5]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74509",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74450",
+                       "name":  "Interface Vlan-interface1(vlan 01): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.30]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74530",
+                       "name":  "Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.1]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74582",
+                       "name":  "Interface GigabitEthernet1/0/1(GigabitEthernet1/0/1 Interface): Speed",
+                       "key_":  "net.if.speed[ifHighSpeed.1]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74646",
+                       "name":  "Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface): Interface type",
+                       "key_":  "net.if.type[ifType.13]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74722",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74746",
+                       "name":  "Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.4]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74520",
+                       "name":  "Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.17]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74521",
+                       "name":  "Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.18]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74569",
+                       "name":  "Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface): Bits sent",
+                       "key_":  "net.if.out[ifHCOutOctets.14]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74838",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Bits sent",
+                       "key_":  "net.if.out[ifHCOutOctets.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74862",
+                       "name":  "Interface GigabitEthernet1/0/4(GigabitEthernet1/0/4 Interface): Speed",
+                       "key_":  "net.if.speed[ifHighSpeed.4]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74650",
+                       "name":  "Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Interface type",
+                       "key_":  "net.if.type[ifType.17]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74651",
+                       "name":  "Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Interface type",
+                       "key_":  "net.if.type[ifType.18]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74736",
+                       "name":  "Interface GigabitEthernet1/0/23(GigabitEthernet1/0/23 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.23]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74737",
+                       "name":  "Interface GigabitEthernet1/0/24(GigabitEthernet1/0/24 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.24]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74738",
+                       "name":  "Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.25]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74739",
+                       "name":  "Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.26]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74494",
+                       "name":  "Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.17]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74495",
+                       "name":  "Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.18]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74501",
+                       "name":  "Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.28]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74513",
+                       "name":  "Interface GigabitEthernet1/0/10(GigabitEthernet1/0/10 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.10]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74679",
+                       "name":  "Interface GigabitEthernet1/0/22(GigabitEthernet1/0/22 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.22]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74678",
+                       "name":  "Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.20]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74689",
+                       "name":  "Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.5]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74698",
+                       "name":  "Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.14]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74692",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74693",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74434",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74436",
+                       "name":  "Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.11]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74420",
+                       "name":  "Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.27]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74945",
+                       "name":  "Interface Vlan-interface1(Vlan-interface1 Interface): Interface type",
+                       "key_":  "net.if.type[ifType.30]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74652",
+                       "name":  "Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface): Interface type",
+                       "key_":  "net.if.type[ifType.19]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74690",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74700",
+                       "name":  "Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.16]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74776",
+                       "name":  "Interface GigabitEthernet1/0/5(GigabitEthernet1/0/5 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.5]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74777",
+                       "name":  "Interface GigabitEthernet1/0/6(GigabitEthernet1/0/6 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.6]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74778",
+                       "name":  "Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.7]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74779",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74780",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Outbound packets discarded",
+                       "key_":  "net.if.out.discards[ifOutDiscards.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74807",
+                       "name":  "Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.7]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74808",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "73333",
+                       "name":  "Interface port 9: Gigabit Copper(): Interface type",
+                       "key_":  "net.if.type[ifType.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74418",
+                       "name":  "Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.25]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74421",
+                       "name":  "Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Duplex status",
+                       "key_":  "net.if.duplex[dot3StatsDuplexStatus.28]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74437",
+                       "name":  "Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.12]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74438",
+                       "name":  "Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.13]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74439",
+                       "name":  "Interface GigabitEthernet1/0/14(GigabitEthernet1/0/14 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.14]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74440",
+                       "name":  "Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.15]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74809",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Outbound packets with errors",
+                       "key_":  "net.if.out.errors[ifOutErrors.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74441",
+                       "name":  "Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.16]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74442",
+                       "name":  "Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.17]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74443",
+                       "name":  "Interface GigabitEthernet1/0/18(GigabitEthernet1/0/18 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.18]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74444",
+                       "name":  "Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.19]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74445",
+                       "name":  "Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.20]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74447",
+                       "name":  "Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.26]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74449",
+                       "name":  "Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Inbound packets discarded",
+                       "key_":  "net.if.in.discards[ifInDiscards.28]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74458",
+                       "name":  "Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.7]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74459",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74460",
+                       "name":  "Interface GigabitEthernet1/0/9(GigabitEthernet1/0/9 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.9]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74463",
+                       "name":  "Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.12]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74464",
+                       "name":  "Interface GigabitEthernet1/0/13(GigabitEthernet1/0/13 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.13]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74466",
+                       "name":  "Interface GigabitEthernet1/0/15(GigabitEthernet1/0/15 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.15]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74467",
+                       "name":  "Interface GigabitEthernet1/0/16(GigabitEthernet1/0/16 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.16]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74468",
+                       "name":  "Interface GigabitEthernet1/0/17(GigabitEthernet1/0/17 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.17]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74470",
+                       "name":  "Interface GigabitEthernet1/0/19(GigabitEthernet1/0/19 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.19]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74471",
+                       "name":  "Interface GigabitEthernet1/0/20(GigabitEthernet1/0/20 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.20]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74836",
+                       "name":  "Interface GigabitEthernet1/0/7(GigabitEthernet1/0/7 Interface): Bits sent",
+                       "key_":  "net.if.out[ifHCOutOctets.7]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74837",
+                       "name":  "Interface GigabitEthernet1/0/8(GigabitEthernet1/0/8 Interface): Bits sent",
+                       "key_":  "net.if.out[ifHCOutOctets.8]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74472",
+                       "name":  "Interface GigabitEthernet1/0/25(GigabitEthernet1/0/25 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.25]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74473",
+                       "name":  "Interface GigabitEthernet1/0/26(GigabitEthernet1/0/26 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.26]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74474",
+                       "name":  "Interface GigabitEthernet1/0/27(GigabitEthernet1/0/27 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.27]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74475",
+                       "name":  "Interface GigabitEthernet1/0/28(GigabitEthernet1/0/28 Interface): Inbound packets with errors",
+                       "key_":  "net.if.in.errors[ifInErrors.28]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74488",
+                       "name":  "Interface GigabitEthernet1/0/11(GigabitEthernet1/0/11 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.11]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   },
+                   {
+                       "itemid":  "74489",
+                       "name":  "Interface GigabitEthernet1/0/12(GigabitEthernet1/0/12 Interface): Bits received",
+                       "key_":  "net.if.in[ifHCInOctets.12]",
+                       "value_type":  "3",
+                       "status":  "0"
+                   }
+               ],
+    "id":  2
+}

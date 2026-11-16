@@ -1,0 +1,102 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "groupid":  "29",
+                       "name":  "Access Points HSDS"
+                   },
+                   {
+                       "groupid":  "30",
+                       "name":  "Access Points HSSM"
+                   },
+                   {
+                       "groupid":  "28",
+                       "name":  "Access Points UniFi"
+                   },
+                   {
+                       "groupid":  "19",
+                       "name":  "Applications"
+                   },
+                   {
+                       "groupid":  "37",
+                       "name":  "Cameras HSDS"
+                   },
+                   {
+                       "groupid":  "26",
+                       "name":  "Computadores"
+                   },
+                   {
+                       "groupid":  "20",
+                       "name":  "Databases"
+                   },
+                   {
+                       "groupid":  "5",
+                       "name":  "Discovered hosts"
+                   },
+                   {
+                       "groupid":  "7",
+                       "name":  "Hypervisors"
+                   },
+                   {
+                       "groupid":  "31",
+                       "name":  "Impressoras"
+                   },
+                   {
+                       "groupid":  "32",
+                       "name":  "Impressoras HSDS"
+                   },
+                   {
+                       "groupid":  "33",
+                       "name":  "Impressoras HSSM"
+                   },
+                   {
+                       "groupid":  "2",
+                       "name":  "Linux servers"
+                   },
+                   {
+                       "groupid":  "38",
+                       "name":  "NVRs HSDS"
+                   },
+                   {
+                       "groupid":  "36",
+                       "name":  "Servidores"
+                   },
+                   {
+                       "groupid":  "22",
+                       "name":  "Switches HP"
+                   },
+                   {
+                       "groupid":  "23",
+                       "name":  "Switches Intelbras"
+                   },
+                   {
+                       "groupid":  "25",
+                       "name":  "Switches UniFi"
+                   },
+                   {
+                       "groupid":  "24",
+                       "name":  "Switches de Mesa"
+                   },
+                   {
+                       "groupid":  "39",
+                       "name":  "Telefonia HSDS"
+                   },
+                   {
+                       "groupid":  "34",
+                       "name":  "Templates IC"
+                   },
+                   {
+                       "groupid":  "6",
+                       "name":  "Virtual machines"
+                   },
+                   {
+                       "groupid":  "4",
+                       "name":  "Zabbix servers"
+                   },
+                   {
+                       "groupid":  "27",
+                       "name":  "sistemas interno"
+                   }
+               ],
+    "id":  2
+}

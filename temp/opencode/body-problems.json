@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"problem.get","params":{"output":["eventid","objectid","severity","clock","acknowledged","name"],"limit":1000,"sortfield":"eventid","sortorder":"DESC"},"id":2}

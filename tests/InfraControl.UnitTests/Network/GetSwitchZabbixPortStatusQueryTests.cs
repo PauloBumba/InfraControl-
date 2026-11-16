@@ -223,6 +223,10 @@ public sealed class GetSwitchZabbixPortStatusQueryTests : IDisposable
         public Task<IReadOnlyList<ZabbixTriggerDto>> ListTriggersAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<ZabbixTriggerDto>>([]);
 
+        public Task<ZabbixTriggerDetailsDto?> GetTriggerAsync(
+            string triggerId, CancellationToken cancellationToken)
+            => Task.FromResult<ZabbixTriggerDetailsDto?>(null);
+
         public Task<IReadOnlyList<ZabbixProblemDto>> ListProblemsAsync(CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<ZabbixProblemDto>>([]);
 

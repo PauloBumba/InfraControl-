@@ -1,0 +1,1 @@
+{"output":["itemid","name","key_"],"selectItemPrototypes":["name","key_"],"selectTriggerPrototypes":["description","expression","priority","status"],"filter":{"key_":"net.if.discovery"}}

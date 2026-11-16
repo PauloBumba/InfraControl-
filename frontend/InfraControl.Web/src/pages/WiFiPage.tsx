@@ -232,6 +232,8 @@ export function WiFiPage() {
         <div className="uni-panel-body">
           {wifiLoading ? (
             <LoadingBlock />
+          ) : wifiData?.ssidsError ? (
+            <p style={{ fontSize: 13, color: "#94a3b8" }}>{wifiData.ssidsError}</p>
           ) : (
             <EntityView<UnifiSsidItem>
               mode={ssidView}
@@ -307,6 +309,8 @@ export function WiFiPage() {
         <div className="uni-panel-body">
           {wifiLoading ? (
             <LoadingBlock />
+          ) : wifiData?.accessPointsError ? (
+            <p style={{ fontSize: 13, color: "#94a3b8" }}>{wifiData.accessPointsError}</p>
           ) : (
             <EntityView<UnifiAccessPointItem>
               mode={apView}

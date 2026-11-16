@@ -1,0 +1,127 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "hostid":  "10818",
+                       "host":  "sw-192-168-127-1",
+                       "name":  "SW_Core (192.168.127.1)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "22",
+                                              "name":  "Switches HP"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10828",
+                       "host":  "sw-192-168-127-235",
+                       "name":  "R01-SW06 (192.168.127.235)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "23",
+                                              "name":  "Switches Intelbras"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10830",
+                       "host":  "sw-192-168-127-220",
+                       "name":  "SG 2404 PoE (192.168.127.220)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "23",
+                                              "name":  "Switches Intelbras"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10831",
+                       "host":  "sw-192-168-127-244",
+                       "name":  "INTELBRAS-SW02 (192.168.127.244)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "23",
+                                              "name":  "Switches Intelbras"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10833",
+                       "host":  "sw-192-168-127-110",
+                       "name":  "Centro Cirurgico (192.168.127.110)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "24",
+                                              "name":  "Switches de Mesa"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10836",
+                       "host":  "sw-192-168-50-101",
+                       "name":  "Farmacia HSSM (192.168.50.101)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "24",
+                                              "name":  "Switches de Mesa"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10837",
+                       "host":  "sw-192-168-127-248",
+                       "name":  "USW-Pro-24-PoE (192.168.127.248)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "25",
+                                              "name":  "Switches UniFi"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10838",
+                       "host":  "sw-192-168-10-47",
+                       "name":  "SW_Laudos (192.168.10.47)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "25",
+                                              "name":  "Switches UniFi"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10839",
+                       "host":  "sw-192-168-10-11",
+                       "name":  "USW-24-PoE (192.168.10.11)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "25",
+                                              "name":  "Switches UniFi"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10840",
+                       "host":  "sw-192-168-11-173",
+                       "name":  "USW-Enterprise-24 (192.168.11.173)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "25",
+                                              "name":  "Switches UniFi"
+                                          }
+                                      ]
+                   },
+                   {
+                       "hostid":  "10841",
+                       "host":  "sw-192-168-10-21",
+                       "name":  "USW-Lite-8-PoE (192.168.10.21)",
+                       "hostgroups":  [
+                                          {
+                                              "groupid":  "25",
+                                              "name":  "Switches UniFi"
+                                          }
+                                      ]
+                   }
+               ],
+    "id":  2
+}

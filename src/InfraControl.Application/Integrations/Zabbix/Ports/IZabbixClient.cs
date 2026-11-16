@@ -30,6 +30,13 @@ public interface IZabbixClient
     Task<IReadOnlyList<ZabbixTriggerDto>> ListTriggersAsync(
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// ADR-069: expressão de uma trigger pelo id (threshold do cartão
+    /// WhatsApp). Null quando a trigger não existe mais.
+    /// </summary>
+    Task<ZabbixTriggerDetailsDto?> GetTriggerAsync(
+        string triggerId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ZabbixProblemDto>> ListProblemsAsync(
         CancellationToken cancellationToken = default);
 

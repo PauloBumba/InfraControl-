@@ -19,7 +19,14 @@ public enum IngestOutcome
     Created,
     Duplicate,
     Resolved,
-    None
+    None,
+
+    /// <summary>
+    /// ADR-068: PROBLEM repetido com o problema lógico ainda aberto — o
+    /// MonitoringEvent é gravado (histórico), mas nenhum Alert/Incident nem
+    /// notificação nasce. Não é replay de eventId (esse é Duplicate).
+    /// </summary>
+    Suppressed
 }
 
 /// <summary>
@@ -66,6 +73,7 @@ public sealed class MonitoringEventIngestor(
     IAlertRepository alertRepository,
     IIncidentRepository incidentRepository,
     IAlertEvaluator alertEvaluator,
+    IMonitoringProblemStateRepository problemStateRepository,
     IUnitOfWork unitOfWork,
     ILogger<MonitoringEventIngestor> logger) : IMonitoringEventIngestor
 {
@@ -106,10 +114,85 @@ public sealed class MonitoringEventIngestor(
             input.SourceContextJson);
         await eventRepository.AddAsync(monitoringEvent, cancellationToken);
 
+        // ADR-068: máquina de estados do problema lógico. PROBLEM repetido
+        // com o problema ainda aberto (update/flap sem OK) grava só o
+        // evento — nenhum Alert/Incident/domain event = zero notificação.
+        var correlationKey = MonitoringCorrelationKey.Resolve(
+            MonitoringSource.Zabbix, input.SourceContextJson,
+            input.DeviceId, input.Host, input.Ip, input.Name);
+        var problemState = await problemStateRepository
+            .GetBySourceAndCorrelationKeyAsync(
+                MonitoringSource.Zabbix, correlationKey, cancellationToken);
+
+        var stateIsOpen = problemState?.Status
+            is ProblemStatus.Alerta or ProblemStatus.Incidente;
+        var escalates = problemState?.Status == ProblemStatus.Alerta
+            && AlertEvaluator.MapAlertSeverity(input.Severity)
+                == AlertSeverity.Critical;
+
+        if (stateIsOpen && !escalates)
+        {
+            problemState!.RegisterRepeatedProblem(input.Severity, eventId);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            logger.LogInformation(
+                "PROBLEM {EventId} repetido com o problema {CorrelationKey} ainda {Status} — " +
+                "evento gravado, Alert/Incident/notificação suprimidos (repetição {Repeated}).",
+                eventId, correlationKey, problemState.Status, problemState.RepeatedCount);
+            return new(
+                problemState.AlertId, problemState.IncidentId, IngestOutcome.Suppressed);
+        }
+
         // F19-T003: o avaliador decide Alert (sempre), supressão (BFS) e
         // Incident (somente Critical) — idempotência por identidade.
         var evaluation = await alertEvaluator.EvaluateExternalAsync(
             monitoringEvent, input.Host, input.Ip, cancellationToken);
+
+        var newStatus = evaluation.IncidentId is not null && !evaluation.Suppressed
+            ? ProblemStatus.Incidente
+            : ProblemStatus.Alerta;
+        var cycleIncidentId = evaluation.Suppressed ? null : evaluation.IncidentId;
+        var previousAlertId = problemState?.AlertId;
+
+        if (problemState is null)
+        {
+            problemState = MonitoringProblemState.CreateOpen(
+                MonitoringSource.Zabbix, correlationKey, input.DeviceId,
+                input.Severity, newStatus, evaluation.AlertId, cycleIncidentId,
+                eventId, occurredAt);
+            await problemStateRepository.AddAsync(problemState, cancellationToken);
+        }
+        else if (problemState.Status == ProblemStatus.Resolvido)
+        {
+            problemState.Reopen(
+                input.DeviceId, input.Severity, newStatus, evaluation.AlertId,
+                cycleIncidentId, eventId, occurredAt);
+        }
+        else
+        {
+            // Escalonamento Alerta→Incidente (único caminho que chega ao
+            // avaliador com estado aberto): assume os novos vínculos.
+            problemState.UpdateOpen(
+                input.DeviceId, input.Severity, newStatus, evaluation.AlertId,
+                cycleIncidentId, eventId);
+        }
+
+        // O alerta do ciclo anterior é substituído pelo novo PROBLEM —
+        // resolve para não deixar Warning órfão Open para sempre.
+        if (previousAlertId is { } supersededId
+            && supersededId != evaluation.AlertId)
+        {
+            var superseded = await alertRepository.GetByIdAsync(
+                supersededId, cancellationToken);
+            if (superseded?.Status
+                is AlertStatus.Open or AlertStatus.Suppressed)
+            {
+                // F57: supersede por escalonamento não é resolução do
+                // problema — resolve sem evento para não duplicar a
+                // notificação ("Alerta resolvido" + "Incidente aberto"
+                // para a mesma ocorrência no WhatsApp).
+                superseded.Resolve(raiseResolvedEvent: false);
+            }
+        }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -232,6 +315,14 @@ public sealed class MonitoringEventIngestor(
             if (allResolved)
                 incident.ChangeStatus(IncidentStatus.Resolved);
         }
+
+        // ADR-068: o OK encerra o ciclo do problema lógico — o Alert do
+        // ciclo é a ponte (todo problem externo gera exatamente um).
+        // Idempotente: replay de recovery não re-notifica (MarkResolved
+        // é no-op em Resolvido e os domain events já não re-disparam).
+        var problemState = await problemStateRepository.GetByAlertIdAsync(
+            alert.Id, cancellationToken);
+        problemState?.MarkResolved(occurredAt);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

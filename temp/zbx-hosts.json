@@ -1,0 +1,1 @@
+{"output":["hostid","host","name","status"],"selectInterfaces":["ip","port","type","main","useip"],"selectParentTemplates":["templateid","name"],"filter":{"status":0},"search":{"host":"192.168.127"}}

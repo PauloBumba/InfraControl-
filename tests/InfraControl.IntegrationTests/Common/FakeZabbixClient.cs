@@ -34,6 +34,10 @@ public sealed class FakeZabbixClient : IZabbixClient
         CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ZabbixTriggerDto>>([]);
 
+    public Task<ZabbixTriggerDetailsDto?> GetTriggerAsync(
+        string triggerId, CancellationToken cancellationToken = default)
+        => Task.FromResult<ZabbixTriggerDetailsDto?>(null);
+
     public Task<IReadOnlyList<ZabbixProblemDto>> ListProblemsAsync(
         CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ZabbixProblemDto>>([]);

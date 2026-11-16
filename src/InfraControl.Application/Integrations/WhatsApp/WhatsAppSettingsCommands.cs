@@ -1,5 +1,6 @@
 using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
+using InfraControl.Application.Notifications.WhatsApp;
 using InfraControl.Application.RemoteAccess.Credentials.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Common;
@@ -28,7 +29,28 @@ public sealed record WhatsAppSettingsDto(
     bool LastTestOk,
     string? LastTestError,
     DateTime? UpdatedAtUtc,
-    bool NotificationsEnabled = false);
+    bool NotificationsEnabled = false,
+    bool CardIncidentEnabled = true,
+    bool CardWarningEnabled = true,
+    bool CardResolutionEnabled = true,
+    int CardWindowHours = 2,
+    string? CardIncidentColor = null,
+    string? CardWarningColor = null,
+    string? CardResolutionColor = null);
+
+/// <summary>
+/// ADR-069: modelo do cartão visual enviado no WhatsApp. Bloco opcional no
+/// save — quando presente, SUBSTITUI todos os campos card_* (cor nula
+/// limpa o override e volta à paleta semântica).
+/// </summary>
+public sealed record WhatsAppCardSettingsPayload(
+    bool? IncidentEnabled,
+    bool? WarningEnabled,
+    bool? ResolutionEnabled,
+    int? WindowHours,
+    string? IncidentColor,
+    string? WarningColor,
+    string? ResolutionColor);
 
 /// <summary>Resultado do envio de teste — nunca lança por falha de rede.</summary>
 public sealed record WhatsAppTestResultDto(bool Ok, string? Error);
@@ -46,7 +68,8 @@ public sealed record SaveWhatsAppSettingsRequest(
     string? ApiKey,
     string? GroupId,
     string? Phone,
-    bool? NotificationsEnabled = null);
+    bool? NotificationsEnabled = null,
+    WhatsAppCardSettingsPayload? CardSettings = null);
 
 public sealed record SaveWhatsAppSettingsCommand(SaveWhatsAppSettingsRequest Request)
     : BaseCommand<WhatsAppSettingsDto>, IAuthorizedRequest, IAuditableRequest
@@ -57,6 +80,17 @@ public sealed record SaveWhatsAppSettingsCommand(SaveWhatsAppSettingsRequest Req
 }
 
 public sealed record SendWhatsAppTestCommand
+    : BaseCommand<WhatsAppTestResultDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+}
+
+/// <summary>
+/// ADR-069: envia um cartão de exemplo (PNG renderizado pelo mesmo
+/// pipeline do dispatcher) para o destino configurado — valida modelo,
+/// cores e janela antes de usar em produção.
+/// </summary>
+public sealed record SendWhatsAppTestCardCommand
     : BaseCommand<WhatsAppTestResultDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
@@ -107,7 +141,14 @@ public sealed class GetWhatsAppSettingsQueryHandler(
             setting.LastTestOk,
             setting.LastTestError,
             setting.UpdateDateTime,
-            setting.NotificationsEnabled ?? legacyNotificationsEnabled);
+            setting.NotificationsEnabled ?? legacyNotificationsEnabled,
+            setting.CardIncidentEnabled,
+            setting.CardWarningEnabled,
+            setting.CardResolutionEnabled,
+            setting.CardWindowHours,
+            setting.CardIncidentColor,
+            setting.CardWarningColor,
+            setting.CardResolutionColor);
 }
 
 public sealed class SaveWhatsAppSettingsCommandHandler(
@@ -154,6 +195,21 @@ public sealed class SaveWhatsAppSettingsCommandHandler(
                 payload.GroupId,
                 payload.Phone,
                 notificationsEnabled);
+
+        // ADR-069: bloco card_* presente substitui o modelo inteiro —
+        // toggles/janela nulos mantêm o valor vigente; cor nula limpa o
+        // override (volta à paleta semântica).
+        if (payload.CardSettings is { } card)
+        {
+            setting.UpdateCardSettings(
+                card.IncidentEnabled ?? setting.CardIncidentEnabled,
+                card.WarningEnabled ?? setting.CardWarningEnabled,
+                card.ResolutionEnabled ?? setting.CardResolutionEnabled,
+                card.WindowHours ?? setting.CardWindowHours,
+                card.IncidentColor,
+                card.WarningColor,
+                card.ResolutionColor);
+        }
 
         await repository.SaveAsync(setting, cancellationToken);
 
@@ -225,6 +281,69 @@ public sealed class SendWhatsAppTestCommandHandler(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Falha ao persistir resultado do teste WhatsApp");
+        }
+    }
+}
+
+/// <summary>
+/// ADR-069: envia um cartão PNG de EXEMPLO pelo mesmo dispatcher real
+/// (sendMedia com caption) — o admin valida o modelo visual no grupo
+/// antes de confiar nele em produção. Nunca lança por falha de rede.
+/// </summary>
+public sealed class SendWhatsAppTestCardCommandHandler(
+    IWhatsAppNotificationDispatcher dispatcher,
+    IWhatsAppSettingsRepository settingsRepository,
+    ICurrentUserContext currentUser,
+    ILogger<SendWhatsAppTestCardCommandHandler> logger)
+    : IRequestHandler<SendWhatsAppTestCardCommand, WhatsAppTestResultDto>
+{
+    public async Task<WhatsAppTestResultDto> Handle(
+        SendWhatsAppTestCardCommand request, CancellationToken cancellationToken)
+    {
+        var setting = await settingsRepository.GetAsync(cancellationToken);
+        var now = AppTimeProvider.Current.GetUtcNow().UtcDateTime;
+
+        // Série sintética de exemplo (48 pontos, ~1,5% de ruído em torno
+        // de 85–99) — deixa claro no título que é teste, nunca dado real.
+        var series = Enumerable.Range(0, 48)
+            .Select(index => new ChartSeriesPoint(
+                now.AddMinutes(-((47 - index) * 2)),
+                85 + (14 * Math.Sin(index / 6.0)) + (index % 5)))
+            .ToArray();
+
+        var chart = new IncidentChartData(
+            ChartCardKind.Incident,
+            "CPU utilization acima do limite (exemplo)",
+            DeviceLabel: "InfraControl — teste de cartão",
+            SeverityLabel: "Critical",
+            EventAtUtc: now,
+            Series: series,
+            LimitValue: 90,
+            Unit: "%",
+            LocationLabel: "Administração → WhatsApp",
+            CycleDuration: TimeSpan.FromMinutes(47),
+            AccentColor: setting?.CardIncidentColor);
+
+        try
+        {
+            await dispatcher.SendAsync(
+                new WhatsAppNotificationMessage(
+                    DeliveryId: Guid.NewGuid(),
+                    NotificationId: Guid.NewGuid(),
+                    UserId: currentUser.UserId ?? Guid.Empty,
+                    Phone: string.Empty,
+                    Title: "Incidente aberto",
+                    Message: "Cartão de teste do modelo visual (ADR-069).",
+                    CreatedAt: now,
+                    Chart: chart),
+                cancellationToken);
+
+            return new WhatsAppTestResultDto(true, null);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Envio do cartão de teste WhatsApp falhou");
+            return new WhatsAppTestResultDto(false, ex.Message);
         }
     }
 }

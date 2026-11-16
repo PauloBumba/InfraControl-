@@ -37,6 +37,25 @@ public interface IAlertRepository : IRepository<Alert>
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F57: alerta mais recente do device cuja mensagem é exatamente o nome
+    /// do problema (alert.Message = MonitoringEvent.Message = nome Zabbix) —
+    /// usado pelo cartão WhatsApp para achar o MonitoringProblemState da
+    /// ocorrência certa quando o host tem vários problemas simultâneos.
+    /// </summary>
+    Task<Alert?> GetLatestByDeviceAndMessageAsync(
+        Guid deviceId,
+        string message,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Criação/resolução de alertas TOCADOS no período (criado no período
+    /// OU resolvido no período) — séries do dashboard (F54-T003 / docs/69).
+    /// </summary>
+    Task<IReadOnlyList<AlertTimestampRow>> ListTimestampsBetweenAsync(
+        DateTime fromUtc, DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -45,3 +64,6 @@ public interface IAlertRepository : IRepository<Alert>
 /// quando o alerta externo não mapeou device (ADR-027).
 /// </summary>
 public sealed record AlertWithDevice(Alert Alert, string? DeviceName);
+
+/// <summary>Linha de carimbos de alerta para a série do dashboard (F54-T003).</summary>
+public sealed record AlertTimestampRow(DateTime CreatedAt, DateTime? ResolvedAt);

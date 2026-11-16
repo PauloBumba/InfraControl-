@@ -35,4 +35,8 @@ public sealed record UnifiDpiAppDto(
 public sealed record UnifiInsightsDto(
     IReadOnlyList<UnifiClientTrafficDto> TrafficPerClient,
     IReadOnlyList<UnifiDpiAppDto> DpiPerApplication,
-    DateTimeOffset CapturedAtUtc);
+    DateTimeOffset CapturedAtUtc,
+    /// <summary>F53-T002: falha só na fonte de tráfego (resto do painel OK).</summary>
+    string? TrafficError = null,
+    /// <summary>F53-T002: falha só na fonte de DPI (ex.: /stat/app 404).</summary>
+    string? DpiError = null);

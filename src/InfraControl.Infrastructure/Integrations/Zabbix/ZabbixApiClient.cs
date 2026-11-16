@@ -188,6 +188,34 @@ public sealed class ZabbixApiClient : IZabbixClient
             .ToList();
     }
 
+    /// <summary>
+    /// ADR-069: expressão/recovery de uma trigger — o threshold real do
+    /// cartão WhatsApp. Trigger removida no Zabbix devolve null.
+    /// </summary>
+    public async Task<ZabbixTriggerDetailsDto?> GetTriggerAsync(
+        string triggerId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(triggerId))
+            throw new ArgumentException(
+                "O triggerid é obrigatório para consultar a trigger.", nameof(triggerId));
+
+        var result = await CallListAsync("trigger.get", new
+        {
+            output = new[] { "triggerid", "expression", "recovery_expression" },
+            triggerids = new[] { triggerId.Trim() },
+            limit = 1
+        }, cancellationToken);
+
+        var trigger = result.EnumerateArray().FirstOrDefault();
+        if (trigger.ValueKind != JsonValueKind.Object)
+            return null;
+
+        return new ZabbixTriggerDetailsDto(
+            Read(trigger, "triggerid"),
+            ReadOrNull(trigger, "expression"),
+            ReadOrNull(trigger, "recovery_expression"));
+    }
+
     public async Task<IReadOnlyList<ZabbixProblemDto>> ListProblemsAsync(
         CancellationToken cancellationToken = default)
     {

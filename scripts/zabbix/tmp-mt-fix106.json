@@ -1,0 +1,4 @@
+{
+  "mediatypeid": "106",
+  "script": "const p = JSON.parse(value);\nif (!p.url) { throw 'InfraControl: URL nao definida'; }\nconst request = new HttpRequest();\nrequest.addHeader('Content-Type: application/json');\nrequest.addHeader('X-Zabbix-Token: ' + p.token);\nconst body = { eventId: p.eventId, host: p.host, ip: p.ip, name: p.name,\n               severity: parseInt(p.nseverity, 10), status: p.status, occurredAt: Number(p.occurredAt) };\nif (p.recoveryEventId && p.recoveryEventId !== '') { body.recoveryEventId = p.recoveryEventId; }\nconst response = request.post(p.url, JSON.stringify(body));\nZabbix.log(4, 'InfraControl webhook [' + p.status + '] response: ' + response);\nreturn 'OK';"
+}

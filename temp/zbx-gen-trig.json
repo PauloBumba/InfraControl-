@@ -1,0 +1,3506 @@
+{
+    "jsonrpc":  "2.0",
+    "result":  [
+                   {
+                       "triggerid":  "33389",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33391",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33392",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33393",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33394",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33396",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33397",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33398",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33399",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33401",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33402",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33403",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33404",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33406",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33407",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33408",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33409",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33411",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33412",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33413",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33414",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33416",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33417",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33418",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33740",
+                       "description":  "Generico: Interface port 1: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33741",
+                       "description":  "Generico: Interface port 2: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33742",
+                       "description":  "Generico: Interface port 3: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33743",
+                       "description":  "Generico: Interface port 4: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33744",
+                       "description":  "Generico: Interface port 5: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33745",
+                       "description":  "Generico: Interface port 6: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33746",
+                       "description":  "Generico: Interface port 7: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33747",
+                       "description":  "Generico: Interface port 8: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33748",
+                       "description":  "Generico: Interface port 9: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33749",
+                       "description":  "Generico: Interface port 10: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33750",
+                       "description":  "Generico: Interface port 11: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33751",
+                       "description":  "Generico: Interface port 12: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33752",
+                       "description":  "Generico: Interface port 13: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33753",
+                       "description":  "Generico: Interface port 14: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33754",
+                       "description":  "Generico: Interface port 15: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33755",
+                       "description":  "Generico: Interface port 16: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33756",
+                       "description":  "Generico: Interface port 17: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33757",
+                       "description":  "Generico: Interface port 18: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33758",
+                       "description":  "Generico: Interface port 19: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33759",
+                       "description":  "Generico: Interface port 20: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33760",
+                       "description":  "Generico: Interface port 21: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33761",
+                       "description":  "Generico: Interface port 22: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33762",
+                       "description":  "Generico: Interface port 23: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33763",
+                       "description":  "Generico: Interface port 24: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33764",
+                       "description":  "Generico: Interface AUX() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33765",
+                       "description":  "Generico: Interface Loopback() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33766",
+                       "description":  "Generico: Interface Vlan-interface1() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33767",
+                       "description":  "Interface port 1: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33768",
+                       "description":  "Interface port 2: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33769",
+                       "description":  "Interface port 3: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33770",
+                       "description":  "Interface port 4: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33771",
+                       "description":  "Interface port 5: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33772",
+                       "description":  "Interface port 6: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33773",
+                       "description":  "Interface port 7: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33774",
+                       "description":  "Interface port 8: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33775",
+                       "description":  "Interface port 9: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33776",
+                       "description":  "Interface port 10: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33777",
+                       "description":  "Interface port 11: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33778",
+                       "description":  "Interface port 12: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33779",
+                       "description":  "Interface port 13: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33780",
+                       "description":  "Interface port 14: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33781",
+                       "description":  "Interface port 15: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33782",
+                       "description":  "Interface port 16: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33783",
+                       "description":  "Interface port 17: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33784",
+                       "description":  "Interface port 18: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33785",
+                       "description":  "Interface port 19: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33786",
+                       "description":  "Interface port 20: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33787",
+                       "description":  "Interface port 21: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33788",
+                       "description":  "Interface port 22: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33789",
+                       "description":  "Interface port 23: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33790",
+                       "description":  "Interface port 24: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33791",
+                       "description":  "Interface AUX(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33792",
+                       "description":  "Interface Loopback(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33793",
+                       "description":  "Interface Vlan-interface1(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33794",
+                       "description":  "Interface port 1: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33795",
+                       "description":  "Interface port 2: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33796",
+                       "description":  "Interface port 3: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33797",
+                       "description":  "Interface port 4: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33798",
+                       "description":  "Interface port 5: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33799",
+                       "description":  "Interface port 6: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33800",
+                       "description":  "Interface port 7: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33801",
+                       "description":  "Interface port 8: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33802",
+                       "description":  "Interface port 9: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33803",
+                       "description":  "Interface port 10: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33804",
+                       "description":  "Interface port 11: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33805",
+                       "description":  "Interface port 12: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33806",
+                       "description":  "Interface port 13: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33807",
+                       "description":  "Interface port 14: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33808",
+                       "description":  "Interface port 15: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33809",
+                       "description":  "Interface port 16: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33810",
+                       "description":  "Interface port 17: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33811",
+                       "description":  "Interface port 18: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33812",
+                       "description":  "Interface port 19: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33813",
+                       "description":  "Interface port 20: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33814",
+                       "description":  "Interface port 21: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33815",
+                       "description":  "Interface port 22: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33816",
+                       "description":  "Interface port 23: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33817",
+                       "description":  "Interface port 24: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33818",
+                       "description":  "Interface AUX(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33819",
+                       "description":  "Interface Loopback(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33820",
+                       "description":  "Interface Vlan-interface1(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33821",
+                       "description":  "Interface port 1: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33822",
+                       "description":  "Interface port 2: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33823",
+                       "description":  "Interface port 3: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33824",
+                       "description":  "Interface port 4: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33825",
+                       "description":  "Interface port 5: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33826",
+                       "description":  "Interface port 6: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33827",
+                       "description":  "Interface port 7: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33828",
+                       "description":  "Interface port 8: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33829",
+                       "description":  "Interface port 9: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33830",
+                       "description":  "Interface port 10: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33831",
+                       "description":  "Interface port 11: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33832",
+                       "description":  "Interface port 12: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33833",
+                       "description":  "Interface port 13: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33834",
+                       "description":  "Interface port 14: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33835",
+                       "description":  "Interface port 15: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33836",
+                       "description":  "Interface port 16: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33837",
+                       "description":  "Interface port 17: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33838",
+                       "description":  "Interface port 18: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33839",
+                       "description":  "Interface port 19: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33840",
+                       "description":  "Interface port 20: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33841",
+                       "description":  "Interface port 21: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33842",
+                       "description":  "Interface port 22: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33843",
+                       "description":  "Interface port 23: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33844",
+                       "description":  "Interface port 24: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33845",
+                       "description":  "Interface AUX() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33846",
+                       "description":  "Interface Loopback() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33847",
+                       "description":  "Interface Vlan-interface1() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33861",
+                       "description":  "Generico: Interface port 1: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33862",
+                       "description":  "Generico: Interface port 2: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33863",
+                       "description":  "Generico: Interface port 3: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33864",
+                       "description":  "Generico: Interface port 4: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33865",
+                       "description":  "Generico: Interface port 5: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33866",
+                       "description":  "Generico: Interface port 6: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33867",
+                       "description":  "Generico: Interface port 7: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33868",
+                       "description":  "Generico: Interface port 8: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33869",
+                       "description":  "Generico: Interface port 9: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33870",
+                       "description":  "Generico: Interface port 10: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33871",
+                       "description":  "Generico: Interface port 11: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33872",
+                       "description":  "Generico: Interface port 12: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33873",
+                       "description":  "Generico: Interface port 13: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33874",
+                       "description":  "Generico: Interface port 14: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33875",
+                       "description":  "Generico: Interface port 15: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33876",
+                       "description":  "Generico: Interface port 16: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33877",
+                       "description":  "Generico: Interface port 17: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33878",
+                       "description":  "Generico: Interface port 18: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33879",
+                       "description":  "Generico: Interface port 19: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33880",
+                       "description":  "Generico: Interface port 20: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33881",
+                       "description":  "Generico: Interface port 21: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33882",
+                       "description":  "Generico: Interface port 22: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33883",
+                       "description":  "Generico: Interface port 23: Gigabit Copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33884",
+                       "description":  "Generico: Interface port 24: Gigabit Fiber() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33885",
+                       "description":  "Generico: Interface AUX() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33886",
+                       "description":  "Generico: Interface Loopback() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33887",
+                       "description":  "Generico: Interface Vlan-interface1() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33888",
+                       "description":  "Interface port 1: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33889",
+                       "description":  "Interface port 2: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33890",
+                       "description":  "Interface port 3: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33891",
+                       "description":  "Interface port 4: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33892",
+                       "description":  "Interface port 5: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33893",
+                       "description":  "Interface port 6: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33894",
+                       "description":  "Interface port 7: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33895",
+                       "description":  "Interface port 8: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33896",
+                       "description":  "Interface port 9: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33897",
+                       "description":  "Interface port 10: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33898",
+                       "description":  "Interface port 11: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33899",
+                       "description":  "Interface port 12: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33900",
+                       "description":  "Interface port 13: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33901",
+                       "description":  "Interface port 14: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33902",
+                       "description":  "Interface port 15: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33903",
+                       "description":  "Interface port 16: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33904",
+                       "description":  "Interface port 17: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33905",
+                       "description":  "Interface port 18: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33906",
+                       "description":  "Interface port 19: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33907",
+                       "description":  "Interface port 20: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33908",
+                       "description":  "Interface port 21: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33909",
+                       "description":  "Interface port 22: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33910",
+                       "description":  "Interface port 23: Gigabit Copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33911",
+                       "description":  "Interface port 24: Gigabit Fiber(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33912",
+                       "description":  "Interface AUX(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33913",
+                       "description":  "Interface Loopback(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33914",
+                       "description":  "Interface Vlan-interface1(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33915",
+                       "description":  "Interface port 1: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33916",
+                       "description":  "Interface port 2: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33917",
+                       "description":  "Interface port 3: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33918",
+                       "description":  "Interface port 4: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33919",
+                       "description":  "Interface port 5: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33920",
+                       "description":  "Interface port 6: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33921",
+                       "description":  "Interface port 7: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33922",
+                       "description":  "Interface port 8: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33923",
+                       "description":  "Interface port 9: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33924",
+                       "description":  "Interface port 10: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33925",
+                       "description":  "Interface port 11: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33926",
+                       "description":  "Interface port 12: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33927",
+                       "description":  "Interface port 13: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33928",
+                       "description":  "Interface port 14: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33929",
+                       "description":  "Interface port 15: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33930",
+                       "description":  "Interface port 16: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33931",
+                       "description":  "Interface port 17: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33932",
+                       "description":  "Interface port 18: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33933",
+                       "description":  "Interface port 19: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33934",
+                       "description":  "Interface port 20: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33935",
+                       "description":  "Interface port 21: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33936",
+                       "description":  "Interface port 22: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33937",
+                       "description":  "Interface port 23: Gigabit Copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33938",
+                       "description":  "Interface port 24: Gigabit Fiber(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33939",
+                       "description":  "Interface AUX(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33940",
+                       "description":  "Interface Loopback(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33941",
+                       "description":  "Interface Vlan-interface1(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33942",
+                       "description":  "Interface port 1: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33943",
+                       "description":  "Interface port 2: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33944",
+                       "description":  "Interface port 3: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33945",
+                       "description":  "Interface port 4: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33946",
+                       "description":  "Interface port 5: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33947",
+                       "description":  "Interface port 6: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33948",
+                       "description":  "Interface port 7: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33949",
+                       "description":  "Interface port 8: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "1"
+                   },
+                   {
+                       "triggerid":  "33950",
+                       "description":  "Interface port 9: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33951",
+                       "description":  "Interface port 10: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33952",
+                       "description":  "Interface port 11: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33953",
+                       "description":  "Interface port 12: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33954",
+                       "description":  "Interface port 13: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33955",
+                       "description":  "Interface port 14: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "1"
+                   },
+                   {
+                       "triggerid":  "33956",
+                       "description":  "Interface port 15: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33957",
+                       "description":  "Interface port 16: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33958",
+                       "description":  "Interface port 17: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33959",
+                       "description":  "Interface port 18: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33960",
+                       "description":  "Interface port 19: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33961",
+                       "description":  "Interface port 20: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33962",
+                       "description":  "Interface port 21: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33963",
+                       "description":  "Interface port 22: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33964",
+                       "description":  "Interface port 23: Gigabit Copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33965",
+                       "description":  "Interface port 24: Gigabit Fiber() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33966",
+                       "description":  "Interface AUX() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33967",
+                       "description":  "Interface Loopback() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "33968",
+                       "description":  "Interface Vlan-interface1() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34193",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/2 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34194",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/3 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34195",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/4 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34196",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/5 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34197",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/6 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34198",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/7 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34199",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/8 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34200",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/9 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34201",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/10 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34202",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/11 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34203",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/12 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34204",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/13 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34205",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/14 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34206",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/17 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34207",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/18 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "1",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34208",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/19 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34209",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/22 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34210",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/24 : copper() em half-duplex - verificar cabo/auto-negociacao",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34211",
+                       "description":  "Generico: Interface Vlan-interface1() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34212",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/1 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34213",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/2 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34214",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/3 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34215",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/4 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34216",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/5 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34217",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/6 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34218",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/7 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34219",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/8 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34220",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/9 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34221",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/10 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34222",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/11 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34223",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/12 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34224",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/13 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34225",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/14 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34226",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/15 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34227",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/16 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34228",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/17 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34229",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/18 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34230",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/19 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34231",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/20 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34232",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/21 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34233",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/22 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34234",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/23 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34235",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/24 : copper() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34236",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/25 : fiber() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34237",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/26 : fiber() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34238",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/27 : fiber() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34239",
+                       "description":  "Generico: Interface gigabitEthernet 1/0/28 : fiber() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34240",
+                       "description":  "Interface Vlan-interface1(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34241",
+                       "description":  "Interface gigabitEthernet 1/0/1 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34242",
+                       "description":  "Interface gigabitEthernet 1/0/2 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34243",
+                       "description":  "Interface gigabitEthernet 1/0/3 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34244",
+                       "description":  "Interface gigabitEthernet 1/0/4 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34245",
+                       "description":  "Interface gigabitEthernet 1/0/5 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34246",
+                       "description":  "Interface gigabitEthernet 1/0/6 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34247",
+                       "description":  "Interface gigabitEthernet 1/0/7 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34248",
+                       "description":  "Interface gigabitEthernet 1/0/8 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34249",
+                       "description":  "Interface gigabitEthernet 1/0/9 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34250",
+                       "description":  "Interface gigabitEthernet 1/0/10 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34251",
+                       "description":  "Interface gigabitEthernet 1/0/11 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34252",
+                       "description":  "Interface gigabitEthernet 1/0/12 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34253",
+                       "description":  "Interface gigabitEthernet 1/0/13 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34254",
+                       "description":  "Interface gigabitEthernet 1/0/14 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34255",
+                       "description":  "Interface gigabitEthernet 1/0/15 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34256",
+                       "description":  "Interface gigabitEthernet 1/0/16 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34257",
+                       "description":  "Interface gigabitEthernet 1/0/17 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34258",
+                       "description":  "Interface gigabitEthernet 1/0/18 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34259",
+                       "description":  "Interface gigabitEthernet 1/0/19 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34260",
+                       "description":  "Interface gigabitEthernet 1/0/20 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34261",
+                       "description":  "Interface gigabitEthernet 1/0/21 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34262",
+                       "description":  "Interface gigabitEthernet 1/0/22 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34263",
+                       "description":  "Interface gigabitEthernet 1/0/23 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34264",
+                       "description":  "Interface gigabitEthernet 1/0/24 : copper(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34265",
+                       "description":  "Interface gigabitEthernet 1/0/25 : fiber(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34266",
+                       "description":  "Interface gigabitEthernet 1/0/26 : fiber(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34267",
+                       "description":  "Interface gigabitEthernet 1/0/27 : fiber(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34268",
+                       "description":  "Interface gigabitEthernet 1/0/28 : fiber(): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34269",
+                       "description":  "Interface Vlan-interface1(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34270",
+                       "description":  "Interface gigabitEthernet 1/0/1 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34271",
+                       "description":  "Interface gigabitEthernet 1/0/2 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34272",
+                       "description":  "Interface gigabitEthernet 1/0/3 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34273",
+                       "description":  "Interface gigabitEthernet 1/0/4 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34274",
+                       "description":  "Interface gigabitEthernet 1/0/5 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34275",
+                       "description":  "Interface gigabitEthernet 1/0/6 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34276",
+                       "description":  "Interface gigabitEthernet 1/0/7 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34277",
+                       "description":  "Interface gigabitEthernet 1/0/8 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34278",
+                       "description":  "Interface gigabitEthernet 1/0/9 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34279",
+                       "description":  "Interface gigabitEthernet 1/0/10 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34280",
+                       "description":  "Interface gigabitEthernet 1/0/11 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34281",
+                       "description":  "Interface gigabitEthernet 1/0/12 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34282",
+                       "description":  "Interface gigabitEthernet 1/0/13 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34283",
+                       "description":  "Interface gigabitEthernet 1/0/14 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34284",
+                       "description":  "Interface gigabitEthernet 1/0/15 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34285",
+                       "description":  "Interface gigabitEthernet 1/0/16 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34286",
+                       "description":  "Interface gigabitEthernet 1/0/17 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34287",
+                       "description":  "Interface gigabitEthernet 1/0/18 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34288",
+                       "description":  "Interface gigabitEthernet 1/0/19 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34289",
+                       "description":  "Interface gigabitEthernet 1/0/20 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34290",
+                       "description":  "Interface gigabitEthernet 1/0/21 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34291",
+                       "description":  "Interface gigabitEthernet 1/0/22 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34292",
+                       "description":  "Interface gigabitEthernet 1/0/23 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34293",
+                       "description":  "Interface gigabitEthernet 1/0/24 : copper(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34294",
+                       "description":  "Interface gigabitEthernet 1/0/25 : fiber(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34295",
+                       "description":  "Interface gigabitEthernet 1/0/26 : fiber(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34296",
+                       "description":  "Interface gigabitEthernet 1/0/27 : fiber(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34297",
+                       "description":  "Interface gigabitEthernet 1/0/28 : fiber(): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34298",
+                       "description":  "Interface Vlan-interface1() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34299",
+                       "description":  "Interface gigabitEthernet 1/0/1 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34300",
+                       "description":  "Interface gigabitEthernet 1/0/2 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34301",
+                       "description":  "Interface gigabitEthernet 1/0/3 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34302",
+                       "description":  "Interface gigabitEthernet 1/0/4 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34303",
+                       "description":  "Interface gigabitEthernet 1/0/5 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34304",
+                       "description":  "Interface gigabitEthernet 1/0/6 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34305",
+                       "description":  "Interface gigabitEthernet 1/0/7 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34306",
+                       "description":  "Interface gigabitEthernet 1/0/8 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34307",
+                       "description":  "Interface gigabitEthernet 1/0/9 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34308",
+                       "description":  "Interface gigabitEthernet 1/0/10 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34309",
+                       "description":  "Interface gigabitEthernet 1/0/11 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34310",
+                       "description":  "Interface gigabitEthernet 1/0/12 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34311",
+                       "description":  "Interface gigabitEthernet 1/0/13 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34312",
+                       "description":  "Interface gigabitEthernet 1/0/14 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34313",
+                       "description":  "Interface gigabitEthernet 1/0/15 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34314",
+                       "description":  "Interface gigabitEthernet 1/0/16 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34315",
+                       "description":  "Interface gigabitEthernet 1/0/17 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34316",
+                       "description":  "Interface gigabitEthernet 1/0/18 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34317",
+                       "description":  "Interface gigabitEthernet 1/0/19 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34318",
+                       "description":  "Interface gigabitEthernet 1/0/20 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34319",
+                       "description":  "Interface gigabitEthernet 1/0/21 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34320",
+                       "description":  "Interface gigabitEthernet 1/0/22 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34321",
+                       "description":  "Interface gigabitEthernet 1/0/23 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34322",
+                       "description":  "Interface gigabitEthernet 1/0/24 : copper() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34323",
+                       "description":  "Interface gigabitEthernet 1/0/25 : fiber() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34324",
+                       "description":  "Interface gigabitEthernet 1/0/26 : fiber() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34325",
+                       "description":  "Interface gigabitEthernet 1/0/27 : fiber() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "34326",
+                       "description":  "Interface gigabitEthernet 1/0/28 : fiber() sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35344",
+                       "description":  "ICMP Ping: Unavailable by ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35345",
+                       "description":  "ICMP Ping: Unavailable by ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35346",
+                       "description":  "ICMP Ping: Unavailable by ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35347",
+                       "description":  "ICMP Ping: Unavailable by ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35348",
+                       "description":  "ICMP Ping: Unavailable by ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35350",
+                       "description":  "ICMP Ping: High ICMP ping loss",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35351",
+                       "description":  "ICMP Ping: High ICMP ping loss",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35352",
+                       "description":  "ICMP Ping: High ICMP ping loss",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35353",
+                       "description":  "ICMP Ping: High ICMP ping loss",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35354",
+                       "description":  "ICMP Ping: High ICMP ping loss",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35356",
+                       "description":  "ICMP Ping: High ICMP ping response time",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35357",
+                       "description":  "ICMP Ping: High ICMP ping response time",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35358",
+                       "description":  "ICMP Ping: High ICMP ping response time",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35359",
+                       "description":  "ICMP Ping: High ICMP ping response time",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35360",
+                       "description":  "ICMP Ping: High ICMP ping response time",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35362",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35363",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35364",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35365",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35366",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35367",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35373",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35374",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35375",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35376",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35377",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35378",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35384",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35385",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35386",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35387",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35388",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35389",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35395",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35396",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35397",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35398",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35399",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35400",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35406",
+                       "description":  "Indisponivel por ICMP ping",
+                       "priority":  "4",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35407",
+                       "description":  "Perda de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35408",
+                       "description":  "Tempo de resposta de ping acima do limite",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35409",
+                       "description":  "Nome do sistema alterado",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35410",
+                       "description":  "Dispositivo reiniciado (SNMP uptime)",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35411",
+                       "description":  "Sem coleta SNMP",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35417",
+                       "description":  "Generico: Interface 0/1(Port 1) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35418",
+                       "description":  "Generico: Interface 0/2(Port 2) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35419",
+                       "description":  "Generico: Interface 0/3(Port 3) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35420",
+                       "description":  "Generico: Interface 0/4(Port 4) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35421",
+                       "description":  "Generico: Interface 0/5(Port 5) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35422",
+                       "description":  "Generico: Interface 0/6(Port 6) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35423",
+                       "description":  "Generico: Interface 0/7(Port 7) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35424",
+                       "description":  "Generico: Interface 0/8(Port 8) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "1"
+                   },
+                   {
+                       "triggerid":  "35425",
+                       "description":  "Interface 0/1(Port 1): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35426",
+                       "description":  "Interface 0/2(Port 2): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35427",
+                       "description":  "Interface 0/3(Port 3): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35428",
+                       "description":  "Interface 0/4(Port 4): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35429",
+                       "description":  "Interface 0/5(Port 5): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35430",
+                       "description":  "Interface 0/6(Port 6): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35431",
+                       "description":  "Interface 0/7(Port 7): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35432",
+                       "description":  "Interface 0/8(Port 8): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35433",
+                       "description":  "Interface 0/1(Port 1): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35434",
+                       "description":  "Interface 0/2(Port 2): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35435",
+                       "description":  "Interface 0/3(Port 3): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35436",
+                       "description":  "Interface 0/4(Port 4): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35437",
+                       "description":  "Interface 0/5(Port 5): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35438",
+                       "description":  "Interface 0/6(Port 6): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35439",
+                       "description":  "Interface 0/7(Port 7): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35440",
+                       "description":  "Interface 0/8(Port 8): Taxa de erros alta",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35441",
+                       "description":  "Interface 0/1(Port 1) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35442",
+                       "description":  "Interface 0/2(Port 2) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35443",
+                       "description":  "Interface 0/3(Port 3) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35444",
+                       "description":  "Interface 0/4(Port 4) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35445",
+                       "description":  "Interface 0/5(Port 5) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35446",
+                       "description":  "Interface 0/6(Port 6) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35447",
+                       "description":  "Interface 0/7(Port 7) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35448",
+                       "description":  "Interface 0/8(Port 8) sem link",
+                       "priority":  "3",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35449",
+                       "description":  "Generico: Interface 0/1(Port 1) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "1"
+                   },
+                   {
+                       "triggerid":  "35450",
+                       "description":  "Generico: Interface 0/2(Port 2) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35451",
+                       "description":  "Generico: Interface 0/3(Port 3) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35452",
+                       "description":  "Generico: Interface 0/4(Port 4) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35453",
+                       "description":  "Generico: Interface 0/5(Port 5) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35454",
+                       "description":  "Generico: Interface 0/6(Port 6) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35455",
+                       "description":  "Generico: Interface 0/7(Port 7) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35456",
+                       "description":  "Generico: Interface 0/8(Port 8) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35457",
+                       "description":  "Generico: Interface 0/9(Port 9) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35458",
+                       "description":  "Generico: Interface 0/10(Port 10) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35459",
+                       "description":  "Generico: Interface 0/11(Port 11) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35460",
+                       "description":  "Generico: Interface 0/12(Port 12) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35461",
+                       "description":  "Generico: Interface 0/13(Port 13) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35462",
+                       "description":  "Generico: Interface 0/14(Port 14) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35463",
+                       "description":  "Generico: Interface 0/15(Port 15) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35464",
+                       "description":  "Generico: Interface 0/16(Port 16) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35465",
+                       "description":  "Generico: Interface 0/17(Port 17) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35466",
+                       "description":  "Generico: Interface 0/18(Port 18) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35467",
+                       "description":  "Generico: Interface 0/19(Port 19) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35468",
+                       "description":  "Generico: Interface 0/20(Port 20) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35469",
+                       "description":  "Generico: Interface 0/21(Port 21) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35470",
+                       "description":  "Generico: Interface 0/22(Port 22) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35471",
+                       "description":  "Generico: Interface 0/23(Port 23) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35472",
+                       "description":  "Generico: Interface 0/24(Port 24) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35473",
+                       "description":  "Generico: Interface 0/25(SFP_ 1) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35474",
+                       "description":  "Generico: Interface 0/26(SFP_ 2) com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35475",
+                       "description":  "Generico: Interface CPU Interface:  5/1() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35476",
+                       "description":  "Generico: Interface 3/14() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35477",
+                       "description":  "Generico: Interface 3/15() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35478",
+                       "description":  "Generico: Interface 3/16() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35479",
+                       "description":  "Generico: Interface 3/17() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35480",
+                       "description":  "Generico: Interface 3/18() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35481",
+                       "description":  "Generico: Interface 3/19() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35482",
+                       "description":  "Generico: Interface 3/20() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35483",
+                       "description":  "Generico: Interface 3/21() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35484",
+                       "description":  "Generico: Interface 3/22() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35485",
+                       "description":  "Generico: Interface 3/23() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35486",
+                       "description":  "Generico: Interface 3/24() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35487",
+                       "description":  "Generico: Interface 3/25() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35488",
+                       "description":  "Generico: Interface 3/26() com velocidade reduzida - verificar enlace",
+                       "priority":  "1",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35489",
+                       "description":  "Interface 0/1(Port 1): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35490",
+                       "description":  "Interface 0/2(Port 2): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35491",
+                       "description":  "Interface 0/3(Port 3): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35492",
+                       "description":  "Interface 0/4(Port 4): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35493",
+                       "description":  "Interface 0/5(Port 5): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35494",
+                       "description":  "Interface 0/6(Port 6): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35495",
+                       "description":  "Interface 0/7(Port 7): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35496",
+                       "description":  "Interface 0/8(Port 8): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   },
+                   {
+                       "triggerid":  "35497",
+                       "description":  "Interface 0/9(Port 9): Uso de banda alto",
+                       "priority":  "2",
+                       "status":  "0",
+                       "value":  "0"
+                   }
+               ],
+    "id":  2
+}

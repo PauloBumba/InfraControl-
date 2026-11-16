@@ -83,6 +83,13 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
                 [UserMessage(exception)]),
             ArgumentException => (
                 StatusCodes.Status400BadRequest, [UserMessage(exception)]),
+            // F53-T004: falha de integração upstream (UniFi, Evolution,
+            // Zabbix…) chega como HttpRequestException do EnsureSuccess-
+            // StatusCode — 502 Bad Gateway com mensagem amigável, nunca
+            // o 500 genérico "erro inesperado".
+            HttpRequestException => (
+                StatusCodes.Status502BadGateway,
+                ["O serviço externo está indisponível no momento. Tente novamente em instantes."]),
             // F35-T002 (caça-bugs backend F2): rate limit é 429 Too Many
             // Requests (com Retry-After), nunca 409. ANTES de Invalid-
             // OperationException — RateLimitExceededException herda de
