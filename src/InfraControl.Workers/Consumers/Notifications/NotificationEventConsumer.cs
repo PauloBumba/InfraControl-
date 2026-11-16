@@ -94,11 +94,15 @@ public sealed class NotificationEventConsumer(
     {
         var message = context.Message;
 
-        // Filtro: só enviar CRÍTICOS (High/Critical) para WhatsApp
-        NotificationChannel[]? channels = message.Severity == IncidentSeverity.High ||
-                       message.Severity == IncidentSeverity.Critical
-            ? null // usa fanout padrão (inclui WhatsApp se configurado)
-            : [NotificationChannel.SignalR, NotificationChannel.Email]; // SEM WhatsApp
+        // Filtro: só enviar CRÍTICOS (High/Critical) para WhatsApp —
+        // invariante de produto: a regra por evento não pode reativar o
+        // canal para severidade baixa (anti-spam do grupo).
+        var lowSeverity = message.Severity is not (
+            IncidentSeverity.High or IncidentSeverity.Critical);
+
+        NotificationChannel[]? channels = lowSeverity
+            ? [NotificationChannel.SignalR, NotificationChannel.Email]
+            : null;
 
         // Gate de transição: a ocorrência é o ALERTA vinculado (IncidentAlert)
         // — incidente e alerta do mesmo problema compartilham a chave, então
@@ -116,6 +120,7 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
             channels: channels,
+            excludedChannels: lowSeverity ? [NotificationChannel.WhatsApp] : null,
             deviceId: message.DeviceId,
             aggregateId: occurrence.AggregateId,
             occurrenceKey: occurrence.Key,
@@ -152,19 +157,23 @@ public sealed class NotificationEventConsumer(
     /// <summary>
     /// F33-T004/ADR-059 + decisão do usuário (2026-11-10): alerta criado
     /// (Critical ou Warning) → Operator + Admin. Quando o alerta já gera
-    /// um incidente no mesmo fluxo (HasIncident), o WhatsApp não recebe
-    /// esta mensagem para evitar duplicidade com "Incidente aberto"; os
-    /// demais canais seguem normalmente. Warning (sem incidente) segue
-    /// pelo fanout — inclui WhatsApp quando ativo.
+    /// um incidente no mesmo fluxo (HasIncident) ou já está vinculado a
+    /// um (corrida de ingestão / vínculo manual), o WhatsApp não recebe
+    /// esta mensagem — o "Incidente aberto" é a narrativa canônica e a
+    /// regra por evento (F42) não pode ressuscitar o canal excluído.
+    /// Demais canais seguem normalmente.
     /// </summary>
-    public Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
+    public async Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
     {
         var message = context.Message;
-        NotificationChannel[]? channels = message.HasIncident
+        var hasIncident = message.HasIncident
+            || await HasIncidentLinkAsync(message.AlertId, context.CancellationToken);
+
+        NotificationChannel[]? channels = hasIncident
             ? [NotificationChannel.SignalR, NotificationChannel.Email]
             : null;
 
-        return HandleAsync(
+        await HandleAsync(
             message.EventId,
             message.EventType,
             message.Severity == AlertSeverity.Critical
@@ -176,6 +185,7 @@ public sealed class NotificationEventConsumer(
             context.CancellationToken,
             deviceId: message.DeviceId,
             channels: channels,
+            excludedChannels: hasIncident ? [NotificationChannel.WhatsApp] : null,
             aggregateId: message.AlertId,
             occurrenceKey: $"alert:{message.AlertId}",
             occurrenceState: OccurrenceState.Alert,
@@ -210,14 +220,25 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F19-T007: alerta resolvido → Operator + Admin.
-    /// Para evitar ruído no WhatsApp, envio só por canal padrão quando houver
-    /// incidente vinculado não é garantido aqui; o worker aplica filtros.
+    /// Regra de dedup (decisão do usuário): alerta vinculado a um
+    /// incidente NÃO notifica a resolução — o incidente é a narrativa
+    /// canônica e o "Incidente resolvido" já cobre o mesmo fato (o gate
+    /// deduplicaria o segundo evento de qualquer forma, mas a mensagem
+    /// vencedora precisa ser a do incidente, não a do alerta).
     /// </summary>
-    public Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
+    public async Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
     {
         var message = context.Message;
 
-        return HandleAsync(
+        if (await HasIncidentLinkAsync(message.AlertId, context.CancellationToken))
+        {
+            logger.LogInformation(
+                "Alerta {AlertId} resolvido tem incidente vinculado — resolução do alerta não notifica (o incidente cobre).",
+                message.AlertId);
+            return;
+        }
+
+        await HandleAsync(
             message.EventId,
             message.EventType,
             "Alerta resolvido",
@@ -231,6 +252,15 @@ public sealed class NotificationEventConsumer(
             occurrenceState: OccurrenceState.Resolved,
             correlationId: context.CorrelationId);
     }
+
+    /// <summary>
+    /// O alerta já está vinculado a um incidente (IncidentAlert)? Cobre a
+    /// corrida em que o incidente é criado/ligado depois do AlertCreated
+    /// (ou fluxos externos) — HasIncident do evento só enxerga o nascimento.
+    /// </summary>
+    private Task<bool> HasIncidentLinkAsync(Guid alertId, CancellationToken cancellationToken)
+        => dbContext.IncidentAlerts.AsNoTracking()
+            .AnyAsync(link => link.AlertId == alertId, cancellationToken);
 
     /// <summary>
     /// PDI criado (docs/29 §8, regra do usuário 2026-10-04): notifica o
@@ -565,7 +595,8 @@ public sealed class NotificationEventConsumer(
         Guid? aggregateId = null,
         string? occurrenceKey = null,
         OccurrenceState? occurrenceState = null,
-        Guid? correlationId = null)
+        Guid? correlationId = null,
+        NotificationChannel[]? excludedChannels = null)
     {
         // F42-T002: regra por evento — Enabled=false silencia ANTES da
         // idempotência (nada persistido); Channels preenchido substitui
@@ -705,6 +736,12 @@ public sealed class NotificationEventConsumer(
         var fanout = effectiveChannels is null
             ? await ResolveFanoutChannelsAsync(whatsapp, cancellationToken)
             : effectiveChannels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList();
+
+        // Invariantes de produto (dedup alerta↔incidente, anti-spam por
+        // severidade): o caller bane canais que NEM a regra por evento
+        // pode reativar — regra F42 refina o fanout, não quebra dedup.
+        if (excludedChannels is { Length: > 0 })
+            fanout.RemoveAll(excludedChannels.Contains);
 
         foreach (var channel in fanout)
             await QueueDeliveriesAsync(
