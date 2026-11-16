@@ -21,7 +21,9 @@ namespace InfraControl.Workers;
 /// Regras honestas: SLO sem vínculo não é medido (medição manual segue
 /// valendo); janela sem nenhum poll (total = 0) não gera medição —
 /// a UI mostra "Sem medição", nunca um 100% inventado; check
-/// desabilitada não entra no cálculo (não gera polls novos).
+/// desabilitada não entra no cálculo (não gera polls novos). Cada
+/// medição gravada gera também um <see cref="SloBudget"/> automático
+/// (ADR-069 — consumo linear limitado a 100).
 /// </summary>
 public sealed class SloMeasurementWorker(
     IServiceScopeFactory scopeFactory,
@@ -136,6 +138,7 @@ public sealed class SloMeasurementWorker(
                 .ToHashSet();
 
             var measurements = new List<SloMeasurement>();
+            var budgets = new List<SloBudget>();
             var skippedNoData = 0;
             var skippedDuplicate = 0;
 
@@ -165,6 +168,13 @@ public sealed class SloMeasurementWorker(
                 }
 
                 measurements.Add(SloMeasurement.Create(slo.Id, now, value.Value));
+
+                // ADR-069: mesmo ciclo, mesmo dado — orçamento linear do
+                // error budget na janela móvel, limitado a 100.
+                var consumed = SloBudgetCalculator.ComputeConsumedPercent(
+                    value.Value, slo.TargetPercent);
+                budgets.Add(SloBudget.Create(
+                    slo.Id, now.AddDays(-slo.WindowDays), now, consumed));
             }
 
             if (measurements.Count == 0)
@@ -177,11 +187,12 @@ public sealed class SloMeasurementWorker(
             }
 
             db.SloMeasurements.AddRange(measurements);
+            db.SloBudgets.AddRange(budgets);
             await db.SaveChangesAsync(timeout.Token);
 
             logger.LogInformation(
-                "SLO measurement: {Count} medição(ões) gravada(s) em {Slos} SLO(s); {Skipped} sem dados, {Dup} já medidos.",
-                measurements.Count, slos.Count, skippedNoData, skippedDuplicate);
+                "SLO measurement: {Count} medição(ões) + {Budgets} orçamento(s) gravados em {Slos} SLO(s); {Skipped} sem dados, {Dup} já medidos.",
+                measurements.Count, budgets.Count, slos.Count, skippedNoData, skippedDuplicate);
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {

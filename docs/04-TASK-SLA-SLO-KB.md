@@ -569,6 +569,13 @@ período aberto; se presente deve ser posterior ao início) e
 - `DELETE /api/v1/sla/slos/{id}` bloqueia com 409 também com orçamentos
   (pré-check + FK `Restrict`).
 
+**Automático (ADR-069)**: o `SloMeasurementWorker` grava um `SloBudget`
+no mesmo ciclo em que grava a medição — `PeriodStart = now −
+WindowDays`, `PeriodEnd = now`, `ConsumedPercent =
+min(100, (100 − disponibilidade) / (100 − alvo) × 100)` (consumo
+linear; alvo 100% = qualquer falha consome tudo). SLO sem vínculo ou
+ciclo sem dados não gera orçamento; o POST manual continua valendo.
+
 ### SloCheckBinding (ADR-068)
 
 Junção N:N entre `Slo` e `MonitoringCheck` — declara **o que o SLO
