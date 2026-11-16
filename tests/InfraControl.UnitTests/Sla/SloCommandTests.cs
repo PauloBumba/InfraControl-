@@ -175,14 +175,61 @@ public sealed class SloCommandTests : IDisposable
             new CreateSloCommand("Latência Intranet", 99m, 7, otherServiceId),
             CancellationToken.None);
 
-        var byTerm = await new SearchSlosQueryHandler(new SloRepository(context))
+        var handler = new SearchSlosQueryHandler(
+            new SloRepository(context),
+            new SloMeasurementRepository(context),
+            new SloBudgetRepository(context));
+
+        var byTerm = await handler
             .Handle(new SearchSlosQuery(Term: "disponib"), CancellationToken.None);
         byTerm.TotalCount.Should().Be(1);
 
-        var byService = await new SearchSlosQueryHandler(new SloRepository(context))
+        var byService = await handler
             .Handle(new SearchSlosQuery(ServiceId: serviceId), CancellationToken.None);
         byService.TotalCount.Should().Be(1);
         byService.Items.Single().Name.Should().Be("Disponibilidade ERP");
+    }
+
+    [Fact]
+    public async Task Search_ShouldEnrichWithLatestMeasurementAndBudget()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var slo = await CreateHandler(context).Handle(
+            new CreateSloCommand("Disponibilidade ERP", 99.95m, 30, serviceId),
+            CancellationToken.None);
+        var other = await CreateHandler(context).Handle(
+            new CreateSloCommand("Latência ERP", 99m, 7, serviceId),
+            CancellationToken.None);
+
+        var now = DateTime.UtcNow;
+        context.SloMeasurements.AddRange(
+            SloMeasurement.Create(slo.Id, now.AddDays(-10), 99.90m),
+            SloMeasurement.Create(slo.Id, now.AddDays(-1), 99.97m),
+            SloMeasurement.Create(other.Id, now.AddDays(-10), 98.0m)); // dentro da janela máxima (30d) mas fora da do SLO (7d)
+        context.SloBudgets.AddRange(
+            SloBudget.Create(slo.Id, now.AddDays(-30), now.AddDays(-1), 10m),
+            SloBudget.Create(slo.Id, now.AddDays(-1), null, 42.5m),
+            SloBudget.Create(other.Id, now.AddDays(-60), null, 80m));
+        await context.SaveChangesAsync();
+
+        var handler = new SearchSlosQueryHandler(
+            new SloRepository(context),
+            new SloMeasurementRepository(context),
+            new SloBudgetRepository(context));
+
+        var result = await handler.Handle(new SearchSlosQuery(), CancellationToken.None);
+
+        var enriched = result.Items.Single(i => i.Id == slo.Id);
+        enriched.LatestValuePercent.Should().Be(99.97m);
+        enriched.LatestMeasuredAtUtc.Should().BeCloseTo(now.AddDays(-1), TimeSpan.FromSeconds(5));
+        enriched.BudgetConsumedPercent.Should().Be(42.5m); // período mais recente
+        enriched.BudgetPeriodEndUtc.Should().BeNull();
+
+        var stale = result.Items.Single(i => i.Id == other.Id);
+        stale.LatestValuePercent.Should().BeNull();   // medição fora da janela de 7d
+        stale.LatestMeasuredAtUtc.Should().BeNull();
+        stale.BudgetConsumedPercent.Should().Be(80m);
     }
 
     [Fact]

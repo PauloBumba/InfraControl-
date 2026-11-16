@@ -47,6 +47,29 @@ public sealed class SloMeasurementRepository(AppDbContext dbContext)
         Guid sloId, CancellationToken cancellationToken = default)
         => dbContext.SloMeasurements.AnyAsync(m => m.SloId == sloId, cancellationToken);
 
+    public async Task<IReadOnlyDictionary<Guid, SloLatestMeasurement>> GetLatestBySloIdsAsync(
+        IReadOnlyCollection<Guid> sloIds,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (sloIds.Count == 0)
+            return new Dictionary<Guid, SloLatestMeasurement>();
+
+        var rows = await dbContext.SloMeasurements
+            .AsNoTracking()
+            .Where(m => sloIds.Contains(m.SloId) && m.MeasuredAt >= sinceUtc)
+            .OrderByDescending(m => m.MeasuredAt)
+            .Select(m => new { m.SloId, m.MeasuredAt, m.ValuePercent })
+            .ToListAsync(cancellationToken);
+
+        // Já vem ordenado desc — o primeiro por SloId é o mais recente.
+        return rows
+            .GroupBy(m => m.SloId)
+            .ToDictionary(
+                g => g.Key,
+                g => new SloLatestMeasurement(g.First().MeasuredAt, g.First().ValuePercent));
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
 }

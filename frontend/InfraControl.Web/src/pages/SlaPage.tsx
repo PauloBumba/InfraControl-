@@ -54,6 +54,41 @@ import { useFormErrors } from "@/hooks/useFormErrors";
 
 const PAGE_SIZE = 100;
 
+/** Medição real do SLO: valor vs alvo, com data (fuso BR via formatDateTime). */
+function MeasurementCell({ slo }: { slo: SloItem }) {
+  if (slo.latestValuePercent == null || !slo.latestMeasuredAtUtc) {
+    return <span style={{ fontSize: 12, color: "#94a3b8" }}>Sem medição na janela</span>;
+  }
+  const meets = slo.latestValuePercent >= slo.targetPercent;
+  return (
+    <div style={{ fontSize: 12 }}>
+      <span style={{ fontWeight: 700, color: meets ? "#16a34a" : "#dc2626" }}>
+        {slo.latestValuePercent}%
+      </span>
+      <span style={{ color: "#64748b" }}> / alvo {slo.targetPercent}%</span>
+      <div style={{ fontSize: 11, color: "#94a3b8" }}>
+        {formatDateTime(new Date(slo.latestMeasuredAtUtc))}
+      </div>
+    </div>
+  );
+}
+
+/** Error budget vigente: mesmos limiares da aba Orçamentos (100/50). */
+function BudgetCell({ slo }: { slo: SloItem }) {
+  if (slo.budgetConsumedPercent == null) {
+    return <span style={{ fontSize: 12, color: "#94a3b8" }}>Sem orçamento</span>;
+  }
+  const consumed = Number(slo.budgetConsumedPercent);
+  const color = consumed >= 100 ? "#dc2626" : consumed >= 50 ? "#d97706" : "#16a34a";
+  const label = consumed >= 100 ? "Esgotado" : consumed >= 50 ? "Atenção" : "Normal";
+  return (
+    <div style={{ fontSize: 12 }}>
+      <span style={{ fontWeight: 700, color }}>{consumed}%</span>
+      <span style={{ color: "#64748b" }}> · {label}</span>
+    </div>
+  );
+}
+
 type FormKind = "service" | "policy" | "slo";
 
 interface FormState {
@@ -523,6 +558,8 @@ export function SlaPage() {
               <Column header="Serviço" body={(slo: SloItem) => serviceName(slo.serviceId)} style={{ width: 180 }} />
               <Column header="Alvo" body={(slo: SloItem) => `${slo.targetPercent}%`} style={{ width: 90 }} />
               <Column header="Janela" body={(slo: SloItem) => `${slo.windowDays} dias`} style={{ width: 100 }} />
+              <Column header="Última medição" body={(slo: SloItem) => <MeasurementCell slo={slo} />} style={{ width: 170 }} />
+              <Column header="Error budget" body={(slo: SloItem) => <BudgetCell slo={slo} />} style={{ width: 110 }} />
               <Column
                 header=""
                 style={{ width: 150 }}
@@ -543,8 +580,12 @@ export function SlaPage() {
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{slo.name}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6" }}>{slo.targetPercent}%</span>
               </div>
-              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>
                 {serviceName(slo.serviceId)} · janela de {slo.windowDays} dias
+              </div>
+              <div style={{ fontSize: 12, marginBottom: 8 }}>
+                <MeasurementCell slo={slo} />
+                <BudgetCell slo={slo} />
               </div>
               <Can level="operate">
                 <div className="flex gap-1">

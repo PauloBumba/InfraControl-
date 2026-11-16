@@ -18,6 +18,14 @@ export interface SloItem {
   targetPercent: number;
   windowDays: number;
   serviceId: string;
+  /** Medição mais recente dentro da janela (null = sem dado válido). */
+  latestValuePercent: number | null;
+  /** Quando a última medição foi registrada (UTC ISO). */
+  latestMeasuredAtUtc: string | null;
+  /** % do error budget consumido no período vigente (null = sem orçamento). */
+  budgetConsumedPercent: number | null;
+  /** Fim do período do orçamento vigente (null = aberto/sem orçamento). */
+  budgetPeriodEndUtc: string | null;
 }
 
 export interface SlaPolicyItem {
