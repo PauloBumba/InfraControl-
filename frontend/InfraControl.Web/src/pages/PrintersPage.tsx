@@ -10,6 +10,7 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { listPrinters, runAllPrinterChecks } from "@/services/api/printers";
 import { getDeviceResults, type DeviceResults, type MonitoringResultItem } from "@/services/api/monitoring";
 import { listLocations, type DeviceItem, type LocationItem } from "@/services/api/inventory";
+import { formatDateTimeBR } from "@/utils/format";
 import {
   useListQuery,
   usePagedQuery,
@@ -100,7 +101,7 @@ function SupplyBar({ label, percent, color }: { label: string; percent: number |
 function checkedAtLabel(result: MonitoringResultItem | undefined): string {
   if (!result) return "sem execução";
   const at = new Date(result.checkedAt);
-  return `última execução ${at.toLocaleString("pt-BR")}`;
+  return `última execução ${formatDateTimeBR(at)}`;
 }
 
 export function PrintersPage() {

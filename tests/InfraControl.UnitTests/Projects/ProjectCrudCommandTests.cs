@@ -137,6 +137,61 @@ public sealed class ProjectCrudCommandTests : IDisposable
         updated.Status.Should().Be(nameof(ProjectStatus.Draft));
     }
 
+    private static DeleteProjectCommandHandler DeleteHandler(AppDbContext context, ICurrentUserContext user) =>
+        new(Repository(context), user, NullLogger<DeleteProjectCommandHandler>.Instance);
+
+    private static async Task<Project> SeedProjectAsync(AppDbContext context, Guid? createdById = null)
+    {
+        var project = Project.Create(
+            "PRJ-DEL",
+            "Projeto para exclusão",
+            "Descrição",
+            Guid.NewGuid(),
+            ProjectPriority.Medium,
+            createdById: createdById);
+        context.Projects.Add(project);
+        await context.SaveChangesAsync();
+        return project;
+    }
+
+    [Fact]
+    public async Task Delete_ShouldAllowCreator()
+    {
+        await using var context = await CreateContextAsync();
+        var creatorId = Guid.NewGuid();
+        var project = await SeedProjectAsync(context, creatorId);
+
+        await DeleteHandler(context, new FakeCurrentUser(creatorId, UserRole.Operator.ToString()))
+            .Handle(new DeleteProjectCommand(project.Id), CancellationToken.None);
+
+        (await context.Projects.FindAsync(project.Id)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Delete_ShouldAllowAdminEvenWhenNotCreator()
+    {
+        await using var context = await CreateContextAsync();
+        var project = await SeedProjectAsync(context, Guid.NewGuid());
+
+        await DeleteHandler(context, new FakeCurrentUser(Guid.NewGuid(), UserRole.Admin.ToString()))
+            .Handle(new DeleteProjectCommand(project.Id), CancellationToken.None);
+
+        (await context.Projects.FindAsync(project.Id)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Delete_ShouldRejectNonCreatorOperator()
+    {
+        await using var context = await CreateContextAsync();
+        var project = await SeedProjectAsync(context, Guid.NewGuid());
+
+        var act = () => DeleteHandler(context, new FakeCurrentUser(Guid.NewGuid(), UserRole.Operator.ToString()))
+            .Handle(new DeleteProjectCommand(project.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        (await context.Projects.FindAsync(project.Id)).Should().NotBeNull();
+    }
+
     private sealed class FakeCurrentUser(Guid userId, params string[] roles) : ICurrentUserContext
     {
         public Guid? UserId => userId;

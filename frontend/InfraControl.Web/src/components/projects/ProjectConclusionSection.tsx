@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { BRAZIL_TIME_ZONE } from "@/utils/format";
 import {
   approveProjectConclusion,
   listProjectConclusions,
@@ -34,7 +37,9 @@ const INPUT_STYLE = {
 function formatDateTime(value: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR");
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("pt-BR", { timeZone: BRAZIL_TIME_ZONE });
 }
 
 interface Props {
@@ -173,16 +178,8 @@ export function ProjectConclusionSection({
         )}
       </div>
 
-      {notice && (
-        <div role="status" style={{ padding: 10, borderRadius: 8, background: "#f0fdf4", color: "#15803d", fontSize: 12 }}>
-          {notice}
-        </div>
-      )}
-      {error && (
-        <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-          {error}
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} />}
+      {error && <ErrorBanner message={error} />}
 
       {loading ? (
         <div style={{ color: "#64748b" }}>Carregando…</div>

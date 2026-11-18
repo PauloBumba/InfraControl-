@@ -36,4 +36,18 @@ public sealed class MonitoringEventRepository(AppDbContext dbContext)
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<MonitoringEventStatRow>> ListStatsSinceAsync(
+        MonitoringSource source,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+        => await dbContext.MonitoringEvents.AsNoTracking()
+            .Where(monitoringEvent =>
+                monitoringEvent.Source == source
+                && monitoringEvent.OccurredAt >= sinceUtc)
+            .Select(monitoringEvent => new MonitoringEventStatRow(
+                monitoringEvent.OccurredAt,
+                monitoringEvent.Severity,
+                monitoringEvent.Status))
+            .ToListAsync(cancellationToken);
 }

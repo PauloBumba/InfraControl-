@@ -506,8 +506,17 @@ public sealed class ProjectsController(
         var download = await sender.Send(
             new DownloadProjectEvidenceQuery(evidenceId), cancellationToken);
 
+        // ?inline=true → Content-Disposition inline + range processing:
+        // permite <img>/<video>/<iframe> na plataforma sem forçar download.
+        var inline = string.Equals(
+            Request.Query["inline"], "true", StringComparison.OrdinalIgnoreCase);
+
         Response.Headers.XContentTypeOptions = "nosniff";
-        return File(download.Content, download.ContentType, download.FileName);
+        return File(
+            download.Content,
+            download.ContentType,
+            inline ? null : download.FileName,
+            enableRangeProcessing: true);
     }
 
     [HttpDelete("{id:guid}/evidences/{evidenceId:guid}")]

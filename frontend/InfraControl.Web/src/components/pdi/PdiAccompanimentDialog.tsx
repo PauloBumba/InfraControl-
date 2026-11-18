@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { BRAZIL_TIME_ZONE } from "@/utils/format";
 import {
   createPdiCheckIn,
   createPdiFeedback,
@@ -18,6 +19,7 @@ import {
   PDI_IMPEDIMENT_STATUS_STYLE,
   parsePdiEvidenceStatus,
   parsePdiImpedimentStatus,
+  pdiEvidencePreviewUrl,
   reviewPdiEvidence,
   updatePdiCheckIn,
   updatePdiImpediment,
@@ -32,6 +34,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { EvidenceMediaPreview } from "@/components/ui/EvidenceMediaPreview";
 import { FormError, FormField } from "@/components/ui/FormField";
 import { useFormErrors } from "@/hooks/useFormErrors";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -128,6 +131,7 @@ function formatTimestamp(value: string | null): string {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: BRAZIL_TIME_ZONE,
       });
 }
 
@@ -912,6 +916,11 @@ export function PdiAccompanimentDialog({
               {item.description && (
                 <div style={bodyStyle}>{item.description}</div>
               )}
+              <EvidenceMediaPreview
+                src={pdiEvidencePreviewUrl(item.id)}
+                contentType={item.contentType}
+                fileName={item.fileName}
+              />
               <div style={metaStyle}>
                 Enviada por {item.createdByName ?? "Colaborador"} em{" "}
                 {formatTimestamp(item.createdAt)}

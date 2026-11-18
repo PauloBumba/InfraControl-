@@ -9,6 +9,12 @@ function required<T>(promise: Promise<T | null>, fallback: T): Promise<T> {
   return promise.then((data) => data ?? fallback);
 }
 
+export type AiProviderProtocol =
+  | "OpenAiCompatible"
+  | "Ollama"
+  | "Gemini"
+  | "Anthropic";
+
 export interface AiProviderDto {
   id: string;
   name: string;
@@ -17,6 +23,7 @@ export interface AiProviderDto {
   apiKeySet: boolean;
   apiKeyMasked: string | null;
   models: string[];
+  protocol: AiProviderProtocol;
 }
 
 export interface AiProviderCapabilityRouteDto {
@@ -53,6 +60,8 @@ export interface CreateAiProviderPayload {
   /** `null`/vazio = provider sem chave (ex.: ollama local). */
   apiKey: string | null;
   models: string[] | null;
+  /** Protocolo do adaptador — omitido = OpenAiCompatible (default universal). */
+  protocol?: AiProviderProtocol;
 }
 
 export interface UpdateAiProviderPayload {
@@ -60,6 +69,8 @@ export interface UpdateAiProviderPayload {
   /** `null`/vazio = mantém a chave gravada no servidor. */
   apiKey: string | null;
   models: string[] | null;
+  /** `undefined` = preserva o protocolo atual. */
+  protocol?: AiProviderProtocol;
 }
 
 export interface UpsertCapabilityPayload {
@@ -84,7 +95,7 @@ export function createAiProvider(
 ): Promise<AiProviderDto> {
   return required(
     api.post<AiProviderDto>("/admin/ai-providers", payload),
-    { id: "", name: "", baseUrl: "", active: false, apiKeySet: false, apiKeyMasked: null, models: [] }
+    { id: "", name: "", baseUrl: "", active: false, apiKeySet: false, apiKeyMasked: null, models: [], protocol: "OpenAiCompatible" }
   );
 }
 
@@ -94,7 +105,7 @@ export function updateAiProvider(
 ): Promise<AiProviderDto> {
   return required(
     api.put<AiProviderDto>(`/admin/ai-providers/${id}`, payload),
-    { id, name: "", baseUrl: "", active: false, apiKeySet: false, apiKeyMasked: null, models: [] }
+    { id, name: "", baseUrl: "", active: false, apiKeySet: false, apiKeyMasked: null, models: [], protocol: "OpenAiCompatible" }
   );
 }
 
@@ -104,7 +115,7 @@ export function setAiProviderActive(
 ): Promise<AiProviderDto> {
   return required(
     api.put<AiProviderDto>(`/admin/ai-providers/${id}/active`, { active }),
-    { id, name: "", baseUrl: "", active, apiKeySet: false, apiKeyMasked: null, models: [] }
+    { id, name: "", baseUrl: "", active, apiKeySet: false, apiKeyMasked: null, models: [], protocol: "OpenAiCompatible" }
   );
 }
 
@@ -145,6 +156,8 @@ export interface AiCapabilityTestResult {
   model: string;
   usedFallback: boolean;
   durationMs: number;
+  /** Erro do teste por provider — null/ausente = sucesso. */
+  error?: string | null;
 }
 
 /**
@@ -160,6 +173,22 @@ export function testAiCapabilityMessage(
       `/admin/ai-providers/capabilities/${encodeURIComponent(capability)}/test-message`
     ),
     { text: "", provider: "", model: "", usedFallback: false, durationMs: 0 }
+  );
+}
+
+/**
+ * "Testar mensagem" de um provider específico — prompt mínimo direto no
+ * adaptador do cadastro (URL+chave+1º modelo). Erros voltam em
+ * `error`, nunca como texto de IA.
+ */
+export function testAiProviderMessage(
+  id: string
+): Promise<AiCapabilityTestResult> {
+  return required(
+    api.post<AiCapabilityTestResult>(
+      `/admin/ai-providers/${id}/test-message`
+    ),
+    { text: "", provider: "", model: "", usedFallback: false, durationMs: 0, error: "Resposta vazia do servidor." }
   );
 }
 

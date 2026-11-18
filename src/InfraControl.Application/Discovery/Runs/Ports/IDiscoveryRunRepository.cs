@@ -9,7 +9,8 @@ public interface IDiscoveryRunRepository : IRepository<DiscoveryRun>
         Guid? deviceId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        DateTime? startedAfterUtc = null);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

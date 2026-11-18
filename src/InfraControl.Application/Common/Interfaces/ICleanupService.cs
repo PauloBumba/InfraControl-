@@ -12,6 +12,7 @@ public sealed record RetentionOptions
     public int MonitoringEventsDays { get; set; } = 90;
     public int InvitationsDays { get; set; } = 90;
     public int UniFiSyncRunsDays { get; set; } = 180;
+    public int OccurrenceTransitionsDays { get; set; } = 90;
     // F50 — políticas gerenciadas (registradas na tela, sem aplicação do
     // cleanup): defaults exibidos quando o admin ainda não gravou policy.
     public int GrafanaDays { get; set; } = 30;
@@ -28,6 +29,7 @@ public sealed record RetentionOptions
     public DateTime DiscoveryCutoff(DateTime utcNow) => utcNow.AddDays(-DiscoveryRunsDays);
     public DateTime MonitoringEventsCutoff(DateTime utcNow) => utcNow.AddDays(-MonitoringEventsDays);
     public DateTime InvitationsCutoff(DateTime utcNow) => utcNow.AddDays(-InvitationsDays);
+    public DateTime OccurrenceTransitionsCutoff(DateTime utcNow) => utcNow.AddDays(-OccurrenceTransitionsDays);
 }
 
 /// <summary>
@@ -49,11 +51,14 @@ public sealed record CleanupResult(
     int DiscoveryDeleted,
     int MonitoringEventsDeleted = 0,
     int InvitationsDeleted = 0,
-    int UniFiSyncRunsDeleted = 0)
+    int UniFiSyncRunsDeleted = 0,
+    int OccurrenceTransitionsDeleted = 0,
+    int TableRowsDeleted = 0)
 {
     public int TotalDeleted => OutboxDeleted + ProcessedDeleted + AuditDeleted
         + MonitoringDeleted + NotificationDeleted + RemoteSessionDeleted + DiscoveryDeleted
-        + MonitoringEventsDeleted + InvitationsDeleted;
+        + MonitoringEventsDeleted + InvitationsDeleted + UniFiSyncRunsDeleted
+        + OccurrenceTransitionsDeleted + TableRowsDeleted;
 }
 
 public interface ICleanupService

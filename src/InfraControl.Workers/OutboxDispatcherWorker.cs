@@ -80,6 +80,11 @@ public sealed class OutboxDispatcherWorker(
                     await repository.MarkAsProcessedAsync(message.Id, cancellationToken);
                     await unitOfWork.SaveChangesAsync(cancellationToken);
 
+                    // F55-T010: métricas do pipeline (sem ids como label).
+                    Application.Messaging.MessagingMetrics.Processed("outbox");
+                    Application.Messaging.MessagingMetrics.Duration("outbox",
+                        (DateTime.UtcNow - message.OccurredAt).TotalSeconds);
+
                     logger.LogInformation(
                         "Outbox message {MessageId} of type {EventType} dispatched.",
                         message.Id,
@@ -90,6 +95,10 @@ public sealed class OutboxDispatcherWorker(
             {
                 await repository.MarkAsFailedAsync(message.Id, exception.Message, cancellationToken);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
+
+                Application.Messaging.MessagingMetrics.Failed("outbox");
+                if (message.RetryCount < message.MaxRetries)
+                    Application.Messaging.MessagingMetrics.Retry("outbox");
 
                 logger.LogError(
                     exception,

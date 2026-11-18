@@ -22,6 +22,8 @@ export interface IncidentItem {
   rootCause: string | null;
   resolutionCode: string | null;
   resolutionNote: string | null;
+  assignedToId: string | null;
+  assignedToName: string | null;
 }
 
 /** `PagedResult<IncidentDto>` — o campo `data` do envelope. */
@@ -102,6 +104,15 @@ export async function changeIncidentStatus(
 /** Acknowledge (POST /incidents/{id}/acknowledge) — Open → Investigating. */
 export async function acknowledgeIncident(id: string): Promise<IncidentItem | null> {
   return api.post<IncidentItem>(`/incidents/${id}/acknowledge`);
+}
+
+/** `POST /incidents/{id}/assign|unassign` (Operate) — responsável pela tratativa. */
+export function assignIncident(id: string, userId: string): Promise<IncidentItem | null> {
+  return api.post<IncidentItem>(`/incidents/${id}/assign`, { userId });
+}
+
+export function unassignIncident(id: string): Promise<IncidentItem | null> {
+  return api.post<IncidentItem>(`/incidents/${id}/unassign`);
 }
 
 /**

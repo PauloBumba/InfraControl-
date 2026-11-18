@@ -25,5 +25,17 @@ public interface ISloBudgetRepository : IRepository<SloBudget>
     /// <summary>Usado pelo DeleteSlo para bloquear exclusão com orçamentos (F8-T007 → 409).</summary>
     Task<bool> HasSloBudgetsAsync(Guid sloId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Orçamento mais recente por SLO (sloId → registro) — enriquece a
+    /// listagem de SLOs sem N+1.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, SloLatestBudget>> GetLatestBySloIdsAsync(
+        IReadOnlyCollection<Guid> sloIds,
+        CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>Orçamento mais recente de um SLO (projeção de leitura).</summary>
+public sealed record SloLatestBudget(
+    DateTime PeriodStartUtc, DateTime? PeriodEndUtc, decimal ConsumedPercent);

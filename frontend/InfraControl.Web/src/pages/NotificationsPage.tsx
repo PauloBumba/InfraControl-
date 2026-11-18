@@ -65,6 +65,7 @@ export function NotificationsPage() {
   const [feedItems, setFeedItems] = useState<NotificationFeedItem[]>([]);
   const [feedTotal, setFeedTotal] = useState(0);
   const [feedPage, setFeedPage] = useState(1);
+  const [includeResolved, setIncludeResolved] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
 
@@ -85,7 +86,7 @@ export function NotificationsPage() {
     setFeedLoading(true);
     setFeedError(null);
     try {
-      const result = await listFeed(feedPage, PAGE_SIZE);
+      const result = await listFeed(feedPage, PAGE_SIZE, includeResolved);
       setFeedItems(result.items);
       setFeedTotal(result.totalCount);
     } catch (caught) {
@@ -93,7 +94,7 @@ export function NotificationsPage() {
     } finally {
       setFeedLoading(false);
     }
-  }, [feedPage]);
+  }, [feedPage, includeResolved]);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -270,11 +271,29 @@ export function NotificationsPage() {
           <div className="uni-panel">
             <div className="uni-panel-header">
               <h2>Feed</h2>
-              <ViewSwitcher
-                mode={feedView}
-                onChange={setFeedView}
-                labels={{ table: "Linha do tempo" }}
-              />
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <label
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontSize: 12, color: "#475569", cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={includeResolved}
+                    onChange={(e) => {
+                      setIncludeResolved(e.target.checked);
+                      setFeedPage(1);
+                    }}
+                  />
+                  Mostrar resolvidas
+                </label>
+                <ViewSwitcher
+                  mode={feedView}
+                  onChange={setFeedView}
+                  labels={{ table: "Linha do tempo" }}
+                />
+              </div>
             </div>
             <EntityView<NotificationFeedItem>
               mode={feedView}

@@ -147,6 +147,13 @@ export interface TopologyNodeItem {
    */
   isGhost?: boolean;
   port?: string | null;
+  /**
+   * F53-T002/T003: camada da hierarquia (BFS a partir de Router/Firewall
+   * sobre as Connections reais; 1 = raiz). `null` = device sem caminho até
+   * uma raiz (ou ghost) — fora da hierarquia, renderizado na faixa
+   * "Sem hierarquia".
+   */
+  layer?: number | null;
 }
 
 export interface TopologyEdgeItem {
@@ -155,6 +162,34 @@ export interface TopologyEdgeItem {
   targetInterfaceId: string;
   /** F29-5: aresta até um nó ghost (não é Connection persistida). */
   isGhost?: boolean;
+  /**
+   * F53-T002/T005 — metadados das pontas (já enviados pelo
+   * `TopologyEdgeDto`): nome real da interface, velocidade/duplex da
+   * `SwitchPort` casada e origem/confiança da Connection (wire minúsculo
+   * `manual`/`lldp`/`cdp`/`unifi` · `confirmed`/`estimated`; null = sem
+   * dado — ex.: aresta ghost ou porta sem observação).
+   */
+  sourceInterfaceName?: string | null;
+  targetInterfaceName?: string | null;
+  sourceSpeed?: string | null;
+  targetSpeed?: string | null;
+  sourceDuplex?: string | null;
+  targetDuplex?: string | null;
+  source?: string | null;
+  confidence?: string | null;
+  /**
+   * F53-T002/T004 — VLANs nas pontas da Connection (SwitchPortVlan da
+   * porta casada por nome): `null` = sem porta casada; lista vazia =
+   * porta sem VLAN cadastrada. Fonte do filtro "VLAN" do mapa.
+   */
+  sourceVlans?: TopologyVlanRef[] | null;
+  targetVlans?: TopologyVlanRef[] | null;
+}
+
+/** VLAN numa ponta de aresta (F53-T002 — `TopologyVlanDto` do backend). */
+export interface TopologyVlanRef {
+  number: number;
+  name: string;
 }
 
 export interface TopologyGraph {
@@ -281,5 +316,217 @@ export async function syncSwitchPortsFromUnifi(
 ): Promise<SyncPortsResult | null> {
   return api.post<SyncPortsResult>(
     `/network/switches/${encodeURIComponent(switchId)}/sync-unifi`,
+  );
+}
+
+// ============ Network Explorer F1 — MAC/IP lookup ============
+
+/**
+ * `GET /api/v1/network/mac-lookup?term=` — visão agregada do MAC Explorer:
+ * cruza evidências reais de discovery (tabela MAC/SNMP, ARP, DHCP, LLDP) e
+ * enriquece com AP Wi-Fi quando o UniFi souber. `null`/`—` = fonte não
+ * informou — nunca dado inventado.
+ */
+export interface MacLookupSighting {
+  kind: string;
+  kindLabel: string;
+  deviceId: string | null;
+  deviceName: string | null;
+  deviceIp: string | null;
+  port: string | null;
+  portDescription: string | null;
+  mac: string | null;
+  ip: string | null;
+  hostname: string | null;
+  vlan: string | null;
+  seenAt: string;
+  ageDays: number;
+}
+
+export interface MacLookupResult {
+  term: string;
+  matchedMac: string | null;
+  ip: string | null;
+  hostname: string | null;
+  vlan: string | null;
+  wifiClient: boolean;
+  wifiApName: string | null;
+  wifiSsid: string | null;
+  wifiSignal: number | null;
+  isStale: boolean;
+  lastSeenAt: string | null;
+  sightings: MacLookupSighting[];
+}
+
+export async function lookupMac(term: string): Promise<MacLookupResult | null> {
+  const params = new URLSearchParams({ term });
+  return api.get<MacLookupResult>(`/network/mac-lookup?${params}`);
+}
+
+// ============ Network Explorer F2 — switch + VLAN explorer ============
+
+/** VLAN associada a uma porta (SwitchPortVlan cadastrada). */
+export interface SwitchExplorerVlanRef {
+  id: string;
+  number: number;
+  name: string;
+}
+
+export interface SwitchExplorerPort {
+  id: string;
+  name: string;
+  description: string | null;
+  linkUp: boolean | null;
+  speed: string | null;
+  duplex: string | null;
+  vlans: SwitchExplorerVlanRef[];
+}
+
+/** MAC aprendido pelo switch via SNMP, enriquecido com ARP/DHCP. */
+export interface SwitchExplorerMac {
+  mac: string;
+  ip: string | null;
+  hostname: string | null;
+  vlan: string | null;
+  bridgePort: string | null;
+  portName: string | null;
+  seenAt: string;
+  ageDays: number;
+}
+
+export interface SwitchExplorer {
+  deviceId: string;
+  name: string;
+  ip: string | null;
+  mac: string | null;
+  type: string;
+  ports: SwitchExplorerPort[];
+  learnedMacs: SwitchExplorerMac[];
+}
+
+/** `GET /api/v1/network/explorer/switches/{id}` — detalhe do switch. */
+export async function getSwitchExplorer(switchId: string): Promise<SwitchExplorer | null> {
+  return api.get<SwitchExplorer>(`/network/explorer/switches/${encodeURIComponent(switchId)}`);
+}
+
+export interface VlanExplorerSwitchRef {
+  deviceId: string;
+  deviceName: string;
+  portCount: number;
+}
+
+export interface VlanExplorerItem {
+  id: string | null;
+  vlanNumber: number | null;
+  name: string | null;
+  description: string | null;
+  isRegistered: boolean;
+  portCount: number;
+  discoveredDeviceCount: number;
+  lastSeenAt: string | null;
+  switches: VlanExplorerSwitchRef[];
+}
+
+export interface VlanExplorerResult {
+  items: VlanExplorerItem[];
+  discoveredVlans: VlanExplorerItem[];
+}
+
+/** `GET /api/v1/network/explorer/vlans` — VLANs cadastradas + descobertas. */
+export async function listVlansExplorer(
+  term?: string,
+  page = 1,
+  pageSize = 20,
+): Promise<VlanExplorerResult> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (term) params.set("term", term);
+  const data = await api.get<VlanExplorerResult>(`/network/explorer/vlans?${params}`);
+  return data ?? { items: [], discoveredVlans: [] };
+}
+
+// ============ Network Explorer F3 — AP/AC explorer ============
+
+export interface ApExplorerClient {
+  mac: string;
+  ip: string | null;
+  hostname: string | null;
+  essid: string | null;
+  signal: number | null;
+}
+
+export interface ApExplorerItem {
+  deviceId: string | null;
+  name: string;
+  /** "AccessPoint" | "Controller". */
+  kind: string;
+  isRegistered: boolean;
+  ip: string | null;
+  mac: string | null;
+  locationName: string | null;
+  managementVlan: string | null;
+  uplinkSwitchName: string | null;
+  uplinkPort: string | null;
+  uniFiConnected: boolean | null;
+  clientCount: number;
+  ssids: string[];
+  clients: ApExplorerClient[];
+  lastDiscoveryAt: string | null;
+  lastRunStatus: string | null;
+}
+
+export interface ApExplorerResult {
+  items: ApExplorerItem[];
+}
+
+/** `GET /api/v1/network/explorer/aps` — APs e ACs do inventário + UniFi. */
+export async function getApExplorer(): Promise<ApExplorerResult> {
+  const data = await api.get<ApExplorerResult>("/network/explorer/aps");
+  return data ?? { items: [] };
+}
+
+// ============ Network Explorer F4 — discovery trigger + auditoria ============
+
+export interface DiscoveryProvider {
+  key: string;
+  name: string;
+}
+
+export interface DiscoveryRunItem {
+  id: string;
+  deviceId: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  errorMessage: string | null;
+}
+
+export interface DiscoveryRunsPage {
+  items: DiscoveryRunItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+/** `GET /api/v1/discovery/providers` — providers registrados. */
+export async function listDiscoveryProviders(): Promise<DiscoveryProvider[] | null> {
+  return api.get<DiscoveryProvider[]>("/discovery/providers");
+}
+
+/** `GET /api/v1/discovery/runs?deviceId=` — histórico de runs do device. */
+export async function listDiscoveryRuns(
+  deviceId: string,
+  pageSize = 5,
+): Promise<DiscoveryRunsPage | null> {
+  return api.get<DiscoveryRunsPage>(
+    `/discovery/runs?deviceId=${encodeURIComponent(deviceId)}&page=1&pageSize=${pageSize}`,
+  );
+}
+
+/** `POST /api/v1/discovery/devices/{id}/sweep` — varredura completa (todos providers). */
+export async function runDiscoverySweep(
+  deviceId: string,
+): Promise<DiscoveryRunItem[] | null> {
+  return api.post<DiscoveryRunItem[]>(
+    `/discovery/devices/${encodeURIComponent(deviceId)}/sweep`,
   );
 }

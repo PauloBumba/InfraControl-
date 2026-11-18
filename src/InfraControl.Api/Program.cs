@@ -285,6 +285,10 @@ builder.Services.AddOpenTelemetry()
         .AddMeter("InfraControl.*")
         .AddOtlpExporter(opts => opts.Endpoint = new Uri(otelEndpoint)));
 
+// F55-T010: gauges do broker são coletados pelo Workers; aqui registramos
+// os mesmos instrumentos para os contadores de delivery deste processo.
+InfraControl.Application.Messaging.MessagingMetrics.RegisterGauges();
+
 // ── Build ────────────────────────────────────────────────────────────────
 var app = builder.Build();
 

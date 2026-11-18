@@ -8,4 +8,5 @@ public sealed record SlaPolicyDto(
     string Name,
     int ResponseMinutes,
     int ResolutionMinutes,
-    Guid? ServiceId);
+    Guid? ServiceId,
+    bool IsDefault);

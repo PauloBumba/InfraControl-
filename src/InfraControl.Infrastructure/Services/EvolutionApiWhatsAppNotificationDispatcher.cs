@@ -192,45 +192,75 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcher(
     }
 
     /// <summary>
-    /// Texto do WhatsApp em PT-BR padronizado (seções + emojis): cabeçalho
-    /// com o tipo do evento, linha do equipamento/problema (deduplicada —
-    /// a media type 105 manda "{HOST}: {TRIGGER}" e triggers de telefonia já
-    /// repetem o nome do host), severidade, dica contextual e data. Com o
-    /// gráfico habilitado (F33-T005) este mesmo texto vira a caption do
-    /// sendMedia.
+    /// Cartão do WhatsApp em PT-BR (decisão do usuário: mensagem de
+    /// alerta/incidente sai como card estruturado, não texto corrido):
+    /// cabeçalho com tipo+severidade, assunto em destaque, metadados,
+    /// rodapé com horário de Brasília e marca. WhatsApp não tem card
+    /// nativo — o layout usa negrito/itálico/divisores do WhatsApp.
+    /// Com gráfico (F33-T005) este texto vira a caption do sendMedia.
     /// </summary>
     private static string BuildText(WhatsAppNotificationMessage message)
     {
         var kind = Classify(message.Title);
         var subject = ExtractSubject(message.Message, message.Title);
         var severity = ParseSeverity(message.Message, message.Title);
-        var stamp = message.CreatedAt.ToString("dd/MM/yyyy HH:mm");
+        var stamp = ToSaoPaulo(message.CreatedAt).ToString("dd/MM/yyyy HH:mm");
 
         var lines = new List<string>();
 
         if (kind == EventKind.Resolved)
         {
-            lines.Add($"🟢 *{ResolvedHeader(message.Title)}*");
-            lines.Add($"📍 {subject}");
+            lines.Add($"🟢 *{ResolvedHeader(message.Title).ToUpperInvariant()}*");
         }
         else if (kind == EventKind.Generic)
         {
             lines.Add($"🔔 *{message.Title}*");
-            lines.Add(subject);
         }
         else
         {
-            var emoji = SeverityEmoji(severity);
-            lines.Add($"{emoji} *{ProblemHeader(kind, severity)}*");
-            lines.Add($"📍 {subject}");
-            if (!string.IsNullOrWhiteSpace(severity))
-                lines.Add($"🎚️ Severidade: {severity}");
-            if (subject.Contains("fora do ar", StringComparison.OrdinalIgnoreCase))
-                lines.Add("💡 Verificar o equipamento e a rede local.");
+            lines.Add($"{SeverityEmoji(severity)} *{ProblemHeader(kind, severity).ToUpperInvariant()}*");
         }
 
-        lines.Add($"🕐 {stamp}");
+        lines.Add("────────────────");
+        lines.Add($"*{subject}*");
+        lines.Add("────────────────");
+
+        // Pedido do usuário: toda mensagem leva device + IP/host + evento.
+        if (message.Chart is { } card)
+        {
+            var deviceParts = new[] { card.DeviceLabel, card.HostLabel }
+                .Where(part => !string.IsNullOrWhiteSpace(part));
+            if (deviceParts.Any())
+                lines.Add($"🖥️ {string.Join(" · ", deviceParts)}");
+        }
+
+        if (kind is EventKind.AlertCritical or EventKind.Alert or EventKind.Incident
+            && !string.IsNullOrWhiteSpace(severity))
+            lines.Add($"Severidade: *{severity}*");
+
+        if (kind is not EventKind.Resolved && kind is not EventKind.Generic
+            && subject.Contains("fora do ar", StringComparison.OrdinalIgnoreCase))
+            lines.Add("💡 Verificar o equipamento e a rede local.");
+
+        lines.Add($"🕐 {stamp} · Brasília");
+        lines.Add("_InfraControl_");
         return string.Join("\n", lines);
+    }
+
+    /// <summary>Fuso fixo da mensagem — WhatsApp sempre mostra horário de Brasília.</summary>
+    private static readonly TimeZoneInfo SaoPauloTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+
+    /// <summary>
+    /// CreatedAt chega em UTC (timestamptz); a mensagem mostra o horário de
+    /// Brasília — sem isto o WhatsApp exibia 3h à frente.
+    /// </summary>
+    private static DateTime ToSaoPaulo(DateTime createdAt)
+    {
+        var utc = createdAt.Kind == DateTimeKind.Utc
+            ? createdAt
+            : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, SaoPauloTimeZone);
     }
 
     private enum EventKind { AlertCritical, Alert, Incident, Resolved, Generic }

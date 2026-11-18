@@ -32,8 +32,12 @@ import {
   PdiAdminDashboardPanel,
   PdiManagerDashboardPanel,
   PdiOwnDashboardPanel,
+  PdiStatusChart,
 } from "@/components/pdi/PdiDashboardPanels";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -83,8 +87,10 @@ const dateInputStyle: React.CSSProperties = {
 export function PdiPage() {
   const user = useAppSelector((state) => state.auth.user);
   const isAdmin = (user?.roles ?? []).includes("Admin");
+  const ownUserId = user?.id ?? null;
 
   const [items, setItems] = useState<Pdi[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // F24-T006/K6 — aviso do "Gerar Knowledge" (docs/32 §4).
@@ -157,7 +163,14 @@ export function PdiPage() {
     void load();
   }, [load]);
 
-  const ownPdiId = !isAdmin ? (items[0]?.userId ?? null) : null;
+  // Push operacional (PDI criado/atualizado) + polling opt-in.
+  const refreshQuiet = useCallback(() => {
+    void load();
+  }, [load]);
+  useOperationalRefresh(refreshQuiet);
+  useAutoRefresh(refreshQuiet);
+
+  const ownPdiId = !isAdmin ? (ownUserId ?? null) : null;
 
   useEffect(() => {
     if (loading) return;
@@ -313,7 +326,23 @@ export function PdiPage() {
     }
   };
 
-  const ownPdi: Pdi | null = isAdmin ? null : (items[0] ?? null);
+  const ownPdi: Pdi | null = isAdmin
+    ? null
+    : (items.find((item) => item.userId === ownUserId) ?? null);
+  // Planos que o usuário gerencia (backend já devolve só os dele).
+  const managedItems = isAdmin
+    ? []
+    : items.filter((item) => item.userId !== ownUserId);
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const matchesSearch = (plan: Pdi) =>
+    !normalizedSearch ||
+    plan.ownerName.toLowerCase().includes(normalizedSearch) ||
+    plan.ownerEmail.toLowerCase().includes(normalizedSearch) ||
+    plan.strategy.toLowerCase().includes(normalizedSearch) ||
+    (plan.managerName ?? "").toLowerCase().includes(normalizedSearch);
+  const filteredItems = items.filter(matchesSearch);
+  const filteredManaged = managedItems.filter(matchesSearch);
 
   // §19 — "acesso direto aos casos": abre o diálogo de avaliação do
   // plano gerenciado (leitura permitida ao gestor — ADR-037).
@@ -445,19 +474,35 @@ export function PdiPage() {
         <PdiAdminDashboardPanel dashboard={adminDashboard} />
       )}
       {!loading && managerPanel}
+      {!loading && items.length > 0 && (
+        <PdiStatusChart
+          plans={isAdmin ? items : [...managedItems, ...(ownPdi ? [ownPdi] : [])]}
+        />
+      )}
+
+      {items.length > 0 && (
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Buscar por usuário, gestor ou estratégia…"
+        />
+      )}
 
       {loading ? (
         <LoadingBlock />
       ) : isAdmin ? (
         <DataTable
-          value={items}
+          value={filteredItems}
           paginator
           rows={10}
           rowsPerPageOptions={[10, 20, 50]}
-          emptyMessage={'Nenhum PDI cadastrado — use "Novo PDI".'}
-          size="small"
+          emptyMessage={
+            normalizedSearch
+              ? "Nenhum PDI encontrado para a busca."
+              : 'Nenhum PDI cadastrado — use "Novo PDI".'
+          }
         >
-          <Column header="Usuário" body={userCell} style={{ minWidth: 200 }} />
+          <Column header="Usuário" body={userCell} sortable sortField="ownerName" style={{ minWidth: 200 }} />
           <Column
             header="Estratégia"
             body={(plan: Pdi) => (
@@ -465,19 +510,65 @@ export function PdiPage() {
                 {plan.strategy}
               </span>
             )}
+            sortable
+            sortField="strategy"
             style={{ minWidth: 220 }}
           />
-          <Column header="Prazo" body={(plan: Pdi) => formatDateOnly(plan.targetDate)} style={{ width: 105 }} />
+          <Column header="Prazo" body={(plan: Pdi) => formatDateOnly(plan.targetDate)} sortable sortField="targetDate" style={{ width: 105 }} />
           <Column
             header="Gestor"
             body={(plan: Pdi) => plan.managerName ?? "—"}
+            sortable
+            sortField="managerName"
             style={{ width: 140 }}
           />
-          <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} style={{ width: 155 }} />
-          <Column header="Atualizado" body={(plan: Pdi) => formatDateTime(new Date(plan.updateDateTime))} style={{ width: 155 }} />
+          <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} sortable sortField="status" style={{ width: 155 }} />
+          <Column header="Atualizado" body={(plan: Pdi) => formatDateTime(new Date(plan.updateDateTime))} sortable sortField="updateDateTime" style={{ width: 155 }} />
           <Column body={actionsCell} style={{ width: 360 }} />
         </DataTable>
-      ) : ownPdi ? (
+      ) : (
+        <>
+          {filteredManaged.length > 0 && (
+            <DataTable
+              value={filteredManaged}
+              paginator
+              rows={10}
+              rowsPerPageOptions={[10, 20, 50]}
+              emptyMessage="Nenhum plano da equipe encontrado para a busca."
+            >
+              <Column header="Membro" body={userCell} sortable sortField="ownerName" style={{ minWidth: 200 }} />
+              <Column
+                header="Estratégia"
+                body={(plan: Pdi) => (
+                  <span title={plan.strategy} style={{ display: "block", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {plan.strategy}
+                  </span>
+                )}
+                sortable
+                sortField="strategy"
+                style={{ minWidth: 220 }}
+              />
+              <Column header="Prazo" body={(plan: Pdi) => formatDateOnly(plan.targetDate)} sortable sortField="targetDate" style={{ width: 105 }} />
+              <Column header="Status" body={(plan: Pdi) => statusChip(plan.status)} sortable sortField="status" style={{ width: 155 }} />
+              <Column
+                body={(plan: Pdi) => (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Button variant="ghost" onClick={() => setStructurePlan(plan)}>
+                      Estrutura
+                    </Button>
+                    <Button variant="ghost" onClick={() => setEvaluationPlan(plan)}>
+                      Avaliar
+                    </Button>
+                    <Button variant="ghost" onClick={() => void openHistory(plan)}>
+                      Histórico
+                    </Button>
+                  </div>
+                )}
+                style={{ width: 240 }}
+              />
+            </DataTable>
+          )}
+          {ownPdi ? (
         <div
           style={{
             background: "white",
@@ -530,12 +621,14 @@ export function PdiPage() {
           </div>
           {ownDashboard && <PdiOwnDashboardPanel dashboard={ownDashboard} />}
         </div>
-      ) : (
-        <NoticeBanner
-          message="Nenhum PDI definido para o seu usuário — contate o administrador para criar o seu plano."
-          background="#fffbeb"
-          color="#92400e"
-        />
+          ) : (
+            <NoticeBanner
+              message="Nenhum PDI definido para o seu usuário — contate o administrador para criar o seu plano."
+              background="#fffbeb"
+              color="#92400e"
+            />
+          )}
+        </>
       )}
 
       <Dialog

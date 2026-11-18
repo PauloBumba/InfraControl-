@@ -191,8 +191,9 @@ public sealed class GeminiProviderTests
             {
                 models = new[]
                 {
-                    new { name = "models/gemini-2.0-flash" },
-                    new { name = "models/gemini-1.5-pro" }
+                    new { name = "models/gemini-2.0-flash", supportedGenerationMethods = new[] { "generateContent" } },
+                    new { name = "models/gemini-1.5-pro", supportedGenerationMethods = new[] { "generateContent", "streamGenerateContent" } },
+                    new { name = "models/gemini-2.5-flash-tts", supportedGenerationMethods = new[] { "countTokens" } }
                 }
             });
         });

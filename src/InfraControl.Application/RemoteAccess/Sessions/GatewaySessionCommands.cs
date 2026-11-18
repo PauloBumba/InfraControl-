@@ -32,7 +32,8 @@ public sealed record RemoteGatewaySessionDto(
     Guid SessionId,
     string Protocol,
     string Token,
-    string Path);
+    string Path,
+    string ConnectionId);
 
 public sealed class OpenRemoteGatewaySessionCommandHandler(
     IDeviceRepository deviceRepository,
@@ -80,7 +81,7 @@ public sealed class OpenRemoteGatewaySessionCommandHandler(
             ? RemoteProtocol.Rdp
             : RemoteProtocol.Ssh;
 
-        await gateway.EnsureDeviceConnectionAsync(
+        var connectionId = await gateway.EnsureDeviceConnectionAsync(
             device.Name, device.Ip!, protocol, credential, userName, cancellationToken);
 
         var token = await gateway.CreateTokenAsync(userName, cancellationToken);
@@ -90,6 +91,6 @@ public sealed class OpenRemoteGatewaySessionCommandHandler(
         await sessionRepository.SaveChangesAsync(cancellationToken);
 
         return new RemoteGatewaySessionDto(
-            session.Id, protocol.ToString(), token, GatewayPath);
+            session.Id, protocol.ToString(), token, GatewayPath, connectionId);
     }
 }

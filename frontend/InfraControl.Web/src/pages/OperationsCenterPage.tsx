@@ -6,6 +6,7 @@ import { getZabbixSummary } from "../services/api/zabbix";
 import { useAudio } from "../hooks";
 import { useOperationalRefresh } from "../hooks/useOperationalRefresh";
 import { MetricChart } from "@/components/ui/MetricChart";
+import { formatDateTimeBR, formatTimeBR } from "@/utils/format";
 
 type OpsView = "overview" | "incidents" | "network" | "servers" | "cameras";
 
@@ -242,7 +243,7 @@ function ViewIncidents({ incidents }: { incidents: IncidentItem[] }) {
                     </td>
                     <td className="noc-text-strong">{item.title}</td>
                     <td className="noc-text-sub">{item.status}</td>
-                    <td className="noc-text-muted">{new Date(item.openedAt).toLocaleTimeString("pt-BR")}</td>
+                    <td className="noc-text-muted">{formatTimeBR(item.openedAt)}</td>
                     <td className="noc-text-muted">{getDurationLabel(item.openedAt)}</td>
                   </tr>
                 ))}
@@ -373,7 +374,7 @@ export function OperationsCenterPage() {
 
   const { data: incidents = EMPTY_INCIDENTS } = useQuery({
     queryKey: ["ops-incidents"],
-    queryFn: () => listIncidents({ page: 1, pageSize: 100 }),
+    queryFn: () => listIncidents({ status: "active", page: 1, pageSize: 100 }),
     select: (data) => data.items ?? EMPTY_INCIDENTS,
     refetchInterval: 30000,
   });
@@ -563,9 +564,9 @@ export function OperationsCenterPage() {
         </div>
         <div className="noc-meta">
           <span className={`noc-state noc-state--${overallState}`}>ESTADO: {overallState === "crit" ? "CRÍTICO" : overallState === "warn" ? "ATENÇÃO" : "OK"}</span>
-          <span className="noc-meta-item">{now.toLocaleString("pt-BR")}</span>
+          <span className="noc-meta-item">{formatDateTimeBR(now)}</span>
           <span className="noc-meta-item">CONEXÃO: ONLINE</span>
-          <span className="noc-meta-item">ÚLTIMA ATUALIZAÇÃO: {lastUpdate.toLocaleTimeString("pt-BR")}</span>
+          <span className="noc-meta-item">ÚLTIMA ATUALIZAÇÃO: {formatTimeBR(lastUpdate)}</span>
           <span className="noc-pager">{idx + 1} / {VIEWS.length} • {view?.label}</span>
           <div className="noc-tools">
             <button onClick={toggleTheme} className="noc-btn">

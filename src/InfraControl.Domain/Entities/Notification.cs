@@ -28,6 +28,13 @@ public sealed class Notification : Entity
     public Guid? DeviceId { get; private set; }
 
     /// <summary>
+    /// Agregado de origem do evento (IncidentId, AlertId, TaskId...) —
+    /// chave de correlação para anti-flapping (abrir↔resolver o mesmo
+    /// agregado) e, futuramente, agrupamento por causa comum.
+    /// </summary>
+    public Guid? AggregateId { get; private set; }
+
+    /// <summary>
     /// ADR-070/F58: Alert/Incident de origem do evento de monitoramento —
     /// permite localizar as entregas pendentes do ciclo do problema
     /// (adiamento por estabilização, cancelamento de flapping e de
@@ -42,6 +49,7 @@ public sealed class Notification : Entity
     public static Notification Create(
         Guid eventId, string eventType, string title, string message,
         Guid? deviceId = null,
+        Guid? aggregateId = null,
         Guid? sourceAlertId = null,
         Guid? sourceIncidentId = null)
     {
@@ -76,6 +84,7 @@ public sealed class Notification : Entity
             Title = title.Trim(),
             Message = message.Trim(),
             DeviceId = deviceId,
+            AggregateId = aggregateId,
             SourceAlertId = sourceAlertId,
             SourceIncidentId = sourceIncidentId
         };

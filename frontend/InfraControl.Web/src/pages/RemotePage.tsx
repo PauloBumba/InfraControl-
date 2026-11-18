@@ -127,7 +127,7 @@ export function RemotePage() {
       setActionError(null);
       if (opened) {
         window.open(
-          `${opened.path}?token=${encodeURIComponent(opened.token)}`,
+          `${opened.path}?token=${encodeURIComponent(opened.token)}#/client/${opened.connectionId}`,
           "_blank",
           "noopener",
         );
@@ -311,7 +311,7 @@ export function RemotePage() {
             table={
               <DataTablePanel value={sessions.items} dataKey="id" loading={sessions.isPending} emptyMessage={listError ? "—" : "Nenhuma sessão registrada neste dispositivo"}>
                   <Column header="Protocolo" body={(session: RemoteSessionItem) => <StatusChip label={session.protocol === "Ssh" ? "SSH" : "RDP"} background={session.protocol === "Ssh" ? "#eff6ff" : "#f5f3ff"} color={session.protocol === "Ssh" ? "#3b82f6" : "#8b5cf6"} fontWeight={600} fontSize={10} />} style={{ width: 100 }} />
-                  <Column header="Usuário" body={(session: RemoteSessionItem) => <span style={{ fontFamily: "monospace", fontSize: 11 }} title={session.userId}>{session.userId.slice(0, 8)}</span>} />
+                  <Column header="Usuário" body={(session: RemoteSessionItem) => <span title={session.userName ?? session.userId}>{session.userName ?? "—"}</span>} />
                   <Column header="Início" body={(session: RemoteSessionItem) => formatDateTime(new Date(session.startedAt))} style={{ fontSize: 12, color: "#6b7280", width: 155 }} />
                   <Column header="Fim" body={(session: RemoteSessionItem) => session.endedAt ? formatDateTime(new Date(session.endedAt)) : "—"} style={{ fontSize: 12, color: "#6b7280", width: 155 }} />
                   <Column header="Duração" body={(session: RemoteSessionItem) => durationOf(session)} style={{ fontSize: 12, fontWeight: 500, width: 90 }} />
@@ -334,8 +334,8 @@ export function RemotePage() {
                     <StatusChip label={status.label} background={status.bg} color={status.color} fontSize={10} />
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-                    <span style={{ fontFamily: "monospace" }} title={session.userId}>
-                      {session.userId.slice(0, 8)}
+                    <span title={session.userName ?? session.userId}>
+                      {session.userName ?? "—"}
                     </span>
                     {" · "}
                     {durationOf(session)}

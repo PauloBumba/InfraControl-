@@ -72,7 +72,7 @@ public sealed class GuacamoleGateway(
         return token;
     }
 
-    public async Task EnsureDeviceConnectionAsync(
+    public async Task<string> EnsureDeviceConnectionAsync(
         string deviceName,
         string hostname,
         RemoteProtocol protocol,
@@ -88,6 +88,8 @@ public sealed class GuacamoleGateway(
 
         var connectionsUrl =
             $"{apiBase}/api/session/data/{dataSource}/connections";
+
+        string? resolvedConnectionId = null;
 
         // 1) localiza a conexão pelo NOME do device (chave de negócio — o
         //    identifier interno muda se recriarmos).
@@ -156,6 +158,8 @@ public sealed class GuacamoleGateway(
                         "Gateway de acesso remoto criou conexão sem identificador.");
             }
 
+            resolvedConnectionId = connectionId;
+
             // 4) o header auth não persiste usuário — garante o registro para
             //    que a permissão tenha dono (senha nunca é a do alvo, D4).
             var usersUrl = $"{apiBase}/api/session/data/{dataSource}/users";
@@ -210,6 +214,10 @@ public sealed class GuacamoleGateway(
                 _ = patched;
             }
         }
+
+        return resolvedConnectionId
+            ?? throw new InvalidOperationException(
+                "Gateway de acesso remoto não resolveu a conexão do device.");
     }
 
     /// <summary>

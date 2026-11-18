@@ -20,11 +20,14 @@ const WiFiPage = lazy(() => import("@/pages/WiFiPage").then(m => ({ default: m.W
 const TopologyPage = lazy(() => import("@/pages/TopologyPage").then(m => ({ default: m.TopologyPage })));
 const DevicesPage = lazy(() => import("@/pages/DevicesPage").then(m => ({ default: m.DevicesPage })));
 const ClientsPage = lazy(() => import("@/pages/ClientsPage").then(m => ({ default: m.ClientsPage })));
+const NetworkExplorerPage = lazy(() => import("@/pages/NetworkExplorerPage").then(m => ({ default: m.NetworkExplorerPage })));
+const InfraMapPage = lazy(() => import("@/pages/InfraMapPage").then(m => ({ default: m.InfraMapPage })));
 const InsightsPage = lazy(() => import("@/pages/InsightsPage").then(m => ({ default: m.InsightsPage })));
 const AlertsPage = lazy(() => import("@/pages/AlertsPage").then(m => ({ default: m.AlertsPage })));
 const UniFiLivePage = lazy(() => import("@/pages/UniFiLivePage").then(m => ({ default: m.UniFiLivePage })));
 const UniFiDashboardPage = lazy(() => import("@/pages/UniFiDashboardPage").then(m => ({ default: m.UniFiDashboardPage })));
 const IntegrationsPage = lazy(() => import("@/pages/IntegrationsPage").then(m => ({ default: m.IntegrationsPage })));
+const IntegrationsHubPage = lazy(() => import("@/pages/IntegrationsHubPage").then(m => ({ default: m.IntegrationsHubPage })));
 const ZabbixSettingsPage = lazy(() => import("@/pages/ZabbixSettingsPage").then(m => ({ default: m.ZabbixSettingsPage })));
 // ADR-062 — gestão do canal WhatsApp (Evolution API): conexão/QR, grupos e teste.
 const WhatsAppSettingsPage = lazy(() => import("@/pages/WhatsAppSettingsPage").then(m => ({ default: m.WhatsAppSettingsPage })));
@@ -38,6 +41,7 @@ const CompanySettingsPage = lazy(() => import("@/pages/CompanySettingsPage").the
 const AccessPoliciesPage = lazy(() => import("@/pages/AccessPoliciesPage").then(m => ({ default: m.AccessPoliciesPage })));
 const BackupSettingsPage = lazy(() => import("@/pages/BackupSettingsPage").then(m => ({ default: m.BackupSettingsPage })));
 const RetentionPage = lazy(() => import("@/pages/RetentionPage").then(m => ({ default: m.RetentionPage })));
+const SchemaPage = lazy(() => import("@/pages/SchemaPage").then(m => ({ default: m.SchemaPage })));
 const AccessRolesPage = lazy(() => import("@/pages/AccessRolesPage").then(m => ({ default: m.AccessRolesPage })));
 const ClusterPage = lazy(() => import("@/pages/ClusterPage").then(m => ({ default: m.ClusterPage })));
 const HealthPage = lazy(() => import("@/pages/HealthPage").then(m => ({ default: m.HealthPage })));
@@ -53,6 +57,7 @@ const DeviceDetailPage = lazy(() => import("@/pages/DeviceDetailPage").then(m =>
 const UsersPage = lazy(() => import("@/pages/UsersPage").then(m => ({ default: m.UsersPage })));
 const InvitationsPage = lazy(() => import("@/pages/InvitationsPage").then(m => ({ default: m.InvitationsPage })));
 const AuditPage = lazy(() => import("@/pages/AuditPage").then(m => ({ default: m.AuditPage })));
+const MessagingPage = lazy(() => import("@/pages/MessagingPage").then(m => ({ default: m.MessagingPage })));
 const IncidentsPage = lazy(() => import("@/pages/IncidentsPage").then(m => ({ default: m.IncidentsPage })));
 const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const LocationsPage = lazy(() => import("@/pages/LocationsPage").then(m => ({ default: m.LocationsPage })));
@@ -309,6 +314,16 @@ function AppContent() {
               <NetworkPage />
             </ProtectedRoute>
           } />
+          <Route path="/network/explorer" element={
+            <ProtectedRoute>
+              <NetworkExplorerPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/network/map" element={
+            <ProtectedRoute>
+              <InfraMapPage />
+            </ProtectedRoute>
+          } />
           <Route path="/wifi" element={
             <ProtectedRoute>
               <WiFiPage />
@@ -354,7 +369,14 @@ function AppContent() {
               <UniFiLivePage />
             </ProtectedRoute>
           } />
+          {/* Hub de integrações — índice das 4 conexões externas. */}
           <Route path="/integrations" element={
+            <ProtectedRoute>
+              <IntegrationsHubPage />
+            </ProtectedRoute>
+          } />
+          {/* Config do UniFi (era o conteúdo de /integrations). */}
+          <Route path="/integrations/unifi" element={
             <ProtectedRoute>
               <IntegrationsPage />
             </ProtectedRoute>
@@ -424,6 +446,12 @@ function AppContent() {
               <RetentionPage />
             </ProtectedRoute>
           } />
+          {/* Dicionário de dados dinâmico — esquema/relacionamentos (Administer). */}
+          <Route path="/settings/schema" element={
+            <ProtectedRoute>
+              <SchemaPage />
+            </ProtectedRoute>
+          } />
           {/* Perfis de acesso customizados do admin. */}
           <Route path="/admin/access-roles" element={
             <ProtectedRoute>
@@ -434,6 +462,11 @@ function AppContent() {
           <Route path="/admin/cluster" element={
             <ProtectedRoute>
               <ClusterPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/messaging" element={
+            <ProtectedRoute>
+              <MessagingPage />
             </ProtectedRoute>
           } />
           <Route path="/status" element={

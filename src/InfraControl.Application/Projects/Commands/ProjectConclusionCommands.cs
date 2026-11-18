@@ -144,6 +144,7 @@ public sealed record GetProjectConclusionsQuery(Guid ProjectId)
     : BaseQuery<ProjectConclusionDto[]>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Read;
+    public override IReadOnlyCollection<string> CacheTags => ["projects"];
 }
 
 public sealed class GetProjectConclusionsQueryHandler(

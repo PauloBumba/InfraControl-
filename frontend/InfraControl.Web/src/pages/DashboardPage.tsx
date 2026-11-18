@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { HealthBar, type HealthItem } from "@/components/dashboard/HealthBar";
 import { DeviceHealthCard } from "@/components/dashboard/DeviceHealthCard";
+import { IntegrationActivitySection } from "@/components/dashboard/IntegrationActivitySection";
+import {
+  EventsCenter,
+  FleetStatusStrip,
+  PerformanceSection,
+  TopologyEmbed,
+  UniFiSummaryPanel,
+} from "@/components/dashboard/DashboardInsights";
 import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/services/api/client";
 import { listAlerts, type AlertItem } from "@/services/api/alerts";
@@ -161,12 +169,15 @@ export function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [devicePage, alertPage, incidentPage, openIncidentPage, clientPage, taskPage] = await Promise.all([
+      const [devicePage, alertPage, incidentPage, allIncidentPage, openIncidentPage, clientPage, taskPage] = await Promise.all([
         listDevices({ pageSize: 6 }),
         listAlerts({ status: "open", pageSize: 100 }),
-        listIncidents({ pageSize: 5 }),
-        // M7: "active" = != Resolved no servidor — o totalCount é o número
-        // real de abertos (filtrar no front sobre a 1ª página mentia o KPI).
+        // Widget "Incidentes Recentes": só não resolvidos — resolvido não
+        // aparece na tela principal (fica na listagem /incidents).
+        listIncidents({ status: "active", pageSize: 5 }),
+        // KPI "Incidentes": total geral do servidor (o "N em aberto" ao lado
+        // vem do totalCount ativo — filtrar no front mentia o número, M7).
+        listIncidents({ pageSize: 1 }),
         listIncidents({ status: "active", pageSize: 1 }),
         listClients("", 1, 5),
         listTasks({ pageSize: 100 }),
@@ -176,7 +187,7 @@ export function DashboardPage() {
       setOpenAlerts(alertPage.items);
       setOpenAlertTotal(alertPage.totalCount);
       setIncidents(incidentPage.items);
-      setIncidentTotal(incidentPage.totalCount);
+      setIncidentTotal(allIncidentPage.totalCount);
       setOpenIncidentTotal(openIncidentPage.totalCount);
       setClients(clientPage.items);
       setClientTotal(clientPage.totalCount);
@@ -384,6 +395,18 @@ export function DashboardPage() {
       {/* ============ HEALTH BAR (estilo UniFi — F40-T001) ============ */}
       <HealthBar items={healthItems} />
 
+      {/* F54-T002 — status da frota agregado (online/offline por status
+          consolidado + totais por tipo + alertas Open por severidade) */}
+      <FleetStatusStrip />
+
+      {/* F54-T003 — gráficos com seletor de período (1h/24h/7d/30d);
+          cada gráfico some quando não há dado real */}
+      <PerformanceSection />
+
+      {/* Atividade real das integrações: eventos Zabbix por
+          severidade/dia + resultado das syncs UniFi */}
+      <IntegrationActivitySection />
+
       {/* ============ QUICK STATS (clicáveis — estilo UniFi) ============ */}
       <div className="uni-dash-stats">
         <DeviceHealthCard
@@ -590,9 +613,18 @@ export function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* F54-T004 — topologia UniFi embutida (resumo; mapa completo em /unifi) */}
+          <TopologyEmbed />
+
+          {/* F54-T005 — resumo UniFi (sites/switches/APs/clientes/portas) */}
+          <UniFiSummaryPanel />
         </div>
 
         <div className="uni-dash-side">
+          {/* F54-T006 — central de eventos: alertas + problemas Zabbix */}
+          <EventsCenter />
+
           {/* ---- Alertas Abertos ---- */}
           <div className="uni-panel">
             <div className="uni-panel-header">

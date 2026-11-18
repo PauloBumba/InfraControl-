@@ -5,7 +5,10 @@ public sealed record CreateAiProviderViewModel(
     string Name,
     string BaseUrl,
     string? ApiKey,
-    IReadOnlyList<string>? Models);
+    IReadOnlyList<string>? Models,
+    // Protocolo do adaptador (openai-compatible|ollama|gemini|
+    // anthropic) — null = openai-compatible (default universal).
+    string? Protocol = null);
 
 public sealed record UpdateAiProviderViewModel(
     string BaseUrl,

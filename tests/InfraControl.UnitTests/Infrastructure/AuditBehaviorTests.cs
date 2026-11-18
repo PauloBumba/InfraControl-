@@ -137,6 +137,12 @@ public sealed class AuditBehaviorTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(1);
 
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         public void Dispose() { }
     }
 
@@ -144,6 +150,12 @@ public sealed class AuditBehaviorTests
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromException<int>(exception);
+
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
 
         public void Dispose() { }
     }

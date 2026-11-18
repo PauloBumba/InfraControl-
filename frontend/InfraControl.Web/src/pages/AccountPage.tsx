@@ -1,7 +1,9 @@
 import { useRef, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { useAppDispatch, useAppSelector } from "@/app/store/hooks";
 import { sessionChecked, signedOut } from "@/app/store/slices/authSlice";
 import { AuthApiError, changePassword, updateProfile, uploadAvatar } from "@/services/api/auth";
@@ -42,6 +44,15 @@ export function AccountPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
+
+  // Abas da conta: "view" (só leitura), "edit" (perfil/foto) e
+  // "security" (senha). O menu do usuário deep-linka via ?tab=.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tab: "view" | "edit" | "security" =
+    tabParam === "edit" || tabParam === "security" ? tabParam : "view";
+  const setTab = (next: "view" | "edit" | "security") =>
+    setSearchParams(next === "view" ? {} : { tab: next }, { replace: true });
 
   // ── Perfil (F29-T002) — estado próprio, separado do formulário de senha:
   // os dois enviam para endpoints diferentes e o erro de um não pode aparecer
@@ -246,7 +257,122 @@ export function AccountPage() {
         </div>
       </section>
 
+      {/* ── Abas: visualizar / editar / segurança ─────────────────────── */}
+      <div
+        role="tablist"
+        aria-label="Seções da conta"
+        style={{ display: "flex", gap: 4, borderBottom: "1px solid #e5e7eb" }}
+      >
+        {(
+          [
+            ["view", "Visualizar perfil", "pi pi-eye"],
+            ["edit", "Editar perfil", "pi pi-pencil"],
+            ["security", "Segurança", "pi pi-shield"],
+          ] as const
+        ).map(([key, label, icon]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 16px",
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: tab === key ? 600 : 500,
+              color: tab === key ? "#1d4ed8" : "var(--uni-text-muted)",
+              borderBottom: tab === key ? "2px solid #1d4ed8" : "2px solid transparent",
+              marginBottom: -1,
+            }}
+          >
+            <i className={icon} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Visualizar: resumo somente-leitura do perfil ──────────────── */}
+      {tab === "view" && (
+        <div className="uni-card" style={{ padding: 24 }}>
+          <h2 style={{ fontSize: 15, margin: "0 0 16px", color: "var(--uni-text-primary)" }}>
+            Resumo do perfil
+          </h2>
+          <dl
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "12px 24px",
+              margin: 0,
+              fontSize: 13,
+            }}
+          >
+            <div>
+              <dt style={{ color: "var(--uni-text-muted)", fontSize: 12 }}>Nome de exibição</dt>
+              <dd style={{ margin: "2px 0 0", fontWeight: 600 }}>{user?.displayName || "—"}</dd>
+            </div>
+            <div>
+              <dt style={{ color: "var(--uni-text-muted)", fontSize: 12 }}>Nome completo</dt>
+              <dd style={{ margin: "2px 0 0" }}>{user?.fullName || "—"}</dd>
+            </div>
+            <div>
+              <dt style={{ color: "var(--uni-text-muted)", fontSize: 12 }}>E-mail</dt>
+              <dd style={{ margin: "2px 0 0" }}>{user?.email || "—"}</dd>
+            </div>
+            <div>
+              <dt style={{ color: "var(--uni-text-muted)", fontSize: 12 }}>Perfis de acesso</dt>
+              <dd style={{ margin: "2px 0 0", display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {(user?.roles ?? []).length > 0
+                  ? (user?.roles ?? []).map((role) => (
+                      <span
+                        key={role}
+                        style={{
+                          fontSize: 11,
+                          padding: "3px 10px",
+                          borderRadius: 999,
+                          background: "#eff6ff",
+                          color: "#1d4ed8",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {role}
+                      </span>
+                    ))
+                  : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt style={{ color: "var(--uni-text-muted)", fontSize: 12 }}>Foto de perfil</dt>
+              <dd style={{ margin: "2px 0 0" }}>{avatarPath ? "Definida" : "Não definida"}</dd>
+            </div>
+          </dl>
+          <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              className="uni-btn uni-btn-primary"
+              onClick={() => setTab("edit")}
+            >
+              <i className="pi pi-pencil" />
+              <span>Editar perfil</span>
+            </button>
+            <button
+              type="button"
+              className="uni-btn"
+              onClick={() => setTab("security")}
+            >
+              <i className="pi pi-shield" />
+              <span>Alterar senha</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Perfil (F29-T002) ─────────────────────────────────────────── */}
+      {tab === "edit" && (
       <div className="uni-card" style={{ padding: 24 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16 }}>
           <h2 style={{ fontSize: 15, margin: 0, color: "var(--uni-text-primary)" }}>Perfil do operador</h2>
@@ -385,17 +511,14 @@ export function AccountPage() {
           </div>
 
           {profileError && (
-            <div className="uni-alert uni-alert-error" role="alert" style={{ gridColumn: "1 / -1" }}>
-              <i className="pi pi-exclamation-triangle" />
-              <span>{profileError}</span>
-            </div>
+            <ErrorBanner message={profileError} style={{ gridColumn: "1 / -1" }} />
           )}
 
           {profileSaved && (
-            <div className="uni-alert uni-alert-success" role="status" style={{ gridColumn: "1 / -1" }}>
-              <i className="pi pi-check-circle" />
-              <span>Perfil atualizado com sucesso.</span>
-            </div>
+            <NoticeBanner
+              message="Perfil atualizado com sucesso."
+              style={{ gridColumn: "1 / -1" }}
+            />
           )}
 
           <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
@@ -406,8 +529,10 @@ export function AccountPage() {
           </div>
         </form>
       </div>
+      )}
 
       {/* ── Senha (F26-T001 · F52-T007) ────────────────────────────────── */}
+      {tab === "security" && (
       <section
         className="uni-card"
         style={{
@@ -505,12 +630,7 @@ export function AccountPage() {
             )}
           </div>
 
-          {error && (
-            <div className="uni-alert uni-alert-error" role="alert">
-              <i className="pi pi-exclamation-triangle" />
-              <span>{error}</span>
-            </div>
-          )}
+          {error && <ErrorBanner message={error} />}
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <Button
@@ -534,6 +654,7 @@ export function AccountPage() {
           </div>
         </form>
       </section>
+      )}
     </div>
   );
 }

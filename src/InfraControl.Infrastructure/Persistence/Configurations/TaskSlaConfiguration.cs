@@ -32,6 +32,12 @@ public sealed class TaskSlaConfiguration : IEntityTypeConfiguration<TaskSla>
         builder.Property(x => x.ResolutionDueAt)
             .HasColumnName("resolution_due_at");
 
+        builder.Property(x => x.ResponseBreachedAt)
+            .HasColumnName("response_breached_at");
+
+        builder.Property(x => x.ResolutionBreachedAt)
+            .HasColumnName("resolution_breached_at");
+
         // Task Cascade (apagar a task limpa o SLA); SlaPolicy Restrict —
         // prazos históricos preservados (pré-check 409 + FK).
         builder.HasOne<TaskItem>()

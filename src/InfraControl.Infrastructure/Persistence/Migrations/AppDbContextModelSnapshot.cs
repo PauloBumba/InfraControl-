@@ -217,6 +217,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AssignedToId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -684,8 +687,24 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Confidence")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("unknown")
+                        .HasColumnName("confidence");
+
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("unknown")
+                        .HasColumnName("source");
 
                     b.Property<Guid>("SourceInterfaceId")
                         .HasColumnType("uuid")
@@ -1040,6 +1059,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedToId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_to_id");
 
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
@@ -1695,6 +1718,61 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("mac_addresses", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.MessagingQueuePause", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ConnectionNames")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)")
+                        .HasColumnName("connection_names");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<DateTime>("PausedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paused_at_utc");
+
+                    b.Property<string>("PausedByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("paused_by_user_id");
+
+                    b.Property<string>("QueueName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("queue_name");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.Property<string>("Vhost")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("vhost");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QueueName")
+                        .IsUnique();
+
+                    b.ToTable("messaging_queue_pauses", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.MonitoringCheck", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1866,6 +1944,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("opened_at");
 
+                    b.Property<Guid?>("PreviousAlertId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("previous_alert_id");
+
                     b.Property<int>("RepeatedCount")
                         .HasColumnType("integer")
                         .HasColumnName("repeated_count");
@@ -1995,6 +2077,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AggregateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aggregate_id");
+
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("create_datetime");
@@ -2019,6 +2105,14 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("message");
 
+                    b.Property<Guid?>("SourceAlertId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_alert_id");
+
+                    b.Property<Guid?>("SourceIncidentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_incident_id");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2030,6 +2124,9 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnName("update_datetime");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AggregateId")
+                        .HasDatabaseName("ix_notifications_aggregate_id");
 
                     b.HasIndex("EventId")
                         .IsUnique()
@@ -2083,6 +2180,11 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("status");
 
+                    b.Property<string>("SuppressionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("suppression_reason");
+
                     b.Property<DateTime>("UpdateDateTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -2092,12 +2194,14 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NotificationId");
-
                     b.HasIndex("UserId");
 
                     b.HasIndex("Channel", "Status")
                         .HasDatabaseName("ix_notification_deliveries_channel_status");
+
+                    b.HasIndex("NotificationId", "UserId", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notification_deliveries_dedup");
 
                     b.ToTable("notification_deliveries", (string)null);
                 });
@@ -2139,6 +2243,34 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("notification_event_rules", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.NotificationPolicySetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<int>("StabilizationCriticalMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("stabilization_critical_minutes");
+
+                    b.Property<int>("StabilizationWarningMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("stabilization_warning_minutes");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("notification_policy_settings", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.NotificationPreference", b =>
@@ -2317,6 +2449,108 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("EventType");
 
                     b.ToTable("notification_routing_rules", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.Occurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OccurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_occurrences_key");
+
+                    b.HasIndex("UpdatedAtUtc")
+                        .HasDatabaseName("ix_occurrences_updated_at");
+
+                    b.ToTable("occurrences", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.OccurrenceTransition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CorrelationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("FromState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OccurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("SourceEventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SuppressionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ToState")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceKey", "OccurredAtUtc")
+                        .HasDatabaseName("ix_occurrence_transitions_key_time");
+
+                    b.ToTable("occurrence_transitions", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.OutboxMessage", b =>
@@ -3828,6 +4062,76 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.ToTable("retention_policies", (string)null);
                 });
 
+            modelBuilder.Entity("InfraControl.Domain.Entities.ScheduledReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_date_time");
+
+                    b.Property<int?>("DayOfMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("day_of_month");
+
+                    b.Property<int?>("DayOfWeek")
+                        .HasColumnType("integer")
+                        .HasColumnName("day_of_week");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("frequency");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LastSentAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_sent_at_utc");
+
+                    b.Property<DateTime?>("NextRunAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_run_at_utc");
+
+                    b.Property<string>("RecipientsJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("recipients_json");
+
+                    b.Property<TimeOnly>("SendTimeUtc")
+                        .HasColumnType("time")
+                        .HasColumnName("send_time_utc");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_date_time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind")
+                        .IsUnique();
+
+                    b.ToTable("scheduled_reports", (string)null);
+                });
+
             modelBuilder.Entity("InfraControl.Domain.Entities.Service", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3937,6 +4241,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -3959,6 +4267,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsDefault")
+                        .IsUnique()
+                        .HasFilter("is_default AND service_id IS NULL");
 
                     b.HasIndex("ServiceId");
 
@@ -4039,6 +4351,29 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.HasIndex("SloId");
 
                     b.ToTable("slo_budgets", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SloCheckBinding", b =>
+                {
+                    b.Property<Guid>("SloId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("slo_id");
+
+                    b.Property<Guid>("MonitoringCheckId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("monitoring_check_id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SloId", "MonitoringCheckId");
+
+                    b.HasIndex("MonitoringCheckId");
+
+                    b.ToTable("slo_check_bindings", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.SloMeasurement", b =>
@@ -4150,6 +4485,40 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("switch_port_vlans", (string)null);
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.TableRetentionPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("create_datetime");
+
+                    b.Property<int>("Days")
+                        .HasColumnType("integer")
+                        .HasColumnName("days");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("entity_name");
+
+                    b.Property<DateTime>("UpdateDateTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("update_datetime");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntityName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_table_retention_policies_entity_name");
+
+                    b.ToTable("table_retention_policies", (string)null);
                 });
 
             modelBuilder.Entity("InfraControl.Domain.Entities.TaskAssignee", b =>
@@ -4570,6 +4939,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreateDateTime")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("ResolutionBreachedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolution_breached_at");
+
                     b.Property<DateTime>("ResolutionDueAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("resolution_due_at");
@@ -4577,6 +4950,10 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
                     b.Property<int>("ResolutionMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("resolution_minutes");
+
+                    b.Property<DateTime?>("ResponseBreachedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("response_breached_at");
 
                     b.Property<DateTime>("ResponseDueAt")
                         .HasColumnType("timestamp with time zone")
@@ -6135,6 +6512,21 @@ namespace InfraControl.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("InfraControl.Domain.Entities.SloBudget", b =>
                 {
+                    b.HasOne("InfraControl.Domain.Entities.Slo", null)
+                        .WithMany()
+                        .HasForeignKey("SloId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InfraControl.Domain.Entities.SloCheckBinding", b =>
+                {
+                    b.HasOne("InfraControl.Domain.Entities.MonitoringCheck", null)
+                        .WithMany()
+                        .HasForeignKey("MonitoringCheckId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("InfraControl.Domain.Entities.Slo", null)
                         .WithMany()
                         .HasForeignKey("SloId")

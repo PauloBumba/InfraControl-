@@ -167,7 +167,10 @@ public sealed class AuthenticationController(
 
         await HttpContext.SignInAsync(
             IdentityConstants.ApplicationScheme, CreatePrincipal(result.Result.User));
-        return Redirect(FrontendUrl("/"));
+        // `/` é a landing pública (F26-T002) e não valida sessão — o
+        // redirect de sucesso precisa apontar para a área autenticada,
+        // igual ao login por senha.
+        return Redirect(FrontendUrl("/dashboard"));
     }
 
     /// <summary>

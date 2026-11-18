@@ -4,7 +4,11 @@ import { useAppSelector } from "@/app/store/hooks";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { EvidenceMediaPreview } from "@/components/ui/EvidenceMediaPreview";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { ProjectConclusionSection } from "@/components/projects/ProjectConclusionSection";
 import {
@@ -21,11 +25,14 @@ import {
   reopenProjectImpediment,
   resolveProjectImpediment,
   reviewProjectEvidence,
+  setProjectPhaseStatus,
   submitProjectForApproval,
+  transitionProjectStatus,
   updateProject,
   updateProjectImpediment,
   createProjectImpediment,
   uploadProjectEvidence,
+  projectEvidencePreviewUrl,
   type ProjectEvidenceItem,
   type ProjectImpedimentItem,
   type ProjectItem,
@@ -50,6 +57,45 @@ const PROJECT_STATUS_COLOR: Record<string, { background: string; color: string }
   Completed: { background: "#dcfce7", color: "#15803d" },
   Cancelled: { background: "#fee2e2", color: "#b91c1c" },
   OnHold: { background: "#f3e8ff", color: "#7c3aed" },
+};
+
+// Transições válidas — espelha Project.CanTransitionTo (domínio é a autoridade).
+const PROJECT_NEXT_STATUS: Record<string, { value: string; label: string }[]> = {
+  Draft: [
+    { value: "Planned", label: "Planejado" },
+    { value: "Cancelled", label: "Cancelado" },
+  ],
+  Planned: [
+    { value: "InProgress", label: "Em andamento" },
+    { value: "Draft", label: "Rascunho" },
+    { value: "Cancelled", label: "Cancelado" },
+  ],
+  InProgress: [
+    { value: "OnHold", label: "Em espera" },
+    { value: "Cancelled", label: "Cancelado" },
+  ],
+  OnHold: [
+    { value: "InProgress", label: "Em andamento" },
+    { value: "Cancelled", label: "Cancelado" },
+  ],
+  PendingFinalApproval: [
+    { value: "InProgress", label: "Em andamento" },
+    { value: "Cancelled", label: "Cancelado" },
+  ],
+};
+
+const PHASE_STATUS_LABEL: Record<string, string> = {
+  NotStarted: "Não iniciada",
+  InProgress: "Em andamento",
+  PendingValidation: "Aguardando validação",
+  Completed: "Concluída",
+};
+
+const PHASE_STATUS_COLOR: Record<string, { background: string; color: string }> = {
+  NotStarted: { background: "#f1f5f9", color: "#475569" },
+  InProgress: { background: "#dbeafe", color: "#1d4ed8" },
+  PendingValidation: { background: "#fef3c7", color: "#b45309" },
+  Completed: { background: "#dcfce7", color: "#15803d" },
 };
 
 const PROJECT_PRIORITY_LABEL: Record<string, string> = {
@@ -122,6 +168,11 @@ const EVIDENCE_STATUS_LABEL: Record<string, string> = {
   Rejected: "Rejeitada",
 };
 
+/** Preview inline suportado: imagem, vídeo e PDF abrem dentro da plataforma. */
+const PREVIEWABLE = /^(image\/|video\/|application\/pdf)/i;
+const canPreviewEvidence = (item: ProjectEvidenceItem) =>
+  PREVIEWABLE.test(item.contentType ?? "");
+
 const EVIDENCE_STATUS_COLOR: Record<string, { background: string; color: string }> = {
   Pending: { background: "#fef3c7", color: "#b45309" },
   Validated: { background: "#dcfce7", color: "#15803d" },
@@ -173,6 +224,8 @@ export function ProjectDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const canManageTeam = isAdmin || (!!user?.id && user.id === project?.createdById);
+  // Mesma regra do DeleteProjectCommand: só criador ou Admin exclui o projeto.
+  const canDeleteProject = isAdmin || (!!user?.id && user.id === project?.createdById);
 
   // Edição/remoção do projeto (U/D na tela de detalhe).
   const [editOpen, setEditOpen] = useState(false);
@@ -187,6 +240,15 @@ export function ProjectDetailPage() {
     plannedEndDate: "",
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Transição de status do projeto (Draft→Planned→InProgress→…).
+  const [statusForm, setStatusForm] = useState({ status: "", reason: "" });
+  const [statusSaving, setStatusSaving] = useState(false);
+
+  // Ações de fase (Start/Submit/Validate/Reject).
+  const [phaseBusy, setPhaseBusy] = useState<string | null>(null);
+  const [phaseReject, setPhaseReject] = useState<ProjectPhaseItem | null>(null);
+  const [phaseRejectReason, setPhaseRejectReason] = useState("");
 
   // Impedimentos.
   const [impDialog, setImpDialog] = useState<"create" | "edit" | null>(null);
@@ -207,6 +269,7 @@ export function ProjectDetailPage() {
   const [evReject, setEvReject] = useState<ProjectEvidenceItem | null>(null);
   const [evRejectReason, setEvRejectReason] = useState("");
   const [evBusy, setEvBusy] = useState<string | null>(null);
+  const [evPreview, setEvPreview] = useState<ProjectEvidenceItem | null>(null);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -244,6 +307,13 @@ export function ProjectDetailPage() {
     void refresh();
   }, [refresh]);
 
+  // Push operacional (status/evidências do projeto) + polling opt-in.
+  const refreshQuiet = useCallback(() => {
+    void refresh();
+  }, [refresh]);
+  useOperationalRefresh(refreshQuiet);
+  useAutoRefresh(refreshQuiet);
+
   const handleSubmitApproval = async () => {
     if (!id) return;
     setSaving(true);
@@ -270,6 +340,41 @@ export function ProjectDetailPage() {
       setError(caught instanceof Error ? caught.message : "Não foi possível homologar o projeto.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTransitionStatus = async () => {
+    if (!id || !statusForm.status) return;
+    setStatusSaving(true);
+    setError(null);
+    try {
+      await transitionProjectStatus(id, statusForm.status, statusForm.reason.trim() || null);
+      setStatusForm({ status: "", reason: "" });
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível atualizar o status do projeto.");
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const handlePhaseAction = async (
+    phase: ProjectPhaseItem,
+    action: "Start" | "Submit" | "Validate" | "Reject",
+    reason?: string | null,
+  ) => {
+    if (!id) return;
+    setPhaseBusy(phase.id);
+    setError(null);
+    try {
+      await setProjectPhaseStatus(id, phase.id, action, reason ?? null);
+      setPhaseReject(null);
+      setPhaseRejectReason("");
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível atualizar a fase.");
+    } finally {
+      setPhaseBusy(null);
     }
   };
 
@@ -586,9 +691,11 @@ export function ProjectDetailPage() {
                 <Button variant="ghost" icon="pi pi-pencil" onClick={openEditProject}>
                   Editar
                 </Button>
-                <Button variant="danger" icon="pi pi-trash" onClick={() => setDeleteOpen(true)}>
-                  Remover
-                </Button>
+                {canDeleteProject && (
+                  <Button variant="danger" icon="pi pi-trash" onClick={() => setDeleteOpen(true)}>
+                    Remover
+                  </Button>
+                )}
               </>
             )}
             <Link to="/projects">
@@ -599,11 +706,7 @@ export function ProjectDetailPage() {
       />
 
       {error && <ErrorBanner message={error} onRetry={() => void refresh()} />}
-      {notice && (
-        <div role="status" style={{ padding: 12, borderRadius: 8, background: "#ecfdf5", color: "#047857" }}>
-          {notice}
-        </div>
-      )}
+      {notice && <NoticeBanner message={notice} />}
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 16 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -643,20 +746,46 @@ export function ProjectDetailPage() {
             </Button>
           )}
         </div>
+
+        {canOperate && (PROJECT_NEXT_STATUS[project.status]?.length ?? 0) > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", paddingTop: 4, borderTop: "1px solid #f1f5f9" }}>
+            <span style={{ fontSize: 12, color: "#64748b" }}>Status do projeto:</span>
+            <select
+              value={statusForm.status}
+              onChange={(event) => setStatusForm((prev) => ({ ...prev, status: event.target.value }))}
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }}
+            >
+              <option value="">Alterar para…</option>
+              {PROJECT_NEXT_STATUS[project.status]!.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <input
+              value={statusForm.reason}
+              onChange={(event) => setStatusForm((prev) => ({ ...prev, reason: event.target.value }))}
+              placeholder="Motivo (obrigatório p/ pausa/cancelamento)"
+              style={{ padding: "7px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, minWidth: 240 }}
+            />
+            <Button
+              variant="info"
+              style={{ padding: "6px 14px" }}
+              disabled={statusSaving || statusForm.status === ""}
+              onClick={() => void handleTransitionStatus()}
+            >
+              {statusSaving ? "Atualizando…" : "Atualizar status"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>Equipe do projeto</div>
-        {invitationNotice && (
-          <div role="status" style={{ padding: 12, borderRadius: 8, background: "#ecfdf5", color: "#047857" }}>
-            {invitationNotice}
-          </div>
-        )}
+        {invitationNotice && <NoticeBanner message={invitationNotice} />}
         {project.members?.length ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             {project.members.map((member) => (
               <div key={member.userId} style={{ padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, background: "#f8fafc" }}>
-                <div style={{ fontWeight: 700 }}>{member.displayName ?? member.userId}</div>
+                <div style={{ fontWeight: 700 }}>{member.displayName ?? "—"}</div>
                 <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
                   {PROJECT_MEMBER_ROLE_LABEL[member.role] ?? member.role}
                 </div>
@@ -740,9 +869,7 @@ export function ProjectDetailPage() {
           )}
         </div>
         {impError && (
-          <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-            {impError}
-          </div>
+          <ErrorBanner message={impError} />
         )}
         {impediments.length === 0 ? (
           <div style={{ color: "#64748b" }}>Nenhum impedimento registrado.</div>
@@ -796,9 +923,7 @@ export function ProjectDetailPage() {
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 12 }}>
         <div style={{ fontWeight: 700, fontSize: 18 }}>Evidências</div>
         {evError && (
-          <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-            {evError}
-          </div>
+          <ErrorBanner message={evError} />
         )}
         {canOperate && (
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "end", gap: 10, paddingBottom: 8, borderBottom: "1px solid #e2e8f0" }}>
@@ -865,8 +990,26 @@ export function ProjectDetailPage() {
                   {item.status === "Rejected" && item.rejectionReason && (
                     <div style={{ color: "#b91c1c", fontSize: 12 }}>Motivo: {item.rejectionReason}</div>
                   )}
-                  {canOperate && (
+                  {id && (
+                    <EvidenceMediaPreview
+                      src={projectEvidencePreviewUrl(id, item.id)}
+                      contentType={item.contentType}
+                      fileName={item.fileName}
+                    />
+                  )}
+                  {(canPreviewEvidence(item) || canOperate) && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingTop: 6, borderTop: "1px solid #f1f5f9" }}>
+                      {canPreviewEvidence(item) && (
+                        <Button
+                          variant="ghost"
+                          icon="pi pi-eye"
+                          onClick={() => setEvPreview(item)}
+                        >
+                          Visualizar
+                        </Button>
+                      )}
+                      {canOperate && (
+                        <>
                       <Button
                         variant="ghost"
                         icon="pi pi-download"
@@ -901,6 +1044,8 @@ export function ProjectDetailPage() {
                       <Button variant="danger" icon="pi pi-trash" onClick={() => setEvDelete(item)} disabled={evBusy === item.id}>
                         Remover
                       </Button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -911,26 +1056,135 @@ export function ProjectDetailPage() {
       </div>
 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 20, display: "grid", gap: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 18 }}>Fases</div>
-        {phases.length === 0 ? (
-          <div style={{ color: "#64748b" }}>Nenhuma fase cadastrada para este projeto.</div>
-        ) : (
-          phases.map((phase) => (
-            <div key={phase.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <strong>{phase.order}. {phase.title}</strong>
-                <StatusChip label={phase.status} background="#e2e8f0" color="#334155" />
-              </div>
-              <div style={{ color: "#475569", fontSize: 13 }}>{phase.description || "Sem descrição."}</div>
-              <div style={{ color: "#64748b", fontSize: 12 }}>
-                {formatDate(phase.plannedStartDate)} → {formatDate(phase.plannedEndDate)} · {phase.percent}% concluído
-              </div>
-              <div style={{ width: "100%", background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
-                <div style={{ width: `${Math.min(100, Math.max(0, phase.percent))}%`, height: 8, background: "#2563eb" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 700, fontSize: 18 }}>Fases</div>
+          {phases.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#64748b" }}>
+                {phases.filter((p) => p.status === "Completed").length} de {phases.length} concluídas
+              </span>
+              <div style={{ width: 140, background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
+                <div style={{
+                  width: `${Math.round(phases.reduce((acc, p) => acc + p.percent, 0) / phases.length)}%`,
+                  height: 8, background: "#16a34a", transition: "width .3s",
+                }} />
               </div>
             </div>
-          ))
+          )}
+        </div>
+        {phases.length > 0
+          && phases.every((p) => p.status === "Completed")
+          && project.status === "InProgress" && (
+          <div style={{ fontSize: 12, color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px" }}>
+            Todas as fases concluídas — o projeto está pronto para homologação final.
+          </div>
         )}
+        {phases.length === 0 ? (
+          <div style={{ color: "#64748b" }}>Nenhuma fase cadastrada para este projeto.</div>
+        ) : (() => {
+          const currentIndex = phases.findIndex(
+            (p) => p.status === "InProgress" || p.status === "PendingValidation",
+          );
+          const activeIndex = currentIndex >= 0
+            ? currentIndex
+            : phases.findIndex((p) => p.status === "NotStarted");
+          return phases.map((phase, index) => {
+            const phaseStatus = PHASE_STATUS_COLOR[phase.status] ?? { background: "#f1f5f9", color: "#475569" };
+            const done = phase.status === "Completed";
+            const isCurrent = index === activeIndex;
+            const dotColor = done ? "#16a34a" : isCurrent ? "#2563eb" : phaseStatus.color;
+            const dotBg = done ? "#16a34a" : isCurrent ? "#2563eb" : "#fff";
+            return (
+            <div key={phase.id} style={{ display: "flex", gap: 14 }}>
+              {/* trilho do stepper: círculo + linha conectora */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, fontWeight: 700,
+                  background: dotBg, color: done || isCurrent ? "#fff" : dotColor,
+                  border: `2px solid ${dotColor}`,
+                  boxShadow: isCurrent ? "0 0 0 4px #dbeafe" : "none",
+                }}>
+                  {done ? "✓" : phase.order}
+                </div>
+                {index < phases.length - 1 && (
+                  <div style={{
+                    width: 2, flex: 1, minHeight: 24, marginTop: 4,
+                    background: done ? "#16a34a" : "#e2e8f0",
+                  }} />
+                )}
+              </div>
+              {/* cartão da fase */}
+              <div style={{
+                flex: 1, border: `1px solid ${isCurrent ? "#93c5fd" : "#e2e8f0"}`,
+                borderRadius: 10, padding: 14, display: "grid", gap: 8,
+                background: isCurrent ? "#f8fbff" : "#fff",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <strong>{phase.order}. {phase.title}</strong>
+                  <StatusChip label={PHASE_STATUS_LABEL[phase.status] ?? phase.status} background={phaseStatus.background} color={phaseStatus.color} />
+                </div>
+                <div style={{ color: "#475569", fontSize: 13 }}>{phase.description || "Sem descrição."}</div>
+                <div style={{ color: "#64748b", fontSize: 12 }}>
+                  {formatDate(phase.plannedStartDate)} → {formatDate(phase.plannedEndDate)} · {phase.percent}% concluído
+                </div>
+                <div style={{ width: "100%", background: "#e2e8f0", borderRadius: 999, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.min(100, Math.max(0, phase.percent))}%`, height: 8, background: done ? "#16a34a" : "#2563eb" }} />
+                </div>
+                {canOperate && phase.status !== "Completed" && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {phase.status === "NotStarted" && (
+                      <Button
+                        variant="primary"
+                        icon="pi pi-play"
+                        style={{ padding: "4px 12px", fontSize: 12 }}
+                        disabled={phaseBusy === phase.id}
+                        onClick={() => void handlePhaseAction(phase, "Start")}
+                      >
+                        Iniciar fase
+                      </Button>
+                    )}
+                    {phase.status === "InProgress" && (
+                      <Button
+                        variant="info"
+                        icon="pi pi-send"
+                        style={{ padding: "4px 12px", fontSize: 12 }}
+                        disabled={phaseBusy === phase.id}
+                        onClick={() => void handlePhaseAction(phase, "Submit")}
+                      >
+                        Enviar p/ validação
+                      </Button>
+                    )}
+                    {phase.status === "PendingValidation" && (
+                      <>
+                        <Button
+                          variant="primary"
+                          icon="pi pi-check"
+                          style={{ padding: "4px 12px", fontSize: 12 }}
+                          disabled={phaseBusy === phase.id}
+                          onClick={() => void handlePhaseAction(phase, "Validate")}
+                        >
+                          Validar fase
+                        </Button>
+                        <Button
+                          variant="danger"
+                          icon="pi pi-times"
+                          style={{ padding: "4px 12px", fontSize: 12 }}
+                          disabled={phaseBusy === phase.id}
+                          onClick={() => { setPhaseReject(phase); setPhaseRejectReason(""); }}
+                        >
+                          Rejeitar
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            );
+          });
+        })()}
       </div>
 
       {/* ---- Diálogo: editar projeto ---- */}
@@ -1010,9 +1264,7 @@ export function ProjectDetailPage() {
             </label>
           </div>
           {editError && (
-            <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-              {editError}
-            </div>
+            <ErrorBanner message={editError} />
           )}
         </div>
       </Dialog>
@@ -1101,9 +1353,7 @@ export function ProjectDetailPage() {
             />
           </label>
           {impError && (
-            <div role="alert" style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-              {impError}
-            </div>
+            <ErrorBanner message={impError} />
           )}
         </div>
       </Dialog>
@@ -1162,6 +1412,92 @@ export function ProjectDetailPage() {
             <textarea
               value={evRejectReason}
               onChange={(event) => setEvRejectReason(event.target.value)}
+              rows={3}
+              style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
+            />
+          </label>
+        </div>
+      </Dialog>
+
+      {/* ---- Diálogo: preview de evidência (foto/vídeo/PDF inline) ---- */}
+      <Dialog
+        visible={evPreview !== null}
+        onHide={() => setEvPreview(null)}
+        header={evPreview?.fileName ?? "Visualizar evidência"}
+        width={720}
+        footer={
+          <div className="uni-modal-actions">
+            <Button variant="ghost" onClick={() => setEvPreview(null)}>Fechar</Button>
+            {evPreview && (
+              <Button
+                variant="primary"
+                icon="pi pi-download"
+                onClick={() => void downloadEvidence(evPreview)}
+              >
+                Baixar
+              </Button>
+            )}
+          </div>
+        }
+      >
+        {evPreview && id && (
+          <div style={{ display: "grid", gap: 8 }}>
+            {evPreview.contentType.startsWith("image/") && (
+              <img
+                src={projectEvidencePreviewUrl(id, evPreview.id)}
+                alt={evPreview.fileName}
+                style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain", borderRadius: 8, background: "#0f172a" }}
+              />
+            )}
+            {evPreview.contentType.startsWith("video/") && (
+              <video
+                src={projectEvidencePreviewUrl(id, evPreview.id)}
+                controls
+                style={{ maxWidth: "100%", maxHeight: "70vh", borderRadius: 8, background: "#0f172a" }}
+              />
+            )}
+            {evPreview.contentType === "application/pdf" && (
+              <iframe
+                src={projectEvidencePreviewUrl(id, evPreview.id)}
+                title={evPreview.fileName}
+                style={{ width: "100%", height: "70vh", border: "1px solid #e2e8f0", borderRadius: 8 }}
+              />
+            )}
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              {evPreview.contentType} · {formatBytes(evPreview.fileSize)}
+            </div>
+          </div>
+        )}
+      </Dialog>
+
+      {/* ---- Diálogo: rejeitar fase ---- */}
+      <Dialog
+        visible={phaseReject !== null}
+        onHide={() => setPhaseReject(null)}
+        header="Rejeitar fase"
+        width={480}
+        footer={
+          <div className="uni-modal-actions">
+            <Button variant="ghost" onClick={() => setPhaseReject(null)}>Cancelar</Button>
+            <Button
+              variant="danger"
+              onClick={() => phaseReject && void handlePhaseAction(phaseReject, "Reject", phaseRejectReason.trim() || null)}
+              disabled={phaseBusy === phaseReject?.id || phaseRejectReason.trim() === ""}
+            >
+              {phaseBusy === phaseReject?.id ? "Rejeitando…" : "Rejeitar"}
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ color: "#475569", fontSize: 13 }}>
+            Fase: <strong>{phaseReject?.order}. {phaseReject?.title}</strong>
+          </div>
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "#475569" }}>Motivo da rejeição *</span>
+            <textarea
+              value={phaseRejectReason}
+              onChange={(event) => setPhaseRejectReason(event.target.value)}
               rows={3}
               style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", resize: "vertical" }}
             />

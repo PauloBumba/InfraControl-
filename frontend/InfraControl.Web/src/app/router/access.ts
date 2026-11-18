@@ -12,10 +12,14 @@ import { type AccessLevel, roleGrants } from "@/types/roles";
  */
 export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/users": "administer",
-  "/invitations": "administer",
+  // Qualquer autenticado vê os PRÓPRIOS convites (/invitations/me +
+  // accept/reject — [Authorize] no backend); gestão admin fica na página.
+  "/invitations": "read",
   "/audit": "administer",
   "/settings": "administer",
   "/integrations": "administer",
+  // Config UniFi — era o conteúdo de /integrations (hub agora indexa as 4).
+  "/integrations/unifi": "administer",
   // F27 Fase 2.2 — configuração Zabbix (espelha a policy Administer do controller).
   "/integrations/zabbix": "administer",
   // ADR-062 — gestão do canal WhatsApp (espelha a policy Administer do controller).
@@ -30,8 +34,12 @@ export const ROUTE_ACCESS: Readonly<Record<string, AccessLevel>> = {
   "/admin/access-policies": "read",
   "/admin/access-roles": "administer",
   "/admin/cluster": "administer",
+  // F55 — Messaging Operations Center: leituras Operate; pause/resume/replay
+  // exigem Administer no backend (a UI mostra os botões só para administer).
+  "/messaging": "operate",
   "/settings/backup": "administer",
   "/settings/retention": "administer",
+  "/settings/schema": "administer",
   // UniFi ao vivo: consulta (Operate) — Operator + Admin.
   "/unifi": "operate",
   "/unifi/dashboard": "operate",

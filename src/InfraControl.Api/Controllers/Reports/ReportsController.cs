@@ -239,6 +239,47 @@ public sealed class ReportsController(
     }
 
     /// <summary>
+    /// Evolução/desempenho por usuário (pedido do usuário): tasks,
+    /// projetos, PDI e conhecimento consolidados por pessoa. Administer —
+    /// métricas de toda a organização.
+    /// </summary>
+    [HttpGet("user-evolution")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> GetUserEvolution(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetUserEvolutionReportQuery(from, to), cancellationToken)));
+
+    /// <summary>
+    /// Export do relatório de evolução por usuário — PDF (padrão) ou
+    /// XLSX, com o mesmo branding de empresa dos demais relatórios.
+    /// </summary>
+    [HttpGet("user-evolution/export")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> ExportUserEvolution(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] string? format,
+        CancellationToken cancellationToken)
+    {
+        var exportFormat = PdiExportFormat.Parse(format);
+        var report = await sender.Send(
+            new GetUserEvolutionReportQuery(from, to), cancellationToken);
+        var branding = await ReportBrandingFactory.BuildAsync(
+            sender, environment, User, cancellationToken);
+        var bytes = exportFormat == PdiExportFormat.Xlsx
+            ? UserEvolutionReportRenderers.RenderXlsx(report, branding)
+            : UserEvolutionReportRenderers.RenderPdf(report, branding);
+        await ReportBrandingFactory.AuditExportAsync(
+            auditWriter, unitOfWork, "user-evolution", exportFormat.Extension,
+            User, cancellationToken);
+        return File(bytes, exportFormat.ContentType,
+            $"relatorio-evolucao-usuarios.{exportFormat.Extension}");
+    }
+
+    /// <summary>
     /// Resumo interpretativo com IA (Fase E · docs/34 §37) — LEVEL 0:
     /// lê o mesmo read-model e explica os números; sem ação executável.
     /// Sem provider configurado → 503 amigável (§44/§57).

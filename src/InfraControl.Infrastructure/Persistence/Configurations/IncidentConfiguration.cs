@@ -39,6 +39,9 @@ public sealed class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(x => x.DeviceId)
             .HasColumnName("device_id");
 
+        builder.Property(x => x.AssignedToId)
+            .HasColumnName("assigned_to_id");
+
         builder.Property(x => x.ResolvedAt)
             .HasColumnName("resolved_at");
 

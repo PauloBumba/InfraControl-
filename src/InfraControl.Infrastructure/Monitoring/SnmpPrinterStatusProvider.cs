@@ -37,7 +37,9 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
     private const long IdleAlertCodeMax = 2;
 
     // prtAlertSeverityLevel (RFC 3805): critical(3), warning(4/5).
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(3);
+    // Walk v1 é sequencial (sem GetBulk) — margem maior que o v2c; o check
+    // faz 3 walks, então o timeout é por tabela.
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(4);
 
     public string Name => CheckKind.SnmpPrinterStatus.ToString();
 
@@ -59,8 +61,11 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
         IReadOnlyList<SnmpVariable> inputs;
         try
         {
+            // Impressoras HSDS só respondem SNMPv1 (mesma versão que o
+            // Zabbix usa nos hosts prn-*/HSDS_*); v2c estoura timeout.
             inputs = await snmpClient.WalkAsync(
-                target.Trim(), InputStatusOid, DefaultTimeout, cancellationToken);
+                target.Trim(), InputStatusOid, DefaultTimeout,
+                SnmpVersion.V1, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -77,7 +82,8 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
         try
         {
             covers = await snmpClient.WalkAsync(
-                target.Trim(), CoverStatusOid, DefaultTimeout, cancellationToken);
+                target.Trim(), CoverStatusOid, DefaultTimeout,
+                SnmpVersion.V1, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -92,7 +98,8 @@ public sealed class SnmpPrinterStatusProvider(ISnmpClient snmpClient) : IMonitor
         try
         {
             alerts = await snmpClient.WalkAsync(
-                target.Trim(), AlertTableOid, DefaultTimeout, cancellationToken);
+                target.Trim(), AlertTableOid, DefaultTimeout,
+                SnmpVersion.V1, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

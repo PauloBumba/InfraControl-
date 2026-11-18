@@ -69,9 +69,13 @@ export interface NotificationFeedItem {
  * recentes primeiro com desempate por id (paginação estável). Qualquer
  * papel logado passa no gate (ADR-016 `RoleAccess.Read`); anônimo → 401.
  */
-export async function listFeed(page = 1, pageSize = 20): Promise<Paged<NotificationFeedItem>> {
+export async function listFeed(
+  page = 1,
+  pageSize = 20,
+  includeResolved = false,
+): Promise<Paged<NotificationFeedItem>> {
   const data = await api.get<Paged<NotificationFeedItem>>(
-    `/notifications?page=${page}&pageSize=${pageSize}`,
+    `/notifications?page=${page}&pageSize=${pageSize}&includeResolved=${includeResolved}`,
   );
   return data ?? { items: [], totalCount: 0, page, pageSize };
 }
@@ -100,3 +104,24 @@ export function setPreference(
   });
 }
 
+
+/**
+ * Stats de entregas por dia/canal/status (GET /notifications/delivery-stats,
+ * Operate) — gráficos das telas de WhatsApp, E-mail e Integrações.
+ * `date` = yyyy-MM-dd já no fuso de Brasília; channel/status em texto.
+ */
+export interface NotificationDeliveryStatPoint {
+  date: string;
+  channel: string;
+  status: string;
+  count: number;
+}
+
+export interface NotificationDeliveryStats {
+  points: NotificationDeliveryStatPoint[];
+  days: number;
+}
+
+export function getDeliveryStats(days = 14): Promise<NotificationDeliveryStats | null> {
+  return api.get<NotificationDeliveryStats>(`/notifications/delivery-stats?days=${days}`);
+}

@@ -65,6 +65,9 @@ public static class NotificationEventCatalog
             "TaskResolvedDomainEvent", "Tasks",
             "Task concluída (Resolved/Closed) — executor, solicitante e responsável."),
         new(
+            "TaskSlaBreachedDomainEvent", "Tasks",
+            "Prazo de SLA da tarefa violado (resposta ou resolução) — responsável e criador."),
+        new(
             "ProjectStatusChangedDomainEvent", "Projects",
             "Projeto concluído — membros do projeto."),
     ];

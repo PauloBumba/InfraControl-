@@ -50,6 +50,7 @@ public sealed class SloMeasurementCommandTests : IDisposable
             new SloRepository(context),
             new SloMeasurementRepository(context),
             new SloBudgetRepository(context),
+            new SloCheckBindingRepository(context),
             NullLogger<DeleteSloCommandHandler>.Instance);
 
     private static async Task<Guid> SeedSloAsync(AppDbContext context)

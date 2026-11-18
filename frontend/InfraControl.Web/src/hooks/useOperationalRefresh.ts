@@ -21,6 +21,12 @@ const OPERATIONAL_EVENTS = new Set([
   "IncidentResolvedDomainEvent",
   "AlertCreatedDomainEvent",
   "AlertResolvedDomainEvent",
+  "TaskItemCreatedDomainEvent",
+  "TaskResolvedDomainEvent",
+  "TaskSlaBreachedDomainEvent",
+  "ProjectStatusChangedDomainEvent",
+  "PdiCreatedDomainEvent",
+  "PdiUpdatedDomainEvent",
 ]);
 
 export function useOperationalRefresh(onChange: () => void): void {

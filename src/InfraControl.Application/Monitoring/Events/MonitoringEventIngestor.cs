@@ -63,8 +63,8 @@ public interface IMonitoringEventIngestor
 /// dedup por (Source, ExternalEventId) — sem título, sem device como chave.
 /// Um SaveChanges único por ingestão (evento + alerta + incidente + vínculo
 /// são atômicos); corrida de duplicata simultânea estoura o índice único e o
-/// retry do Zabbix cai no caminho duplicate (notificações do mesmo trigger são
-/// sequenciais na fonte — doc do webhook). F19-T003: Alert/Incident vêm do
+/// TrySaveAsync responde duplicate/resolved relendo o estado persistido
+/// (notificações do mesmo trigger são sequenciais na fonte — doc do webhook). F19-T003: Alert/Incident vêm do
 /// AlertEvaluator.EvaluateExternalAsync (sem streaks, correlação BFS,
 /// supressão; incidente SOMENTE se Critical).
 /// </summary>
@@ -194,7 +194,15 @@ public sealed class MonitoringEventIngestor(
             }
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            // Corrida de primeiro delivery: outro request gravou o mesmo
+            // (Source, ExternalEventId) — responde duplicate em vez de 500.
+            logger.LogInformation(
+                "Corrida de ingestão Zabbix (evento {EventId}): gravação concorrente venceu — respondendo duplicate.",
+                eventId);
+            return await DuplicateOutcomeAsync(eventId, cancellationToken);
+        }
 
         if (evaluation.Suppressed)
         {
@@ -324,7 +332,15 @@ public sealed class MonitoringEventIngestor(
             alert.Id, cancellationToken);
         problemState?.MarkResolved(occurredAt);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+        {
+            // OK concorrente gravou o recovery primeiro — estado já é o
+            // resolvido; devolve o outcome estável sem erro.
+            logger.LogInformation(
+                "Corrida de ingestão Zabbix (OK do evento {ProblemId}): gravação concorrente venceu — respondendo resolved.",
+                problemId);
+            return await ResolvedOutcomeAsync(problemId, cancellationToken);
+        }
 
         // Replay pós-resolução: devolve o incidente já fechado.
         incidentId ??= (await incidentRepository.GetLinkedIdsToAlertAsync(
@@ -364,7 +380,8 @@ public sealed class MonitoringEventIngestor(
             input.RawPayload,
             input.SourceContextJson);
         await eventRepository.AddAsync(orphan, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (!await unitOfWork.TrySaveChangesAsync(cancellationToken))
+            return new(null, null, IngestOutcome.None);
 
         logger.LogWarning(
             "Recovery órfão do Zabbix: nenhum problem row para o evento {ProblemId} (recovery {RecoveryId}).",

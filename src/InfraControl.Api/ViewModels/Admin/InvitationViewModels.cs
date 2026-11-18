@@ -13,3 +13,6 @@ public sealed record CreateInvitationViewModel(
 /// <summary>PUT do convite pendente (ADR-030 §1).</summary>
 public sealed record UpdateInvitationViewModel(IReadOnlyCollection<string> Roles);
 
+/// <summary>POST /admin/invitations/{id}/resend — SendEmail=false só gera o link.</summary>
+public sealed record ResendInvitationViewModel(bool SendEmail = true);
+

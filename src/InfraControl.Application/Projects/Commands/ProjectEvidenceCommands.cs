@@ -26,6 +26,7 @@ public sealed record UploadProjectEvidenceCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class UploadProjectEvidenceCommandHandler(
@@ -103,6 +104,7 @@ public sealed record ReviewProjectEvidenceCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ReviewProjectEvidenceCommandHandler(
@@ -151,6 +153,7 @@ public sealed record DeleteProjectEvidenceCommand(Guid Id)
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class DeleteProjectEvidenceCommandHandler(

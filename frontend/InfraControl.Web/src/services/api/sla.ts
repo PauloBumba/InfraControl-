@@ -18,6 +18,16 @@ export interface SloItem {
   targetPercent: number;
   windowDays: number;
   serviceId: string;
+  /** Medição mais recente dentro da janela (null = sem dado válido). */
+  latestValuePercent: number | null;
+  /** Quando a última medição foi registrada (UTC ISO). */
+  latestMeasuredAtUtc: string | null;
+  /** % do error budget consumido no período vigente (null = sem orçamento). */
+  budgetConsumedPercent: number | null;
+  /** Fim do período do orçamento vigente (null = aberto/sem orçamento). */
+  budgetPeriodEndUtc: string | null;
+  /** ADR-068: checks de monitoramento medidos por este SLO (vazio = só manual). */
+  monitoringCheckIds: string[];
 }
 
 export interface SlaPolicyItem {
@@ -26,6 +36,8 @@ export interface SlaPolicyItem {
   responseMinutes: number;
   resolutionMinutes: number;
   serviceId: string | null;
+  /** Política padrão global — auto-aplicada a toda task nova. */
+  isDefault: boolean;
 }
 
 export interface SloBudgetItem {
@@ -133,12 +145,14 @@ export function createSlaPolicy(input: {
   responseMinutes: number;
   resolutionMinutes: number;
   serviceId?: string;
+  isDefault?: boolean;
 }): Promise<SlaPolicyItem | null> {
   return api.post<SlaPolicyItem>("/sla/policies", {
     name: input.name,
     responseMinutes: input.responseMinutes,
     resolutionMinutes: input.resolutionMinutes,
     serviceId: input.serviceId || null,
+    isDefault: input.isDefault ?? false,
   });
 }
 
@@ -150,6 +164,7 @@ export async function updateSlaPolicy(
     responseMinutes: number;
     resolutionMinutes: number;
     serviceId?: string;
+    isDefault?: boolean;
   },
 ): Promise<null> {
   return api.put<null>(`/sla/policies/${id}`, {
@@ -157,6 +172,7 @@ export async function updateSlaPolicy(
     responseMinutes: input.responseMinutes,
     resolutionMinutes: input.resolutionMinutes,
     serviceId: input.serviceId || null,
+    isDefault: input.isDefault ?? false,
   });
 }
 
@@ -165,31 +181,40 @@ export async function deleteSlaPolicy(id: string): Promise<null> {
   return api.delete<null>(`/sla/policies/${id}`);
 }
 
-/** Cria SLO (Operate; serviceId obrigatório). */
+/** Cria SLO (Operate; serviceId obrigatório; monitoringCheckIds = o que mede). */
 export function createSlo(input: {
   name: string;
   targetPercent: number;
   windowDays: number;
   serviceId: string;
+  monitoringCheckIds?: string[];
 }): Promise<SloItem | null> {
   return api.post<SloItem>("/sla/slos", {
     name: input.name,
     targetPercent: input.targetPercent,
     windowDays: input.windowDays,
     serviceId: input.serviceId,
+    monitoringCheckIds: input.monitoringCheckIds ?? [],
   });
 }
 
-/** Atualiza SLO (PUT /sla/slos/{id}). */
+/** Atualiza SLO (PUT /sla/slos/{id}; monitoringCheckIds = replace do conjunto). */
 export async function updateSlo(
   id: string,
-  input: { name: string; targetPercent: number; windowDays: number; serviceId: string },
+  input: {
+    name: string;
+    targetPercent: number;
+    windowDays: number;
+    serviceId: string;
+    monitoringCheckIds?: string[];
+  },
 ): Promise<null> {
   return api.put<null>(`/sla/slos/${id}`, {
     name: input.name,
     targetPercent: input.targetPercent,
     windowDays: input.windowDays,
     serviceId: input.serviceId,
+    monitoringCheckIds: input.monitoringCheckIds ?? [],
   });
 }
 

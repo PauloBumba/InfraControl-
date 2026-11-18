@@ -56,6 +56,30 @@ public interface IAlertRepository : IRepository<Alert>
         DateTime fromUtc, DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// F54-T001: contagem de alertas Open por (device, severidade) para o
+    /// overview da frota — uma query agrupada em vez de N searches por
+    /// device. Alertas externos sem device mapeado ficam de fora.
+    /// </summary>
+    Task<IReadOnlyList<OpenAlertCount>> GetOpenCountsByDeviceAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Contagem de alertas Open agrupada por severidade — TODAS as
+    /// origens (inclusive alertas externos sem device mapeado).
+    /// Usado pelo relatório geral.
+    /// </summary>
+    Task<IReadOnlyList<OpenSeverityCount>> GetOpenCountsBySeverityAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Usuário existe (para atribuição de responsável).</summary>
+    Task<bool> UserExistsAsync(
+        Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Nome de exibição dos usuários (id → DisplayName).</summary>
+    Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -63,7 +87,18 @@ public interface IAlertRepository : IRepository<Alert>
 /// Alert com o device já carregado (projeção do search). DeviceName null
 /// quando o alerta externo não mapeou device (ADR-027).
 /// </summary>
-public sealed record AlertWithDevice(Alert Alert, string? DeviceName);
+public sealed record AlertWithDevice(
+    Alert Alert,
+    string? DeviceName,
+    string? AssignedToName = null,
+    Guid? LinkedIncidentId = null,
+    string? LinkedIncidentTitle = null);
 
 /// <summary>Linha de carimbos de alerta para a série do dashboard (F54-T003).</summary>
 public sealed record AlertTimestampRow(DateTime CreatedAt, DateTime? ResolvedAt);
+
+/// <summary>F54-T001: alertas Open agregados por device e severidade.</summary>
+public sealed record OpenAlertCount(Guid DeviceId, AlertSeverity Severity, int Count);
+
+/// <summary>Alerta Open por severidade (relatório geral).</summary>
+public sealed record OpenSeverityCount(AlertSeverity Severity, int Count);

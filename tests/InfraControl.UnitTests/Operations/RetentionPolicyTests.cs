@@ -77,6 +77,7 @@ public sealed class RetentionPolicyTests
             RetentionDataType.MonitoringEvents,
             RetentionDataType.Invitations,
             RetentionDataType.UniFiSyncRuns,
+            RetentionDataType.OccurrenceTransitions,
             // F50: Backups = poda de dumps (BackupWorker); os 3 gerenciados
             // são registrados na tela sem aplicação pelo app.
             RetentionDataType.Backups,

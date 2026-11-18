@@ -49,7 +49,7 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
             .Should().Be("120363431225988863@g.us", "GroupId é prioritário (ADR-059 §3)");
         var text = body.RootElement.GetProperty("text").GetString();
         text.Should().Contain("Carga de CPU alta")
-            .And.Contain("18/10/2026 14:33");
+            .And.Contain("18/10/2026 11:33");
     }
 
     [Fact]
@@ -131,11 +131,12 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         var text = JsonDocument.Parse(recording.Body!).RootElement
             .GetProperty("text").GetString()!;
 
-        text.Should().Contain("*Alerta crítico*")
-            .And.Contain("📍 TEL 1565 - TI (1º andar) fora do ar")
-            .And.Contain("🎚️ Severidade: CRÍTICO")
+        text.Should().Contain("🔴 *ALERTA CRÍTICO*")
+            .And.Contain("*TEL 1565 - TI (1º andar) fora do ar*")
+            .And.Contain("Severidade: *CRÍTICO*")
             .And.Contain("💡 Verificar o equipamento e a rede local.")
-            .And.Contain("🕐 11/11/2026 08:50");
+            .And.Contain("🕐 11/11/2026 05:50 · Brasília")
+            .And.Contain("_InfraControl_");
         text.Should().NotContain("TEL 1565 - TI (1º andar): TEL",
             "a duplicação host:trigger não pode ir para o WhatsApp");
     }
@@ -156,9 +157,9 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         var text = JsonDocument.Parse(recording.Body!).RootElement
             .GetProperty("text").GetString()!;
 
-        text.Should().Contain("🟢 *Alerta resolvido*")
-            .And.Contain("📍 TEL 1565 - TI (1º andar) fora do ar")
-            .And.Contain("🕐 11/11/2026 08:56");
+        text.Should().Contain("🟢 *ALERTA RESOLVIDO*")
+            .And.Contain("*TEL 1565 - TI (1º andar) fora do ar*")
+            .And.Contain("🕐 11/11/2026 05:56 · Brasília");
     }
 
     [Fact]
@@ -177,9 +178,10 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         var text = JsonDocument.Parse(recording.Body!).RootElement
             .GetProperty("text").GetString()!;
 
-        text.Should().Contain("*Incidente — ALTO*")
-            .And.Contain("📍 HSDS_NVR_SVR7164: CPU acima do limite",
-                "sem prefixo duplicado, host:trigger é informação útil e fica");
+        text.Should().Contain("*INCIDENTE — ALTO*")
+            .And.Contain("*HSDS_NVR_SVR7164: CPU acima do limite*",
+                "sem prefixo duplicado, host:trigger é informação útil e fica")
+            .And.Contain("Severidade: *ALTO*");
     }
 
     [Fact]
@@ -200,7 +202,7 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
 
         text.Should().Contain("🔔 *Usuário criado*")
             .And.Contain("O usuário maria@hsds.com.br foi criado.")
-            .And.Contain("🕐 11/11/2026 09:05");
+            .And.Contain("🕐 11/11/2026 06:05");
     }
 
     // ── Policies (spec ADR-059 §4 — idêntica ao n8n) ─────────────────
@@ -229,7 +231,7 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
         body.RootElement.GetProperty("fileName").GetString()
             .Should().Be("infracontrol-evento.png");
         body.RootElement.GetProperty("caption").GetString()
-            .Should().Contain("Alerta resolvido")
+            .Should().Contain("ALERTA RESOLVIDO")
             .And.Contain("sw-01");
         var media = body.RootElement.GetProperty("media").GetString()!;
         Convert.FromBase64String(media).Should().StartWith([0x89, 0x50, 0x4E, 0x47]);
@@ -248,7 +250,7 @@ public sealed class EvolutionApiWhatsAppNotificationDispatcherTests
                 "geração do PNG falhou → o evento NUNCA fica por enviar");
         var body = JsonDocument.Parse(recording.Body!);
         body.RootElement.GetProperty("text").GetString()
-            .Should().Contain("Alerta resolvido");
+            .Should().Contain("ALERTA RESOLVIDO");
     }
 
     [Fact]

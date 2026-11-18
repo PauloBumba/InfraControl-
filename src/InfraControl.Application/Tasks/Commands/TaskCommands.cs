@@ -1,3 +1,5 @@
+using InfraControl.Application.Sla.Policies.Ports;
+using InfraControl.Application.Sla.TaskSlas.Ports;
 using InfraControl.Application.Tasks.Ports;
 using InfraControl.Application.Tasks.History.Ports;
 using InfraControl.BuildingBlocks.Application;
@@ -31,6 +33,8 @@ public sealed class CreateTaskCommandHandler(
     ITaskAssigneeRepository assigneeRepository,
     ITaskHistoryWriter historyWriter,
     ICurrentUserContext currentUser,
+    ISlaPolicyRepository slaPolicyRepository,
+    ITaskSlaRepository taskSlaRepository,
     ILogger<CreateTaskCommandHandler> logger)
     : IRequestHandler<CreateTaskCommand, TaskDto>
 {
@@ -88,6 +92,22 @@ public sealed class CreateTaskCommandHandler(
             await historyWriter.RecordAsync(
                 parent.Id, TaskHistoryAction.SubtaskAdded, task.Title,
                 cancellationToken);
+
+        // SLA padrão: política global marcada como padrão é aplicada
+        // automaticamente a toda task nova (snapshot dos prazos — a
+        // política pode mudar depois sem afetar esta task).
+        var defaultPolicy = await slaPolicyRepository.GetDefaultAsync(cancellationToken);
+        if (defaultPolicy is not null
+            && await taskSlaRepository.GetByTaskIdAsync(task.Id, cancellationToken) is null)
+        {
+            var sla = TaskSla.Apply(task, defaultPolicy);
+            await taskSlaRepository.AddAsync(sla, cancellationToken);
+            await taskSlaRepository.SaveChangesAsync(cancellationToken);
+            await historyWriter.RecordAsync(
+                task.Id, TaskHistoryAction.SlaApplied,
+                $"padrão: resposta {defaultPolicy.ResponseMinutes} min, resolução {defaultPolicy.ResolutionMinutes} min",
+                cancellationToken);
+        }
 
         logger.LogInformation(
             "Task {TaskId} created ({Kind} — {Title}){Parent} by {User}.",

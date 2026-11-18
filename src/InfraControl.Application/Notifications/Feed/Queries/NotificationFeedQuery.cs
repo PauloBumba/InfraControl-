@@ -13,7 +13,10 @@ namespace InfraControl.Application.Notifications.Feed.Queries;
 /// `NotificationRecipient` → `Notification`, mais recentes primeiro).
 /// O usuário e as roles vêm do `ICurrentUserContext` (não da query).
 /// </summary>
-public sealed record GetNotificationFeedQuery(int Page = 1, int PageSize = 20)
+public sealed record GetNotificationFeedQuery(
+    int Page = 1,
+    int PageSize = 20,
+    bool IncludeResolved = false)
     : IQuery<PagedResult<NotificationFeedItemDto>>, IAuthorizedRequest
 {
     // ADR-016: leitura = qualquer role canônica (Viewer, Operator, Admin).
@@ -37,7 +40,8 @@ public sealed class GetNotificationFeedQueryHandler(
                 "Usuário autenticado é obrigatório para o feed de notificações.");
 
         var result = await repository.SearchForUserAsync(
-            userId, currentUser.Roles, page, pageSize, cancellationToken);
+            userId, currentUser.Roles, page, pageSize,
+            request.IncludeResolved, cancellationToken);
 
         return new PagedResult<NotificationFeedItemDto>(
             result.Items

@@ -18,7 +18,8 @@ public sealed class SnmpPrinterCountersProvider(ISnmpClient snmpClient) : IMonit
     /// <summary>prtMarkerLifeCount — total de impressões (counter).</summary>
     public const string LifeCountOid = "1.3.6.1.2.1.43.10.2.1.4";
 
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+    // Walk v1 é sequencial (sem GetBulk) — margem maior que o v2c.
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(4);
 
     public string Name => CheckKind.SnmpPrinterCounters.ToString();
 
@@ -37,8 +38,11 @@ public sealed class SnmpPrinterCountersProvider(ISnmpClient snmpClient) : IMonit
         IReadOnlyList<SnmpVariable> variables;
         try
         {
+            // Impressoras HSDS só respondem SNMPv1 (mesma versão que o
+            // Zabbix usa nos hosts prn-*/HSDS_*); v2c estoura timeout.
             variables = await snmpClient.WalkAsync(
-                target.Trim(), LifeCountOid, DefaultTimeout, cancellationToken);
+                target.Trim(), LifeCountOid, DefaultTimeout,
+                SnmpVersion.V1, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -18,4 +18,19 @@ public interface IMonitoringEventRepository : IRepository<MonitoringEvent>
         CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Projeção mínima (OccurredAt/Severity/Status) dos eventos da fonte
+    /// desde <paramref name="sinceUtc"/> — base dos gráficos de estatística.
+    /// </summary>
+    Task<IReadOnlyList<MonitoringEventStatRow>> ListStatsSinceAsync(
+        MonitoringSource source,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default);
 }
+
+/// <summary>Linha crua de evento de monitoramento para agregação em stats.</summary>
+public sealed record MonitoringEventStatRow(
+    DateTime OccurredAtUtc,
+    int Severity,
+    MonitoringEventStatus Status);

@@ -268,6 +268,181 @@ public sealed class ModuleReportsRepository(AppDbContext db) : IModuleReportsRep
             atencao);
     }
 
+    // ── Evolução por usuário ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Desempenho por usuário no período: tasks por responsável, projetos
+    /// (líder/membro/concluído), PDI (status + progresso médio das fases)
+    /// e artigos de conhecimento por autor. Agregação em memória após
+    /// projeções mínimas — volumes de RH são pequenos e as junções
+    /// PDI→fase não traduzem bem para GROUP BY.
+    /// </summary>
+    public async Task<UserEvolutionReportDto> GetUserEvolutionReportAsync(
+        DateOnly? from,
+        DateOnly? to,
+        CancellationToken cancellationToken = default)
+    {
+        var (lower, upper) = Bounds(from, to);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+
+        var users = await db.DomainUsers.AsNoTracking()
+            .OrderBy(u => u.DisplayName)
+            .Select(u => new { u.Id, u.DisplayName, u.Email })
+            .ToListAsync(cancellationToken);
+        var userIds = users.Select(u => u.Id).ToList();
+
+        // ── Tasks por responsável ──
+        var taskRows = await Scope(db.Tasks.AsNoTracking(), lower, upper)
+            .Where(t => t.ResponsibleId != null && userIds.Contains(t.ResponsibleId.Value))
+            .Select(t => new
+            {
+                UserId = t.ResponsibleId!.Value,
+                t.State,
+                t.DueDate,
+            })
+            .ToListAsync(cancellationToken);
+
+        var tasksByUser = taskRows
+            .GroupBy(t => t.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    Created = g.Count(),
+                    Completed = g.Count(t =>
+                        t.State == TaskState.Resolved || t.State == TaskState.Closed),
+                    Overdue = g.Count(t =>
+                        t.DueDate != null && t.DueDate.Value < today
+                        && t.State != TaskState.Closed
+                        && t.State != TaskState.Resolved
+                        && t.State != TaskState.Cancelled),
+                    InProgress = g.Count(t =>
+                        t.State == TaskState.Open || t.State == TaskState.InProgress
+                        || t.State == TaskState.Waiting || t.State == TaskState.Blocked),
+                });
+
+        // ── Projetos: líder + membro ──
+        var projectRows = await Scope(db.Projects.AsNoTracking(), lower, upper)
+            .Select(p => new { p.Id, p.LeaderId, p.Status })
+            .ToListAsync(cancellationToken);
+        var projectIds = projectRows.Select(p => p.Id).ToList();
+        var memberRows = projectIds.Count == 0
+            ? []
+            : await db.ProjectMembers.AsNoTracking()
+                .Where(m => projectIds.Contains(m.ProjectId) && userIds.Contains(m.UserId)
+                    && m.Role != ProjectMemberRole.Leader)
+                .Select(m => new { m.ProjectId, m.UserId })
+                .ToListAsync(cancellationToken);
+
+        var projectsLed = projectRows
+            .Where(p => userIds.Contains(p.LeaderId))
+            .GroupBy(p => p.LeaderId)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var projectsCompleted = projectRows
+            .Where(p => p.Status == ProjectStatus.Completed)
+            .ToList();
+
+        // ── PDI: status + progresso médio das fases ──
+        var pdiRows = await db.IndividualDevelopmentPlans.AsNoTracking()
+            .Where(p => userIds.Contains(p.UserId))
+            .Select(p => new { p.UserId, p.Status, p.TargetDate })
+            .ToListAsync(cancellationToken);
+
+        var pdiUserIds = pdiRows.Select(p => p.UserId).Distinct().ToList();
+        var objectiveRows = pdiUserIds.Count == 0
+            ? []
+            : await db.PdiObjectives.AsNoTracking()
+                .Where(o => pdiUserIds.Contains(o.UserId))
+                .Select(o => new { o.Id, o.UserId })
+                .ToListAsync(cancellationToken);
+        var objectiveToUser = objectiveRows.ToDictionary(o => o.Id, o => o.UserId);
+        var objectiveIds = objectiveRows.Select(o => o.Id).ToList();
+
+        var strategyRows = objectiveIds.Count == 0
+            ? []
+            : await db.PdiStrategies.AsNoTracking()
+                .Where(s => objectiveIds.Contains(s.ObjectiveId))
+                .Select(s => new { s.Id, s.ObjectiveId })
+                .ToListAsync(cancellationToken);
+        var strategyToUser = strategyRows.ToDictionary(
+            s => s.Id,
+            s => objectiveToUser.GetValueOrDefault(s.ObjectiveId));
+        var strategyIds = strategyRows.Select(s => s.Id).ToList();
+
+        var phaseRows = strategyIds.Count == 0
+            ? []
+            : await db.PdiPhases.AsNoTracking()
+                .Where(p => strategyIds.Contains(p.StrategyId))
+                .Select(p => new { p.StrategyId, p.Percent })
+                .ToListAsync(cancellationToken);
+
+        var pdiProgress = phaseRows
+            .GroupBy(p => strategyToUser.GetValueOrDefault(p.StrategyId))
+            .Where(g => g.Key != Guid.Empty)
+            .ToDictionary(
+                g => g.Key,
+                g => (int)Math.Round(g.Average(p => (double)p.Percent),
+                    MidpointRounding.AwayFromZero));
+
+        var pdiByUser = pdiRows
+            .GroupBy(p => p.UserId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // ── Knowledge por autor ──
+        var knowledgeGroups = await Scope(db.KnowledgeArticles.AsNoTracking(), lower, upper)
+            .Where(a => a.AuthorId != null && userIds.Contains(a.AuthorId.Value))
+            .GroupBy(a => a.AuthorId!.Value)
+            .Select(g => new { UserId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        var knowledgeByUser = knowledgeGroups.ToDictionary(g => g.UserId, g => g.Count);
+
+        var rows = users.Select(user =>
+        {
+            tasksByUser.TryGetValue(user.Id, out var tasks);
+            var ledProjects = projectsLed.GetValueOrDefault(user.Id);
+            var memberProjects = memberRows
+                .Where(m => m.UserId == user.Id)
+                .Select(m => m.ProjectId)
+                .Distinct()
+                .Count();
+            var completedProjects = projectsCompleted.Count(p =>
+                p.LeaderId == user.Id
+                || memberRows.Any(m => m.ProjectId == p.Id && m.UserId == user.Id));
+            pdiByUser.TryGetValue(user.Id, out var pdi);
+
+            return new UserEvolutionRowDto(
+                user.Id,
+                user.DisplayName,
+                user.Email,
+                tasks?.Created ?? 0,
+                tasks?.Completed ?? 0,
+                tasks?.Overdue ?? 0,
+                tasks?.InProgress ?? 0,
+                ledProjects,
+                memberProjects,
+                completedProjects,
+                pdi?.Status.ToString(),
+                pdi is null ? null : pdiProgress.GetValueOrDefault(user.Id),
+                pdi?.TargetDate,
+                knowledgeByUser.GetValueOrDefault(user.Id));
+        }).ToList();
+
+        var totals = new UserEvolutionTotalsDto(
+            taskRows.Count,
+            taskRows.Count(t =>
+                t.State == TaskState.Resolved || t.State == TaskState.Closed),
+            taskRows.Count(t =>
+                t.DueDate != null && t.DueDate.Value < today
+                && t.State != TaskState.Closed
+                && t.State != TaskState.Resolved
+                && t.State != TaskState.Cancelled),
+            projectsCompleted.Count,
+            pdiRows.Count(p => p.Status == PdiStatus.Completed),
+            knowledgeGroups.Sum(g => g.Count));
+
+        return new UserEvolutionReportDto(from, to, rows.Count, totals, rows);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────
 
     private static (DateTime? Lower, DateTime? Upper) Bounds(DateOnly? from, DateOnly? to)

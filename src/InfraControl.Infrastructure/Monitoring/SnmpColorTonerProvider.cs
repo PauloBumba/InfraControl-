@@ -18,7 +18,8 @@ public sealed class SnmpColorTonerProvider(ISnmpClient snmpClient) : IMonitoring
     /// <summary>prtMarkerSuppliesTable.</summary>
     public const string SuppliesTableOid = "1.3.6.1.2.1.43.11.1.1";
 
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+    // Walk v1 é sequencial (sem GetBulk) — margem maior que o v2c.
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(4);
 
     public string Name => CheckKind.SnmpColorToner.ToString();
 
@@ -37,8 +38,11 @@ public sealed class SnmpColorTonerProvider(ISnmpClient snmpClient) : IMonitoring
         IReadOnlyList<SnmpVariable> variables;
         try
         {
+            // Impressoras HSDS só respondem SNMPv1 (mesma versão que o
+            // Zabbix usa nos hosts prn-*/HSDS_*); v2c estoura timeout.
             variables = await snmpClient.WalkAsync(
-                target.Trim(), SuppliesTableOid, DefaultTimeout, cancellationToken);
+                target.Trim(), SuppliesTableOid, DefaultTimeout,
+                SnmpVersion.V1, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -87,18 +91,29 @@ public sealed class SnmpColorTonerProvider(ISnmpClient snmpClient) : IMonitoring
     private static IEnumerable<(string Color, int Percent)> ParseColorSupplies(
         IReadOnlyList<SnmpVariable> variables)
     {
-        // colunas da prtMarkerSuppliesTable: 6=description, 8=maxCapacity, 9=level
+        // OIDs reais das impressoras (confirmado no Zabbix HSDS): a instância
+        // é composta (ex.: "1.1"), então depois do prefixo da tabela sobra
+        // "<coluna>.<instancia...>" — coluna 6=description, 8=maxCapacity,
+        // 9=level (numeração que os agentes Canon/HP/Epson expõem).
         var byInstance = new Dictionary<string, (string? Description, long? Max, long? Level)>(
             StringComparer.Ordinal);
 
+        const string prefix = SuppliesTableOid + ".";
         foreach (var variable in variables)
         {
-            var parts = variable.Oid.TrimEnd('.').Split('.');
-            if (parts.Length < 2)
+            if (!variable.Oid.StartsWith(prefix, StringComparison.Ordinal))
                 continue;
 
-            var column = parts[^2];
-            var instance = parts[^1];
+            var rest = variable.Oid[prefix.Length..].TrimEnd('.');
+            var dot = rest.IndexOf('.');
+            if (dot <= 0)
+                continue;
+
+            var column = rest[..dot];
+            var instance = rest[(dot + 1)..];
+            if (instance.Length == 0)
+                continue;
+
             if (!byInstance.TryGetValue(instance, out var entry))
                 entry = (null, null, null);
 

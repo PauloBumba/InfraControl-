@@ -19,6 +19,11 @@ public interface ISwitchPortVlanRepository : IRepository<SwitchPortVlan>
         Guid vlanId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Todos os vínculos de um conjunto de portas (explorer do switch — evita N+1).</summary>
+    Task<IReadOnlyList<SwitchPortVlan>> GetByPortIdsAsync(
+        IEnumerable<Guid> switchPortIds,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Usado pelo DeleteSwitchPort para bloquear exclusão com VLANs (→ 409).</summary>
     Task<bool> HasVlanLinksAsync(Guid switchPortId, CancellationToken cancellationToken = default);
 

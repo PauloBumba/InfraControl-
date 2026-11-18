@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { FormField, FormError } from "@/components/ui/FormField";
@@ -17,14 +17,23 @@ import {
   upsertAiProviderCapability,
   deleteAiProviderCapability,
   testAiCapabilityMessage,
+  testAiProviderMessage,
   testAiProviderConnection,
   listAiProviderModels,
   validateAiProvider,
   type AiCapabilityTestResult,
   type AiProviderDto,
   type AiConnectionValidationDto,
+  type AiProviderProtocol,
   type ValidateAiProviderPayload,
 } from "@/services/api/aiProviders";
+
+const AI_PROVIDER_PROTOCOLS: { value: AiProviderProtocol; label: string }[] = [
+  { value: "OpenAiCompatible", label: "OpenAI-compatible (Groq, Mistral, DeepSeek, Together…)" },
+  { value: "Ollama", label: "Ollama (local)" },
+  { value: "Gemini", label: "Gemini (Google)" },
+  { value: "Anthropic", label: "Anthropic (Claude)" },
+];
 
 const inputStyle: React.CSSProperties = {
   padding: "7px 10px",
@@ -61,6 +70,9 @@ export function AiProvidersPage() {
   const [routeTestResults, setRouteTestResults] = useState<
     Record<string, AiCapabilityTestResult | { error: string }>
   >({});
+  const [messageResults, setMessageResults] = useState<
+    Record<string, AiCapabilityTestResult | { error: string }>
+  >({});
   const [modelResults, setModelResults] = useState<Record<string, { models: string[]; error: string | null }>>({});
 
   const [showCreate, setShowCreate] = useState(false);
@@ -68,11 +80,13 @@ export function AiProvidersPage() {
   const [newBaseUrl, setNewBaseUrl] = useState("");
   const [newApiKey, setNewApiKey] = useState("");
   const [newModels, setNewModels] = useState("");
+  const [newProtocol, setNewProtocol] = useState<AiProviderProtocol>("OpenAiCompatible");
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editBaseUrl, setEditBaseUrl] = useState("");
   const [editApiKey, setEditApiKey] = useState("");
   const [editModels, setEditModels] = useState("");
+  const [editProtocol, setEditProtocol] = useState<AiProviderProtocol>("OpenAiCompatible");
 
   // F49-T004: dry-run de validação em fases (nunca persiste).
   const [showValidate, setShowValidate] = useState(false);
@@ -113,8 +127,8 @@ export function AiProvidersPage() {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, baseUrl, apiKey, models }: { id: string; baseUrl: string; apiKey: string | null; models: string[] | null }) =>
-      updateAiProvider(id, { baseUrl, apiKey, models }),
+    mutationFn: ({ id, baseUrl, apiKey, models, protocol }: { id: string; baseUrl: string; apiKey: string | null; models: string[] | null; protocol: AiProviderProtocol }) =>
+      updateAiProvider(id, { baseUrl, apiKey, models, protocol }),
     onSuccess: (provider) => {
       notify(`Provider "${provider.name}" atualizado.`);
       setEditId(null);
@@ -219,6 +233,32 @@ export function AiProvidersPage() {
     },
   });
 
+  const testMessage = useMutation({
+    mutationFn: (id: string) => testAiProviderMessage(id),
+    onSuccess: (result, id) => {
+      // Normaliza: RouteTestResult decide por "error" in result — o DTO
+      // sempre traz a chave (null no sucesso), então removemos-a aqui.
+      setMessageResults((prev) => ({
+        ...prev,
+        [id]: result.error
+          ? { error: result.error }
+          : {
+              text: result.text,
+              provider: result.provider,
+              model: result.model,
+              usedFallback: result.usedFallback,
+              durationMs: result.durationMs,
+            },
+      }));
+    },
+    onError: (error, id) => {
+      setMessageResults((prev) => ({
+        ...prev,
+        [id]: { error: mutationErrorMessage(error as Error) ?? "Erro desconhecido." },
+      }));
+    },
+  });
+
   const models = useMutation({
     mutationFn: (id: string) => listAiProviderModels(id),
     onSuccess: (result, id) => {
@@ -243,6 +283,7 @@ export function AiProvidersPage() {
     setEditBaseUrl(provider.baseUrl);
     setEditApiKey("");
     setEditModels(provider.models.join(", "));
+    setEditProtocol(provider.protocol ?? "OpenAiCompatible");
     setSaveError(null);
   }
 
@@ -250,7 +291,6 @@ export function AiProvidersPage() {
 
   const providers = list.data?.providers ?? [];
   const capabilities = list.data?.capabilities ?? [];
-  const adapters = list.data?.availableAdapterNames ?? [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -258,8 +298,16 @@ export function AiProvidersPage() {
         title="Providers de IA"
         subtitle="Administração → IA · Cadastro-first (ADR-057): o resolve usa a linha do banco; sem linha cai no config"
         actions={
-          <Can level="administer">
-            <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button
+              icon="pi pi-chart-bar"
+              variant="ghost"
+              onClick={() => window.open("/grafana/d/infracontrol-overview", "_blank", "noopener")}
+              title="Métricas de consumo de IA (requests, latência, tokens) — Grafana/Prometheus"
+            >
+              Métricas IA
+            </Button>
+            <Can level="administer">
               <Button
                 type="button"
                 variant="info"
@@ -276,8 +324,8 @@ export function AiProvidersPage() {
               >
                 {showCreate ? "Cancelar" : "Cadastrar provider"}
               </Button>
-            </div>
-          </Can>
+            </Can>
+          </div>
         }
       />
 
@@ -296,6 +344,7 @@ export function AiProvidersPage() {
                   baseUrl: newBaseUrl.trim(),
                   apiKey: newApiKey.trim() === "" ? null : newApiKey.trim(),
                   models: parseModels(newModels),
+                  protocol: newProtocol,
                 });
               }}
               style={{ display: "flex", flexDirection: "column", gap: 12 }}
@@ -308,16 +357,24 @@ export function AiProvidersPage() {
                   gap: 12,
                 }}
               >
-                <FormField label="Adaptador (nome registrado em código)">
-                  <select
+                <FormField label="Nome do provider (ex.: groq, mistral, meu-gemini)">
+                  <input
                     value={newName}
                     onChange={(event) => setNewName(event.target.value)}
+                    placeholder="groq"
+                    style={inputStyle}
+                    autoComplete="off"
+                  />
+                </FormField>
+                <FormField label="Protocolo">
+                  <select
+                    value={newProtocol}
+                    onChange={(event) => setNewProtocol(event.target.value as AiProviderProtocol)}
                     style={inputStyle}
                   >
-                    <option value="">Selecione…</option>
-                    {adapters.map((adapter) => (
-                      <option key={adapter} value={adapter}>
-                        {adapter}
+                    {AI_PROVIDER_PROTOCOLS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
@@ -534,6 +591,7 @@ export function AiProvidersPage() {
               <th style={{ padding: "6px 8px" }}>Nome</th>
               <th style={{ padding: "6px 8px" }}>Estado</th>
               <th style={{ padding: "6px 8px" }}>URL base</th>
+              <th style={{ padding: "6px 8px" }}>Protocolo</th>
               <th style={{ padding: "6px 8px" }}>Chave</th>
               <th style={{ padding: "6px 8px" }}>Modelos</th>
               <th style={{ padding: "6px 8px" }}>Ações</th>
@@ -544,7 +602,8 @@ export function AiProvidersPage() {
               const testResult = testResults[provider.id];
               const modelResult = modelResults[provider.id];
               return (
-              <tr key={provider.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+              <Fragment key={provider.id}>
+              <tr style={{ borderTop: "1px solid #f1f5f9" }}>
                 <td style={{ padding: "8px", fontWeight: 500 }}>{provider.name}</td>
                 <td style={{ padding: "8px" }}>
                   {provider.active ? (
@@ -553,18 +612,19 @@ export function AiProvidersPage() {
                     <StatusChip label="Inativo" background="#fee2e2" color="#b91c1c" />
                   )}
                 </td>
-                <td style={{ padding: "8px" }}>{provider.baseUrl}</td>
+                <td style={{ padding: "8px", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={provider.baseUrl}>{provider.baseUrl}</td>
+                <td style={{ padding: "8px", color: "#64748b" }}>{provider.protocol ?? "—"}</td>
                 <td style={{ padding: "8px", color: "#64748b" }}>
                   {provider.apiKeySet ? provider.apiKeyMasked ?? "••••••" : "—"}
                 </td>
-                <td style={{ padding: "8px", color: "#64748b" }}>{provider.models.join(", ") || "—"}</td>
+                <td style={{ padding: "8px", color: "#64748b", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={provider.models.join(", ")}>{provider.models.join(", ") || "—"}</td>
                 <td style={{ padding: "8px" }}>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     <Can level="administer">
                       <Button
                         type="button"
                         variant="info"
-                        style={{ padding: "4px 10px", fontSize: 12 }}
+                        style={{ padding: "4px 8px", fontSize: 12 }}
                         onClick={() => startEdit(provider)}
                       >
                         Editar
@@ -572,25 +632,37 @@ export function AiProvidersPage() {
                       <Button
                         type="button"
                         variant="info"
-                        style={{ padding: "4px 10px", fontSize: 12 }}
+                        style={{ padding: "4px 8px", fontSize: 12 }}
                         disabled={test.isPending}
                         onClick={() => test.mutate(provider.id)}
                       >
-                        Testar conexão
+                        Conexão
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        style={{ padding: "4px 8px", fontSize: 12 }}
+                        disabled={testMessage.isPending}
+                        onClick={() => testMessage.mutate(provider.id)}
+                      >
+                        <i
+                          className={`pi ${testMessage.isPending && testMessage.variables === provider.id ? "pi-spin pi-spinner" : "pi-send"}`}
+                        />{" "}
+                        Msg IA
                       </Button>
                       <Button
                         type="button"
                         variant="info"
-                        style={{ padding: "4px 10px", fontSize: 12 }}
+                        style={{ padding: "4px 8px", fontSize: 12 }}
                         disabled={models.isPending}
                         onClick={() => models.mutate(provider.id)}
                       >
-                        Listar modelos
+                        Modelos
                       </Button>
                       <Button
                         type="button"
                         variant={provider.active ? "info" : "primary"}
-                        style={{ padding: "4px 10px", fontSize: 12 }}
+                        style={{ padding: "4px 8px", fontSize: 12 }}
                         disabled={toggleActive.isPending}
                         onClick={() => toggleActive.mutate({ id: provider.id, active: !provider.active })}
                       >
@@ -598,6 +670,12 @@ export function AiProvidersPage() {
                       </Button>
                     </Can>
                   </div>
+                </td>
+              </tr>
+              {(testResult != null || modelResult != null || messageResults[provider.id] != null || editId === provider.id) && (
+              <tr>
+                <td colSpan={7} style={{ padding: "10px 14px", background: "#f8fafc" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {testResult && (
                     <div
                       role="status"
@@ -632,6 +710,11 @@ export function AiProvidersPage() {
                         : `Modelos (§14): ${modelResult.models.join(", ") || "nenhum"}`}
                     </div>
                   )}
+                  {messageResults[provider.id] != null && (
+                    <div style={{ marginTop: 6 }}>
+                      <RouteTestResult result={messageResults[provider.id]!} />
+                    </div>
+                  )}
                   {editId === provider.id && (
                     <form
                       onSubmit={(event) => {
@@ -641,6 +724,7 @@ export function AiProvidersPage() {
                           baseUrl: editBaseUrl.trim(),
                           apiKey: editApiKey.trim() === "" ? null : editApiKey.trim(),
                           models: parseModels(editModels),
+                          protocol: editProtocol,
                         });
                       }}
                       style={{
@@ -685,6 +769,19 @@ export function AiProvidersPage() {
                           autoComplete="off"
                         />
                       </FormField>
+                      <FormField label="Protocolo">
+                        <select
+                          value={editProtocol}
+                          onChange={(event) => setEditProtocol(event.target.value as AiProviderProtocol)}
+                          style={inputStyle}
+                        >
+                          {AI_PROVIDER_PROTOCOLS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </FormField>
                       <div className="flex align-items-center gap-2">
                         <Button
                           type="submit"
@@ -705,13 +802,16 @@ export function AiProvidersPage() {
                       </div>
                     </form>
                   )}
+                  </div>
                 </td>
               </tr>
+              )}
+              </Fragment>
               );
             })}
             {providers.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: 12, color: "#64748b" }}>
+                <td colSpan={7} style={{ padding: 12, color: "#64748b" }}>
                   Nenhum provider cadastrado — o resolve usa a configuração por variável de ambiente.
                 </td>
               </tr>
@@ -937,6 +1037,7 @@ export function AiProvidersPage() {
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }
@@ -947,13 +1048,8 @@ function RouteTestResult({
 }: {
   result: AiCapabilityTestResult | { error: string };
 }) {
-  if ("error" in result) {
-    return (
-      <div className="uni-alert uni-alert-error" role="alert" style={{ fontSize: 12 }}>
-        <i className="pi pi-exclamation-triangle" />
-        <span>{result.error}</span>
-      </div>
-    );
+  if (!("text" in result)) {
+    return <ErrorBanner message={result.error} />;
   }
   return (
     <div

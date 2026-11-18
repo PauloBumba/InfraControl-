@@ -16,7 +16,8 @@ public sealed record CreateSlaPolicyCommand(
     string Name,
     int ResponseMinutes,
     int ResolutionMinutes,
-    Guid? ServiceId = null) : BaseCommand<SlaPolicyDto>, IAuthorizedRequest
+    Guid? ServiceId = null,
+    bool IsDefault = false) : BaseCommand<SlaPolicyDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -38,8 +39,11 @@ public sealed class CreateSlaPolicyCommandHandler(
             request.ResponseMinutes,
             request.ResolutionMinutes,
             request.ServiceId);
+        policy.SetDefault(request.IsDefault);
 
         await repository.AddAsync(policy, cancellationToken);
+        if (request.IsDefault)
+            await repository.ClearDefaultsExceptAsync(policy.Id, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
@@ -60,7 +64,8 @@ public sealed class CreateSlaPolicyCommandHandler(
     }
 
     internal static SlaPolicyDto ToDto(SlaPolicy policy) =>
-        new(policy.Id, policy.Name, policy.ResponseMinutes, policy.ResolutionMinutes, policy.ServiceId);
+        new(policy.Id, policy.Name, policy.ResponseMinutes, policy.ResolutionMinutes,
+            policy.ServiceId, policy.IsDefault);
 
     private async Task EnsureServiceExistsAsync(Guid? serviceId, CancellationToken cancellationToken)
         => await EnsureServiceExistsAsync(serviceRepository, serviceId, cancellationToken);
@@ -71,7 +76,8 @@ public sealed record UpdateSlaPolicyCommand(
     string Name,
     int ResponseMinutes,
     int ResolutionMinutes,
-    Guid? ServiceId = null) : BaseCommand, IAuthorizedRequest
+    Guid? ServiceId = null,
+    bool IsDefault = false) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
@@ -95,6 +101,9 @@ public sealed class UpdateSlaPolicyCommandHandler(
 
         policy.Update(
             request.Name, request.ResponseMinutes, request.ResolutionMinutes, request.ServiceId);
+        policy.SetDefault(request.IsDefault);
+        if (request.IsDefault)
+            await repository.ClearDefaultsExceptAsync(policy.Id, cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(

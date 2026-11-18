@@ -43,6 +43,13 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(x => x.SourceIncidentId)
             .HasColumnName("source_incident_id");
 
+        // Correlação abrir↔resolver do mesmo agregado (anti-flapping).
+        builder.Property(x => x.AggregateId)
+            .HasColumnName("aggregate_id");
+
+        builder.HasIndex(x => x.AggregateId)
+            .HasDatabaseName("ix_notifications_aggregate_id");
+
         builder.Property(x => x.CreateDateTime)
             .HasColumnName("create_datetime")
             .IsRequired();

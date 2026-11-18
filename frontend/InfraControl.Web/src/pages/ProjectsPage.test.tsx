@@ -53,7 +53,7 @@ const project: ProjectItem = {
   actualStartDate: null,
   actualEndDate: null,
   members: [{ userId: "member-1", role: "Member" }],
-  createdById: "creator-1",
+  createdById: CURRENT_USER_ID,
   createdByName: "Ana Criadora",
   leaderName: "Líder Silva",
 };

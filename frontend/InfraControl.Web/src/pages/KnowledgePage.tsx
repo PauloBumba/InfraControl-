@@ -16,6 +16,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { SelectField } from "@/components/ui/SelectField";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import { resolveUploadSrc } from "@/components/ui/imageUploadTypes";
+import { formatDateBR } from "@/utils/format";
 import {
   KNOWLEDGE_TYPE_OPTIONS,
   articleStatusConfig,
@@ -76,7 +77,7 @@ const originLabels: Record<string, string> = {
 function formatDate(value: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("pt-BR");
+  return Number.isNaN(date.getTime()) ? "—" : formatDateBR(date);
 }
 
 export function KnowledgePage() {

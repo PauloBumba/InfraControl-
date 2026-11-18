@@ -73,6 +73,23 @@ export async function updateInvitationRoles(
   return api.put<InvitationItem>(`/admin/invitations/${invitationId}`, { roles });
 }
 
+export interface ResendInvitationResult {
+  invitationId: string;
+  acceptUrl: string;
+  expiresAt: string;
+}
+
+/**
+ * Reenvia convite pendente (POST /admin/invitations/{id}/resend).
+ * Rotaciona o token: o link anterior morre. SendEmail=false só devolve a URL.
+ */
+export async function resendInvitation(
+  invitationId: string,
+  sendEmail = true,
+): Promise<ResendInvitationResult | null> {
+  return api.post<ResendInvitationResult>(`/admin/invitations/${invitationId}/resend`, { sendEmail });
+}
+
 /** Cancela convite (DELETE /admin/invitations/{id}; Administer; só pendente). */
 export async function cancelInvitation(invitationId: string): Promise<null> {
   return api.delete<null>(`/admin/invitations/${invitationId}`);

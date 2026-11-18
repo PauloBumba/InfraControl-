@@ -113,8 +113,13 @@ public sealed class DeviceConsolidatedStatusQueryHandler(
                 try
                 {
                     var problems = await zabbixClient.ListProblemsAsync(cancellationToken);
+                    // F54: só problemas ATIVOS degradam o status — mesmo
+                    // critério do GetZabbixProblemsQuery e do status da
+                    // frota (F54-T001): problema com RecoveryEventId já
+                    // foi resolvido no Zabbix.
                     var matching = problems.Where(problem =>
-                        problem.HostNames?.Contains(zabbixHost.Host,
+                        problem.RecoveryEventId is null
+                        && problem.HostNames?.Contains(zabbixHost.Host,
                             StringComparer.OrdinalIgnoreCase) == true).ToList();
 
                     foreach (var problem in matching)

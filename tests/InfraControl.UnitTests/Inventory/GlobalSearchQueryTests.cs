@@ -5,8 +5,11 @@ using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
+using InfraControl.Application.Integrations.Unifi.Ports;
+using InfraControl.Application.Network.Explorer;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace InfraControl.UnitTests.Inventory;
 
@@ -42,7 +45,11 @@ public sealed class GlobalSearchQueryTests : IDisposable
         new DeviceRepository(context),
         new NetworkInterfaceRepository(context),
         new MacAddressRepository(context),
-        new IpAddressRepository(context));
+        new IpAddressRepository(context),
+        new SearchMacLookupQueryHandler(
+            new DiscoveryResultRepository(context),
+            new DeviceRepository(context),
+            new Mock<IUnifiApiClient>().Object));
 
     private static async Task<(Location Location, Rack Rack, Device Device,
         NetworkInterface Nic, MacAddress Mac, IpAddress Ip)> SeedAllSixAsync(AppDbContext context)

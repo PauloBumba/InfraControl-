@@ -58,6 +58,31 @@ public sealed class RetentionPoliciesController(ISender sender) : BaseController
             cancellationToken)));
     }
 
+    // ---- Retenção genérica por tabela (metodologia 2026-11-15) -----------
+
+    /// <summary>Tabelas descobertas do EF model + política de dias de cada uma.</summary>
+    [HttpGet("tables")]
+    public async Task<IActionResult> GetTables(CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetRetentionTablesQuery(), cancellationToken)));
+
+    /// <summary>Atribui/atualiza os dias de retenção de uma tabela.</summary>
+    [HttpPut("tables/{entity}")]
+    public async Task<IActionResult> UpsertTablePolicy(
+        string entity, UpsertRetentionPolicyRequest request,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UpsertTableRetentionCommand(entity, request.Days), cancellationToken)));
+
+    /// <summary>Remove a política da tabela — ela deixa de ser podada.</summary>
+    [HttpDelete("tables/{entity}")]
+    public async Task<IActionResult> DeleteTablePolicy(
+        string entity, CancellationToken cancellationToken = default)
+    {
+        await sender.Send(new DeleteTableRetentionCommand(entity), cancellationToken);
+        return Ok(ApiResponse.Ok());
+    }
+
     /// <summary>Estado efetivo de um tipo específico.</summary>
     [HttpGet("{dataType}")]
     public async Task<IActionResult> GetPolicy(

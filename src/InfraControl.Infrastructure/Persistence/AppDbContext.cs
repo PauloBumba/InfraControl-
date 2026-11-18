@@ -37,6 +37,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<WhatsAppIntegrationSetting> WhatsAppIntegrationSettings => Set<WhatsAppIntegrationSetting>();
 
     public DbSet<EmailIntegrationSetting> EmailIntegrationSettings => Set<EmailIntegrationSetting>();
+    public DbSet<ScheduledReport> ScheduledReports => Set<ScheduledReport>();
     public DbSet<ZabbixHost> ZabbixHosts => Set<ZabbixHost>();
     public DbSet<UniFiSite> UniFiSites => Set<UniFiSite>();
     public DbSet<AiProvider> AiProviders => Set<AiProvider>();
@@ -71,6 +72,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<Slo> Slos => Set<Slo>();
     public DbSet<SloMeasurement> SloMeasurements => Set<SloMeasurement>();
     public DbSet<SloBudget> SloBudgets => Set<SloBudget>();
+    public DbSet<SloCheckBinding> SloCheckBindings => Set<SloCheckBinding>();
     public DbSet<DiscoveryRun> DiscoveryRuns => Set<DiscoveryRun>();
     public DbSet<DiscoveryResult> DiscoveryResults => Set<DiscoveryResult>();
     public DbSet<MonitoringCheck> MonitoringChecks => Set<MonitoringCheck>();
@@ -86,6 +88,8 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<NotificationRoutingRule> NotificationRoutingRules => Set<NotificationRoutingRule>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
     public DbSet<NotificationPolicySetting> NotificationPolicySettings => Set<NotificationPolicySetting>();
+    public DbSet<Occurrence> Occurrences => Set<Occurrence>();
+    public DbSet<OccurrenceTransition> OccurrenceTransitions => Set<OccurrenceTransition>();
     public DbSet<KnowledgeCategory> KnowledgeCategories => Set<KnowledgeCategory>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
     public DbSet<KnowledgeArticleVersion> KnowledgeArticleVersions => Set<KnowledgeArticleVersion>();
@@ -97,6 +101,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<DeviceCredential> DeviceCredentials => Set<DeviceCredential>();
     public DbSet<CameraNvrMapping> CameraNvrMappings => Set<CameraNvrMapping>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+    public DbSet<TableRetentionPolicy> TableRetentionPolicies => Set<TableRetentionPolicy>();
     public DbSet<DomainIdentity.User> DomainUsers => Set<DomainIdentity.User>();
     public DbSet<DomainIdentity.UserRoleAssignment> UserRoleAssignments => Set<DomainIdentity.UserRoleAssignment>();
     public DbSet<DomainIdentity.UserSession> UserSessions => Set<DomainIdentity.UserSession>();
@@ -135,6 +140,7 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
     public DbSet<ServiceInstance> ServiceInstances => Set<ServiceInstance>();
     public DbSet<RequestMetricBucket> RequestMetricBuckets => Set<RequestMetricBucket>();
     public DbSet<AiVectorDocument> AiVectorDocuments => Set<AiVectorDocument>();
+    public DbSet<MessagingQueuePause> MessagingQueuePauses => Set<MessagingQueuePause>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -153,6 +159,29 @@ public class AppDbContext : IdentityDbContext<InfraControlUser, IdentityRole<Gui
 
         return await base.SaveChangesAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+        {
+            // Corrida de INSERT em unique index: o tracker fica limpo para o
+            // escopo seguir (ex.: AuditBehavior grava a auditoria depois).
+            ChangeTracker.Clear();
+            return false;
+        }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException exception)
+        => exception.InnerException is Npgsql.PostgresException
+        {
+            SqlState: Npgsql.PostgresErrorCodes.UniqueViolation
+        };
 
     private void ApplyAuditFields()
     {

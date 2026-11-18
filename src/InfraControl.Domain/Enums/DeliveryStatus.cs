@@ -10,5 +10,8 @@ public enum DeliveryStatus
     Processing = 2,
     Sent = 3,
     Failed = 4,
-    Cancelled = 5
+    Cancelled = 5,
+    /// <summary>Reservado: supressão auditável de delivery (ex.: janela de
+    /// manutenção) — motivo em NotificationDelivery.SuppressionReason.</summary>
+    Suppressed = 6
 }

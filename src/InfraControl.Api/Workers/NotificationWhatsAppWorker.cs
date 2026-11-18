@@ -1,4 +1,5 @@
 using InfraControl.Application.Integrations.WhatsApp.Ports;
+using InfraControl.Application.Inventory.Devices.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Deliveries.Ports;
 using InfraControl.Application.Notifications.WhatsApp;
@@ -39,8 +40,10 @@ public sealed class NotificationWhatsAppWorker(
                 "Canal WhatsApp sem GroupId nem Phone configurado (Notifications:Channels:WhatsApp).");
 
         // F33-T005/ADR-059: tenta montar o cartão (série Zabbix + Skia);
-        // factory ausente/falha/série vazia = Chart null → sendText puro.
-        var chart = await TryCreateChartAsync(item, services, cancellationToken);
+        // sem série o fallback garante o PNG-cartão mesmo assim —
+        // WhatsApp nunca recebe texto solto de alerta/incidente.
+        var chart = await TryCreateChartAsync(item, services, cancellationToken)
+            ?? await TryCreateFallbackCardAsync(item, services, cancellationToken);
 
         await services.GetRequiredService<IWhatsAppNotificationDispatcher>().SendAsync(
             new WhatsAppNotificationMessage(
@@ -63,7 +66,7 @@ public sealed class NotificationWhatsAppWorker(
         {
             return await factory.TryCreateAsync(
                 item.DeviceId, item.Title, item.Message, item.EventType, item.CreatedAt,
-                cancellationToken);
+                item.AggregateId, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -77,5 +80,41 @@ public sealed class NotificationWhatsAppWorker(
                 item.DeliveryId);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Cartão sem série (pedido do usuário: toda mensagem WhatsApp sai como
+    /// card): fabrica um <see cref="IncidentChartData"/> com o assunto real
+    /// extraído da mensagem e o nome do device quando houver — o renderer
+    /// mostra "Sem dados históricos disponíveis" na área do gráfico.
+    /// </summary>
+    private async Task<IncidentChartData> TryCreateFallbackCardAsync(
+        PendingDeliveryItem item,
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        string? deviceLabel = null;
+        string? hostLabel = null;
+        if (item.DeviceId is { } deviceId && deviceId != Guid.Empty)
+        {
+            try
+            {
+                var device = await services
+                    .GetRequiredService<IDeviceRepository>()
+                    .GetByIdAsync(deviceId, cancellationToken);
+                deviceLabel = device?.Name;
+                hostLabel = device?.Ip;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.LogDebug(exception,
+                    "WhatsApp {DeliveryId}: nome do device indisponível para o cartão.",
+                    item.DeliveryId);
+            }
+        }
+
+        return WhatsAppCardFallback.Build(
+            item.Title, item.Message, item.EventType, item.CreatedAt,
+            deviceLabel, hostLabel);
     }
 }

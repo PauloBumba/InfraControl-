@@ -12,6 +12,7 @@ public sealed record GetTasksReportQuery(DateOnly? From = null, DateOnly? To = n
     : BaseQuery<TasksReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetTasksReportQueryHandler(IModuleReportsRepository repository)
@@ -29,6 +30,7 @@ public sealed record GetPdiReportQuery(DateOnly? From = null, DateOnly? To = nul
     : BaseQuery<PdiReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetPdiReportQueryHandler(IModuleReportsRepository repository)
@@ -46,6 +48,7 @@ public sealed record GetKnowledgeReportQuery(DateOnly? From = null, DateOnly? To
     : BaseQuery<KnowledgeReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetKnowledgeReportQueryHandler(IModuleReportsRepository repository)
@@ -63,6 +66,7 @@ public sealed record GetGerencialReportQuery(DateOnly? From = null, DateOnly? To
     : BaseQuery<GerencialReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetGerencialReportQueryHandler(IModuleReportsRepository repository)
@@ -71,4 +75,24 @@ public sealed class GetGerencialReportQueryHandler(IModuleReportsRepository repo
     public Task<GerencialReportDto> Handle(
         GetGerencialReportQuery request, CancellationToken cancellationToken)
         => repository.GetGerencialReportAsync(request.From, request.To, cancellationToken);
+}
+
+/// <summary>
+/// Evolução/desempenho por usuário (pedido do usuário): tasks,
+/// projetos, PDI e conhecimento consolidados por pessoa. Administer —
+/// expõe métricas de toda a organização.
+/// </summary>
+public sealed record GetUserEvolutionReportQuery(DateOnly? From = null, DateOnly? To = null)
+    : BaseQuery<UserEvolutionReportDto>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
+}
+
+public sealed class GetUserEvolutionReportQueryHandler(IModuleReportsRepository repository)
+    : IRequestHandler<GetUserEvolutionReportQuery, UserEvolutionReportDto>
+{
+    public Task<UserEvolutionReportDto> Handle(
+        GetUserEvolutionReportQuery request, CancellationToken cancellationToken)
+        => repository.GetUserEvolutionReportAsync(request.From, request.To, cancellationToken);
 }

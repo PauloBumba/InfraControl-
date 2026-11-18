@@ -186,3 +186,29 @@ public sealed class SloMeasurementDeletedDomainEvent : DomainEvent
     public Guid SloId { get; }
     public override string EventType => nameof(SloMeasurementDeletedDomainEvent);
 }
+
+/// <summary>
+/// SLA de task estourado — emitido pelo SlaBreachWorker quando
+/// ResponseDueAt/ResolutionDueAt vence com a task ainda aberta.
+/// O consumer de notificações transforma em alerta operacional.
+/// </summary>
+public sealed class TaskSlaBreachedDomainEvent : DomainEvent
+{
+    public TaskSlaBreachedDomainEvent(
+        Guid taskId, Guid slaPolicyId, string title, string breachKind, DateTime dueAtUtc)
+    {
+        TaskId = taskId;
+        SlaPolicyId = slaPolicyId;
+        Title = title;
+        BreachKind = breachKind;
+        DueAtUtc = dueAtUtc;
+    }
+
+    public Guid TaskId { get; }
+    public Guid SlaPolicyId { get; }
+    public string Title { get; }
+    /// <summary>"resposta" ou "resolução" — qual prazo venceu.</summary>
+    public string BreachKind { get; }
+    public DateTime DueAtUtc { get; }
+    public override string EventType => nameof(TaskSlaBreachedDomainEvent);
+}

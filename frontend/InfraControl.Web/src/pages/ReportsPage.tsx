@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ScheduledReportCard } from "@/components/reports/ScheduledReportCard";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +9,7 @@ import { formatAiDuration } from "@/utils/format";
 import {
   exportReportHistory,
   exportTransversalReport,
+  exportUserEvolutionReport,
   getAdministrativoDashboard,
   getAutomaticReport,
   getColaboradorDashboard,
@@ -20,6 +22,7 @@ import {
   getReportIndicators,
   getTasksReport,
   getTransversalReport,
+  getUserEvolutionReport,
   summarizeGerencialReport,
   summarizeTransversalReport,
   type AdministrativoDashboard,
@@ -36,7 +39,9 @@ import {
   type TasksReport,
   type TransversalAiSummary,
   type TransversalReport,
+  type UserEvolutionReport,
 } from "@/services/api/reports";
+import { PDI_STATUS_LABEL, type PdiStatus } from "@/services/api/pdi";
 
 /**
  * Relatório transversal (ADR-049 · R-d): visão agregada de cima dos 5
@@ -75,6 +80,8 @@ export function ReportsPage() {
   const [autoLoading, setAutoLoading] = useState(false);
   const [gerAi, setGerAi] = useState<{ summary: string; provider: string; model: string; usedFallback: boolean; durationMs: number } | null>(null);
   const [gerAiLoading, setGerAiLoading] = useState(false);
+  const [userEvo, setUserEvo] = useState<UserEvolutionReport | null>(null);
+  const [userEvoLoading, setUserEvoLoading] = useState(false);
 
   const loadAutomatic = useCallback(async () => {
     setAutoLoading(true);
@@ -132,6 +139,18 @@ export function ReportsPage() {
     },
     [from, to],
   );
+
+  const loadUserEvolution = useCallback(async () => {
+    setUserEvoLoading(true);
+    setError(null);
+    try {
+      setUserEvo(await getUserEvolutionReport(from || null, to || null));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível gerar o relatório de evolução.");
+    } finally {
+      setUserEvoLoading(false);
+    }
+  }, [from, to]);
 
   const loadColaborador = useCallback(async () => {
     setDashLoading("colab");
@@ -468,6 +487,8 @@ export function ReportsPage() {
         </div>
       )}
 
+      {canAdminister && <ScheduledReportCard />}
+
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
           Dashboards por papel
@@ -680,6 +701,90 @@ export function ReportsPage() {
           </div>
         )}
       </div>
+
+      {canAdminister && (
+        <div style={{ marginTop: 18 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 600 }}>
+              Evolução por usuário
+              <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 8, fontSize: 12 }}>
+                desempenho: tasks · projetos · PDI · conhecimento
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <Button variant="ghost" onClick={() => void loadUserEvolution()} disabled={userEvoLoading} style={{ padding: "6px 12px" }}>
+                <i className="pi pi-users" /> {userEvoLoading ? "Gerando…" : "Gerar"}
+              </Button>
+              {userEvo && (
+                <>
+                  <Button variant="ghost" onClick={() => void exportUserEvolutionReport(from || null, to || null, "pdf")} style={{ padding: "6px 10px" }}>
+                    PDF
+                  </Button>
+                  <Button variant="ghost" onClick={() => void exportUserEvolutionReport(from || null, to || null, "xlsx")} style={{ padding: "6px 10px" }}>
+                    XLSX
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {userEvo && (
+            <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 860 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    {["Usuário", "Tasks", "Projetos", "PDI", "Conhecimento"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #e5e7eb", color: "#64748b", fontWeight: 600 }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {userEvo.users.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: "12px", color: "#94a3b8" }}>
+                        Nenhum usuário com atividade no período.
+                      </td>
+                    </tr>
+                  )}
+                  {userEvo.users.map((u) => (
+                    <tr key={u.userId}>
+                      <td style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                        <div style={{ fontWeight: 600 }}>{u.name}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>{u.email}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                        {u.tasksCompleted}/{u.tasksCreated} concluídas
+                        {u.tasksOverdue > 0 && <span style={{ color: "#dc2626" }}> · {u.tasksOverdue} atrasadas</span>}
+                        {u.tasksInProgress > 0 && <span style={{ color: "#d97706" }}> · {u.tasksInProgress} em andamento</span>}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                        {u.projectsCompleted} concluídos · {u.projectsLed} líder · {u.projectsMember} membro
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                        {u.pdiStatus
+                          ? `${PDI_STATUS_LABEL[u.pdiStatus as PdiStatus] ?? u.pdiStatus}${u.pdiProgressPercent != null ? ` · ${u.pdiProgressPercent}%` : ""}${u.pdiTargetDate ? ` · ${new Date(u.pdiTargetDate).toLocaleDateString("pt-BR")}` : ""}`
+                          : "—"}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>{u.knowledgeArticles}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ marginTop: 18 }}>
         <div

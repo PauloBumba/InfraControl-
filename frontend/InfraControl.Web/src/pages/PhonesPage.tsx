@@ -9,6 +9,7 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { listPhones, runAllPhoneChecks } from "@/services/api/phones";
 import { getDeviceResults, type DeviceResults, type MonitoringResultItem } from "@/services/api/monitoring";
 import { listLocations, type DeviceItem, type LocationItem } from "@/services/api/inventory";
+import { formatDateTimeBR } from "@/utils/format";
 import {
   useListQuery,
   usePagedQuery,
@@ -71,7 +72,7 @@ function textOf(result: MonitoringResultItem | undefined, key: string): string |
 function checkedAtLabel(result: MonitoringResultItem | undefined): string {
   if (!result) return "sem execução";
   const at = new Date(result.checkedAt);
-  return `última execução ${at.toLocaleString("pt-BR")}`;
+  return `última execução ${formatDateTimeBR(at)}`;
 }
 
 function numLabel(value: number | null, unit: string, decimals = 0): string {

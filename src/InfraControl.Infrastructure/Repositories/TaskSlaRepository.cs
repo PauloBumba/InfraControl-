@@ -1,6 +1,7 @@
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Sla.TaskSlas.Ports;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,23 @@ public sealed class TaskSlaRepository(AppDbContext dbContext) : ITaskSlaReposito
         Guid slaPolicyId, CancellationToken cancellationToken = default)
         => dbContext.TaskSlas.AnyAsync(
             sla => sla.SlaPolicyId == slaPolicyId, cancellationToken);
+
+    public async Task<int> CountOpenBreachedAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var openStates = new[]
+        {
+            TaskState.Open, TaskState.InProgress,
+            TaskState.Waiting, TaskState.Blocked,
+        };
+        return await dbContext.TaskSlas
+            .AsNoTracking()
+            .CountAsync(sla =>
+                (sla.ResponseBreachedAt != null || sla.ResolutionBreachedAt != null)
+                && dbContext.Tasks.Any(task =>
+                    task.Id == sla.TaskId && openStates.Contains(task.State)),
+                cancellationToken);
+    }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => dbContext.SaveChangesAsync(cancellationToken);

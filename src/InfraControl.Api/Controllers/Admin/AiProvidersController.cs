@@ -44,7 +44,9 @@ public sealed class AiProvidersController(ISender sender) : BaseController
     {
         var result = await sender.Send(
             new CreateAiProviderCommand(
-                model.Name, model.BaseUrl, model.ApiKey, model.Models),
+                model.Name, model.BaseUrl, model.ApiKey, model.Models,
+                ParseProtocol(model.Protocol)
+                    ?? InfraControl.Domain.Enums.AiProviderProtocol.OpenAiCompatible),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -57,24 +59,28 @@ public sealed class AiProvidersController(ISender sender) : BaseController
         [FromBody] UpdateAiProviderViewModel model,
         CancellationToken cancellationToken)
     {
-        InfraControl.Domain.Enums.AiProviderProtocol? protocol = null;
-        if (!string.IsNullOrWhiteSpace(model.Protocol))
-        {
-            if (!Enum.TryParse<InfraControl.Domain.Enums.AiProviderProtocol>(
-                    model.Protocol, ignoreCase: true, out var parsed)
-                || !Enum.IsDefined(parsed))
-            {
-                throw new ArgumentException(
-                    $"Protocolo desconhecido '{model.Protocol}' — use openai-compatible, ollama, gemini ou anthropic.",
-                    nameof(model));
-            }
-            protocol = parsed;
-        }
-
         return Ok(ApiResponse.Ok(await sender.Send(
             new UpdateAiProviderCommand(
-                id, model.BaseUrl, model.ApiKey, model.Models, protocol),
+                id, model.BaseUrl, model.ApiKey, model.Models,
+                ParseProtocol(model.Protocol)),
             cancellationToken)));
+    }
+
+    private static InfraControl.Domain.Enums.AiProviderProtocol? ParseProtocol(string? protocol)
+    {
+        if (string.IsNullOrWhiteSpace(protocol))
+            return null;
+
+        if (!Enum.TryParse<InfraControl.Domain.Enums.AiProviderProtocol>(
+                protocol, ignoreCase: true, out var parsed)
+            || !Enum.IsDefined(parsed))
+        {
+            throw new ArgumentException(
+                $"Protocolo desconhecido '{protocol}' — use openai-compatible, ollama, gemini ou anthropic.",
+                nameof(protocol));
+        }
+
+        return parsed;
     }
 
     [HttpPut("{id:guid}/active")]
@@ -122,6 +128,16 @@ public sealed class AiProvidersController(ISender sender) : BaseController
         string capability, CancellationToken cancellationToken)
         => Ok(ApiResponse.Ok(await sender.Send(
             new TestAiCapabilityMessageCommand(capability), cancellationToken)));
+
+    // Molde WhatsApp/Email "testar envio": prompt mínimo direto no
+    // adaptador do provider — prova URL+chave+modelo sem depender da
+    // rota de capacidade.
+    [HttpPost("{id:guid}/test-message")]
+    [Authorize(Policy = AuthorizationPolicies.Administer)]
+    public async Task<IActionResult> TestProviderMessage(
+        Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new TestAiProviderMessageCommand(id), cancellationToken)));
 
     [HttpPost("{id:guid}/test-connection")]
     [Authorize(Policy = AuthorizationPolicies.Administer)]

@@ -6,10 +6,13 @@ import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Can } from "@/components/auth/Can";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { FormField } from "@/components/ui/FormField";
 import { SelectField } from "@/components/ui/SelectField";
 import { Dialog, ConfirmDialog } from "@/components/ui/Dialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { EvidenceMediaPreview } from "@/components/ui/EvidenceMediaPreview";
 import { formatDateTime } from "@/utils/format";
 import { RESOLUTION_CODE_OPTIONS } from "@/utils/resolutionCodes";
 import { ApiError } from "@/services/api/client";
@@ -59,6 +62,7 @@ import {
   updateTaskImpediment,
   updateTaskPhase,
   updateTaskPlanning,
+  taskEvidencePreviewUrl,
   updateTaskResult,
   uploadTaskEvidence,
   type TaskComment,
@@ -282,6 +286,13 @@ export function TaskDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Push operacional (estado/SLA da task) + polling opt-in.
+  const refreshQuiet = useCallback(() => {
+    void load();
+  }, [load]);
+  useOperationalRefresh(refreshQuiet);
+  useAutoRefresh(refreshQuiet);
 
   // Vocabulário para selects de apoio — falha (403 de Viewer em users,
   // rede) silencia e a UI cai para ids curtos.
@@ -664,7 +675,7 @@ export function TaskDetailPage() {
   const activePause = pauses.find((pause) => pause.endAt == null);
 
   const userName = (userId: string): string =>
-    users.find((user) => user.userId === userId)?.displayName || shortId(userId);
+    users.find((user) => user.userId === userId)?.displayName || "—";
   const deviceName = (deviceId: string): string =>
     devices.find((device) => device.id === deviceId)?.name || shortId(deviceId);
   const incidentTitle = (incidentId: string): string =>
@@ -1223,8 +1234,8 @@ export function TaskDetailPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {evidences.map((evidence) => (
+                  <div key={evidence.id} style={{ display: "grid", gap: 4 }}>
                   <div
-                    key={evidence.id}
                     style={{ display: "flex", alignItems: "center", gap: 8 }}
                   >
                     <button
@@ -1262,6 +1273,12 @@ export function TaskDetailPage() {
                         <i className="pi pi-trash" style={{ fontSize: 10 }} />
                       </Button>
                     </Can>
+                  </div>
+                  <EvidenceMediaPreview
+                    src={taskEvidencePreviewUrl(evidence.id)}
+                    contentType={evidence.contentType}
+                    fileName={evidence.fileName}
+                  />
                   </div>
                 ))}
               </div>
@@ -1943,11 +1960,43 @@ export function TaskDetailPage() {
                 <DataRow label="Política" value={policyName(sla.slaPolicyId)} />
                 <DataRow
                   label="Resposta até"
-                  value={formatDateTime(new Date(sla.responseDueAt))}
+                  value={
+                    <span>
+                      {formatDateTime(new Date(sla.responseDueAt))}
+                      {sla.responseBreachedAt && (
+                        <span
+                          title={`Violado em ${formatDateTime(new Date(sla.responseBreachedAt))}`}
+                          style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 700,
+                            padding: "1px 6px", borderRadius: 4,
+                            background: "#fef2f2", color: "#b91c1c",
+                          }}
+                        >
+                          SLA ESTOURADO
+                        </span>
+                      )}
+                    </span>
+                  }
                 />
                 <DataRow
                   label="Resolução até"
-                  value={formatDateTime(new Date(sla.resolutionDueAt))}
+                  value={
+                    <span>
+                      {formatDateTime(new Date(sla.resolutionDueAt))}
+                      {sla.resolutionBreachedAt && (
+                        <span
+                          title={`Violado em ${formatDateTime(new Date(sla.resolutionBreachedAt))}`}
+                          style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 700,
+                            padding: "1px 6px", borderRadius: 4,
+                            background: "#fef2f2", color: "#b91c1c",
+                          }}
+                        >
+                          SLA ESTOURADO
+                        </span>
+                      )}
+                    </span>
+                  }
                 />
                 <DataRow
                   label="Relógio"

@@ -126,7 +126,7 @@ public sealed class RetentionPolicyCommandTests : IDisposable
             new GetRetentionPoliciesQuery(), CancellationToken.None);
 
         // 10 do cleanup + Backups (BackupSettings) + 3 gerenciados (F50).
-        policies.Should().HaveCount(14);
+        policies.Should().HaveCount(15);
         policies
             .Where(p => p.DataType != "Backups")
             .Should().OnlyContain(p => p.Source == "Config");

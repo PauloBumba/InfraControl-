@@ -22,6 +22,7 @@ public sealed class Incident : AggregateRoot
     public IncidentSeverity Severity { get; private set; }
     public IncidentStatus Status { get; private set; }
     public Guid? DeviceId { get; private set; }
+    public Guid? AssignedToId { get; private set; }
     public DateTime? ResolvedAt { get; private set; }
 
     /// <summary>
@@ -121,6 +122,20 @@ public sealed class Incident : AggregateRoot
 
     public void Acknowledge()
         => ChangeStatus(IncidentStatus.Investigating);
+
+    /// <summary>
+    /// Responsável pela tratativa (quem está resolvendo). Atribuir o mesmo
+    /// usuário é no-op; desatribuir limpa o campo.
+    /// </summary>
+    public void Assign(Guid userId)
+    {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("O responsável não pode ser vazio.", nameof(userId));
+
+        AssignedToId = userId;
+    }
+
+    public void Unassign() => AssignedToId = null;
 
     /// <summary>
     /// F6-T005: causa provável (heurística). null/branco limpa; acima do

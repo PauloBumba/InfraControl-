@@ -82,6 +82,15 @@ builder.Services.AddHostedService<CleanupWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.Backup.BackupWorker>();
 builder.Services.AddHostedService<MonitoringPollingWorker>();
 builder.Services.AddHostedService<InfraControl.Workers.UnifiSyncWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.DiscoveryWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.ScheduledReportWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.SlaBreachWorker>();
+builder.Services.AddHostedService<InfraControl.Workers.SloMeasurementWorker>();
+// F55-T010: gauges infracontrol_messaging_queue_* alimentados pelo broker.
+builder.Services.AddHostedService<InfraControl.Workers.Messaging.MessagingBrokerMetricsWorker>();
+// F55 fix: re-aplica pause broker-level após re-subscribe do MassTransit.
+builder.Services.AddHostedService<InfraControl.Workers.Messaging.MessagingPauseEnforcerWorker>();
+InfraControl.Application.Messaging.MessagingMetrics.RegisterGauges();
 
 // Observabilidade (profile obs): MESMO pipeline OTLP da API — traces dos
 // commands MediatR (ObservabilityBehavior), spans de consumers MassTransit

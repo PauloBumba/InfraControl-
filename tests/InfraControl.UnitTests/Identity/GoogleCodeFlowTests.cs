@@ -376,7 +376,9 @@ public sealed class GoogleCodeFlowTests
         var result = await controller.GoogleLoginCallback(
             "code-123", "state-abc", tokenClient.Object, CancellationToken.None);
 
-        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be($"{FrontendBase}/");
+        // `/` é a landing pública e não valida sessão — o sucesso tem que
+        // cair na área autenticada (mesmo destino do login por senha).
+        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be($"{FrontendBase}/dashboard");
         tokenClient.Verify(item => item.ExchangeCodeForIdTokenAsync(
             "code-123", It.IsAny<CancellationToken>()), Times.Once);
         service.Verify(item => item.LoginWithGoogleAsync(

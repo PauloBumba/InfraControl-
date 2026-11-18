@@ -65,7 +65,8 @@ public sealed class NotificationDeliveryRepository(AppDbContext dbContext)
                     x.Notification.EventType,
                     x.Notification.CreateDateTime,
                     user.Email,
-                    x.Notification.DeviceId))
+                    x.Notification.DeviceId,
+                    x.Notification.AggregateId))
             .ToListAsync(cancellationToken);
     }
 

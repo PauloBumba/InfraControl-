@@ -384,10 +384,12 @@ export async function listDeviceMacs(
 
 /** Item da busca global (F2-T007 — `GlobalSearchItemDto`). */
 export interface GlobalSearchItem {
-  type: "location" | "rack" | "device" | "interface" | "mac" | "ip";
+  type: "location" | "rack" | "device" | "interface" | "mac" | "ip" | "network";
   id: string;
   name: string;
   subtitle: string | null;
+  /** Rota explícita p/ itens que não são entidade do inventário (ex.: network → Explorer). */
+  target?: string | null;
 }
 
 export interface GlobalSearchResult {
@@ -409,4 +411,31 @@ export async function globalSearch(
   const params = new URLSearchParams({ term, limit: String(limit) });
   const data = await api.get<GlobalSearchResult>(`/inventory/search?${params}`);
   return data ?? { items: [], totalCount: 0 };
+}
+
+/**
+ * F54-T001 — overview agregado da frota (`GET /inventory/devices/status-overview`):
+ * totais por tipo + status consolidado em lote + alertas Open por severidade.
+ */
+export interface FleetTypeCount {
+  type: string;
+  count: number;
+}
+
+export interface FleetStatusCount {
+  status: "Available" | "Degraded" | "Unavailable" | "Unknown" | string;
+  count: number;
+}
+
+export interface FleetStatusOverview {
+  totalDevices: number;
+  byType: FleetTypeCount[];
+  byStatus: FleetStatusCount[];
+  openAlerts: number;
+  openCriticalAlerts: number;
+  openWarningAlerts: number;
+}
+
+export async function getFleetStatusOverview(): Promise<FleetStatusOverview | null> {
+  return api.get<FleetStatusOverview>("/inventory/devices/status-overview");
 }

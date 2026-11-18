@@ -79,6 +79,54 @@ public sealed class CreateInvitationCommandHandler(
     }
 }
 
+public sealed record ResendInvitationResult(Guid InvitationId, string AcceptUrl, DateTime ExpiresAt);
+
+/// <summary>
+/// Reenvio/geração de link do convite pendente: rotaciona o token (o banco
+/// só guarda hash — reenviar o MESMO link é impossível por desenho) e,
+/// opcionalmente, dispara o e-mail de novo. O AcceptUrl volta na resposta
+/// para o admin copiar o link quando SendEmail=false.
+/// </summary>
+public sealed record ResendInvitationCommand(
+    Guid InvitationId,
+    bool SendEmail = true,
+    string? BaseUrl = null) : BaseCommand<ResendInvitationResult>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Administer;
+}
+
+public sealed class ResendInvitationCommandHandler(
+    IInvitationRepository repository,
+    IIdentityEmailSender emailSender,
+    ILogger<ResendInvitationCommandHandler> logger)
+    : IRequestHandler<ResendInvitationCommand, ResendInvitationResult>
+{
+    public async Task<ResendInvitationResult> Handle(
+        ResendInvitationCommand request, CancellationToken cancellationToken)
+    {
+        var invitation = await repository.GetByIdAsync(request.InvitationId, cancellationToken)
+            ?? throw new KeyNotFoundException(
+                $"Convite '{request.InvitationId}' não encontrado.");
+
+        var token = InvitationToken.Generate();
+        invitation.RotateToken(InvitationToken.Hash(token));
+        await repository.SaveChangesAsync(cancellationToken);
+
+        var baseUrl = (request.BaseUrl ?? string.Empty).TrimEnd('/');
+        var acceptUrl = $"{baseUrl}/invitations/{invitation.Id}?token={token}";
+
+        if (request.SendEmail)
+            await emailSender.SendInvitationAsync(invitation.Email, acceptUrl, cancellationToken);
+
+        logger.LogInformation(
+            "Invitation {InvitationId} resent for {Email} (sendEmail={SendEmail}).",
+            invitation.Id, invitation.Email, request.SendEmail);
+
+        return new ResendInvitationResult(invitation.Id, acceptUrl, invitation.ExpiresAt);
+    }
+}
+
 public sealed record CancelInvitationCommand(Guid InvitationId) : BaseCommand, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles =>

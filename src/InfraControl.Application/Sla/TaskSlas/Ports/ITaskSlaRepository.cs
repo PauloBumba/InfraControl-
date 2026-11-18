@@ -12,5 +12,11 @@ public interface ITaskSlaRepository : IRepository<TaskSla>
     /// <summary>Usado pelo DeleteSlaPolicy para bloquear exclusão com tasks aplicadas (F8-T003 → 409).</summary>
     Task<bool> HasPolicySlasAsync(Guid slaPolicyId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// SLAs com ao menos um prazo violado em tasks ainda abertas
+    /// (Open/InProgress/Waiting/Blocked) — seção do relatório geral.
+    /// </summary>
+    Task<int> CountOpenBreachedAsync(CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -15,6 +15,7 @@ public sealed record GetColaboradorDashboardQuery
     : BaseQuery<ColaboradorDashboardDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(30);
 }
 
 public sealed class GetColaboradorDashboardQueryHandler(
@@ -39,6 +40,7 @@ public sealed record GetGestorDashboardQuery
     : BaseQuery<GestorDashboardDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(30);
 }
 
 public sealed class GetGestorDashboardQueryHandler(
@@ -65,6 +67,7 @@ public sealed record GetAdministrativoDashboardQuery(
     : BaseQuery<AdministrativoDashboardDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(30);
 }
 
 public sealed class GetAdministrativoDashboardQueryHandler(

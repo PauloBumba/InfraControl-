@@ -109,7 +109,7 @@ describe("EmailSettingsPage (F41-T003)", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Testar envio" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
       "Falha: Connection refused",
     );
     expect(screen.getByRole("button", { name: "Salvar" })).toBeInTheDocument();

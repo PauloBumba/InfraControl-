@@ -21,6 +21,7 @@ public sealed record CreateProjectImpedimentCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class CreateProjectImpedimentCommandHandler(
@@ -98,6 +99,7 @@ public sealed record UpdateProjectImpedimentCommand(
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class UpdateProjectImpedimentCommandHandler(
@@ -133,6 +135,7 @@ public sealed record DeleteProjectImpedimentCommand(Guid Id) : BaseCommand, IAut
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class DeleteProjectImpedimentCommandHandler(
@@ -160,6 +163,7 @@ public sealed record ResolveProjectImpedimentCommand(Guid Id) : BaseCommand<Proj
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ResolveProjectImpedimentCommandHandler(
@@ -188,6 +192,7 @@ public sealed record ReopenProjectImpedimentCommand(Guid Id) : BaseCommand<Proje
 {
     public string AuditResource => "Project";
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["projects"];
 }
 
 public sealed class ReopenProjectImpedimentCommandHandler(

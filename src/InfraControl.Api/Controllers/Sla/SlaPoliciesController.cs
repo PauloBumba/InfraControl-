@@ -41,7 +41,8 @@ public sealed class SlaPoliciesController(ISender sender) : BaseController
     {
         var result = await sender.Send(
             new CreateSlaPolicyCommand(
-                model.Name, model.ResponseMinutes, model.ResolutionMinutes, model.ServiceId),
+                model.Name, model.ResponseMinutes, model.ResolutionMinutes,
+                model.ServiceId, model.IsDefault),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -56,7 +57,8 @@ public sealed class SlaPoliciesController(ISender sender) : BaseController
     {
         await sender.Send(
             new UpdateSlaPolicyCommand(
-                id, model.Name, model.ResponseMinutes, model.ResolutionMinutes, model.ServiceId),
+                id, model.Name, model.ResponseMinutes, model.ResolutionMinutes,
+                model.ServiceId, model.IsDefault),
             cancellationToken);
         return NoContent();
     }

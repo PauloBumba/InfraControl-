@@ -463,4 +463,98 @@ public sealed class IncidentCommandTests : IDisposable
         var saved = await context.Incidents.AsNoTracking().SingleAsync();
         saved.RootCause.Should().BeNull();
     }
+
+    // ── Responsável (assign/unassign) ────────────────────────────────────
+
+    private static AssignIncidentCommandHandler AssignHandler(AppDbContext context)
+        => new(Repo(context));
+
+    private static UnassignIncidentCommandHandler UnassignHandler(AppDbContext context)
+        => new(Repo(context));
+
+    private static async Task<Guid> SeedUserAsync(AppDbContext context)
+    {
+        var user = InfraControl.Domain.Entities.User.Create(
+            "resp@exemplo.test", "Responsável Teste", UserRole.Operator);
+        context.DomainUsers.Add(user);
+        await context.SaveChangesAsync();
+        return user.Id;
+    }
+
+    [Fact]
+    public async Task Assign_ShouldSetAssignedToIdAndReturnName()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+        var userId = await SeedUserAsync(context);
+
+        var dto = await AssignHandler(context).Handle(
+            new AssignIncidentCommand(id, userId), CancellationToken.None);
+
+        dto.AssignedToId.Should().Be(userId);
+        dto.AssignedToName.Should().Be("Responsável Teste");
+    }
+
+    [Fact]
+    public async Task Assign_Reassign_ShouldReplacePrevious()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+        var first = await SeedUserAsync(context);
+        var second = InfraControl.Domain.Entities.User.Create(
+            "resp2@exemplo.test", "Segundo Responsável", UserRole.Operator);
+        context.DomainUsers.Add(second);
+        await context.SaveChangesAsync();
+
+        await AssignHandler(context).Handle(
+            new AssignIncidentCommand(id, first), CancellationToken.None);
+        var dto = await AssignHandler(context).Handle(
+            new AssignIncidentCommand(id, second.Id), CancellationToken.None);
+
+        dto.AssignedToId.Should().Be(second.Id);
+        dto.AssignedToName.Should().Be("Segundo Responsável");
+    }
+
+    [Fact]
+    public async Task Assign_UnknownUser_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+        var unknown = Guid.NewGuid();
+
+        var action = () => AssignHandler(context).Handle(
+            new AssignIncidentCommand(id, unknown), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage("*não encontrado*");
+    }
+
+    [Fact]
+    public async Task Assign_UnknownIncident_ShouldThrowNotFoundPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var unknown = Guid.NewGuid();
+
+        var action = () => AssignHandler(context).Handle(
+            new AssignIncidentCommand(unknown, Guid.NewGuid()), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<KeyNotFoundException>())
+            .WithMessage($"Incidente '{unknown}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Unassign_ShouldClearAssignedToId()
+    {
+        await using var context = await CreateContextAsync();
+        var id = await SeedIncidentAsync(context);
+        var userId = await SeedUserAsync(context);
+        await AssignHandler(context).Handle(
+            new AssignIncidentCommand(id, userId), CancellationToken.None);
+
+        var dto = await UnassignHandler(context).Handle(
+            new UnassignIncidentCommand(id), CancellationToken.None);
+
+        dto.AssignedToId.Should().BeNull();
+        dto.AssignedToName.Should().BeNull();
+    }
 }

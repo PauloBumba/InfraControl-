@@ -5,6 +5,7 @@ using InfraControl.Application.Sla.Slos.Commands;
 using InfraControl.Application.Sla.Slos.Queries;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
+using InfraControl.Domain.Enums;
 using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
@@ -42,12 +43,16 @@ public sealed class SloCommandTests : IDisposable
         => new(
             new SloRepository(context),
             new ServiceRepository(context),
+            new MonitoringCheckRepository(context),
+            new SloCheckBindingRepository(context),
             NullLogger<CreateSloCommandHandler>.Instance);
 
     private static UpdateSloCommandHandler UpdateHandler(AppDbContext context)
         => new(
             new SloRepository(context),
             new ServiceRepository(context),
+            new MonitoringCheckRepository(context),
+            new SloCheckBindingRepository(context),
             NullLogger<UpdateSloCommandHandler>.Instance);
 
     private static DeleteSloCommandHandler DeleteHandler(AppDbContext context)
@@ -55,6 +60,7 @@ public sealed class SloCommandTests : IDisposable
             new SloRepository(context),
             new SloMeasurementRepository(context),
             new SloBudgetRepository(context),
+            new SloCheckBindingRepository(context),
             NullLogger<DeleteSloCommandHandler>.Instance);
 
     private static DeleteServiceCommandHandler DeleteServiceHandler(AppDbContext context)
@@ -175,14 +181,190 @@ public sealed class SloCommandTests : IDisposable
             new CreateSloCommand("Latência Intranet", 99m, 7, otherServiceId),
             CancellationToken.None);
 
-        var byTerm = await new SearchSlosQueryHandler(new SloRepository(context))
+        var handler = new SearchSlosQueryHandler(
+            new SloRepository(context),
+            new SloMeasurementRepository(context),
+            new SloBudgetRepository(context),
+            new SloCheckBindingRepository(context));
+
+        var byTerm = await handler
             .Handle(new SearchSlosQuery(Term: "disponib"), CancellationToken.None);
         byTerm.TotalCount.Should().Be(1);
 
-        var byService = await new SearchSlosQueryHandler(new SloRepository(context))
+        var byService = await handler
             .Handle(new SearchSlosQuery(ServiceId: serviceId), CancellationToken.None);
         byService.TotalCount.Should().Be(1);
         byService.Items.Single().Name.Should().Be("Disponibilidade ERP");
+    }
+
+    [Fact]
+    public async Task Search_ShouldEnrichWithLatestMeasurementAndBudget()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var slo = await CreateHandler(context).Handle(
+            new CreateSloCommand("Disponibilidade ERP", 99.95m, 30, serviceId),
+            CancellationToken.None);
+        var other = await CreateHandler(context).Handle(
+            new CreateSloCommand("Latência ERP", 99m, 7, serviceId),
+            CancellationToken.None);
+
+        var now = DateTime.UtcNow;
+        context.SloMeasurements.AddRange(
+            SloMeasurement.Create(slo.Id, now.AddDays(-10), 99.90m),
+            SloMeasurement.Create(slo.Id, now.AddDays(-1), 99.97m),
+            SloMeasurement.Create(other.Id, now.AddDays(-10), 98.0m)); // dentro da janela máxima (30d) mas fora da do SLO (7d)
+        context.SloBudgets.AddRange(
+            SloBudget.Create(slo.Id, now.AddDays(-30), now.AddDays(-1), 10m),
+            SloBudget.Create(slo.Id, now.AddDays(-1), null, 42.5m),
+            SloBudget.Create(other.Id, now.AddDays(-60), null, 80m));
+        await context.SaveChangesAsync();
+
+        var handler = new SearchSlosQueryHandler(
+            new SloRepository(context),
+            new SloMeasurementRepository(context),
+            new SloBudgetRepository(context),
+            new SloCheckBindingRepository(context));
+
+        var result = await handler.Handle(new SearchSlosQuery(), CancellationToken.None);
+
+        var enriched = result.Items.Single(i => i.Id == slo.Id);
+        enriched.LatestValuePercent.Should().Be(99.97m);
+        enriched.LatestMeasuredAtUtc.Should().BeCloseTo(now.AddDays(-1), TimeSpan.FromSeconds(5));
+        enriched.BudgetConsumedPercent.Should().Be(42.5m); // período mais recente
+        enriched.BudgetPeriodEndUtc.Should().BeNull();
+
+        var stale = result.Items.Single(i => i.Id == other.Id);
+        stale.LatestValuePercent.Should().BeNull();   // medição fora da janela de 7d
+        stale.LatestMeasuredAtUtc.Should().BeNull();
+        stale.BudgetConsumedPercent.Should().Be(80m);
+    }
+
+    // ── ADR-068: vínculos SLO ↔ MonitoringCheck ──────────────────────────
+
+    private static async Task<Guid> SeedCheckAsync(AppDbContext context, bool enabled = true)
+    {
+        var location = Location.Create("Data Center A");
+        context.Locations.Add(location);
+        var device = Device.Create(location.Id, $"sw-{Guid.NewGuid():N}"[..8], DeviceType.Switch);
+        context.Devices.Add(device);
+        var check = MonitoringCheck.Create(device.Id, CheckKind.Ping, enabled);
+        context.MonitoringChecks.Add(check);
+        await context.SaveChangesAsync();
+        return check.Id;
+    }
+
+    [Fact]
+    public async Task Create_WithCheckIds_ShouldPersistBindingsAndReturnIds()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var checkId = await SeedCheckAsync(context);
+
+        var result = await CreateHandler(context).Handle(
+            new CreateSloCommand("Com checks", 99.9m, 30, serviceId, [checkId]),
+            CancellationToken.None);
+
+        result.MonitoringCheckIds.Should().BeEquivalentTo([checkId]);
+        context.SloCheckBindings.Should().ContainSingle(
+            b => b.SloId == result.Id && b.MonitoringCheckId == checkId);
+    }
+
+    [Fact]
+    public async Task Create_WithUnknownCheckId_ShouldThrowArgumentExceptionPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var missing = Guid.NewGuid();
+
+        var action = () => CreateHandler(context).Handle(
+            new CreateSloCommand("Check fantasma", 99.9m, 30, serviceId, [missing]),
+            CancellationToken.None);
+
+        (await action.Should().ThrowAsync<ArgumentException>())
+            .WithMessage($"Check de monitoramento '{missing}' não encontrado.");
+    }
+
+    [Fact]
+    public async Task Update_CheckIds_ShouldReplaceBindings()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var keepId = await SeedCheckAsync(context);
+        var dropId = await SeedCheckAsync(context);
+        var addId = await SeedCheckAsync(context);
+
+        var created = await CreateHandler(context).Handle(
+            new CreateSloCommand("Bindings", 99.9m, 30, serviceId, [keepId, dropId]),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateSloCommand(
+                created.Id, "Bindings", 99.9m, 30, serviceId, [keepId, addId]),
+            CancellationToken.None);
+
+        var bound = await context.SloCheckBindings.AsNoTracking()
+            .Where(b => b.SloId == created.Id)
+            .Select(b => b.MonitoringCheckId)
+            .ToListAsync();
+        bound.Should().BeEquivalentTo([keepId, addId]);
+    }
+
+    [Fact]
+    public async Task Update_NullCheckIds_ShouldKeepBindings()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var checkId = await SeedCheckAsync(context);
+
+        var created = await CreateHandler(context).Handle(
+            new CreateSloCommand("Mantém", 99.9m, 30, serviceId, [checkId]),
+            CancellationToken.None);
+
+        await UpdateHandler(context).Handle(
+            new UpdateSloCommand(created.Id, "Mantém v2", 99.95m, 30, serviceId),
+            CancellationToken.None);
+
+        context.SloCheckBindings.Should().ContainSingle(
+            b => b.SloId == created.Id && b.MonitoringCheckId == checkId);
+    }
+
+    [Fact]
+    public async Task Search_ShouldReturnBoundCheckIds()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var checkId = await SeedCheckAsync(context);
+        await CreateHandler(context).Handle(
+            new CreateSloCommand("Com checks", 99.9m, 30, serviceId, [checkId]),
+            CancellationToken.None);
+
+        var handler = new SearchSlosQueryHandler(
+            new SloRepository(context),
+            new SloMeasurementRepository(context),
+            new SloBudgetRepository(context),
+            new SloCheckBindingRepository(context));
+
+        var result = await handler.Handle(new SearchSlosQuery(), CancellationToken.None);
+
+        result.Items.Single().MonitoringCheckIds.Should().BeEquivalentTo([checkId]);
+    }
+
+    [Fact]
+    public async Task DeleteSlo_WithBindings_ShouldThrowConflictPtBr()
+    {
+        await using var context = await CreateContextAsync();
+        var serviceId = await SeedServiceAsync(context);
+        var checkId = await SeedCheckAsync(context);
+        var created = await CreateHandler(context).Handle(
+            new CreateSloCommand("Vinculado", 99.9m, 30, serviceId, [checkId]),
+            CancellationToken.None);
+
+        var action = () => DeleteHandler(context).Handle(
+            new DeleteSloCommand(created.Id), CancellationToken.None);
+
+        (await action.Should().ThrowAsync<InvalidOperationException>())
+            .WithMessage("Não é possível excluir o SLO: existem checks de monitoramento vinculados.");
     }
 
     [Fact]

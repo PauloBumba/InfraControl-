@@ -29,9 +29,20 @@ public sealed class SearchIncidentsQueryHandler(IIncidentRepository repository)
         var result = await repository.SearchAsync(
             request.DeviceId, statuses, page, pageSize, cancellationToken);
 
+        var names = await repository.GetUserNamesAsync(
+            result.Items
+                .Select(item => item.Incident.AssignedToId)
+                .OfType<Guid>()
+                .ToArray(),
+            cancellationToken);
+
         return new PagedResult<IncidentDto>(
             result.Items.Select(item => IncidentDto.From(
-                item.Incident, item.AlertCount)).ToArray(),
+                item.Incident,
+                item.AlertCount,
+                assignedToName: item.Incident.AssignedToId is { } assigned
+                    ? names.GetValueOrDefault(assigned)
+                    : null)).ToArray(),
             result.TotalCount, result.Page, result.PageSize);
     }
 
@@ -81,7 +92,16 @@ public sealed class GetIncidentQueryHandler(IIncidentRepository repository)
 
         var alerts = await repository.GetAlertsAsync(incident.Id, cancellationToken);
 
+        var names = await repository.GetUserNamesAsync(
+            incident.AssignedToId is { } assignedId ? [assignedId] : [],
+            cancellationToken);
+
         return IncidentDto.From(
-            incident, alerts.Count, alerts.Select(alert => alert.Id).ToList());
+            incident,
+            alerts.Count,
+            alerts.Select(alert => alert.Id).ToList(),
+            assignedToName: incident.AssignedToId is { } assigned
+                ? names.GetValueOrDefault(assigned)
+                : null);
     }
 }

@@ -1,7 +1,9 @@
+using System.Diagnostics.Metrics;
 using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Integrations.WhatsApp.Ports;
 using InfraControl.Application.Notifications.Channels;
 using InfraControl.Application.Notifications.Rules.Ports;
+using InfraControl.Application.Notifications.Transitions;
 using InfraControl.Domain.Entities;
 using InfraControl.Domain.Enums;
 using InfraControl.Domain.Events;
@@ -9,6 +11,7 @@ using InfraControl.Infrastructure.Persistence;
 using InfraControl.Infrastructure.Repositories;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -33,7 +36,8 @@ public sealed class NotificationEventConsumer(
     IOptions<NotificationChannelsOptions> channelsOptions,
     IWhatsAppOptionsResolver whatsAppOptionsResolver,
     INotificationEventRuleRepository ruleRepository,
-    ILogger<NotificationEventConsumer> logger)
+    ILogger<NotificationEventConsumer> logger,
+    IOccurrenceTransitionGate? transitionGate = null)
     : IConsumer<UserCreatedDomainEvent>,
       IConsumer<UserDisabledDomainEvent>,
       IConsumer<UserUpdatedDomainEvent>,
@@ -51,6 +55,7 @@ public sealed class NotificationEventConsumer(
       IConsumer<TaskItemCreatedDomainEvent>,
       IConsumer<TaskAssigneeCreatedDomainEvent>,
       IConsumer<TaskResolvedDomainEvent>,
+      IConsumer<TaskSlaBreachedDomainEvent>,
       IConsumer<ProjectStatusChangedDomainEvent>
 {
     public NotificationEventConsumer(
@@ -70,6 +75,13 @@ public sealed class NotificationEventConsumer(
 
     public const string ConsumerName = "NotificationConsumer";
 
+    private static readonly Meter Meter = new("InfraControl.Notifications");
+
+    /// <summary>Notificações criadas por tipo de evento de domínio (§4).</summary>
+    private static readonly Counter<long> NotificationsCreated = Meter.CreateCounter<long>(
+        "infracontrol_notifications_created",
+        description: "Notificações persistidas pelo consumer por EventType.");
+
     /// <summary>
     /// F16-T002/ADR-023: incidente (webhook Zabbix F16-T001, manual F6 ou
     /// auto-abertura F6) → destinatários por role Operator e Admin
@@ -78,17 +90,30 @@ public sealed class NotificationEventConsumer(
     /// Filtro WhatsApp (docs/66): só envia CRÍTICOS (High/Critical) para WhatsApp;
     /// incidentes Low/Medium vão apenas para SignalR+Email (sem spam no grupo).
     /// </summary>
-    public Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
+    public async Task Consume(ConsumeContext<IncidentCreatedDomainEvent> context)
     {
         var message = context.Message;
 
-        // Filtro: só enviar CRÍTICOS (High/Critical) para WhatsApp
-        NotificationChannel[]? channels = message.Severity == IncidentSeverity.High ||
-                       message.Severity == IncidentSeverity.Critical
-            ? null // usa fanout padrão (inclui WhatsApp se configurado)
-            : [NotificationChannel.SignalR, NotificationChannel.Email]; // SEM WhatsApp
+        // Filtro: só enviar CRÍTICOS (High/Critical) para WhatsApp —
+        // invariante de produto: a regra por evento não pode reativar o
+        // canal para severidade baixa (anti-spam do grupo).
+        var lowSeverity = message.Severity is not (
+            IncidentSeverity.High or IncidentSeverity.Critical);
 
-        return HandleIncidentCreatedAsync(message, channels, context.CancellationToken);
+        NotificationChannel[]? channels = lowSeverity
+            ? [NotificationChannel.SignalR, NotificationChannel.Email]
+            : null;
+
+        var occurrence = await ResolveIncidentOccurrenceAsync(
+            message.IncidentId, context.CancellationToken);
+
+        await HandleIncidentCreatedAsync(
+            message,
+            channels,
+            lowSeverity ? [NotificationChannel.WhatsApp] : null,
+            occurrence,
+            context.CorrelationId,
+            context.CancellationToken);
     }
 
     /// <summary>
@@ -100,6 +125,9 @@ public sealed class NotificationEventConsumer(
     private async Task HandleIncidentCreatedAsync(
         IncidentCreatedDomainEvent message,
         NotificationChannel[]? channels,
+        NotificationChannel[]? excludedChannels,
+        (string Key, Guid AggregateId) occurrence,
+        Guid? correlationId,
         CancellationToken cancellationToken)
     {
         var state = await dbContext.MonitoringProblemStates.AsNoTracking()
@@ -119,10 +147,15 @@ public sealed class NotificationEventConsumer(
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             cancellationToken,
             channels: channels,
+            excludedChannels: excludedChannels,
             deviceId: message.DeviceId,
             sourceAlertId: state?.AlertId,
             sourceIncidentId: message.IncidentId,
-            notBefore: StabilizationNotBefore(state, policy));
+            notBefore: StabilizationNotBefore(state, policy),
+            aggregateId: occurrence.AggregateId,
+            occurrenceKey: occurrence.Key,
+            occurrenceState: OccurrenceState.Incident,
+            correlationId: correlationId);
     }
 
     /// <summary>
@@ -150,6 +183,9 @@ public sealed class NotificationEventConsumer(
             return;
         }
 
+        var occurrence = await ResolveIncidentOccurrenceAsync(
+            message.IncidentId, context.CancellationToken);
+
         await HandleAsync(
             message.EventId,
             message.EventType,
@@ -160,21 +196,25 @@ public sealed class NotificationEventConsumer(
             context.CancellationToken,
             deviceId: message.DeviceId,
             sourceAlertId: state?.AlertId,
-            sourceIncidentId: message.IncidentId);
+            sourceIncidentId: message.IncidentId,
+            aggregateId: occurrence.AggregateId,
+            occurrenceKey: occurrence.Key,
+            occurrenceState: OccurrenceState.Resolved,
+            correlationId: context.CorrelationId);
     }
 
     /// <summary>
     /// F33-T004/ADR-059 + decisão do usuário (2026-11-10): alerta criado
     /// (Critical ou Warning) → Operator + Admin. Quando o alerta já gera
-    /// um incidente no mesmo fluxo (HasIncident), o WhatsApp não recebe
-    /// esta mensagem para evitar duplicidade com "Incidente aberto"; os
-    /// demais canais seguem normalmente. Warning (sem incidente) segue
-    /// pelo fanout — inclui WhatsApp quando ativo.
+    /// um incidente no mesmo fluxo (HasIncident) ou já está vinculado a
+    /// um (corrida de ingestão / vínculo manual), o WhatsApp não recebe
+    /// esta mensagem — o "Incidente aberto" é a narrativa canônica e a
+    /// regra por evento (F42) não pode ressuscitar o canal excluído.
+    /// Demais canais seguem normalmente.
     /// </summary>
     public async Task Consume(ConsumeContext<AlertCreatedDomainEvent> context)
     {
         var message = context.Message;
-
         // ADR-070/F58: alerta de monitoramento → estado do problema.
         // Alerta superseded por escalonamento (casa só em PreviousAlertId)
         // nunca notifica — a ocorrência já é representada pelo incidente.
@@ -190,14 +230,16 @@ public sealed class NotificationEventConsumer(
             return;
         }
 
-        NotificationChannel[]? channels = message.HasIncident
+        var hasIncident = message.HasIncident
+            || await HasIncidentLinkAsync(message.AlertId, context.CancellationToken);
+
+        NotificationChannel[]? channels = hasIncident
             ? [NotificationChannel.SignalR, NotificationChannel.Email]
             : null;
 
         var policy = await GetPolicyAsync(context.CancellationToken);
         if (state?.PreviousAlertId is { } supersededAlertId)
             await CancelPendingDeliveriesAsync(supersededAlertId, null, context.CancellationToken);
-
         await HandleAsync(
             message.EventId,
             message.EventType,
@@ -210,9 +252,14 @@ public sealed class NotificationEventConsumer(
             context.CancellationToken,
             deviceId: message.DeviceId,
             channels: channels,
+            excludedChannels: hasIncident ? [NotificationChannel.WhatsApp] : null,
             sourceAlertId: message.AlertId,
             sourceIncidentId: state?.IncidentId,
-            notBefore: StabilizationNotBefore(state, policy));
+            notBefore: StabilizationNotBefore(state, policy),
+            aggregateId: message.AlertId,
+            occurrenceKey: $"alert:{message.AlertId}",
+            occurrenceState: OccurrenceState.Alert,
+            correlationId: context.CorrelationId);
     }
 
     /// <summary>
@@ -243,11 +290,11 @@ public sealed class NotificationEventConsumer(
 
     /// <summary>
     /// F19-T007: alerta resolvido → Operator + Admin.
-    /// F57/ADR-070: quando o alerta está vinculado a um incidente (N:N
-    /// incident_alerts — ex.: Critical do Zabbix), o fechamento já chega
-    /// como IncidentResolvedDomainEvent. Mandar "Alerta resolvido" ao
-    /// WhatsApp duplicaria a mesma ocorrência no grupo; o alerta segue
-    /// para SignalR+Email e o WhatsApp recebe só o cartão do incidente.
+    /// F57/ADR-070: ciclo flapping cancela as entregas pendentes e não
+    /// notifica a resolução. Alerta vinculado a um incidente (N:N
+    /// incident_alerts) não notifica a resolução — o
+    /// IncidentResolvedDomainEvent é a narrativa canônica (o gate
+    /// deduplicaria o segundo evento de qualquer forma).
     /// </summary>
     public async Task Consume(ConsumeContext<AlertResolvedDomainEvent> context)
     {
@@ -270,10 +317,13 @@ public sealed class NotificationEventConsumer(
             return;
         }
 
-        var hasIncident = await dbContext.IncidentAlerts.AsNoTracking()
-            .AnyAsync(link => link.AlertId == message.AlertId,
-                context.CancellationToken);
-
+        if (await HasIncidentLinkAsync(message.AlertId, context.CancellationToken))
+        {
+            logger.LogInformation(
+                "Alerta {AlertId} resolvido tem incidente vinculado — resolução do alerta não notifica (o incidente cobre).",
+                message.AlertId);
+            return;
+        }
         await HandleAsync(
             message.EventId,
             message.EventType,
@@ -282,13 +332,23 @@ public sealed class NotificationEventConsumer(
             recipientUserId: null,
             recipientRoles: [UserRole.Operator.ToString(), UserRole.Admin.ToString()],
             context.CancellationToken,
-            channels: hasIncident
-                ? [NotificationChannel.SignalR, NotificationChannel.Email]
-                : null,
             deviceId: message.DeviceId,
             sourceAlertId: message.AlertId,
-            sourceIncidentId: state?.IncidentId);
+            sourceIncidentId: state?.IncidentId,
+            aggregateId: message.AlertId,
+            occurrenceKey: $"alert:{message.AlertId}",
+            occurrenceState: OccurrenceState.Resolved,
+            correlationId: context.CorrelationId);
     }
+
+    /// <summary>
+    /// O alerta já está vinculado a um incidente (IncidentAlert)? Cobre a
+    /// corrida em que o incidente é criado/ligado depois do AlertCreated
+    /// (ou fluxos externos) — HasIncident do evento só enxerga o nascimento.
+    /// </summary>
+    private Task<bool> HasIncidentLinkAsync(Guid alertId, CancellationToken cancellationToken)
+        => dbContext.IncidentAlerts.AsNoTracking()
+            .AnyAsync(link => link.AlertId == alertId, cancellationToken);
 
     /// <summary>
     /// PDI criado (docs/29 §8, regra do usuário 2026-10-04): notifica o
@@ -394,6 +454,38 @@ public sealed class NotificationEventConsumer(
             recipientUserId: null,
             recipientRoles: [],
             cancellationToken: context.CancellationToken,
+            recipientUserIds: users.Distinct().ToArray());
+    }
+
+    /// <summary>
+    /// SLA de task estourado (SlaBreachWorker) → notifica o responsável
+    /// e o criador da task (destinatários diretos); sem nenhum dos dois,
+    /// cai para Operator+Admin — mesmo público de tarefa criada.
+    /// </summary>
+    public async Task Consume(ConsumeContext<TaskSlaBreachedDomainEvent> context)
+    {
+        var message = context.Message;
+        var task = await dbContext.Tasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == message.TaskId, context.CancellationToken);
+
+        var users = new List<Guid>();
+        if (task?.ResponsibleId is { } responsible)
+            users.Add(responsible);
+        if (task?.CreatedById is { } creator)
+            users.Add(creator);
+
+        var recipientRoles = users.Count == 0
+            ? new[] { UserRole.Operator.ToString(), UserRole.Admin.ToString() }
+            : Array.Empty<string>();
+
+        await HandleAsync(
+            message.EventId,
+            message.EventType,
+            "SLA estourado",
+            $"O SLA de {message.BreachKind} da tarefa '{message.Title}' venceu.",
+            recipientUserId: null,
+            recipientRoles: recipientRoles,
+            context.CancellationToken,
             recipientUserIds: users.Distinct().ToArray());
     }
 
@@ -588,6 +680,11 @@ public sealed class NotificationEventConsumer(
         NotificationChannel[]? channels = null,
         Guid? deviceId = null,
         IReadOnlyCollection<Guid>? recipientUserIds = null,
+        Guid? aggregateId = null,
+        string? occurrenceKey = null,
+        OccurrenceState? occurrenceState = null,
+        Guid? correlationId = null,
+        NotificationChannel[]? excludedChannels = null,
         Guid? sourceAlertId = null,
         Guid? sourceIncidentId = null,
         DateTime? notBefore = null)
@@ -619,7 +716,7 @@ public sealed class NotificationEventConsumer(
         // F33-T005: DeviceId do evento viaja até o worker de WhatsApp
         // (série histórica do gráfico no Zabbix).
         var notification = Notification.Create(
-            eventId, eventType, title, message, deviceId,
+            eventId, eventType, title, message, deviceId, aggregateId,
             sourceAlertId, sourceIncidentId);
 
         var firstDelivery = await inboxStore.TryMarkProcessedAsync(
@@ -629,11 +726,56 @@ public sealed class NotificationEventConsumer(
             logger.LogInformation(
                 "Evento {EventType}/{EventId} já processado — notificação duplicada ignorada.",
                 eventType, eventId);
+            // Auditoria: replay de evento de ocorrência fica registrado
+            // como DuplicateEvent (sem estado novo, sem notificação).
+            if (occurrenceKey is not null && transitionGate is not null)
+            {
+                await transitionGate.RecordDiscardedAsync(
+                    occurrenceKey, occurrenceState, eventType, eventId,
+                    correlationId, cancellationToken);
+            }
             return;
         }
 
+        // Gate central de transição de estado (spec): sem mudança de
+        // estado = nenhuma notificação em NENHUM canal. Roda depois do
+        // inbox para que replay do mesmo eventId nunca reavalie o gate.
+        if (occurrenceKey is not null && occurrenceState is { } newState
+            && transitionGate is not null)
+        {
+            var authorized = await transitionGate.AuthorizeAsync(
+                occurrenceKey, newState, eventType, eventId,
+                correlationId, cancellationToken);
+            if (!authorized)
+            {
+                logger.LogInformation(
+                    "Notificação {EventType}/{EventId} descartada pelo gate de transição (ocorrência {OccurrenceKey}).",
+                    eventType, eventId, occurrenceKey);
+                return;
+            }
+        }
+
         dbContext.Notifications.Add(notification);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation
+        })
+        {
+            // Corrida: outro consumer gravou a mesma notification (mesmo
+            // eventId) entre o check do inbox e este insert — ux_notifications_event_id
+            // garante a idempotência; tratar como duplicata, não como falha.
+            dbContext.Entry(notification).State = EntityState.Detached;
+            logger.LogInformation(
+                "Notificação de {EventType}/{EventId} já persistida por consumo concorrente — duplicata ignorada.",
+                eventType, eventId);
+            return;
+        }
+        NotificationsCreated.Add(1,
+            new KeyValuePair<string, object?>("event_type", eventType));
 
         // usuário OU roles (1..N, dedup) — vazio apenas quando a resolução
         // falhou (ex.: convite sem usuário). F48-T001: vários usuários
@@ -689,9 +831,36 @@ public sealed class NotificationEventConsumer(
                 effectiveChannels.Where(c => IsSendable(c, whatsapp)).Distinct().ToList(),
                 whatsapp);
 
+        // Invariantes de produto (dedup alerta↔incidente, anti-spam por
+        // severidade): o caller bane canais que NEM a regra por evento
+        // pode reativar — regra F42 refina o fanout, não quebra dedup.
+        if (excludedChannels is { Length: > 0 })
+            fanout.RemoveAll(excludedChannels.Contains);
+
         foreach (var channel in fanout)
             await QueueDeliveriesAsync(
                 notification, channel, whatsapp, notBefore, cancellationToken);
+    }
+
+    /// <summary>
+    /// Identidade canônica da ocorrência para eventos de incidente: o
+    /// alerta vinculado via IncidentAlert (incidente e alerta do mesmo
+    /// problema compartilham "alert:{id}" → Alert→Incident e →Resolved
+    /// deduplicam corretamente). AggregateId = id do alerta raiz quando
+    /// vinculado (mesma correlação do gate); sem vínculo, a chave e o
+    /// aggregate usam o próprio incidente.
+    /// </summary>
+    private async Task<(string Key, Guid AggregateId)> ResolveIncidentOccurrenceAsync(
+        Guid incidentId, CancellationToken cancellationToken)
+    {
+        var alertId = await dbContext.IncidentAlerts.AsNoTracking()
+            .Where(link => link.IncidentId == incidentId)
+            .Select(link => (Guid?)link.AlertId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return alertId is { } id && id != Guid.Empty
+            ? ($"alert:{id}", id)
+            : ($"incident:{incidentId}", incidentId);
     }
 
     /// <summary>
@@ -939,7 +1108,10 @@ public sealed class NotificationEventConsumer(
             }
 
             var delivery = NotificationDelivery.Create(
-                notification.Id, userId, channel);
+                notification.Id,
+                userId,
+                channel,
+                status: DeliveryStatus.Pending);
             // ADR-070/F58: estabilização — a entrega só vence quando
             // NextAttemptAt chegar (query de pendentes respeita o campo
             // para Pending); flapping cancela antes de vencer.

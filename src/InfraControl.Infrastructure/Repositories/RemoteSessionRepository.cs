@@ -32,4 +32,18 @@ public sealed class RemoteSessionRepository(AppDbContext dbContext)
             .ThenByDescending(session => session.Id)
             .Take(limit)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetUserNamesAsync(
+        IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var users = await dbContext.DomainUsers.AsNoTracking()
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        return users.ToDictionary(user => user.Id, user => user.DisplayName);
+    }
 }

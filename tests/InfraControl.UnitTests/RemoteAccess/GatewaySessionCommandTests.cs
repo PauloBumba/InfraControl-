@@ -93,7 +93,7 @@ public sealed class GatewaySessionCommandTests : IDisposable
                 : throw new InvalidOperationException(_error);
         }
 
-        public Task EnsureDeviceConnectionAsync(
+        public Task<string> EnsureDeviceConnectionAsync(
             string deviceName,
             string hostname,
             RemoteProtocol protocol,
@@ -105,7 +105,7 @@ public sealed class GatewaySessionCommandTests : IDisposable
             EnsuredHostname = hostname;
             EnsuredProtocol = protocol;
             EnsuredGrantToUser = grantToUser;
-            return Task.CompletedTask;
+            return Task.FromResult("conn-42");
         }
     }
 
@@ -150,6 +150,7 @@ public sealed class GatewaySessionCommandTests : IDisposable
         dto.Protocol.Should().Be("Rdp");
         dto.Token.Should().StartWith("token-");
         dto.Path.Should().Be("/guacamole/");
+        dto.ConnectionId.Should().Be("conn-42", "deep-link #/client/{id} da sessão");
         dto.SessionId.Should().NotBe(Guid.Empty);
         gateway.LastUserName.Should().Be("unit-test", "o header X-Remote-User é o usuário da plataforma");
         gateway.EnsuredDeviceName.Should().Be(device.Name);

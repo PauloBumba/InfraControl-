@@ -94,6 +94,7 @@ public sealed record DeleteMonitoringCheckCommand(Guid Id) : BaseCommand, IAutho
 
 public sealed class DeleteMonitoringCheckCommandHandler(
     IMonitoringCheckRepository checkRepository,
+    Sla.Slos.Bindings.Ports.ISloCheckBindingRepository sloBindings,
     ILogger<DeleteMonitoringCheckCommandHandler> logger)
     : IRequestHandler<DeleteMonitoringCheckCommand>
 {
@@ -103,6 +104,12 @@ public sealed class DeleteMonitoringCheckCommandHandler(
     {
         var check = await checkRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Check '{request.Id}' não encontrada.");
+
+        // ADR-068: check medida por SLO não pode ser excluída — desvincule
+        // no formulário do SLO primeiro (FK Restrict é o backstop).
+        if (await sloBindings.HasBindingsForCheckAsync(check.Id, cancellationToken))
+            throw new InvalidOperationException(
+                "Não é possível excluir o check: ele está vinculado a um SLO.");
 
         checkRepository.Remove(check);
         await checkRepository.SaveChangesAsync(cancellationToken);

@@ -34,3 +34,56 @@ export function getDeviceResults(
 ): Promise<DeviceResults | null> {
   return api.get<DeviceResults>(`/monitoring/results/${deviceId}?limit=${limit}`);
 }
+
+/**
+ * F54-T001 — série de disponibilidade dos checks internos
+ * (`GET /monitoring/results/availability`): buckets com polls
+ * totais/com sucesso — "% de sucesso" é derivado no cliente.
+ */
+export interface AvailabilityPoint {
+  bucketStartUtc: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+}
+
+export interface MonitoringAvailability {
+  fromUtc: string;
+  toUtc: string;
+  bucketMinutes: number;
+  points: AvailabilityPoint[];
+}
+
+export function getMonitoringAvailability(query: {
+  fromUtc?: string;
+  toUtc?: string;
+  bucketMinutes?: number;
+} = {}): Promise<MonitoringAvailability | null> {
+  const params = new URLSearchParams();
+  if (query.fromUtc) params.set("fromUtc", query.fromUtc);
+  if (query.toUtc) params.set("toUtc", query.toUtc);
+  if (query.bucketMinutes) params.set("bucketMinutes", String(query.bucketMinutes));
+  const qs = params.toString();
+  return api.get<MonitoringAvailability>(
+    `/monitoring/results/availability${qs ? `?${qs}` : ""}`,
+  );
+}
+
+/**
+ * ADR-068 — `GET /monitoring/checks?term=`: todos os checks com nome do
+ * device, fonte do multi-selecionador do formulário de SLO.
+ */
+export interface MonitoringCheckOption {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  deviceIp: string;
+  /** CheckKind em PascalCase (Ping/Http/Snmp/…). */
+  kind: string;
+  enabled: boolean;
+}
+
+export function listMonitoringChecks(term?: string): Promise<MonitoringCheckOption[] | null> {
+  const qs = term ? `?term=${encodeURIComponent(term)}` : "";
+  return api.get<MonitoringCheckOption[]>(`/monitoring/checks${qs}`);
+}

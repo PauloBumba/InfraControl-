@@ -461,3 +461,46 @@ button.uni-dash-stat {
 [data-theme="dark"] .uni-dash-chip-high {
   color: #fb923c;
 }
+
+/* ============ F54 — dashboard UniFi-style ============ */
+.uni-dash-view-all { text-decoration: none; }
+
+/* Seletor de período dos gráficos */
+.uni-dash-periods { display: inline-flex; gap: 2px; background: var(--uni-field-bg, #f1f5f9); border: 1px solid var(--uni-border); border-radius: 6px; padding: 2px; }
+.uni-dash-period { border: 0; background: transparent; padding: 3px 10px; font-size: 11px; font-weight: 600; color: var(--uni-text-secondary, #64748b); border-radius: 4px; cursor: pointer; }
+.uni-dash-period.active { background: var(--uni-accent, #3b82f6); color: #fff; }
+.uni-dash-period:hover:not(.active) { background: rgba(59,130,246,0.08); }
+
+/* Faixa de status da frota */
+.uni-dash-fleet-stats { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+.uni-dash-fleet-kpi { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 84px; padding: 8px 10px; border: 1px solid var(--uni-border); border-radius: 8px; text-decoration: none; color: inherit; transition: border-color .12s; }
+.uni-dash-fleet-kpi:hover { border-color: var(--uni-accent); }
+.uni-dash-fleet-value { font-size: 18px; font-weight: 700; color: var(--uni-text-primary, #0f172a); }
+.uni-dash-fleet-label { font-size: 10px; color: var(--uni-text-secondary, #64748b); text-align: center; }
+.uni-dash-fleet-types { margin: 0; padding: 0 16px 12px; font-size: 11px; color: var(--uni-text-secondary, #64748b); }
+
+/* Gráficos */
+.uni-dash-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 16px 16px; }
+@media (max-width: 900px) { .uni-dash-charts { grid-template-columns: 1fr; } }
+.uni-dash-chart-card { border: 1px solid var(--uni-border); border-radius: 8px; padding: 10px 12px; }
+.uni-dash-chart-title { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--uni-text-secondary, #64748b); }
+.uni-dash-zmetric-controls { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.uni-dash-select { padding: 5px 8px; font-size: 12px; border: 1px solid var(--uni-border); border-radius: 6px; background: var(--uni-field-bg, #fff); color: var(--uni-text-primary, #0f172a); max-width: 100%; }
+
+/* Topologia embutida */
+.uni-dash-topology-map { height: 320px; overflow: auto; }
+.uni-dash-topology-map > * { height: 100%; }
+
+/* Resumo UniFi */
+.uni-dash-unifi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; padding: 12px 16px 16px; }
+.uni-dash-unifi-grid > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px; border: 1px solid var(--uni-border); border-radius: 8px; }
+.uni-dash-unifi-grid strong { font-size: 16px; }
+.uni-dash-unifi-grid span { font-size: 10px; color: var(--uni-text-secondary, #64748b); }
+
+/* Central de eventos */
+.uni-dash-events { list-style: none; margin: 0; padding: 4px 0; display: flex; flex-direction: column; }
+.uni-dash-event { display: flex; align-items: flex-start; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--uni-divider, #f1f5f9); }
+.uni-dash-event:last-child { border-bottom: 0; }
+.uni-dash-event-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.uni-dash-event-title { font-size: 12px; font-weight: 500; color: var(--uni-text-primary, #0f172a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uni-dash-event-meta { font-size: 10px; color: var(--uni-text-secondary, #64748b); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

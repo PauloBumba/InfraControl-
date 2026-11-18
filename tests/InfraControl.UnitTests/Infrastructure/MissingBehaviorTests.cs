@@ -136,6 +136,40 @@ public sealed class MissingBehaviorTests
     }
 
     [Fact]
+    public async Task CacheInvalidationBehavior_ShouldInvalidateTagsDeclaredOnBaseCommand()
+    {
+        // Regressão: todo BaseCommand implementa ICacheInvalidatingCommand,
+        // não ICacheInvalidatingRequest — o behavior precisa honrar a tag
+        // declarada em qualquer command da aplicação (ex.: "projects").
+        var cache = new RecordingCache();
+        var user = new FakeCurrentUser(true);
+        var queryBehavior = new CachingBehavior<TaggedQuery, string>(
+            cache, user, NullLogger<CachingBehavior<TaggedQuery, string>>.Instance);
+        var invalidationBehavior = new CacheInvalidationBehavior<BaseCommandWithTags, string>(
+            cache, NullLogger<CacheInvalidationBehavior<BaseCommandWithTags, string>>.Instance);
+        var handlerRuns = 0;
+
+        Task<string> Handler()
+        {
+            handlerRuns++;
+            return Task.FromResult($"hits-{handlerRuns}");
+        }
+
+        await queryBehavior.Handle(new TaggedQuery("sw-9"), Handler, CancellationToken.None);
+        await queryBehavior.Handle(new TaggedQuery("sw-9"), Handler, CancellationToken.None);
+        handlerRuns.Should().Be(1);
+
+        await invalidationBehavior.Handle(
+            new BaseCommandWithTags(), () => Task.FromResult("ok"), CancellationToken.None);
+
+        cache.Tags.Should().NotContainKey("switchPorts:sw-9");
+
+        var after = await queryBehavior.Handle(new TaggedQuery("sw-9"), Handler, CancellationToken.None);
+        after.Should().Be("hits-2");
+        handlerRuns.Should().Be(2);
+    }
+
+    [Fact]
     public async Task TransactionBehavior_ShouldCommitCommandsOnly()
     {
         var unitOfWork = new FakeUnitOfWork();
@@ -166,6 +200,11 @@ public sealed class MissingBehaviorTests
     private sealed record InvalidateSwitchPortsCommand(string Id) : ICacheInvalidatingRequest
     {
         public IReadOnlyCollection<string> CacheKeysToInvalidate => [$"switchPorts:{Id}"];
+    }
+
+    private sealed record BaseCommandWithTags : BaseCommand<string>
+    {
+        public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["switchPorts:sw-9"];
     }
     private sealed record CommandRequest : ICommand<string>;
 
@@ -244,6 +283,11 @@ public sealed class MissingBehaviorTests
         {
             SaveCalls++;
             return Task.FromResult(1);
+        }
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
         }
         public void Dispose() { }
     }

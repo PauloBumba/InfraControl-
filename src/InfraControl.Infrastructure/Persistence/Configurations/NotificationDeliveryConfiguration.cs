@@ -47,6 +47,10 @@ public sealed class NotificationDeliveryConfiguration
         builder.Property(x => x.NextAttemptAt)
             .HasColumnName("next_attempt_at");
 
+        builder.Property(x => x.SuppressionReason)
+            .HasColumnName("suppression_reason")
+            .HasMaxLength(NotificationDelivery.SuppressionReasonMaxLength);
+
         // Delivery pertence à notificação e ao usuário (morrem juntos).
         builder.HasOne<Notification>()
             .WithMany()
@@ -61,5 +65,12 @@ public sealed class NotificationDeliveryConfiguration
         // Fila do worker: pendentes por canal (F9-T004).
         builder.HasIndex(x => new { x.Channel, x.Status })
             .HasDatabaseName("ix_notification_deliveries_channel_status");
+
+        // Idempotência de envio (§5): a mesma notificação nunca gera
+        // duas deliveries para o mesmo usuário+canal — reprocessamento
+        // ou retry de criação bate na constraint, não duplica mensagem.
+        builder.HasIndex(x => new { x.NotificationId, x.UserId, x.Channel })
+            .IsUnique()
+            .HasDatabaseName("ux_notification_deliveries_dedup");
     }
 }

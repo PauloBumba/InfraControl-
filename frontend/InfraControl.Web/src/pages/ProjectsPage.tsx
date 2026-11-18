@@ -9,6 +9,8 @@ import { EntityView, ViewSwitcher, useEntityViewMode } from "@/components/ui/Ent
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { MetricChart } from "@/components/ui/MetricChart";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useAppSelector } from "@/app/store/hooks";
@@ -141,6 +143,9 @@ export function ProjectsPage() {
   const [transferError, setTransferError] = useState<string | null>(null);
   const isAdmin =
     useAppSelector((state) => state.auth.user?.roles.includes("Admin")) ?? false;
+  // Espelha a regra do backend: só o criador do projeto ou Admin exclui.
+  const canDeleteProject = (project: ProjectItem) =>
+    isAdmin || (project.createdById != null && project.createdById === currentUserId);
   // Notificação transitória global (auto-dismiss) — ver ToastProvider.
   const toast = useToast();
 
@@ -285,6 +290,13 @@ export function ProjectsPage() {
     void loadProjects();
   }, [loadProjects]);
 
+  // Push operacional (status do projeto) + polling opt-in.
+  const refreshProjects = useCallback(() => {
+    void loadProjects();
+  }, [loadProjects]);
+  useOperationalRefresh(refreshProjects);
+  useAutoRefresh(refreshProjects);
+
   useEffect(() => {
     listUsers()
       .then(setUsers)
@@ -396,14 +408,16 @@ export function ProjectsPage() {
           >
             Editar
           </Button>
-          <Button
-            variant="danger"
-            icon="pi pi-trash"
-            aria-label={`Remover projeto ${project.title}`}
-            onClick={() => setDeleteTarget(project)}
-          >
-            Remover
-          </Button>
+          {canDeleteProject(project) && (
+            <Button
+              variant="danger"
+              icon="pi pi-trash"
+              aria-label={`Remover projeto ${project.title}`}
+              onClick={() => setDeleteTarget(project)}
+            >
+              Remover
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -516,7 +530,7 @@ export function ProjectsPage() {
       {error && <ErrorBanner message={error} onRetry={() => void loadProjects()} />}
 
       {actionError && (
-        <div style={{ padding: 12, borderRadius: 10, background: "#fef2f2", color: "#991b1b" }}>{actionError}</div>
+        <ErrorBanner message={actionError} color="#991b1b" style={{ padding: 12, borderRadius: 10 }} />
       )}
 
       {loading ? (
@@ -656,14 +670,16 @@ export function ProjectsPage() {
                     Transferir
                   </Button>
                 )}
-                <Button
-                  variant="danger"
-                  icon="pi pi-trash"
-                  aria-label={`Remover projeto ${project.title}`}
-                  onClick={() => setDeleteTarget(project)}
-                >
-                  Remover
-                </Button>
+                {canDeleteProject(project) && (
+                  <Button
+                    variant="danger"
+                    icon="pi pi-trash"
+                    aria-label={`Remover projeto ${project.title}`}
+                    onClick={() => setDeleteTarget(project)}
+                  >
+                    Remover
+                  </Button>
+                )}
               </div>
             )}
           />
@@ -787,9 +803,7 @@ export function ProjectsPage() {
             </select>
           </label>
           {actionError && (
-            <div style={{ padding: 10, borderRadius: 8, background: "#fef2f2", color: "#991b1b", fontSize: 12 }}>
-              {actionError}
-            </div>
+            <ErrorBanner message={actionError} color="#991b1b" style={{ padding: 10, borderRadius: 8, fontSize: 12 }} />
           )}
         </div>
       </Dialog>

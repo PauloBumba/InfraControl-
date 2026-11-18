@@ -19,6 +19,7 @@ import { api } from "./client";
 export interface RemoteSessionItem {
   id: string;
   userId: string;
+  userName: string | null;
   protocol: "Ssh" | "Rdp";
   status: "Active" | "Closed" | "Failed";
   failureReason: string | null;
@@ -72,6 +73,7 @@ export interface RemoteGatewaySession {
   protocol: "Ssh" | "Rdp";
   token: string;
   path: string;
+  connectionId: string;
 }
 
 /**

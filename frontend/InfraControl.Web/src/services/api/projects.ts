@@ -149,8 +149,32 @@ export async function transferProject(
 }
 
 export async function listProjectPhases(projectId: string): Promise<ProjectPhaseItem[]> {
-  const data = await api.get<ProjectPhaseItem[]>(`/projects/${projectId}/phases`);
-  return data ?? [];
+  const data = await api.get<ProjectPhaseItem[] | { phases?: ProjectPhaseItem[] }>(
+    `/projects/${projectId}/phases`,
+  );
+  return Array.isArray(data) ? data : (data?.phases ?? []);
+}
+
+/** Transição de status do projeto (PUT /status) — máquina de estados do domínio. */
+export async function transitionProjectStatus(
+  projectId: string,
+  status: string,
+  reason?: string | null,
+): Promise<ProjectItem | null> {
+  return api.put<ProjectItem>(`/projects/${projectId}/status`, { status, reason: reason ?? null });
+}
+
+/** Ação de fase: Start | Submit | Validate | Reject (Reject exige reason). */
+export async function setProjectPhaseStatus(
+  projectId: string,
+  phaseId: string,
+  action: "Start" | "Submit" | "Validate" | "Reject",
+  reason?: string | null,
+): Promise<ProjectPhaseItem | null> {
+  return api.put<ProjectPhaseItem>(
+    `/projects/${projectId}/phases/${phaseId}/status`,
+    { action, reason: reason ?? null },
+  );
 }
 
 export async function submitProjectForApproval(projectId: string): Promise<ProjectItem | null> {
@@ -396,6 +420,12 @@ export async function deleteProjectEvidence(
   evidenceId: string,
 ): Promise<void> {
   await api.delete(`/projects/${projectId}/evidences/${evidenceId}`);
+}
+
+/** URL autenticada para preview inline (img/video/pdf) — cookies same-origin. */
+export function projectEvidencePreviewUrl(projectId: string, evidenceId: string): string {
+  const base = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+  return `${base}/projects/${projectId}/evidences/${evidenceId}/download?inline=true`;
 }
 
 /** Download autenticado — blob → objectURL → clique no link temporário. */

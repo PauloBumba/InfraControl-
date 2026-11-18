@@ -10,10 +10,18 @@ public interface IMonitoringCheckRepository : IRepository<MonitoringCheck>
     Task<IReadOnlyList<MonitoringCheck>> GetByDeviceAsync(
         Guid deviceId, CancellationToken cancellationToken = default);
 
+    /// <summary>Checks de vários devices por id (picker SLO / validação de binding).</summary>
+    Task<IReadOnlyList<MonitoringCheck>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
+
     /// <summary>Check do par (device, kind) — guard de duplicidade (índice único).</summary>
     Task<MonitoringCheck?> GetByDeviceAndKindAsync(
         Guid deviceId,
         CheckKind kind,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Todas as checks (picker do SLO — inclui desabilitadas).</summary>
+    Task<IReadOnlyList<MonitoringCheck>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -40,6 +40,12 @@ public sealed class AuditAiAuditSinkTests
             return Task.FromResult(SaveCount);
         }
 
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         public void Dispose() { }
     }
 

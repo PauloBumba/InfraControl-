@@ -75,6 +75,29 @@ public sealed class InvitationsController(ISender sender, IOptions<FrontendOptio
             new UpdateInvitationCommand(invitationId, ParseRoles(model.Roles)),
             cancellationToken)));
 
+    /// <summary>
+    /// Reenvio de convite pendente: rotaciona o token e reenvia o e-mail
+    /// (SendEmail=true) ou só devolve o link para o admin copiar
+    /// (SendEmail=false). Mesma resolução de BaseUrl do Create.
+    /// </summary>
+    [HttpPost("{invitationId:guid}/resend")]
+    public async Task<IActionResult> Resend(
+        Guid invitationId,
+        [FromBody] ResendInvitationViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var configured = frontendOptions.Value.BaseUrl;
+        var baseUrl = string.IsNullOrWhiteSpace(configured)
+            ? $"{Request.Scheme}://{Request.Host}"
+            : configured.TrimEnd('/');
+
+        var result = await sender.Send(
+            new ResendInvitationCommand(invitationId, model.SendEmail, baseUrl),
+            cancellationToken);
+
+        return Ok(ApiResponse.Ok(result));
+    }
+
     [HttpDelete("{invitationId:guid}")]
     public async Task<IActionResult> Cancel(Guid invitationId, CancellationToken cancellationToken)
     {

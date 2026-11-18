@@ -33,6 +33,9 @@ import {
   mutationErrorMessage,
 } from "@/hooks/queries";
 import { useFormErrors } from "@/hooks/useFormErrors";
+import { useOperationalRefresh } from "@/hooks/useOperationalRefresh";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import { listUsers, type AdminUser } from "@/services/api/adminUsers";
 import {
   activeStateColumns,
@@ -122,6 +125,14 @@ export function TasksPage() {
   const [kindFilter, setKindFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
 
+  // Busca ao digitar (debounce 400ms) — o termo aplicado dispara a recarga.
+  useEffect(() => {
+    const trimmed = termInput.trim();
+    if (trimmed === term) return;
+    const timer = setTimeout(() => setTerm(trimmed), 400);
+    return () => clearTimeout(timer);
+  }, [termInput, term]);
+
   // pageSize no clamp máximo do handler (1..100) — o quadro não pagina.
   // rootOnly (F23-T004/P4a): subtarefas ficam dentro do detalhe do pai —
   // o quadro mostra só as tasks raiz.
@@ -139,6 +150,15 @@ export function TasksPage() {
     // 403 de Viewer em /admin/users silencia — select fica só com "Sem".
     listUsers().catch(() => [] as AdminUser[]),
   );
+
+  // Push operacional (criação/resolução/SLA estourado) + polling opt-in
+  // invalidam o prefixo ["tasks"] — mesmo das mutations.
+  const queryClient = useQueryClient();
+  const refreshTasks = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  }, [queryClient]);
+  useOperationalRefresh(refreshTasks);
+  useAutoRefresh(refreshTasks);
 
   const createMutation = useCreateMutation({
     invalidate: ["tasks"],
@@ -770,7 +790,7 @@ export function TasksPage() {
                   }}
                   placeholder="Descreva a solução, ações realizadas, resultado..."
                 />
-                {completionError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{completionError}</div>}
+                {completionError && <span style={{ display: "block", fontSize: 11, color: "#b91c1c", marginTop: 4 }}>{completionError}</span>}
               </div>
               <FormField label="Código de baixa">
                 <SelectField

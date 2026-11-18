@@ -19,9 +19,10 @@ public interface IGuacamoleGateway
     /// (F34-T008): cria/valida via REST do Guacamole com a credencial de
     /// administração do próprio gateway — o valor da credencial do ALVO
     /// (dono da conexão) nunca trafega para o navegador (D4); operações são
-    /// idempotentes (grant só quando falta).
+    /// idempotentes (grant só quando falta). Devolve o identificador da
+    /// conexão para o deep-link <c>#/client/{id}</c> da sessão.
     /// </summary>
-    Task EnsureDeviceConnectionAsync(
+    Task<string> EnsureDeviceConnectionAsync(
         string deviceName,
         string hostname,
         RemoteProtocol protocol,

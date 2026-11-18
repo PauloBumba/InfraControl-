@@ -24,12 +24,16 @@ public sealed class DiscoveryRunRepository(AppDbContext dbContext) : IDiscoveryR
         Guid? deviceId,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        DateTime? startedAfterUtc = null)
     {
         var query = dbContext.DiscoveryRuns.AsNoTracking();
 
         if (deviceId is not null)
             query = query.Where(run => run.DeviceId == deviceId);
+
+        if (startedAfterUtc is not null)
+            query = query.Where(run => run.StartedAt >= startedAfterUtc.Value);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query

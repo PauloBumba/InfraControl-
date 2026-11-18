@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InfraControl.Application.Identity.Invitations.Ports;
 using InfraControl.BuildingBlocks.Application;
 using InfraControl.Domain.Entities;
@@ -19,6 +20,10 @@ public sealed record SearchInvitationsQuery(
 public sealed record InvitationDto(
     Guid Id,
     string Email,
+    // ADR-061 §2 — enum viaja como string no wire ("Pending"), mesmo
+    // contrato do AiProviderDto.Protocol; sem isso o front recebia `1`
+    // e nenhuma comparação de status batia (botões de ação sumiam).
+    [property: JsonConverter(typeof(JsonStringEnumConverter<InvitationStatus>))]
     InvitationStatus Status,
     DateTime ExpiresAt,
     DateTime CreatedAt,

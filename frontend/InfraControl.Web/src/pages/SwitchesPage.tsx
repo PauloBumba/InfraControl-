@@ -3,7 +3,7 @@ import { Column } from "primereact/column";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { ListPageShell } from "@/components/ui/ListPageShell";
-import { formatPortDuplex, formatPortSpeed, formatRate, formatUptime } from "@/utils/format";
+import { formatDateTime, formatPortDuplex, formatPortSpeed, formatRate, formatUptime } from "@/utils/format";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { SelectField } from "@/components/ui/SelectField";
 import { DataTablePanel } from "@/components/ui/DataTablePanel";
@@ -18,7 +18,7 @@ import {
   type LocationItem,
   type SwitchPortItem,
 } from "@/services/api/inventory";
-import { listSwitches, getSwitchUnifiPorts, getSwitchZabbixInterfaces, getSwitchZabbixPorts, syncSwitchPortsFromUnifi, type ZabbixInterfaceItem, type ZabbixPortStatus } from "@/services/api/network";
+import { listSwitches, getSwitchUnifiPorts, getSwitchZabbixInterfaces, getSwitchZabbixPorts, syncSwitchPortsFromUnifi, getSwitchExplorer, listDiscoveryRuns, runDiscoverySweep, type ZabbixInterfaceItem, type ZabbixPortStatus, type SwitchExplorerMac, type DiscoveryRunItem } from "@/services/api/network";
 import { setUnifiPortConfig } from "@/services/api/unifi";
 import type { UniFiSwitchPort } from "@/services/api/unifi";
 import { getDeviceResults, type DeviceResults } from "@/services/api/monitoring";
@@ -135,6 +135,39 @@ export function SwitchesPage() {
   );
   const snmpHealth =
     healthResults.data?.results.find((result) => result.check === "SnmpHealth") ?? null;
+
+  // Network Explorer F2 — portas com VLANs cadastradas + MACs aprendidos via
+  // SNMP (MacTableEntry do próprio switch) enriquecidos com ARP/DHCP.
+  const explorer = useObjectQuery(
+    ["switchExplorer", selectedId ?? ""],
+    () => getSwitchExplorer(selectedId as string),
+    { enabled: selectedId !== null },
+  );
+  const vlansByPortId = new Map(
+    (explorer.data?.ports ?? []).map((port) => [port.id, port.vlans]),
+  );
+
+  // Network Explorer F4 — histórico de runs de discovery + gatilho de
+  // varredura completa (todos os providers). Operate no backend.
+  const discoveryRuns = useObjectQuery(
+    ["discoveryRuns", selectedId ?? ""],
+    () => listDiscoveryRuns(selectedId as string),
+    { enabled: selectedId !== null },
+  );
+  const sweepMutation = useCreateMutation({
+    invalidate: ["discoveryRuns", "switchExplorer"],
+    mutationFn: (switchId: string) => runDiscoverySweep(switchId),
+    onSuccess: (data) => {
+      setSyncMessage(
+        data && data.length > 0
+          ? `Discovery concluído: ${data.length} execução(ões) registradas.`
+          : "Discovery concluído.",
+      );
+    },
+    onError: (error) => {
+      setSyncMessage(mutationErrorMessage(error));
+    },
+  });
 
   // Fase 07c — sync de portas UniFi → cadastro (RoleAccess.Operate).
   const syncMutation = useCreateMutation({
@@ -856,9 +889,95 @@ export function SwitchesPage() {
                 {formatPortDuplex(port.duplex)}
               </span>
             )} style={{ width: 90 }} />
+            {/* Explorer F2 — VLANs cadastradas na porta (SwitchPortVlan). */}
+            <Column header="VLANs" body={(port: SwitchPortItem) => {
+              const vlans = vlansByPortId.get(port.id) ?? [];
+              if (vlans.length === 0) return "—";
+              return (
+                <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+                  {vlans.map((vlan) => (
+                    <StatusChip
+                      key={vlan.id}
+                      label={`${vlan.number} ${vlan.name}`}
+                      background="#f5f3ff"
+                      color="#7c3aed"
+                      fontSize={10}
+                    />
+                  ))}
+                </span>
+              );
+            }} style={{ minWidth: 140 }} />
           </DataTablePanel>
         </div>
       )}
+
+      {/* Explorer F2 — MACs aprendidos por este switch via SNMP (tabela MAC),
+          enriquecidos com IP/hostname/VLAN do ARP/DHCP. Vazio = o switch
+          ainda não rodou discovery com provider de tabela MAC — não é erro. */}
+      {explorer.data && explorer.data.learnedMacs.length > 0 && (
+        <div className="uni-panel">
+          <div className="uni-panel-header">
+            <h2>MACs aprendidos (SNMP)</h2>
+          </div>
+          <DataTablePanel
+            panel={false}
+            value={explorer.data.learnedMacs}
+            dataKey={(row: SwitchExplorerMac) => `${row.mac}|${row.bridgePort ?? ""}|${row.seenAt}`}
+            emptyMessage="—"
+          >
+            <Column header="MAC" body={(row: SwitchExplorerMac) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600 }}>{row.mac}</span>
+            )} style={{ minWidth: 140 }} />
+            <Column header="IP" body={(row: SwitchExplorerMac) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.ip ?? "—"}</span>
+            )} style={{ width: 120 }} />
+            <Column header="Hostname" body={(row: SwitchExplorerMac) => row.hostname ?? "—"} style={{ fontSize: 12, color: "#64748b" }} />
+            <Column header="VLAN" body={(row: SwitchExplorerMac) => row.vlan ?? "—"} style={{ fontFamily: "monospace", fontSize: 12, width: 70 }} />
+            <Column header="Porta" body={(row: SwitchExplorerMac) => (
+              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{row.portName ?? row.bridgePort ?? "—"}</span>
+            )} style={{ width: 110 }} />
+            <Column header="Visto em" body={(row: SwitchExplorerMac) => formatDateTime(new Date(row.seenAt))} style={{ fontSize: 12, color: "#64748b", width: 140 }} />
+            <Column header="Idade" body={(row: SwitchExplorerMac) => (row.ageDays === 0 ? "hoje" : `${row.ageDays}d`)} style={{ fontSize: 12, color: "#94a3b8", width: 60 }} />
+          </DataTablePanel>
+        </div>
+      )}
+
+      {/* Network Explorer F4 — discovery: gatilho manual da varredura
+          completa (todos os providers) + histórico de runs com status.
+          Runs alimentam o MAC Explorer / VLAN Explorer / AP Explorer. */}
+      <div className="uni-panel">
+        <div className="uni-panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h2>Discovery</h2>
+          <Button
+            icon="pi pi-search"
+            disabled={sweepMutation.isPending}
+            onClick={() => selectedId && sweepMutation.mutate(selectedId)}
+          >
+            {sweepMutation.isPending ? "Executando…" : "Executar varredura"}
+          </Button>
+        </div>
+        <DataTablePanel
+          panel={false}
+          value={discoveryRuns.data?.items ?? []}
+          dataKey={(row: DiscoveryRunItem) => row.id}
+          emptyMessage="Nenhuma execução de discovery registrada para este switch."
+        >
+          <Column header="Status" body={(row: DiscoveryRunItem) => (
+            <StatusChip
+              label={row.status}
+              background={row.status === "Completed" ? "#dcfce7" : row.status === "Failed" ? "#fee2e2" : "#fef3c7"}
+              color={row.status === "Completed" ? "#16a34a" : row.status === "Failed" ? "#dc2626" : "#d97706"}
+            />
+          )} style={{ width: 110 }} />
+          <Column header="Início" body={(row: DiscoveryRunItem) => formatDateTime(new Date(row.startedAt))} style={{ fontSize: 12, color: "#64748b" }} />
+          <Column header="Fim" body={(row: DiscoveryRunItem) => row.finishedAt ? formatDateTime(new Date(row.finishedAt)) : "—"} style={{ fontSize: 12, color: "#64748b" }} />
+          <Column header="Erro" body={(row: DiscoveryRunItem) => (
+            <span style={{ fontSize: 12, color: "#64748b" }} title={row.errorMessage ?? undefined}>
+              {row.errorMessage ? row.errorMessage.slice(0, 80) : "—"}
+            </span>
+          )} style={{ minWidth: 160 }} />
+        </DataTablePanel>
+      </div>
     </ListPageShell>
   );
 }

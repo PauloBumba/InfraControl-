@@ -64,6 +64,15 @@ public sealed class MonitoringController(ISender sender) : BaseController
 
     // ── CRUD de MonitoringCheck (ADR-030 §1) ──────────────────────────────
 
+    /// <summary>Todos os checks com nome do device — picker do SLO (ADR-068).</summary>
+    [HttpGet("checks")]
+    [Authorize]
+    public async Task<IActionResult> SearchChecks(
+        [FromQuery] string? term,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new SearchMonitoringChecksQuery(term), cancellationToken)));
+
     /// <summary>Uma check por id (ADR-030 §2 — get by id).</summary>
     [HttpGet("checks/{checkId:guid}")]
     [Authorize]
@@ -133,6 +142,22 @@ public sealed class MonitoringController(ISender sender) : BaseController
             cancellationToken)));
 
     /// <summary>
+    /// F54-T001: série de disponibilidade dos checks internos
+    /// (monitoring_results agregados em buckets) — gráfico do dashboard
+    /// independente do Zabbix. Período ≤ 92 dias, ≤ 2000 buckets.
+    /// </summary>
+    [HttpGet("results/availability")]
+    [Authorize]
+    public async Task<IActionResult> GetAvailability(
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] int? bucketMinutes,
+        CancellationToken cancellationToken = default)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new GetMonitoringAvailabilityQuery(fromUtc, toUtc, bucketMinutes),
+            cancellationToken)));
+
+    /// <summary>
     /// F50-T003 — anotação do operador no alerta (única mutação humana
     /// num alerta que nasce do sistema): PUT de substituição.
     /// </summary>
@@ -145,6 +170,27 @@ public sealed class MonitoringController(ISender sender) : BaseController
         => Ok(ApiResponse.Ok(await sender.Send(
             new SetAlertOperatorNoteCommand(id, model.Note),
             cancellationToken)));
+
+    /// <summary>
+    /// Atribui (ou transfere) o responsável pela tratativa do alerta —
+    /// Operate; usuário inexistente → 404 pt-BR.
+    /// </summary>
+    [HttpPost("alerts/{id:guid}/assign")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> AssignAlert(
+        Guid id,
+        [FromBody] AssignAlertViewModel model,
+        CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new AssignAlertCommand(id, model.UserId), cancellationToken)));
+
+    /// <summary>Remove o responsável do alerta.</summary>
+    [HttpPost("alerts/{id:guid}/unassign")]
+    [Authorize(Policy = AuthorizationPolicies.Operate)]
+    public async Task<IActionResult> UnassignAlert(
+        Guid id, CancellationToken cancellationToken)
+        => Ok(ApiResponse.Ok(await sender.Send(
+            new UnassignAlertCommand(id), cancellationToken)));
 
     /// <summary>
     /// F52-T003 — baixa justificada do alerta (padrão ServiceNow):

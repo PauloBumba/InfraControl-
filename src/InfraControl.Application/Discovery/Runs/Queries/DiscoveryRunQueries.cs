@@ -1,3 +1,4 @@
+using InfraControl.Application.Common.Interfaces;
 using InfraControl.Application.Discovery.Runs.Ports;
 using InfraControl.Domain.Enums;
 
@@ -66,5 +67,39 @@ public sealed class GetDiscoveryRunQueryHandler(IDiscoveryRunRepository reposito
             run.StartedAt,
             run.FinishedAt,
             run.ErrorMessage);
+    }
+}
+
+/// <summary>
+/// Network Explorer F4 — lista os providers de discovery registrados
+/// (chave canônica + nome) para a UI saber o que pode ser disparado.
+/// Somente leitura.
+/// </summary>
+public sealed record DiscoveryProviderDto(string Key, string Name);
+
+public sealed record ListDiscoveryProvidersQuery()
+    : IQuery<IReadOnlyList<DiscoveryProviderDto>>, IAuthorizedRequest
+{
+    public IReadOnlyCollection<string> RequiredRoles =>
+        RoleAccess.Read;
+}
+
+public sealed class ListDiscoveryProvidersQueryHandler(
+    IProviderRegistry<IDiscoveryProvider> providers)
+    : IRequestHandler<ListDiscoveryProvidersQuery, IReadOnlyList<DiscoveryProviderDto>>
+{
+    public Task<IReadOnlyList<DiscoveryProviderDto>> Handle(
+        ListDiscoveryProvidersQuery request,
+        CancellationToken cancellationToken)
+    {
+        var all = providers.GetAll();
+        var result = DiscoverySweepProviders.Keys
+            .Where(key => all.Any(p => p.CanHandle(key)))
+            .Select(key => new DiscoveryProviderDto(
+                key,
+                all.First(p => p.CanHandle(key)).Name))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<DiscoveryProviderDto>>(result);
     }
 }

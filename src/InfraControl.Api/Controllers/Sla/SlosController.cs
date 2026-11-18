@@ -46,7 +46,8 @@ public sealed class SlosController(ISender sender) : BaseController
     {
         var result = await sender.Send(
             new CreateSloCommand(
-                model.Name, model.TargetPercent, model.WindowDays, model.ServiceId),
+                model.Name, model.TargetPercent, model.WindowDays, model.ServiceId,
+                model.MonitoringCheckIds),
             cancellationToken);
 
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result));
@@ -61,7 +62,8 @@ public sealed class SlosController(ISender sender) : BaseController
     {
         await sender.Send(
             new UpdateSloCommand(
-                id, model.Name, model.TargetPercent, model.WindowDays, model.ServiceId),
+                id, model.Name, model.TargetPercent, model.WindowDays, model.ServiceId,
+                model.MonitoringCheckIds),
             cancellationToken);
         return NoContent();
     }

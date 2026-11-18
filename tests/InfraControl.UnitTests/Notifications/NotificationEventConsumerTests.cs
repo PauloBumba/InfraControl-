@@ -1051,4 +1051,104 @@ public sealed class NotificationEventConsumerTests : IDisposable
         (await context.NotificationRecipients.AsNoTracking().CountAsync()).Should().Be(2);
         (await context.ProcessedMessages.AsNoTracking().CountAsync()).Should().Be(1);
     }
+
+    // ── Dedup alerta↔incidente (decisão do usuário): a regra por evento
+    // não pode ressuscitar canal excluído por invariante de produto ──
+
+    /// <summary>
+    /// Bug real: regra F42 com "SignalR,WhatsApp" substituía a lista do
+    /// caller e o WhatsApp saía para o alerta COM incidente — o grupo
+    /// recebia "Alerta crítico" + "Incidente aberto" da mesma falha.
+    /// </summary>
+    [Fact]
+    public async Task Consume_AlertCreated_WithIncident_AndWhatsAppRule_ShouldNotQueueWhatsApp()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["SignalR", "Email"],
+            WhatsApp = new WhatsAppChannelOptions { GroupId = "120363431225988863@g.us" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        context.NotificationEventRules.Add(NotificationEventRule.Create(
+            "AlertCreatedDomainEvent", enabled: true, channels: "SignalR,WhatsApp"));
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "op@exemplo.test", "Operador", UserRole.Operator));
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "admin@exemplo.test", "Admin", UserRole.Admin));
+        await context.SaveChangesAsync();
+
+        var domainEvent = new AlertCreatedDomainEvent(
+            Guid.NewGuid(), AlertSeverity.Critical, Guid.NewGuid(),
+            "Device 'sw-01' está fora do ar.", hasIncident: true);
+        var mock = new Mock<ConsumeContext<AlertCreatedDomainEvent>>();
+        mock.SetupGet(c => c.Message).Returns(domainEvent);
+        mock.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
+
+        await consumer.Consume(mock.Object);
+
+        (await context.Notifications.AsNoTracking().CountAsync()).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp))
+            .Should().Be(0, "a regra não pode furar o dedup alerta→incidente");
+    }
+
+    /// <summary>Incidente Low/Medium: regra com WhatsApp não reativa o canal (anti-spam).</summary>
+    [Fact]
+    public async Task Consume_IncidentCreated_LowSeverity_AndWhatsAppRule_ShouldNotQueueWhatsApp()
+    {
+        var channels = new NotificationChannelsOptions
+        {
+            Default = ["SignalR", "Email"],
+            WhatsApp = new WhatsAppChannelOptions { GroupId = "120363431225988863@g.us" },
+        };
+        var (context, consumer) = await CreateAsync(channels);
+        context.NotificationEventRules.Add(NotificationEventRule.Create(
+            "IncidentCreatedDomainEvent", enabled: true, channels: "SignalR,WhatsApp"));
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "op@exemplo.test", "Operador", UserRole.Operator));
+        context.DomainUsers.Add(User.Create(Guid.NewGuid(), "admin@exemplo.test", "Admin", UserRole.Admin));
+        await context.SaveChangesAsync();
+
+        var domainEvent = new IncidentCreatedDomainEvent(
+            Guid.NewGuid(), "sw-01", IncidentSeverity.Low, Guid.NewGuid());
+        var mock = new Mock<ConsumeContext<IncidentCreatedDomainEvent>>();
+        mock.SetupGet(c => c.Message).Returns(domainEvent);
+        mock.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
+
+        await consumer.Consume(mock.Object);
+
+        (await context.Notifications.AsNoTracking().CountAsync()).Should().Be(1);
+        (await context.NotificationDeliveries.AsNoTracking()
+            .CountAsync(d => d.Channel == NotificationChannel.WhatsApp))
+            .Should().Be(0, "severidade baixa não vai ao WhatsApp nem com regra");
+    }
+
+    /// <summary>
+    /// Alerta vinculado a incidente: a resolução é do incidente (mensagem
+    /// canônica) — o "Alerta resolvido" não notifica em canal nenhum,
+    /// senão o gate declararia Resolved antes do IncidentResolved.
+    /// </summary>
+    [Fact]
+    public async Task Consume_AlertResolved_LinkedToIncident_ShouldNotNotify()
+    {
+        var (context, consumer) = await CreateAsync();
+        var location = Location.Create("Sala Dedup");
+        context.Locations.Add(location);
+        await context.SaveChangesAsync();
+        var device = Device.Create(location.Id, "sw-01", DeviceType.Switch, ip: null);
+        context.Devices.Add(device);
+        var alert = Alert.Create(device.Id, CheckKind.Ping, AlertSeverity.Critical, "Queda");
+        context.Alerts.Add(alert);
+        var incident = Incident.Create("Queda", IncidentSeverity.Critical, deviceId: device.Id);
+        context.Incidents.Add(incident);
+        context.IncidentAlerts.Add(IncidentAlert.Create(incident.Id, alert.Id));
+        await context.SaveChangesAsync();
+
+        var domainEvent = new AlertResolvedDomainEvent(alert.Id, "Queda", device.Id);
+        var mock = new Mock<ConsumeContext<AlertResolvedDomainEvent>>();
+        mock.SetupGet(c => c.Message).Returns(domainEvent);
+        mock.SetupGet(c => c.CancellationToken).Returns(CancellationToken.None);
+
+        await consumer.Consume(mock.Object);
+
+        (await context.Notifications.AsNoTracking().CountAsync())
+            .Should().Be(0, "alerta com incidente vinculado não notifica a resolução");
+    }
 }

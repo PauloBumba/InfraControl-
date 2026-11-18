@@ -52,6 +52,7 @@ function makeList(overrides: Partial<AiProviderList> = {}): AiProviderList {
         apiKeySet: true,
         apiKeyMasked: "••••cret",
         models: ["llama3.2", "qwen"],
+        protocol: "Ollama",
       },
     ],
     capabilities: [
@@ -116,6 +117,7 @@ beforeEach(() => {
     apiKeySet: false,
     apiKeyMasked: null,
     models: [],
+    protocol: "OpenAiCompatible",
   });
   setAiProviderActiveMock.mockResolvedValue({
     id: "11111111-1111-1111-1111-111111111111",
@@ -125,6 +127,7 @@ beforeEach(() => {
     apiKeySet: true,
     apiKeyMasked: "••••cret",
     models: ["llama3.2", "qwen"],
+    protocol: "Ollama",
   });
   testAiProviderConnectionMock.mockResolvedValue({ ok: true, error: null });
   validateAiProviderMock.mockResolvedValue({
@@ -149,15 +152,16 @@ describe("AiProvidersPage", () => {
     expect(screen.getByText("Reporting")).toBeInTheDocument();
   });
 
-  it("oferece o form de cadastro com os adaptadores registrados", async () => {
+  it("oferece o form de cadastro com nome livre e protocolos", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: "Cadastrar provider" }));
 
-    const select = await screen.findByRole("combobox", { name: /Adaptador/ });
-    expect(within(select).getByRole("option", { name: "ollama" })).toBeInTheDocument();
-    expect(within(select).getByRole("option", { name: "openai" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("groq")).toBeInTheDocument();
+    const select = await screen.findByRole("combobox", { name: /Protocolo/ });
+    expect(within(select).getByRole("option", { name: /Gemini/ })).toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: /OpenAI-compatible/ })).toBeInTheDocument();
   });
 
   it("cria um provider pelo form (apiKey opcional)", async () => {
@@ -165,10 +169,7 @@ describe("AiProvidersPage", () => {
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: "Cadastrar provider" }));
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: /Adaptador/ }),
-      "openai",
-    );
+    await user.type(screen.getByPlaceholderText("groq"), "openai");
     await user.type(
       screen.getByPlaceholderText("http://ollama:11434"),
       "https://api.openai.com",
@@ -181,6 +182,7 @@ describe("AiProvidersPage", () => {
       baseUrl: "https://api.openai.com",
       apiKey: null,
       models: null,
+      protocol: "OpenAiCompatible",
     });
   });
 
@@ -202,7 +204,7 @@ describe("AiProvidersPage", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByRole("button", { name: "Testar conexão" }));
+    await user.click(await screen.findByRole("button", { name: "Conexão" }));
 
     expect(await screen.findByText("Conexão OK (§13).")).toBeInTheDocument();
     expect(testAiProviderConnectionMock).toHaveBeenCalledWith(
@@ -263,6 +265,7 @@ describe("AiProvidersPage — Listar modelos não polui o form de outro (M3)", (
             apiKeySet: true,
             apiKeyMasked: "••••cret",
             models: ["llama3.2"],
+            protocol: "Ollama",
           },
           {
             id: "99999999-9999-9999-9999-999999999999",
@@ -272,6 +275,7 @@ describe("AiProvidersPage — Listar modelos não polui o form de outro (M3)", (
             apiKeySet: false,
             apiKeyMasked: null,
             models: ["gpt-4o"],
+            protocol: "OpenAiCompatible",
           },
         ],
       }),
@@ -292,7 +296,7 @@ describe("AiProvidersPage — Listar modelos não polui o form de outro (M3)", (
     await user.type(input, "modelos-digitados-em-a");
 
     // "Listar modelos" do provider B NÃO pode sobrescrever o form de A.
-    const listar = screen.getAllByRole("button", { name: "Listar modelos" });
+    const listar = screen.getAllByRole("button", { name: "Modelos" });
     await user.click(listar[1]!);
     await waitFor(() =>
       expect(vi.mocked(listAiProviderModels)).toHaveBeenCalledWith(

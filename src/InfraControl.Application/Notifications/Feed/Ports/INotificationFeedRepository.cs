@@ -23,5 +23,6 @@ public interface INotificationFeedRepository : IRepository<Notification>
         IReadOnlyCollection<string> roles,
         int page,
         int pageSize,
+        bool includeResolved,
         CancellationToken cancellationToken = default);
 }

@@ -169,6 +169,29 @@ public sealed class DeviceConsolidatedStatusQueryTests
         result.Reasons.Should().NotContain(r => r.Contains("Other host down"));
     }
 
+    /// <summary>
+    /// F54: problema Zabbix já recuperado (RecoveryEventId preenchido)
+    /// não degrada o status — mesmo critério do problems endpoint e da
+    /// frota (F54-T001).
+    /// </summary>
+    [Fact]
+    public async Task RecoveredZabbixProblem_IsIgnored()
+    {
+        var result = await Handle(
+            openAlerts: [],
+            reference: Reference(ExternalDeviceSource.Zabbix, "10084"),
+            zabbixHost: CreateZabbixHost("10084", enabled: true),
+            problems:
+            [
+                new ZabbixProblemDto("1", "ICMP ping fail", 5,
+                    DateTime.UtcNow.AddHours(-1), "99", "900", ["sw-core"])
+            ],
+            recentResults: []);
+
+        result.Status.Should().Be("Available");
+        result.Reasons.Should().NotContain(r => r.Contains("ICMP ping fail"));
+    }
+
     [Fact]
     public async Task Degraded_WhenRecentMonitoringFailures()
     {

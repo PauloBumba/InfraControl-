@@ -30,6 +30,7 @@ export function MetricChart({
   height = 220,
   className,
   style,
+  stacked = false,
 }: {
   type: MetricChartType;
   labels: string[];
@@ -48,6 +49,8 @@ export function MetricChart({
   height?: number;
   className?: string;
   style?: CSSProperties;
+  /** Barras empilhadas (datasets compartilham o eixo Y). */
+  stacked?: boolean;
 }) {
   const resolvedDatasets =
     datasets ??
@@ -82,11 +85,13 @@ export function MetricChart({
         ? undefined
         : {
             x: {
+              stacked,
               ticks: { color: "#94a3b8", font: { size: 10 } },
               grid: { color: "#f1f5f9" },
             },
             y: {
               beginAtZero: true,
+              stacked,
               ticks: { color: "#94a3b8", font: { size: 10 }, precision: 0 },
               grid: { color: "#f1f5f9" },
             },

@@ -254,10 +254,11 @@ export function DeviceDetailPage() {
     try {
       const opened = await openGatewaySession(id);
       if (opened) {
-        // Monta a URL no ORIGIN atual (nginx → /guacamole/) — sem senha,
-        // sem config de host no backend (D2/D4).
+        // Deep-link direto na conexão (#/client/{id}) — sem senha, sem
+        // config de host no backend (D2/D4) e sem cair na listagem do
+        // gateway com conexões de outros devices.
         window.open(
-          `${opened.path}?token=${encodeURIComponent(opened.token)}`,
+          `${opened.path}?token=${encodeURIComponent(opened.token)}#/client/${opened.connectionId}`,
           "_blank",
           "noopener",
         );

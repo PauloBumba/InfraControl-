@@ -7,6 +7,7 @@ import {
   type PdiManagerDashboard,
   type PdiManagerPlan,
   type PdiPhaseStatus,
+  type PdiStatus,
 } from "@/services/api/pdi";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { Button } from "@/components/ui/Button";
@@ -194,6 +195,66 @@ export function PdiManagerDashboardPanel({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Distribuição dos planos por status — gráfico de barras horizontal
+ * montado com divs (mesmo padrão visual dos demais painéis, sem lib
+ * de chart). Recebe os planos já carregados pela página.
+ */
+export function PdiStatusChart({
+  plans,
+}: {
+  plans: { status: PdiStatus }[];
+}) {
+  const counts = new Map<string, number>();
+  for (const plan of plans) {
+    counts.set(plan.status, (counts.get(plan.status) ?? 0) + 1);
+  }
+  const rows = [...counts.entries()]
+    .map(([status, count]) => ({
+      status: status as PdiStatus,
+      count,
+      label: PDI_STATUS_LABEL[status as PdiStatus] ?? status,
+      color: PDI_STATUS_STYLE[status as PdiStatus]?.color ?? "#64748b",
+    }))
+    .sort((a, b) => b.count - a.count);
+  const max = Math.max(...rows.map((row) => row.count), 1);
+
+  return (
+    <div
+      style={{
+        background: "white",
+        border: "1px solid #e5e7eb",
+        borderRadius: 8,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 13 }}>Planos por status</div>
+      {rows.map((row) => (
+        <div key={row.status} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 130, fontSize: 11, color: "#64748b", textAlign: "right", flexShrink: 0 }}>
+            {row.label}
+          </span>
+          <div style={{ flex: 1, height: 14, background: "#f1f5f9", borderRadius: 3, overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${(row.count / max) * 100}%`,
+                height: "100%",
+                background: row.color,
+              }}
+            />
+          </div>
+          <span style={{ width: 24, fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
+            {row.count}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

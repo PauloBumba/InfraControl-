@@ -18,7 +18,25 @@ public sealed class SlaPolicy : AggregateRoot
     public int ResolutionMinutes { get; private set; }
     public Guid? ServiceId { get; private set; }
 
+    /// <summary>
+    /// Política padrão global (ServiceId nulo): aplicada automaticamente
+    /// a toda task nova. No máximo uma por vez — o handler limpa as
+    /// demais ao promover uma.
+    /// </summary>
+    public bool IsDefault { get; private set; }
+
     private SlaPolicy() { }
+
+    /// <summary>Marca/desmarca como política padrão (só política global).</summary>
+    public void SetDefault(bool isDefault)
+    {
+        if (isDefault && ServiceId is not null)
+            throw new ArgumentException(
+                "Somente política global (sem serviço) pode ser a padrão.",
+                nameof(isDefault));
+
+        IsDefault = isDefault;
+    }
 
     /// <summary>ADR-030 §5 — exclusão física (handler persiste o Remove).</summary>
     public void Delete() =>

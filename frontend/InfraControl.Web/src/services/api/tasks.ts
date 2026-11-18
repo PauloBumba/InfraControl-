@@ -165,6 +165,9 @@ export interface TaskSla {
   resolutionMinutes: number;
   responseDueAt: string;
   resolutionDueAt: string;
+  /** Instante da violação (null = dentro do prazo). */
+  responseBreachedAt?: string | null;
+  resolutionBreachedAt?: string | null;
 }
 
 /** `TaskSlaPauseDto` (F8-T004) — `endAt` nulo = pausa em curso. */
@@ -491,6 +494,12 @@ export function uploadTaskEvidence(
   form.append("file", file);
   if (note) form.append("note", note);
   return api.post<TaskEvidence>(`/tasks/${taskId}/evidences`, form);
+}
+
+/** URL autenticada para preview inline (img/video) — cookies same-origin. */
+export function taskEvidencePreviewUrl(evidenceId: string): string {
+  const base = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+  return `${base}/tasks/evidences/${evidenceId}/download?inline=true`;
 }
 
 /**

@@ -242,10 +242,16 @@ public sealed class TopologyQueryTests : IDisposable
         ghost.Port.Should().Be("Gi0/8");
         ghost.Ip.Should().BeNull();
         ghost.Status.Should().BeNull();
+        ghost.Layer.Should().BeNull("ghost é externo — fora da hierarquia calculada");
 
         var edge = result.Edges.Should().ContainSingle(e => e.IsGhost).Subject;
         edge.SourceInterfaceId.Should().Be(nic);
         edge.TargetInterfaceId.Should().Be(findingId);
+        edge.SourceInterfaceName.Should().Be("Gi0/1", "ponta local real expõe a porta");
+        edge.Source.Should().BeNull(
+            "ghost não é Connection persistida — sem origem inventada");
+        edge.Confidence.Should().BeNull();
+        edge.SourceSpeed.Should().BeNull("sem SwitchPort casado não inventar metadado");
     }
 
     [Fact]
@@ -309,5 +315,170 @@ public sealed class TopologyQueryTests : IDisposable
 
         result.Nodes.Should().NotContain(n => n.IsGhost);
         result.Edges.Should().NotContain(e => e.IsGhost);
+    }
+
+    // ── F53-T002: hierarquia (layer) + metadados de aresta ───────────────
+
+    private static int? LayerOf(TopologyDto result, Guid interfaceId)
+        => result.Nodes.Single(node => node.Id == interfaceId).Layer;
+
+    private static async Task SeedPortWithVlanAsync(
+        AppDbContext context,
+        Guid deviceId,
+        string portName,
+        int vlanNumber,
+        string vlanName)
+    {
+        var port = SwitchPort.Create(deviceId, portName);
+        port.Observe(
+            linkUp: true, speed: SwitchPortSpeed.Speed1G, duplex: SwitchPortDuplex.Full);
+        context.SwitchPorts.Add(port);
+
+        var vlan = Vlan.Create(vlanName, vlanNumber);
+        context.Vlans.Add(vlan);
+        await context.SaveChangesAsync();
+
+        context.SwitchPortVlans.Add(SwitchPortVlan.Create(port.Id, vlan.Id));
+        await context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Graph_ShouldLayerDevicesByBfsFromRouterAndFirewallRoots()
+    {
+        // F53-T002: hierarquia automática pelo grafo — BFS multi-source a
+        // partir de Router/Firewall sobre as Connections REAIS, sem campo
+        // de tier. Camadas 1-based; sem caminho até raiz → null.
+        await using var context = await CreateContextAsync();
+        var fw = await SeedDeviceAsync(context, "fw-01", "192.0.2.1", DeviceType.Firewall);
+        var core = await SeedDeviceAsync(context, "sw-core", "192.0.2.2");
+        var access = await SeedDeviceAsync(context, "sw-access", "192.0.2.3");
+        var srv = await SeedDeviceAsync(context, "srv-01", "192.0.2.4", DeviceType.Server);
+        var isolated = await SeedDeviceAsync(context, "sw-iso", "192.0.2.5");
+
+        var fwNic = await SeedInterfaceAsync(context, fw, "eth0");
+        var coreNic = await SeedInterfaceAsync(context, core, "Gi0/1");
+        var accessNic = await SeedInterfaceAsync(context, access, "Gi0/1");
+        var srvNic = await SeedInterfaceAsync(context, srv, "eth0");
+        var isolatedNic = await SeedInterfaceAsync(context, isolated, "Gi0/1");
+
+        context.Connections.Add(Connection.Create(fwNic, coreNic));
+        context.Connections.Add(Connection.Create(coreNic, accessNic));
+        context.Connections.Add(Connection.Create(accessNic, srvNic));
+        await context.SaveChangesAsync();
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        LayerOf(result, fwNic).Should().Be(1, "firewall é raiz");
+        LayerOf(result, coreNic).Should().Be(2);
+        LayerOf(result, accessNic).Should().Be(3);
+        LayerOf(result, srvNic).Should().Be(4);
+        LayerOf(result, isolatedNic).Should().BeNull(
+            "dispositivo sem caminho até Router/Firewall não ganha camada");
+    }
+
+    [Fact]
+    public async Task Graph_MultipleRoots_ShouldKeepRootsAtLayer1AndNeighborsAtLayer2()
+    {
+        // Firewall e Router são raízes simultâneas (ambos layer 1); o switch
+        // atrás do router entra na layer 2 — BFS dá a menor distância.
+        await using var context = await CreateContextAsync();
+        var fw = await SeedDeviceAsync(context, "fw-01", type: DeviceType.Firewall);
+        var rtr = await SeedDeviceAsync(context, "rtr-01", type: DeviceType.Router);
+        var sw = await SeedDeviceAsync(context, "sw-01");
+
+        var fwNic = await SeedInterfaceAsync(context, fw, "eth0");
+        var rtrNic = await SeedInterfaceAsync(context, rtr, "eth0");
+        var swNic = await SeedInterfaceAsync(context, sw, "Gi0/1");
+
+        context.Connections.Add(Connection.Create(fwNic, rtrNic));
+        context.Connections.Add(Connection.Create(rtrNic, swNic));
+        await context.SaveChangesAsync();
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        LayerOf(result, fwNic).Should().Be(1);
+        LayerOf(result, rtrNic).Should().Be(1, "Router também é raiz");
+        LayerOf(result, swNic).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Graph_WithoutRouterOrFirewallRoots_ShouldLeaveLayersNull()
+    {
+        // Sem nenhuma raiz tipada não há hierarquia para calcular — camada
+        // null em todo node (a UI trata como "sem camada", nunca inventa).
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        var srv = await SeedDeviceAsync(context, "srv-01", type: DeviceType.Server);
+        var swNic = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var srvNic = await SeedInterfaceAsync(context, srv, "eth0");
+        context.Connections.Add(Connection.Create(swNic, srvNic));
+        await context.SaveChangesAsync();
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        result.Nodes.Should().OnlyContain(node => node.Layer == null);
+    }
+
+    [Fact]
+    public async Task Graph_Edge_ShouldExposePortNamesAndOriginLowercase()
+    {
+        // F53-T002: aresta expõe as pontas (nomes das interfaces), a
+        // origem/confiança em minúsculas (F53-T001) e NÃO inventa
+        // velocidade/VLAN quando não há SwitchPort casado.
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        var srv = await SeedDeviceAsync(context, "srv-01", type: DeviceType.Server);
+        var swNic = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var srvNic = await SeedInterfaceAsync(context, srv, "eth0");
+        context.Connections.Add(Connection.Create(
+            swNic, srvNic, ConnectionSource.Lldp, ConnectionConfidence.Confirmed));
+        await context.SaveChangesAsync();
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        var edge = result.Edges.Should().ContainSingle().Subject;
+        edge.SourceInterfaceName.Should().Be("Gi0/1");
+        edge.TargetInterfaceName.Should().Be("eth0");
+        edge.Source.Should().Be("lldp");
+        edge.Confidence.Should().Be("confirmed");
+        edge.SourceSpeed.Should().BeNull("sem SwitchPort casado não inventar velocidade");
+        edge.SourceDuplex.Should().BeNull();
+        edge.SourceVlans.Should().BeNull("sem SwitchPort casado não inventar VLAN");
+        edge.TargetVlans.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Graph_Edge_WithMatchingSwitchPort_ShouldExposeSpeedDuplexAndVlans()
+    {
+        // SwitchPort casa com a interface por NOME case-insensitive
+        // (mesmo índice LOWER(name) do cadastro de portas).
+        await using var context = await CreateContextAsync();
+        var sw = await SeedDeviceAsync(context, "sw-01");
+        var srv = await SeedDeviceAsync(context, "srv-01", type: DeviceType.Server);
+        var swNic = await SeedInterfaceAsync(context, sw, "Gi0/1");
+        var srvNic = await SeedInterfaceAsync(context, srv, "eth0");
+        await SeedPortWithVlanAsync(context, sw, "gi0/1", vlanNumber: 100, vlanName: "Voz");
+        context.Connections.Add(Connection.Create(swNic, srvNic));
+        await context.SaveChangesAsync();
+
+        var result = await Handler(context).Handle(
+            new GetTopologyQuery(), CancellationToken.None);
+
+        var edge = result.Edges.Should().ContainSingle().Subject;
+        edge.SourceSpeed.Should().Be(SwitchPortSpeed.Speed1G);
+        edge.SourceDuplex.Should().Be(SwitchPortDuplex.Full);
+        var vlan = edge.SourceVlans.Should().ContainSingle().Subject;
+        vlan.Number.Should().Be(100);
+        vlan.Name.Should().Be("Voz");
+        edge.Source.Should().Be("manual", "CRUD manual grava manual/confirmed");
+        edge.Confidence.Should().Be("confirmed");
+
+        edge.TargetSpeed.Should().BeNull("o outro lado não tem SwitchPort");
+        edge.TargetDuplex.Should().BeNull();
+        edge.TargetVlans.Should().BeNull();
     }
 }

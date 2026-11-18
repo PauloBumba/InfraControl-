@@ -7,6 +7,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { Button } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
+import { DeliveryStatsCharts } from "@/components/notifications/DeliveryStatsCharts";
 import { mutationErrorMessage } from "@/hooks/queries";
 import { formatDateTime } from "@/utils/format";
 import {
@@ -250,24 +251,18 @@ export function EmailSettingsPage() {
         {test.isPending && !testResult && (
           <div style={{ fontSize: 12, color: "#64748b" }}>Enviando e-mail de teste…</div>
         )}
-        {testResult && (
-          <div
-            role="status"
-            style={{
-              padding: "10px 12px",
-              borderRadius: 6,
-              marginBottom: 10,
-              fontSize: 12,
-              background: testResult.ok ? "#f0fdf4" : "#fef2f2",
-              color: testResult.ok ? "#15803d" : "#b91c1c",
-              border: `1px solid ${testResult.ok ? "#bbf7d0" : "#fecaca"}`,
-            }}
-          >
-            {testResult.ok
-              ? "E-mail de teste enviado com sucesso — confira a caixa de entrada do remetente."
-              : `Falha: ${testResult.error ?? "erro desconhecido"}`}
-          </div>
-        )}
+        {testResult &&
+          (testResult.ok ? (
+            <NoticeBanner
+              message="E-mail de teste enviado com sucesso — confira a caixa de entrada do remetente."
+              style={{ marginBottom: 10, border: "1px solid #bbf7d0" }}
+            />
+          ) : (
+            <ErrorBanner
+              message={`Falha: ${testResult.error ?? "erro desconhecido"}`}
+              style={{ marginBottom: 10, border: "1px solid #fecaca" }}
+            />
+          ))}
         <div
           style={{
             display: "grid",
@@ -325,6 +320,13 @@ export function EmailSettingsPage() {
             Último erro: {settings.lastTestError}
           </div>
         )}
+      </div>
+
+      <div className="uni-panel" style={{ padding: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          Entregas de e-mail — últimos 14 dias
+        </div>
+        <DeliveryStatsCharts channel="Email" days={14} />
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ public sealed record SearchCameraNvrMappingsQuery(
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
+    public override IReadOnlyCollection<string> CacheTags => ["camera-nvr-mappings"];
 }
 
 public sealed class SearchCameraNvrMappingsQueryHandler(
@@ -53,6 +54,7 @@ public sealed record GetCameraNvrMappingQuery(Guid Id)
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Read;
+    public override IReadOnlyCollection<string> CacheTags => ["camera-nvr-mappings"];
 }
 
 public sealed class GetCameraNvrMappingQueryHandler(

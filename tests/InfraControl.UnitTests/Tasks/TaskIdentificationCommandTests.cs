@@ -249,7 +249,9 @@ public sealed class TaskIdentificationCommandTests : IDisposable
         var create = new CreateTaskCommandHandler(
             TaskRepo(context), AssigneeRepo(context), history,
             new FakeCurrentUser(Guid.NewGuid()),
-            NullLogger<CreateTaskCommandHandler>.Instance);
+                        new SlaPolicyRepository(context),
+                        new TaskSlaRepository(context),
+                        NullLogger<CreateTaskCommandHandler>.Instance);
         var due = new DateOnly(2026, 12, 1);
 
         var dto = await create.Handle(
@@ -277,7 +279,9 @@ public sealed class TaskIdentificationCommandTests : IDisposable
             TaskRepo(context), AssigneeRepo(context),
             new RecordingTaskHistoryWriter(),
             new FakeCurrentUser(Guid.NewGuid()),
-            NullLogger<CreateTaskCommandHandler>.Instance);
+                        new SlaPolicyRepository(context),
+                        new TaskSlaRepository(context),
+                        NullLogger<CreateTaskCommandHandler>.Instance);
 
         var action = () => create.Handle(
             new CreateTaskCommand("t", "Manual", ResponsibleId: unknownUser),

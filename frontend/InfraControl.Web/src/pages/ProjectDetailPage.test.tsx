@@ -46,6 +46,8 @@ vi.mock("@/services/api/projects", () => ({
   reviewProjectEvidence: vi.fn(),
   submitProjectConclusion: vi.fn(),
   submitProjectForApproval: vi.fn(),
+  setProjectPhaseStatus: vi.fn(),
+  transitionProjectStatus: vi.fn(),
   updateProject: vi.fn(),
   updateProjectImpediment: vi.fn(),
   uploadProjectEvidence: vi.fn(),
@@ -85,7 +87,7 @@ const project: ProjectItem = {
   actualStartDate: null,
   actualEndDate: null,
   members: [{ userId: "member-1", role: "Member" }],
-  createdById: "creator-1",
+  createdById: "user-1",
 };
 
 const impediment: ProjectImpedimentItem = {

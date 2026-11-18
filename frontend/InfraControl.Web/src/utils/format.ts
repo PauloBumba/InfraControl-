@@ -1,12 +1,46 @@
+/** Toda exibição de data/hora da plataforma é no fuso do Brasil. */
+export const BRAZIL_TIME_ZONE = "America/Sao_Paulo";
+
+function toDate(value: string | number | Date | null | undefined): Date | null {
+  if (value == null || value === "") return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("pt-BR").format(date);
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: BRAZIL_TIME_ZONE }).format(date);
 }
 
 export function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: BRAZIL_TIME_ZONE,
   }).format(date);
+}
+
+/** Data+hora em pt-BR no fuso do Brasil; null/inválido ⇒ "—". */
+export function formatDateTimeBR(value: string | number | Date | null | undefined): string {
+  const date = toDate(value);
+  return date ? formatDateTime(date) : "—";
+}
+
+/** Só a data em pt-BR no fuso do Brasil; null/inválido ⇒ "—". */
+export function formatDateBR(value: string | number | Date | null | undefined): string {
+  const date = toDate(value);
+  return date ? formatDate(date) : "—";
+}
+
+/** Só a hora (HH:mm) no fuso do Brasil; null/inválido ⇒ "—". */
+export function formatTimeBR(value: string | number | Date | null | undefined): string {
+  const date = toDate(value);
+  return date
+    ? new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: BRAZIL_TIME_ZONE,
+      }).format(date)
+    : "—";
 }
 
 /**

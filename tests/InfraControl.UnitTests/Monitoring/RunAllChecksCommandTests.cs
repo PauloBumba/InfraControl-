@@ -160,6 +160,18 @@ public sealed class RunAllChecksCommandTests : IDisposable
             DateTime fromUtc, DateTime toUtc,
             CancellationToken cancellationToken = default)
             => inner.GetPollCountsByHourAsync(fromUtc, toUtc, cancellationToken);
+
+        public Task<IReadOnlyList<MonitoringResult>> GetRecentAsync(
+            int limit, CancellationToken cancellationToken = default)
+            => inner.GetRecentAsync(limit, cancellationToken);
+
+        public Task<IReadOnlyList<MonitoringAvailabilityCell>> GetAvailabilityCellsAsync(
+            DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+            => inner.GetAvailabilityCellsAsync(fromUtc, toUtc, cancellationToken);
+
+        public Task<IReadOnlyList<DeviceKindPollCount>> GetSuccessCountsByDeviceKindAsync(
+            DateTime sinceUtc, CancellationToken cancellationToken = default)
+            => inner.GetSuccessCountsByDeviceKindAsync(sinceUtc, cancellationToken);
     }
 
     private static RunAllChecksCommandHandler Handler(

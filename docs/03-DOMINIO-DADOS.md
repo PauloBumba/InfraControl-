@@ -97,9 +97,28 @@ Conexão entre duas interfaces — `SourceInterfaceId` → `TargetInterfaceId`
 - Única restrição: self-loop (mesma interface nas duas pontas) → 400.
   Duas interfaces do mesmo device são permitidas.
 - FKs Restrict: excluir interface com conexão → 409 no handler.
+- Origem/confiança da informação (F53-T001, spec 11.7): colunas `source`
+  (`manual | lldp | cdp | unifi | unknown`) e `confidence`
+  (`confirmed | estimated | unknown`), gravadas em **minúsculas** no banco
+  e no DTO (casing igual ao UniFi live — `lldp`/`confirmed`). CRUD manual
+  grava `manual`/`confirmed`; o PUT (reapontar) volta para
+  `manual`/`confirmed` (spec 11.3 — ajuste manual é configuração manual);
+  ingestão LLDP/CDP grava a origem do achado com `confirmed`; linhas
+  legadas (migração `AddConnectionOrigin`) → `unknown`/`unknown`;
+  `estimated` está reservado para inferências futuras. O UniFi **não**
+  persiste origem — fica só como indicação live (REGRA 8/ADR-028).
 - Ingestão automática a partir de achados Neighbor (LLDP/CDP):
   concluída em F3-T005b — gatilho no fim do run de discovery, casamento
   por NOME via atributo `local_if_name` (detalhes em docs/09).
+- Grafo de topologia (`GetTopology`, F53-T002): cada aresta expõe as
+  pontas enriquecidas por SwitchPort casada por **nome** (device + nome em
+  minúsculas): nome da interface, speed/duplex e VLANs da porta
+  (`SwitchPortVlan`); ponta sem porta casada → speed/duplex/VLANs `null`
+  (porta casada sem VLAN cadastrada → lista vazia). Aresta fantasma
+  (desenhada sem Connection persistida) não tem origem/confiança (`null`).
+  O `layer` de cada node é calculado por BFS multi-raiz a partir de
+  devices Router/Firewall sobre as Connections não-fantasma (1 = raiz);
+  device sem caminho até uma raiz → `layer` `null` (fora da hierarquia).
 
 PostgreSQL é a fonte da verdade.
 

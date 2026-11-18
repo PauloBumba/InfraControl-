@@ -207,6 +207,24 @@ public sealed class Invitation : AggregateRoot
         RaiseDomainEvent(new InvitationUpdatedDomainEvent(Id, Status));
     }
 
+    /// <summary>
+    /// Reemissão de token para convite pendente (reenviar e-mail / copiar
+    /// link): o token trafega em claro só no envio — o banco guarda apenas o
+    /// hash, então reenviar exige rotacionar. O link anterior morre.
+    /// </summary>
+    public void RotateToken(string tokenHash)
+    {
+        if (Status != InvitationStatus.Pending)
+            throw new InvalidOperationException($"Apenas convites pendentes podem ser reenviados (atual: {Status}).");
+
+        if (IsExpired(AppTimeProvider.Current.GetUtcNow().UtcDateTime))
+            throw new InvalidOperationException("O convite expirou. Cancele e crie um novo.");
+
+        TokenHash = RequireTokenHash(tokenHash);
+        Touch();
+        RaiseDomainEvent(new InvitationUpdatedDomainEvent(Id, Status));
+    }
+
     public void Cancel()
     {
         if (Status != InvitationStatus.Pending)

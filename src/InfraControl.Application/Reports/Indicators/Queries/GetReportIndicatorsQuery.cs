@@ -16,6 +16,7 @@ public sealed record GetReportIndicatorsQuery(
     : BaseQuery<ReportIndicatorsDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Administer;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetReportIndicatorsQueryHandler(

@@ -7,7 +7,7 @@ namespace InfraControl.Application.Reports.Transversal.Queries;
 
 /// <summary>
 /// Relatório transversal (ADR-049) — agregado de cima dos 5 módulos.
-/// <c>BaseQuery</c> (cacheável via CachingBehavior/CacheKeyBuilder, 5 min) e
+/// <c>BaseQuery</c> (cacheável via CachingBehavior/CacheKeyBuilder, 60 s) e
 /// <c>Operate</c> (ADR-030): o snapshot é agregado global de operações — o
 /// Operator do Centro de Operações vê as contagens; não expõe registro
 /// pessoal por usuário (isso fica nos dashboards por vertical).
@@ -18,6 +18,7 @@ public sealed record GetTransversalReportQuery(
     : BaseQuery<TransversalReportDto>, IAuthorizedRequest
 {
     public IReadOnlyCollection<string> RequiredRoles => RoleAccess.Operate;
+    public override TimeSpan? CacheDuration => TimeSpan.FromSeconds(60);
 }
 
 public sealed class GetTransversalReportQueryHandler(IReportRepository reports)

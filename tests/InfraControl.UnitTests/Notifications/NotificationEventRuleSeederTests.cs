@@ -44,6 +44,12 @@ public sealed class NotificationEventRuleSeederTests : IDisposable
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => context.SaveChangesAsync(cancellationToken);
 
+        public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         public void Dispose()
         {
         }
@@ -61,6 +67,7 @@ public sealed class NotificationEventRuleSeederTests : IDisposable
         rules.Select(r => r.EventType).Should().BeEquivalentTo(new[]
         {
             nameof(TaskResolvedDomainEvent),
+            nameof(TaskSlaBreachedDomainEvent),
             nameof(ProjectStatusChangedDomainEvent),
         });
         rules.Should().OnlyContain(r => r.Enabled);
@@ -77,7 +84,7 @@ public sealed class NotificationEventRuleSeederTests : IDisposable
         await seeder.SeedAsync();
 
         var count = await context.NotificationEventRules.CountAsync();
-        count.Should().Be(2);
+        count.Should().Be(3);
     }
 
     [Fact]

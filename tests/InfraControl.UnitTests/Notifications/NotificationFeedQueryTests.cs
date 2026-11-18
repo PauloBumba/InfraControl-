@@ -172,6 +172,36 @@ public sealed class NotificationFeedQueryTests : IDisposable
     }
 
     [Fact]
+    public async Task Feed_Default_ShouldExcludeResolvedEvents_AndIncludeThemOnDemand()
+    {
+        await using var context = await CreateContextAsync();
+        var me = Guid.NewGuid();
+
+        var aberta = Notification.Create(
+            Guid.NewGuid(), "IncidentCreatedDomainEvent", "Incidente aberto", "Msg.");
+        var resolvida = Notification.Create(
+            Guid.NewGuid(), "IncidentResolvedDomainEvent", "Incidente resolvido", "Msg.");
+        context.Notifications.AddRange(aberta, resolvida);
+        await context.SaveChangesAsync();
+        context.NotificationRecipients.Add(
+            NotificationRecipient.CreateForUser(aberta.Id, me));
+        context.NotificationRecipients.Add(
+            NotificationRecipient.CreateForUser(resolvida.Id, me));
+        await context.SaveChangesAsync();
+
+        var handler = Handler(context, new FakeCurrentUser(me));
+
+        var padrao = await handler.Handle(
+            new GetNotificationFeedQuery(), CancellationToken.None);
+        padrao.TotalCount.Should().Be(1);
+        padrao.Items.Single().Title.Should().Be("Incidente aberto");
+
+        var todas = await handler.Handle(
+            new GetNotificationFeedQuery(IncludeResolved: true), CancellationToken.None);
+        todas.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Feed_WithoutCurrentUser_ShouldThrowUnauthorizedPtBr()
     {
         await using var context = await CreateContextAsync();

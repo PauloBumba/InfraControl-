@@ -12,6 +12,7 @@ namespace InfraControl.Domain.Entities;
 public sealed class NotificationDelivery : Entity
 {
     public const int LastErrorMaxLength = 500;
+    public const int SuppressionReasonMaxLength = 500;
 
     public Guid NotificationId { get; private set; }
     public Guid UserId { get; private set; }
@@ -29,13 +30,20 @@ public sealed class NotificationDelivery : Entity
     /// </summary>
     public DateTime? NextAttemptAt { get; private set; }
 
+    /// <summary>
+    /// Motivo da supressão quando <see cref="Status"/> = Suppressed
+    /// (anti-flapping, manutenção, rate-limit). Nulo nos demais estados.
+    /// </summary>
+    public string? SuppressionReason { get; private set; }
+
     private NotificationDelivery() { }
 
     public static NotificationDelivery Create(
         Guid notificationId,
         Guid userId,
         NotificationChannel channel,
-        DeliveryStatus status = DeliveryStatus.Pending)
+        DeliveryStatus status = DeliveryStatus.Pending,
+        DateTime? availableAtUtc = null)
     {
         if (notificationId == Guid.Empty)
             throw new ArgumentException(
@@ -57,7 +65,10 @@ public sealed class NotificationDelivery : Entity
             NotificationId = notificationId,
             UserId = userId,
             Channel = channel,
-            Status = status
+            Status = status,
+            // Janela de estabilização (anti-flapping): Pending com
+            // NextAttemptAt futuro = agendada, ainda não enviável.
+            NextAttemptAt = availableAtUtc
         };
     }
 
@@ -87,11 +98,28 @@ public sealed class NotificationDelivery : Entity
     /// </summary>
     public void Cancel()
     {
-        if (Status is DeliveryStatus.Sent or DeliveryStatus.Cancelled)
+        if (Status is DeliveryStatus.Sent or DeliveryStatus.Cancelled
+            or DeliveryStatus.Suppressed)
             return;
 
         Status = DeliveryStatus.Cancelled;
         NextAttemptAt = null;
+    }
+
+    /// <summary>
+    /// Suprime a entrega sem enviar (proteção anti-flapping §6,
+    /// manutenção, rate-limit): fica registrada com o motivo para
+    /// auditoria — nunca volta à fila.
+    /// </summary>
+    public void MarkSuppressed(string reason)
+    {
+        Status = DeliveryStatus.Suppressed;
+        NextAttemptAt = null;
+
+        var trimmed = reason.Trim();
+        SuppressionReason = trimmed.Length > SuppressionReasonMaxLength
+            ? trimmed[..SuppressionReasonMaxLength]
+            : trimmed;
     }
 
     public void MarkSent(DateTime sentAt)
@@ -127,6 +155,22 @@ public sealed class NotificationDelivery : Entity
 
         var factor = 1L << (AttemptCount - 1);
         NextAttemptAt = now + TimeSpan.FromTicks(backoff.Ticks * factor);
+    }
+
+    /// <summary>
+    /// F55-T005: requeue seguro de uma delivery Failed (retry agendado ou
+    /// DLQ) de volta para Pending com NextAttemptAt=agora — o worker do
+    /// canal reenvia respeitando idempotência do canal. AttemptCount e
+    /// LastError são preservados como histórico; não cria delivery nova.
+    /// </summary>
+    public void RequeueForReplay(DateTime now)
+    {
+        if (Status != DeliveryStatus.Failed)
+            throw new InvalidOperationException(
+                $"Apenas deliveries Failed podem ser reprocessadas (estado atual: {Status}).");
+
+        Status = DeliveryStatus.Pending;
+        NextAttemptAt = now;
     }
 
     public void MarkFailed(string error)

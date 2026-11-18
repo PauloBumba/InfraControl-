@@ -24,6 +24,7 @@ internal static class RemoteSessionFlow
         new(
             session.Id,
             session.UserId,
+            UserName: null, // comandos não resolvem nome — a listagem sim
             session.Protocol.ToString(),
             session.Status.ToString(),
             session.FailureReason,

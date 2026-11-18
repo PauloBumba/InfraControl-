@@ -6,15 +6,23 @@ using Microsoft.Extensions.Options;
 namespace InfraControl.Infrastructure.Monitoring;
 
 /// <summary>
-/// Walk SNMPv2c real via Lextm.SharpSnmpLib (F5-T004). Falhas de rede viram
+/// Walk SNMP real via Lextm.SharpSnmpLib (F5-T004). Falhas de rede viram
 /// exceção — o provider as converte em erro pt-BR.
 /// </summary>
 public sealed class SharpSnmpSnmpClient(IOptions<SnmpOptions> options) : ISnmpClient
 {
+    public Task<IReadOnlyList<SnmpVariable>> WalkAsync(
+        string target,
+        string oid,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+        => WalkAsync(target, oid, timeout, SnmpVersion.V2c, cancellationToken);
+
     public async Task<IReadOnlyList<SnmpVariable>> WalkAsync(
         string target,
         string oid,
         TimeSpan timeout,
+        SnmpVersion version,
         CancellationToken cancellationToken = default)
     {
         if (!IPAddress.TryParse(target, out var address))
@@ -31,7 +39,7 @@ public sealed class SharpSnmpSnmpClient(IOptions<SnmpOptions> options) : ISnmpCl
         timeoutSource.CancelAfter(timeout);
 
         await Messenger.WalkAsync(
-            VersionCode.V2,
+            version == SnmpVersion.V1 ? VersionCode.V1 : VersionCode.V2,
             endpoint,
             community,
             table,

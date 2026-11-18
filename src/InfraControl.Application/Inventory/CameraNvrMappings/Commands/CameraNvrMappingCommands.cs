@@ -20,6 +20,7 @@ public sealed record CreateCameraNvrMappingCommand(
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["camera-nvr-mappings"];
 }
 
 public sealed class CreateCameraNvrMappingCommandHandler(
@@ -70,6 +71,7 @@ public sealed record UpdateCameraNvrMappingCommand(
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["camera-nvr-mappings"];
 }
 
 public sealed class UpdateCameraNvrMappingCommandHandler(
@@ -115,6 +117,7 @@ public sealed record DeleteCameraNvrMappingCommand(Guid Id)
 {
     public IReadOnlyCollection<string> RequiredRoles =>
         RoleAccess.Operate;
+    public override IReadOnlyCollection<string> CacheKeysToInvalidate => ["camera-nvr-mappings"];
 }
 
 public sealed class DeleteCameraNvrMappingCommandHandler(
