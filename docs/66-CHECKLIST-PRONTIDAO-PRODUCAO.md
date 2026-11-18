@@ -292,6 +292,33 @@ Notas:
 4. **[x] D3/D5/D6/D7** — corrigidos e revalidados 2026-11-08 (§2).
 5. Segredos de produção gerados (§4.3) + grep de segredos.
 6. Smoke do Google login no ambiente real (§3/§7).
-7. Backup + restore executados uma vez de ponta a ponta (§4.1).
+7. **[x] Backup + restore executados uma vez de ponta a ponta (§4.1)** —
+   evidência cronometrada 2026-11-18 (§10): dump real de 101 MB em 96 s;
+   `pg_restore` em banco scratch em 100 s, exit 0, 124 tabelas e contagens
+   conferidas.
 8. Itens de produto do usuário (Fase 50 F4/F5/F6 + F2 smoke) concluídos ou
    explicitamente adiados pelo dono.
+
+---
+
+## 10. Evidência de validação — merge + suprimentos (2026-11-18)
+
+Validação executada nesta data sobre o merge `5764ac2e` (origin/main → main,
+ADR-068/069/070 + F53–F55 upstream + Fase 59 suprimentos de impressora):
+
+| Item | Evidência |
+| --- | --- |
+| Merge/conflitos | 16 arquivos resolvidos de forma aditiva; 0 marcadores; commit `5764ac2e` pushed |
+| Build | `dotnet build` Release — 0 erros |
+| Testes unitários | 3595/3595; arquitetura 195/195; providers de impressora 61/61 |
+| Testes de integração | Sla 37/37 após registro de `ISloCheckBindingRepository`; demais falhas = flake Testcontainers no dispose |
+| Migrations | 14 pendentes aplicadas incl. `AddNotificationCorrelationAndPolicy`; `dotnet ef database update` → "no changes"; workers não quebram mais com `AssignedToId` |
+| Containers | api/workers/frontend healthy após rebuild |
+| `/health` | agregado 200/**Degraded** — única degradação `ai-runtime` (ollama inalcançável, estado documentado §5/D7); postgres/redis/bus/outbox/serviços Healthy |
+| Grep de segredos | `docker-compose.production.yml` exige todas as senhas via `${VAR:?}`; apenas placeholders `.example`; senha SMTP não versionada |
+| Impressoras (Fase 59) | SNMPv1 + índice composto + fallback cilindro all-in-one; ao vivo: toner/cilindro/status/contadores reais nas 37 impressoras (Canon iR1643i/C3326, HP 408dn/432fdn, Epson sem cilindro → "—") |
+
+| Backup + restore cronometrado | ✅ dump `infracontrol-20261118-115303.dump` (101 115 670 B) gerado pelo BackupWorker em **95,9 s**; restore `pg_restore --no-owner --exit-on-error` em banco scratch `infracontrol_restore_evidence` em **100 s**, RC=0; 124 tabelas idênticas, `monitoring_results` ~2.36 M linhas, `AspNetUsers`=1, `monitoring_checks`=408; scratch dropado após verificação |
+
+**Go/no-go ainda abertos** (inalterados): segredos de produção gerados por
+ambiente, smoke do Google login em prod, SLO de latência por endpoint.
